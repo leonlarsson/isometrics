@@ -1,136 +1,14 @@
-import { newId, useEditor } from "#/editor/store";
+import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import type { TScenePath, TThemePreference } from "#/scene/schema";
+import { roadColor } from "#/render/RoadMesh";
+import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import type { TDrivingSide, TThemePreference } from "#/scene/schema";
 import { TEMPLATES } from "#/templates";
 
-import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
+import { ColorField, Section, Select, SliderField, TextInput } from "./fields";
 import { Icon } from "./Icon";
 
 import styles from "./Fields.module.css";
-
-const RouteEditor = ({ path }: { path: TScenePath }) => {
-	const commit = useEditor((s) => s.commit);
-	const update = (field: string, recipe: (p: TScenePath) => void) =>
-		commit(
-			(scene) => {
-				const target = scene.paths.find((p) => p.id === path.id);
-				if (target) {
-					recipe(target);
-				}
-			},
-			{ coalesce: `path:${path.id}:${field}` },
-		);
-	const remove = () =>
-		commit((scene) => {
-			scene.paths = scene.paths.filter((p) => p.id !== path.id);
-			for (const entity of scene.entities) {
-				if (entity.follow?.pathId === path.id) {
-					entity.follow = null;
-				}
-			}
-		});
-
-	return (
-		<div className={styles.route}>
-			<div className={styles.routeHeader}>
-				<input
-					className={styles.input}
-					aria-label="Route name"
-					value={path.name}
-					placeholder="Route name"
-					onChange={(e) =>
-						update("name", (p) => {
-							p.name = e.target.value;
-						})
-					}
-				/>
-
-				<button type="button" className={styles.iconButton} title="Delete route" onClick={remove}>
-					<Icon name="trash" size={15} />
-				</button>
-			</div>
-
-			<div className={styles.toggleRow}>
-				<Toggle
-					label="Loop"
-					checked={path.closed}
-					onChange={(v) =>
-						update("closed", (p) => {
-							p.closed = v;
-						})
-					}
-				/>
-
-				<Toggle
-					label="Show line"
-					checked={path.visible}
-					onChange={(v) =>
-						update("visible", (p) => {
-							p.visible = v;
-						})
-					}
-				/>
-			</div>
-
-			<ol className={styles.points}>
-				{path.points.map(([x, z], i) => (
-					// biome-ignore lint/suspicious/noArrayIndexKey: points are positional
-					<li key={i} className={styles.point}>
-						<span className={styles.axisName}>{i + 1}</span>
-
-						{[x, z].map((value, axis) => (
-							<input
-								// biome-ignore lint/suspicious/noArrayIndexKey: fixed x/z pair
-								key={axis}
-								className={styles.number}
-								type="number"
-								step={0.5}
-								aria-label={`Point ${i + 1} ${axis === 0 ? "X" : "Z"}`}
-								value={value}
-								onChange={(e) => {
-									const n = Number.parseFloat(e.target.value);
-									if (Number.isNaN(n)) {
-										return;
-									}
-									update("points", (p) => {
-										p.points[i][axis] = n;
-									});
-								}}
-							/>
-						))}
-
-						<button
-							type="button"
-							className={styles.iconButton}
-							title="Remove point"
-							disabled={path.points.length <= 2}
-							onClick={() =>
-								update("points-remove", (p) => {
-									p.points.splice(i, 1);
-								})
-							}
-						>
-							<Icon name="close" size={14} />
-						</button>
-					</li>
-				))}
-			</ol>
-
-			<button
-				type="button"
-				className={styles.smallButton}
-				onClick={() =>
-					update("points-add", (p) => {
-						const last = p.points[p.points.length - 1];
-						p.points.push([last[0] + 2, last[1]]);
-					})
-				}
-			>
-				<Icon name="plus" size={14} /> Add point
-			</button>
-		</div>
-	);
-};
 
 export const ScenePanel = () => {
 	const scene = useEditor((s) => s.scene);
@@ -138,23 +16,8 @@ export const ScenePanel = () => {
 	const loadScene = useEditor((s) => s.loadScene);
 	const resetView = useEditor((s) => s.resetView);
 	const palette = usePalette();
-
-	const addRoute = () =>
-		commit((s) => {
-			s.paths.push({
-				id: newId("route"),
-				name: `Route ${s.paths.length + 1}`,
-				closed: true,
-				visible: true,
-				color: null,
-				points: [
-					[-4, -4],
-					[4, -4],
-					[4, 4],
-					[-4, 4],
-				],
-			});
-		});
+	const selectedRoadId = useEditor((s) => s.selectedRoadId);
+	const selectRoad = useEditor((s) => s.selectRoad);
 
 	return (
 		<>
@@ -258,21 +121,49 @@ export const ScenePanel = () => {
 				</button>
 			</Section>
 
-			<Section
-				title="Routes"
-				actions={
-					<button type="button" className={styles.smallButton} onClick={addRoute}>
-						<Icon name="plus" size={14} /> Add
-					</button>
-				}
-			>
-				<p className={styles.hint}>
-					Vehicles can drive along routes. Pick a route in a vehicle’s Motion section.
-				</p>
+			<Section title="Roads & traffic">
+				<Select<TDrivingSide>
+					label="Vehicles drive on the"
+					value={scene.driving}
+					options={[
+						{ value: "right", label: "Right" },
+						{ value: "left", label: "Left" },
+					]}
+					onChange={(v) =>
+						commit((s) => {
+							s.driving = v;
+						})
+					}
+				/>
 
-				{scene.paths.map((path) => (
-					<RouteEditor key={path.id} path={path} />
-				))}
+				{scene.roads.length === 0 ? (
+					<p className={styles.hint}>No roads yet. Draw one from Add to scene → Roads.</p>
+				) : (
+					<ul className={styles.roadList}>
+						{scene.roads.map((road) => (
+							<li key={road.id}>
+								<button
+									type="button"
+									className={styles.roadItem}
+									aria-current={road.id === selectedRoadId || undefined}
+									onClick={() => selectRoad(road.id)}
+								>
+									<span
+										className={styles.roadSwatch}
+										data-style={road.style}
+										style={{
+											background: road.style === "hidden" ? undefined : roadColor(road, palette),
+										}}
+									/>
+
+									<span>{road.name || ROAD_STYLE_LABELS[road.style]}</span>
+
+									<span className={styles.roadMeta}>{ROAD_STYLE_LABELS[road.style]}</span>
+								</button>
+							</li>
+						))}
+					</ul>
+				)}
 			</Section>
 
 			<Section title="Start over">

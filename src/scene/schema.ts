@@ -26,10 +26,10 @@ export const LabelSchema = z.object({
 });
 
 export const FollowSchema = z.object({
-	pathId: z.string(),
+	roadId: z.string(),
 	/** Grid units per second. */
 	speed: z.number().min(0).max(50).default(2),
-	/** Distance along the path where the entity starts. */
+	/** Distance along the road where the entity starts. */
 	offset: z.number().default(0),
 });
 
@@ -67,14 +67,33 @@ export const DataEntrySchema = z.object({
 	unit: z.string().default(""),
 });
 
-export const PathSchema = z.object({
+/** asphalt = paved road with markings, dirt = path, hidden = invisible route for vehicles only. */
+export const RoadStyleSchema = z.enum(["asphalt", "dirt", "hidden"]);
+
+/**
+ * A road drawn as a polyline on the ground. Corners are rounded with
+ * `cornerRadius`, and every road doubles as a route vehicles can follow.
+ * See docs/adr/0017-drawable-roads.md.
+ */
+export const RoadSchema = z.object({
 	id: z.string().min(1),
 	name: z.string().default(""),
+	style: RoadStyleSchema.default("asphalt"),
+	/** Control points [x, z]; the road passes through the first and last (unless closed). */
 	points: z.array(Vec2Schema).min(2),
-	closed: z.boolean().default(true),
-	visible: z.boolean().default(false),
+	/** Loop back from the last point to the first. */
+	closed: z.boolean().default(false),
+	width: z.number().min(0.4).max(20).default(2.4),
+	/** Radius of the curve at each corner; 0 = sharp corners. */
+	cornerRadius: z.number().min(0).max(50).default(3),
+	/** Centre-line markings (asphalt only). */
+	markings: z.boolean().default(true),
+	/** null = the style's default colour for the active theme. */
 	color: hexColor.nullable().default(null),
 });
+
+/** Which side of the road vehicles drive on. */
+export const DrivingSideSchema = z.enum(["right", "left"]);
 
 export const GroundSchema = z.object({
 	width: z.number().min(4).max(200).default(40),
@@ -95,8 +114,9 @@ export const SceneSchema = z
 			.default({ title: "Untitled dashboard", subtitle: "" }),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
+		driving: DrivingSideSchema.default("right"),
 		entities: z.array(EntitySchema).default([]),
-		paths: z.array(PathSchema).default([]),
+		roads: z.array(RoadSchema).default([]),
 		data: z.array(DataEntrySchema).default([]),
 	})
 	.superRefine((scene, ctx) => {
@@ -119,9 +139,9 @@ export const SceneSchema = z
 			"entity id",
 		);
 		checkUnique(
-			scene.paths.map((p) => p.id),
-			["paths"],
-			"path id",
+			scene.roads.map((r) => r.id),
+			["roads"],
+			"road id",
 		);
 		checkUnique(
 			scene.data.map((d) => d.key),
@@ -137,7 +157,10 @@ export type TEntityInput = z.input<typeof EntitySchema>;
 export type TLabel = z.output<typeof LabelSchema>;
 export type TFollow = z.output<typeof FollowSchema>;
 export type TDataEntry = z.output<typeof DataEntrySchema>;
-export type TScenePath = z.output<typeof PathSchema>;
+export type TRoad = z.output<typeof RoadSchema>;
+export type TRoadInput = z.input<typeof RoadSchema>;
+export type TRoadStyle = z.output<typeof RoadStyleSchema>;
+export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

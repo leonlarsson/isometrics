@@ -1,6 +1,6 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 
-import { SNAP_STEP, selectSelectedEntity, useEditor } from "./store";
+import { SNAP_STEP, selectSelectedEntity, selectSelectedRoad, useEditor } from "./store";
 
 const isTextEntry = (target: EventTarget | null) =>
 	target instanceof HTMLElement &&
@@ -10,7 +10,7 @@ const isTextEntry = (target: EventTarget | null) =>
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Esc deselect · Space pause/play motion
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
- *   Mod+D duplicate · Delete/Backspace remove
+ *   Mod+D duplicate · Delete/Backspace remove (also a selected road)
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -19,8 +19,10 @@ const isTextEntry = (target: EventTarget | null) =>
 export const useShortcuts = () => {
 	const mode = useEditor((s) => s.mode);
 	const selected = useEditor(selectSelectedEntity);
+	const selectedRoad = useEditor(selectSelectedRoad);
 
 	const canEdit = mode === "edit" && selected !== null;
+	const canDelete = mode === "edit" && (selected !== null || selectedRoad !== null);
 	const canTransform = canEdit && !selected.locked;
 	const canNudge = canTransform && !selected.follow;
 
@@ -44,9 +46,11 @@ export const useShortcuts = () => {
 	};
 
 	const remove = () => {
-		const { selectedId, removeEntity } = useEditor.getState();
+		const { selectedId, selectedRoadId, removeEntity, removeRoad } = useEditor.getState();
 		if (selectedId) {
 			removeEntity(selectedId);
+		} else if (selectedRoadId) {
+			removeRoad(selectedRoadId);
 		}
 	};
 
@@ -68,7 +72,7 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "Escape",
-			callback: () => useEditor.getState().select(null),
+			callback: () => useEditor.getState().clearSelection(),
 			options: { meta: { name: "Deselect" } },
 		},
 		{
@@ -99,11 +103,15 @@ export const useShortcuts = () => {
 			},
 			options: { meta: { name: "Duplicate" } },
 		},
-		{ hotkey: "Delete", callback: remove, options: { enabled: canEdit, meta: { name: "Delete" } } },
+		{
+			hotkey: "Delete",
+			callback: remove,
+			options: { enabled: canDelete, meta: { name: "Delete" } },
+		},
 		{
 			hotkey: "Backspace",
 			callback: remove,
-			options: { enabled: canEdit, meta: { name: "Delete" } },
+			options: { enabled: canDelete, meta: { name: "Delete" } },
 		},
 		{
 			hotkey: "Q",

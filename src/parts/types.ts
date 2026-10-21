@@ -9,7 +9,7 @@ export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	buildings: "Buildings",
 	vehicles: "Vehicles",
 	nature: "Nature",
-	infrastructure: "Ground & roads",
+	infrastructure: "Ground & props",
 	markers: "Markers",
 };
 

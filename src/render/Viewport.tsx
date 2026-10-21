@@ -1,14 +1,16 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
-import { selectSelectedEntity, useEditor } from "#/editor/store";
+import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 
 import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { LabelProjector } from "./LabelProjector";
-import { PathLine } from "./PathLine";
+import { RoadDrawTool } from "./RoadDrawTool";
+import { RoadHandles } from "./RoadHandles";
+import { RoadMesh } from "./RoadMesh";
 
 const Lights = () => {
 	const palette = usePalette();
@@ -40,10 +42,7 @@ const Lights = () => {
 
 export const Viewport = () => {
 	const entities = useEditor((s) => s.scene.entities);
-	const paths = useEditor((s) => s.scene.paths);
-	const select = useEditor((s) => s.select);
-	const selectedPathId = useEditor((s) => selectSelectedEntity(s)?.follow?.pathId ?? null);
-	const mode = useEditor((s) => s.mode);
+	const roads = useEditor((s) => s.scene.roads);
 
 	return (
 		<Canvas
@@ -51,7 +50,7 @@ export const Viewport = () => {
 			orthographic
 			dpr={[1, 2]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
-			onPointerMissed={() => select(null)}
+			onPointerMissed={() => useEditor.getState().clearSelection()}
 		>
 			<Lights />
 
@@ -61,12 +60,13 @@ export const Viewport = () => {
 				<EntityNode key={entity.id} entity={entity} />
 			))}
 
-			{paths.map(
-				(path) =>
-					(path.visible || (mode === "edit" && path.id === selectedPathId)) && (
-						<PathLine key={path.id} path={path} />
-					),
-			)}
+			{roads.map((road, index) => (
+				<RoadMesh key={road.id} road={road} layer={index} />
+			))}
+
+			<RoadHandles />
+
+			<RoadDrawTool />
 
 			<OrbitControls
 				makeDefault

@@ -27,11 +27,11 @@ Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`.
 
 ```
 src/
-  scene/      document model: Zod schema, migrations, path sampling, formatting, theme palettes (no React)
+  scene/      document model: Zod schema, parsing, road geometry, path sampling, formatting, theme palettes (no React)
   parts/      procedural 3D parts + registry (definePart, PARTS)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
-  render/     R3F scene: Viewport, CameraRig, EntityNode, labels (3D side), routes
+  render/     R3F scene: Viewport, CameraRig, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
   routes/     TanStack Start file routes (index = the editor, ssr: false)
   styles.css  design tokens (light/dark) + base styles
@@ -60,7 +60,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 **Add a part:** create it with `definePart({...})` in the right `src/parts/*.tsx` file. Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
 
-**Change the scene format:** edit `schema.ts` with defaults for new fields. If the change is breaking, bump `SCENE_VERSION`, add a migration in `migrate.ts`, and add a test. Write an ADR if the change is conceptual.
+**Change the scene format:** edit `schema.ts` with defaults for new fields. While the app is unreleased, change the schema in place: don't bump `SCENE_VERSION` or write migrations (old browser saves just fall back to the template). Once it's released, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 
 **Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically.
 
@@ -80,5 +80,5 @@ Write a new ADR (copy `docs/adr/template.md`, next free number) for anything tha
 
 - Label collision avoidance (cards can overlap).
 - Live data providers (ADR-0010), sharing links (ADR-0006), AI generation (ADR-0012).
-- Visual route editing (routes are currently edited as point lists in the Scene tab).
+- Road junctions: crossing roads overlap visually, and a vehicle follows a single road (ADR-0017).
 - Multi-select; mobile editing layout is basic.

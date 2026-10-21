@@ -3,11 +3,16 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 
 import { normalizeDegrees, round } from "#/lib/math";
+import { ROAD_STYLE_LABELS, ROAD_STYLE_WIDTH } from "#/scene/roads";
 import {
 	EntitySchema,
+	RoadSchema,
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
+	type TRoad,
+	type TRoadInput,
+	type TRoadStyle,
 	type TScene,
 	type TVec2,
 } from "#/scene/schema";
@@ -30,6 +35,12 @@ export interface ICommitOptions {
 	coalesce?: string;
 }
 
+/** A road being drawn point by point. Runtime UI state; never saved in the scene. */
+export interface IRoadDrawing {
+	style: TRoadStyle;
+	points: TVec2[];
+}
+
 export interface IEditorState {
 	scene: TScene;
 	past: TScene[];
@@ -37,6 +48,8 @@ export interface IEditorState {
 	lastCommit: { key: string; at: number } | null;
 
 	selectedId: string | null;
+	selectedRoadId: string | null;
+	drawing: IRoadDrawing | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
 	dragging: boolean;
@@ -51,6 +64,9 @@ export interface IEditorState {
 	redo: () => void;
 
 	select: (id: string | null) => void;
+	selectRoad: (id: string | null) => void;
+	/** Deselect any entity or road. */
+	clearSelection: () => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
 	setDragging: (dragging: boolean) => void;
@@ -71,6 +87,21 @@ export interface IEditorState {
 
 	upsertData: (entry: TDataEntry, previousKey?: string) => void;
 	removeData: (key: string) => void;
+
+	addRoad: (input: Omit<TRoadInput, "id"> & { id?: string }) => string;
+	updateRoad: (id: string, recipe: (road: Draft<TRoad>) => void, options?: ICommitOptions) => void;
+	removeRoad: (id: string) => void;
+	moveRoadPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	/** Insert a point before `index`. */
+	insertRoadPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	removeRoadPoint: (id: string, index: number) => void;
+
+	startDrawing: (style: TRoadStyle) => void;
+	addDrawingPoint: (point: TVec2) => void;
+	undoDrawingPoint: () => void;
+	/** Create the road from the drawn points (needs at least 2). Returns its id. */
+	finishDrawing: (options?: { closed?: boolean }) => string | null;
+	cancelDrawing: () => void;
 }
 
 export const newId = (prefix: string) => `${prefix}_${nanoid(8)}`;
@@ -94,6 +125,8 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 		lastCommit: null,
 
 		selectedId: null,
+		selectedRoadId: null,
+		drawing: null,
 		mode: "edit",
 		tab: "object",
 		dragging: false,
@@ -125,7 +158,16 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				};
 			}),
 
-		loadScene: (scene) => set({ scene, past: [], future: [], lastCommit: null, selectedId: null }),
+		loadScene: (scene) =>
+			set({
+				scene,
+				past: [],
+				future: [],
+				lastCommit: null,
+				selectedId: null,
+				selectedRoadId: null,
+				drawing: null,
+			}),
 
 		undo: () =>
 			set((state) => {
@@ -140,6 +182,9 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					lastCommit: null,
 					selectedId: previous.entities.some((e) => e.id === state.selectedId)
 						? state.selectedId
+						: null,
+					selectedRoadId: previous.roads.some((r) => r.id === state.selectedRoadId)
+						? state.selectedRoadId
 						: null,
 				};
 			}),
@@ -158,15 +203,26 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					selectedId: next.entities.some((e) => e.id === state.selectedId)
 						? state.selectedId
 						: null,
+					selectedRoadId: next.roads.some((r) => r.id === state.selectedRoadId)
+						? state.selectedRoadId
+						: null,
 				};
 			}),
 
 		select: (id) =>
 			set((state) => ({
 				selectedId: id,
+				selectedRoadId: id ? null : state.selectedRoadId,
 				tab: id && state.mode === "edit" ? "object" : state.tab,
 			})),
-		setMode: (mode) => set({ mode, selectedId: null }),
+		selectRoad: (id) =>
+			set((state) => ({
+				selectedRoadId: id,
+				selectedId: id ? null : state.selectedId,
+				tab: id && state.mode === "edit" ? "object" : state.tab,
+			})),
+		clearSelection: () => set({ selectedId: null, selectedRoadId: null }),
+		setMode: (mode) => set({ mode, selectedId: null, selectedRoadId: null, drawing: null }),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
@@ -262,6 +318,105 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				scene.data = scene.data.filter((d) => d.key !== key);
 				renameDataReferences(scene, key, null);
 			}),
+
+		addRoad: (input) => {
+			const road = RoadSchema.parse({ ...input, id: input.id ?? newId("road") });
+			get().commit((scene) => {
+				scene.roads.push(road);
+			});
+			set({ selectedRoadId: road.id, selectedId: null, tab: "object" });
+			return road.id;
+		},
+
+		updateRoad: (id, recipe, options) =>
+			get().commit((scene) => {
+				const road = scene.roads.find((r) => r.id === id);
+				if (road) {
+					recipe(road);
+				}
+			}, options),
+
+		removeRoad: (id) => {
+			get().commit((scene) => {
+				scene.roads = scene.roads.filter((r) => r.id !== id);
+				// Vehicles that drove along it are parked where the road was.
+				for (const entity of scene.entities) {
+					if (entity.follow?.roadId === id) {
+						entity.follow = null;
+					}
+				}
+			});
+			if (get().selectedRoadId === id) {
+				set({ selectedRoadId: null });
+			}
+		},
+
+		moveRoadPoint: (id, index, point, options) =>
+			get().updateRoad(
+				id,
+				(road) => {
+					if (road.points[index]) {
+						road.points[index] = [round(point[0]), round(point[1])];
+					}
+				},
+				options,
+			),
+
+		insertRoadPoint: (id, index, point, options) =>
+			get().updateRoad(
+				id,
+				(road) => {
+					road.points.splice(index, 0, [round(point[0]), round(point[1])]);
+				},
+				options,
+			),
+
+		removeRoadPoint: (id, index) =>
+			get().updateRoad(id, (road) => {
+				if (road.points.length > 2) {
+					road.points.splice(index, 1);
+				}
+			}),
+
+		startDrawing: (style) =>
+			set({ drawing: { style, points: [] }, selectedId: null, selectedRoadId: null }),
+
+		addDrawingPoint: (point) =>
+			set((state) => {
+				if (!state.drawing) {
+					return state;
+				}
+				const last = state.drawing.points.at(-1);
+				if (last && last[0] === point[0] && last[1] === point[1]) {
+					return state;
+				}
+				return { drawing: { ...state.drawing, points: [...state.drawing.points, point] } };
+			}),
+
+		undoDrawingPoint: () =>
+			set((state) =>
+				state.drawing
+					? { drawing: { ...state.drawing, points: state.drawing.points.slice(0, -1) } }
+					: state,
+			),
+
+		finishDrawing: (options = {}) => {
+			const { drawing, scene } = get();
+			set({ drawing: null });
+			if (!drawing || drawing.points.length < 2) {
+				return null;
+			}
+			const count = scene.roads.filter((r) => r.style === drawing.style).length;
+			return get().addRoad({
+				name: `${ROAD_STYLE_LABELS[drawing.style]} ${count + 1}`,
+				style: drawing.style,
+				points: drawing.points,
+				width: ROAD_STYLE_WIDTH[drawing.style],
+				closed: Boolean(options.closed) && drawing.points.length > 2,
+			});
+		},
+
+		cancelDrawing: () => set({ drawing: null }),
 	}));
 };
 
@@ -269,3 +424,6 @@ export const useEditor = createEditorStore();
 
 export const selectSelectedEntity = (state: IEditorState) =>
 	state.scene.entities.find((e) => e.id === state.selectedId) ?? null;
+
+export const selectSelectedRoad = (state: IEditorState) =>
+	state.scene.roads.find((r) => r.id === state.selectedRoadId) ?? null;

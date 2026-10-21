@@ -107,4 +107,77 @@ describe("editor store", () => {
 		store.getState().loadScene(SceneSchema.parse({ version: 1 }));
 		expect(store.getState()).toMatchObject({ past: [], future: [], selectedId: null });
 	});
+	it("draws a road point by point and selects it", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().startDrawing("dirt");
+		s().addDrawingPoint([0, 0]);
+		s().addDrawingPoint([0, 0]); // duplicate click is ignored
+		s().addDrawingPoint([4, 0]);
+		s().addDrawingPoint([4, 4]);
+		s().undoDrawingPoint();
+		const id = s().finishDrawing();
+		const road = s().scene.roads.find((r) => r.id === id);
+		expect(road).toMatchObject({ style: "dirt", name: "Dirt path 1", closed: false });
+		expect(road?.points).toEqual([
+			[0, 0],
+			[4, 0],
+		]);
+		expect(s().drawing).toBeNull();
+		expect(s().selectedRoadId).toBe(id);
+	});
+
+	it("needs two points to finish, and three to close a loop", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().startDrawing("asphalt");
+		s().addDrawingPoint([0, 0]);
+		expect(s().finishDrawing()).toBeNull();
+		expect(s().scene.roads).toHaveLength(0);
+
+		s().startDrawing("asphalt");
+		s().addDrawingPoint([0, 0]);
+		s().addDrawingPoint([4, 0]);
+		const id = s().finishDrawing({ closed: true });
+		expect(s().scene.roads.find((r) => r.id === id)?.closed).toBe(false);
+	});
+
+	it("edits road points and parks vehicles when their road is deleted", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			points: [
+				[0, 0],
+				[10, 0],
+			],
+		});
+		const van = s().addEntity({ kind: "van", follow: { roadId: id } });
+		s().insertRoadPoint(id, 1, [5, 2]);
+		s().moveRoadPoint(id, 1, [5.25, 3]);
+		expect(s().scene.roads[0].points[1]).toEqual([5.25, 3]);
+		s().removeRoadPoint(id, 0);
+		s().removeRoadPoint(id, 0); // a road keeps at least two points
+		expect(s().scene.roads[0].points).toHaveLength(2);
+
+		s().removeRoad(id);
+		expect(s().scene.roads).toHaveLength(0);
+		expect(s().scene.entities.find((e) => e.id === van)?.follow).toBeNull();
+		s().undo();
+		expect(s().scene.entities.find((e) => e.id === van)?.follow?.roadId).toBe(id);
+	});
+
+	it("keeps entity and road selection mutually exclusive", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			points: [
+				[0, 0],
+				[1, 0],
+			],
+		});
+		s().select("w");
+		expect(s().selectedRoadId).toBeNull();
+		s().selectRoad(id);
+		expect(s().selectedId).toBeNull();
+	});
 });

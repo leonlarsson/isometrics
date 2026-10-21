@@ -4,6 +4,7 @@ import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { getPart, resolveColors, resolveProps } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
+import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity } from "#/scene/schema";
 
 import { ColorField, Section, Select, SliderField, TextInput, Toggle, VectorField } from "./fields";
@@ -88,7 +89,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 	const updateEntity = useEditor((s) => s.updateEntity);
 	const removeEntity = useEditor((s) => s.removeEntity);
 	const duplicateEntity = useEditor((s) => s.duplicateEntity);
-	const paths = useEditor((s) => s.scene.paths);
+	const roads = useEditor((s) => s.scene.roads);
 	const palette = usePalette();
 	const part = getPart(entity.kind);
 
@@ -117,6 +118,10 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 	}
 
 	const props = resolveProps(part, entity.props);
+	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
+	const followedRoadLength = followedRoad
+		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.closed)))
+		: 1;
 	const colors = resolveColors(part, entity, palette);
 	const following = entity.follow !== null;
 
@@ -359,15 +364,15 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				<Section title="Motion">
 					<Select
 						label="Drive along"
-						value={entity.follow?.pathId ?? ""}
+						value={entity.follow?.roadId ?? ""}
 						options={[
 							{ value: "", label: "Nothing (parked)" },
-							...paths.map((p) => ({ value: p.id, label: p.name || p.id })),
+							...roads.map((r) => ({ value: r.id, label: r.name || ROAD_STYLE_LABELS[r.style] })),
 						]}
-						onChange={(pathId) =>
+						onChange={(roadId) =>
 							edit("follow", (e) => {
-								e.follow = pathId
-									? { pathId, speed: e.follow?.speed ?? 2, offset: e.follow?.offset ?? 0 }
+								e.follow = roadId
+									? { roadId, speed: e.follow?.speed ?? 2, offset: e.follow?.offset ?? 0 }
 									: null;
 							})
 						}
@@ -394,7 +399,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 								label="Start point"
 								value={entity.follow.offset}
 								min={0}
-								max={150}
+								max={followedRoadLength}
 								step={0.5}
 								onChange={(v) =>
 									edit("follow.offset", (e) => {
@@ -407,8 +412,10 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						</>
 					)}
 
-					{paths.length === 0 && (
-						<p className={styles.hint}>Create a route in the Scene tab first.</p>
+					{roads.length === 0 && (
+						<p className={styles.hint}>
+							Draw a road first: Add to scene → Roads. Vehicles drive along roads and hidden routes.
+						</p>
 					)}
 				</Section>
 			)}

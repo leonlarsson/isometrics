@@ -34,18 +34,18 @@ const overlaps = (a: IRect, b: IRect) =>
 
 /**
  * Find a spot near `near` where a new part fits without overlapping existing
- * entities (ground-level parts like roads and zones are ignored). Searches
+ * entities (flat zones are ignored). Searches
  * outward in rings on a 1-unit grid and stays inside the ground.
  */
 export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]): TVec2 => {
 	const [w, d] = part.footprint(part.schema.parse({}));
 	const obstacles = scene.entities
-		.filter((e) => !["road", "zone"].includes(e.kind))
+		.filter((e) => e.kind !== "zone")
 		.map(footprintRect)
 		.filter((r): r is IRect => r !== null);
 	const halfGroundW = scene.ground.width / 2;
 	const halfGroundD = scene.ground.depth / 2;
-	const isFlat = ["road", "zone"].includes(part.kind);
+	const isFlat = part.kind === "zone";
 
 	for (let radius = 0; radius < Math.max(halfGroundW, halfGroundD); radius++) {
 		for (let dx = -radius; dx <= radius; dx++) {

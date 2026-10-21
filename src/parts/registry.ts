@@ -2,7 +2,7 @@ import type { TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { house, shed, tower, warehouse } from "./buildings";
-import { beacon, lamp, parcels, road, zone } from "./infrastructure";
+import { beacon, lamp, parcels, zone } from "./infrastructure";
 import { pine, tree } from "./nature";
 import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
 import { car, truck, van } from "./vehicles";
@@ -21,7 +21,6 @@ export const PARTS: TAnyPart[] = [
 	car,
 	tree,
 	pine,
-	road,
 	zone,
 	lamp,
 	parcels,

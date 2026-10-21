@@ -2,8 +2,11 @@ import { SCENE_VERSION, SceneSchema, type TScene } from "./schema";
 
 /**
  * Parse an unknown value (from storage, a file, or an AI response) into a
- * valid Scene. Older versions are migrated step by step before validation.
- * Throws a ZodError (or Error) when the input cannot be used.
+ * valid Scene. Throws a ZodError (or Error) when the input cannot be used.
+ *
+ * Versioning: while the app is unreleased the schema changes in place and
+ * SCENE_VERSION stays 1. Once scenes exist in the wild, bump the version on
+ * breaking changes and migrate older documents here before validating.
  */
 export const parseScene = (input: unknown): TScene => {
 	if (typeof input !== "object" || input === null) {
@@ -16,8 +19,5 @@ export const parseScene = (input: unknown): TScene => {
 	if (version > SCENE_VERSION) {
 		throw new Error(`Scene version ${version} is newer than this app supports (${SCENE_VERSION})`);
 	}
-
-	// Add migrations here as the schema evolves, e.g.
-	// if (version === 1) input = migrateV1toV2(input)
 	return SceneSchema.parse(input);
 };

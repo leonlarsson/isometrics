@@ -6,7 +6,7 @@ import { usePalette } from "#/editor/useTheme";
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const mode = useEditor((s) => s.mode);
-	const select = useEditor((s) => s.select);
+	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
 
 	return (
@@ -22,7 +22,7 @@ export const Ground = () => {
 						return;
 					}
 					e.stopPropagation();
-					select(null);
+					clearSelection();
 				}}
 			>
 				<meshStandardMaterial color={ground.color ?? palette.ground} roughness={0.95} />

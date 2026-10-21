@@ -418,36 +418,60 @@ textarea.input {
 	font-family: var(--font-mono);
 }
 
-/* ---------------------------------------------------------------- routes */
+/* ----------------------------------------------------------------- roads */
 
-.route {
+.roadList {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	padding: 10px;
-	border-radius: var(--radius-md);
-	background: var(--surface-sunken);
-}
-
-.routeHeader {
-	display: flex;
-	gap: 6px;
-}
-
-.points {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
+	gap: 2px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.point {
-	display: grid;
-	grid-template-columns: 14px 1fr 1fr 30px;
-	gap: 4px;
+.roadItem {
+	all: unset;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: flex;
 	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 8px;
+	border-radius: var(--radius-sm);
+	font-size: 13px;
+}
+
+.roadItem:hover {
+	background: var(--surface-sunken);
+}
+
+.roadItem[aria-current] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.roadItem:focus-visible {
+	outline: 2px solid var(--accent);
+}
+
+.roadSwatch {
+	flex: none;
+	width: 22px;
+	height: 8px;
+	border-radius: 4px;
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.roadSwatch[data-style="hidden"] {
+	background: repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px);
+	box-shadow: none;
+}
+
+.roadMeta {
+	margin-left: auto;
+	font-size: 11px;
+	color: var(--text-muted);
 }
 
 /* ------------------------------------------------------------- templates */

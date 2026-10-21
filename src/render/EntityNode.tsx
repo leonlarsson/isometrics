@@ -8,6 +8,7 @@ import { usePalette } from "#/editor/useTheme";
 import { clamp, snap, toRadians } from "#/lib/math";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
 import { createPathSampler } from "#/scene/paths";
+import { applyLane, laneOffset, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity } from "#/scene/schema";
 
 import { EntityLabel } from "./EntityLabel";
@@ -71,9 +72,11 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const selected = useEditor((s) => s.selectedId === entity.id);
 	const playing = useEditor((s) => s.playing);
 	const ground = useEditor((s) => s.scene.ground);
-	const path = useEditor((s) =>
-		entity.follow ? (s.scene.paths.find((p) => p.id === entity.follow?.pathId) ?? null) : null,
+	const road = useEditor((s) =>
+		entity.follow ? (s.scene.roads.find((r) => r.id === entity.follow?.roadId) ?? null) : null,
 	);
+	const driving = useEditor((s) => s.scene.driving);
+	const drawing = useEditor((s) => s.drawing !== null);
 	const select = useEditor((s) => s.select);
 	const moveEntity = useEditor((s) => s.moveEntity);
 	const setDragging = useEditor((s) => s.setDragging);
@@ -89,9 +92,10 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 
 	const props = useMemo(() => (part ? resolveProps(part, entity.props) : {}), [part, entity.props]);
 	const sampler = useMemo(
-		() => (path ? createPathSampler(path.points, path.closed) : null),
-		[path],
+		() => (road ? createPathSampler(roadCenterlineOf(road), road.closed) : null),
+		[road],
 	);
+	const lane = road ? laneOffset(road, driving) : 0;
 	const following = Boolean(sampler && entity.follow);
 
 	useFrame((_, delta) => {
@@ -102,7 +106,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			travelled.current += Math.min(delta, 0.1) * entity.follow.speed;
 		}
 		const sample = sampler.at(entity.follow.offset + travelled.current);
-		outer.current.position.set(sample.position[0], entity.elevation, sample.position[1]);
+		const [x, z] = applyLane(sample.position, sample.heading, lane);
+		outer.current.position.set(x, entity.elevation, z);
 		inner.current.rotation.y = sample.heading + toRadians(entity.rotation);
 	});
 
@@ -122,7 +127,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 
 	const handlers = {
 		onPointerDown: (e: ThreeEvent<PointerEvent>) => {
-			if (mode !== "edit" || e.nativeEvent.button !== 0) {
+			// While drawing a road, let clicks pass through to the ground.
+			if (drawing || mode !== "edit" || e.nativeEvent.button !== 0) {
 				return;
 			}
 			e.stopPropagation();
@@ -162,6 +168,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		onPointerUp: endDrag,
 		onLostPointerCapture: endDrag,
 		onClick: (e: ThreeEvent<MouseEvent>) => {
+			if (drawing) {
+				return;
+			}
 			// Always stop here: otherwise the click reaches the ground behind, which deselects.
 			e.stopPropagation();
 			// Edit mode selects on pointer-down (needed for dragging); view mode selects on click
@@ -172,6 +181,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			select(entity.id);
 		},
 		onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+			if (drawing) {
+				return;
+			}
 			e.stopPropagation();
 			setHovered(true);
 			document.body.style.cursor = editable ? "grab" : "pointer";

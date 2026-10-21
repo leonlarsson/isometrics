@@ -1,10 +1,10 @@
 import { SceneSchema, type TEntityInput, type TScene, type TSceneInput } from "#/scene/schema";
 
-const ROUTE_ID = "route_main";
+const ROAD_ID = "road_loop";
 
 const trees: TEntityInput[] = [
 	...[
-		[-19, -14],
+		[-21, -14.5],
 		[-13, -14.2],
 		[-7, -13.8],
 		[-1, -14],
@@ -25,8 +25,8 @@ const trees: TEntityInput[] = [
 		[13, -14],
 		[19.5, -14],
 		[20, 2.5],
-		[-20.2, 0],
-		[-20, -5.5],
+		[-21.2, 0],
+		[-21.2, -5.5],
 		[17, 12],
 		[20.5, 9.5],
 	].map(([x, z], i) => ({
@@ -59,47 +59,42 @@ export const createWarehouseScene = (): TScene => {
 			{ key: "vans_out", label: "Vans out", value: 6, unit: " / 9" },
 			{ key: "on_time", label: "On-time deliveries", value: 92, unit: "%" },
 		],
-		paths: [
+		driving: "right",
+		roads: [
 			{
-				id: ROUTE_ID,
+				id: ROAD_ID,
 				name: "Delivery loop",
+				style: "asphalt",
 				closed: true,
-				visible: false,
+				cornerRadius: 4,
 				points: [
-					[-19, 5.45],
-					[14.45, 5.45],
-					[14.45, -12.5],
-					[15.55, -12.5],
-					[15.55, 6.55],
-					[-19, 6.55],
+					[-19, 6],
+					[15, 6],
+					[15, -11.8],
+					[-19, -11.8],
+				],
+			},
+			{
+				id: "garden_path",
+				name: "Pond path",
+				style: "dirt",
+				width: 1.2,
+				cornerRadius: 2,
+				points: [
+					[-10, 4.8],
+					[-10, 0],
+					[-12.5, -4.5],
 				],
 			},
 		],
 		entities: [
 			{
-				id: "road_main",
-				kind: "road",
-				name: "Main road",
-				position: [0, 6],
-				props: { length: 40, width: 2.4 },
-				locked: true,
-			},
-			{
-				id: "road_side",
-				kind: "road",
-				name: "Side road",
-				position: [15, -3.4],
-				rotation: 90,
-				props: { length: 19.2, width: 2.4 },
-				locked: true,
-			},
-			{
 				id: "pond",
 				kind: "zone",
 				name: "Pond",
-				position: [-15, -8],
+				position: [-14, -7.5],
 				color: "#bcdcf0",
-				props: { width: 6, depth: 4, shape: "circle" },
+				props: { width: 5.5, depth: 3.6, shape: "circle" },
 			},
 			{
 				id: "warehouse",
@@ -168,7 +163,7 @@ export const createWarehouseScene = (): TScene => {
 				id: "van_07",
 				kind: "van",
 				name: "Van 7",
-				follow: { pathId: ROUTE_ID, speed: 3, offset: 4 },
+				follow: { roadId: ROAD_ID, speed: 3, offset: 4 },
 				label: {
 					title: "Van 7",
 					dataKeys: ["van7_load", "van7_eta"],
@@ -184,13 +179,13 @@ export const createWarehouseScene = (): TScene => {
 				kind: "van",
 				name: "Van 01",
 				accent: "#2bb58c",
-				follow: { pathId: ROUTE_ID, speed: 3, offset: 30 },
+				follow: { roadId: ROAD_ID, speed: 3, offset: 30 },
 			},
 			{
 				id: "truck_01",
 				kind: "truck",
 				name: "Truck 01",
-				follow: { pathId: ROUTE_ID, speed: 2.4, offset: 58 },
+				follow: { roadId: ROAD_ID, speed: 2.4, offset: 58 },
 			},
 			...[-11, -8.6, -6.2].map((z, i) => ({
 				id: `parked_van_${i}`,

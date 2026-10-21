@@ -3,56 +3,8 @@ import { useRef } from "react";
 import type * as THREE from "three";
 import { z } from "zod";
 
-import { Box, Mat, spread } from "./primitives";
+import { Box, Mat } from "./primitives";
 import { definePart } from "./types";
-
-// --------------------------------------------------------------------- road
-
-const RoadSchema = z.object({
-	length: z.number().min(1).max(200).default(10),
-	width: z.number().min(0.5).max(20).default(2.2),
-	markings: z.boolean().default(true),
-});
-
-export const road = definePart({
-	kind: "road",
-	name: "Road",
-	category: "infrastructure",
-	description: "Straight road segment; rotate and combine for networks",
-	schema: RoadSchema,
-	fields: [
-		{ key: "length", label: "Length", type: "number", min: 1, max: 200, step: 0.5 },
-		{ key: "width", label: "Width", type: "number", min: 0.5, max: 20, step: 0.1 },
-		{ key: "markings", label: "Lane markings", type: "boolean" },
-	],
-	defaultColor: (p) => p.road,
-	defaultAccent: (p) => p.roadMark,
-	colorLabel: "Asphalt",
-	accentLabel: "Markings",
-	footprint: (p) => [p.length, p.width],
-	height: () => 0.1,
-	Component: ({ props: p, color, accent }) => (
-		<group>
-			<Box
-				size={[p.length, 0.04, p.width]}
-				position={[0, 0.02, 0]}
-				color={color}
-				castShadow={false}
-			/>
-
-			{p.markings &&
-				spread(Math.max(1, Math.floor(p.length / 1.2)), p.length).map((x) => (
-					<Box
-						key={x}
-						size={[0.55, 0.01, 0.08]}
-						position={[x, 0.045, 0]}
-						color={accent}
-						castShadow={false}
-					/>
-				))}
-		</group>
-	),
-});
 
 // --------------------------------------------------------------------- zone
 

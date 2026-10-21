@@ -89,3 +89,8 @@
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 }
+
+.layer[data-drawing] .card {
+	pointer-events: none;
+	opacity: 0.6;
+}

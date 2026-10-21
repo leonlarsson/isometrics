@@ -64,3 +64,8 @@
 	font-weight: 600;
 	line-height: 1.2;
 }
+
+.part[aria-pressed="true"] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+}

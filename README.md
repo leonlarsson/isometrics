@@ -21,7 +21,9 @@ The app opens with the **Delivery hub** template. Your work autosaves in the bro
 | Rotate | **Q** / **E** (hold Shift for 90°) or the Rotation slider |
 | Resize, recolour, reshape | Right-hand **Object** tab |
 | Show numbers | **Data** tab for values, then the object's **Label** section to pick which ones appear |
-| Moving vehicles | **Scene** tab → Routes, then the vehicle's **Motion** section |
+| Draw a road | **Roads** → Road, Dirt path or Hidden route, then click points on the ground; **Enter** to finish, click the first point to make a loop, **Esc** to cancel |
+| Reshape a road | Select it and drag its points; drag the small dot between two points to add one; double-click a point to remove it; **Curves** in the panel rounds the corners |
+| Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right |
 | Duplicate / delete | Ctrl+D / Delete |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
 | Pause / play motion | Space |

@@ -20,6 +20,7 @@ export interface IScenePalette {
 	foliage: string;
 	road: string;
 	roadMark: string;
+	dirt: string;
 	cardboard: string;
 	selection: string;
 	hemiSky: string;
@@ -42,8 +43,9 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		tire: "#2b2b2f",
 		trunk: "#a07a5a",
 		foliage: "#7cc48a",
-		road: "#dcdad3",
+		road: "#cdc9bf",
 		roadMark: "#ffffff",
+		dirt: "#d6bd92",
 		cardboard: "#d8a967",
 		selection: "#e2603b",
 		hemiSky: "#ffffff",
@@ -66,6 +68,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		foliage: "#5d9a68",
 		road: "#4a4c46",
 		roadMark: "#8d8f88",
+		dirt: "#6e604a",
 		cardboard: "#b48a52",
 		selection: "#e8714c",
 		hemiSky: "#c9ccd6",

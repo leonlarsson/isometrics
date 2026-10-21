@@ -65,9 +65,11 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 export const LabelLayer = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const selectedId = useEditor((s) => s.selectedId);
+	const drawing = useEditor((s) => s.drawing !== null);
 
 	return (
-		<div className={styles.layer}>
+		// While drawing a road, cards let clicks through to the ground.
+		<div className={styles.layer} data-drawing={drawing || undefined}>
 			{entities
 				.filter((entity) => entity.label?.enabled)
 				.map((entity) => (

@@ -7,6 +7,7 @@ import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
 
 import { DetailSheet } from "./DetailSheet";
+import { DrawingBar } from "./DrawingBar";
 import { Inspector } from "./Inspector";
 import { LabelLayer } from "./LabelLayer";
 import { PartsPalette } from "./PartsPalette";
@@ -64,6 +65,8 @@ export const AppShell = () => {
 					{ready && <Viewport />}
 
 					{ready && <LabelLayer />}
+
+					<DrawingBar />
 
 					<DetailSheet />
 				</main>

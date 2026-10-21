@@ -1,7 +1,13 @@
-import { selectSelectedEntity, type TInspectorTab, useEditor } from "#/editor/store";
+import {
+	selectSelectedEntity,
+	selectSelectedRoad,
+	type TInspectorTab,
+	useEditor,
+} from "#/editor/store";
 
 import { DataPanel } from "./DataPanel";
 import { EntityInspector } from "./EntityInspector";
+import { RoadInspector } from "./RoadInspector";
 import { ScenePanel } from "./ScenePanel";
 
 import styles from "./Fields.module.css";
@@ -16,6 +22,7 @@ export const Inspector = () => {
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
 	const entity = useEditor(selectSelectedEntity);
+	const road = useEditor(selectSelectedRoad);
 
 	return (
 		<div className={styles.inspector}>
@@ -38,6 +45,8 @@ export const Inspector = () => {
 				{tab === "object" &&
 					(entity ? (
 						<EntityInspector key={entity.id} entity={entity} />
+					) : road ? (
+						<RoadInspector key={road.id} road={road} />
 					) : (
 						<div className={styles.empty}>
 							<p>
@@ -45,8 +54,8 @@ export const Inspector = () => {
 							</p>
 
 							<p className={styles.hint}>
-								Click an object in the scene to move, rotate, recolour or label it, or add a new one
-								from the parts list.
+								Click an object or road in the scene to edit it, or add something new from the list
+								on the left.
 							</p>
 						</div>
 					))}
