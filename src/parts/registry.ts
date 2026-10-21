@@ -4,8 +4,11 @@ import type { IScenePalette } from "#/scene/theme";
 import { house, shed, tower, warehouse } from "./buildings";
 import { beacon, lamp, parcels, zone } from "./infrastructure";
 import { pine, tree } from "./nature";
+import { grandstand, raceCar } from "./racing";
+import { tunnel } from "./tunnel";
 import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
 import { car, truck, van } from "./vehicles";
+import { yacht } from "./water";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; props are validated per part at runtime
 export type TAnyPart = IPartDefinition<any>;
@@ -16,12 +19,16 @@ export const PARTS: TAnyPart[] = [
 	tower,
 	house,
 	shed,
+	grandstand,
 	van,
 	truck,
 	car,
+	raceCar,
+	yacht,
 	tree,
 	pine,
 	zone,
+	tunnel,
 	lamp,
 	parcels,
 	beacon,

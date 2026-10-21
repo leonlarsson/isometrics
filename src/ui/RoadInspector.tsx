@@ -4,7 +4,7 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
 import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
-import type { TRoad, TRoadStyle, TRoadSupports } from "#/scene/schema";
+import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports } from "#/scene/schema";
 
 import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
 import { Icon } from "./Icon";
@@ -71,6 +71,22 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						})
 					}
 				/>
+
+				{road.style !== "hidden" && (
+					<Select<TRoadLane>
+						label="Vehicles drive"
+						value={road.lane}
+						options={[
+							{ value: "side", label: "In lanes (on the scene's side)" },
+							{ value: "centre", label: "Down the centre (one-way, race track)" },
+						]}
+						onChange={(v) =>
+							edit("lane", (r) => {
+								r.lane = v;
+							})
+						}
+					/>
+				)}
 
 				<p className={styles.hint}>
 					{Math.round(length)} units long · {road.points.length} points

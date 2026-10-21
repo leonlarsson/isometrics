@@ -52,6 +52,11 @@ const findViolations = (source) => {
 					continue;
 				}
 
+				// A comment-only child ({/* … */}) belongs to the block after it: no blank line between.
+				if (ts.isJsxExpression(a) && !a.expression) {
+					continue;
+				}
+
 				const gap = lineOf(b.getStart(source)) - lineOf(a.getEnd());
 				if (gap === 1) {
 					offsets.push(a.getEnd());

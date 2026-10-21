@@ -1,10 +1,12 @@
 import {
+	selectSelectedArea,
 	selectSelectedEntity,
 	selectSelectedRoad,
 	type TInspectorTab,
 	useEditor,
 } from "#/editor/store";
 
+import { AreaInspector } from "./AreaInspector";
 import { DataPanel } from "./DataPanel";
 import { EntityInspector } from "./EntityInspector";
 import { RoadInspector } from "./RoadInspector";
@@ -23,6 +25,7 @@ export const Inspector = () => {
 	const setTab = useEditor((s) => s.setTab);
 	const entity = useEditor(selectSelectedEntity);
 	const road = useEditor(selectSelectedRoad);
+	const area = useEditor(selectSelectedArea);
 
 	return (
 		<div className={styles.inspector}>
@@ -47,6 +50,8 @@ export const Inspector = () => {
 						<EntityInspector key={entity.id} entity={entity} />
 					) : road ? (
 						<RoadInspector key={road.id} road={road} />
+					) : area ? (
+						<AreaInspector key={area.id} area={area} />
 					) : (
 						<div className={styles.empty}>
 							<p>

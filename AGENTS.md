@@ -4,7 +4,7 @@ Guide for AI agents (and humans) working in this repo.
 
 ## What this is
 
-**Isometrics** lets non-technical users build animated 3D miniature worlds: low-poly scenes (buildings, vehicles, roads, bridges …) with floating data cards. **Data is a core pillar:** worlds exist to show data, and new features should stay data-capable where it's natural (ADR-0019). Users place, move, rotate, resize and recolour objects, draw roads, label things with values, and switch to a clean View mode.
+**Isometrics** lets non-technical users build animated 3D miniature worlds: low-poly scenes (buildings, vehicles, roads, bridges …) with floating data cards. **Data is a core pillar:** worlds exist to show data, and new features should stay data-capable where it's natural (ADR-0019). Users place, move, rotate, resize and recolour objects, draw roads and areas (water, grass, sand, plazas, raised land), label things with values, and switch to a clean View mode.
 
 ## Read first
 
@@ -27,7 +27,7 @@ Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`. CI (
 
 ```
 src/
-  scene/      document model: Zod schema, parsing, road geometry, path sampling, formatting, theme palettes (no React)
+  scene/      document model: Zod schema, parsing, road geometry, areas, path sampling, formatting, theme palettes (no React)
   parts/      procedural 3D parts + registry (definePart, PARTS)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
@@ -46,7 +46,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **Naming (lint-enforced, ADR-0011):** type aliases `TName`, interfaces `IName`. Zod schemas are `NameSchema`, with inferred types `type TName = z.output<typeof NameSchema>`. Props interfaces are named after their component (`IEntityLabelProps`); a generic `IProps` is rejected.
 - **Biome ≥ 2.6 is the only linter and formatter (ADR-0013).** Tabs, double quotes, line width 100. Run `pnpm check:fix` and let it order imports. Key rules: no `any`, no global `React.*` (import types directly), no unused variables or imports, `Number.parseFloat` over `parseFloat`. `useExhaustiveDependencies` is **off**, so don't add suppressions for it; unused `biome-ignore` comments fail the check.
 - Import order (auto-fixed): packages → `#/` aliases → `../` → `./` → stylesheets last, with a blank line between groups.
-- **Layout (ADR-0014):** every `if`/`else`/loop body is braced with the body on its own line (Biome `useBlockStatements`). Sibling JSX children (elements, fragments, `{expressions}`) are separated by a blank line, single-line ones included; inline text runs are exempt. Enforced by `scripts/jsx-spacing.mjs`, which is part of `pnpm check`, and fixed by `pnpm check:fix`.
+- **Layout (ADR-0014):** every `if`/`else`/loop body is braced with the body on its own line (Biome `useBlockStatements`). Sibling JSX children (elements, fragments, `{expressions}`) are separated by a blank line, single-line ones included; inline text runs are exempt, and a `{/* comment */}` sits directly on top of the block it describes. Enforced by `scripts/jsx-spacing.mjs`, which is part of `pnpm check`, and fixed by `pnpm check:fix`.
 - **Functions and exports (ADR-0015):** define every function as a `const` arrow function and use named exports only. No `function` declarations (not lint-enforced, so follow it by hand; Biome only catches function *expressions*), and no `export default` except in `*.config.*` files. Exception: route files in `src/routes/` keep `export const Route` first, followed by a hoisted `function` component. Arrow functions aren't hoisted, so define helpers before top-level code uses them, and write `<T,>` for unconstrained generics in `.tsx`.
 - Imports use the `#/` alias for `src/`.
 - **Keyboard (ADR-0016):** all shortcuts go through `@tanstack/react-hotkeys` (`useHotkey` / `useHotkeys`). Editor-wide ones live in `src/editor/useShortcuts.ts`; widget-specific ones use `target: ref`. Never add `keydown` listeners or `onKeyDown` props (not lint-enforced, so follow it by hand). Register `Shift+X` variants explicitly, and give each hotkey `meta: { name }`.

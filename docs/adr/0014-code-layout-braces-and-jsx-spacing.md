@@ -19,7 +19,7 @@ The repo owner prefers code where control flow and JSX structure are easy to sca
    }
    ```
 
-2. **A blank line between sibling JSX children.** Elements, fragments and `{expressions}` that sit on separate lines are separated by an empty line, single-line ones included. Text runs are exempt, so inline content such as `<Icon /> Add` or a sentence containing `{"…"}` stays as written.
+2. **A blank line between sibling JSX children.** Elements, fragments and `{expressions}` that sit on separate lines are separated by an empty line, single-line ones included. Text runs are exempt, so inline content such as `<Icon /> Add` or a sentence containing `{"…"}` stays as written. A JSX comment (`{/* … */}`) sits directly on top of the block it describes, with no blank line after it.
 
    ```tsx
    <main className={styles.stage}>

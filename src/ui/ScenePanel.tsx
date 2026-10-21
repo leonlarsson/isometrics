@@ -1,6 +1,7 @@
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
+import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference } from "#/scene/schema";
 import { TEMPLATES } from "#/templates";
@@ -19,6 +20,8 @@ export const ScenePanel = () => {
 	const palette = usePalette();
 	const selectedRoadId = useEditor((s) => s.selectedRoadId);
 	const selectRoad = useEditor((s) => s.selectRoad);
+	const selectedAreaId = useEditor((s) => s.selectedAreaId);
+	const selectArea = useEditor((s) => s.selectArea);
 
 	return (
 		<>
@@ -160,6 +163,36 @@ export const ScenePanel = () => {
 									<span>{road.name || ROAD_STYLE_LABELS[road.style]}</span>
 
 									<span className={styles.roadMeta}>{ROAD_STYLE_LABELS[road.style]}</span>
+								</button>
+							</li>
+						))}
+					</ul>
+				)}
+			</Section>
+
+			<Section title="Areas">
+				{scene.areas.length === 0 ? (
+					<p className={styles.hint}>
+						No areas yet. Draw water, grass, sand, plazas or raised land from Add to scene → Areas.
+					</p>
+				) : (
+					<ul className={styles.roadList}>
+						{scene.areas.map((area) => (
+							<li key={area.id}>
+								<button
+									type="button"
+									className={styles.roadItem}
+									aria-current={area.id === selectedAreaId || undefined}
+									onClick={() => selectArea(area.id)}
+								>
+									<span
+										className={styles.roadSwatch}
+										style={{ background: areaColor(area, palette) }}
+									/>
+
+									<span>{area.name || AREA_TYPE_LABELS[area.type]}</span>
+
+									<span className={styles.roadMeta}>{AREA_TYPE_LABELS[area.type]}</span>
 								</button>
 							</li>
 						))}

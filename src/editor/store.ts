@@ -3,10 +3,15 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 
 import { normalizeDegrees, round } from "#/lib/math";
+import { AREA_TYPE_HEIGHT, AREA_TYPE_LABELS } from "#/scene/areas";
 import { joinedPoints, ROAD_STYLE_LABELS, ROAD_STYLE_WIDTH, type TRoadEnd } from "#/scene/roads";
 import {
+	AreaSchema,
 	EntitySchema,
 	RoadSchema,
+	type TArea,
+	type TAreaInput,
+	type TAreaType,
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
@@ -36,9 +41,14 @@ export interface ICommitOptions {
 	coalesce?: string;
 }
 
-/** A road being drawn point by point. Runtime UI state; never saved in the scene. */
+/** A road or area being drawn point by point. Runtime UI state; never saved in the scene. */
 export interface IRoadDrawing {
+	/** What the points will become. */
+	target: "road" | "area";
+	/** Road style (roads only). */
 	style: TRoadStyle;
+	/** Area type (areas only). */
+	areaType: TAreaType;
 	points: TRoadPoint[];
 	/** When continuing an existing road: its id. Finishing replaces that road's points. */
 	roadId?: string;
@@ -60,7 +70,8 @@ export interface IEditorState {
 
 	selectedId: string | null;
 	selectedRoadId: string | null;
-	/** Selected control point of the selected road. */
+	selectedAreaId: string | null;
+	/** Selected control point of the selected road or area. */
 	selectedPointIndex: number | null;
 	drawing: IRoadDrawing | null;
 	joinOffer: IJoinOffer | null;
@@ -81,6 +92,9 @@ export interface IEditorState {
 	selectRoad: (id: string | null) => void;
 	/** Select a control point of a road (also selects the road), or clear the point selection. */
 	selectRoadPoint: (roadId: string, index: number | null) => void;
+	selectArea: (id: string | null) => void;
+	/** Select a corner of an area (also selects the area), or clear the point selection. */
+	selectAreaPoint: (areaId: string, index: number | null) => void;
 	/** Deselect any entity, road or point. */
 	clearSelection: () => void;
 	setMode: (mode: TEditorMode) => void;
@@ -122,32 +136,53 @@ export interface IEditorState {
 	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
 	setJoinOffer: (offer: IJoinOffer | null) => void;
 
+	addArea: (input: Omit<TAreaInput, "id"> & { id?: string }) => string;
+	updateArea: (id: string, recipe: (area: Draft<TArea>) => void, options?: ICommitOptions) => void;
+	removeArea: (id: string) => void;
+	moveAreaPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	/** Insert a corner before `index`. */
+	insertAreaPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	/** Remove a corner (an area keeps at least three). */
+	removeAreaPoint: (id: string, index: number) => void;
+
 	startDrawing: (style: TRoadStyle) => void;
+	startAreaDrawing: (type: TAreaType) => void;
 	/** Continue drawing from one end of an existing open road. */
 	continueDrawing: (roadId: string, end: TRoadEnd) => void;
 	addDrawingPoint: (point: TVec2) => void;
 	undoDrawingPoint: () => void;
-	/** Create the road from the drawn points (needs at least 2). Returns its id. */
+	/** Create the road (2+ points) or area (3+ points) from the drawn points. Returns its id. */
 	finishDrawing: (options?: { closed?: boolean }) => string | null;
 	cancelDrawing: () => void;
 }
 
 export const newId = (prefix: string) => `${prefix}_${nanoid(8)}`;
 
-/** Keep road/point selection only if it still exists in `scene` (after undo/redo). */
+/** Keep road/area/point selection only if it still exists in `scene` (after undo/redo). */
 const validRoadSelection = (
 	scene: TScene,
-	state: Pick<IEditorState, "selectedRoadId" | "selectedPointIndex">,
+	state: Pick<IEditorState, "selectedRoadId" | "selectedAreaId" | "selectedPointIndex">,
 ) => {
 	const road = scene.roads.find((r) => r.id === state.selectedRoadId);
+	const area = scene.areas.find((a) => a.id === state.selectedAreaId);
+	const points = road?.points ?? area?.points;
 	return {
 		selectedRoadId: road ? road.id : null,
+		selectedAreaId: area ? area.id : null,
 		selectedPointIndex:
-			road && state.selectedPointIndex !== null && state.selectedPointIndex < road.points.length
+			points && state.selectedPointIndex !== null && state.selectedPointIndex < points.length
 				? state.selectedPointIndex
 				: null,
 	};
 };
+
+/** Selection fields cleared together whenever something else gets selected. */
+const NOTHING_SELECTED = {
+	selectedId: null,
+	selectedRoadId: null,
+	selectedAreaId: null,
+	selectedPointIndex: null,
+} as const;
 
 /** Replace every reference to a data key (labels and detail tiles). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
@@ -167,9 +202,7 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 		future: [],
 		lastCommit: null,
 
-		selectedId: null,
-		selectedRoadId: null,
-		selectedPointIndex: null,
+		...NOTHING_SELECTED,
 		drawing: null,
 		joinOffer: null,
 		mode: "edit",
@@ -209,9 +242,7 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				past: [],
 				future: [],
 				lastCommit: null,
-				selectedId: null,
-				selectedRoadId: null,
-				selectedPointIndex: null,
+				...NOTHING_SELECTED,
 				drawing: null,
 				joinOffer: null,
 			}),
@@ -255,37 +286,53 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			}),
 
 		select: (id) =>
-			set((state) => ({
-				selectedId: id,
-				selectedRoadId: id ? null : state.selectedRoadId,
-				selectedPointIndex: id ? null : state.selectedPointIndex,
-				tab: id && state.mode === "edit" ? "object" : state.tab,
-			})),
+			set((state) =>
+				id
+					? {
+							...NOTHING_SELECTED,
+							selectedId: id,
+							tab: state.mode === "edit" ? "object" : state.tab,
+						}
+					: { selectedId: null },
+			),
 		selectRoad: (id) =>
-			set((state) => ({
-				selectedRoadId: id,
-				selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
-				selectedId: id ? null : state.selectedId,
-				tab: id && state.mode === "edit" ? "object" : state.tab,
-			})),
+			set((state) =>
+				id
+					? {
+							...NOTHING_SELECTED,
+							selectedRoadId: id,
+							selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
+							tab: state.mode === "edit" ? "object" : state.tab,
+						}
+					: { selectedRoadId: null, selectedPointIndex: null },
+			),
 		selectRoadPoint: (roadId, index) =>
 			set((state) => ({
+				...NOTHING_SELECTED,
 				selectedRoadId: roadId,
 				selectedPointIndex: index,
-				selectedId: null,
 				tab: state.mode === "edit" ? "object" : state.tab,
 			})),
-		clearSelection: () =>
-			set({ selectedId: null, selectedRoadId: null, selectedPointIndex: null, joinOffer: null }),
-		setMode: (mode) =>
-			set({
-				mode,
-				selectedId: null,
-				selectedRoadId: null,
-				selectedPointIndex: null,
-				drawing: null,
-				joinOffer: null,
-			}),
+		selectArea: (id) =>
+			set((state) =>
+				id
+					? {
+							...NOTHING_SELECTED,
+							selectedAreaId: id,
+							selectedPointIndex: id === state.selectedAreaId ? state.selectedPointIndex : null,
+							tab: state.mode === "edit" ? "object" : state.tab,
+						}
+					: { selectedAreaId: null, selectedPointIndex: null },
+			),
+		selectAreaPoint: (areaId, index) =>
+			set((state) => ({
+				...NOTHING_SELECTED,
+				selectedAreaId: areaId,
+				selectedPointIndex: index,
+				tab: state.mode === "edit" ? "object" : state.tab,
+			})),
+		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null }),
+		setMode: (mode) => set({ mode, ...NOTHING_SELECTED, drawing: null, joinOffer: null }),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
@@ -387,7 +434,7 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			get().commit((scene) => {
 				scene.roads.push(road);
 			});
-			set({ selectedRoadId: road.id, selectedId: null, tab: "object" });
+			set({ ...NOTHING_SELECTED, selectedRoadId: road.id, tab: "object" });
 			return road.id;
 		},
 
@@ -530,17 +577,22 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					}
 				}
 			});
-			set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null, selectedId: null });
+			set({ ...NOTHING_SELECTED, joinOffer: null, selectedRoadId: aId });
 		},
 
 		setJoinOffer: (offer) => set({ joinOffer: offer }),
 
 		startDrawing: (style) =>
 			set({
-				drawing: { style, points: [] },
-				selectedId: null,
-				selectedRoadId: null,
-				selectedPointIndex: null,
+				drawing: { target: "road", style, areaType: "grass", points: [] },
+				...NOTHING_SELECTED,
+				joinOffer: null,
+			}),
+
+		startAreaDrawing: (areaType) =>
+			set({
+				drawing: { target: "area", style: "asphalt", areaType, points: [] },
+				...NOTHING_SELECTED,
 				joinOffer: null,
 			}),
 
@@ -552,11 +604,69 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			// Orient the points so new ones are added after the chosen end.
 			const points = end === "end" ? [...road.points] : [...road.points].reverse();
 			set({
-				drawing: { style: road.style, points, roadId },
-				selectedId: null,
-				selectedPointIndex: null,
+				drawing: { target: "road", style: road.style, areaType: "grass", points, roadId },
+				...NOTHING_SELECTED,
 				joinOffer: null,
 			});
+		},
+
+		addArea: (input) => {
+			const area = AreaSchema.parse({ ...input, id: input.id ?? newId("area") });
+			get().commit((scene) => {
+				scene.areas.push(area);
+			});
+			set({ ...NOTHING_SELECTED, selectedAreaId: area.id, tab: "object" });
+			return area.id;
+		},
+
+		updateArea: (id, recipe, options) =>
+			get().commit((scene) => {
+				const area = scene.areas.find((a) => a.id === id);
+				if (area) {
+					recipe(area);
+				}
+			}, options),
+
+		removeArea: (id) => {
+			get().commit((scene) => {
+				scene.areas = scene.areas.filter((a) => a.id !== id);
+			});
+			if (get().selectedAreaId === id) {
+				set({ selectedAreaId: null, selectedPointIndex: null });
+			}
+		},
+
+		moveAreaPoint: (id, index, point, options) =>
+			get().updateArea(
+				id,
+				(area) => {
+					if (area.points[index]) {
+						area.points[index] = [round(point[0]), round(point[1])];
+					}
+				},
+				options,
+			),
+
+		insertAreaPoint: (id, index, point, options) =>
+			get().updateArea(
+				id,
+				(area) => {
+					area.points.splice(index, 0, [round(point[0]), round(point[1])]);
+				},
+				options,
+			),
+
+		removeAreaPoint: (id, index) => {
+			get().updateArea(id, (area) => {
+				if (area.points.length > 3) {
+					area.points.splice(index, 1);
+				}
+			});
+			set((state) =>
+				state.selectedAreaId === id && state.selectedPointIndex !== null
+					? { selectedPointIndex: null }
+					: state,
+			);
 		},
 
 		addDrawingPoint: (point) =>
@@ -586,6 +696,18 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			if (!drawing || drawing.points.length < 2) {
 				return null;
 			}
+			if (drawing.target === "area") {
+				if (drawing.points.length < 3) {
+					return null;
+				}
+				const count = scene.areas.filter((a) => a.type === drawing.areaType).length;
+				return get().addArea({
+					name: `${AREA_TYPE_LABELS[drawing.areaType]} ${count + 1}`,
+					type: drawing.areaType,
+					points: drawing.points.map(([x, z]) => [x, z]),
+					height: AREA_TYPE_HEIGHT[drawing.areaType],
+				});
+			}
 			const closed = Boolean(options.closed) && drawing.points.length > 2;
 			if (drawing.roadId) {
 				const roadId = drawing.roadId;
@@ -593,7 +715,7 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					road.points = drawing.points;
 					road.closed = closed;
 				});
-				set({ selectedRoadId: roadId, selectedId: null, tab: "object" });
+				set({ ...NOTHING_SELECTED, selectedRoadId: roadId, tab: "object" });
 				return roadId;
 			}
 			const count = scene.roads.filter((r) => r.style === drawing.style).length;
@@ -617,3 +739,6 @@ export const selectSelectedEntity = (state: IEditorState) =>
 
 export const selectSelectedRoad = (state: IEditorState) =>
 	state.scene.roads.find((r) => r.id === state.selectedRoadId) ?? null;
+
+export const selectSelectedArea = (state: IEditorState) =>
+	state.scene.areas.find((a) => a.id === state.selectedAreaId) ?? null;

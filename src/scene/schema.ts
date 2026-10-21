@@ -81,6 +81,9 @@ export const RoadSupportsSchema = z.enum(["pillars", "embankment"]);
 /** asphalt = paved road with markings, dirt = path, hidden = invisible route for vehicles only. */
 export const RoadStyleSchema = z.enum(["asphalt", "dirt", "hidden"]);
 
+/** Where on a road vehicles drive. See docs/adr/0022-centre-lane-roads.md. */
+export const RoadLaneSchema = z.enum(["side", "centre"]);
+
 /**
  * A road drawn as a polyline on the ground. Corners are rounded with
  * `cornerRadius`, and every road doubles as a route vehicles can follow.
@@ -103,12 +106,37 @@ export const RoadSchema = z.object({
 	supports: RoadSupportsSchema.default("pillars"),
 	/** Low barriers along the edges of elevated sections. */
 	railings: z.boolean().default(true),
+	/**
+	 * Where vehicles drive: in a lane on the scene's driving side, or down the
+	 * centre (one-way roads, race tracks).
+	 */
+	lane: RoadLaneSchema.default("side"),
 	/** null = the style's default colour for the active theme. */
 	color: hexColor.nullable().default(null),
 });
 
 /** Which side of the road vehicles drive on. */
 export const DrivingSideSchema = z.enum(["right", "left"]);
+
+/** What an area is: sets its default colour. `land` is meant for raised ground (rocks, plateaus). */
+export const AreaTypeSchema = z.enum(["water", "grass", "sand", "plaza", "land"]);
+
+/**
+ * A free-form area on the ground (water, lawn, beach, square…), drawn as a
+ * polygon. With a height it becomes raised land with cliff sides.
+ * See docs/adr/0021-free-form-areas.md.
+ */
+export const AreaSchema = z.object({
+	id: z.string().min(1),
+	name: z.string().default(""),
+	type: AreaTypeSchema.default("grass"),
+	/** Outline corners [x, z]; always closed. */
+	points: z.array(Vec2Schema).min(3),
+	/** 0 = flat on the ground; above 0 = raised with vertical sides. */
+	height: z.number().min(0).max(30).default(0),
+	/** null = the type's default colour for the active theme. */
+	color: hexColor.nullable().default(null),
+});
 
 export const GroundSchema = z.object({
 	width: z.number().min(4).max(200).default(40),
@@ -132,6 +160,7 @@ export const SceneSchema = z
 		driving: DrivingSideSchema.default("right"),
 		entities: z.array(EntitySchema).default([]),
 		roads: z.array(RoadSchema).default([]),
+		areas: z.array(AreaSchema).default([]),
 		data: z.array(DataEntrySchema).default([]),
 	})
 	.superRefine((scene, ctx) => {
@@ -159,6 +188,11 @@ export const SceneSchema = z
 			"road id",
 		);
 		checkUnique(
+			scene.areas.map((a) => a.id),
+			["areas"],
+			"area id",
+		);
+		checkUnique(
 			scene.data.map((d) => d.key),
 			["data"],
 			"data key",
@@ -177,6 +211,10 @@ export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadStyle = z.output<typeof RoadStyleSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
 export type TRoadSupports = z.output<typeof RoadSupportsSchema>;
+export type TRoadLane = z.output<typeof RoadLaneSchema>;
+export type TArea = z.output<typeof AreaSchema>;
+export type TAreaInput = z.input<typeof AreaSchema>;
+export type TAreaType = z.output<typeof AreaTypeSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TVec2 = z.output<typeof Vec2Schema>;

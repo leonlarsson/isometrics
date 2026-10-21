@@ -1,6 +1,7 @@
 import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
 import { useEditor } from "#/editor/store";
+import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 
 import styles from "./DrawingBar.module.css";
@@ -33,18 +34,25 @@ const DrawingControls = () => {
 		return null;
 	}
 
+	const isArea = drawing.target === "area";
 	const count = drawing.points.length;
+	const minimum = isArea ? 3 : 2;
 	const hint =
 		count === 0
 			? "Click on the ground to place the first point."
-			: count === 1
+			: count < minimum
 				? "Click to add the next point."
-				: "Keep clicking to add points. Click the first point to make a loop.";
+				: isArea
+					? "Keep clicking to add corners. Click the first corner or press Enter to finish."
+					: "Keep clicking to add points. Click the first point to make a loop.";
+	const what = isArea
+		? `${AREA_TYPE_LABELS[drawing.areaType].toLowerCase()} area`
+		: ROAD_STYLE_LABELS[drawing.style].toLowerCase();
 
 	return (
 		<div className={styles.bar} role="status">
 			<div className={styles.text}>
-				<strong>Drawing {ROAD_STYLE_LABELS[drawing.style].toLowerCase()}</strong>
+				<strong>Drawing {what}</strong>
 
 				<span>{hint}</span>
 
@@ -61,7 +69,7 @@ const DrawingControls = () => {
 				<button
 					type="button"
 					className={styles.primary}
-					disabled={count < 2}
+					disabled={count < minimum}
 					onClick={() => finishDrawing()}
 				>
 					Finish

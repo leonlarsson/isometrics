@@ -1,4 +1,4 @@
-import type { TThemePreference } from "./schema";
+import type { TAreaType, TThemePreference } from "./schema";
 
 export type TResolvedTheme = "light" | "dark";
 
@@ -25,6 +25,10 @@ export interface IScenePalette {
 	deck: string;
 	railing: string;
 	embankment: string;
+	/** Default colours per area type (see AreaTypeSchema). */
+	areas: Record<TAreaType, string>;
+	/** Cliff sides of raised areas. */
+	cliff: string;
 	cardboard: string;
 	selection: string;
 	hemiSky: string;
@@ -53,6 +57,14 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		deck: "#b9b5ab",
 		railing: "#f4f2ec",
 		embankment: "#cdd5bd",
+		areas: {
+			water: "#9ccbe8",
+			grass: "#bcd9ab",
+			sand: "#ecdcb4",
+			plaza: "#e6e1d6",
+			land: "#e2dac8",
+		},
+		cliff: "#c9bfa9",
 		cardboard: "#d8a967",
 		selection: "#e2603b",
 		hemiSky: "#ffffff",
@@ -79,6 +91,14 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		deck: "#5b5d55",
 		railing: "#8f918a",
 		embankment: "#4b5243",
+		areas: {
+			water: "#2f4b60",
+			grass: "#3f5a3a",
+			sand: "#6b5f45",
+			plaza: "#4a4b45",
+			land: "#4f4c43",
+		},
+		cliff: "#3d3b34",
 		cardboard: "#b48a52",
 		selection: "#e8714c",
 		hemiSky: "#c9ccd6",

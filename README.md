@@ -1,6 +1,6 @@
 # Isometrics
 
-Build animated 3D miniature worlds that show your data: drop in buildings, vehicles and trees, draw roads and bridges, label it all with your numbers, and present the result as a living map of your business.
+Build animated 3D miniature worlds that show your data: drop in buildings, vehicles and trees, draw roads, bridges, water, parks and raised land, label it all with your numbers, and present the result as a living map of your business.
 
 ## Quick start
 

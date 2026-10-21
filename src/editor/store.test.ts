@@ -301,4 +301,66 @@ describe("editor store", () => {
 			[-5, 0, 1],
 		]);
 	});
+
+	it("draws an area from three or more corners and selects it", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().startAreaDrawing("water");
+		s().addDrawingPoint([0, 0]);
+		s().addDrawingPoint([4, 0]);
+		expect(s().finishDrawing()).toBeNull(); // two corners aren't an area
+		expect(s().scene.areas).toHaveLength(0);
+
+		s().startAreaDrawing("land");
+		s().addDrawingPoint([0, 0]);
+		s().addDrawingPoint([4, 0]);
+		s().addDrawingPoint([4, 4]);
+		const id = s().finishDrawing();
+		const area = s().scene.areas.find((a) => a.id === id);
+		expect(area).toMatchObject({ type: "land", name: "Raised land 1", height: 1.5 });
+		expect(area?.points).toEqual([
+			[0, 0],
+			[4, 0],
+			[4, 4],
+		]);
+		expect(s().selectedAreaId).toBe(id);
+	});
+
+	it("edits area corners, keeps at least three, and undoes", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addArea({
+			points: [
+				[0, 0],
+				[4, 0],
+				[4, 4],
+			],
+		});
+		s().insertAreaPoint(id, 1, [2, -1]);
+		s().moveAreaPoint(id, 1, [2, -2]);
+		expect(s().scene.areas[0].points[1]).toEqual([2, -2]);
+		s().removeAreaPoint(id, 0);
+		s().removeAreaPoint(id, 0); // already at three corners
+		expect(s().scene.areas[0].points).toHaveLength(3);
+		s().removeArea(id);
+		expect(s().scene.areas).toHaveLength(0);
+		s().undo();
+		expect(s().scene.areas).toHaveLength(1);
+	});
+
+	it("keeps area, road and entity selection mutually exclusive", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const area = s().addArea({
+			points: [
+				[0, 0],
+				[1, 0],
+				[1, 1],
+			],
+		});
+		s().selectAreaPoint(area, 2);
+		expect(s()).toMatchObject({ selectedAreaId: area, selectedPointIndex: 2, selectedId: null });
+		s().select("w");
+		expect(s()).toMatchObject({ selectedAreaId: null, selectedPointIndex: null, selectedId: "w" });
+	});
 });

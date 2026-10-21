@@ -1,5 +1,6 @@
 import type { TScene } from "#/scene/schema";
 
+import { createMonacoScene } from "./monaco";
 import { createWarehouseScene } from "./warehouse";
 
 export interface ITemplateInfo {
@@ -15,5 +16,11 @@ export const TEMPLATES: ITemplateInfo[] = [
 		name: "Delivery hub",
 		description: "Warehouse, office, depot and vans on a delivery loop",
 		create: createWarehouseScene,
+	},
+	{
+		id: "monaco",
+		name: "Monaco street circuit",
+		description: "F1 street circuit around a harbour: Casino hill, hairpin, tunnel, race data",
+		create: createMonacoScene,
 	},
 ];

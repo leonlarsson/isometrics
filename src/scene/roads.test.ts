@@ -86,7 +86,7 @@ const distanceToSegment = (p: readonly number[], a: readonly number[], b: readon
 };
 
 describe("buildRibbon", () => {
-	it("makes one quad for a straight road, offset by the half width", () => {
+	it("makes one quad (split along the centre line) for a straight road, offset by the half width", () => {
 		const { vertices, indices } = buildRibbon(
 			[
 				[0, 0],
@@ -95,10 +95,11 @@ describe("buildRibbon", () => {
 			1.5,
 			false,
 		);
-		expect(vertices).toHaveLength(4);
-		expect(indices).toHaveLength(6);
+		expect(vertices).toHaveLength(6);
+		expect(indices).toHaveLength(12);
 		expect(vertices[0][1]).toBeCloseTo(-1.5);
-		expect(vertices[1][1]).toBeCloseTo(1.5);
+		expect(vertices[1][1]).toBeCloseTo(0);
+		expect(vertices[2][1]).toBeCloseTo(1.5);
 	});
 
 	it("never sticks out further than the half width, even on a hairpin", () => {
@@ -140,10 +141,11 @@ describe("dashPolyline", () => {
 });
 
 describe("lanes", () => {
-	it("drives on the right or left, and not at all on hidden routes", () => {
-		expect(laneOffset({ width: 2, style: "asphalt" }, "right")).toBeGreaterThan(0);
-		expect(laneOffset({ width: 2, style: "asphalt" }, "left")).toBeLessThan(0);
-		expect(laneOffset({ width: 2, style: "hidden" }, "right")).toBe(0);
+	it("drives on the right or left, and down the centre of hidden or centre-lane roads", () => {
+		expect(laneOffset({ width: 2, style: "asphalt", lane: "side" }, "right")).toBeGreaterThan(0);
+		expect(laneOffset({ width: 2, style: "asphalt", lane: "side" }, "left")).toBeLessThan(0);
+		expect(laneOffset({ width: 2, style: "hidden", lane: "side" }, "right")).toBe(0);
+		expect(laneOffset({ width: 2, style: "asphalt", lane: "centre" }, "right")).toBe(0);
 	});
 
 	it("puts opposite directions on opposite sides", () => {
@@ -370,14 +372,33 @@ describe("buildRibbon bends and normals", () => {
 			[10, 10],
 		];
 		const { vertices } = buildRibbon(corner, 1, false);
-		// 2 quads (8 vertices) + hub + a 90° arc in π/16 steps (9 points).
-		expect(vertices).toHaveLength(8 + 1 + 9);
-		const arc = vertices.slice(9);
+		// 2 quads (6 vertices each) + hub + a 90° arc in π/16 steps (9 points).
+		expect(vertices).toHaveLength(12 + 1 + 9);
+		const arc = vertices.slice(13);
 		// The road turns right (towards +Z), so the outside is the -Z / +X side of the corner.
 		expect(arc[0][0]).toBeCloseTo(10);
-		expect(arc[0][1]).toBeCloseTo(-1); // corner of the first quad's outer edge
+		expect(arc[0][1]).toBeCloseTo(-1);
 		expect(arc.at(-1)?.[0]).toBeCloseTo(11);
-		expect(arc.at(-1)?.[1]).toBeCloseTo(0); // corner of the second quad's outer edge
+		expect(arc.at(-1)?.[1]).toBeCloseTo(0);
+		// Exactly the quads' outer corners, so there's no hairline crack between them.
+		expect(arc[0]).toEqual(vertices[3]);
+		expect(arc.at(-1)).toEqual(vertices[6]);
+		// The hub is the quads' shared centre vertex, not a point in the middle of an edge.
+		expect(vertices[12]).toEqual(vertices[4]);
+	});
+
+	it("fills even the slightest bend, so dense curves have no cracks", () => {
+		const { vertices } = buildRibbon(
+			[
+				[0, 0],
+				[10, 0],
+				[20, 0.01],
+			],
+			1,
+			false,
+		);
+		// 2 quads + hub + a one-step arc (2 points).
+		expect(vertices).toHaveLength(12 + 1 + 2);
 	});
 
 	it("keeps bend wedges at the road's height", () => {

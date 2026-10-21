@@ -4,6 +4,8 @@ import { Canvas } from "@react-three/fiber";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 
+import { AreaHandles } from "./AreaHandles";
+import { AreaMesh } from "./AreaMesh";
 import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
@@ -43,6 +45,7 @@ const Lights = () => {
 export const Viewport = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
+	const areas = useEditor((s) => s.scene.areas);
 
 	return (
 		<Canvas
@@ -55,6 +58,12 @@ export const Viewport = () => {
 			<Lights />
 
 			<Ground />
+
+			{areas.map((area, index) => (
+				<AreaMesh key={area.id} area={area} layer={index} />
+			))}
+
+			<AreaHandles />
 
 			{entities.map((entity) => (
 				<EntityNode key={entity.id} entity={entity} />

@@ -246,13 +246,15 @@ export interface IRibbon {
 
 /** Arc resolution of the wedge that fills the outside of a bend. */
 const JOIN_STEP = Math.PI / 16;
-/** Skip joins where the line barely bends (dense curve samples). Cosine of ~0.6°. */
-const STRAIGHT_COS = 0.99995;
 
 /**
  * Triangulate a band of `halfWidth` around a polyline: one quad per segment,
  * plus a round wedge filling the gap on the outside of each bend.
  *
+ * - Watertight: every bend gets its wedge, however slight, and the wedge
+ *   reuses the quads' exact corner coordinates. Quads are split at the centre
+ *   line so the wedge's hub is a shared vertex, not a point in the middle of
+ *   a quad's edge. (Skipped slivers and T-junctions showed as hairline cracks.)
  * - Nothing sticks out further than `halfWidth` from the line, however tight
  *   the corner. (Mitred offset edges fold over and spike on hairpins.)
  * - Wedges sit exactly at the bend's height and only cover the gap between
@@ -313,15 +315,20 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		}
 		const side = scale(rightOf(dir), halfWidth);
 		const base = vertices.length;
+		// Left, centre and right at each end: two quads, split along the centre line.
 		vertices.push(
 			[...sub(xz(a), side), a[2]],
+			[a[0], a[1], a[2]],
 			[...add(xz(a), side), a[2]],
 			[...sub(xz(b), side), b[2]],
+			[b[0], b[1], b[2]],
 			[...add(xz(b), side), b[2]],
 		);
-		normals.push(vertexNormal[ia], vertexNormal[ia], vertexNormal[ib], vertexNormal[ib]);
-		pushUp(base, base + 2, base + 1);
-		pushUp(base + 1, base + 2, base + 3);
+		normals.push(...[ia, ia, ia, ib, ib, ib].map((i) => vertexNormal[i]));
+		pushUp(base, base + 3, base + 1);
+		pushUp(base + 1, base + 3, base + 4);
+		pushUp(base + 1, base + 4, base + 2);
+		pushUp(base + 2, base + 4, base + 5);
 	}
 
 	for (let i = 0; i < n; i++) {
@@ -331,8 +338,8 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		}
 		const inDir = segDir[before];
 		const outDir = segDir[after];
-		if (inDir[0] * outDir[0] + inDir[1] * outDir[1] > STRAIGHT_COS) {
-			continue;
+		if (inDir[0] === outDir[0] && inDir[1] === outDir[1]) {
+			continue; // dead straight: the quads already meet edge to edge
 		}
 		// The outside of the bend is the side the road turns away from.
 		const sIn = rightOf(inDir);
@@ -350,12 +357,23 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		}
 		const steps = Math.max(1, Math.ceil(Math.abs(to - from) / JOIN_STEP));
 		const [cx, cz, h] = pts[i];
+		// The arc's ends are the quads' outer corners, computed exactly as the quads compute them.
+		const corner = (dir: TVec2): TVec2 => {
+			const side = scale(rightOf(dir), halfWidth);
+			return turnsRight ? sub([cx, cz], side) : add([cx, cz], side);
+		};
 		const hub = vertices.length;
 		vertices.push([cx, cz, h]);
 		normals.push(vertexNormal[i]);
 		for (let s = 0; s <= steps; s++) {
 			const angle = from + ((to - from) * s) / steps;
-			vertices.push([cx + Math.cos(angle) * halfWidth, cz + Math.sin(angle) * halfWidth, h]);
+			const [x, z] =
+				s === 0
+					? corner(inDir)
+					: s === steps
+						? corner(outDir)
+						: [cx + Math.cos(angle) * halfWidth, cz + Math.sin(angle) * halfWidth];
+			vertices.push([x, z, h]);
 			normals.push(vertexNormal[i]);
 		}
 		for (let s = 0; s < steps; s++) {
@@ -539,8 +557,11 @@ export const dashPolyline = (
  * Signed sideways offset for vehicles: positive = right of travel direction.
  * Hidden routes have no lanes, so vehicles drive on the line itself.
  */
-export const laneOffset = (road: Pick<TRoad, "width" | "style">, driving: TDrivingSide) => {
-	if (road.style === "hidden") {
+export const laneOffset = (
+	road: Pick<TRoad, "width" | "style" | "lane">,
+	driving: TDrivingSide,
+) => {
+	if (road.style === "hidden" || road.lane === "centre") {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);

@@ -3,8 +3,9 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
+import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TRoadStyle } from "#/scene/schema";
+import type { TAreaType, TRoadStyle } from "#/scene/schema";
 
 import styles from "./PartsPalette.module.css";
 
@@ -14,10 +15,20 @@ const ROAD_TOOLS: { style: TRoadStyle; description: string }[] = [
 	{ style: "hidden", description: "Invisible route that vehicles follow, e.g. a forklift path" },
 ];
 
+const AREA_TOOLS: { type: TAreaType; description: string }[] = [
+	{ type: "water", description: "Sea, lake, harbour or pond" },
+	{ type: "grass", description: "Lawn, park or field" },
+	{ type: "sand", description: "Beach or sand" },
+	{ type: "plaza", description: "Paved square, quay or car park" },
+	{ type: "land", description: "Raised ground with cliff sides, e.g. a rock or plateau" },
+];
+
 export const PartsPalette = () => {
 	const addEntity = useEditor((s) => s.addEntity);
-	const drawingStyle = useEditor((s) => s.drawing?.style ?? null);
+	const drawingStyle = useEditor((s) => (s.drawing?.target === "road" ? s.drawing.style : null));
+	const drawingArea = useEditor((s) => (s.drawing?.target === "area" ? s.drawing.areaType : null));
 	const startDrawing = useEditor((s) => s.startDrawing);
+	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
 	const palette = usePalette();
 	const roadSwatch: Record<TRoadStyle, string> = {
 		asphalt: `linear-gradient(180deg, ${palette.road} 42%, ${palette.roadMark} 42% 58%, ${palette.road} 58%)`,
@@ -49,6 +60,31 @@ export const PartsPalette = () => {
 							/>
 
 							<span className={styles.name}>{ROAD_STYLE_LABELS[style]}</span>
+						</button>
+					))}
+				</div>
+			</section>
+
+			<section className={styles.group}>
+				<h3 className={styles.category}>Areas</h3>
+
+				<div className={styles.grid}>
+					{AREA_TOOLS.map(({ type, description }) => (
+						<button
+							key={type}
+							type="button"
+							className={styles.part}
+							title={`${description}. Click its corners on the ground; Enter to finish.`}
+							aria-pressed={drawingArea === type}
+							onClick={() => startAreaDrawing(type)}
+						>
+							<span
+								className={styles.swatch}
+								style={{ background: palette.areas[type] }}
+								aria-hidden="true"
+							/>
+
+							<span className={styles.name}>{AREA_TYPE_LABELS[type]}</span>
 						</button>
 					))}
 				</div>

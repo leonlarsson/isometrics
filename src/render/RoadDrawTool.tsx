@@ -51,8 +51,11 @@ export const RoadDrawTool = () => {
 		cursor !== null &&
 		points.length > 2 &&
 		Math.hypot(cursor[0] - first[0], cursor[1] - first[1]) < CLOSE_DISTANCE;
-	const preview: (readonly number[])[] =
+	const open: (readonly number[])[] =
 		cursorPoint && points.length > 0 ? [...points, nearFirst ? first : cursorPoint] : points;
+	// Areas are always closed shapes, so preview the edge back to the first point too.
+	const preview =
+		drawing.target === "area" && open.length > 2 && !nearFirst ? [...open, first] : open;
 
 	return (
 		<group>

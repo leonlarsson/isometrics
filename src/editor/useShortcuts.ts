@@ -1,6 +1,12 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 
-import { SNAP_STEP, selectSelectedEntity, selectSelectedRoad, useEditor } from "./store";
+import {
+	SNAP_STEP,
+	selectSelectedArea,
+	selectSelectedEntity,
+	selectSelectedRoad,
+	useEditor,
+} from "./store";
 
 const isTextEntry = (target: EventTarget | null) =>
 	target instanceof HTMLElement &&
@@ -20,9 +26,11 @@ export const useShortcuts = () => {
 	const mode = useEditor((s) => s.mode);
 	const selected = useEditor(selectSelectedEntity);
 	const selectedRoad = useEditor(selectSelectedRoad);
+	const selectedArea = useEditor(selectSelectedArea);
 
 	const canEdit = mode === "edit" && selected !== null;
-	const canDelete = mode === "edit" && (selected !== null || selectedRoad !== null);
+	const canDelete =
+		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
 	const canTransform = canEdit && !selected.locked;
 	const canNudge = canTransform && !selected.follow;
 
@@ -45,15 +53,24 @@ export const useShortcuts = () => {
 		}
 	};
 
-	/** Delete the selected point if there is one, otherwise the selected object or road. */
+	/** Delete the selected point if there is one, otherwise the selected object, road or area. */
 	const remove = () => {
 		const state = useEditor.getState();
+		const point = state.selectedPointIndex;
 		if (state.selectedId) {
 			state.removeEntity(state.selectedId);
-		} else if (state.selectedRoadId && state.selectedPointIndex !== null) {
-			state.removeRoadPoint(state.selectedRoadId, state.selectedPointIndex);
 		} else if (state.selectedRoadId) {
-			state.removeRoad(state.selectedRoadId);
+			if (point !== null) {
+				state.removeRoadPoint(state.selectedRoadId, point);
+			} else {
+				state.removeRoad(state.selectedRoadId);
+			}
+		} else if (state.selectedAreaId) {
+			if (point !== null) {
+				state.removeAreaPoint(state.selectedAreaId, point);
+			} else {
+				state.removeArea(state.selectedAreaId);
+			}
 		}
 	};
 
@@ -80,6 +97,8 @@ export const useShortcuts = () => {
 				const state = useEditor.getState();
 				if (state.selectedPointIndex !== null && state.selectedRoadId) {
 					state.selectRoadPoint(state.selectedRoadId, null);
+				} else if (state.selectedPointIndex !== null && state.selectedAreaId) {
+					state.selectAreaPoint(state.selectedAreaId, null);
 				} else {
 					state.clearSelection();
 				}
