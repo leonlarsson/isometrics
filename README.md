@@ -41,6 +41,8 @@ pnpm build        # production build
 pnpm deploy       # build + deploy to Cloudflare Workers (needs `wrangler login`)
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs `pnpm check`, `pnpm typecheck` and `pnpm test` on every push to `main` and on pull requests.
+
 ### Biome and `pnpm check`
 
 Biome is the linter and formatter, and you can call it directly: `pnpm biome check`, `pnpm biome lint`, `pnpm biome format --write`.

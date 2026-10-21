@@ -21,7 +21,7 @@ Guide for AI agents (and humans) working in this repo.
 | `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
 | `pnpm build` / `pnpm deploy` | Production build / deploy to Cloudflare Workers |
 
-Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`.
+Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`. CI (`.github/workflows/ci.yml`) runs the same three on every push to `main` and on pull requests.
 
 ## Layout
 
