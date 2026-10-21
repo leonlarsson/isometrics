@@ -21,6 +21,10 @@ export interface IScenePalette {
 	road: string;
 	roadMark: string;
 	dirt: string;
+	/** Side faces of elevated decks, and pillars. */
+	deck: string;
+	railing: string;
+	embankment: string;
 	cardboard: string;
 	selection: string;
 	hemiSky: string;
@@ -46,6 +50,9 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		road: "#cdc9bf",
 		roadMark: "#ffffff",
 		dirt: "#d6bd92",
+		deck: "#b9b5ab",
+		railing: "#f4f2ec",
+		embankment: "#cdd5bd",
 		cardboard: "#d8a967",
 		selection: "#e2603b",
 		hemiSky: "#ffffff",
@@ -69,6 +76,9 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		road: "#4a4c46",
 		roadMark: "#8d8f88",
 		dirt: "#6e604a",
+		deck: "#5b5d55",
+		railing: "#8f918a",
+		embankment: "#4b5243",
 		cardboard: "#b48a52",
 		selection: "#e8714c",
 		hemiSky: "#c9ccd6",

@@ -9,6 +9,7 @@ import { Viewport } from "#/render/Viewport";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { Inspector } from "./Inspector";
+import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
 import { PartsPalette } from "./PartsPalette";
 import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
@@ -67,6 +68,8 @@ export const AppShell = () => {
 					{ready && <LabelLayer />}
 
 					<DrawingBar />
+
+					<JoinOfferBar />
 
 					<DetailSheet />
 				</main>

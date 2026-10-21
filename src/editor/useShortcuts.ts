@@ -10,7 +10,7 @@ const isTextEntry = (target: EventTarget | null) =>
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Esc deselect · Space pause/play motion
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
- *   Mod+D duplicate · Delete/Backspace remove (also a selected road)
+ *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -45,12 +45,15 @@ export const useShortcuts = () => {
 		}
 	};
 
+	/** Delete the selected point if there is one, otherwise the selected object or road. */
 	const remove = () => {
-		const { selectedId, selectedRoadId, removeEntity, removeRoad } = useEditor.getState();
-		if (selectedId) {
-			removeEntity(selectedId);
-		} else if (selectedRoadId) {
-			removeRoad(selectedRoadId);
+		const state = useEditor.getState();
+		if (state.selectedId) {
+			state.removeEntity(state.selectedId);
+		} else if (state.selectedRoadId && state.selectedPointIndex !== null) {
+			state.removeRoadPoint(state.selectedRoadId, state.selectedPointIndex);
+		} else if (state.selectedRoadId) {
+			state.removeRoad(state.selectedRoadId);
 		}
 	};
 
@@ -72,7 +75,15 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "Escape",
-			callback: () => useEditor.getState().clearSelection(),
+			// Step out one level: a selected point first, then the road or object.
+			callback: () => {
+				const state = useEditor.getState();
+				if (state.selectedPointIndex !== null && state.selectedRoadId) {
+					state.selectRoadPoint(state.selectedRoadId, null);
+				} else {
+					state.clearSelection();
+				}
+			},
 			options: { meta: { name: "Deselect" } },
 		},
 		{

@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 
 import { normalizeDegrees, round } from "#/lib/math";
-import { ROAD_STYLE_LABELS, ROAD_STYLE_WIDTH } from "#/scene/roads";
+import { joinedPoints, ROAD_STYLE_LABELS, ROAD_STYLE_WIDTH, type TRoadEnd } from "#/scene/roads";
 import {
 	EntitySchema,
 	RoadSchema,
@@ -12,6 +12,7 @@ import {
 	type TEntityInput,
 	type TRoad,
 	type TRoadInput,
+	type TRoadPoint,
 	type TRoadStyle,
 	type TScene,
 	type TVec2,
@@ -38,7 +39,17 @@ export interface ICommitOptions {
 /** A road being drawn point by point. Runtime UI state; never saved in the scene. */
 export interface IRoadDrawing {
 	style: TRoadStyle;
-	points: TVec2[];
+	points: TRoadPoint[];
+	/** When continuing an existing road: its id. Finishing replaces that road's points. */
+	roadId?: string;
+}
+
+/** Two road ends that touch after a drag; the UI offers to join them. */
+export interface IJoinOffer {
+	aId: string;
+	aEnd: TRoadEnd;
+	bId: string;
+	bEnd: TRoadEnd;
 }
 
 export interface IEditorState {
@@ -49,7 +60,10 @@ export interface IEditorState {
 
 	selectedId: string | null;
 	selectedRoadId: string | null;
+	/** Selected control point of the selected road. */
+	selectedPointIndex: number | null;
 	drawing: IRoadDrawing | null;
+	joinOffer: IJoinOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
 	dragging: boolean;
@@ -65,7 +79,9 @@ export interface IEditorState {
 
 	select: (id: string | null) => void;
 	selectRoad: (id: string | null) => void;
-	/** Deselect any entity or road. */
+	/** Select a control point of a road (also selects the road), or clear the point selection. */
+	selectRoadPoint: (roadId: string, index: number | null) => void;
+	/** Deselect any entity, road or point. */
 	clearSelection: () => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
@@ -91,12 +107,24 @@ export interface IEditorState {
 	addRoad: (input: Omit<TRoadInput, "id"> & { id?: string }) => string;
 	updateRoad: (id: string, recipe: (road: Draft<TRoad>) => void, options?: ICommitOptions) => void;
 	removeRoad: (id: string) => void;
+	/** Move a point across the ground, keeping its height. */
 	moveRoadPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	setRoadPointHeight: (id: string, index: number, height: number, options?: ICommitOptions) => void;
 	/** Insert a point before `index`. */
-	insertRoadPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	insertRoadPoint: (id: string, index: number, point: TRoadPoint, options?: ICommitOptions) => void;
 	removeRoadPoint: (id: string, index: number) => void;
+	/**
+	 * Cut a road at a point. An open road becomes two roads that share that
+	 * point (returns the new road's id); a loop opens there (returns its own id).
+	 */
+	splitRoad: (id: string, index: number) => string | null;
+	/** Join two road ends into one road; joining a road's own two ends makes a loop. */
+	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
+	setJoinOffer: (offer: IJoinOffer | null) => void;
 
 	startDrawing: (style: TRoadStyle) => void;
+	/** Continue drawing from one end of an existing open road. */
+	continueDrawing: (roadId: string, end: TRoadEnd) => void;
 	addDrawingPoint: (point: TVec2) => void;
 	undoDrawingPoint: () => void;
 	/** Create the road from the drawn points (needs at least 2). Returns its id. */
@@ -105,6 +133,21 @@ export interface IEditorState {
 }
 
 export const newId = (prefix: string) => `${prefix}_${nanoid(8)}`;
+
+/** Keep road/point selection only if it still exists in `scene` (after undo/redo). */
+const validRoadSelection = (
+	scene: TScene,
+	state: Pick<IEditorState, "selectedRoadId" | "selectedPointIndex">,
+) => {
+	const road = scene.roads.find((r) => r.id === state.selectedRoadId);
+	return {
+		selectedRoadId: road ? road.id : null,
+		selectedPointIndex:
+			road && state.selectedPointIndex !== null && state.selectedPointIndex < road.points.length
+				? state.selectedPointIndex
+				: null,
+	};
+};
 
 /** Replace every reference to a data key (labels and detail tiles). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
@@ -126,7 +169,9 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 
 		selectedId: null,
 		selectedRoadId: null,
+		selectedPointIndex: null,
 		drawing: null,
+		joinOffer: null,
 		mode: "edit",
 		tab: "object",
 		dragging: false,
@@ -166,7 +211,9 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				lastCommit: null,
 				selectedId: null,
 				selectedRoadId: null,
+				selectedPointIndex: null,
 				drawing: null,
+				joinOffer: null,
 			}),
 
 		undo: () =>
@@ -183,9 +230,8 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					selectedId: previous.entities.some((e) => e.id === state.selectedId)
 						? state.selectedId
 						: null,
-					selectedRoadId: previous.roads.some((r) => r.id === state.selectedRoadId)
-						? state.selectedRoadId
-						: null,
+					...validRoadSelection(previous, state),
+					joinOffer: null,
 				};
 			}),
 
@@ -203,9 +249,8 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 					selectedId: next.entities.some((e) => e.id === state.selectedId)
 						? state.selectedId
 						: null,
-					selectedRoadId: next.roads.some((r) => r.id === state.selectedRoadId)
-						? state.selectedRoadId
-						: null,
+					...validRoadSelection(next, state),
+					joinOffer: null,
 				};
 			}),
 
@@ -213,16 +258,34 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			set((state) => ({
 				selectedId: id,
 				selectedRoadId: id ? null : state.selectedRoadId,
+				selectedPointIndex: id ? null : state.selectedPointIndex,
 				tab: id && state.mode === "edit" ? "object" : state.tab,
 			})),
 		selectRoad: (id) =>
 			set((state) => ({
 				selectedRoadId: id,
+				selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
 				selectedId: id ? null : state.selectedId,
 				tab: id && state.mode === "edit" ? "object" : state.tab,
 			})),
-		clearSelection: () => set({ selectedId: null, selectedRoadId: null }),
-		setMode: (mode) => set({ mode, selectedId: null, selectedRoadId: null, drawing: null }),
+		selectRoadPoint: (roadId, index) =>
+			set((state) => ({
+				selectedRoadId: roadId,
+				selectedPointIndex: index,
+				selectedId: null,
+				tab: state.mode === "edit" ? "object" : state.tab,
+			})),
+		clearSelection: () =>
+			set({ selectedId: null, selectedRoadId: null, selectedPointIndex: null, joinOffer: null }),
+		setMode: (mode) =>
+			set({
+				mode,
+				selectedId: null,
+				selectedRoadId: null,
+				selectedPointIndex: null,
+				drawing: null,
+				joinOffer: null,
+			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
@@ -347,16 +410,30 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				}
 			});
 			if (get().selectedRoadId === id) {
-				set({ selectedRoadId: null });
+				set({ selectedRoadId: null, selectedPointIndex: null });
 			}
+			set({ joinOffer: null });
 		},
 
 		moveRoadPoint: (id, index, point, options) =>
 			get().updateRoad(
 				id,
 				(road) => {
-					if (road.points[index]) {
-						road.points[index] = [round(point[0]), round(point[1])];
+					const current = road.points[index];
+					if (current) {
+						road.points[index] = [round(point[0]), round(point[1]), current[2]];
+					}
+				},
+				options,
+			),
+
+		setRoadPointHeight: (id, index, height, options) =>
+			get().updateRoad(
+				id,
+				(road) => {
+					const current = road.points[index];
+					if (current) {
+						road.points[index] = [current[0], current[1], round(Math.max(0, height))];
 					}
 				},
 				options,
@@ -366,20 +443,121 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			get().updateRoad(
 				id,
 				(road) => {
-					road.points.splice(index, 0, [round(point[0]), round(point[1])]);
+					road.points.splice(index, 0, [round(point[0]), round(point[1]), round(point[2])]);
 				},
 				options,
 			),
 
-		removeRoadPoint: (id, index) =>
+		removeRoadPoint: (id, index) => {
 			get().updateRoad(id, (road) => {
 				if (road.points.length > 2) {
 					road.points.splice(index, 1);
 				}
-			}),
+			});
+			set((state) =>
+				state.selectedRoadId === id && state.selectedPointIndex !== null
+					? { selectedPointIndex: null }
+					: state,
+			);
+		},
+
+		splitRoad: (id, index) => {
+			const road = get().scene.roads.find((r) => r.id === id);
+			if (!road || index < 0 || index >= road.points.length) {
+				return null;
+			}
+			if (road.closed) {
+				// Open the loop at this point: it becomes both the start and the end.
+				get().updateRoad(id, (r) => {
+					r.points = [...r.points.slice(index), ...r.points.slice(0, index + 1)];
+					r.closed = false;
+				});
+				set({ selectedPointIndex: 0, joinOffer: null });
+				return id;
+			}
+			if (index === 0 || index === road.points.length - 1) {
+				return null; // nothing to cut at an end
+			}
+			const second = RoadSchema.parse({
+				...structuredClone(road),
+				id: newId("road"),
+				name: road.name ? `${road.name} (2)` : "",
+				points: road.points.slice(index),
+			});
+			get().commit((scene) => {
+				const first = scene.roads.find((r) => r.id === id);
+				if (first) {
+					first.points = first.points.slice(0, index + 1);
+					scene.roads.splice(scene.roads.indexOf(first) + 1, 0, second);
+				}
+			});
+			set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
+			return second.id;
+		},
+
+		joinRoads: (aId, aEnd, bId, bEnd) => {
+			const { roads } = get().scene;
+			const a = roads.find((r) => r.id === aId);
+			const b = roads.find((r) => r.id === bId);
+			if (!a || !b || a.closed || b.closed) {
+				return;
+			}
+			if (aId === bId) {
+				if (aEnd !== bEnd && a.points.length > 2) {
+					get().updateRoad(aId, (r) => {
+						const first = r.points[0];
+						const last = r.points[r.points.length - 1];
+						if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
+							r.points.pop(); // ends touch: keep one shared point
+						}
+						r.closed = true;
+					});
+				}
+				set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null });
+				return;
+			}
+			get().commit((scene) => {
+				const target = scene.roads.find((r) => r.id === aId);
+				if (!target) {
+					return;
+				}
+				target.points = joinedPoints(a.points, aEnd, b.points, bEnd);
+				scene.roads = scene.roads.filter((r) => r.id !== bId);
+				// Vehicles on the absorbed road now drive the joined one.
+				for (const entity of scene.entities) {
+					if (entity.follow?.roadId === bId) {
+						entity.follow.roadId = aId;
+					}
+				}
+			});
+			set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null, selectedId: null });
+		},
+
+		setJoinOffer: (offer) => set({ joinOffer: offer }),
 
 		startDrawing: (style) =>
-			set({ drawing: { style, points: [] }, selectedId: null, selectedRoadId: null }),
+			set({
+				drawing: { style, points: [] },
+				selectedId: null,
+				selectedRoadId: null,
+				selectedPointIndex: null,
+				joinOffer: null,
+			}),
+
+		continueDrawing: (roadId, end) => {
+			const road = get().scene.roads.find((r) => r.id === roadId);
+			if (!road || road.closed) {
+				return;
+			}
+			// Orient the points so new ones are added after the chosen end.
+			const points = end === "end" ? [...road.points] : [...road.points].reverse();
+			set({
+				drawing: { style: road.style, points, roadId },
+				selectedId: null,
+				selectedPointIndex: null,
+				joinOffer: null,
+			});
+		},
 
 		addDrawingPoint: (point) =>
 			set((state) => {
@@ -390,7 +568,9 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				if (last && last[0] === point[0] && last[1] === point[1]) {
 					return state;
 				}
-				return { drawing: { ...state.drawing, points: [...state.drawing.points, point] } };
+				// New points continue at the previous point's height (ground level for a new road).
+				const next: TRoadPoint = [point[0], point[1], last?.[2] ?? 0];
+				return { drawing: { ...state.drawing, points: [...state.drawing.points, next] } };
 			}),
 
 		undoDrawingPoint: () =>
@@ -406,13 +586,23 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			if (!drawing || drawing.points.length < 2) {
 				return null;
 			}
+			const closed = Boolean(options.closed) && drawing.points.length > 2;
+			if (drawing.roadId) {
+				const roadId = drawing.roadId;
+				get().updateRoad(roadId, (road) => {
+					road.points = drawing.points;
+					road.closed = closed;
+				});
+				set({ selectedRoadId: roadId, selectedId: null, tab: "object" });
+				return roadId;
+			}
 			const count = scene.roads.filter((r) => r.style === drawing.style).length;
 			return get().addRoad({
 				name: `${ROAD_STYLE_LABELS[drawing.style]} ${count + 1}`,
 				style: drawing.style,
 				points: drawing.points,
 				width: ROAD_STYLE_WIDTH[drawing.style],
-				closed: Boolean(options.closed) && drawing.points.length > 2,
+				closed,
 			});
 		},
 

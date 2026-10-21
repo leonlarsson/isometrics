@@ -6,12 +6,20 @@ import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
-const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
 
-/** Ground point under the pointer, snapped to the grid unless snapping is off or Alt is held. */
-export const groundPointFrom = (event: ThreeEvent<PointerEvent | MouseEvent>): TVec2 | null => {
-	if (!event.ray.intersectPlane(groundPlane, hit)) {
+/**
+ * Ground position under the pointer, snapped to the grid unless snapping is
+ * off or Alt is held. `planeY` projects onto a raised plane instead, so an
+ * elevated point stays under the cursor while it's dragged.
+ */
+export const groundPointFrom = (
+	event: ThreeEvent<PointerEvent | MouseEvent>,
+	planeY = 0,
+): TVec2 | null => {
+	plane.constant = -planeY;
+	if (!event.ray.intersectPlane(plane, hit)) {
 		return null;
 	}
 	const { snapping, scene } = useEditor.getState();
@@ -24,6 +32,8 @@ export const groundPointFrom = (event: ThreeEvent<PointerEvent | MouseEvent>): T
 };
 
 interface IGroundDragOptions {
+	/** Height of the plane to drag on (default: the ground). */
+	planeY?: number;
 	/** Called on pointer-down; return false to cancel the drag. Receives the drag's coalesce key. */
 	onStart?: (token: string) => boolean | undefined;
 	/** Called with each new snapped ground point while dragging. */
@@ -35,7 +45,7 @@ interface IGroundDragOptions {
  * pointer, pauses camera controls, and reports snapped ground points. Every
  * move in one gesture shares a coalesce token, so it undoes as one step.
  */
-export const useGroundDrag = ({ onStart, onMove }: IGroundDragOptions) => {
+export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOptions) => {
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const token = useRef<string | null>(null);
 	const last = useRef<TVec2 | null>(null);
@@ -75,7 +85,7 @@ export const useGroundDrag = ({ onStart, onMove }: IGroundDragOptions) => {
 				return;
 			}
 			event.stopPropagation();
-			const point = groundPointFrom(event);
+			const point = groundPointFrom(event, planeY);
 			if (
 				!point ||
 				(last.current && last.current[0] === point[0] && last.current[1] === point[1])

@@ -1,10 +1,11 @@
-import type { TDrivingSide, TRoad, TRoadStyle, TVec2 } from "./schema";
+import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TVec2 } from "./schema";
 
 /**
  * Road geometry, framework-free so it can be unit-tested and reused.
- * A road is a polyline of control points whose corners are rounded with
- * `cornerRadius`; everything else (ribbon mesh, markings, vehicle routes)
- * derives from that rounded centre line. See docs/adr/0017-drawable-roads.md.
+ * A road is a polyline of control points [x, z, height] whose corners are
+ * rounded with `cornerRadius` and whose height eases smoothly from point to
+ * point. Everything else (surface, deck, supports, markings, vehicle routes)
+ * derives from that centre line. See docs/adr/0017 and 0018.
  */
 
 export const ROAD_STYLE_LABELS: Record<TRoadStyle, string> = {
@@ -20,24 +21,46 @@ export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
 	hidden: 1.6,
 };
 
+/** Above this height a road counts as elevated: deck, supports and railings appear. */
+export const ELEVATED_MIN = 0.05;
+/** Thickness of an elevated road deck. */
+export const DECK_THICKNESS = 0.3;
+/** Railings appear where the road is at least this high. */
+export const RAILING_MIN = 0.5;
+export const RAILING_HEIGHT = 0.3;
+/** Distance between pillars along the road, and the minimum height that gets one. */
+export const PILLAR_SPACING = 4;
+export const PILLAR_MIN = 0.8;
+/** Embankment slope: horizontal run per unit of height (1 = 45°). */
+export const EMBANKMENT_RUN = 1;
+
 /** How far from the centre line vehicles drive, as a fraction of the road width. */
 const LANE_FRACTION = 0.22;
 /** Segments per unit of corner radius when sampling curves (minimum 4). */
 const CURVE_SAMPLES_PER_UNIT = 3;
+/** Sample spacing along straight parts whose height changes, so ramps look smooth. */
+const RAMP_STEP = 0.5;
 
 const sub = (a: TVec2, b: TVec2): TVec2 => [a[0] - b[0], a[1] - b[1]];
 const add = (a: TVec2, b: TVec2): TVec2 => [a[0] + b[0], a[1] + b[1]];
 const scale = (a: TVec2, s: number): TVec2 => [a[0] * s, a[1] * s];
 const length = (a: TVec2) => Math.hypot(a[0], a[1]);
+const xz = (p: readonly number[]): TVec2 => [p[0], p[1]];
 const normalize = (a: TVec2): TVec2 => {
 	const len = length(a);
 	return len === 0 ? [0, 0] : [a[0] / len, a[1] / len];
 };
 /** Right-hand side of travel direction `f` on the ground plane (Y up, viewed from above). */
 const rightOf = (f: TVec2): TVec2 => [-f[1], f[0]];
+/** Ease in and out, so ramps start and end level. */
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
-/** Drop consecutive duplicate points (and a closing duplicate of the first point). */
-const dedupe = (points: TVec2[], closed: boolean) => {
+/** Points with height; [x, z] input counts as height 0. */
+type TPointInput = TVec2 | TRoadPoint;
+const withHeight = (p: TPointInput): TRoadPoint => [p[0], p[1], p[2] ?? 0];
+
+/** Drop consecutive duplicate positions (and a closing duplicate of the first point). */
+const dedupe = (points: TRoadPoint[], closed: boolean) => {
 	const out = points.filter(
 		(p, i) => i === 0 || p[0] !== points[i - 1][0] || p[1] !== points[i - 1][1],
 	);
@@ -52,50 +75,104 @@ const dedupe = (points: TVec2[], closed: boolean) => {
 };
 
 /**
- * The road's centre line as a dense polyline. Each corner is replaced by a
- * quadratic curve that starts and ends `r` before/after the corner, where `r`
- * is `cornerRadius` limited to half of each adjacent segment so curves never
- * overlap. Closed roads round every corner and don't repeat the first point.
+ * The road's centre line as a dense polyline of [x, z, height].
+ *
+ * Corners: each is replaced by a quadratic curve that starts and ends `r`
+ * before/after it, with `r` = `cornerRadius` limited to half of each adjacent
+ * segment so curves never overlap. Height: eased between control points
+ * (smoothstep), and straight parts whose height changes are subdivided so the
+ * ramp is smooth. Closed roads round every corner and don't repeat the first point.
  */
-export const roadCenterline = (points: TVec2[], closed: boolean, cornerRadius: number): TVec2[] => {
-	const pts = dedupe(points, closed);
-	const isClosed = closed && pts.length > 2;
-	if (pts.length < 3 || cornerRadius <= 0) {
+export const roadCenterline = (
+	input: TPointInput[],
+	closed: boolean,
+	cornerRadius: number,
+): TRoadPoint[] => {
+	const pts = dedupe(input.map(withHeight), closed);
+	const n = pts.length;
+	const isClosed = closed && n > 2;
+	if (n < 2) {
 		return pts;
 	}
+	const segCount = isClosed ? n : n - 1;
+	const at = (i: number) => pts[((i % n) + n) % n];
+	const segLength = (k: number) => length(sub(xz(at(k + 1)), xz(at(k))));
+	/** Height on segment k at fraction f. */
+	const heightOn = (k: number, f: number) => at(k)[2] + (at(k + 1)[2] - at(k)[2]) * smoothstep(f);
+	/** Position on segment k at fraction f. */
+	const pointOn = (k: number, f: number): TVec2 =>
+		add(xz(at(k)), scale(sub(xz(at(k + 1)), xz(at(k))), f));
 
-	const out: TVec2[] = [];
-	const n = pts.length;
-	for (let i = 0; i < n; i++) {
-		const isEnd = !isClosed && (i === 0 || i === n - 1);
-		if (isEnd) {
-			out.push(pts[i]);
-			continue;
+	// Fillet radius at each vertex (0 = no curve: open ends, straight runs, or no rounding).
+	const radius = pts.map((p, i) => {
+		if (cornerRadius <= 0 || (!isClosed && (i === 0 || i === n - 1))) {
+			return 0;
 		}
-		const p = pts[i];
-		const prev = pts[(i - 1 + n) % n];
-		const next = pts[(i + 1) % n];
-		const toPrev = sub(prev, p);
-		const toNext = sub(next, p);
-		const r = Math.min(cornerRadius, length(toPrev) / 2, length(toNext) / 2);
-		const d1 = normalize(toPrev);
-		const d2 = normalize(toNext);
-		// Nearly straight: no visible corner to round.
-		if (r < 1e-3 || d1[0] * d2[0] + d1[1] * d2[1] < -0.9999) {
-			out.push(p);
-			continue;
+		const d1 = normalize(sub(xz(at(i - 1)), xz(p)));
+		const d2 = normalize(sub(xz(at(i + 1)), xz(p)));
+		if (d1[0] * d2[0] + d1[1] * d2[1] < -0.9999) {
+			return 0;
 		}
-		const a = add(p, scale(d1, r));
-		const b = add(p, scale(d2, r));
+		const r = Math.min(cornerRadius, segLength(i - 1) / 2, segLength(i) / 2);
+		return r < 1e-3 ? 0 : r;
+	});
+
+	const out: TRoadPoint[] = [];
+	const emit = (p: TVec2, h: number) => {
+		const last = out[out.length - 1];
+		if (!last || Math.abs(last[0] - p[0]) > 1e-9 || Math.abs(last[1] - p[1]) > 1e-9) {
+			out.push([p[0], p[1], h]);
+		}
+	};
+
+	const emitFillet = (i: number) => {
+		const r = radius[i];
+		const p = xz(at(i));
+		const fIn = 1 - r / segLength(i - 1);
+		const fOut = r / segLength(i);
+		const a = pointOn(i - 1, fIn);
+		const b = pointOn(i, fOut);
+		const hA = heightOn(i - 1, fIn);
+		const hB = heightOn(i, fOut);
 		const steps = Math.max(4, Math.ceil(r * CURVE_SAMPLES_PER_UNIT));
 		for (let s = 0; s <= steps; s++) {
 			const t = s / steps;
 			const u = 1 - t;
-			// Quadratic Bézier a → p → b.
-			out.push([
-				u * u * a[0] + 2 * u * t * p[0] + t * t * b[0],
-				u * u * a[1] + 2 * u * t * p[1] + t * t * b[1],
-			]);
+			// Quadratic Bézier a → corner → b.
+			emit(
+				[
+					u * u * a[0] + 2 * u * t * p[0] + t * t * b[0],
+					u * u * a[1] + 2 * u * t * p[1] + t * t * b[1],
+				],
+				hA + (hB - hA) * t,
+			);
+		}
+	};
+
+	for (let k = 0; k < segCount; k++) {
+		const len = segLength(k);
+		const start = len === 0 ? 0 : radius[k] / len;
+		const end = len === 0 ? 1 : 1 - radius[(k + 1) % n] / len;
+		if (k === 0 && isClosed && radius[0] > 0) {
+			emitFillet(0);
+		}
+		const ramps = Math.abs(at(k)[2] - at(k + 1)[2]) > 1e-9;
+		const steps = ramps ? Math.max(1, Math.ceil(((end - start) * len) / RAMP_STEP)) : 1;
+		for (let s = 0; s <= steps; s++) {
+			const f = start + ((end - start) * s) / steps;
+			emit(pointOn(k, f), heightOn(k, f));
+		}
+		const next = (k + 1) % n;
+		if (radius[next] > 0 && !(isClosed && next === 0)) {
+			emitFillet(next);
+		}
+	}
+
+	if (isClosed && out.length > 2) {
+		const first = out[0];
+		const last = out[out.length - 1];
+		if (Math.abs(first[0] - last[0]) < 1e-9 && Math.abs(first[1] - last[1]) < 1e-9) {
+			out.pop();
 		}
 	}
 	return out;
@@ -104,19 +181,19 @@ export const roadCenterline = (points: TVec2[], closed: boolean, cornerRadius: n
 export const roadCenterlineOf = (road: Pick<TRoad, "points" | "closed" | "cornerRadius">) =>
 	roadCenterline(road.points, road.closed, road.cornerRadius);
 
-/** Total length of a polyline, including the closing segment for closed loops. */
-export const polylineLength = (points: TVec2[], closed: boolean) => {
+/** Total ground length of a polyline (heights ignored), including the closing segment for loops. */
+export const polylineLength = (points: readonly (readonly number[])[], closed: boolean) => {
 	let total = 0;
 	const count = closed && points.length > 2 ? points.length : points.length - 1;
 	for (let i = 0; i < count; i++) {
-		total += length(sub(points[(i + 1) % points.length], points[i]));
+		total += length(sub(xz(points[(i + 1) % points.length]), xz(points[i])));
 	}
 	return total;
 };
 
 export interface IRibbon {
-	/** Flat [x, z] vertex positions. */
-	vertices: TVec2[];
+	/** Vertex positions as [x, z, height]. */
+	vertices: TRoadPoint[];
 	/** Triangle indices into `vertices`, wound to face up (+Y). */
 	indices: number[];
 }
@@ -127,16 +204,17 @@ const JOIN_SEGMENTS = 16;
 const STRAIGHT_COS = 0.99995;
 
 /**
- * Triangulate a flat band of `halfWidth` around a polyline, like a pen stroke
- * with round joins: one quad per segment plus a disc at every bend. Nothing
- * can stick out further than `halfWidth` from the line, however tight the
- * corner. (Mitred offset edges fold over and spike on hairpins.) Quads and
- * discs overlap, which is invisible because they're coplanar and one colour.
+ * Triangulate a band of `halfWidth` around a polyline, like a pen stroke with
+ * round joins: one quad per segment plus a disc at every bend, each vertex at
+ * its centre point's height. Nothing can stick out further than `halfWidth`
+ * from the line, however tight the corner. (Mitred offset edges fold over and
+ * spike on hairpins.) Overlaps are invisible: same surface, same colour.
  */
-export const buildRibbon = (center: TVec2[], halfWidth: number, closed: boolean): IRibbon => {
-	const n = center.length;
+export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: boolean): IRibbon => {
+	const pts = center.map(withHeight);
+	const n = pts.length;
 	const isClosed = closed && n > 2;
-	const vertices: TVec2[] = [];
+	const vertices: TRoadPoint[] = [];
 	const indices: number[] = [];
 
 	const pushUp = (i0: number, i1: number, i2: number) => {
@@ -147,15 +225,20 @@ export const buildRibbon = (center: TVec2[], halfWidth: number, closed: boolean)
 
 	const segments = isClosed ? n : n - 1;
 	for (let i = 0; i < segments; i++) {
-		const a = center[i];
-		const b = center[(i + 1) % n];
-		const dir = normalize(sub(b, a));
+		const a = pts[i];
+		const b = pts[(i + 1) % n];
+		const dir = normalize(sub(xz(b), xz(a)));
 		if (dir[0] === 0 && dir[1] === 0) {
 			continue;
 		}
 		const side = scale(rightOf(dir), halfWidth);
 		const base = vertices.length;
-		vertices.push(sub(a, side), add(a, side), sub(b, side), add(b, side));
+		vertices.push(
+			[...sub(xz(a), side), a[2]],
+			[...add(xz(a), side), a[2]],
+			[...sub(xz(b), side), b[2]],
+			[...add(xz(b), side), b[2]],
+		);
 		pushUp(base, base + 2, base + 1);
 		pushUp(base + 1, base + 2, base + 3);
 	}
@@ -164,19 +247,17 @@ export const buildRibbon = (center: TVec2[], halfWidth: number, closed: boolean)
 		if (!isClosed && (i === 0 || i === n - 1)) {
 			continue; // open ends stay square
 		}
-		const inDir = normalize(sub(center[i], center[(i - 1 + n) % n]));
-		const outDir = normalize(sub(center[(i + 1) % n], center[i]));
+		const inDir = normalize(sub(xz(pts[i]), xz(pts[(i - 1 + n) % n])));
+		const outDir = normalize(sub(xz(pts[(i + 1) % n]), xz(pts[i])));
 		if (inDir[0] * outDir[0] + inDir[1] * outDir[1] > STRAIGHT_COS) {
 			continue;
 		}
+		const [cx, cz, h] = pts[i];
 		const hub = vertices.length;
-		vertices.push(center[i]);
+		vertices.push([cx, cz, h]);
 		for (let k = 0; k < JOIN_SEGMENTS; k++) {
 			const angle = (k / JOIN_SEGMENTS) * Math.PI * 2;
-			vertices.push([
-				center[i][0] + Math.cos(angle) * halfWidth,
-				center[i][1] + Math.sin(angle) * halfWidth,
-			]);
+			vertices.push([cx + Math.cos(angle) * halfWidth, cz + Math.sin(angle) * halfWidth, h]);
 		}
 		for (let k = 0; k < JOIN_SEGMENTS; k++) {
 			pushUp(hub, hub + 1 + k, hub + 1 + ((k + 1) % JOIN_SEGMENTS));
@@ -186,35 +267,160 @@ export const buildRibbon = (center: TVec2[], halfWidth: number, closed: boolean)
 	return { vertices, indices };
 };
 
-/** Split a polyline into dashes of `dash` length separated by `gap`, measured along its length. */
+/** A vertical or sloped quad strip: one quad per segment between `top` and `bottom` edges. */
+export interface IWall {
+	/** [x, y, z] corner positions, four per quad: top-a, top-b, bottom-a, bottom-b. */
+	quads: [number, number, number][][];
+}
+
+/**
+ * Left and right edge points for every centre-line vertex, offset along one
+ * shared sideways direction per vertex (the average of its two segments).
+ * Strips built from these are continuous: neighbouring quads share edges, so
+ * there are no gaps on the outside of curves. (Per-segment offsets fan apart.)
+ */
+const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number) => {
+	const n = center.length;
+	const isClosed = closed && n > 2;
+	return center.map((p, i) => {
+		const hasPrev = isClosed || i > 0;
+		const hasNext = isClosed || i < n - 1;
+		const inDir = hasPrev ? normalize(sub(xz(p), xz(center[(i - 1 + n) % n]))) : null;
+		const outDir = hasNext ? normalize(sub(xz(center[(i + 1) % n]), xz(p))) : null;
+		let side = rightOf(normalize(add(inDir ?? outDir ?? [1, 0], outDir ?? inDir ?? [1, 0])));
+		if (side[0] === 0 && side[1] === 0) {
+			side = rightOf(outDir ?? inDir ?? [1, 0]); // a full reversal: use the outgoing direction
+		}
+		const off = scale(side, offset);
+		return { point: p, side, left: sub(xz(p), off), right: add(xz(p), off) };
+	});
+};
+
+/**
+ * Side faces for the elevated parts of a road: the deck's edge (thickness
+ * below the surface), railings above it, and embankment slopes below when
+ * `embankment` is on. Only segments above `ELEVATED_MIN`. Each is a
+ * continuous strip along the road (see `vertexEdges`).
+ */
+export const buildElevatedSides = (
+	center: TRoadPoint[],
+	closed: boolean,
+	halfWidth: number,
+	options: {
+		railings: boolean;
+		embankment: boolean;
+		/** Keep embankment feet on the ground slab: half its width (x) and depth (z). */
+		bounds?: TVec2;
+	},
+) => {
+	const keepOnGround = (p: TVec2): TVec2 =>
+		options.bounds
+			? [
+					Math.max(-options.bounds[0], Math.min(options.bounds[0], p[0])),
+					Math.max(-options.bounds[1], Math.min(options.bounds[1], p[1])),
+				]
+			: p;
+	const deck: IWall = { quads: [] };
+	const railings: IWall = { quads: [] };
+	const embankment: IWall = { quads: [] };
+
+	const edges = vertexEdges(center, closed, halfWidth);
+	const n = edges.length;
+	const segments = closed && n > 2 ? n : n - 1;
+	for (let i = 0; i < segments; i++) {
+		const a = edges[i];
+		const b = edges[(i + 1) % n];
+		const [ha, hb] = [a.point[2], b.point[2]];
+		if (ha <= ELEVATED_MIN && hb <= ELEVATED_MIN) {
+			continue;
+		}
+		for (const sign of [-1, 1] as const) {
+			const pa = sign < 0 ? a.left : a.right;
+			const pb = sign < 0 ? b.left : b.right;
+			deck.quads.push([
+				[pa[0], ha, pa[1]],
+				[pb[0], hb, pb[1]],
+				[pa[0], Math.max(0, ha - DECK_THICKNESS), pa[1]],
+				[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
+			]);
+			if (options.railings && ha >= RAILING_MIN && hb >= RAILING_MIN) {
+				railings.quads.push([
+					[pa[0], ha + RAILING_HEIGHT, pa[1]],
+					[pb[0], hb + RAILING_HEIGHT, pb[1]],
+					[pa[0], ha, pa[1]],
+					[pb[0], hb, pb[1]],
+				]);
+			}
+			if (options.embankment) {
+				// Slope outward and down to the ground.
+				const footA = keepOnGround(add(pa, scale(a.side, sign * ha * EMBANKMENT_RUN)));
+				const footB = keepOnGround(add(pb, scale(b.side, sign * hb * EMBANKMENT_RUN)));
+				embankment.quads.push([
+					[pa[0], ha, pa[1]],
+					[pb[0], hb, pb[1]],
+					[footA[0], 0, footA[1]],
+					[footB[0], 0, footB[1]],
+				]);
+			}
+		}
+	}
+	return { deck, railings, embankment };
+};
+
+/** Pillar positions [x, z, height] every `PILLAR_SPACING` along the road where it's high enough. */
+export const pillarPositions = (center: TRoadPoint[], closed: boolean): TRoadPoint[] => {
+	const pts = closed && center.length > 2 ? [...center, center[0]] : center;
+	const pillars: TRoadPoint[] = [];
+	let nextAt = PILLAR_SPACING / 2;
+	let travelled = 0;
+	for (let i = 0; i < pts.length - 1; i++) {
+		const a = pts[i];
+		const b = pts[i + 1];
+		const len = length(sub(xz(b), xz(a)));
+		while (len > 0 && nextAt <= travelled + len) {
+			const t = (nextAt - travelled) / len;
+			const h = a[2] + (b[2] - a[2]) * t;
+			if (h >= PILLAR_MIN) {
+				pillars.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, h]);
+			}
+			nextAt += PILLAR_SPACING;
+		}
+		travelled += len;
+	}
+	return pillars;
+};
+
+/** Split a polyline into dashes of `dash` length separated by `gap`, measured along the ground. */
 export const dashPolyline = (
-	center: TVec2[],
+	center: TPointInput[],
 	closed: boolean,
 	dash: number,
 	gap: number,
-): TVec2[][] => {
-	const pts = closed && center.length > 2 ? [...center, center[0]] : center;
+): TRoadPoint[][] => {
+	const base = center.map(withHeight);
+	const pts = closed && base.length > 2 ? [...base, base[0]] : base;
 	if (pts.length < 2 || dash <= 0) {
 		return [];
 	}
 	// Distance along the line at each point.
 	const along = [0];
 	for (let i = 1; i < pts.length; i++) {
-		along.push(along[i - 1] + length(sub(pts[i], pts[i - 1])));
+		along.push(along[i - 1] + length(sub(xz(pts[i]), xz(pts[i - 1]))));
 	}
 	const total = along[along.length - 1];
 
-	const pointAt = (distance: number): TVec2 => {
+	const pointAt = (distance: number): TRoadPoint => {
 		let i = 1;
 		while (i < along.length - 1 && along[i] < distance) {
 			i++;
 		}
 		const span = along[i] - along[i - 1];
 		const t = span === 0 ? 0 : (distance - along[i - 1]) / span;
-		return add(pts[i - 1], scale(sub(pts[i], pts[i - 1]), t));
+		const [a, b] = [pts[i - 1], pts[i]];
+		return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 	};
 
-	const dashes: TVec2[][] = [];
+	const dashes: TRoadPoint[][] = [];
 	// Step by whole periods (never by accumulated float steps), so this always terminates.
 	const period = dash + Math.max(gap, 0);
 	const count = Math.ceil(total / period);
@@ -252,11 +458,49 @@ export const applyLane = (position: TVec2, heading: number, offset: number): TVe
 };
 
 /** Midpoint of segment i → i+1 (wrapping for closed roads), for "insert point" handles. */
-export const segmentMidpoints = (points: TVec2[], closed: boolean) => {
-	const count = closed && points.length > 2 ? points.length : points.length - 1;
+export const segmentMidpoints = (points: TPointInput[], closed: boolean) => {
+	const pts = points.map(withHeight);
+	const count = closed && pts.length > 2 ? pts.length : pts.length - 1;
 	return Array.from({ length: count }, (_, i) => {
-		const a = points[i];
-		const b = points[(i + 1) % points.length];
-		return { index: i, point: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as TVec2 };
+		const a = pts[i];
+		const b = pts[(i + 1) % pts.length];
+		return {
+			index: i,
+			point: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] as TRoadPoint,
+		};
 	});
+};
+
+/** End points of open roads, for joining. Closed roads have no ends. */
+export type TRoadEnd = "start" | "end";
+
+export const roadEnds = (road: Pick<TRoad, "points" | "closed">) =>
+	road.closed
+		? []
+		: ([
+				{ end: "start" as TRoadEnd, index: 0, point: road.points[0] },
+				{
+					end: "end" as TRoadEnd,
+					index: road.points.length - 1,
+					point: road.points.at(-1) as TRoadPoint,
+				},
+			] as const);
+
+/**
+ * Points of two roads joined end to end: `a` is oriented so its joined end
+ * comes last, `b` so its joined end comes first. If the two ends touch, the
+ * shared point appears once.
+ */
+export const joinedPoints = (
+	a: TRoadPoint[],
+	aEnd: TRoadEnd,
+	b: TRoadPoint[],
+	bEnd: TRoadEnd,
+): TRoadPoint[] => {
+	const first = aEnd === "end" ? a : [...a].reverse();
+	const second = bEnd === "start" ? b : [...b].reverse();
+	const last = first[first.length - 1];
+	const next = second[0];
+	const touching = Math.hypot(last[0] - next[0], last[1] - next[1]) < 1e-6;
+	return [...first, ...(touching ? second.slice(1) : second)];
 };

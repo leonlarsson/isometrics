@@ -49,6 +49,22 @@ describe("createPathSampler", () => {
 			],
 			false,
 		);
-		expect(sampler.at(10)).toEqual({ position: [3, 4], heading: 0 });
+		expect(sampler.at(10)).toEqual({ position: [3, 4], height: 0, heading: 0, pitch: 0 });
+	});
+
+	it("interpolates height and tilts on slopes in the direction of travel", () => {
+		const sampler = createPathSampler(
+			[
+				[0, 0, 0],
+				[10, 0, 2],
+			],
+			false,
+		);
+		const up = sampler.at(5);
+		expect(up.height).toBeCloseTo(1);
+		expect(up.pitch).toBeGreaterThan(0);
+		const down = sampler.at(15); // ping-pong: coming back down
+		expect(down.height).toBeCloseTo(1);
+		expect(down.pitch).toBeLessThan(0);
 	});
 });

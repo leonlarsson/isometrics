@@ -67,6 +67,17 @@ export const DataEntrySchema = z.object({
 	unit: z.string().default(""),
 });
 
+/** A road control point: [x, z, height above ground]. `[x, z]` is accepted as height 0. */
+export const RoadPointSchema = z.union([
+	z.tuple([z.number(), z.number(), z.number().min(0).max(50)]),
+	z
+		.tuple([z.number(), z.number()])
+		.transform(([x, zPos]): [number, number, number] => [x, zPos, 0]),
+]);
+
+/** What holds up elevated sections: pillars (roads can pass underneath) or a sloped bank. */
+export const RoadSupportsSchema = z.enum(["pillars", "embankment"]);
+
 /** asphalt = paved road with markings, dirt = path, hidden = invisible route for vehicles only. */
 export const RoadStyleSchema = z.enum(["asphalt", "dirt", "hidden"]);
 
@@ -79,8 +90,8 @@ export const RoadSchema = z.object({
 	id: z.string().min(1),
 	name: z.string().default(""),
 	style: RoadStyleSchema.default("asphalt"),
-	/** Control points [x, z]; the road passes through the first and last (unless closed). */
-	points: z.array(Vec2Schema).min(2),
+	/** Control points [x, z, height]; the road passes through the first and last (unless closed). */
+	points: z.array(RoadPointSchema).min(2),
 	/** Loop back from the last point to the first. */
 	closed: z.boolean().default(false),
 	width: z.number().min(0.4).max(20).default(2.4),
@@ -88,6 +99,10 @@ export const RoadSchema = z.object({
 	cornerRadius: z.number().min(0).max(50).default(3),
 	/** Centre-line markings (asphalt only). */
 	markings: z.boolean().default(true),
+	/** How elevated sections are held up. See docs/adr/0018-elevated-roads-and-road-editing.md. */
+	supports: RoadSupportsSchema.default("pillars"),
+	/** Low barriers along the edges of elevated sections. */
+	railings: z.boolean().default(true),
 	/** null = the style's default colour for the active theme. */
 	color: hexColor.nullable().default(null),
 });
@@ -160,6 +175,8 @@ export type TDataEntry = z.output<typeof DataEntrySchema>;
 export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadStyle = z.output<typeof RoadStyleSchema>;
+export type TRoadPoint = z.output<typeof RoadPointSchema>;
+export type TRoadSupports = z.output<typeof RoadSupportsSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TVec2 = z.output<typeof Vec2Schema>;

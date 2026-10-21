@@ -12,7 +12,11 @@ const PREVIEW_Y = 0.15;
 /** Clicking within this distance of the first point closes the loop. */
 const CLOSE_DISTANCE = 0.8;
 
-const toV3 = ([x, z]: TVec2): [number, number, number] => [x, PREVIEW_Y, z];
+const toV3 = (p: readonly number[]): [number, number, number] => [
+	p[0],
+	PREVIEW_Y + (p[2] ?? 0),
+	p[1],
+];
 
 /**
  * Active while a road is being drawn: an invisible plane over the ground
@@ -40,18 +44,22 @@ export const RoadDrawTool = () => {
 
 	const { points } = drawing;
 	const first = points[0];
+	// New points continue at the last point's height, so the cursor works on that plane.
+	const drawHeight = points.at(-1)?.[2] ?? 0;
+	const cursorPoint: readonly number[] | null = cursor ? [cursor[0], cursor[1], drawHeight] : null;
 	const nearFirst =
 		cursor !== null &&
 		points.length > 2 &&
 		Math.hypot(cursor[0] - first[0], cursor[1] - first[1]) < CLOSE_DISTANCE;
-	const preview = cursor && points.length > 0 ? [...points, nearFirst ? first : cursor] : points;
+	const preview: (readonly number[])[] =
+		cursorPoint && points.length > 0 ? [...points, nearFirst ? first : cursorPoint] : points;
 
 	return (
 		<group>
 			<mesh
 				rotation={[-Math.PI / 2, 0, 0]}
 				position={[0, 0.001, 0]}
-				onPointerMove={(e: ThreeEvent<PointerEvent>) => setCursor(groundPointFrom(e))}
+				onPointerMove={(e: ThreeEvent<PointerEvent>) => setCursor(groundPointFrom(e, drawHeight))}
 				onPointerOut={() => setCursor(null)}
 				onClick={(e: ThreeEvent<MouseEvent>) => {
 					// A drag is a camera orbit, not a click.
@@ -63,7 +71,7 @@ export const RoadDrawTool = () => {
 						useEditor.getState().finishDrawing({ closed: true });
 						return;
 					}
-					const point = groundPointFrom(e);
+					const point = groundPointFrom(e, drawHeight);
 					if (point) {
 						useEditor.getState().addDrawingPoint(point);
 					}
@@ -102,8 +110,8 @@ export const RoadDrawTool = () => {
 				</mesh>
 			))}
 
-			{cursor && !nearFirst && (
-				<mesh position={toV3(cursor)}>
+			{cursorPoint && !nearFirst && (
+				<mesh position={toV3(cursorPoint)}>
 					<cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
 
 					<meshBasicMaterial color={palette.selection} transparent opacity={0.6} />

@@ -22,7 +22,9 @@ The app opens with the **Delivery hub** template. Your work autosaves in the bro
 | Resize, recolour, reshape | Right-hand **Object** tab |
 | Show numbers | **Data** tab for values, then the object's **Label** section to pick which ones appear |
 | Draw a road | **Roads** → Road, Dirt path or Hidden route, then click points on the ground; **Enter** to finish, click the first point to make a loop, **Esc** to cancel |
-| Reshape a road | Select it and drag its points; drag the small dot between two points to add one; double-click a point to remove it; **Curves** in the panel rounds the corners |
+| Reshape a road | Select it and drag its points; drag the small dot between two points to add one; double-click a point (or select it and press **Delete**) to remove it; **Curves** in the panel rounds the corners |
+| Bridges and flyovers | Click a road point and set its **Height** in the panel, or **Shift**+drag it up. Choose **Pillars** or **Embankment** and railings under *Elevated sections* |
+| Cut, join, extend | Click a point: **Split road here** / **Open loop here**; on an end point **Continue drawing** or **Join with** a nearby road end. Dragging an end onto another road's end also offers to join |
 | Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right |
 | Duplicate / delete | Ctrl+D / Delete |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |

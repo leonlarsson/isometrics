@@ -5,8 +5,16 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { buildRibbon, dashPolyline, roadCenterlineOf } from "#/scene/roads";
-import type { TRoad, TVec2 } from "#/scene/schema";
+import {
+	buildElevatedSides,
+	buildRibbon,
+	DECK_THICKNESS,
+	dashPolyline,
+	type IWall,
+	pillarPositions,
+	roadCenterlineOf,
+} from "#/scene/roads";
+import type { TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
@@ -15,10 +23,11 @@ const LAYER_STEP = 0.003;
 const MARKING_DASH = 0.6;
 const MARKING_GAP = 0.6;
 const MARKING_HALF_WIDTH = 0.05;
+const PILLAR_SIZE = 0.45;
 
-/** Build one BufferGeometry from several ribbons, flat on the ground at height `y`. */
+/** Build one BufferGeometry from several ribbons; each vertex sits at `y` plus its height. */
 const ribbonGeometry = (
-	ribbons: { center: TVec2[]; halfWidth: number; closed: boolean }[],
+	ribbons: { center: TRoadPoint[]; halfWidth: number; closed: boolean }[],
 	y: number,
 ) => {
 	const positions: number[] = [];
@@ -26,8 +35,8 @@ const ribbonGeometry = (
 	for (const { center, halfWidth, closed } of ribbons) {
 		const ribbon = buildRibbon(center, halfWidth, closed);
 		const base = positions.length / 3;
-		for (const [x, z] of ribbon.vertices) {
-			positions.push(x, y, z);
+		for (const [x, z, h] of ribbon.vertices) {
+			positions.push(x, y + h, z);
 		}
 		for (const index of ribbon.indices) {
 			indices.push(base + index);
@@ -35,13 +44,23 @@ const ribbonGeometry = (
 	}
 	const geometry = new THREE.BufferGeometry();
 	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-	// Flat on the ground: every normal points straight up.
-	const normals = new Float32Array(positions.length);
-	for (let i = 1; i < normals.length; i += 3) {
-		normals[i] = 1;
-	}
-	geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
 	geometry.setIndex(indices);
+	// Ramps aren't flat, so let three work out the normals.
+	geometry.computeVertexNormals();
+	return geometry;
+};
+
+/** Two triangles per quad (top-a, top-b, bottom-a, bottom-b), shifted up by `y`. */
+const wallGeometry = (wall: IWall, y: number) => {
+	const positions: number[] = [];
+	for (const [ta, tb, ba, bb] of wall.quads) {
+		for (const [px, py, pz] of [ta, tb, ba, ba, tb, bb]) {
+			positions.push(px, py + y, pz);
+		}
+	}
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+	geometry.computeVertexNormals();
 	return geometry;
 };
 
@@ -52,6 +71,9 @@ const useDisposable = (geometry: THREE.BufferGeometry) => {
 
 export const roadColor = (road: TRoad, palette: IScenePalette) =>
 	road.color ?? (road.style === "dirt" ? palette.dirt : palette.road);
+
+/** Height of the road surface above the ground plane for a given layer. */
+export const roadBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
 
 interface IRoadMeshProps {
 	road: TRoad;
@@ -65,9 +87,13 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const selected = useEditor((s) => s.selectedRoadId === road.id);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
+	const groundWidth = useEditor((s) => s.scene.ground.width);
+	const groundDepth = useEditor((s) => s.scene.ground.depth);
 
-	const y = BASE_Y + layer * LAYER_STEP;
+	const hidden = road.style === "hidden";
+	const y = roadBaseY(layer);
 	const center = useMemo(() => roadCenterlineOf(road), [road]);
+
 	const surface = useDisposable(
 		useMemo(
 			() => ribbonGeometry([{ center, halfWidth: road.width / 2, closed: road.closed }], y),
@@ -88,15 +114,40 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 			[center, road.closed, y],
 		),
 	);
+	const sides = useMemo(
+		() =>
+			buildElevatedSides(center, road.closed, road.width / 2, {
+				railings: road.railings && !hidden,
+				embankment: road.supports === "embankment" && !hidden,
+				bounds: [groundWidth / 2, groundDepth / 2],
+			}),
+		[
+			center,
+			road.closed,
+			road.width,
+			road.railings,
+			road.supports,
+			hidden,
+			groundWidth,
+			groundDepth,
+		],
+	);
+	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y), [sides, y]));
+	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y), [sides, y]));
+	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
+	const pillars = useMemo(
+		() => (road.supports === "pillars" && !hidden ? pillarPositions(center, road.closed) : []),
+		[center, road.closed, road.supports, hidden],
+	);
+
 	const outline = useMemo(() => {
-		const pts = center.map(([x, z]) => [x, y + 0.03, z] as [number, number, number]);
+		const pts = center.map(([x, z, h]) => [x, y + h + 0.03, z] as [number, number, number]);
 		if (road.closed && pts.length > 2) {
 			pts.push(pts[0]);
 		}
 		return pts;
 	}, [center, road.closed, y]);
 
-	const hidden = road.style === "hidden";
 	if (hidden && mode !== "edit") {
 		return null;
 	}
@@ -125,7 +176,7 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 
 	return (
 		<group>
-			<mesh geometry={surface} receiveShadow {...handlers}>
+			<mesh geometry={surface} receiveShadow castShadow={!hidden} {...handlers}>
 				{hidden ? (
 					// Invisible but still clickable, so hidden routes can be selected while editing.
 					<meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -139,6 +190,35 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
 				</mesh>
 			)}
+
+			{!hidden && sides.deck.quads.length > 0 && (
+				<mesh geometry={deck} castShadow receiveShadow {...handlers}>
+					<meshStandardMaterial color={palette.deck} roughness={0.9} side={THREE.DoubleSide} />
+				</mesh>
+			)}
+
+			{sides.railings.quads.length > 0 && (
+				<mesh geometry={railings} castShadow>
+					<meshStandardMaterial color={palette.railing} roughness={0.8} side={THREE.DoubleSide} />
+				</mesh>
+			)}
+
+			{sides.embankment.quads.length > 0 && (
+				<mesh geometry={embankment} castShadow receiveShadow {...handlers}>
+					<meshStandardMaterial color={palette.embankment} roughness={1} side={THREE.DoubleSide} />
+				</mesh>
+			)}
+
+			{pillars.map(([x, z, h]) => {
+				const pillarHeight = Math.max(0.1, h - DECK_THICKNESS);
+				return (
+					<mesh key={`${x}:${z}`} position={[x, y + pillarHeight / 2, z]} castShadow receiveShadow>
+						<boxGeometry args={[PILLAR_SIZE, pillarHeight, PILLAR_SIZE]} />
+
+						<meshStandardMaterial color={palette.deck} roughness={0.9} />
+					</mesh>
+				);
+			})}
 
 			{hidden && (
 				<Line

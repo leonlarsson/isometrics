@@ -21,3 +21,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0015](0015-arrow-functions-and-named-exports.md) | Arrow functions everywhere; named exports only | accepted |
 | [0016](0016-tanstack-hotkeys.md) | Keyboard shortcuts use TanStack Hotkeys | accepted |
 | [0017](0017-drawable-roads.md) | Drawable roads, which double as vehicle routes | accepted |
+| [0018](0018-elevated-roads-and-road-editing.md) | Elevated roads (height per point) and point-level road editing | accepted |

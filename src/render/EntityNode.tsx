@@ -107,8 +107,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		}
 		const sample = sampler.at(entity.follow.offset + travelled.current);
 		const [x, z] = applyLane(sample.position, sample.heading, lane);
-		outer.current.position.set(x, entity.elevation, z);
-		inner.current.rotation.y = sample.heading + toRadians(entity.rotation);
+		outer.current.position.set(x, entity.elevation + sample.height, z);
+		// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
+		inner.current.rotation.set(0, sample.heading + toRadians(entity.rotation), sample.pitch);
 	});
 
 	const editable = mode === "edit" && !entity.locked && !following;

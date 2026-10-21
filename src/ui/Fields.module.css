@@ -496,3 +496,27 @@ textarea.input {
 .templateButton:hover {
 	border-color: var(--accent);
 }
+
+/* --------------------------------------------------------- button groups */
+
+.buttonRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.buttonColumn {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.buttonColumn .smallButton {
+	align-self: stretch;
+}
+
+.buttonMeta {
+	margin-left: auto;
+	font-weight: 400;
+	color: var(--text-muted);
+}

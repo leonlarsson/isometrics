@@ -3,14 +3,23 @@ import { describe, expect, it } from "vitest";
 import { createPathSampler } from "./paths";
 import {
 	applyLane,
+	buildElevatedSides,
 	buildRibbon,
+	DECK_THICKNESS,
 	dashPolyline,
+	joinedPoints,
 	laneOffset,
+	PILLAR_MIN,
+	PILLAR_SPACING,
+	pillarPositions,
 	polylineLength,
 	roadCenterline,
 	segmentMidpoints,
 } from "./roads";
-import type { TVec2 } from "./schema";
+import type { TRoadPoint, TVec2 } from "./schema";
+
+/** Ground positions only, for comparing shapes regardless of height. */
+const flat = (points: readonly (readonly number[])[]) => points.map((p) => [p[0], p[1]]);
 
 const L: TVec2[] = [
 	[0, 0],
@@ -20,7 +29,7 @@ const L: TVec2[] = [
 
 describe("roadCenterline", () => {
 	it("keeps the end points of an open road and rounds interior corners", () => {
-		const line = roadCenterline(L, false, 3);
+		const line = flat(roadCenterline(L, false, 3));
 		expect(line[0]).toEqual([0, 0]);
 		expect(line.at(-1)).toEqual([10, 10]);
 		expect(line).not.toContainEqual([10, 0]); // the sharp corner is gone
@@ -29,20 +38,22 @@ describe("roadCenterline", () => {
 	});
 
 	it("limits the radius to half of the shorter adjacent segment", () => {
-		const line = roadCenterline(
-			[
-				[0, 0],
-				[2, 0],
-				[2, 10],
-			],
-			false,
-			5,
+		const line = flat(
+			roadCenterline(
+				[
+					[0, 0],
+					[2, 0],
+					[2, 10],
+				],
+				false,
+				5,
+			),
 		);
 		expect(line).toContainEqual([1, 0]);
 	});
 
 	it("leaves sharp corners when the radius is 0 and drops duplicate points", () => {
-		expect(roadCenterline([...L, [10, 10]], false, 0)).toEqual(L);
+		expect(flat(roadCenterline([...L, [10, 10]], false, 0))).toEqual(L);
 	});
 
 	it("rounds every corner of a closed loop", () => {
@@ -54,7 +65,7 @@ describe("roadCenterline", () => {
 		];
 		const line = roadCenterline(square, true, 2);
 		for (const corner of square) {
-			expect(line).not.toContainEqual(corner);
+			expect(flat(line)).not.toContainEqual(corner);
 		}
 		// Rounding shortens the loop a little compared with the sharp square (40).
 		const loop = polylineLength(line, true);
@@ -64,8 +75,8 @@ describe("roadCenterline", () => {
 });
 
 /** Distance from point p to segment a–b. */
-const distanceToSegment = (p: TVec2, a: TVec2, b: TVec2) => {
-	const ab: TVec2 = [b[0] - a[0], b[1] - a[1]];
+const distanceToSegment = (p: readonly number[], a: readonly number[], b: readonly number[]) => {
+	const ab = [b[0] - a[0], b[1] - a[1]];
 	const len2 = ab[0] ** 2 + ab[1] ** 2;
 	const t =
 		len2 === 0
@@ -155,7 +166,7 @@ describe("lanes", () => {
 describe("segmentMidpoints", () => {
 	it("includes the closing segment for closed roads", () => {
 		expect(segmentMidpoints(L, false)).toHaveLength(2);
-		expect(segmentMidpoints(L, true).at(-1)?.point).toEqual([5, 5]);
+		expect(segmentMidpoints(L, true).at(-1)?.point).toEqual([5, 5, 0]);
 	});
 });
 
@@ -194,5 +205,159 @@ describe("buildRibbon winding", () => {
 		};
 		expect(facesUp(L)).toBe(true);
 		expect(facesUp([...L].reverse())).toBe(true);
+	});
+});
+
+describe("road heights", () => {
+	const ramp: TRoadPoint[] = [
+		[0, 0, 0],
+		[10, 0, 4],
+	];
+
+	it("keeps control point heights and eases between them", () => {
+		const line = roadCenterline(ramp, false, 0);
+		expect(line[0][2]).toBe(0);
+		expect(line.at(-1)?.[2]).toBe(4);
+		expect(line.length).toBeGreaterThan(10); // subdivided so the ramp is smooth
+		const heights = line.map((p) => p[2]);
+		for (let i = 1; i < heights.length; i++) {
+			expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1]);
+		}
+		// Eased: the first and last steps are gentler than the middle one.
+		const mid = Math.floor(heights.length / 2);
+		expect(heights[1] - heights[0]).toBeLessThan(heights[mid + 1] - heights[mid]);
+	});
+
+	it("carries heights through rounded corners", () => {
+		const line = roadCenterline(
+			[
+				[0, 0, 2],
+				[10, 0, 2],
+				[10, 10, 2],
+			],
+			false,
+			3,
+		);
+		expect(line.every((p) => Math.abs(p[2] - 2) < 1e-9)).toBe(true);
+	});
+
+	it("only builds deck sides, railings and embankments where the road is raised", () => {
+		const flatRoad = buildElevatedSides(roadCenterline(L, false, 0), false, 1, {
+			railings: true,
+			embankment: true,
+		});
+		expect(flatRoad.deck.quads).toHaveLength(0);
+
+		const bridge = roadCenterline(
+			[
+				[0, 0, 0],
+				[10, 0, 3],
+				[20, 0, 3],
+				[30, 0, 0],
+			],
+			false,
+			0,
+		);
+		const sides = buildElevatedSides(bridge, false, 1, { railings: true, embankment: false });
+		expect(sides.deck.quads.length).toBeGreaterThan(0);
+		expect(sides.railings.quads.length).toBeGreaterThan(0);
+		expect(sides.embankment.quads).toHaveLength(0);
+		// The deck hangs DECK_THICKNESS below the surface, never below ground.
+		for (const [top, , bottom] of sides.deck.quads) {
+			expect(bottom[1]).toBeCloseTo(Math.max(0, top[1] - DECK_THICKNESS));
+		}
+
+		const bank = buildElevatedSides(bridge, false, 1, { railings: false, embankment: true });
+		expect(bank.railings.quads).toHaveLength(0);
+		for (const quad of bank.embankment.quads) {
+			expect(quad[2][1]).toBe(0); // slopes reach the ground
+		}
+	});
+
+	it("places pillars at regular spacing only under high enough sections", () => {
+		const line = roadCenterline(
+			[
+				[0, 0, 3],
+				[40, 0, 3],
+			],
+			false,
+			0,
+		);
+		const pillars = pillarPositions(line, false);
+		expect(pillars.length).toBe(40 / PILLAR_SPACING);
+		expect(pillars.every((p) => p[2] >= PILLAR_MIN)).toBe(true);
+		expect(pillarPositions(roadCenterline(L, false, 0), false)).toHaveLength(0);
+	});
+});
+
+describe("joinedPoints", () => {
+	const a: TRoadPoint[] = [
+		[0, 0, 0],
+		[5, 0, 1],
+	];
+	const b: TRoadPoint[] = [
+		[10, 0, 0],
+		[5, 0, 1],
+	];
+
+	it("orients both roads so the joined ends meet, keeping the shared point once", () => {
+		expect(joinedPoints(a, "end", b, "end")).toEqual([
+			[0, 0, 0],
+			[5, 0, 1],
+			[10, 0, 0],
+		]);
+		expect(joinedPoints(a, "start", b, "start").map((p) => p[0])).toEqual([5, 0, 10, 5]);
+	});
+});
+
+describe("elevated sides on curves", () => {
+	it("form continuous strips with no gaps between neighbouring pieces", () => {
+		const raisedLoop = roadCenterline(
+			[
+				[0, 0, 4],
+				[20, 0, 4],
+				[20, 15, 4],
+				[0, 15, 4],
+			],
+			true,
+			6,
+		);
+		const { embankment, deck } = buildElevatedSides(raisedLoop, true, 1.2, {
+			railings: true,
+			embankment: true,
+		});
+		for (const wall of [embankment, deck]) {
+			// Quads alternate left/right per segment, so the same side repeats every 2.
+			for (let k = 0; k + 2 < wall.quads.length; k++) {
+				const [, topB, , bottomB] = wall.quads[k];
+				const [topA, , bottomA] = wall.quads[k + 2];
+				expect(topA).toEqual(topB);
+				expect(bottomA).toEqual(bottomB);
+			}
+		}
+	});
+});
+
+describe("embankment bounds", () => {
+	it("keeps embankment feet on the ground slab", () => {
+		const nearEdge = roadCenterline(
+			[
+				[0, 9, 5],
+				[10, 9, 5],
+			],
+			false,
+			0,
+		);
+		const { embankment } = buildElevatedSides(nearEdge, false, 1, {
+			railings: false,
+			embankment: true,
+			bounds: [20, 10],
+		});
+		for (const quad of embankment.quads) {
+			for (const [x, , z] of [quad[2], quad[3]]) {
+				expect(Math.abs(x)).toBeLessThanOrEqual(20);
+				expect(Math.abs(z)).toBeLessThanOrEqual(10);
+			}
+		}
 	});
 });

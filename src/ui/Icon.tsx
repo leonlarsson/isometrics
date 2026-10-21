@@ -22,6 +22,8 @@ const PATHS = {
 	edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
 	eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 	reset: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
+	cut: "M6 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 8.5 20 20M8.5 15.5 20 4",
+	join: "M4 12h6M14 12h6M10 9l3 3-3 3M14 9l-3 3 3 3",
 } as const;
 
 export type TIconName = keyof typeof PATHS;

@@ -76,14 +76,18 @@ export const createWarehouseScene = (): TScene => {
 			},
 			{
 				id: "garden_path",
-				name: "Pond path",
+				name: "Pond footbridge",
 				style: "dirt",
 				width: 1.2,
 				cornerRadius: 2,
+				// Crosses the pond on a small footbridge.
 				points: [
 					[-10, 4.8],
 					[-10, 0],
 					[-12.5, -4.5],
+					[-13.4, -6.2, 1],
+					[-14.4, -8.6, 1],
+					[-15.2, -10.2],
 				],
 			},
 		],

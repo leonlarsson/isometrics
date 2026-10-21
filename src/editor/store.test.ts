@@ -120,8 +120,8 @@ describe("editor store", () => {
 		const road = s().scene.roads.find((r) => r.id === id);
 		expect(road).toMatchObject({ style: "dirt", name: "Dirt path 1", closed: false });
 		expect(road?.points).toEqual([
-			[0, 0],
-			[4, 0],
+			[0, 0, 0],
+			[4, 0, 0],
 		]);
 		expect(s().drawing).toBeNull();
 		expect(s().selectedRoadId).toBe(id);
@@ -152,9 +152,9 @@ describe("editor store", () => {
 			],
 		});
 		const van = s().addEntity({ kind: "van", follow: { roadId: id } });
-		s().insertRoadPoint(id, 1, [5, 2]);
+		s().insertRoadPoint(id, 1, [5, 2, 0]);
 		s().moveRoadPoint(id, 1, [5.25, 3]);
-		expect(s().scene.roads[0].points[1]).toEqual([5.25, 3]);
+		expect(s().scene.roads[0].points[1]).toEqual([5.25, 3, 0]);
 		s().removeRoadPoint(id, 0);
 		s().removeRoadPoint(id, 0); // a road keeps at least two points
 		expect(s().scene.roads[0].points).toHaveLength(2);
@@ -179,5 +179,126 @@ describe("editor store", () => {
 		expect(s().selectedRoadId).toBeNull();
 		s().selectRoad(id);
 		expect(s().selectedId).toBeNull();
+	});
+	const straightRoad = (s: () => ReturnType<ReturnType<typeof makeStore>["getState"]>) =>
+		s().addRoad({
+			name: "Main",
+			points: [
+				[0, 0],
+				[5, 0],
+				[10, 0],
+				[15, 0],
+			],
+		});
+
+	it("sets point heights and keeps them when the point moves", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = straightRoad(s);
+		s().setRoadPointHeight(id, 1, 2.5);
+		s().moveRoadPoint(id, 1, [5, 1]);
+		expect(s().scene.roads[0].points[1]).toEqual([5, 1, 2.5]);
+		s().setRoadPointHeight(id, 1, -3);
+		expect(s().scene.roads[0].points[1][2]).toBe(0);
+	});
+
+	it("splits an open road into two that share the cut point", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = straightRoad(s);
+		const van = s().addEntity({ kind: "van", follow: { roadId: id } });
+		const second = s().splitRoad(id, 2);
+		const [a, b] = s().scene.roads;
+		expect(a.id).toBe(id);
+		expect(b.id).toBe(second);
+		expect(b.name).toBe("Main (2)");
+		expect(a.points.at(-1)).toEqual([10, 0, 0]);
+		expect(b.points[0]).toEqual([10, 0, 0]);
+		expect(s().scene.entities.find((e) => e.id === van)?.follow?.roadId).toBe(id);
+		expect(s().splitRoad(id, 0)).toBeNull(); // can't cut at an end
+	});
+
+	it("opens a loop at the cut point", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			closed: true,
+			points: [
+				[0, 0],
+				[4, 0],
+				[4, 4],
+			],
+		});
+		expect(s().splitRoad(id, 1)).toBe(id);
+		const road = s().scene.roads[0];
+		expect(road.closed).toBe(false);
+		expect(road.points.map((p) => [p[0], p[1]])).toEqual([
+			[4, 0],
+			[4, 4],
+			[0, 0],
+			[4, 0],
+		]);
+	});
+
+	it("joins two roads end to end and moves vehicles onto the result", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const a = s().addRoad({
+			points: [
+				[0, 0],
+				[5, 0],
+			],
+		});
+		const b = s().addRoad({
+			points: [
+				[10, 0],
+				[5, 0],
+			],
+		});
+		const van = s().addEntity({ kind: "van", follow: { roadId: b } });
+		s().joinRoads(a, "end", b, "end");
+		expect(s().scene.roads).toHaveLength(1);
+		expect(s().scene.roads[0].points.map((p) => p[0])).toEqual([0, 5, 10]);
+		expect(s().scene.entities.find((e) => e.id === van)?.follow?.roadId).toBe(a);
+		s().undo();
+		expect(s().scene.roads).toHaveLength(2);
+	});
+
+	it("joining a road's own ends closes the loop", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			points: [
+				[0, 0],
+				[4, 0],
+				[4, 4],
+				[0, 0],
+			],
+		});
+		s().joinRoads(id, "start", id, "end");
+		const road = s().scene.roads[0];
+		expect(road.closed).toBe(true);
+		expect(road.points).toHaveLength(3); // the shared point appears once
+	});
+
+	it("continues drawing from either end of a road", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			points: [
+				[0, 0, 1],
+				[5, 0, 2],
+			],
+		});
+		s().continueDrawing(id, "start");
+		s().addDrawingPoint([-5, 0]);
+		expect(s().finishDrawing()).toBe(id);
+		expect(s().scene.roads).toHaveLength(1);
+		// Reversed so the new point follows the old start, at the old start's height.
+		expect(s().scene.roads[0].points).toEqual([
+			[5, 0, 2],
+			[0, 0, 1],
+			[-5, 0, 1],
+		]);
 	});
 });

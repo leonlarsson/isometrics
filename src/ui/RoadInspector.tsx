@@ -4,10 +4,11 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
 import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
-import type { TRoad, TRoadStyle } from "#/scene/schema";
+import type { TRoad, TRoadStyle, TRoadSupports } from "#/scene/schema";
 
 import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
 import { Icon } from "./Icon";
+import { RoadPointPanel } from "./RoadPointPanel";
 
 import styles from "./Fields.module.css";
 
@@ -23,15 +24,19 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 		(s) => s.scene.entities.filter((e) => e.follow?.roadId === road.id).length,
 	);
 	const palette = usePalette();
+	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 
 	/** Every edit coalesces per road+field so typing or sliding is one undo step. */
 	const edit = (field: string, recipe: (r: Draft<TRoad>) => void) =>
 		updateRoad(road.id, recipe, { coalesce: `${road.id}:${field}` });
 
 	const length = polylineLength(roadCenterlineOf(road), road.closed);
+	const elevated = road.points.some((p) => p[2] > 0);
 
 	return (
 		<>
+			{selectedPoint !== null && <RoadPointPanel road={road} index={selectedPoint} />}
+
 			<Section
 				title={ROAD_STYLE_LABELS[road.style]}
 				actions={
@@ -111,10 +116,47 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 				/>
 
 				<p className={styles.hint}>
-					Drag the points in the scene to reshape. Drag a small dot between two points to add one;
-					double-click a point to remove it.
+					Click a point to select it. Drag points to reshape, Shift+drag to raise them. Drag a small
+					dot between two points to add one; double-click a point to remove it.
 				</p>
 			</Section>
+
+			{road.style !== "hidden" && (
+				<Section title="Elevated sections">
+					{elevated ? (
+						<>
+							<Select<TRoadSupports>
+								label="Held up by"
+								value={road.supports}
+								options={[
+									{ value: "pillars", label: "Pillars (roads can pass under)" },
+									{ value: "embankment", label: "Embankment (sloped bank)" },
+								]}
+								onChange={(v) =>
+									edit("supports", (r) => {
+										r.supports = v;
+									})
+								}
+							/>
+
+							<Toggle
+								label="Railings"
+								checked={road.railings}
+								onChange={(v) =>
+									edit("railings", (r) => {
+										r.railings = v;
+									})
+								}
+							/>
+						</>
+					) : (
+						<p className={styles.hint}>
+							Raise a point (select it and set its Height, or Shift+drag it) to build a bridge or
+							flyover.
+						</p>
+					)}
+				</Section>
+			)}
 
 			{road.style !== "hidden" && (
 				<Section title="Look">
