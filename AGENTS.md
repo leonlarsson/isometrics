@@ -71,7 +71,7 @@ Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the p
 
 ## Commits and PRs
 
-Never add AI attribution: no `Co-Authored-By: Claude …` (or any other AI) trailer, no "Generated with Claude Code" line in commit messages or PR descriptions. Commit as the configured git user only. Don't hard-wrap commit message bodies; use one line per bullet. Never push without asking the owner first, every time.
+Never add AI attribution: no `Co-Authored-By: Claude …` (or any other AI) trailer, no "Generated with Claude Code" line in commit messages or PR descriptions. Commit as the configured git user only. Don't hard-wrap commit message bodies; use one line per bullet. Never commit or push without the owner's explicit go-ahead, every time. Pushing to `main` deploys to production (Cloudflare is connected to the repo).
 
 ## ADR workflow
 
