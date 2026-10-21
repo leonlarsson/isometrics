@@ -7,7 +7,7 @@ date: 2026-10-21
 
 ## Context and problem statement
 
-Dashboards show numbers, but it's unknown how data will be fetched, how often, or whether it will be live.
+Worlds show numbers, but it's unknown how data will be fetched, how often, or whether it will be live.
 
 ## Decision outcome
 

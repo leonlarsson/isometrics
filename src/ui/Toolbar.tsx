@@ -156,7 +156,7 @@ export const Toolbar = () => {
 							resetView();
 						} catch (error) {
 							window.alert(
-								`That file isn’t a valid dashboard.\n\n${error instanceof Error ? error.message : String(error)}`,
+								`That file isn’t a valid world.\n\n${error instanceof Error ? error.message : String(error)}`,
 							);
 						}
 					}}

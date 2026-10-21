@@ -21,7 +21,7 @@ export const ScenePanel = () => {
 
 	return (
 		<>
-			<Section title="Dashboard">
+			<Section title="World">
 				<TextInput
 					label="Title"
 					value={scene.meta.title}
@@ -173,7 +173,7 @@ export const ScenePanel = () => {
 						type="button"
 						className={styles.templateButton}
 						onClick={() => {
-							if (window.confirm(`Replace the current dashboard with “${template.name}”?`)) {
+							if (window.confirm(`Replace the current world with “${template.name}”?`)) {
 								loadScene(template.create());
 								resetView();
 							}

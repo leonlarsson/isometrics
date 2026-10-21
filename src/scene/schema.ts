@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * The scene document is the single source of truth for a dashboard.
+ * The scene document is the single source of truth for a world.
  * The renderer, editor, persistence and (future) AI generation all read and
  * write this shape. See docs/adr/0003-scene-as-json-document.md.
  *
@@ -123,10 +123,10 @@ export const SceneSchema = z
 		version: z.literal(SCENE_VERSION),
 		meta: z
 			.object({
-				title: z.string().default("Untitled dashboard"),
+				title: z.string().default("Untitled world"),
 				subtitle: z.string().default(""),
 			})
-			.default({ title: "Untitled dashboard", subtitle: "" }),
+			.default({ title: "Untitled world", subtitle: "" }),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
 		driving: DrivingSideSchema.default("right"),

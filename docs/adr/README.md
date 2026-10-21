@@ -6,7 +6,7 @@ Why the code is the way it is. Read this before making structural changes; write
 |---|----------|--------|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | accepted |
 | [0002](0002-tanstack-start-on-cloudflare-workers.md) | TanStack Start, deployed to Cloudflare Workers | accepted |
-| [0003](0003-scene-as-json-document.md) | A dashboard is one JSON scene document, validated by Zod | accepted |
+| [0003](0003-scene-as-json-document.md) | A world is one JSON scene document, validated by Zod | accepted |
 | [0004](0004-react-three-fiber-orthographic-diorama.md) | React Three Fiber with an orthographic "diorama" camera | accepted |
 | [0005](0005-procedural-part-registry.md) | Procedural, parametric parts in a registry | accepted |
 | [0006](0006-local-first-persistence.md) | Local-first persistence, no database (yet) | accepted |

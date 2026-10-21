@@ -51,7 +51,7 @@ const slugify = (text: string) =>
 	text
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "") || "dashboard";
+		.replace(/^-+|-+$/g, "") || "world";
 
 export const downloadScene = (scene: TScene) => {
 	const blob = new Blob([JSON.stringify(scene, null, 2)], {
