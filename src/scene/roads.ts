@@ -77,11 +77,18 @@ const dedupe = (points: TRoadPoint[], closed: boolean) => {
 /**
  * The road's centre line as a dense polyline of [x, z, height].
  *
- * Corners: each is replaced by a quadratic curve that starts and ends `r`
+ * Shape: each corner is replaced by a quadratic curve that starts and ends `r`
  * before/after it, with `r` = `cornerRadius` limited to half of each adjacent
- * segment so curves never overlap. Height: eased between control points
- * (smoothstep), and straight parts whose height changes are subdivided so the
- * ramp is smooth. Closed roads round every corner and don't repeat the first point.
+ * segment so curves never overlap. Closed roads round every corner and don't
+ * repeat the first point.
+ *
+ * Height: computed after the shape. Each control point's height is pinned at
+ * its "station" on the rounded line (a corner's station is the middle of its
+ * curve), and heights ease (smoothstep) between stations by distance along the
+ * line. That keeps slopes continuous through bends; easing per straight
+ * segment and blending linearly across curves made a visible kink where a
+ * ramp met a bend. Straight parts whose height changes are subdivided so ramps
+ * are smooth.
  */
 export const roadCenterline = (
 	input: TPointInput[],
@@ -97,9 +104,6 @@ export const roadCenterline = (
 	const segCount = isClosed ? n : n - 1;
 	const at = (i: number) => pts[((i % n) + n) % n];
 	const segLength = (k: number) => length(sub(xz(at(k + 1)), xz(at(k))));
-	/** Height on segment k at fraction f. */
-	const heightOn = (k: number, f: number) => at(k)[2] + (at(k + 1)[2] - at(k)[2]) * smoothstep(f);
-	/** Position on segment k at fraction f. */
 	const pointOn = (k: number, f: number): TVec2 =>
 		add(xz(at(k)), scale(sub(xz(at(k + 1)), xz(at(k))), f));
 
@@ -117,35 +121,33 @@ export const roadCenterline = (
 		return r < 1e-3 ? 0 : r;
 	});
 
-	const out: TRoadPoint[] = [];
-	const emit = (p: TVec2, h: number) => {
-		const last = out[out.length - 1];
+	// 1. Shape: dense 2D positions, remembering where each control point lands.
+	const positions: TVec2[] = [];
+	const stationIndex: number[] = new Array(n).fill(-1);
+	const emit = (p: TVec2) => {
+		const last = positions[positions.length - 1];
 		if (!last || Math.abs(last[0] - p[0]) > 1e-9 || Math.abs(last[1] - p[1]) > 1e-9) {
-			out.push([p[0], p[1], h]);
+			positions.push(p);
 		}
+		return positions.length - 1;
 	};
-
 	const emitFillet = (i: number) => {
 		const r = radius[i];
 		const p = xz(at(i));
-		const fIn = 1 - r / segLength(i - 1);
-		const fOut = r / segLength(i);
-		const a = pointOn(i - 1, fIn);
-		const b = pointOn(i, fOut);
-		const hA = heightOn(i - 1, fIn);
-		const hB = heightOn(i, fOut);
-		const steps = Math.max(4, Math.ceil(r * CURVE_SAMPLES_PER_UNIT));
+		const a = pointOn(i - 1, 1 - r / segLength(i - 1));
+		const b = pointOn(i, r / segLength(i));
+		const steps = 2 * Math.max(2, Math.ceil((r * CURVE_SAMPLES_PER_UNIT) / 2)); // even: has a middle
 		for (let s = 0; s <= steps; s++) {
 			const t = s / steps;
 			const u = 1 - t;
 			// Quadratic Bézier a → corner → b.
-			emit(
-				[
-					u * u * a[0] + 2 * u * t * p[0] + t * t * b[0],
-					u * u * a[1] + 2 * u * t * p[1] + t * t * b[1],
-				],
-				hA + (hB - hA) * t,
-			);
+			const index = emit([
+				u * u * a[0] + 2 * u * t * p[0] + t * t * b[0],
+				u * u * a[1] + 2 * u * t * p[1] + t * t * b[1],
+			]);
+			if (s === steps / 2) {
+				stationIndex[i] = index;
+			}
 		}
 	};
 
@@ -159,23 +161,65 @@ export const roadCenterline = (
 		const ramps = Math.abs(at(k)[2] - at(k + 1)[2]) > 1e-9;
 		const steps = ramps ? Math.max(1, Math.ceil(((end - start) * len) / RAMP_STEP)) : 1;
 		for (let s = 0; s <= steps; s++) {
-			const f = start + ((end - start) * s) / steps;
-			emit(pointOn(k, f), heightOn(k, f));
+			const index = emit(pointOn(k, start + ((end - start) * s) / steps));
+			if (s === 0 && radius[k] === 0 && stationIndex[k] < 0) {
+				stationIndex[k] = index;
+			}
+			if (s === steps && radius[(k + 1) % n] === 0 && stationIndex[(k + 1) % n] < 0) {
+				stationIndex[(k + 1) % n] = index;
+			}
 		}
 		const next = (k + 1) % n;
 		if (radius[next] > 0 && !(isClosed && next === 0)) {
 			emitFillet(next);
 		}
 	}
-
-	if (isClosed && out.length > 2) {
-		const first = out[0];
-		const last = out[out.length - 1];
+	if (isClosed && positions.length > 2) {
+		const first = positions[0];
+		const last = positions[positions.length - 1];
 		if (Math.abs(first[0] - last[0]) < 1e-9 && Math.abs(first[1] - last[1]) < 1e-9) {
-			out.pop();
+			positions.pop();
+			// A control point recorded at the dropped duplicate lives at index 0.
+			for (let i = 0; i < n; i++) {
+				if (stationIndex[i] === positions.length) {
+					stationIndex[i] = 0;
+				}
+			}
 		}
 	}
-	return out;
+
+	// 2. Height: ease between control stations by distance along the line.
+	const along = [0];
+	for (let j = 1; j < positions.length; j++) {
+		along.push(along[j - 1] + length(sub(positions[j], positions[j - 1])));
+	}
+	const total = isClosed
+		? along[along.length - 1] + length(sub(positions[0], positions[positions.length - 1]))
+		: along[along.length - 1];
+	const station = stationIndex.map((index) => along[Math.max(0, index)]);
+
+	const heightAt = (distance: number) => {
+		// Find the control span [k, k + 1] containing `distance`.
+		for (let k = 0; k < segCount; k++) {
+			const from = station[k];
+			let to = station[(k + 1) % n];
+			let d = distance;
+			if (isClosed && to <= from) {
+				to += total; // the span that wraps past the loop's start
+				if (d < from) {
+					d += total;
+				}
+			}
+			if (d >= from - 1e-9 && d <= to + 1e-9) {
+				const f = to - from < 1e-9 ? 0 : (d - from) / (to - from);
+				return at(k)[2] + (at(k + 1)[2] - at(k)[2]) * smoothstep(Math.min(1, Math.max(0, f)));
+			}
+		}
+		// Before the first station on a loop, which wrapped above; otherwise clamp to the ends.
+		return distance <= station[0] ? pts[0][2] : pts[n - 1][2];
+	};
+
+	return positions.map((p, j) => [p[0], p[1], heightAt(along[j])]);
 };
 
 export const roadCenterlineOf = (road: Pick<TRoad, "points" | "closed" | "cornerRadius">) =>

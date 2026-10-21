@@ -29,7 +29,7 @@ Model (`src/scene/schema.ts`):
 - Roads gain `supports: "pillars" | "embankment"`, a per-road choice the owner asked for, and `railings: boolean`.
 
 Geometry (`src/scene/roads.ts`, pure and tested):
-- `roadCenterline` emits `[x, z, height]`. Height eases between control points (smoothstep), so ramps start and end level. Straight parts whose height changes are subdivided, and rounded corners carry height through the curve.
+- `roadCenterline` emits `[x, z, height]`. The shape is built first. Then each control point's height is pinned at its station on the rounded line (a corner's station is the middle of its curve), and heights ease (smoothstep) between stations by distance along the line. This keeps slopes continuous through bends. The first version eased per straight segment and blended linearly across curves, which made a visible kink where a ramp met a bend. Straight parts whose height changes are subdivided.
 - `buildRibbon`: one quad per segment, plus a round wedge filling only the outer side of each bend, at the bend's exact height. Full flat discs poked through sloped surfaces, hiding markings and shading differently. Normals follow the slope per centre-line vertex and are shared, so shading is continuous through bends and ramps.
 - `buildElevatedSides` builds the deck edge (`DECK_THICKNESS`), railings (from `RAILING_MIN`) and embankment slopes (`EMBANKMENT_RUN`, 45°) where the road is above `ELEVATED_MIN`. These are continuous strips: each centre-line vertex has one sideways direction, averaged from its two segments. Per-segment offsets fanned apart on curves and left gaps. Embankment feet are clamped to the ground slab.
 - `pillarPositions` places a pillar every `PILLAR_SPACING` where the road is at least `PILLAR_MIN` high.

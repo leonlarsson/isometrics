@@ -417,3 +417,44 @@ describe("buildRibbon bends and normals", () => {
 		}
 	});
 });
+
+describe("height profile through bends", () => {
+	it("has no sudden slope changes where a ramp runs into a curve", () => {
+		const line = roadCenterline(
+			[
+				[-12, 0, 0],
+				[0, 0, 4],
+				[6, -6, 4.5],
+				[6, -16, 4.5],
+			],
+			false,
+			4,
+		);
+		const slopes = line.slice(1).map((b, i) => {
+			const a = line[i];
+			const run = Math.hypot(b[0] - a[0], b[1] - a[1]);
+			return run === 0 ? 0 : (b[2] - a[2]) / run;
+		});
+		for (let i = 1; i < slopes.length; i++) {
+			expect(Math.abs(slopes[i] - slopes[i - 1])).toBeLessThan(0.1);
+		}
+		// Control point heights are still met exactly at the ends.
+		expect(line[0][2]).toBe(0);
+		expect(line.at(-1)?.[2]).toBe(4.5);
+	});
+
+	it("keeps loops continuous across the start point", () => {
+		const loop = roadCenterline(
+			[
+				[0, 0, 0],
+				[20, 0, 3],
+				[20, 15, 3],
+				[0, 15, 0],
+			],
+			true,
+			4,
+		);
+		const steps = loop.map((p, i) => Math.abs(p[2] - loop[(i + 1) % loop.length][2]));
+		expect(Math.max(...steps)).toBeLessThan(0.5);
+	});
+});
