@@ -1,3 +1,4 @@
+import { APP_NAME } from "#/lib/app";
 import { parseScene } from "#/scene/migrate";
 import type { TScene } from "#/scene/schema";
 
@@ -7,7 +8,7 @@ import type { useEditor } from "./store";
  * Local-first persistence: the scene autosaves to localStorage and can be
  * exported/imported as a JSON file. No backend. See docs/adr/0006.
  */
-const STORAGE_KEY = "dddashboard:scene";
+const STORAGE_KEY = `${APP_NAME.toLowerCase()}:scene`;
 
 export const loadStoredScene = (): TScene | null => {
 	try {

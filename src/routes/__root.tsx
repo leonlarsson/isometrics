@@ -1,6 +1,8 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { APP_NAME } from "#/lib/app";
+
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -14,7 +16,7 @@ export const Route = createRootRoute({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "dddashboard",
+				title: APP_NAME,
 			},
 		],
 		links: [

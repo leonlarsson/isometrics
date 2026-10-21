@@ -1,4 +1,4 @@
-# dddashboard
+# Isometrics
 
 Build animated 3D "diorama" dashboards: drop in buildings, vehicles and trees, label them with your numbers, and present the result as a living map of your business.
 

@@ -4,7 +4,7 @@ Guide for AI agents (and humans) working in this repo.
 
 ## What this is
 
-**dddashboard** lets non-technical users build animated 3D "diorama" dashboards: a low-poly scene (warehouse, vans, houses …) with floating data cards. Users place, move, rotate, resize and recolour objects, label them with values, and switch to a clean View mode.
+**Isometrics** lets non-technical users build animated 3D "diorama" dashboards: a low-poly scene (warehouse, vans, houses …) with floating data cards. Users place, move, rotate, resize and recolour objects, label them with values, and switch to a clean View mode.
 
 ## Read first
 
@@ -50,6 +50,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **Layout (ADR-0014):** every `if`/`else`/loop body is braced with the body on its own line (Biome `useBlockStatements`). Sibling JSX children (elements, fragments, `{expressions}`) are separated by a blank line, single-line ones included; inline text runs are exempt. Enforced by `scripts/jsx-spacing.mjs`, which is part of `pnpm check`, and fixed by `pnpm check:fix`.
 - **Functions and exports (ADR-0015):** define every function as a `const` arrow function and use named exports only. No `function` declarations (a Biome GritQL plugin in `biome-plugins/` enforces this), and no `export default` except in `*.config.*` files. Exception: route files in `src/routes/` keep `export const Route` first, followed by a hoisted `function` component. Arrow functions aren't hoisted, so define helpers before top-level code uses them, and write `<T,>` for unconstrained generics in `.tsx`.
 - Imports use the `#/` alias for `src/`.
+- The product name lives in one constant, `APP_NAME` (`src/lib/app.ts`). Never hard-code it in runtime code; derive variants from it (e.g. `APP_NAME.toLowerCase()`).
 - Styling: CSS Modules next to the component, using **only tokens** from `src/styles.css`. 3D colours come from `scenePalettes` in `src/scene/theme.ts`; keep the two in sync (ADR-0007).
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
 - Never store runtime/UI state (selection, camera, animation progress) in the scene document.
