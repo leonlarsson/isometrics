@@ -26,3 +26,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0020](0020-never-discard-unreadable-saves.md) | Never discard a saved world the app can't read | accepted |
 | [0021](0021-free-form-areas.md) | Free-form areas: water, grass, sand, plazas and raised land | accepted |
 | [0022](0022-centre-lane-roads.md) | Roads can make vehicles drive down the centre | accepted |
+| [0023](0023-road-width-per-point.md) | Road width per point | accepted |

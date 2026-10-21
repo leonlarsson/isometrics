@@ -12,6 +12,7 @@ import {
 	PILLAR_MIN,
 	PILLAR_SPACING,
 	pillarPositions,
+	pointWidth,
 	polylineLength,
 	roadCenterline,
 	segmentMidpoints,
@@ -477,5 +478,75 @@ describe("height profile through bends", () => {
 		);
 		const steps = loop.map((p, i) => Math.abs(p[2] - loop[(i + 1) % loop.length][2]));
 		expect(Math.max(...steps)).toBeLessThan(0.5);
+	});
+});
+
+describe("road width per point", () => {
+	const straight: TRoadPoint[] = [
+		[0, 0, 0, 1],
+		[10, 0, 0],
+		[20, 0, 0, 3],
+	];
+
+	it("reads a point's own width, if it has one", () => {
+		expect(pointWidth([0, 0, 0, 2])).toBe(2);
+		expect(pointWidth([0, 0, 0])).toBeUndefined();
+		expect(pointWidth([0, 0])).toBeUndefined();
+	});
+
+	it("eases the width between points, using the road's width where a point has none", () => {
+		const line = roadCenterline(straight, false, 0, 2);
+		expect(line[0][3]).toBeCloseTo(1);
+		expect(line.at(-1)?.[3]).toBeCloseTo(3);
+		const middle = line.find((p) => Math.abs(p[0] - 10) < 1e-6);
+		expect(middle?.[3]).toBeCloseTo(2);
+		// Smooth: subdivided, and never outside the range of its ends.
+		expect(line.length).toBeGreaterThan(3);
+		for (const p of line) {
+			expect(p[3]).toBeGreaterThanOrEqual(1 - 1e-9);
+			expect(p[3]).toBeLessThanOrEqual(3 + 1e-9);
+		}
+	});
+
+	it("leaves points without widths as [x, z, height] when no road width is given", () => {
+		const line = roadCenterline(L, false, 3);
+		expect(line.every((p) => p.length === 3)).toBe(true);
+	});
+
+	it("tapers the ribbon to each point's half width", () => {
+		const { vertices } = buildRibbon(
+			[
+				[0, 0, 0, 1],
+				[10, 0, 0, 3],
+			],
+			5,
+			false,
+		);
+		expect(vertices[0][1]).toBeCloseTo(-0.5);
+		expect(vertices[2][1]).toBeCloseTo(0.5);
+		expect(vertices[3][1]).toBeCloseTo(-1.5);
+		expect(vertices[5][1]).toBeCloseTo(1.5);
+	});
+
+	it("keeps bend wedges flush with tapered quads", () => {
+		const { vertices } = buildRibbon(
+			[
+				[0, 0, 0, 1],
+				[10, 0, 0, 4],
+				[10, 10, 0, 2],
+			],
+			1,
+			false,
+		);
+		const arc = vertices.slice(13);
+		expect(arc[0]).toEqual(vertices[3]);
+		expect(arc.at(-1)).toEqual(vertices[6]);
+		expect(Math.hypot(arc[0][0] - 10, arc[0][1])).toBeCloseTo(2);
+	});
+
+	it("draws centre-line dashes at their own width, not the road's", () => {
+		const dashes = dashPolyline(roadCenterline(straight, false, 0, 2), false, 1, 1);
+		expect(dashes.length).toBeGreaterThan(0);
+		expect(dashes.flat().every((p) => p.length === 3)).toBe(true);
 	});
 });

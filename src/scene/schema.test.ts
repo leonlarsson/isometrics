@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { TEMPLATES } from "#/templates";
 
 import { parseScene } from "./migrate";
-import { SceneSchema } from "./schema";
+import { RoadPointSchema, SceneSchema } from "./schema";
 
 describe("SceneSchema", () => {
 	it("fills defaults for a minimal scene", () => {
@@ -59,5 +59,18 @@ describe("parseScene", () => {
 
 	it("rejects scenes from a newer app version", () => {
 		expect(() => parseScene({ version: 999 })).toThrow(/newer/);
+	});
+});
+
+describe("RoadPointSchema", () => {
+	it("accepts [x, z], [x, z, height] and [x, z, height, width]", () => {
+		expect(RoadPointSchema.parse([1, 2])).toEqual([1, 2, 0]);
+		expect(RoadPointSchema.parse([1, 2, 3])).toEqual([1, 2, 3]);
+		expect(RoadPointSchema.parse([1, 2, 3, 4])).toEqual([1, 2, 3, 4]);
+	});
+
+	it("rejects widths outside the road limits", () => {
+		expect(RoadPointSchema.safeParse([1, 2, 3, 0.1]).success).toBe(false);
+		expect(RoadPointSchema.safeParse([1, 2, 3, 25]).success).toBe(false);
 	});
 });

@@ -4,7 +4,13 @@ import { create } from "zustand";
 
 import { normalizeDegrees, round } from "#/lib/math";
 import { AREA_TYPE_HEIGHT, AREA_TYPE_LABELS } from "#/scene/areas";
-import { joinedPoints, ROAD_STYLE_LABELS, ROAD_STYLE_WIDTH, type TRoadEnd } from "#/scene/roads";
+import {
+	joinedPoints,
+	pointWidth,
+	ROAD_STYLE_LABELS,
+	ROAD_STYLE_WIDTH,
+	type TRoadEnd,
+} from "#/scene/roads";
 import {
 	AreaSchema,
 	EntitySchema,
@@ -26,6 +32,24 @@ import { createWarehouseScene } from "#/templates/warehouse";
 
 export type TEditorMode = "edit" | "view";
 export type TInspectorTab = "object" | "data" | "scene";
+
+/** Road widths a point may have (the schema's limits). */
+const clampRoadWidth = (width: number) => round(Math.min(20, Math.max(0.4, width)));
+
+/**
+ * A copy of a road point with some parts changed, keeping the rest (notably
+ * its own width). `width: null` drops the point's width so it uses the road's.
+ */
+const withPoint = (
+	point: readonly number[],
+	change: { x?: number; z?: number; height?: number; width?: number | null },
+): TRoadPoint => {
+	const x = round(change.x ?? point[0]);
+	const z = round(change.z ?? point[1]);
+	const height = round(change.height ?? point[2] ?? 0);
+	const width = change.width === undefined ? pointWidth(point) : change.width;
+	return width === null || width === undefined ? [x, z, height] : [x, z, height, width];
+};
 
 /** Grid step for dragging and nudging, in ground units. */
 export const SNAP_STEP = 0.5;
@@ -124,6 +148,13 @@ export interface IEditorState {
 	/** Move a point across the ground, keeping its height. */
 	moveRoadPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
 	setRoadPointHeight: (id: string, index: number, height: number, options?: ICommitOptions) => void;
+	/** Give a point its own width, or `null` to use the road's width there again. */
+	setRoadPointWidth: (
+		id: string,
+		index: number,
+		width: number | null,
+		options?: ICommitOptions,
+	) => void;
 	/** Insert a point before `index`. */
 	insertRoadPoint: (id: string, index: number, point: TRoadPoint, options?: ICommitOptions) => void;
 	removeRoadPoint: (id: string, index: number) => void;
@@ -468,7 +499,7 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				(road) => {
 					const current = road.points[index];
 					if (current) {
-						road.points[index] = [round(point[0]), round(point[1]), current[2]];
+						road.points[index] = withPoint(current, { x: point[0], z: point[1] });
 					}
 				},
 				options,
@@ -480,7 +511,21 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				(road) => {
 					const current = road.points[index];
 					if (current) {
-						road.points[index] = [current[0], current[1], round(Math.max(0, height))];
+						road.points[index] = withPoint(current, { height: Math.max(0, height) });
+					}
+				},
+				options,
+			),
+
+		setRoadPointWidth: (id, index, width, options) =>
+			get().updateRoad(
+				id,
+				(road) => {
+					const current = road.points[index];
+					if (current) {
+						road.points[index] = withPoint(current, {
+							width: width === null ? null : clampRoadWidth(width),
+						});
 					}
 				},
 				options,
@@ -490,7 +535,16 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 			get().updateRoad(
 				id,
 				(road) => {
-					road.points.splice(index, 0, [round(point[0]), round(point[1]), round(point[2])]);
+					// Between points with their own widths, the new point keeps the width there.
+					const n = road.points.length;
+					const neighbours = road.closed
+						? [road.points[(index - 1 + n) % n], road.points[index % n]]
+						: [road.points[index - 1], road.points[index]];
+					const widths = neighbours.filter(Boolean).map((p) => pointWidth(p));
+					const width = widths.some((w) => w !== undefined)
+						? widths.reduce<number>((sum, w) => sum + (w ?? road.width), 0) / widths.length
+						: null;
+					road.points.splice(index, 0, withPoint([point[0], point[1], point[2]], { width }));
 				},
 				options,
 			),
@@ -568,7 +622,11 @@ export const createEditorStore = (initialScene: TScene = createWarehouseScene())
 				if (!target) {
 					return;
 				}
-				target.points = joinedPoints(a.points, aEnd, b.points, bEnd);
+				// The absorbed road keeps its own width as per-point widths if it differs.
+				const bPoints = b.points.map((p) =>
+					b.width !== a.width && pointWidth(p) === undefined ? withPoint(p, { width: b.width }) : p,
+				);
+				target.points = joinedPoints(a.points, aEnd, bPoints, bEnd);
 				scene.roads = scene.roads.filter((r) => r.id !== bId);
 				// Vehicles on the absorbed road now drive the joined one.
 				for (const entity of scene.entities) {

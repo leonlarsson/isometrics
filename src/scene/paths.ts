@@ -24,8 +24,11 @@ interface ISegment {
 	toHeight: number;
 }
 
-/** [x, z] or [x, z, height]. */
-type TPathPoint = TVec2 | readonly [number, number, number];
+/** [x, z], [x, z, height], or a road point with its width (ignored here). */
+type TPathPoint =
+	| TVec2
+	| readonly [number, number, number]
+	| readonly [number, number, number, number];
 
 const headingOf = (from: TVec2, to: TVec2) => Math.atan2(-(to[1] - from[1]), to[0] - from[0]);
 

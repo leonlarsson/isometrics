@@ -37,6 +37,7 @@ Decided with the owner (2026-10-21). This changes the editing model in ADR-0009 
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
 
+- [ ] **Unify the UI:** one consistent set of controls across the inspector, palette, toolbar and panels. Same field anatomy everywhere (label row with optional action such as "Default" on the right, then the control), same spacing, button styles, icon sizes, hint text and section headers. Today these grew ad hoc (the "Default" reset links were the first to move into the label row). Collect the patterns into shared components in `src/ui/fields.tsx` and use only those.
 - [ ] **Switching road styles:** already possible via **Style** in the road inspector (Road / Dirt path / Hidden route). Still to do: when the width is still the old style's default, adopt the new style's default width (a hidden route turned into a road is too narrow).
 - [ ] **People:** pedestrians as a part, walking along paths, pavements or hidden routes; maybe standing crowds. *Data:* crowd size or walking speed from a value (visitors, queue length).
 - [ ] **Building clusters:** one object that grows with a number: more, taller or bigger buildings as the value rises (abstract; needs exploring). *Data:* naturally driven by a value, e.g. revenue or headcount per city block.

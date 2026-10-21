@@ -3,7 +3,7 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
-import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
+import { pointWidth, polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
 import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports } from "#/scene/schema";
 
 import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
@@ -32,6 +32,8 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 
 	const length = polylineLength(roadCenterlineOf(road), road.closed);
 	const elevated = road.points.some((p) => p[2] > 0);
+
+	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
 
 	return (
 		<>
@@ -107,6 +109,14 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						})
 					}
 				/>
+
+				{ownWidths > 0 && (
+					<p className={styles.hint}>
+						{ownWidths === 1
+							? "1 point has its own width and keeps it. Select it to change it."
+							: `${ownWidths} points have their own widths and keep them. Select one to change it.`}
+					</p>
+				)}
 
 				<SliderField
 					label="Curves"

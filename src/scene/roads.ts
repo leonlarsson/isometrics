@@ -55,9 +55,22 @@ const rightOf = (f: TVec2): TVec2 => [-f[1], f[0]];
 /** Ease in and out, so ramps start and end level. */
 const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
-/** Points with height; [x, z] input counts as height 0. */
+/** Points with height; [x, z] input counts as height 0. A point's own width is kept. */
 type TPointInput = TVec2 | TRoadPoint;
-const withHeight = (p: TPointInput): TRoadPoint => [p[0], p[1], p[2] ?? 0];
+const withHeight = (p: TPointInput): TRoadPoint => {
+	const width = pointWidth(p);
+	return width === undefined ? [p[0], p[1], p[2] ?? 0] : [p[0], p[1], p[2] ?? 0, width];
+};
+
+/** A road point's own width (its fourth value), or undefined when it uses the road's. */
+export const pointWidth = (p: readonly number[]): number | undefined =>
+	p.length > 3 ? p[3] : undefined;
+
+/** Half the road's width at a point: its own width if it has one, otherwise `fallback`. */
+const halfWidthAt = (p: TRoadPoint, fallback: number) => {
+	const width = pointWidth(p);
+	return width === undefined ? fallback : width / 2;
+};
 
 /** Drop consecutive duplicate positions (and a closing duplicate of the first point). */
 const dedupe = (points: TRoadPoint[], closed: boolean) => {
@@ -89,11 +102,16 @@ const dedupe = (points: TRoadPoint[], closed: boolean) => {
  * segment and blending linearly across curves made a visible kink where a
  * ramp met a bend. Straight parts whose height changes are subdivided so ramps
  * are smooth.
+ *
+ * Width: when any point has its own width, or `width` (the road's) is given,
+ * every output point gets a fourth value, the width there, eased between
+ * stations the same way. Points without a width use `width`.
  */
 export const roadCenterline = (
 	input: TPointInput[],
 	closed: boolean,
 	cornerRadius: number,
+	width?: number,
 ): TRoadPoint[] => {
 	const pts = dedupe(input.map(withHeight), closed);
 	const n = pts.length;
@@ -103,6 +121,8 @@ export const roadCenterline = (
 	}
 	const segCount = isClosed ? n : n - 1;
 	const at = (i: number) => pts[((i % n) + n) % n];
+	const fallbackWidth = width ?? pts.map(pointWidth).find((w) => w !== undefined);
+	const widthOf = (p: TRoadPoint) => pointWidth(p) ?? fallbackWidth ?? 0;
 	const segLength = (k: number) => length(sub(xz(at(k + 1)), xz(at(k))));
 	const pointOn = (k: number, f: number): TVec2 =>
 		add(xz(at(k)), scale(sub(xz(at(k + 1)), xz(at(k))), f));
@@ -158,7 +178,7 @@ export const roadCenterline = (
 		if (k === 0 && isClosed && radius[0] > 0) {
 			emitFillet(0);
 		}
-		const ramps = Math.abs(at(k)[2] - at(k + 1)[2]) > 1e-9;
+		const ramps = Math.abs(at(k)[2] - at(k + 1)[2]) > 1e-9 || widthOf(at(k)) !== widthOf(at(k + 1));
 		const steps = ramps ? Math.max(1, Math.ceil(((end - start) * len) / RAMP_STEP)) : 1;
 		for (let s = 0; s <= steps; s++) {
 			const index = emit(pointOn(k, start + ((end - start) * s) / steps));
@@ -198,7 +218,8 @@ export const roadCenterline = (
 		: along[along.length - 1];
 	const station = stationIndex.map((index) => along[Math.max(0, index)]);
 
-	const heightAt = (distance: number) => {
+	/** A control-point value (height or width) eased between stations at `distance` along the line. */
+	const easedAt = (distance: number, value: (p: TRoadPoint) => number) => {
 		// Find the control span [k, k + 1] containing `distance`.
 		for (let k = 0; k < segCount; k++) {
 			const from = station[k];
@@ -212,18 +233,25 @@ export const roadCenterline = (
 			}
 			if (d >= from - 1e-9 && d <= to + 1e-9) {
 				const f = to - from < 1e-9 ? 0 : (d - from) / (to - from);
-				return at(k)[2] + (at(k + 1)[2] - at(k)[2]) * smoothstep(Math.min(1, Math.max(0, f)));
+				const [startValue, endValue] = [value(at(k)), value(at(k + 1))];
+				return startValue + (endValue - startValue) * smoothstep(Math.min(1, Math.max(0, f)));
 			}
 		}
 		// Before the first station on a loop, which wrapped above; otherwise clamp to the ends.
-		return distance <= station[0] ? pts[0][2] : pts[n - 1][2];
+		return distance <= station[0] ? value(pts[0]) : value(pts[n - 1]);
 	};
 
-	return positions.map((p, j) => [p[0], p[1], heightAt(along[j])]);
+	return positions.map((p, j): TRoadPoint => {
+		const height = easedAt(along[j], (q) => q[2]);
+		return fallbackWidth === undefined
+			? [p[0], p[1], height]
+			: [p[0], p[1], height, easedAt(along[j], widthOf)];
+	});
 };
 
-export const roadCenterlineOf = (road: Pick<TRoad, "points" | "closed" | "cornerRadius">) =>
-	roadCenterline(road.points, road.closed, road.cornerRadius);
+export const roadCenterlineOf = (
+	road: Pick<TRoad, "points" | "closed" | "cornerRadius" | "width">,
+) => roadCenterline(road.points, road.closed, road.cornerRadius, road.width);
 
 /** Total ground length of a polyline (heights ignored), including the closing segment for loops. */
 export const polylineLength = (points: readonly (readonly number[])[], closed: boolean) => {
@@ -249,7 +277,8 @@ const JOIN_STEP = Math.PI / 16;
 
 /**
  * Triangulate a band of `halfWidth` around a polyline: one quad per segment,
- * plus a round wedge filling the gap on the outside of each bend.
+ * plus a round wedge filling the gap on the outside of each bend. Points with
+ * their own width (a fourth value) use half of it instead, so segments taper.
  *
  * - Watertight: every bend gets its wedge, however slight, and the wedge
  *   reuses the quads' exact corner coordinates. Quads are split at the centre
@@ -313,16 +342,17 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		if (dir[0] === 0 && dir[1] === 0) {
 			continue;
 		}
-		const side = scale(rightOf(dir), halfWidth);
+		const sideA = scale(rightOf(dir), halfWidthAt(a, halfWidth));
+		const sideB = scale(rightOf(dir), halfWidthAt(b, halfWidth));
 		const base = vertices.length;
 		// Left, centre and right at each end: two quads, split along the centre line.
 		vertices.push(
-			[...sub(xz(a), side), a[2]],
+			[...sub(xz(a), sideA), a[2]],
 			[a[0], a[1], a[2]],
-			[...add(xz(a), side), a[2]],
-			[...sub(xz(b), side), b[2]],
+			[...add(xz(a), sideA), a[2]],
+			[...sub(xz(b), sideB), b[2]],
 			[b[0], b[1], b[2]],
-			[...add(xz(b), side), b[2]],
+			[...add(xz(b), sideB), b[2]],
 		);
 		normals.push(...[ia, ia, ia, ib, ib, ib].map((i) => vertexNormal[i]));
 		pushUp(base, base + 3, base + 1);
@@ -357,10 +387,11 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		}
 		const steps = Math.max(1, Math.ceil(Math.abs(to - from) / JOIN_STEP));
 		const [cx, cz, h] = pts[i];
+		const radius = halfWidthAt(pts[i], halfWidth);
 		// The arc's ends are the quads' outer corners, computed exactly as the quads compute them.
 		const corner = (dir: TVec2): TVec2 => {
-			const side = scale(rightOf(dir), halfWidth);
-			return turnsRight ? sub([cx, cz], side) : add([cx, cz], side);
+			const side = scale(rightOf(dir), radius);
+			return turnsRight ? sub(xz(pts[i]), side) : add(xz(pts[i]), side);
 		};
 		const hub = vertices.length;
 		vertices.push([cx, cz, h]);
@@ -372,7 +403,7 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 					? corner(inDir)
 					: s === steps
 						? corner(outDir)
-						: [cx + Math.cos(angle) * halfWidth, cz + Math.sin(angle) * halfWidth];
+						: [cx + Math.cos(angle) * radius, cz + Math.sin(angle) * radius];
 			vertices.push([x, z, h]);
 			normals.push(vertexNormal[i]);
 		}
@@ -392,7 +423,8 @@ export interface IWall {
 
 /**
  * Left and right edge points for every centre-line vertex, offset along one
- * shared sideways direction per vertex (the average of its two segments).
+ * shared sideways direction per vertex (the average of its two segments), by
+ * `offset` or the vertex's own half width.
  * Strips built from these are continuous: neighbouring quads share edges, so
  * there are no gaps on the outside of curves. (Per-segment offsets fan apart.)
  */
@@ -408,7 +440,7 @@ const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number) => {
 		if (side[0] === 0 && side[1] === 0) {
 			side = rightOf(outDir ?? inDir ?? [1, 0]); // a full reversal: use the outgoing direction
 		}
-		const off = scale(side, offset);
+		const off = scale(side, halfWidthAt(p, offset));
 		return { point: p, side, left: sub(xz(p), off), right: add(xz(p), off) };
 	});
 };
@@ -547,7 +579,10 @@ export const dashPolyline = (
 		if (end - start < 1e-6) {
 			continue;
 		}
-		const inner = pts.filter((_, i) => along[i] > start && along[i] < end);
+		// Plain [x, z, height]: dashes are drawn at their own width, not the road's.
+		const inner = pts
+			.filter((_, i) => along[i] > start && along[i] < end)
+			.map((p): TRoadPoint => [p[0], p[1], p[2]]);
 		dashes.push([pointAt(start), ...inner, pointAt(end)]);
 	}
 	return dashes;

@@ -67,8 +67,14 @@ export const DataEntrySchema = z.object({
 	unit: z.string().default(""),
 });
 
-/** A road control point: [x, z, height above ground]. `[x, z]` is accepted as height 0. */
+/**
+ * A road control point: [x, z, height above ground, width?]. Without a width
+ * the point uses the road's width; with one, the road eases to that width
+ * here (see docs/adr/0023-road-width-per-point.md). `[x, z]` is accepted as
+ * height 0.
+ */
 export const RoadPointSchema = z.union([
+	z.tuple([z.number(), z.number(), z.number().min(0).max(50), z.number().min(0.4).max(20)]),
 	z.tuple([z.number(), z.number(), z.number().min(0).max(50)]),
 	z
 		.tuple([z.number(), z.number()])

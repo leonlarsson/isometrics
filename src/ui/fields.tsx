@@ -32,17 +32,31 @@ export const Field = ({
 	label,
 	children,
 	inline = false,
+	action,
 }: {
 	label: string;
 	children: (id: string) => ReactNode;
 	inline?: boolean;
+	/** A small control on the label's row, right-aligned (e.g. a reset link). */
+	action?: ReactNode;
 }) => {
 	const id = useId();
+	const labelElement = (
+		<label htmlFor={id} className={styles.label}>
+			{label}
+		</label>
+	);
 	return (
 		<div className={inline ? styles.fieldInline : styles.field}>
-			<label htmlFor={id} className={styles.label}>
-				{label}
-			</label>
+			{action ? (
+				<div className={styles.labelRow}>
+					{labelElement}
+
+					{action}
+				</div>
+			) : (
+				labelElement
+			)}
 
 			{children(id)}
 		</div>
@@ -141,6 +155,8 @@ export const SliderField = ({
 	max,
 	step,
 	suffix,
+	isDefault = true,
+	onReset,
 }: {
 	label: string;
 	value: number;
@@ -149,9 +165,22 @@ export const SliderField = ({
 	max: number;
 	step: number;
 	suffix?: string;
+	/** With `onReset`: whether the value is the default, which hides the reset link. */
+	isDefault?: boolean;
+	onReset?: () => void;
 }) => {
 	return (
-		<Field label={label}>
+		<Field
+			label={label}
+			action={
+				onReset &&
+				!isDefault && (
+					<button type="button" className={styles.linkButton} onClick={onReset}>
+						<Icon name="reset" size={14} /> Default
+					</button>
+				)
+			}
+		>
 			{(id) => (
 				<div className={styles.sliderRow}>
 					<input
@@ -283,7 +312,17 @@ export const ColorField = ({
 	onReset?: () => void;
 }) => {
 	return (
-		<Field label={label}>
+		<Field
+			label={label}
+			action={
+				onReset &&
+				!isDefault && (
+					<button type="button" className={styles.linkButton} onClick={onReset}>
+						<Icon name="reset" size={14} /> Default
+					</button>
+				)
+			}
+		>
 			{(id) => (
 				<div className={styles.color}>
 					<div className={styles.swatches}>
@@ -310,12 +349,6 @@ export const ColorField = ({
 						/>
 
 						<code className={styles.hex}>{value}</code>
-
-						{onReset && !isDefault && (
-							<button type="button" className={styles.linkButton} onClick={onReset}>
-								<Icon name="reset" size={14} /> Default
-							</button>
-						)}
 					</div>
 				</div>
 			)}

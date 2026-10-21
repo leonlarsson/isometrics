@@ -363,4 +363,62 @@ describe("editor store", () => {
 		s().select("w");
 		expect(s()).toMatchObject({ selectedAreaId: null, selectedPointIndex: null, selectedId: "w" });
 	});
+
+	it("keeps a point's own width when it's moved or raised, and can set or clear it", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			points: [
+				[0, 0],
+				[10, 0],
+			],
+		});
+		s().setRoadPointWidth(id, 1, 3);
+		s().moveRoadPoint(id, 1, [12, 1]);
+		s().setRoadPointHeight(id, 1, 2);
+		expect(s().scene.roads[0].points[1]).toEqual([12, 1, 2, 3]);
+		s().setRoadPointWidth(id, 1, 100);
+		expect(s().scene.roads[0].points[1][3]).toBe(20);
+		s().setRoadPointWidth(id, 1, null);
+		expect(s().scene.roads[0].points[1]).toEqual([12, 1, 2]);
+	});
+
+	it("gives an inserted point the width between its neighbours", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addRoad({
+			width: 2,
+			points: [
+				[0, 0, 0, 4],
+				[10, 0],
+			],
+		});
+		s().insertRoadPoint(id, 1, [5, 0, 0]);
+		expect(s().scene.roads[0].points[1]).toEqual([5, 0, 0, 3]);
+	});
+
+	it("keeps the absorbed road's width when joining roads of different widths", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const a = s().addRoad({
+			width: 2,
+			points: [
+				[0, 0],
+				[5, 0],
+			],
+		});
+		const b = s().addRoad({
+			width: 4,
+			points: [
+				[5, 0],
+				[10, 0],
+			],
+		});
+		s().joinRoads(a, "end", b, "start");
+		expect(s().scene.roads[0].points).toEqual([
+			[0, 0, 0],
+			[5, 0, 0],
+			[10, 0, 0, 4],
+		]);
+	});
 });

@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { ROAD_STYLE_LABELS, roadEnds, type TRoadEnd } from "#/scene/roads";
+import { pointWidth, ROAD_STYLE_LABELS, roadEnds, type TRoadEnd } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
 import { Section, SliderField, VectorField } from "./fields";
@@ -83,6 +83,17 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 				max={15}
 				step={0.25}
 				onChange={(value) => store().setRoadPointHeight(road.id, index, value, coalesce("height"))}
+			/>
+
+			<SliderField
+				label="Width here"
+				value={pointWidth(point) ?? road.width}
+				min={0.4}
+				max={8}
+				step={0.1}
+				isDefault={pointWidth(point) === undefined}
+				onChange={(value) => store().setRoadPointWidth(road.id, index, value, coalesce("width"))}
+				onReset={() => store().setRoadPointWidth(road.id, index, null)}
 			/>
 
 			<p className={styles.hint}>Tip: hold Shift while dragging a point to raise or lower it.</p>
