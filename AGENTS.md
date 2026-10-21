@@ -4,7 +4,7 @@ Guide for AI agents (and humans) working in this repo.
 
 ## What this is
 
-**Isometrics** lets non-technical users build animated 3D "diorama" dashboards: a low-poly scene (warehouse, vans, houses …) with floating data cards. Users place, move, rotate, resize and recolour objects, label them with values, and switch to a clean View mode.
+**Isometrics** lets non-technical users build animated 3D miniature worlds: low-poly scenes (buildings, vehicles, roads, bridges …) with floating data cards. It started as a "3D dashboards" app and is growing into a world builder, but **data stays a core pillar**: worlds exist to show data, and new features should stay data-capable where it's natural (ADR-0019). Users place, move, rotate, resize and recolour objects, draw roads, label things with values, and switch to a clean View mode.
 
 ## Read first
 

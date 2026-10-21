@@ -22,3 +22,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0016](0016-tanstack-hotkeys.md) | Keyboard shortcuts use TanStack Hotkeys | accepted |
 | [0017](0017-drawable-roads.md) | Drawable roads, which double as vehicle routes | accepted |
 | [0018](0018-elevated-roads-and-road-editing.md) | Elevated roads (height per point) and point-level road editing | accepted |
+| [0019](0019-product-direction-data-driven-worlds.md) | Product direction: a 3D world builder where data is a core pillar | accepted |
