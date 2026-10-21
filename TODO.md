@@ -27,3 +27,18 @@ Decided with the owner (2026-10-21). This changes the editing model in ADR-0009 
   - Road points: `[x, z, height]`.
   - Decide how non-uniform scale and rotation around X/Z should behave, since the model only has a uniform scale and a Y rotation.
 - [ ] Update README, AGENTS.md and the ADR index; verify in the browser (see "Verifying visually" in AGENTS.md).
+
+## Ideas backlog (2026-10-21)
+
+Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
+
+- [ ] **Switching road styles:** already possible via **Style** in the road inspector (Road / Dirt path / Hidden route). Still to do: when the width is still the old style's default, adopt the new style's default width (a hidden route turned into a road is too narrow).
+- [ ] **People:** pedestrians as a part, walking along paths, pavements or hidden routes; maybe standing crowds. *Data:* crowd size or walking speed from a value (visitors, queue length).
+- [ ] **Building clusters:** one object that grows with a number: more, taller or bigger buildings as the value rises (abstract; needs exploring). *Data:* naturally driven by a value, e.g. revenue or headcount per city block.
+- [ ] **Multiple areas / cities (SimCity-like):** several districts or grounds in one world, maybe linked by roads, each with its own name and data. Affects the scene model (ground is a single slab today), camera framing and navigation between areas.
+- [ ] **Smooth vehicle motion:** vehicles snap their heading between centre-line samples and at sharp corners. Smooth the heading (look ahead along the path or ease rotation), and make lane offsets follow corners smoothly.
+- [ ] **Weather:** fog, rain, snow, maybe clouds. Scene-level setting, possibly per area. *Data:* weather from a value or a live feed.
+- [ ] **Sun position and time of day:** dawn / day / dusk / night, with lamps, windows and vehicle lights switching on. *Data:* time of day could follow real time or a value.
+- [ ] **More camera freedom:** the locked isometric angle shouldn't be strict. Allow a wider orbit, a perspective option, saved viewpoints, maybe follow-a-vehicle. Keep a "reset to iso" button. Revisit ADR-0004.
+- [ ] **Traffic behaviour / passing:** faster vehicles currently drive through slower ones on the same road. Add following distance (slow down behind), and maybe overtaking on multi-lane roads. *Data:* traffic density or speeds from values.
+- [ ] **Connected road networks (junctions):** roads that join at intersections, with vehicles routing across roads instead of staying on one. Builds on ADR-0017/0018; the current "join" merges two roads into one but doesn't create junctions.
