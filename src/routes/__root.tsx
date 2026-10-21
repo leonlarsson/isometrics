@@ -18,6 +18,11 @@ export const Route = createRootRoute({
 			{
 				title: APP_NAME,
 			},
+			// Not public yet: keep search engines out. Remove (with the header below) at launch.
+			{
+				name: "robots",
+				content: "noindex, nofollow",
+			},
 		],
 		links: [
 			{
@@ -26,6 +31,8 @@ export const Route = createRootRoute({
 			},
 		],
 	}),
+	// Same as the robots meta tag, for crawlers that only read headers.
+	headers: () => ({ "X-Robots-Tag": "noindex, nofollow" }),
 	shellComponent: RootDocument,
 });
 

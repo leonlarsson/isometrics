@@ -2,6 +2,11 @@
 
 Planned work that has been discussed and agreed but not built yet. Write an ADR when starting anything that changes the editing model or data format (see `docs/adr/`).
 
+## Before going public
+
+- [ ] Remove the `noindex, nofollow` robots meta tag and the `X-Robots-Tag` header in `src/routes/__root.tsx`.
+- [ ] Add proper meta tags: description, Open Graph / social preview (title, description, image), favicon, `theme-color`.
+
 ## Blender-style transform gizmo
 
 Decided with the owner (2026-10-21). This changes the editing model in ADR-0009 (grid drag + panel), so it needs a new ADR when work starts.
