@@ -5,6 +5,7 @@ import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference } from "#/scene/schema";
 import { TEMPLATES } from "#/templates";
 
+import { BackupsPanel } from "./BackupsPanel";
 import { ColorField, Section, Select, SliderField, TextInput } from "./fields";
 import { Icon } from "./Icon";
 
@@ -165,6 +166,8 @@ export const ScenePanel = () => {
 					</ul>
 				)}
 			</Section>
+
+			<BackupsPanel />
 
 			<Section title="Start over">
 				{TEMPLATES.map((template) => (

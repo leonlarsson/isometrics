@@ -520,3 +520,31 @@ textarea.input {
 	font-weight: 400;
 	color: var(--text-muted);
 }
+
+/* --------------------------------------------------------------- backups */
+
+.backupItem {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 0;
+}
+
+.backupText {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+	font-size: 13px;
+}
+
+.backupText strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.backupText .roadMeta {
+	margin-left: 0;
+}

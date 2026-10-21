@@ -55,6 +55,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
 - Never store runtime/UI state (selection, camera, animation progress) in the scene document.
 - Untrusted scene JSON (files, storage, AI) must go through `parseScene()`.
+- Never discard user data. A save that fails to load is kept as a backup and the user is told (ADR-0020). Don't add code paths that overwrite or drop stored worlds without that safety net.
 
 ## Common tasks
 
