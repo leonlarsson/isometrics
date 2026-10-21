@@ -183,6 +183,5 @@
 				}
 			}
 		}
-	],
-	"plugins": ["./biome-plugins/no-function-declaration.grit"]
+	]
 }

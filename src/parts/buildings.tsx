@@ -81,6 +81,9 @@ export const warehouse = definePart({
 // -------------------------------------------------------------------- tower
 
 const FLOOR_HEIGHT = 0.62;
+/** Roof cap thickness and overhang; the overhang must exceed the 0.05 band/mullion outset. */
+const ROOF_CAP = 0.08;
+const ROOF_OVERHANG = 0.1;
 
 const TowerSchema = z.object({
 	width: z.number().min(1).max(12).default(3.2),
@@ -104,7 +107,7 @@ export const tower = definePart({
 	colorLabel: "Facade",
 	accentLabel: "Window grid",
 	footprint: (p) => [p.width, p.depth],
-	height: (p) => p.floors * FLOOR_HEIGHT + 0.5,
+	height: (p) => p.floors * FLOOR_HEIGHT + ROOF_CAP + 0.5,
 	Component: ({ props: p, color, accent }) => {
 		const h = p.floors * FLOOR_HEIGHT;
 		const columnsX = Math.max(2, Math.round(p.width / 0.7));
@@ -113,7 +116,9 @@ export const tower = definePart({
 			<group>
 				<RBox size={[p.width, h, p.depth]} position={[0, h / 2, 0]} color={color} radius={0.08} />
 
-				{Array.from({ length: p.floors }, (_, i) => (
+				{/* Bands between floors only; the roof cap covers the top so no faces are coplanar. */}
+
+				{Array.from({ length: p.floors - 1 }, (_, i) => (
 					<Box
 						// biome-ignore lint/suspicious/noArrayIndexKey: floors are positional
 						key={i}
@@ -149,8 +154,14 @@ export const tower = definePart({
 					))}
 
 				<Box
+					size={[p.width + ROOF_OVERHANG, ROOF_CAP, p.depth + ROOF_OVERHANG]}
+					position={[0, h + ROOF_CAP / 2, 0]}
+					color={accent}
+				/>
+
+				<Box
 					size={[p.width * 0.45, 0.45, p.depth * 0.35]}
-					position={[0, h + 0.22, 0]}
+					position={[0, h + ROOF_CAP + 0.22, 0]}
 					color={accent}
 				/>
 			</group>

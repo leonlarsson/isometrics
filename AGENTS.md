@@ -36,7 +36,6 @@ src/
   routes/     TanStack Start file routes (index = the editor, ssr: false)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
-biome-plugins/ Biome GritQL lint plugins
 docs/adr/     Architecture Decision Records
 ```
 
@@ -48,8 +47,9 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **Biome ≥ 2.6 is the only linter and formatter (ADR-0013).** Tabs, double quotes, line width 100. Run `pnpm check:fix` and let it order imports. Key rules: no `any`, no global `React.*` (import types directly), no unused variables or imports, `Number.parseFloat` over `parseFloat`. `useExhaustiveDependencies` is **off**, so don't add suppressions for it; unused `biome-ignore` comments fail the check.
 - Import order (auto-fixed): packages → `#/` aliases → `../` → `./` → stylesheets last, with a blank line between groups.
 - **Layout (ADR-0014):** every `if`/`else`/loop body is braced with the body on its own line (Biome `useBlockStatements`). Sibling JSX children (elements, fragments, `{expressions}`) are separated by a blank line, single-line ones included; inline text runs are exempt. Enforced by `scripts/jsx-spacing.mjs`, which is part of `pnpm check`, and fixed by `pnpm check:fix`.
-- **Functions and exports (ADR-0015):** define every function as a `const` arrow function and use named exports only. No `function` declarations (a Biome GritQL plugin in `biome-plugins/` enforces this), and no `export default` except in `*.config.*` files. Exception: route files in `src/routes/` keep `export const Route` first, followed by a hoisted `function` component. Arrow functions aren't hoisted, so define helpers before top-level code uses them, and write `<T,>` for unconstrained generics in `.tsx`.
+- **Functions and exports (ADR-0015):** define every function as a `const` arrow function and use named exports only. No `function` declarations (not lint-enforced, so follow it by hand; Biome only catches function *expressions*), and no `export default` except in `*.config.*` files. Exception: route files in `src/routes/` keep `export const Route` first, followed by a hoisted `function` component. Arrow functions aren't hoisted, so define helpers before top-level code uses them, and write `<T,>` for unconstrained generics in `.tsx`.
 - Imports use the `#/` alias for `src/`.
+- **Keyboard (ADR-0016):** all shortcuts go through `@tanstack/react-hotkeys` (`useHotkey` / `useHotkeys`). Editor-wide ones live in `src/editor/useShortcuts.ts`; widget-specific ones use `target: ref`. Never add `keydown` listeners or `onKeyDown` props (not lint-enforced, so follow it by hand). Register `Shift+X` variants explicitly, and give each hotkey `meta: { name }`.
 - The product name lives in one constant, `APP_NAME` (`src/lib/app.ts`). Never hard-code it in runtime code; derive variants from it (e.g. `APP_NAME.toLowerCase()`).
 - Styling: CSS Modules next to the component, using **only tokens** from `src/styles.css`. 3D colours come from `scenePalettes` in `src/scene/theme.ts`; keep the two in sync (ADR-0007).
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
@@ -67,6 +67,10 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 ## Verifying visually
 
 Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Orders packed/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
+
+## Commits and PRs
+
+Never add AI attribution: no `Co-Authored-By: Claude …` (or any other AI) trailer, no "Generated with Claude Code" line in commit messages or PR descriptions. Commit as the configured git user only. Don't hard-wrap commit message bodies; use one line per bullet.
 
 ## ADR workflow
 

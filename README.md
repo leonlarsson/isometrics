@@ -24,6 +24,8 @@ The app opens with the **Delivery hub** template. Your work autosaves in the bro
 | Moving vehicles | **Scene** tab → Routes, then the vehicle's **Motion** section |
 | Duplicate / delete | Ctrl+D / Delete |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
+| Pause / play motion | Space |
+| Resize the right panel | Drag its left edge (double-click to reset) |
 | Present | Switch to **View** in the top bar and click objects for details |
 
 ## Development
@@ -31,10 +33,17 @@ The app opens with the **Delivery hub** template. Your work autosaves in the bro
 ```bash
 pnpm test         # unit tests
 pnpm typecheck    # TypeScript
-pnpm check        # Biome lint + format
+pnpm check        # Biome + JSX spacing check: the gate to pass before committing
+pnpm check:fix    # same, fixing what it can
 pnpm build        # production build
 pnpm deploy       # build + deploy to Cloudflare Workers (needs `wrangler login`)
 ```
+
+### Biome and `pnpm check`
+
+Biome is the linter and formatter, and you can call it directly: `pnpm biome check`, `pnpm biome lint`, `pnpm biome format --write`.
+
+`pnpm check` runs Biome **and** `scripts/jsx-spacing.mjs`, which enforces the blank line between JSX siblings. Biome has no rule for that, so a plain `pnpm biome check` skips it. Use `pnpm check` (or `pnpm check:fix`) as the full gate; `pnpm lint:jsx` runs only the spacing check. See [ADR-0013](docs/adr/0013-biome-lint-and-import-conventions.md) and [ADR-0014](docs/adr/0014-code-layout-braces-and-jsx-spacing.md).
 
 See [`AGENTS.md`](AGENTS.md) for the code layout and conventions, and [`docs/adr`](docs/adr/README.md) for the architecture decisions.
 

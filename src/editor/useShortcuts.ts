@@ -1,91 +1,169 @@
-import { useEffect } from "react";
+import { useHotkeys } from "@tanstack/react-hotkeys";
 
-import { SNAP_STEP, useEditor } from "./store";
+import { SNAP_STEP, selectSelectedEntity, useEditor } from "./store";
 
-const isTyping = (target: EventTarget | null) =>
+const isTextEntry = (target: EventTarget | null) =>
 	target instanceof HTMLElement &&
 	(target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /**
- * Editor keyboard shortcuts:
- *   Ctrl/Cmd+Z undo · Ctrl/Cmd+Shift+Z or Ctrl+Y redo
- *   Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
- *   Ctrl/Cmd+D duplicate · Delete/Backspace remove · Esc deselect
+ * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
+ *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Esc deselect · Space pause/play motion
+ *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
+ *   Mod+D duplicate · Delete/Backspace remove
+ *
+ * The library skips single keys while typing in text fields and prevents the
+ * browser default for matched keys. Mod chords stay enabled and return early,
+ * because a disabled hotkey would let the browser act (Mod+D would bookmark).
  */
 export const useShortcuts = () => {
-	useEffect(() => {
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (isTyping(event.target)) {
-				return;
-			}
-			const state = useEditor.getState();
-			const mod = event.ctrlKey || event.metaKey;
-			const key = event.key.toLowerCase();
+	const mode = useEditor((s) => s.mode);
+	const selected = useEditor(selectSelectedEntity);
 
-			if (mod && key === "z") {
-				event.preventDefault();
-				if (event.shiftKey) {
-					state.redo();
-				} else {
-					state.undo();
+	const canEdit = mode === "edit" && selected !== null;
+	const canTransform = canEdit && !selected.locked;
+	const canNudge = canTransform && !selected.follow;
+
+	const rotate = (degrees: number) => {
+		const { selectedId, rotateEntity } = useEditor.getState();
+		if (selectedId) {
+			rotateEntity(selectedId, degrees);
+		}
+	};
+
+	const nudge = (dx: number, dz: number) => {
+		const state = useEditor.getState();
+		const entity = selectSelectedEntity(state);
+		if (entity) {
+			state.moveEntity(
+				entity.id,
+				[entity.position[0] + dx * SNAP_STEP, entity.position[1] + dz * SNAP_STEP],
+				{ coalesce: `nudge:${entity.id}` },
+			);
+		}
+	};
+
+	const remove = () => {
+		const { selectedId, removeEntity } = useEditor.getState();
+		if (selectedId) {
+			removeEntity(selectedId);
+		}
+	};
+
+	useHotkeys([
+		{
+			hotkey: "Mod+Z",
+			callback: () => useEditor.getState().undo(),
+			options: { meta: { name: "Undo" } },
+		},
+		{
+			hotkey: "Mod+Shift+Z",
+			callback: () => useEditor.getState().redo(),
+			options: { meta: { name: "Redo" } },
+		},
+		{
+			hotkey: "Mod+Y",
+			callback: () => useEditor.getState().redo(),
+			options: { meta: { name: "Redo" } },
+		},
+		{
+			hotkey: "Escape",
+			callback: () => useEditor.getState().select(null),
+			options: { meta: { name: "Deselect" } },
+		},
+		{
+			// Handle Space on focused buttons too (otherwise the last-clicked toolbar button
+			// would be "pressed" again), but never steal it from text fields.
+			hotkey: "Space",
+			callback: (event) => {
+				if (isTextEntry(event.target)) {
+					return;
 				}
-				return;
-			}
-			if (mod && key === "y") {
 				event.preventDefault();
-				state.redo();
-				return;
-			}
-			if (key === "escape") {
-				state.select(null);
-				return;
-			}
-
-			const id = state.selectedId;
-			if (state.mode !== "edit" || !id) {
-				return;
-			}
-			const entity = state.scene.entities.find((e) => e.id === id);
-			if (!entity) {
-				return;
-			}
-
-			if (mod && key === "d") {
-				event.preventDefault();
-				state.duplicateEntity(id);
-				return;
-			}
-			if (key === "delete" || key === "backspace") {
-				event.preventDefault();
-				state.removeEntity(id);
-				return;
-			}
-			if (entity.locked) {
-				return;
-			}
-			if (key === "q" || key === "e") {
-				const step = event.shiftKey ? 90 : 15;
-				state.rotateEntity(id, key === "q" ? step : -step);
-				return;
-			}
-			const arrows: Record<string, [number, number]> = {
-				arrowleft: [-1, 0],
-				arrowright: [1, 0],
-				arrowup: [0, -1],
-				arrowdown: [0, 1],
-			};
-			const dir = arrows[key];
-			if (dir && !entity.follow) {
-				event.preventDefault();
-				const step = SNAP_STEP * (event.shiftKey ? 5 : 1);
-				state.moveEntity(
-					id,
-					[entity.position[0] + dir[0] * step, entity.position[1] + dir[1] * step],
-					{ coalesce: `nudge:${id}` },
-				);
-			}
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, []);
+				useEditor.getState().togglePlaying();
+			},
+			options: {
+				ignoreInputs: false,
+				preventDefault: false,
+				requireReset: true,
+				meta: { name: "Pause / play motion" },
+			},
+		},
+		{
+			hotkey: "Mod+D",
+			callback: () => {
+				const { mode: currentMode, selectedId, duplicateEntity } = useEditor.getState();
+				if (currentMode === "edit" && selectedId) {
+					duplicateEntity(selectedId);
+				}
+			},
+			options: { meta: { name: "Duplicate" } },
+		},
+		{ hotkey: "Delete", callback: remove, options: { enabled: canEdit, meta: { name: "Delete" } } },
+		{
+			hotkey: "Backspace",
+			callback: remove,
+			options: { enabled: canEdit, meta: { name: "Delete" } },
+		},
+		{
+			hotkey: "Q",
+			callback: () => rotate(15),
+			options: { enabled: canTransform, meta: { name: "Rotate left" } },
+		},
+		{
+			hotkey: "E",
+			callback: () => rotate(-15),
+			options: { enabled: canTransform, meta: { name: "Rotate right" } },
+		},
+		{
+			hotkey: "Shift+Q",
+			callback: () => rotate(90),
+			options: { enabled: canTransform, meta: { name: "Rotate left 90°" } },
+		},
+		{
+			hotkey: "Shift+E",
+			callback: () => rotate(-90),
+			options: { enabled: canTransform, meta: { name: "Rotate right 90°" } },
+		},
+		{
+			hotkey: "ArrowLeft",
+			callback: () => nudge(-1, 0),
+			options: { enabled: canNudge, meta: { name: "Nudge left" } },
+		},
+		{
+			hotkey: "ArrowRight",
+			callback: () => nudge(1, 0),
+			options: { enabled: canNudge, meta: { name: "Nudge right" } },
+		},
+		{
+			hotkey: "ArrowUp",
+			callback: () => nudge(0, -1),
+			options: { enabled: canNudge, meta: { name: "Nudge back" } },
+		},
+		{
+			hotkey: "ArrowDown",
+			callback: () => nudge(0, 1),
+			options: { enabled: canNudge, meta: { name: "Nudge forward" } },
+		},
+		{
+			hotkey: "Shift+ArrowLeft",
+			callback: () => nudge(-5, 0),
+			options: { enabled: canNudge, meta: { name: "Nudge left ×5" } },
+		},
+		{
+			hotkey: "Shift+ArrowRight",
+			callback: () => nudge(5, 0),
+			options: { enabled: canNudge, meta: { name: "Nudge right ×5" } },
+		},
+		{
+			hotkey: "Shift+ArrowUp",
+			callback: () => nudge(0, -5),
+			options: { enabled: canNudge, meta: { name: "Nudge back ×5" } },
+		},
+		{
+			hotkey: "Shift+ArrowDown",
+			callback: () => nudge(0, 5),
+			options: { enabled: canNudge, meta: { name: "Nudge forward ×5" } },
+		},
+	]);
 };

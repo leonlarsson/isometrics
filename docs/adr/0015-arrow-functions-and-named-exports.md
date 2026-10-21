@@ -28,7 +28,7 @@ The repo owner prefers one way to define functions and one way to export them, s
 
 Enforcement (`pnpm check`):
 
-- `biome-plugins/no-function-declaration.grit`: a Biome GritQL plugin flagging `function` declarations outside `src/routes/`. Biome has no built-in rule for declarations, and a Biome `overrides` entry can't disable a plugin, so the route exception lives in the plugin's `$filename` condition.
+- `function` declarations: **not lint-enforced**. Biome has no built-in rule for them; follow the convention in review. (A custom lint plugin was tried and removed on 2026-10-21 to keep the tooling simple.)
 - `complexity/useArrowFunction` (error, safe fix): function *expressions*.
 - `style/noDefaultExport` (error), turned off for `*.config.*` via `overrides`.
 

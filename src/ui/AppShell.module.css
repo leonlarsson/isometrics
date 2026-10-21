@@ -9,7 +9,7 @@
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: 220px 1fr 320px;
+	grid-template-columns: 220px 1fr var(--inspector-width, 320px);
 }
 
 .shell[data-mode="view"] .body {
@@ -20,7 +20,18 @@
 .right {
 	min-height: 0;
 	overflow-y: auto;
+	/* Reserve the scrollbar's space so content doesn't shift when a tab starts to overflow. */
+	scrollbar-gutter: stable;
 	background: var(--surface);
+}
+
+/* Holds the resize handle outside the scrolling panel so it doesn't scroll away. */
+.rightColumn {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
 }
 
 .left {
@@ -28,6 +39,7 @@
 }
 
 .right {
+	flex: 1;
 	border-left: 1px solid var(--border);
 }
 
@@ -72,5 +84,9 @@
 		max-height: 45dvh;
 		border-left: none;
 		border-top: 1px solid var(--border);
+	}
+
+	.rightColumn > [role="separator"] {
+		display: none;
 	}
 }

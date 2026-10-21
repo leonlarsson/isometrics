@@ -19,3 +19,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0013](0013-biome-lint-and-import-conventions.md) | Biome lint rules and import ordering | accepted |
 | [0014](0014-code-layout-braces-and-jsx-spacing.md) | Always-braced `if`, blank lines between JSX siblings | accepted |
 | [0015](0015-arrow-functions-and-named-exports.md) | Arrow functions everywhere; named exports only | accepted |
+| [0016](0016-tanstack-hotkeys.md) | Keyboard shortcuts use TanStack Hotkeys | accepted |

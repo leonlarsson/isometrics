@@ -114,7 +114,7 @@ export const Toolbar = () => {
 
 				<ToolButton
 					icon={playing ? "pause" : "play"}
-					label={playing ? "Pause motion" : "Play motion"}
+					label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
 					onClick={togglePlaying}
 				/>
 

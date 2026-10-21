@@ -162,10 +162,13 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		onPointerUp: endDrag,
 		onLostPointerCapture: endDrag,
 		onClick: (e: ThreeEvent<MouseEvent>) => {
+			// Always stop here: otherwise the click reaches the ground behind, which deselects.
+			e.stopPropagation();
+			// Edit mode selects on pointer-down (needed for dragging); view mode selects on click
+			// so that orbiting the camera over a building doesn't open its details.
 			if (mode !== "view" || e.delta > 5) {
 				return;
 			}
-			e.stopPropagation();
 			select(entity.id);
 		},
 		onPointerOver: (e: ThreeEvent<PointerEvent>) => {

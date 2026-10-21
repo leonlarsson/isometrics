@@ -1,0 +1,38 @@
+/* Sits over the panel's left border; wider than it looks so it's easy to grab. */
+.handle {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -4px;
+	z-index: 3;
+	width: 8px;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.handle::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 3px;
+	width: 2px;
+	background: transparent;
+	transition: background 120ms ease;
+}
+
+.handle:hover::after,
+.handle:focus-visible::after,
+:global(body[data-resizing]) .handle::after {
+	background: var(--accent);
+}
+
+.handle:focus-visible {
+	outline: none;
+}
+
+/* While dragging, keep the cursor and stop text selection everywhere. */
+:global(body[data-resizing]) {
+	cursor: col-resize;
+	user-select: none;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 
 import { loadStoredScene, startAutosave } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
@@ -10,6 +10,7 @@ import { DetailSheet } from "./DetailSheet";
 import { Inspector } from "./Inspector";
 import { LabelLayer } from "./LabelLayer";
 import { PartsPalette } from "./PartsPalette";
+import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
 import { Toolbar } from "./Toolbar";
 
 import styles from "./AppShell.module.css";
@@ -28,6 +29,7 @@ const SceneTitle = () => {
 export const AppShell = () => {
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
+	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
 
 	useEffect(() => {
 		const stored = loadStoredScene();
@@ -42,7 +44,11 @@ export const AppShell = () => {
 	useShortcuts();
 
 	return (
-		<div className={styles.shell} data-mode={mode}>
+		<div
+			className={styles.shell}
+			data-mode={mode}
+			style={{ "--inspector-width": `${inspectorWidth}px` } as CSSProperties}
+		>
 			<Toolbar />
 
 			<div className={styles.body}>
@@ -63,9 +69,13 @@ export const AppShell = () => {
 				</main>
 
 				{mode === "edit" && (
-					<aside className={styles.right}>
-						<Inspector />
-					</aside>
+					<div className={styles.rightColumn}>
+						<ResizeHandle width={inspectorWidth} onResize={setInspectorWidth} />
+
+						<aside className={styles.right}>
+							<Inspector />
+						</aside>
+					</div>
 				)}
 			</div>
 		</div>
