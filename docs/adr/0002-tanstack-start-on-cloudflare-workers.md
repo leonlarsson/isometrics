@@ -29,5 +29,5 @@ Chosen option: **TanStack Start on Cloudflare Workers**, scaffolded with the off
 
 ### Consequences
 
-- Good: one codebase for UI and future server logic; cheap, global hosting; `pnpm deploy` ships it.
+- Good: one codebase for UI and future server logic; cheap, global hosting; `pnpm run deploy` ships it.
 - Bad: three.js makes a large client chunk (~1 MB); acceptable for an editor, revisit with code-splitting if a lightweight "viewer-only" route is added.

@@ -19,7 +19,7 @@ Guide for AI agents (and humans) working in this repo.
 | `pnpm test` | Vitest unit tests (`src/**/*.test.ts`) |
 | `pnpm typecheck` | Generate routes + `tsc --noEmit` |
 | `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
-| `pnpm build` / `pnpm deploy` | Production build / deploy to Cloudflare Workers |
+| `pnpm build` / `pnpm run deploy` | Production build / deploy to Cloudflare Workers (`pnpm deploy` without `run` is pnpm's own built-in command) |
 
 Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`. CI (`.github/workflows/ci.yml`) runs the same three on every push to `main` and on pull requests.
 

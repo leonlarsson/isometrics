@@ -40,7 +40,7 @@ pnpm typecheck    # TypeScript
 pnpm check        # Biome + JSX spacing check: the gate to pass before committing
 pnpm check:fix    # same, fixing what it can
 pnpm build        # production build
-pnpm deploy       # build + deploy to Cloudflare Workers (needs `wrangler login`)
+pnpm run deploy   # build + deploy to Cloudflare Workers (needs `wrangler login`; plain `pnpm deploy` is a different, built-in pnpm command)
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `pnpm check`, `pnpm typecheck` and `pnpm test` on every push to `main` and on pull requests.
