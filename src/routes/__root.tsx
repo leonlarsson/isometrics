@@ -2,6 +2,7 @@ import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { APP_NAME } from "#/lib/app";
+import { ErrorScreen } from "#/ui/ErrorScreen";
 import { NotFound } from "#/ui/NotFound";
 
 import appCss from "../styles.css?url";
@@ -41,6 +42,7 @@ export const Route = createRootRoute({
 	headers: () => ({ "X-Robots-Tag": "noindex, nofollow" }),
 	shellComponent: RootDocument,
 	notFoundComponent: NotFound,
+	errorComponent: ErrorScreen,
 });
 
 // Route files keep `Route` first; the hoisted function declaration makes that possible (ADR-0015).

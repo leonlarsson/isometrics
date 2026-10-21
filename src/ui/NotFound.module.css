@@ -36,6 +36,11 @@
 	color: var(--accent-contrast);
 	font-weight: 600;
 	text-decoration: none;
+	transition: background 120ms ease;
+}
+
+.link:hover {
+	background: var(--accent-hover);
 }
 
 .link:focus-visible {

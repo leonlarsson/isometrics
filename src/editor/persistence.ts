@@ -107,6 +107,33 @@ export const loadStoredScene = (): TStoredSceneResult => {
 	}
 };
 
+/** The saved world exactly as stored, or null if there is none (or storage is unavailable). */
+export const readSavedRaw = (): string | null => {
+	try {
+		return localStorage.getItem(STORAGE_KEY);
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * Clear the saved world so the next load starts from the template, but only
+ * after it has been kept as a backup (ADR-0020). Returns false (and changes
+ * nothing) if the backup couldn't be made.
+ */
+export const clearSavedScene = (): boolean => {
+	const raw = readSavedRaw();
+	if (raw && !backUpRaw(raw)) {
+		return false;
+	}
+	try {
+		localStorage.removeItem(STORAGE_KEY);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
 export const saveScene = (scene: TScene) => {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(scene));

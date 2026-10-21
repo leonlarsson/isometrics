@@ -1,0 +1,15 @@
+.banner {
+	margin: 0;
+	flex: none;
+	padding: 6px 16px;
+	background: var(--accent-soft);
+	color: var(--text);
+	border-bottom: 1px solid var(--border);
+	font-size: 12px;
+	text-align: center;
+	line-height: 1.4;
+}
+
+.banner strong {
+	color: var(--accent);
+}

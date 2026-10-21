@@ -14,6 +14,7 @@ import { LabelLayer } from "./LabelLayer";
 import { PartsPalette } from "./PartsPalette";
 import { RecoveryBar } from "./RecoveryBar";
 import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
+import { StatusBanner } from "./StatusBanner";
 import { Toolbar } from "./Toolbar";
 
 import styles from "./AppShell.module.css";
@@ -30,6 +31,11 @@ const SceneTitle = () => {
 };
 
 export const AppShell = () => {
+	// Dev only: open /?crash to see the error screen (ErrorScreen). Stripped from production builds.
+	if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("crash")) {
+		throw new Error("Test crash (opened with ?crash in development)");
+	}
+
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
@@ -60,6 +66,8 @@ export const AppShell = () => {
 			data-mode={mode}
 			style={{ "--inspector-width": `${inspectorWidth}px` } as CSSProperties}
 		>
+			<StatusBanner />
+
 			<Toolbar />
 
 			<div className={styles.body}>

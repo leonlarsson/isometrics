@@ -15,6 +15,7 @@
 	--text: #1d1d1b;
 	--text-muted: #6f6d68;
 	--accent: #d9643a;
+	--accent-hover: #c4552d;
 	--accent-contrast: #ffffff;
 	--accent-soft: rgb(217 100 58 / 0.12);
 	--danger: #c84646;
@@ -41,6 +42,7 @@
 	--text: #ecebe6;
 	--text-muted: #a3a29c;
 	--accent: #e8714c;
+	--accent-hover: #f28a68;
 	--accent-contrast: #1b1c19;
 	--accent-soft: rgb(232 113 76 / 0.16);
 	--danger: #e06a6a;

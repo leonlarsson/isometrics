@@ -48,11 +48,18 @@
 	padding: 6px 14px;
 	border-radius: var(--radius-sm);
 	font-weight: 600;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease;
 }
 
 .primary {
 	background: var(--accent);
 	color: var(--accent-contrast);
+}
+
+.primary:hover:not(:disabled) {
+	background: var(--accent-hover);
 }
 
 .primary:disabled {
@@ -62,6 +69,11 @@
 
 .secondary {
 	border: 1px solid var(--border-strong);
+}
+
+.secondary:hover {
+	background: var(--surface-sunken);
+	border-color: var(--text-muted);
 }
 
 .primary:focus-visible,
