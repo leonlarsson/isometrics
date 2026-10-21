@@ -30,7 +30,7 @@ Model (`src/scene/schema.ts`):
 
 Geometry (`src/scene/roads.ts`, pure and tested):
 - `roadCenterline` emits `[x, z, height]`. Height eases between control points (smoothstep), so ramps start and end level. Straight parts whose height changes are subdivided, and rounded corners carry height through the curve.
-- `buildRibbon` keeps the round-join construction from the hairpin fix, with each vertex at its point's height.
+- `buildRibbon`: one quad per segment, plus a round wedge filling only the outer side of each bend, at the bend's exact height. Full flat discs poked through sloped surfaces, hiding markings and shading differently. Normals follow the slope per centre-line vertex and are shared, so shading is continuous through bends and ramps.
 - `buildElevatedSides` builds the deck edge (`DECK_THICKNESS`), railings (from `RAILING_MIN`) and embankment slopes (`EMBANKMENT_RUN`, 45°) where the road is above `ELEVATED_MIN`. These are continuous strips: each centre-line vertex has one sideways direction, averaged from its two segments. Per-segment offsets fanned apart on curves and left gaps. Embankment feet are clamped to the ground slab.
 - `pillarPositions` places a pillar every `PILLAR_SPACING` where the road is at least `PILLAR_MIN` high.
 - The path sampler returns `height` and `pitch`, so vehicles ride up ramps and tilt on slopes.

@@ -194,27 +194,35 @@ export const polylineLength = (points: readonly (readonly number[])[], closed: b
 export interface IRibbon {
 	/** Vertex positions as [x, z, height]. */
 	vertices: TRoadPoint[];
+	/** Per-vertex world normals [x, y, z], following the road's slope. */
+	normals: [number, number, number][];
 	/** Triangle indices into `vertices`, wound to face up (+Y). */
 	indices: number[];
 }
 
-/** Segments in each round join; enough to look round at road scale. */
-const JOIN_SEGMENTS = 16;
+/** Arc resolution of the wedge that fills the outside of a bend. */
+const JOIN_STEP = Math.PI / 16;
 /** Skip joins where the line barely bends (dense curve samples). Cosine of ~0.6°. */
 const STRAIGHT_COS = 0.99995;
 
 /**
- * Triangulate a band of `halfWidth` around a polyline, like a pen stroke with
- * round joins: one quad per segment plus a disc at every bend, each vertex at
- * its centre point's height. Nothing can stick out further than `halfWidth`
- * from the line, however tight the corner. (Mitred offset edges fold over and
- * spike on hairpins.) Overlaps are invisible: same surface, same colour.
+ * Triangulate a band of `halfWidth` around a polyline: one quad per segment,
+ * plus a round wedge filling the gap on the outside of each bend.
+ *
+ * - Nothing sticks out further than `halfWidth` from the line, however tight
+ *   the corner. (Mitred offset edges fold over and spike on hairpins.)
+ * - Wedges sit exactly at the bend's height and only cover the gap between
+ *   two quads, so nothing pokes through a sloped surface. (Full flat discs
+ *   did, hiding markings and shading differently on ramps and bends.)
+ * - Normals follow the road's slope per centre-line vertex and are shared by
+ *   everything at that vertex, so shading is continuous.
  */
 export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: boolean): IRibbon => {
 	const pts = center.map(withHeight);
 	const n = pts.length;
 	const isClosed = closed && n > 2;
 	const vertices: TRoadPoint[] = [];
+	const normals: [number, number, number][] = [];
 	const indices: number[] = [];
 
 	const pushUp = (i0: number, i1: number, i2: number) => {
@@ -223,11 +231,39 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 		indices.push(...(facesUp ? [i0, i1, i2] : [i0, i2, i1]));
 	};
 
+	// Per-segment direction and slope, then per-vertex normals from the average of both sides.
 	const segments = isClosed ? n : n - 1;
-	for (let i = 0; i < segments; i++) {
-		const a = pts[i];
-		const b = pts[(i + 1) % n];
-		const dir = normalize(sub(xz(b), xz(a)));
+	const segDir: TVec2[] = [];
+	const segSlope: number[] = [];
+	for (let k = 0; k < segments; k++) {
+		const a = pts[k];
+		const b = pts[(k + 1) % n];
+		const len = length(sub(xz(b), xz(a)));
+		segDir.push(normalize(sub(xz(b), xz(a))));
+		segSlope.push(len === 0 ? 0 : (b[2] - a[2]) / len);
+	}
+	const segmentsAt = (i: number) => {
+		const before = isClosed || i > 0 ? (i - 1 + segments) % segments : null;
+		const after = isClosed || i < n - 1 ? i % segments : null;
+		return { before, after };
+	};
+	const vertexNormal = pts.map((_, i) => {
+		const { before, after } = segmentsAt(i);
+		const ids = [before, after].filter((k): k is number => k !== null);
+		const dir = normalize(ids.reduce<TVec2>((acc, k) => add(acc, segDir[k]), [0, 0]));
+		const slope = ids.reduce((acc, k) => acc + segSlope[k], 0) / Math.max(1, ids.length);
+		// Surface y = h(s): normal ∝ (-slope · forward, 1).
+		const nx = -slope * dir[0];
+		const nz = -slope * dir[1];
+		const len = Math.hypot(nx, 1, nz);
+		return [nx / len, 1 / len, nz / len] as [number, number, number];
+	});
+
+	for (let k = 0; k < segments; k++) {
+		const ia = k;
+		const ib = (k + 1) % n;
+		const [a, b] = [pts[ia], pts[ib]];
+		const dir = segDir[k];
 		if (dir[0] === 0 && dir[1] === 0) {
 			continue;
 		}
@@ -239,32 +275,51 @@ export const buildRibbon = (center: TPointInput[], halfWidth: number, closed: bo
 			[...sub(xz(b), side), b[2]],
 			[...add(xz(b), side), b[2]],
 		);
+		normals.push(vertexNormal[ia], vertexNormal[ia], vertexNormal[ib], vertexNormal[ib]);
 		pushUp(base, base + 2, base + 1);
 		pushUp(base + 1, base + 2, base + 3);
 	}
 
 	for (let i = 0; i < n; i++) {
-		if (!isClosed && (i === 0 || i === n - 1)) {
+		const { before, after } = segmentsAt(i);
+		if (before === null || after === null) {
 			continue; // open ends stay square
 		}
-		const inDir = normalize(sub(xz(pts[i]), xz(pts[(i - 1 + n) % n])));
-		const outDir = normalize(sub(xz(pts[(i + 1) % n]), xz(pts[i])));
+		const inDir = segDir[before];
+		const outDir = segDir[after];
 		if (inDir[0] * outDir[0] + inDir[1] * outDir[1] > STRAIGHT_COS) {
 			continue;
 		}
+		// The outside of the bend is the side the road turns away from.
+		const sIn = rightOf(inDir);
+		const sOut = rightOf(outDir);
+		const turnsRight = outDir[0] * sIn[0] + outDir[1] * sIn[1] > 0;
+		const sign = turnsRight ? -1 : 1;
+		const from = Math.atan2(sign * sIn[1], sign * sIn[0]);
+		let to = Math.atan2(sign * sOut[1], sign * sOut[0]);
+		// Sweep the short way round, from the incoming quad's corner to the outgoing one's.
+		while (to - from > Math.PI) {
+			to -= Math.PI * 2;
+		}
+		while (to - from < -Math.PI) {
+			to += Math.PI * 2;
+		}
+		const steps = Math.max(1, Math.ceil(Math.abs(to - from) / JOIN_STEP));
 		const [cx, cz, h] = pts[i];
 		const hub = vertices.length;
 		vertices.push([cx, cz, h]);
-		for (let k = 0; k < JOIN_SEGMENTS; k++) {
-			const angle = (k / JOIN_SEGMENTS) * Math.PI * 2;
+		normals.push(vertexNormal[i]);
+		for (let s = 0; s <= steps; s++) {
+			const angle = from + ((to - from) * s) / steps;
 			vertices.push([cx + Math.cos(angle) * halfWidth, cz + Math.sin(angle) * halfWidth, h]);
+			normals.push(vertexNormal[i]);
 		}
-		for (let k = 0; k < JOIN_SEGMENTS; k++) {
-			pushUp(hub, hub + 1 + k, hub + 1 + ((k + 1) % JOIN_SEGMENTS));
+		for (let s = 0; s < steps; s++) {
+			pushUp(hub, hub + 1 + s, hub + 2 + s);
 		}
 	}
 
-	return { vertices, indices };
+	return { vertices, normals, indices };
 };
 
 /** A vertical or sloped quad strip: one quad per segment between `top` and `bottom` edges. */

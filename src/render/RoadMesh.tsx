@@ -31,22 +31,23 @@ const ribbonGeometry = (
 	y: number,
 ) => {
 	const positions: number[] = [];
+	const normals: number[] = [];
 	const indices: number[] = [];
 	for (const { center, halfWidth, closed } of ribbons) {
 		const ribbon = buildRibbon(center, halfWidth, closed);
 		const base = positions.length / 3;
-		for (const [x, z, h] of ribbon.vertices) {
+		ribbon.vertices.forEach(([x, z, h], i) => {
 			positions.push(x, y + h, z);
-		}
+			normals.push(...ribbon.normals[i]);
+		});
 		for (const index of ribbon.indices) {
 			indices.push(base + index);
 		}
 	}
 	const geometry = new THREE.BufferGeometry();
 	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+	geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
 	geometry.setIndex(indices);
-	// Ramps aren't flat, so let three work out the normals.
-	geometry.computeVertexNormals();
 	return geometry;
 };
 

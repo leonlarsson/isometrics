@@ -361,3 +361,59 @@ describe("embankment bounds", () => {
 		}
 	});
 });
+
+describe("buildRibbon bends and normals", () => {
+	it("fills only the outside of a bend, from one quad's corner to the next", () => {
+		const corner: TVec2[] = [
+			[0, 0],
+			[10, 0],
+			[10, 10],
+		];
+		const { vertices } = buildRibbon(corner, 1, false);
+		// 2 quads (8 vertices) + hub + a 90° arc in π/16 steps (9 points).
+		expect(vertices).toHaveLength(8 + 1 + 9);
+		const arc = vertices.slice(9);
+		// The road turns right (towards +Z), so the outside is the -Z / +X side of the corner.
+		expect(arc[0][0]).toBeCloseTo(10);
+		expect(arc[0][1]).toBeCloseTo(-1); // corner of the first quad's outer edge
+		expect(arc.at(-1)?.[0]).toBeCloseTo(11);
+		expect(arc.at(-1)?.[1]).toBeCloseTo(0); // corner of the second quad's outer edge
+	});
+
+	it("keeps bend wedges at the road's height", () => {
+		const ramp = roadCenterline(
+			[
+				[0, 0, 0],
+				[10, 0, 2],
+				[10, 10, 4],
+			],
+			false,
+			3,
+		);
+		const { vertices } = buildRibbon(ramp, 1, false);
+		const maxCenter = Math.max(...ramp.map((p) => p[2]));
+		expect(Math.max(...vertices.map((v) => v[2]))).toBeLessThanOrEqual(maxCenter);
+	});
+
+	it("points normals straight up on flat roads and tilts them on ramps", () => {
+		const flatRibbon = buildRibbon(L, 1, false);
+		expect(flatRibbon.normals).toHaveLength(flatRibbon.vertices.length);
+		for (const [nx, ny, nz] of flatRibbon.normals) {
+			expect(nx).toBeCloseTo(0);
+			expect(ny).toBeCloseTo(1);
+			expect(nz).toBeCloseTo(0);
+		}
+		const up = buildRibbon(
+			[
+				[0, 0, 0],
+				[10, 0, 5],
+			],
+			1,
+			false,
+		);
+		for (const [nx, ny] of up.normals) {
+			expect(nx).toBeLessThan(0); // rising towards +X tilts the normal back
+			expect(ny).toBeGreaterThan(0);
+		}
+	});
+});
