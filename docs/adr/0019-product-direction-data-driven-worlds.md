@@ -7,11 +7,11 @@ date: 2026-10-21
 
 ## Context and problem statement
 
-Isometrics was pitched as an app for animated 3D *dashboards*. It's growing into more than that: drawable and elevated roads, bridges, and soon terrain and Blender-style editing (`TODO.md`) make it a builder for small 3D worlds. Without a stated direction, features could drift into a pure scene editor where data is an afterthought.
+Features like roads, bridges, terrain and Blender-style editing (`TODO.md`) add a lot of world-building depth. The product needs a stated direction so these features don't drift into a pure scene editor where data is an afterthought.
 
 ## Decision outcome
 
-Isometrics is a **builder for animated 3D miniature worlds, where data is a core pillar**. The owner's framing: it's becoming more than a dashboard app, but data-driven or data-supported worlds remain central.
+Isometrics is a **builder for animated 3D miniature worlds, where data is a core pillar**: worlds are data-driven or data-supported.
 
 What this means for decisions:
 
@@ -20,7 +20,7 @@ What this means for decisions:
 - **Data stays first-class in the scene model.** Bindings go through named data keys (ADR-0010), so data sources can change without touching scenes.
 - **World-building depth is welcome** (roads, bridges, terrain, gizmos), but it must stay approachable for non-technical users (ADR-0009).
 
-Unchanged: where data comes from (static values now; providers later, ADR-0010) and whether AI helps build worlds (ADR-0012) are still open.
+Still open: where data comes from (static values now; providers later, ADR-0010) and whether AI helps build worlds (ADR-0012).
 
 ### Consequences
 
