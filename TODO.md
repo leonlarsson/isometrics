@@ -47,3 +47,8 @@ Ideas from the owner, not designed yet. Each needs a design pass (and usually an
 - [ ] **More camera freedom:** the locked isometric angle shouldn't be strict. Allow a wider orbit, a perspective option, saved viewpoints, maybe follow-a-vehicle. Keep a "reset to iso" button. Revisit ADR-0004.
 - [ ] **Traffic behaviour / passing:** faster vehicles currently drive through slower ones on the same road. Add following distance (slow down behind), and maybe overtaking on multi-lane roads. *Data:* traffic density or speeds from values.
 - [ ] **Connected road networks (junctions):** roads that join at intersections, with vehicles routing across roads instead of staying on one. Builds on ADR-0017/0018; the current "join" merges two roads into one but doesn't create junctions.
+- [ ] **Water and area types (discoverability):** the template's pond is a Zone (oval, light blue), but nobody would guess that. Options:
+  - a type picker on Zone (Water, Grass, Parking, Plaza, Sand) that sets colour and shape;
+  - dedicated parts, e.g. "Pond / lake" with an animated water surface and shoreline;
+  - preset buttons in the palette that each create a zone.
+- [ ] **Ground textures:** more than a flat colour for the ground and areas: grass, sand, gravel, concrete, snow…, possibly with subtle patterns (a texture or a procedural shader that fits the low-poly look). Start with a surface type for the whole ground and for zones. Paintable ground (brushing textures freely) is probably too much for now; zones with surface types cover most of it. *Data:* surface could reflect state (e.g. snow by season, a field's colour by harvest).
