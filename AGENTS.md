@@ -1,0 +1,79 @@
+# AGENTS.md
+
+Guide for AI agents (and humans) working in this repo.
+
+## What this is
+
+**dddashboard** lets non-technical users build animated 3D "diorama" dashboards: a low-poly scene (warehouse, vans, houses …) with floating data cards. Users place, move, rotate, resize and recolour objects, label them with values, and switch to a clean View mode.
+
+## Read first
+
+- `docs/adr/README.md`: the architecture decisions and why. **Check the relevant ADRs before structural changes.**
+- `src/scene/schema.ts`: the scene document, which is the single source of truth (ADR-0003).
+
+## Commands (pnpm)
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Dev server on http://localhost:3000 (Vite + Cloudflare workerd) |
+| `pnpm test` | Vitest unit tests (`src/**/*.test.ts`) |
+| `pnpm typecheck` | Generate routes + `tsc --noEmit` |
+| `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
+| `pnpm build` / `pnpm deploy` | Production build / deploy to Cloudflare Workers |
+
+Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`.
+
+## Layout
+
+```
+src/
+  scene/      document model: Zod schema, migrations, path sampling, formatting, theme palettes (no React)
+  parts/      procedural 3D parts + registry (definePart, PARTS)
+  templates/  starter scenes
+  editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
+  render/     R3F scene: Viewport, CameraRig, EntityNode, labels (3D side), routes
+  ui/         DOM UI: AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
+  routes/     TanStack Start file routes (index = the editor, ssr: false)
+  styles.css  design tokens (light/dark) + base styles
+scripts/      repo tooling (jsx-spacing check)
+biome-plugins/ Biome GritQL lint plugins
+docs/adr/     Architecture Decision Records
+```
+
+Dependencies point downward: `ui` → `render` → `editor` → `parts` → `scene` → `lib`. `scene/` must stay free of React and three.js so it remains testable and reusable on a server.
+
+## Conventions
+
+- **Naming (lint-enforced, ADR-0011):** type aliases `TName`, interfaces `IName`. Zod schemas are `NameSchema`, with inferred types `type TName = z.output<typeof NameSchema>`. Props interfaces are named after their component (`IEntityLabelProps`); a generic `IProps` is rejected.
+- **Biome ≥ 2.6 is the only linter and formatter (ADR-0013).** Tabs, double quotes, line width 100. Run `pnpm check:fix` and let it order imports. Key rules: no `any`, no global `React.*` (import types directly), no unused variables or imports, `Number.parseFloat` over `parseFloat`. `useExhaustiveDependencies` is **off**, so don't add suppressions for it; unused `biome-ignore` comments fail the check.
+- Import order (auto-fixed): packages → `#/` aliases → `../` → `./` → stylesheets last, with a blank line between groups.
+- **Layout (ADR-0014):** every `if`/`else`/loop body is braced with the body on its own line (Biome `useBlockStatements`). Sibling JSX children (elements, fragments, `{expressions}`) are separated by a blank line, single-line ones included; inline text runs are exempt. Enforced by `scripts/jsx-spacing.mjs`, which is part of `pnpm check`, and fixed by `pnpm check:fix`.
+- **Functions and exports (ADR-0015):** define every function as a `const` arrow function and use named exports only. No `function` declarations (a Biome GritQL plugin in `biome-plugins/` enforces this), and no `export default` except in `*.config.*` files. Exception: route files in `src/routes/` keep `export const Route` first, followed by a hoisted `function` component. Arrow functions aren't hoisted, so define helpers before top-level code uses them, and write `<T,>` for unconstrained generics in `.tsx`.
+- Imports use the `#/` alias for `src/`.
+- Styling: CSS Modules next to the component, using **only tokens** from `src/styles.css`. 3D colours come from `scenePalettes` in `src/scene/theme.ts`; keep the two in sync (ADR-0007).
+- All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
+- Never store runtime/UI state (selection, camera, animation progress) in the scene document.
+- Untrusted scene JSON (files, storage, AI) must go through `parseScene()`.
+
+## Common tasks
+
+**Add a part:** create it with `definePart({...})` in the right `src/parts/*.tsx` file. Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
+
+**Change the scene format:** edit `schema.ts` with defaults for new fields. If the change is breaking, bump `SCENE_VERSION`, add a migration in `migrate.ts`, and add a test. Write an ADR if the change is conceptual.
+
+**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically.
+
+## Verifying visually
+
+Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Orders packed/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
+
+## ADR workflow
+
+Write a new ADR (copy `docs/adr/template.md`, next free number) for anything that changes structure, dependencies, data formats, conventions or system-level behaviour, and add it to the index table in `docs/adr/README.md`. Don't edit accepted ADRs; supersede them with a new one.
+
+## Known gaps / next steps
+
+- Label collision avoidance (cards can overlap).
+- Live data providers (ADR-0010), sharing links (ADR-0006), AI generation (ADR-0012).
+- Visual route editing (routes are currently edited as point lists in the Scene tab).
+- Multi-select; mobile editing layout is basic.

@@ -1,0 +1,66 @@
+.palette {
+	padding: 16px 12px 24px;
+}
+
+.heading {
+	margin: 0 4px 12px;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.group + .group {
+	margin-top: 16px;
+}
+
+.category {
+	margin: 0 4px 6px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.part {
+	all: unset;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 8px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-raised);
+	border: 1px solid var(--border);
+	transition:
+		border-color 120ms ease,
+		transform 120ms ease;
+}
+
+.part:hover {
+	border-color: var(--accent);
+	transform: translateY(-1px);
+}
+
+.part:focus-visible {
+	outline: 2px solid var(--accent);
+}
+
+.swatch {
+	width: 26px;
+	height: 26px;
+	border-radius: 7px;
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.name {
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+}

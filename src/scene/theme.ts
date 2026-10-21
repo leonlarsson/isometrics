@@ -1,0 +1,106 @@
+import type { TThemePreference } from "./schema";
+
+export type TResolvedTheme = "light" | "dark";
+
+/**
+ * Colours used inside the 3D scene. UI chrome colours live in CSS tokens
+ * (src/styles.css); three.js needs concrete values, so they are mirrored here.
+ */
+export interface IScenePalette {
+	ground: string;
+	gridCell: string;
+	gridSection: string;
+	wall: string;
+	trim: string;
+	glass: string;
+	panel: string;
+	signal: string;
+	tire: string;
+	trunk: string;
+	foliage: string;
+	road: string;
+	roadMark: string;
+	cardboard: string;
+	selection: string;
+	hemiSky: string;
+	hemiGround: string;
+	hemiIntensity: number;
+	sunIntensity: number;
+	ambientIntensity: number;
+}
+
+export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
+	light: {
+		ground: "#f4f3ee",
+		gridCell: "#dedbd3",
+		gridSection: "#c9c5bb",
+		wall: "#fbfaf6",
+		trim: "#d6d3cb",
+		glass: "#2f3a56",
+		panel: "#2c3463",
+		signal: "#e2603b",
+		tire: "#2b2b2f",
+		trunk: "#a07a5a",
+		foliage: "#7cc48a",
+		road: "#dcdad3",
+		roadMark: "#ffffff",
+		cardboard: "#d8a967",
+		selection: "#e2603b",
+		hemiSky: "#ffffff",
+		hemiGround: "#cfc8b8",
+		hemiIntensity: 1.5,
+		sunIntensity: 2.4,
+		ambientIntensity: 0.35,
+	},
+	dark: {
+		ground: "#3a3c36",
+		gridCell: "#45473f",
+		gridSection: "#55574e",
+		wall: "#d9d6cc",
+		trim: "#5a5c55",
+		glass: "#1c2233",
+		panel: "#20263f",
+		signal: "#e8714c",
+		tire: "#1a1a1c",
+		trunk: "#7d6047",
+		foliage: "#5d9a68",
+		road: "#4a4c46",
+		roadMark: "#8d8f88",
+		cardboard: "#b48a52",
+		selection: "#e8714c",
+		hemiSky: "#c9ccd6",
+		hemiGround: "#2a2b27",
+		hemiIntensity: 0.9,
+		sunIntensity: 1.7,
+		ambientIntensity: 0.25,
+	},
+};
+
+export const resolveTheme = (
+	preference: TThemePreference,
+	prefersDark: boolean,
+): TResolvedTheme => {
+	if (preference === "system") {
+		return prefersDark ? "dark" : "light";
+	}
+	return preference;
+};
+
+/** Friendly preset colours offered in every colour picker. */
+export const SWATCHES = [
+	"#3d4fd6",
+	"#4a64e0",
+	"#2bb58c",
+	"#3cbf9a",
+	"#8a5cf0",
+	"#c06bd8",
+	"#f07b4f",
+	"#e2603b",
+	"#f2c230",
+	"#e85d75",
+	"#7cc48a",
+	"#a07a5a",
+	"#f7f7f4",
+	"#9a9a96",
+	"#3a3b40",
+];

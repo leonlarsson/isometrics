@@ -1,0 +1,91 @@
+.layer {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+/* Moved by LabelProjector; hidden until its first frame positions it. */
+.anchor {
+	position: absolute;
+	top: 0;
+	left: 0;
+	visibility: hidden;
+	will-change: transform;
+}
+
+.card {
+	all: unset;
+	box-sizing: border-box;
+	/* Card bottom-centre sits on the leader line end. */
+	translate: -50% calc(-100% - 6px);
+	pointer-events: auto;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 120px;
+	max-width: 220px;
+	padding: 8px 12px;
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-card);
+	border: 1px solid var(--border);
+	font: inherit;
+	user-select: none;
+	white-space: nowrap;
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease;
+}
+
+.card:hover {
+	transform: translateY(-1px);
+}
+
+.card[data-selected] {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dot {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+}
+
+.big {
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	font-variant-numeric: tabular-nums;
+}
+
+.row {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	font-size: 12px;
+}
+
+.rowLabel {
+	color: var(--text-muted);
+}
+
+.rowValue {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}

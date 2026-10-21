@@ -1,0 +1,188 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"includes": [
+			"**/src/**/*",
+			"**/scripts/**/*",
+			"**/.vscode/**/*",
+			"**/vite.config.ts",
+			"**/vitest.config.ts",
+			"!**/src/routeTree.gen.ts"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on",
+					"options": {
+						"groups": [
+							[":NODE:", ":PACKAGE:"],
+							":BLANK_LINE:",
+							[":ALIAS:"],
+							":BLANK_LINE:",
+							["../**", "!**/*.css", "!**/*.scss"],
+							":BLANK_LINE:",
+							["./**", "!**/*.css", "!**/*.scss"],
+							":BLANK_LINE:"
+						]
+					}
+				}
+			}
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"a11y": {
+				"useKeyWithClickEvents": "off",
+				"useValidAnchor": "off",
+				"noSvgWithoutTitle": "off",
+				"noStaticElementInteractions": "off"
+			},
+			"complexity": {
+				"noForEach": "off",
+				"noUselessFragments": "off",
+				"noImportantStyles": "off",
+				"noExtraBooleanCast": "off",
+				"useArrowFunction": {
+					"level": "error",
+					"fix": "safe"
+				}
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "off",
+				"useHookAtTopLevel": "off",
+				"noUnusedVariables": "error",
+				"useParseIntRadix": "off",
+				"noUnusedImports": {
+					"fix": "safe",
+					"level": "error"
+				}
+			},
+			"performance": {
+				"noDelete": "off",
+				"noAccumulatingSpread": "off"
+			},
+			"style": {
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"conventions": [
+							{
+								"selector": {
+									"kind": "interface"
+								},
+								"match": "I(.+)",
+								"formats": ["PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeAlias"
+								},
+								"match": "T(.+)",
+								"formats": ["PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "any"
+								},
+								"match": ".*"
+							}
+						]
+					}
+				},
+				"noRestrictedTypes": {
+					"level": "error",
+					"options": {
+						"types": {
+							"IProps": "Don't use a generic 'IProps'. Name the props interface after its component, e.g. 'IButtonProps'."
+						}
+					}
+				},
+				"useImportType": "off",
+				"noNonNullAssertion": "off",
+				"useThrowOnlyError": "off",
+				"noInferrableTypes": "off",
+				"useEnumInitializers": "off",
+				"useNodejsImportProtocol": "off",
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noUselessElse": "error",
+				"noRestrictedGlobals": {
+					"level": "error",
+					"options": {
+						"deniedGlobals": {
+							"React": "Import React or its types directly."
+						}
+					}
+				},
+				"useBlockStatements": {
+					"level": "error",
+					"fix": "safe"
+				},
+				"noDefaultExport": "error"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "off"
+			},
+			"suspicious": {
+				"noConfusingVoidType": "off",
+				"noThenProperty": "off",
+				"noExplicitAny": "error",
+				"noGlobalIsNan": "error",
+				"noDeprecatedImports": "error"
+			}
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"css": {
+		"parser": {
+			"cssModules": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/src/**/*.tsx"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noFocusedTests": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/*.config.ts", "**/*.config.mjs"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noDefaultExport": "off"
+					}
+				}
+			}
+		}
+	],
+	"plugins": ["./biome-plugins/no-function-declaration.grit"]
+}

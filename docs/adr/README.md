@@ -1,0 +1,21 @@
+# Architecture Decision Records
+
+Why the code is the way it is. Read this before making structural changes; write a new ADR (copy `template.md`) when you make one. See [0001](0001-record-architecture-decisions.md) for the rules.
+
+| # | Decision | Status |
+|---|----------|--------|
+| [0001](0001-record-architecture-decisions.md) | Record architecture decisions | accepted |
+| [0002](0002-tanstack-start-on-cloudflare-workers.md) | TanStack Start, deployed to Cloudflare Workers | accepted |
+| [0003](0003-scene-as-json-document.md) | A dashboard is one JSON scene document, validated by Zod | accepted |
+| [0004](0004-react-three-fiber-orthographic-diorama.md) | React Three Fiber with an orthographic "diorama" camera | accepted |
+| [0005](0005-procedural-part-registry.md) | Procedural, parametric parts in a registry | accepted |
+| [0006](0006-local-first-persistence.md) | Local-first persistence, no database (yet) | accepted |
+| [0007](0007-css-modules-and-design-tokens.md) | CSS Modules with design tokens | accepted |
+| [0008](0008-dom-label-layer.md) | Label cards are a DOM overlay positioned by a projector | accepted |
+| [0009](0009-editor-interaction-and-history.md) | Grid drag + inspector, snapshot undo with coalescing | accepted |
+| [0010](0010-data-binding-by-named-keys.md) | Data binding through named keys; static values for now | accepted |
+| [0011](0011-naming-conventions.md) | `T`-prefixed types, `I`-prefixed interfaces (lint-enforced) | accepted |
+| [0012](0012-ai-scene-generation-deferred.md) | AI scene generation: deferred, designed for | proposed |
+| [0013](0013-biome-lint-and-import-conventions.md) | Biome lint rules and import ordering | accepted |
+| [0014](0014-code-layout-braces-and-jsx-spacing.md) | Always-braced `if`, blank lines between JSX siblings | accepted |
+| [0015](0015-arrow-functions-and-named-exports.md) | Arrow functions everywhere; named exports only | accepted |
