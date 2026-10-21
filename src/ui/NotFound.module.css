@@ -1,0 +1,44 @@
+.page {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 100dvh;
+	padding: 24px;
+	text-align: center;
+}
+
+.logo {
+	width: 40px;
+	height: 40px;
+	margin-bottom: 12px;
+	border-radius: 12px;
+	background: linear-gradient(135deg, var(--accent) 50%, #3d4fd6 50%);
+	transform: rotate(45deg) scale(0.85);
+}
+
+.title {
+	margin: 0;
+	font-size: 22px;
+}
+
+.text {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.link {
+	margin-top: 12px;
+	padding: 8px 16px;
+	border-radius: var(--radius-sm);
+	background: var(--accent);
+	color: var(--accent-contrast);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.link:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}

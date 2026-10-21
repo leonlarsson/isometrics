@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<!-- Same mark as the toolbar logo: a rounded diamond, orange over blue. -->
+	<defs>
+		<clipPath id="diamond">
+			<rect x="6" y="6" width="20" height="20" rx="6" transform="rotate(45 16 16)" />
+		</clipPath>
+	</defs>
+	<g clip-path="url(#diamond)">
+		<rect width="32" height="32" fill="#3d4fd6" />
+		<rect width="32" height="16" fill="#d9643a" />
+	</g>
+</svg>
