@@ -138,6 +138,12 @@
 	color: var(--accent);
 }
 
+/* An "on" button stays visibly on while hovered: the hover rule above would turn it grey. */
+.iconButton[aria-pressed="true"]:hover:not([data-disabled]) {
+	background: color-mix(in srgb, var(--accent-soft), var(--accent) 16%);
+	color: var(--accent);
+}
+
 .iconButton[data-disabled] {
 	opacity: 0.35;
 	cursor: default;
