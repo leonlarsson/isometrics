@@ -22,7 +22,8 @@
 
 .grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	/* minmax(0, …): equal columns even when one tile has a long word. */
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 6px;
 }
 
@@ -32,9 +33,9 @@
 	user-select: none;
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	align-items: stretch;
 	gap: 6px;
-	padding: 8px;
+	padding: 6px 6px 8px;
 	border-radius: var(--radius-sm);
 	background: var(--surface-raised);
 	border: 1px solid var(--border);
@@ -72,14 +73,31 @@
 	outline: 2px solid var(--accent);
 }
 
+/* The picture area: a rendered part, or a colour sample for roads and areas (and while loading). */
+.preview {
+	display: grid;
+	place-items: center;
+	aspect-ratio: 4 / 3;
+	border-radius: calc(var(--radius-sm) - 2px);
+	background: var(--surface-sunken);
+	overflow: hidden;
+}
+
+.thumbnail {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
 .swatch {
-	width: 26px;
-	height: 26px;
-	border-radius: 7px;
+	width: 44%;
+	aspect-ratio: 1;
+	border-radius: 8px;
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 .name {
+	padding: 0 2px;
 	font-size: 12px;
 	font-weight: 600;
 	line-height: 1.2;

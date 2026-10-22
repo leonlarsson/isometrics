@@ -3,10 +3,11 @@ import { type PointerEvent, useRef, useState } from "react";
 
 import { findFreeSpot } from "#/editor/placement";
 import { useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { usePalette, useResolvedTheme } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import { partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
+import { usePartThumbnails } from "#/render/thumbnails";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
@@ -47,8 +48,10 @@ interface IPaletteItem {
 	tooltip: string;
 	/** Extra text the search matches: description and everyday words. */
 	searchText: string;
-	/** CSS background for the tile's chip. */
+	/** CSS background for the tile's chip, shown until (or instead of) a picture. */
 	swatch: string;
+	/** A rendered picture of the part (parts only, once it's ready). */
+	thumbnail?: string;
 	/** Highlighted while this tool is active (drawing this road or area). */
 	pressed?: boolean;
 	/** Part kind, for items that can also be dragged onto the scene. */
@@ -78,6 +81,7 @@ export const PartsPalette = () => {
 	const startDrawing = useEditor((s) => s.startDrawing);
 	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
 	const palette = usePalette();
+	const thumbnails = usePartThumbnails(useResolvedTheme());
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 	// Set once a press turned into a drag, so the click that may follow doesn't add a second copy.
@@ -122,6 +126,7 @@ export const PartsPalette = () => {
 					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
 					swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,
+					thumbnail: thumbnails[part.kind],
 					kind: part.kind,
 					onSelect: () => {
 						const scene = useEditor.getState().scene;
@@ -201,11 +206,18 @@ export const PartsPalette = () => {
 											}
 										}}
 									>
-										<span
-											className={styles.swatch}
-											style={{ background: item.swatch }}
-											aria-hidden="true"
-										/>
+										<span className={styles.preview} aria-hidden="true">
+											{item.thumbnail ? (
+												<img
+													className={styles.thumbnail}
+													src={item.thumbnail}
+													alt=""
+													draggable={false}
+												/>
+											) : (
+												<span className={styles.swatch} style={{ background: item.swatch }} />
+											)}
+										</span>
 
 										<span className={styles.name}>{item.name}</span>
 

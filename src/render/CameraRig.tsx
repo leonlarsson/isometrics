@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 
 /** Isometric-ish viewing direction (from target towards camera). */
-const VIEW_DIRECTION = new THREE.Vector3(1, 0.9, 1).normalize();
+export const VIEW_DIRECTION = new THREE.Vector3(1, 0.9, 1).normalize();
 /** Far enough that every label and tall building stays in front of the camera. */
 const CAMERA_DISTANCE = 150;
 /** Height of the box used for framing, so tall parts and labels fit too. */
