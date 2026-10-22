@@ -12,11 +12,17 @@ import {
 } from "#/scene/roads";
 import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports } from "#/scene/schema";
 
-import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
-import { Icon } from "./Icon";
+import { IconButton } from "./Button";
+import {
+	ColorField,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { RoadPointPanel } from "./RoadPointPanel";
-
-import styles from "./Fields.module.css";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[]).map((value) => ({
 	value,
@@ -48,17 +54,10 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 			<Section
 				title={ROAD_STYLE_LABELS[road.style]}
 				actions={
-					<button
-						type="button"
-						className={styles.iconButton}
-						title="Delete road (Del)"
-						onClick={() => removeRoad(road.id)}
-					>
-						<Icon name="trash" size={16} />
-					</button>
+					<IconButton icon="trash" label="Delete road (Del)" onClick={() => removeRoad(road.id)} />
 				}
 			>
-				<TextInput
+				<TextField
 					label="Name"
 					value={road.name}
 					placeholder={ROAD_STYLE_LABELS[road.style]}
@@ -69,7 +68,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					}
 				/>
 
-				<Select<TRoadStyle>
+				<SelectField<TRoadStyle>
 					label="Style"
 					value={road.style}
 					options={STYLE_OPTIONS}
@@ -82,7 +81,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 				/>
 
 				{road.style !== "hidden" && (
-					<Select<TRoadLane>
+					<SelectField<TRoadLane>
 						label="Vehicles drive"
 						value={road.lane}
 						options={[
@@ -97,10 +96,10 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					/>
 				)}
 
-				<p className={styles.hint}>
+				<Hint>
 					{Math.round(length)} units long · {road.points.length} points
 					{followers > 0 && ` · ${followers} vehicle${followers === 1 ? "" : "s"} driving here`}
-				</p>
+				</Hint>
 			</Section>
 
 			<Section title="Shape">
@@ -118,11 +117,11 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 				/>
 
 				{ownWidths > 0 && (
-					<p className={styles.hint}>
+					<Hint>
 						{ownWidths === 1
 							? "1 point has its own width and keeps it. Select it to change it."
 							: `${ownWidths} points have their own widths and keep them. Select one to change it.`}
-					</p>
+					</Hint>
 				)}
 
 				<SliderField
@@ -138,7 +137,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					}
 				/>
 
-				<Toggle
+				<SwitchField
 					label="Loop (join the ends)"
 					checked={road.closed}
 					onChange={(v) =>
@@ -148,17 +147,17 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					}
 				/>
 
-				<p className={styles.hint}>
+				<Hint>
 					Click a point to select it. Drag points to reshape, Shift+drag to raise them. Drag a small
 					dot between two points to add one; double-click a point to remove it.
-				</p>
+				</Hint>
 			</Section>
 
 			{road.style !== "hidden" && (
 				<Section title="Elevated sections">
 					{elevated ? (
 						<>
-							<Select<TRoadSupports>
+							<SelectField<TRoadSupports>
 								label="Held up by"
 								value={road.supports}
 								options={[
@@ -172,7 +171,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 								}
 							/>
 
-							<Toggle
+							<SwitchField
 								label="Railings"
 								checked={road.railings}
 								onChange={(v) =>
@@ -183,10 +182,10 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 							/>
 						</>
 					) : (
-						<p className={styles.hint}>
+						<Hint>
 							Raise a point (select it and set its Height, or Shift+drag it) to build a bridge or
 							flyover.
-						</p>
+						</Hint>
 					)}
 				</Section>
 			)}
@@ -210,7 +209,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					/>
 
 					{road.style === "asphalt" && (
-						<Toggle
+						<SwitchField
 							label="Centre line"
 							checked={road.markings}
 							onChange={(v) =>

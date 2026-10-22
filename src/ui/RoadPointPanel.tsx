@@ -2,10 +2,8 @@ import { useEditor } from "#/editor/store";
 import { pointWidth, ROAD_STYLE_LABELS, roadEnds, type TRoadEnd } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
-import { Section, SliderField, VectorField } from "./fields";
-import { Icon } from "./Icon";
-
-import styles from "./Fields.module.css";
+import { Button, ButtonGroup, IconButton } from "./Button";
+import { GroupLabel, Hint, Section, SliderField, VectorField } from "./fields";
 
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
@@ -54,15 +52,12 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 		<Section
 			title={`Point ${index + 1} of ${road.points.length}`}
 			actions={
-				<button
-					type="button"
-					className={styles.iconButton}
-					title="Delete point (Del)"
+				<IconButton
+					icon="trash"
+					label="Delete point (Del)"
 					disabled={road.points.length <= 2}
 					onClick={() => store().removeRoadPoint(road.id, index)}
-				>
-					<Icon name="trash" size={16} />
-				</button>
+				/>
 			}
 		>
 			<VectorField
@@ -96,53 +91,41 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 				onReset={() => store().setRoadPointWidth(road.id, index, null)}
 			/>
 
-			<p className={styles.hint}>Tip: hold Shift while dragging a point to raise or lower it.</p>
+			<Hint>Tip: hold Shift while dragging a point to raise or lower it.</Hint>
 
-			<div className={styles.buttonRow}>
+			<ButtonGroup>
 				{canSplit && (
-					<button
-						type="button"
-						className={styles.smallButton}
-						onClick={() => store().splitRoad(road.id, index)}
-					>
-						<Icon name="cut" size={14} /> {road.closed ? "Open loop here" : "Split road here"}
-					</button>
+					<Button size="sm" icon="cut" onClick={() => store().splitRoad(road.id, index)}>
+						{road.closed ? "Open loop here" : "Split road here"}
+					</Button>
 				)}
 
 				{end && (
-					<button
-						type="button"
-						className={styles.smallButton}
-						onClick={() => store().continueDrawing(road.id, end)}
-					>
-						<Icon name="edit" size={14} /> Continue drawing
-					</button>
+					<Button size="sm" icon="edit" onClick={() => store().continueDrawing(road.id, end)}>
+						Continue drawing
+					</Button>
 				)}
-			</div>
+			</ButtonGroup>
 
 			{end && joinOptions.length > 0 && (
-				<div className={styles.buttonColumn}>
-					<span className={styles.label}>Join with</span>
+				<ButtonGroup vertical>
+					<GroupLabel>Join with</GroupLabel>
 
 					{joinOptions.map((option) => (
-						<button
+						<Button
 							key={`${option.road.id}:${option.end}`}
-							type="button"
-							className={styles.smallButton}
+							size="sm"
+							icon="join"
+							block
+							meta={`${option.distance.toFixed(1)} away`}
 							onClick={() => store().joinRoads(road.id, end, option.road.id, option.end)}
 						>
-							<Icon name="join" size={14} />
-
-							<span>
-								{option.road.id === road.id
-									? "Its own other end (make a loop)"
-									: `${roadLabel(option.road)} (${option.end})`}
-							</span>
-
-							<span className={styles.buttonMeta}>{option.distance.toFixed(1)} away</span>
-						</button>
+							{option.road.id === road.id
+								? "Its own other end (make a loop)"
+								: `${roadLabel(option.road)} (${option.end})`}
+						</Button>
 					))}
-				</div>
+				</ButtonGroup>
 			)}
 		</Section>
 	);

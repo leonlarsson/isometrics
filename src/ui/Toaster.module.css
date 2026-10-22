@@ -1,0 +1,143 @@
+.viewport {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 300;
+	width: min(360px, calc(100vw - 32px));
+}
+
+/* Stacked: the newest toast in front, older ones peeking behind; hovering fans them out. */
+.toast {
+	--gap: 10px;
+	--peek: 8px;
+	--scale: calc(max(0, 1 - (var(--toast-index) * 0.06)));
+	--height: var(--toast-frontmost-height, var(--toast-height));
+	--offset-y: calc(
+		var(--toast-offset-y) *
+		-1 +
+		(var(--toast-index) * var(--gap) * -1) +
+		var(--toast-swipe-movement-y)
+	);
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	box-sizing: border-box;
+	width: 100%;
+	height: var(--height);
+	z-index: calc(1000 - var(--toast-index));
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-panel);
+	transform-origin: bottom center;
+	transform: translateX(var(--toast-swipe-movement-x))
+		translateY(
+			calc(
+				var(--toast-swipe-movement-y) -
+				(var(--toast-index) * var(--peek)) -
+				((1 - var(--scale)) * var(--height))
+			)
+		)
+		scale(var(--scale));
+	transition:
+		transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 400ms,
+		height 150ms;
+	user-select: none;
+}
+
+.toast[data-type="error"] {
+	border-left: 3px solid var(--danger);
+}
+
+.toast[data-type="success"] {
+	border-left: 3px solid var(--accent);
+}
+
+.toast[data-expanded] {
+	transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+	height: var(--toast-height);
+}
+
+.toast[data-starting-style],
+.toast[data-ending-style] {
+	transform: translateY(150%);
+}
+
+.toast[data-limited] {
+	opacity: 0;
+}
+
+.toast[data-ending-style] {
+	opacity: 0;
+}
+
+/* Fills the gap between fanned-out toasts so hovering across them doesn't collapse the stack. */
+.toast::after {
+	content: "";
+	position: absolute;
+	top: 100%;
+	left: 0;
+	width: 100%;
+	height: calc(var(--gap) + 1px);
+}
+
+.content {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 12px 12px 14px;
+	overflow: hidden;
+	transition: opacity 250ms;
+}
+
+.content[data-behind] {
+	opacity: 0;
+}
+
+.content[data-expanded] {
+	opacity: 1;
+}
+
+.text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.description {
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.close {
+	all: unset;
+	cursor: pointer;
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	color: var(--text-muted);
+}
+
+.close:hover {
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.close:focus-visible {
+	outline: 2px solid var(--accent);
+}

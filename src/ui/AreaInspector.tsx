@@ -5,10 +5,16 @@ import { usePalette } from "#/editor/useTheme";
 import { AREA_TYPE_LABELS, areaColor, polygonArea } from "#/scene/areas";
 import type { TArea, TAreaType } from "#/scene/schema";
 
-import { ColorField, Section, Select, SliderField, TextInput, VectorField } from "./fields";
-import { Icon } from "./Icon";
-
-import styles from "./Fields.module.css";
+import { IconButton } from "./Button";
+import {
+	ColorField,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	TextField,
+	VectorField,
+} from "./fields";
 
 const TYPE_OPTIONS = (Object.keys(AREA_TYPE_LABELS) as TAreaType[]).map((value) => ({
 	value,
@@ -26,15 +32,12 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 		<Section
 			title={`Corner ${index + 1} of ${area.points.length}`}
 			actions={
-				<button
-					type="button"
-					className={styles.iconButton}
-					title="Delete corner (Del)"
+				<IconButton
+					icon="trash"
+					label="Delete corner (Del)"
 					disabled={area.points.length <= 3}
 					onClick={() => store().removeAreaPoint(area.id, index)}
-				>
-					<Icon name="trash" size={16} />
-				</button>
+				/>
 			}
 		>
 			<VectorField
@@ -72,17 +75,10 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 			<Section
 				title={`${AREA_TYPE_LABELS[area.type]} area`}
 				actions={
-					<button
-						type="button"
-						className={styles.iconButton}
-						title="Delete area (Del)"
-						onClick={() => removeArea(area.id)}
-					>
-						<Icon name="trash" size={16} />
-					</button>
+					<IconButton icon="trash" label="Delete area (Del)" onClick={() => removeArea(area.id)} />
 				}
 			>
-				<TextInput
+				<TextField
 					label="Name"
 					value={area.name}
 					placeholder={AREA_TYPE_LABELS[area.type]}
@@ -93,7 +89,7 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 					}
 				/>
 
-				<Select<TAreaType>
+				<SelectField<TAreaType>
 					label="Type"
 					value={area.type}
 					options={TYPE_OPTIONS}
@@ -117,11 +113,11 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 					}
 				/>
 
-				<p className={styles.hint}>
+				<Hint>
 					{Math.round(size)} square units · {area.points.length} corners. Drag corners to reshape,
 					drag a small dot between two corners to add one, double-click a corner to remove it. Above
 					0, the area becomes raised ground with cliff sides.
-				</p>
+				</Hint>
 			</Section>
 
 			<Section title="Look">

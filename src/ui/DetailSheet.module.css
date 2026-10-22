@@ -38,22 +38,6 @@
 	color: var(--text-muted);
 }
 
-.close {
-	all: unset;
-	cursor: pointer;
-	display: grid;
-	place-items: center;
-	width: 34px;
-	height: 34px;
-	border-radius: 50%;
-	border: 1px solid var(--border-strong);
-	color: var(--text-muted);
-}
-
-.close:hover {
-	color: var(--text);
-}
-
 .tiles {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));

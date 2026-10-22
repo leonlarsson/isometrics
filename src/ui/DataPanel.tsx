@@ -4,10 +4,10 @@ import { useEditor } from "#/editor/store";
 import { formatEntry, toDataKey } from "#/scene/format";
 import type { TDataEntry } from "#/scene/schema";
 
-import { Section } from "./fields";
-import { Icon } from "./Icon";
+import { Button, IconButton } from "./Button";
+import { Hint, Input, Section } from "./fields";
 
-import styles from "./Fields.module.css";
+import styles from "./DataPanel.module.css";
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -18,53 +18,49 @@ const parseValue = (raw: string): number | string => {
 	return raw;
 };
 
+/** One value: its name, then value and unit side by side, then how it reads on a card. */
 const DataRow = ({ entry }: { entry: TDataEntry }) => {
 	const upsertData = useEditor((s) => s.upsertData);
 	const removeData = useEditor((s) => s.removeData);
 	const [rawValue, setRawValue] = useState<string | null>(null);
 
 	return (
-		<div className={styles.dataRow}>
-			<input
-				className={styles.input}
-				aria-label="Name"
-				value={entry.label}
-				placeholder="Name"
-				onChange={(e) => upsertData({ ...entry, label: e.target.value })}
-			/>
+		<li className={styles.row}>
+			<div className={styles.nameRow}>
+				<Input
+					ariaLabel="Name"
+					value={entry.label}
+					placeholder="Name"
+					onChange={(label) => upsertData({ ...entry, label })}
+				/>
 
-			<input
-				className={styles.input}
-				aria-label="Value"
-				value={rawValue ?? String(entry.value)}
-				onChange={(e) => {
-					setRawValue(e.target.value);
-					upsertData({ ...entry, value: parseValue(e.target.value) });
-				}}
-				onBlur={() => setRawValue(null)}
-			/>
+				<IconButton icon="trash" label="Remove value" onClick={() => removeData(entry.key)} />
+			</div>
 
-			<input
-				className={styles.input}
-				aria-label="Unit"
-				value={entry.unit}
-				placeholder="unit"
-				onChange={(e) => upsertData({ ...entry, unit: e.target.value })}
-			/>
+			<div className={styles.valueRow}>
+				<Input
+					ariaLabel="Value"
+					value={rawValue ?? String(entry.value)}
+					placeholder="Value"
+					onChange={(raw) => {
+						setRawValue(raw);
+						upsertData({ ...entry, value: parseValue(raw) });
+					}}
+					onBlur={() => setRawValue(null)}
+				/>
 
-			<button
-				type="button"
-				className={styles.iconButton}
-				title="Remove value"
-				onClick={() => removeData(entry.key)}
-			>
-				<Icon name="trash" size={15} />
-			</button>
+				<Input
+					ariaLabel="Unit"
+					value={entry.unit}
+					placeholder="Unit"
+					onChange={(unit) => upsertData({ ...entry, unit })}
+				/>
+			</div>
 
-			<span className={styles.dataMeta}>
+			<span className={styles.meta}>
 				<code>{entry.key}</code> · shows as <strong>{formatEntry(entry)}</strong>
 			</span>
-		</div>
+		</li>
 	);
 };
 
@@ -85,27 +81,23 @@ export const DataPanel = () => {
 		<Section
 			title="Values"
 			actions={
-				<button type="button" className={styles.smallButton} onClick={addValue}>
-					<Icon name="plus" size={14} /> Add
-				</button>
+				<Button size="sm" icon="plus" onClick={addValue}>
+					Add
+				</Button>
 			}
 		>
-			<p className={styles.hint}>
+			<Hint>
 				These numbers feed the labels and detail tiles. Units are added right after the value, so
 				type {"“ min”"} (with a space) or {"“%”"}.
-			</p>
+			</Hint>
 
-			<div className={styles.dataHeader}>
-				<span>Name</span>
-
-				<span>Value</span>
-
-				<span>Unit</span>
-			</div>
-
-			{data.map((entry) => (
-				<DataRow key={entry.key} entry={entry} />
-			))}
+			{data.length > 0 && (
+				<ul className={styles.list}>
+					{data.map((entry) => (
+						<DataRow key={entry.key} entry={entry} />
+					))}
+				</ul>
+			)}
 		</Section>
 	);
 };

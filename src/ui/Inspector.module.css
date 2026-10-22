@@ -1,0 +1,6 @@
+.empty {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 24px 16px;
+}

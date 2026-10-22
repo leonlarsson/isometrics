@@ -2,6 +2,7 @@ import type { TScene } from "#/scene/schema";
 
 import { downloadScene, readSceneFile } from "./persistence";
 import { useEditor } from "./store";
+import { notify } from "./toasts";
 
 /**
  * File menu actions, shared by the menu and the keyboard shortcuts. They act on
@@ -35,9 +36,8 @@ export const openWorldFile = async () => {
 	try {
 		replaceWorld(await readSceneFile(file));
 	} catch (error) {
-		window.alert(
-			`That file isn’t a valid world.\n\n${error instanceof Error ? error.message : String(error)}`,
-		);
+		const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+		notify("That file isn’t a valid world", reason, "error");
 	}
 };
 

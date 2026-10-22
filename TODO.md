@@ -37,7 +37,6 @@ Decided with the owner (2026-10-21). This changes the editing model in ADR-0009 
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
 
-- [ ] **Unify the UI:** one consistent set of controls across the inspector, palette, toolbar and panels. Same field anatomy everywhere (label row with optional action such as "Default" on the right, then the control), same spacing, button styles, icon sizes, hint text and section headers. Today these grew ad hoc (the "Default" reset links were the first to move into the label row). Build the shared components on Base UI (ADR-0024: wrapped once in `src/ui/`, styled with our tokens; `Menu` and `ConfirmDialog` exist), e.g. Select, Slider, Tabs, Tooltip, Popover, NumberField, and use only those. Replace the remaining `window.alert` calls (file import errors) with a dialog or toast.
 - [ ] **File menu, Save as:** the File menu has New empty world, Start from a template, Open file and Save to file. Add **Save / Save as** (and recent worlds) with the save slots below.
 - [ ] **Multiple save slots:** keep several worlds in the browser, each with a name and last-edited time, with open, rename, duplicate and delete. Today there's one autosaved world plus backups (ADR-0006, ADR-0020). Needs an ADR for the storage layout.
 - [ ] **People:** pedestrians as a part, walking along paths, pavements or hidden routes; maybe standing crowds. *Data:* crowd size or walking speed from a value (visitors, queue length).

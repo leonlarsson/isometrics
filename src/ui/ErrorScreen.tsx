@@ -9,6 +9,8 @@ import {
 } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 
+import { Button } from "./Button";
+
 import styles from "./ErrorScreen.module.css";
 
 const messageOf = (error: unknown) =>
@@ -46,17 +48,13 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 			</p>
 
 			<div className={styles.actions}>
-				<button type="button" className={styles.primary} onClick={downloadWorld}>
+				<Button variant="primary" onClick={downloadWorld}>
 					Download your world
-				</button>
+				</Button>
 
-				<button type="button" className={styles.secondary} onClick={() => reset()}>
-					Try again
-				</button>
+				<Button onClick={() => reset()}>Try again</Button>
 
-				<button
-					type="button"
-					className={styles.secondary}
+				<Button
 					onClick={() => {
 						if (clearSavedScene()) {
 							// Reload on the plain path, dropping any query string (e.g. the dev ?crash trigger).
@@ -69,7 +67,7 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 					}}
 				>
 					Start fresh
-				</button>
+				</Button>
 			</div>
 
 			<p className={styles.hint}>Starting fresh keeps your current world under Scene → Backups.</p>

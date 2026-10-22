@@ -1,6 +1,8 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { ReactNode } from "react";
 
+import { Button } from "./Button";
+
 import styles from "./ConfirmDialog.module.css";
 
 interface IConfirmDialogProps {
@@ -10,6 +12,8 @@ interface IConfirmDialogProps {
 	description: ReactNode;
 	confirmLabel: string;
 	onConfirm: () => void;
+	/** The confirm button is red: the action deletes something. */
+	danger?: boolean;
 	/** An extra button on the left that doesn't close the dialog, e.g. "Save to file first". */
 	extraAction?: { label: string; onClick: () => void };
 }
@@ -25,6 +29,7 @@ export const ConfirmDialog = ({
 	description,
 	confirmLabel,
 	onConfirm,
+	danger,
 	extraAction,
 }: IConfirmDialogProps) => {
 	return (
@@ -41,16 +46,22 @@ export const ConfirmDialog = ({
 
 					<div className={styles.actions}>
 						{extraAction && (
-							<button type="button" className={styles.extra} onClick={extraAction.onClick}>
-								{extraAction.label}
-							</button>
+							<span className={styles.extra}>
+								<Button onClick={extraAction.onClick}>{extraAction.label}</Button>
+							</span>
 						)}
 
-						<AlertDialog.Close className={styles.secondary}>Cancel</AlertDialog.Close>
+						<Button onClick={() => onOpenChange(false)}>Cancel</Button>
 
-						<AlertDialog.Close className={styles.primary} onClick={onConfirm}>
+						<Button
+							variant={danger ? "danger" : "primary"}
+							onClick={() => {
+								onConfirm();
+								onOpenChange(false);
+							}}
+						>
 							{confirmLabel}
-						</AlertDialog.Close>
+						</Button>
 					</div>
 				</AlertDialog.Popup>
 			</AlertDialog.Portal>

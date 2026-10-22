@@ -1,6 +1,8 @@
 import { useEditor } from "#/editor/store";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 
+import { Button } from "./Button";
+
 import styles from "./DrawingBar.module.css";
 
 /** Shown after a dragged road end snaps onto another road end: offers to join them. */
@@ -31,23 +33,16 @@ export const JoinOfferBar = () => {
 			</div>
 
 			<div className={styles.actions}>
-				<button
-					type="button"
-					className={styles.secondary}
-					onClick={() => useEditor.getState().setJoinOffer(null)}
-				>
-					Keep separate
-				</button>
+				<Button onClick={() => useEditor.getState().setJoinOffer(null)}>Keep separate</Button>
 
-				<button
-					type="button"
-					className={styles.primary}
+				<Button
+					variant="primary"
 					onClick={() =>
 						useEditor.getState().joinRoads(offer.aId, offer.aEnd, offer.bId, offer.bEnd)
 					}
 				>
 					Join
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

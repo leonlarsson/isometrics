@@ -29,6 +29,8 @@ const PATHS = {
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
 	folder: "M3 6h6l2 2h10v11H3z",
 	layers: "M12 3 2 8l10 5 10-5zM2 13l10 5 10-5",
+	check: "m5 12.5 4.5 4.5L19 7",
+	scrub: "M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16",
 } as const;
 
 export type TIconName = keyof typeof PATHS;

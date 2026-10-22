@@ -1,11 +1,16 @@
 import { useState } from "react";
 
-import { deleteSceneBackup, downloadSceneBackup, listSceneBackups } from "#/editor/persistence";
+import {
+	deleteSceneBackup,
+	downloadSceneBackup,
+	type ISceneBackup,
+	listSceneBackups,
+} from "#/editor/persistence";
 
-import { Section } from "./fields";
-import { Icon } from "./Icon";
-
-import styles from "./Fields.module.css";
+import { IconButton, IconButtonGroup } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Hint, Section } from "./fields";
+import { List, ListItem } from "./List";
 
 const titleOf = (raw: string) => {
 	try {
@@ -27,7 +32,9 @@ const formatDate = (ms: number) =>
  */
 export const BackupsPanel = () => {
 	const [backups, setBackups] = useState(listSceneBackups);
-	const [confirming, setConfirming] = useState<string | null>(null);
+	// The backup to delete stays set while the dialog animates closed, so its text doesn't change.
+	const [target, setTarget] = useState<ISceneBackup | null>(null);
+	const [confirming, setConfirming] = useState(false);
 
 	if (backups.length === 0) {
 		return null;
@@ -35,54 +42,57 @@ export const BackupsPanel = () => {
 
 	return (
 		<Section title="Backups">
-			<p className={styles.hint}>
+			<Hint>
 				Saved worlds this version couldn’t open. Download one to keep it, or delete it when you no
 				longer need it.
-			</p>
+			</Hint>
 
-			<ul className={styles.roadList}>
+			<List>
 				{backups.map((backup) => (
-					<li key={backup.key} className={styles.backupItem}>
-						<span className={styles.backupText}>
-							<strong>{titleOf(backup.raw)}</strong>
+					<ListItem
+						key={backup.key}
+						stacked
+						label={titleOf(backup.raw)}
+						meta={formatDate(backup.savedAt)}
+						actions={
+							<IconButtonGroup>
+								<IconButton
+									icon="download"
+									label="Download backup"
+									onClick={() => downloadSceneBackup(backup)}
+								/>
 
-							<span className={styles.roadMeta}>{formatDate(backup.savedAt)}</span>
-						</span>
-
-						<button
-							type="button"
-							className={styles.iconButton}
-							title="Download backup"
-							onClick={() => downloadSceneBackup(backup)}
-						>
-							<Icon name="download" size={15} />
-						</button>
-
-						{confirming === backup.key ? (
-							<button
-								type="button"
-								className={styles.dangerButton}
-								onClick={() => {
-									deleteSceneBackup(backup.key);
-									setConfirming(null);
-									setBackups(listSceneBackups());
-								}}
-							>
-								Delete
-							</button>
-						) : (
-							<button
-								type="button"
-								className={styles.iconButton}
-								title="Delete backup"
-								onClick={() => setConfirming(backup.key)}
-							>
-								<Icon name="trash" size={15} />
-							</button>
-						)}
-					</li>
+								<IconButton
+									icon="trash"
+									label="Delete backup"
+									onClick={() => {
+										setTarget(backup);
+										setConfirming(true);
+									}}
+								/>
+							</IconButtonGroup>
+						}
+					/>
 				))}
-			</ul>
+			</List>
+
+			<ConfirmDialog
+				open={confirming}
+				onOpenChange={setConfirming}
+				title="Delete this backup?"
+				description={`“${target ? titleOf(target.raw) : ""}” will be removed from this browser for good. Download it first if you might need it.`}
+				confirmLabel="Delete"
+				danger
+				onConfirm={() => {
+					if (target) {
+						deleteSceneBackup(target.key);
+						setBackups(listSceneBackups());
+					}
+				}}
+				extraAction={
+					target ? { label: "Download", onClick: () => downloadSceneBackup(target) } : undefined
+				}
+			/>
 		</Section>
 	);
 };

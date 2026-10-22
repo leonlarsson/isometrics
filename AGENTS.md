@@ -32,8 +32,8 @@ src/
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
-  ui/         DOM UI: AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
-  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema)
+  ui/         DOM UI: the UI kit (Button, fields, List, Tabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
+  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
 docs/adr/     Architecture Decision Records
@@ -52,7 +52,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **Keyboard (ADR-0016):** all shortcuts go through `@tanstack/react-hotkeys` (`useHotkey` / `useHotkeys`). Editor-wide ones live in `src/editor/useShortcuts.ts`; widget-specific ones use `target: ref`. Never add `keydown` listeners or `onKeyDown` props (not lint-enforced, so follow it by hand). Register `Shift+X` variants explicitly, and give each hotkey `meta: { name }`.
 - The product name lives in one constant, `APP_NAME` (`src/lib/app.ts`). Never hard-code it in runtime code; derive variants from it (e.g. `APP_NAME.toLowerCase()`).
 - Styling: CSS Modules next to the component, using **only tokens** from `src/styles.css`. 3D colours come from `scenePalettes` in `src/scene/theme.ts`; keep the two in sync (ADR-0007).
-- **Component primitives (ADR-0024):** menus, dialogs and other interactive widgets build on Base UI (`@base-ui/react`), wrapped once with our styles in `src/ui/` (`Menu`, `ConfirmDialog`). Use the wrappers, not Base UI directly, and `ConfirmDialog` instead of `window.confirm`.
+- **UI kit (ADR-0024, ADR-0025):** build every panel, bar and dialog from the kit in `src/ui/`: `Button`/`IconButton`, the fields in `fields.tsx` (`TextField`, `SliderField`, `SelectField`, `SwitchField`, …), `Section`/`Hint`, `List`/`ListItem`, `Tabs`, `Tooltip`, `Menu`, `ConfirmDialog`. They wrap Base UI (`@base-ui/react`); don't import Base UI outside the kit, and don't style `<button>`s or inputs by hand. No `title` tooltips, `window.confirm` or `window.alert`: use `Tooltip`, `ConfirmDialog` and `notify()` (`src/editor/toasts.ts`). After changing the kit, check `/kit` (dev only) in both themes.
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
 - Never store runtime/UI state (selection, camera, animation progress) in the scene document.
 - Untrusted scene JSON (files, storage, AI) must go through `parseScene()`.
@@ -68,7 +68,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Verifying visually
 
-Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
+Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Use the full Chromium build (`chromium-*/chrome-linux64/chrome` with `--headless=new`), not the headless shell: the headless shell crashes when a number label is dragged (Pointer Lock). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
 
 ## Commits and PRs
 

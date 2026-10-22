@@ -1,0 +1,69 @@
+.root {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
+
+.bar {
+	padding: 10px 12px;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+.bar[data-sticky] {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+.list {
+	position: relative;
+	z-index: 0;
+	display: flex;
+	gap: 4px;
+	padding: 3px;
+	border-radius: calc(var(--radius-sm) + 3px);
+	background: var(--surface-sunken);
+}
+
+.tab {
+	all: unset;
+	cursor: pointer;
+	flex: 1;
+	padding: 5px 0;
+	border-radius: var(--radius-sm);
+	text-align: center;
+	font-weight: 600;
+	color: var(--text-muted);
+	transition: color 120ms ease;
+}
+
+.tab:hover,
+.tab[data-active] {
+	color: var(--text);
+}
+
+.tab:focus-visible {
+	outline: 2px solid var(--accent);
+}
+
+/* The raised pill behind the active tab; it slides between tabs. */
+.indicator {
+	position: absolute;
+	z-index: -1;
+	top: var(--active-tab-top);
+	left: var(--active-tab-left);
+	width: var(--active-tab-width);
+	height: var(--active-tab-height);
+	border-radius: var(--radius-sm);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+	transition:
+		left 160ms ease,
+		width 160ms ease;
+}
+
+.panel {
+	padding-bottom: 24px;
+	outline: 0;
+}

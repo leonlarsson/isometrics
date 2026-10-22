@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KitRouteImport } from './routes/kit'
 import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitRoute = KitRouteImport.update({
+  id: '/kit',
+  path: '/kit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
@@ -25,27 +31,31 @@ const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/kit': typeof KitRoute
   '/schema.json': typeof SchemaDotjsonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/kit': typeof KitRoute
   '/schema.json': typeof SchemaDotjsonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/kit': typeof KitRoute
   '/schema.json': typeof SchemaDotjsonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/schema.json'
+  fullPaths: '/' | '/kit' | '/schema.json'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/schema.json'
-  id: '__root__' | '/' | '/schema.json'
+  to: '/' | '/kit' | '/schema.json'
+  id: '__root__' | '/' | '/kit' | '/schema.json'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  KitRoute: typeof KitRoute
   SchemaDotjsonRoute: typeof SchemaDotjsonRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kit': {
+      id: '/kit'
+      path: '/kit'
+      fullPath: '/kit'
+      preLoaderRoute: typeof KitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schema.json': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  KitRoute: KitRoute,
   SchemaDotjsonRoute: SchemaDotjsonRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,0 +1,35 @@
+.page {
+	isolation: isolate;
+	min-height: 100dvh;
+	padding: 24px;
+	background: var(--bg);
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	max-width: 760px;
+	margin: 0 auto 16px;
+}
+
+.header h1 {
+	margin: 0;
+	font-size: 20px;
+}
+
+.columns {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 16px;
+	max-width: 760px;
+	margin: 0 auto;
+}
+
+.panel {
+	align-self: start;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	overflow: hidden;
+}

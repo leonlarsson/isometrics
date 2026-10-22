@@ -39,42 +39,6 @@
 	margin-top: 8px;
 }
 
-.primary,
-.secondary {
-	all: unset;
-	cursor: pointer;
-	padding: 8px 16px;
-	border-radius: var(--radius-sm);
-	font-weight: 600;
-	transition:
-		background 120ms ease,
-		border-color 120ms ease;
-}
-
-.primary {
-	background: var(--accent);
-	color: var(--accent-contrast);
-}
-
-.primary:hover {
-	background: var(--accent-hover);
-}
-
-.secondary {
-	border: 1px solid var(--border-strong);
-}
-
-.secondary:hover {
-	background: var(--surface-sunken);
-	border-color: var(--text-muted);
-}
-
-.primary:focus-visible,
-.secondary:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: 2px;
-}
-
 .hint {
 	margin: 0;
 	font-size: 12px;

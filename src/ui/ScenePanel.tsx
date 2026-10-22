@@ -6,10 +6,13 @@ import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference } from "#/scene/schema";
 
 import { BackupsPanel } from "./BackupsPanel";
-import { ColorField, Section, Select, SliderField, TextInput } from "./fields";
-import { Icon } from "./Icon";
+import { Button, ButtonGroup } from "./Button";
+import { ColorField, Hint, Section, SelectField, SliderField, TextField } from "./fields";
+import { List, ListItem } from "./List";
 
-import styles from "./Fields.module.css";
+/** Dashed chip for hidden routes, which have no colour of their own. */
+const HIDDEN_ROUTE_SWATCH =
+	"repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)";
 
 export const ScenePanel = () => {
 	const scene = useEditor((s) => s.scene);
@@ -24,7 +27,7 @@ export const ScenePanel = () => {
 	return (
 		<>
 			<Section title="World">
-				<TextInput
+				<TextField
 					label="Title"
 					value={scene.meta.title}
 					onChange={(v) =>
@@ -37,7 +40,7 @@ export const ScenePanel = () => {
 					}
 				/>
 
-				<TextInput
+				<TextField
 					label="Subtitle"
 					value={scene.meta.subtitle}
 					onChange={(v) =>
@@ -50,7 +53,7 @@ export const ScenePanel = () => {
 					}
 				/>
 
-				<Select<TThemePreference>
+				<SelectField<TThemePreference>
 					label="Theme"
 					value={scene.theme}
 					options={[
@@ -118,13 +121,15 @@ export const ScenePanel = () => {
 					}
 				/>
 
-				<button type="button" className={styles.smallButton} onClick={resetView}>
-					<Icon name="focus" size={14} /> Re-centre camera
-				</button>
+				<ButtonGroup>
+					<Button size="sm" icon="focus" onClick={resetView}>
+						Re-centre camera
+					</Button>
+				</ButtonGroup>
 			</Section>
 
 			<Section title="Roads & traffic">
-				<Select<TDrivingSide>
+				<SelectField<TDrivingSide>
 					label="Vehicles drive on the"
 					value={scene.driving}
 					options={[
@@ -139,62 +144,41 @@ export const ScenePanel = () => {
 				/>
 
 				{scene.roads.length === 0 ? (
-					<p className={styles.hint}>No roads yet. Draw one from Add to scene → Roads.</p>
+					<Hint>No roads yet. Draw one from Add to scene → Roads.</Hint>
 				) : (
-					<ul className={styles.roadList}>
+					<List>
 						{scene.roads.map((road) => (
-							<li key={road.id}>
-								<button
-									type="button"
-									className={styles.roadItem}
-									aria-current={road.id === selectedRoadId || undefined}
-									onClick={() => selectRoad(road.id)}
-								>
-									<span
-										className={styles.roadSwatch}
-										data-style={road.style}
-										style={{
-											background: road.style === "hidden" ? undefined : roadColor(road, palette),
-										}}
-									/>
-
-									<span>{road.name || ROAD_STYLE_LABELS[road.style]}</span>
-
-									<span className={styles.roadMeta}>{ROAD_STYLE_LABELS[road.style]}</span>
-								</button>
-							</li>
+							<ListItem
+								key={road.id}
+								label={road.name || ROAD_STYLE_LABELS[road.style]}
+								meta={ROAD_STYLE_LABELS[road.style]}
+								swatch={road.style === "hidden" ? HIDDEN_ROUTE_SWATCH : roadColor(road, palette)}
+								current={road.id === selectedRoadId}
+								onClick={() => selectRoad(road.id)}
+							/>
 						))}
-					</ul>
+					</List>
 				)}
 			</Section>
 
 			<Section title="Areas">
 				{scene.areas.length === 0 ? (
-					<p className={styles.hint}>
+					<Hint>
 						No areas yet. Draw water, grass, sand, plazas or raised land from Add to scene → Areas.
-					</p>
+					</Hint>
 				) : (
-					<ul className={styles.roadList}>
+					<List>
 						{scene.areas.map((area) => (
-							<li key={area.id}>
-								<button
-									type="button"
-									className={styles.roadItem}
-									aria-current={area.id === selectedAreaId || undefined}
-									onClick={() => selectArea(area.id)}
-								>
-									<span
-										className={styles.roadSwatch}
-										style={{ background: areaColor(area, palette) }}
-									/>
-
-									<span>{area.name || AREA_TYPE_LABELS[area.type]}</span>
-
-									<span className={styles.roadMeta}>{AREA_TYPE_LABELS[area.type]}</span>
-								</button>
-							</li>
+							<ListItem
+								key={area.id}
+								label={area.name || AREA_TYPE_LABELS[area.type]}
+								meta={AREA_TYPE_LABELS[area.type]}
+								swatch={areaColor(area, palette)}
+								current={area.id === selectedAreaId}
+								onClick={() => selectArea(area.id)}
+							/>
 						))}
-					</ul>
+					</List>
 				)}
 			</Section>
 

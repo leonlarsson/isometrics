@@ -7,10 +7,18 @@ import type { TFieldSpec } from "#/parts/types";
 import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity } from "#/scene/schema";
 
-import { ColorField, Section, Select, SliderField, TextInput, Toggle, VectorField } from "./fields";
-import { Icon } from "./Icon";
-
-import styles from "./Fields.module.css";
+import { Button, IconButton, IconButtonGroup } from "./Button";
+import {
+	CheckboxGroupField,
+	ColorField,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+	VectorField,
+} from "./fields";
 
 const KeyPicker = ({
 	label,
@@ -23,30 +31,15 @@ const KeyPicker = ({
 }) => {
 	const data = useEditor((s) => s.scene.data);
 	if (data.length === 0) {
-		return <p className={styles.hint}>Add values in the Data tab to show them here.</p>;
+		return <Hint>Add values in the Data tab to show them here.</Hint>;
 	}
 	return (
-		<fieldset className={styles.checklist}>
-			<legend className={styles.label}>{label}</legend>
-
-			{data.map((entry) => (
-				<label key={entry.key} className={styles.check}>
-					<input
-						type="checkbox"
-						checked={selected.includes(entry.key)}
-						onChange={(e) =>
-							onChange(
-								e.target.checked
-									? [...selected, entry.key]
-									: selected.filter((k) => k !== entry.key),
-							)
-						}
-					/>
-
-					<span>{entry.label || entry.key}</span>
-				</label>
-			))}
-		</fieldset>
+		<CheckboxGroupField
+			label={label}
+			options={data.map((entry) => ({ value: entry.key, label: entry.label || entry.key }))}
+			value={selected}
+			onChange={onChange}
+		/>
 	);
 };
 
@@ -72,10 +65,10 @@ const PropField = ({
 				/>
 			);
 		case "boolean":
-			return <Toggle label={spec.label} checked={Boolean(value)} onChange={onChange} />;
+			return <SwitchField label={spec.label} checked={Boolean(value)} onChange={onChange} />;
 		case "select":
 			return (
-				<Select
+				<SelectField
 					label={spec.label}
 					value={String(value)}
 					options={spec.options}
@@ -102,17 +95,11 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 	if (!part) {
 		return (
 			<Section title="Unknown part">
-				<p className={styles.hint}>
-					This object uses a part type (“{entity.kind}”) that isn’t available.
-				</p>
+				<Hint>This object uses a part type (“{entity.kind}”) that isn’t available.</Hint>
 
-				<button
-					type="button"
-					className={styles.dangerButton}
-					onClick={() => removeEntity(entity.id)}
-				>
-					<Icon name="trash" size={16} /> Delete
-				</button>
+				<Button variant="danger" size="sm" icon="trash" onClick={() => removeEntity(entity.id)}>
+					Delete
+				</Button>
 			</Section>
 		);
 	}
@@ -130,42 +117,29 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 			<Section
 				title={part.name}
 				actions={
-					<div className={styles.iconActions}>
-						<button
-							type="button"
-							className={styles.iconButton}
-							title={entity.locked ? "Unlock" : "Lock position"}
-							aria-pressed={entity.locked}
+					<IconButtonGroup>
+						<IconButton
+							icon={entity.locked ? "lock" : "unlock"}
+							label={entity.locked ? "Unlock" : "Lock position"}
+							pressed={entity.locked}
 							onClick={() =>
 								edit("locked", (e) => {
 									e.locked = !e.locked;
 								})
 							}
-						>
-							<Icon name={entity.locked ? "lock" : "unlock"} size={16} />
-						</button>
+						/>
 
-						<button
-							type="button"
-							className={styles.iconButton}
-							title="Duplicate (Ctrl+D)"
+						<IconButton
+							icon="copy"
+							label="Duplicate (Ctrl+D)"
 							onClick={() => duplicateEntity(entity.id)}
-						>
-							<Icon name="copy" size={16} />
-						</button>
+						/>
 
-						<button
-							type="button"
-							className={styles.iconButton}
-							title="Delete (Del)"
-							onClick={() => removeEntity(entity.id)}
-						>
-							<Icon name="trash" size={16} />
-						</button>
-					</div>
+						<IconButton icon="trash" label="Delete (Del)" onClick={() => removeEntity(entity.id)} />
+					</IconButtonGroup>
 				}
 			>
-				<TextInput
+				<TextField
 					label="Name"
 					value={entity.name}
 					placeholder={part.name}
@@ -233,9 +207,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				/>
 
 				{!following && (
-					<p className={styles.hint}>
-						Drag in the scene to move · Q/E to rotate · hold Alt to place freely
-					</p>
+					<Hint>Drag in the scene to move · Q/E to rotate · hold Alt to place freely</Hint>
 				)}
 			</Section>
 
@@ -295,7 +267,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 			<Section
 				title="Label"
 				actions={
-					<Toggle
+					<SwitchField
 						label="Show"
 						checked={entity.label?.enabled ?? false}
 						onChange={(on) =>
@@ -317,7 +289,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 			>
 				{entity.label?.enabled ? (
 					<>
-						<TextInput
+						<TextField
 							label="Title"
 							value={entity.label.title}
 							placeholder={entity.name || part.name}
@@ -356,13 +328,13 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						/>
 					</>
 				) : (
-					<p className={styles.hint}>Show a floating card with live values above this object.</p>
+					<Hint>Show a floating card with live values above this object.</Hint>
 				)}
 			</Section>
 
 			{part.canFollowPath && (
 				<Section title="Motion">
-					<Select
+					<SelectField
 						label="Drive along"
 						value={entity.follow?.roadId ?? ""}
 						options={[
@@ -413,15 +385,15 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 					)}
 
 					{roads.length === 0 && (
-						<p className={styles.hint}>
+						<Hint>
 							Draw a road first: Add to scene → Roads. Vehicles drive along roads and hidden routes.
-						</p>
+						</Hint>
 					)}
 				</Section>
 			)}
 
 			<Section title="Details (view mode)">
-				<TextInput
+				<TextField
 					label="Description"
 					multiline
 					value={entity.details.description}

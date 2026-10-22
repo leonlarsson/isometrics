@@ -1,0 +1,257 @@
+import { useEffect, useState } from "react";
+
+import { notify } from "#/editor/toasts";
+
+import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
+import {
+	CheckboxGroupField,
+	ColorField,
+	GroupLabel,
+	Hint,
+	Kbd,
+	NumberField,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+	VectorField,
+} from "./fields";
+import { List, ListItem } from "./List";
+import { Menu } from "./Menu";
+import { TabPanel, Tabs } from "./Tabs";
+import { Toaster } from "./Toaster";
+import { TooltipProvider } from "./Tooltip";
+
+import styles from "./KitPage.module.css";
+
+/**
+ * Every shared component on one page, in both themes (ADR-0025). Dev only:
+ * open /kit while `pnpm dev` runs to check a change to the kit at a glance.
+ */
+export const KitPage = () => {
+	const [dark, setDark] = useState(false);
+	const [text, setText] = useState("Brightwater");
+	const [number, setNumber] = useState(12.5);
+	const [slider, setSlider] = useState(2.4);
+	const [vector, setVector] = useState([4, -2, 1]);
+	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
+	const [on, setOn] = useState(true);
+	const [keys, setKeys] = useState(["population"]);
+	const [color, setColor] = useState("#4a64e0");
+	const [tab, setTab] = useState<"one" | "two">("one");
+	const [selected, setSelected] = useState("ring");
+	const [confirming, setConfirming] = useState(false);
+
+	useEffect(() => {
+		document.documentElement.dataset.theme = dark ? "dark" : "light";
+	}, [dark]);
+
+	return (
+		<TooltipProvider>
+			<Toaster>
+				<main className={styles.page}>
+					<header className={styles.header}>
+						<h1>UI kit</h1>
+
+						<SwitchField label="Dark theme" checked={dark} onChange={setDark} />
+					</header>
+
+					<div className={styles.columns}>
+						<div className={styles.panel}>
+							<Section
+								title="Section with actions"
+								actions={
+									<IconButtonGroup>
+										<IconButton icon="lock" label="Lock" pressed onClick={() => {}} />
+
+										<IconButton icon="copy" label="Duplicate (Ctrl+D)" onClick={() => {}} />
+
+										<IconButton icon="trash" label="Delete (Del)" onClick={() => {}} />
+									</IconButtonGroup>
+								}
+							>
+								<TextField
+									label="Text"
+									value={text}
+									onChange={setText}
+									hint="A hint under a field."
+								/>
+
+								<NumberField label="Number (drag the label)" value={number} onChange={setNumber} />
+
+								<SliderField
+									label="Slider"
+									value={slider}
+									onChange={setSlider}
+									min={0.4}
+									max={8}
+									step={0.1}
+									isDefault={slider === 2.4}
+									onReset={() => setSlider(2.4)}
+								/>
+
+								<VectorField
+									label="Vector"
+									axes={["X", "Y", "Z"]}
+									values={vector}
+									onChange={(i, v) => setVector((old) => old.map((x, j) => (j === i ? v : x)))}
+								/>
+
+								<SelectField
+									label="Select"
+									value={choice}
+									options={[
+										{ value: "pillars", label: "Pillars (roads can pass under)" },
+										{ value: "embankment", label: "Embankment (sloped bank)" },
+									]}
+									onChange={setChoice}
+								/>
+
+								<SwitchField label="Switch" checked={on} onChange={setOn} />
+
+								<CheckboxGroupField
+									label="Checkbox group"
+									options={[
+										{ value: "population", label: "Population" },
+										{ value: "air", label: "Air quality" },
+									]}
+									value={keys}
+									onChange={setKeys}
+								/>
+
+								<ColorField label="Colour" value={color} isDefault={false} onChange={setColor} />
+							</Section>
+						</div>
+
+						<div className={styles.panel}>
+							<Tabs
+								value={tab}
+								onChange={setTab}
+								tabs={[
+									{ value: "one", label: "Buttons" },
+									{ value: "two", label: "Lists" },
+								]}
+							>
+								<TabPanel value="one">
+									<Section title="Buttons">
+										<ButtonGroup>
+											<Button variant="primary">Primary</Button>
+
+											<Button>Secondary</Button>
+
+											<Button variant="ghost">Ghost</Button>
+
+											<Button variant="danger">Danger</Button>
+
+											<Button disabled>Disabled</Button>
+										</ButtonGroup>
+
+										<ButtonGroup>
+											<Button size="sm" icon="cut">
+												Small with icon
+											</Button>
+
+											<Button size="sm" icon="plus">
+												Add
+											</Button>
+										</ButtonGroup>
+
+										<ButtonGroup vertical>
+											<GroupLabel>Group label</GroupLabel>
+
+											<Button size="sm" icon="join" block meta="3.2 away">
+												Block button with meta
+											</Button>
+										</ButtonGroup>
+
+										<ButtonGroup>
+											<Button onClick={() => notify("Saved", "Your world was saved to a file.")}>
+												Toast
+											</Button>
+
+											<Button
+												onClick={() =>
+													notify("That file isn’t a valid world", "version: Expected 1", "error")
+												}
+											>
+												Error toast
+											</Button>
+
+											<Button onClick={() => setConfirming(true)}>Dialog</Button>
+
+											<Menu.Root>
+												<Menu.Trigger>Menu</Menu.Trigger>
+
+												<Menu.Popup>
+													<Menu.Item
+														icon="file"
+														label="Item"
+														shortcut="Ctrl+N"
+														onClick={() => {}}
+													/>
+
+													<Menu.Item
+														label="With description"
+														description="Muted second line"
+														onClick={() => {}}
+													/>
+												</Menu.Popup>
+											</Menu.Root>
+										</ButtonGroup>
+
+										<Hint>
+											Keys: <Kbd>Enter</Kbd> <Kbd>Esc</Kbd> <Kbd>Ctrl</Kbd>
+										</Hint>
+									</Section>
+								</TabPanel>
+
+								<TabPanel value="two">
+									<Section title="Lists">
+										<List>
+											<ListItem
+												label="Ring road"
+												meta="Road"
+												swatch="#c9c4b8"
+												current={selected === "ring"}
+												onClick={() => setSelected("ring")}
+											/>
+
+											<ListItem
+												label="Ferry route"
+												meta="Hidden route"
+												swatch="repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)"
+												current={selected === "ferry"}
+												onClick={() => setSelected("ferry")}
+											/>
+
+											<ListItem
+												stacked
+												label="Backup: Brightwater"
+												meta="22 Oct 2026, 11:42"
+												actions={
+													<IconButton icon="download" label="Download backup" onClick={() => {}} />
+												}
+											/>
+										</List>
+									</Section>
+								</TabPanel>
+							</Tabs>
+						</div>
+					</div>
+
+					<ConfirmDialog
+						open={confirming}
+						onOpenChange={setConfirming}
+						title="Replace “Brightwater”?"
+						description="It will be replaced by an empty world, and undo can’t bring it back."
+						confirmLabel="Replace"
+						onConfirm={() => notify("Replaced")}
+						extraAction={{ label: "Save to file", onClick: () => notify("Saved") }}
+					/>
+				</main>
+			</Toaster>
+		</TooltipProvider>
+	);
+};

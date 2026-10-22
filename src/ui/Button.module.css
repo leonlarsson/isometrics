@@ -1,0 +1,161 @@
+/* ---------------------------------------------------------------- button */
+
+.button {
+	all: unset;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	border-radius: var(--radius-sm);
+	font-weight: 600;
+	white-space: nowrap;
+	user-select: none;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease;
+}
+
+.button[data-size="md"] {
+	height: 34px;
+	padding: 0 14px;
+	font-size: 14px;
+}
+
+.button[data-size="sm"] {
+	height: 28px;
+	padding: 0 10px;
+	font-size: 12px;
+}
+
+.button[data-block] {
+	display: flex;
+	justify-content: flex-start;
+	width: 100%;
+}
+
+.text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.meta {
+	margin-left: auto;
+	padding-left: 8px;
+	font-weight: 400;
+	color: var(--text-muted);
+}
+
+.button[data-variant="primary"] {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.button[data-variant="primary"]:hover:not([data-disabled]) {
+	background: var(--accent-hover);
+}
+
+.button[data-variant="secondary"] {
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.button[data-variant="secondary"]:hover:not([data-disabled]) {
+	background: var(--surface-sunken);
+	box-shadow: inset 0 0 0 1px var(--text-muted);
+}
+
+.button[data-variant="ghost"] {
+	color: var(--text-muted);
+}
+
+.button[data-variant="ghost"]:hover:not([data-disabled]) {
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.button[data-variant="danger"] {
+	background: var(--danger);
+	color: white;
+}
+
+.button[data-variant="danger"]:hover:not([data-disabled]) {
+	filter: brightness(1.08);
+}
+
+.button[data-disabled] {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.button:focus-visible,
+.iconButton:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------- icon button */
+
+.iconButton {
+	all: unset;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.iconButton[data-size="md"] {
+	width: 34px;
+	height: 34px;
+}
+
+/* Phones: toolbar buttons narrow a little so the whole toolbar fits. */
+@media (max-width: 700px) {
+	.iconButton[data-size="md"] {
+		width: 30px;
+	}
+}
+
+.iconButton[data-size="sm"] {
+	width: 28px;
+	height: 28px;
+}
+
+.iconButton:hover:not([data-disabled]) {
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.iconButton[aria-pressed="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.iconButton[data-disabled] {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.buttonGroup {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.buttonGroup[data-vertical] {
+	flex-direction: column;
+	gap: 4px;
+}

@@ -2,6 +2,7 @@ import { useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
+import { IconButton } from "./Button";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 
@@ -14,34 +15,6 @@ const THEME_CYCLE: Record<
 	system: { next: "light", icon: "system", label: "Theme: match device" },
 	light: { next: "dark", icon: "sun", label: "Theme: light" },
 	dark: { next: "system", icon: "moon", label: "Theme: dark" },
-};
-
-const ToolButton = ({
-	icon,
-	label,
-	onClick,
-	disabled,
-	pressed,
-}: {
-	icon: TIconName;
-	label: string;
-	onClick: () => void;
-	disabled?: boolean;
-	pressed?: boolean;
-}) => {
-	return (
-		<button
-			type="button"
-			className={styles.toolButton}
-			title={label}
-			aria-label={label}
-			aria-pressed={pressed}
-			disabled={disabled}
-			onClick={onClick}
-		>
-			<Icon name={icon} />
-		</button>
-	);
 };
 
 export const Toolbar = () => {
@@ -78,7 +51,6 @@ export const Toolbar = () => {
 						type="button"
 						aria-pressed={mode === m}
 						className={styles.mode}
-						title={m === "edit" ? "Edit" : "View"}
 						onClick={() => setMode(m)}
 					>
 						<Icon name={m === "edit" ? "edit" : "eye"} size={16} />
@@ -92,16 +64,27 @@ export const Toolbar = () => {
 			<div className={styles.actions}>
 				{mode === "edit" && (
 					<>
-						<ToolButton icon="undo" label="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon="undo"
+							label="Undo (Ctrl+Z)"
+							onClick={undo}
+							disabled={!canUndo}
+						/>
 
-						<ToolButton
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
 							icon="redo"
 							label="Redo (Ctrl+Shift+Z)"
 							onClick={redo}
 							disabled={!canRedo}
 						/>
 
-						<ToolButton
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
 							icon="grid"
 							label={snapping ? "Snap to grid: on" : "Snap to grid: off"}
 							pressed={snapping}
@@ -112,15 +95,25 @@ export const Toolbar = () => {
 					</>
 				)}
 
-				<ToolButton
+				<IconButton
+					size="md"
+					tooltipSide="bottom"
 					icon={playing ? "pause" : "play"}
 					label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
 					onClick={togglePlaying}
 				/>
 
-				<ToolButton icon="focus" label="Re-centre camera" onClick={resetView} />
+				<IconButton
+					size="md"
+					tooltipSide="bottom"
+					icon="focus"
+					label="Re-centre camera"
+					onClick={resetView}
+				/>
 
-				<ToolButton
+				<IconButton
+					size="md"
+					tooltipSide="bottom"
 					icon={themeInfo.icon}
 					label={themeInfo.label}
 					onClick={() =>

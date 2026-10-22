@@ -4,6 +4,9 @@ import { useEditor } from "#/editor/store";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 
+import { Button } from "./Button";
+import { Kbd } from "./fields";
+
 import styles from "./DrawingBar.module.css";
 
 const DrawingControls = () => {
@@ -57,23 +60,16 @@ const DrawingControls = () => {
 				<span>{hint}</span>
 
 				<span className={styles.keys}>
-					<kbd>Enter</kbd> finish · <kbd>Backspace</kbd> undo point · <kbd>Esc</kbd> cancel
+					<Kbd>Enter</Kbd> finish · <Kbd>Backspace</Kbd> undo point · <Kbd>Esc</Kbd> cancel
 				</span>
 			</div>
 
 			<div className={styles.actions}>
-				<button type="button" className={styles.secondary} onClick={() => cancelDrawing()}>
-					Cancel
-				</button>
+				<Button onClick={() => cancelDrawing()}>Cancel</Button>
 
-				<button
-					type="button"
-					className={styles.primary}
-					disabled={count < minimum}
-					onClick={() => finishDrawing()}
-				>
+				<Button variant="primary" disabled={count < minimum} onClick={() => finishDrawing()}>
 					Finish
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

@@ -1,5 +1,7 @@
 import { downloadSceneBackup, type ISceneBackup } from "#/editor/persistence";
 
+import { Button } from "./Button";
+
 import styles from "./DrawingBar.module.css";
 
 interface IRecoveryBarProps {
@@ -28,17 +30,14 @@ export const RecoveryBar = ({ raw, backup, reason, onDismiss }: IRecoveryBarProp
 		</div>
 
 		<div className={styles.actions}>
-			<button type="button" className={styles.secondary} onClick={onDismiss}>
-				Dismiss
-			</button>
+			<Button onClick={onDismiss}>Dismiss</Button>
 
-			<button
-				type="button"
-				className={styles.primary}
+			<Button
+				variant="primary"
 				onClick={() => downloadSceneBackup(backup ?? { key: "", savedAt: Date.now(), raw })}
 			>
 				Download backup
-			</button>
+			</Button>
 		</div>
 	</div>
 );

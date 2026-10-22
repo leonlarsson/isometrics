@@ -15,7 +15,9 @@ import { PartsPalette } from "./PartsPalette";
 import { RecoveryBar } from "./RecoveryBar";
 import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
+import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
+import { TooltipProvider } from "./Tooltip";
 
 import styles from "./AppShell.module.css";
 
@@ -61,55 +63,59 @@ export const AppShell = () => {
 	useShortcuts();
 
 	return (
-		<div
-			className={styles.shell}
-			data-mode={mode}
-			style={{ "--inspector-width": `${inspectorWidth}px` } as CSSProperties}
-		>
-			<StatusBanner />
+		<TooltipProvider>
+			<Toaster>
+				<div
+					className={styles.shell}
+					data-mode={mode}
+					style={{ "--inspector-width": `${inspectorWidth}px` } as CSSProperties}
+				>
+					<StatusBanner />
 
-			<Toolbar />
+					<Toolbar />
 
-			<div className={styles.body}>
-				{mode === "edit" && (
-					<aside className={styles.left}>
-						<PartsPalette />
-					</aside>
-				)}
+					<div className={styles.body}>
+						{mode === "edit" && (
+							<aside className={styles.left}>
+								<PartsPalette />
+							</aside>
+						)}
 
-				<main className={styles.stage}>
-					<SceneTitle />
+						<main className={styles.stage}>
+							<SceneTitle />
 
-					{ready && <Viewport />}
+							{ready && <Viewport />}
 
-					{ready && <LabelLayer />}
+							{ready && <LabelLayer />}
 
-					<DrawingBar />
+							<DrawingBar />
 
-					<JoinOfferBar />
+							<JoinOfferBar />
 
-					{unreadable && (
-						<RecoveryBar
-							raw={unreadable.raw}
-							backup={unreadable.backup}
-							reason={unreadable.reason}
-							onDismiss={() => setUnreadable(null)}
-						/>
-					)}
+							{unreadable && (
+								<RecoveryBar
+									raw={unreadable.raw}
+									backup={unreadable.backup}
+									reason={unreadable.reason}
+									onDismiss={() => setUnreadable(null)}
+								/>
+							)}
 
-					<DetailSheet />
-				</main>
+							<DetailSheet />
+						</main>
 
-				{mode === "edit" && (
-					<div className={styles.rightColumn}>
-						<ResizeHandle width={inspectorWidth} onResize={setInspectorWidth} />
+						{mode === "edit" && (
+							<div className={styles.rightColumn}>
+								<ResizeHandle width={inspectorWidth} onResize={setInspectorWidth} />
 
-						<aside className={styles.right}>
-							<Inspector />
-						</aside>
+								<aside className={styles.right}>
+									<Inspector />
+								</aside>
+							</div>
+						)}
 					</div>
-				)}
-			</div>
-		</div>
+				</div>
+			</Toaster>
+		</TooltipProvider>
 	);
 };

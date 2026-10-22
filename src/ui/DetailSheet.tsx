@@ -2,7 +2,7 @@ import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { getPart } from "#/parts/registry";
 import { formatEntry } from "#/scene/format";
 
-import { Icon } from "./Icon";
+import { IconButton } from "./Button";
 
 import styles from "./DetailSheet.module.css";
 
@@ -33,14 +33,7 @@ export const DetailSheet = () => {
 					)}
 				</div>
 
-				<button
-					type="button"
-					className={styles.close}
-					aria-label="Close details"
-					onClick={() => select(null)}
-				>
-					<Icon name="close" />
-				</button>
+				<IconButton icon="close" label="Close details" size="md" onClick={() => select(null)} />
 			</header>
 
 			{keys.length > 0 && (

@@ -7,6 +7,9 @@ import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
 
+import { GroupLabel } from "./fields";
+import { Tooltip } from "./Tooltip";
+
 import styles from "./PartsPalette.module.css";
 
 const ROAD_TOOLS: { style: TRoadStyle; description: string }[] = [
@@ -41,85 +44,93 @@ export const PartsPalette = () => {
 			<h2 className={styles.heading}>Add to scene</h2>
 
 			<section className={styles.group}>
-				<h3 className={styles.category}>Roads</h3>
+				<GroupLabel as="h3">Roads</GroupLabel>
 
 				<div className={styles.grid}>
 					{ROAD_TOOLS.map(({ style, description }) => (
-						<button
+						<Tooltip
 							key={style}
-							type="button"
-							className={styles.part}
-							title={`${description}. Click points on the ground; Enter to finish.`}
-							aria-pressed={drawingStyle === style}
-							onClick={() => startDrawing(style)}
+							label={`${description}. Click points on the ground; Enter to finish.`}
+							side="right"
 						>
-							<span
-								className={styles.swatch}
-								style={{ background: roadSwatch[style] }}
-								aria-hidden="true"
-							/>
+							<button
+								type="button"
+								className={styles.part}
+								aria-pressed={drawingStyle === style}
+								onClick={() => startDrawing(style)}
+							>
+								<span
+									className={styles.swatch}
+									style={{ background: roadSwatch[style] }}
+									aria-hidden="true"
+								/>
 
-							<span className={styles.name}>{ROAD_STYLE_LABELS[style]}</span>
-						</button>
+								<span className={styles.name}>{ROAD_STYLE_LABELS[style]}</span>
+							</button>
+						</Tooltip>
 					))}
 				</div>
 			</section>
 
 			<section className={styles.group}>
-				<h3 className={styles.category}>Areas</h3>
+				<GroupLabel as="h3">Areas</GroupLabel>
 
 				<div className={styles.grid}>
 					{AREA_TOOLS.map(({ type, description }) => (
-						<button
+						<Tooltip
 							key={type}
-							type="button"
-							className={styles.part}
-							title={`${description}. Click its corners on the ground; Enter to finish.`}
-							aria-pressed={drawingArea === type}
-							onClick={() => startAreaDrawing(type)}
+							label={`${description}. Click its corners on the ground; Enter to finish.`}
+							side="right"
 						>
-							<span
-								className={styles.swatch}
-								style={{ background: palette.areas[type] }}
-								aria-hidden="true"
-							/>
+							<button
+								type="button"
+								className={styles.part}
+								aria-pressed={drawingArea === type}
+								onClick={() => startAreaDrawing(type)}
+							>
+								<span
+									className={styles.swatch}
+									style={{ background: palette.areas[type] }}
+									aria-hidden="true"
+								/>
 
-							<span className={styles.name}>{AREA_TYPE_LABELS[type]}</span>
-						</button>
+								<span className={styles.name}>{AREA_TYPE_LABELS[type]}</span>
+							</button>
+						</Tooltip>
 					))}
 				</div>
 			</section>
 
 			{partsByCategory().map(([category, parts]) => (
 				<section key={category} className={styles.group}>
-					<h3 className={styles.category}>{CATEGORY_LABELS[category]}</h3>
+					<GroupLabel as="h3">{CATEGORY_LABELS[category]}</GroupLabel>
 
 					<div className={styles.grid}>
 						{parts.map((part) => {
 							const { color, accent } = resolveColors(part, { color: null, accent: null }, palette);
 							return (
-								<button
-									key={part.kind}
-									type="button"
-									className={styles.part}
-									title={part.description}
-									onClick={() => {
-										const scene = useEditor.getState().scene;
-										addEntity({
-											kind: part.kind,
-											name: "",
-											position: findFreeSpot(scene, part),
-										});
-									}}
-								>
-									<span
-										className={styles.swatch}
-										style={{ background: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)` }}
-										aria-hidden="true"
-									/>
+								<Tooltip key={part.kind} label={part.description} side="right">
+									<button
+										type="button"
+										className={styles.part}
+										onClick={() => {
+											const scene = useEditor.getState().scene;
+											addEntity({
+												kind: part.kind,
+												name: "",
+												position: findFreeSpot(scene, part),
+											});
+										}}
+									>
+										<span
+											className={styles.swatch}
+											style={{ background: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)` }}
+											aria-hidden="true"
+										/>
 
-									<span className={styles.name}>{part.name}</span>
-								</button>
+										<span className={styles.name}>{part.name}</span>
+									</button>
+								</Tooltip>
 							);
 						})}
 					</div>
