@@ -101,7 +101,7 @@ const LISTS = [
 	{ key: "data", schema: DataEntrySchema, id: "key", counter: "values" },
 ] as const;
 
-const SETTINGS = ["meta", "theme", "ground", "driving"] as const;
+const SETTINGS = ["meta", "theme", "ground", "driving", "turns"] as const;
 
 /** Repair a world (see above). Throws if the input doesn't look like a world at all. */
 export const repairScene = (input: unknown): { scene: TScene; report: IRepairReport } => {

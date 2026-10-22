@@ -32,6 +32,16 @@ describe("parseOrRepairScene", () => {
 		expect(report?.removed.roads).toBe(0);
 	});
 
+	it("keeps the world's settings, turns included", () => {
+		const { scene } = repairScene({
+			version: 1,
+			driving: "left",
+			turns: "sharp",
+			roads: [road({ style: "cobblestone" })],
+		});
+		expect(scene).toMatchObject({ driving: "left", turns: "sharp" });
+	});
+
 	it("drops one bad road point but keeps the road", () => {
 		const { scene } = repairScene({
 			version: 1,
