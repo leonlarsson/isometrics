@@ -7,6 +7,9 @@ import { NotFound } from "#/ui/NotFound";
 
 import appCss from "../styles.css?url";
 
+const DESCRIPTION =
+	"Build animated 3D miniature worlds that show your data: low-poly buildings, roads, vehicles and live data cards.";
+
 export const Route = createRootRoute({
 	head: () => ({
 		meta: [
@@ -19,6 +22,43 @@ export const Route = createRootRoute({
 			},
 			{
 				title: APP_NAME,
+			},
+			{
+				name: "description",
+				content: DESCRIPTION,
+			},
+			// The light toolbar colour (--surface); useThemeAttribute keeps it in step with the theme.
+			{
+				name: "theme-color",
+				content: "#f8f7f3",
+			},
+			{
+				property: "og:type",
+				content: "website",
+			},
+			{
+				property: "og:title",
+				content: APP_NAME,
+			},
+			{
+				property: "og:description",
+				content: DESCRIPTION,
+			},
+			{
+				property: "og:image",
+				content: "/og.png",
+			},
+			{
+				property: "og:image:width",
+				content: "1200",
+			},
+			{
+				property: "og:image:height",
+				content: "630",
+			},
+			{
+				name: "twitter:card",
+				content: "summary_large_image",
 			},
 			// Not public yet: keep search engines out. Remove (with the header below) at launch.
 			{

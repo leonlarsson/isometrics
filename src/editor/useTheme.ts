@@ -24,10 +24,19 @@ export const usePalette = () => {
 	return scenePalettes[useResolvedTheme()];
 };
 
-/** Mirror the resolved theme onto <html data-theme> so CSS tokens follow it. */
+/**
+ * Mirror the resolved theme onto <html data-theme> so CSS tokens follow it, and
+ * match the browser's theme-color (address bar on mobile) to the toolbar's --surface.
+ */
 export const useThemeAttribute = () => {
 	const theme = useResolvedTheme();
 	useEffect(() => {
-		document.documentElement.dataset.theme = theme;
+		const root = document.documentElement;
+		root.dataset.theme = theme;
+		const surface = getComputedStyle(root).getPropertyValue("--surface").trim();
+		const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+		if (meta && surface) {
+			meta.content = surface;
+		}
 	}, [theme]);
 };

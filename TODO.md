@@ -5,7 +5,7 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 ## Before going public
 
 - [ ] Remove the `noindex, nofollow` robots meta tag and the `X-Robots-Tag` header in `src/routes/__root.tsx`.
-- [ ] Add proper meta tags: description, Open Graph / social preview (title, description, image), `theme-color`. (Favicon: done, `public/favicon.svg`.)
+- [ ] Make `og:image` in `src/routes/__root.tsx` an absolute URL once the production domain is set (most link previews ignore relative ones), and refresh `public/og.png` if the look has changed. (Description, Open Graph, `theme-color` and favicon: done.)
 
 ## Blender-style transform gizmo
 
