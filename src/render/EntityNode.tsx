@@ -22,7 +22,7 @@ interface IDragState {
 	token: string;
 }
 
-const SelectionFrame = ({
+export const SelectionFrame = ({
 	size: [w, d],
 	color,
 	dashed = false,
@@ -191,7 +191,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			select(entity.id);
 		},
 		onPointerOver: (e: ThreeEvent<PointerEvent>) => {
-			if (drawing) {
+			// No hover while drawing, or while a new part is dragged in from the palette.
+			if (drawing || useEditor.getState().placingKind) {
 				return;
 			}
 			e.stopPropagation();

@@ -1,5 +1,5 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useRef, useState } from "react";
+import { type PointerEvent, useRef, useState } from "react";
 
 import { findFreeSpot } from "#/editor/placement";
 import { useEditor } from "#/editor/store";
@@ -11,6 +11,7 @@ import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
 
 import { GroupLabel, Hint, SearchField } from "./fields";
+import { Icon } from "./Icon";
 import { Tooltip } from "./Tooltip";
 
 import styles from "./PartsPalette.module.css";
@@ -49,8 +50,13 @@ interface IPaletteItem {
 	swatch: string;
 	/** Highlighted while this tool is active (drawing this road or area). */
 	pressed?: boolean;
+	/** Part kind, for items that can also be dragged onto the scene. */
+	kind?: string;
 	onSelect: () => void;
 }
+
+/** How far (px) the pointer must move before pressing a tile turns into dragging it. */
+const DRAG_THRESHOLD = 5;
 
 /** Every word of the query must appear in the item's name, group, description or keywords. */
 const matches = (item: IPaletteItem, query: string) => {
@@ -62,7 +68,11 @@ const matches = (item: IPaletteItem, query: string) => {
 		.every((word) => text.includes(word));
 };
 
-/** The "Add to scene" panel: roads and areas to draw, parts to place, with a search. */
+/**
+ * The "Add to scene" panel: roads and areas to draw, parts to place, with a
+ * search. Clicking a part adds it at a free spot; dragging it onto the scene
+ * places it there (render/PlacementPreview shows it under the cursor).
+ */
 export const PartsPalette = () => {
 	const addEntity = useEditor((s) => s.addEntity);
 	const drawingStyle = useEditor((s) => (s.drawing?.target === "road" ? s.drawing.style : null));
@@ -72,6 +82,8 @@ export const PartsPalette = () => {
 	const palette = usePalette();
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
+	// Set once a press turned into a drag, so the click that may follow doesn't add a second copy.
+	const dragged = useRef(false);
 
 	useHotkey("/", () => searchRef.current?.focus(), { meta: { name: "Search parts" } });
 
@@ -109,9 +121,10 @@ export const PartsPalette = () => {
 					key: `part:${part.kind}`,
 					group: CATEGORY_LABELS[category],
 					name: part.name,
-					tooltip: part.description,
+					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
 					swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,
+					kind: part.kind,
 					onSelect: () => {
 						const scene = useEditor.getState().scene;
 						addEntity({ kind: part.kind, name: "", position: findFreeSpot(scene, part) });
@@ -120,6 +133,30 @@ export const PartsPalette = () => {
 			}),
 		),
 	];
+
+	/** Watch a press on a part tile; past the threshold it becomes a drag onto the scene. */
+	const watchDrag = (kind: string, down: PointerEvent<HTMLButtonElement>) => {
+		dragged.current = false;
+		// Touch presses scroll the panel instead.
+		if (down.button !== 0 || down.pointerType === "touch") {
+			return;
+		}
+		const { clientX, clientY } = down;
+		const stop = () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", stop);
+		};
+		const onMove = (event: globalThis.PointerEvent) => {
+			if (Math.hypot(event.clientX - clientX, event.clientY - clientY) < DRAG_THRESHOLD) {
+				return;
+			}
+			stop();
+			dragged.current = true;
+			useEditor.getState().startPlacing(kind);
+		};
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", stop);
+	};
 
 	const shown = query.trim() ? items.filter((item) => matches(item, query)) : items;
 	const groups = [...new Set(shown.map((item) => item.group))];
@@ -153,8 +190,18 @@ export const PartsPalette = () => {
 									<button
 										type="button"
 										className={styles.part}
+										data-draggable={item.kind ? "" : undefined}
 										aria-pressed={item.pressed}
-										onClick={item.onSelect}
+										onPointerDown={(event) => {
+											if (item.kind) {
+												watchDrag(item.kind, event);
+											}
+										}}
+										onClick={() => {
+											if (!dragged.current) {
+												item.onSelect();
+											}
+										}}
 									>
 										<span
 											className={styles.swatch}
@@ -163,6 +210,12 @@ export const PartsPalette = () => {
 										/>
 
 										<span className={styles.name}>{item.name}</span>
+
+										{item.kind && (
+											<span className={styles.grip} aria-hidden="true">
+												<Icon name="grip" size={14} />
+											</span>
+										)}
 									</button>
 								</Tooltip>
 							))}

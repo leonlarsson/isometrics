@@ -98,6 +98,8 @@ export interface IEditorState {
 	/** Selected control point of the selected road or area. */
 	selectedPointIndex: number | null;
 	drawing: IRoadDrawing | null;
+	/** Part kind being dragged from the palette onto the scene. Runtime UI state. */
+	placingKind: string | null;
 	joinOffer: IJoinOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
@@ -124,6 +126,8 @@ export interface IEditorState {
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
 	setDragging: (dragging: boolean) => void;
+	startPlacing: (kind: string) => void;
+	stopPlacing: () => void;
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
 	resetView: () => void;
@@ -235,6 +239,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 		...NOTHING_SELECTED,
 		drawing: null,
+		placingKind: null,
 		joinOffer: null,
 		mode: "edit",
 		tab: "object",
@@ -363,9 +368,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				tab: state.mode === "edit" ? "object" : state.tab,
 			})),
 		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null }),
-		setMode: (mode) => set({ mode, ...NOTHING_SELECTED, drawing: null, joinOffer: null }),
+		setMode: (mode) =>
+			set({ mode, ...NOTHING_SELECTED, drawing: null, placingKind: null, joinOffer: null }),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
+		startPlacing: (kind) => set({ placingKind: kind, drawing: null }),
+		stopPlacing: () => set({ placingKind: null }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1 })),

@@ -10,6 +10,7 @@ import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { LabelProjector } from "./LabelProjector";
+import { PlacementPreview } from "./PlacementPreview";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
@@ -76,6 +77,8 @@ export const Viewport = () => {
 			<RoadHandles />
 
 			<RoadDrawTool />
+
+			<PlacementPreview />
 
 			<OrbitControls
 				makeDefault

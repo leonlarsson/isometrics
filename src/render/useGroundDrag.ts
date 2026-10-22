@@ -10,6 +10,24 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
 
 /**
+ * Where the ray meets the ground (or a raised plane at `planeY`), snapped to
+ * the grid unless snapping is off or `altKey` is held, and kept on the ground.
+ */
+export const groundPointOnRay = (ray: THREE.Ray, altKey: boolean, planeY = 0): TVec2 | null => {
+	plane.constant = -planeY;
+	if (!ray.intersectPlane(plane, hit)) {
+		return null;
+	}
+	const { snapping, scene } = useEditor.getState();
+	const free = altKey || !snapping;
+	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
+	return [
+		clamp(place(hit.x), -scene.ground.width / 2, scene.ground.width / 2),
+		clamp(place(hit.z), -scene.ground.depth / 2, scene.ground.depth / 2),
+	];
+};
+
+/**
  * Ground position under the pointer, snapped to the grid unless snapping is
  * off or Alt is held. `planeY` projects onto a raised plane instead, so an
  * elevated point stays under the cursor while it's dragged.
@@ -17,19 +35,7 @@ const hit = new THREE.Vector3();
 export const groundPointFrom = (
 	event: ThreeEvent<PointerEvent | MouseEvent>,
 	planeY = 0,
-): TVec2 | null => {
-	plane.constant = -planeY;
-	if (!event.ray.intersectPlane(plane, hit)) {
-		return null;
-	}
-	const { snapping, scene } = useEditor.getState();
-	const free = event.nativeEvent.altKey || !snapping;
-	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-	return [
-		clamp(place(hit.x), -scene.ground.width / 2, scene.ground.width / 2),
-		clamp(place(hit.z), -scene.ground.depth / 2, scene.ground.depth / 2),
-	];
-};
+): TVec2 | null => groundPointOnRay(event.ray, event.nativeEvent.altKey, planeY);
 
 interface IGroundDragOptions {
 	/** Height of the plane to drag on (default: the ground). */
