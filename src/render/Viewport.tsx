@@ -6,7 +6,7 @@ import { usePalette } from "#/editor/useTheme";
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
 import { CameraControls } from "./CameraControls";
-import { CameraRig } from "./CameraRig";
+import { CameraRig, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { HoverHighlight } from "./HoverHighlight";
@@ -101,6 +101,8 @@ export const Viewport = () => {
 			<KeyboardTransform />
 
 			<CameraRig />
+
+			<ProjectionSwitch />
 
 			<LabelProjector />
 		</Canvas>

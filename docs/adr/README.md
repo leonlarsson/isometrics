@@ -41,3 +41,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0035](0035-outliner.md) | An outliner above the inspector; hide and lock are saved with the world | accepted |
 | [0036](0036-part-thumbnails.md) | Part thumbnails are rendered in the browser from the parts themselves | accepted |
 | [0037](0037-orbit-around-the-cursor.md) | Orbit around the point under the cursor, with a wider tilt | accepted |
+| [0038](0038-perspective-camera.md) | A perspective camera next to the orthographic diorama view | accepted |

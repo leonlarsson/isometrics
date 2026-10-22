@@ -10,6 +10,7 @@ import { pastDragThreshold } from "#/lib/pointer";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
+import { pixelsPerUnitAt } from "./cameraMath";
 import { roadBaseY } from "./RoadMesh";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyRoadPointDrag, roadPointStart } from "./transforms";
@@ -52,6 +53,7 @@ interface IPointHandleProps {
 const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps) => {
 	const palette = usePalette();
 	const camera = useThree((s) => s.camera);
+	const size = useThree((s) => s.size);
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const [hovered, setHovered] = useState(false);
 	const drag = useRef<{
@@ -105,7 +107,11 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 				store.setJoinOffer(null);
 				// Screen pixels per unit of world height, from the camera's current view.
 				up.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
-				const zoom = camera instanceof THREE.OrthographicCamera ? camera.zoom : 20;
+				const zoom = pixelsPerUnitAt(
+					camera,
+					new THREE.Vector3(point[0], baseY + point[2], point[1]),
+					size.height,
+				);
 				drag.current = {
 					token: `point:${performance.now()}`,
 					vertical: e.nativeEvent.shiftKey,

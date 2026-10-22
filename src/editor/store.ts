@@ -152,6 +152,8 @@ export interface IEditorState {
 	dragging: boolean;
 	snapping: boolean;
 	playing: boolean;
+	/** Perspective camera instead of the orthographic diorama view. Runtime UI state. */
+	perspective: boolean;
 	/** Incremented to ask the viewport to re-frame the camera. */
 	viewNonce: number;
 	/** What the next re-frame shows: a box (frame selection), or null for the whole ground. */
@@ -190,6 +192,7 @@ export interface IEditorState {
 	setViewInset: (pixels: number) => void;
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
+	togglePerspective: () => void;
 	resetView: () => void;
 	/** Move the camera to the selected object, road or area. */
 	frameSelection: () => void;
@@ -337,6 +340,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		dragging: false,
 		snapping: true,
 		playing: true,
+		perspective: false,
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
@@ -503,6 +507,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		setViewInset: (pixels) => set({ viewInset: pixels }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
+		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
 		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null })),
 
 		frameSelection: () => {

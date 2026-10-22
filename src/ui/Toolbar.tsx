@@ -29,6 +29,8 @@ export const Toolbar = () => {
 	const playing = useEditor((s) => s.playing);
 	const togglePlaying = useEditor((s) => s.togglePlaying);
 	const resetView = useEditor((s) => s.resetView);
+	const perspective = useEditor((s) => s.perspective);
+	const togglePerspective = useEditor((s) => s.togglePerspective);
 	const theme = useEditor((s) => s.scene.theme);
 	const commit = useEditor((s) => s.commit);
 
@@ -101,6 +103,15 @@ export const Toolbar = () => {
 					icon={playing ? "pause" : "play"}
 					label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
 					onClick={togglePlaying}
+				/>
+
+				<IconButton
+					size="md"
+					tooltipSide="bottom"
+					icon="perspective"
+					label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
+					pressed={perspective}
+					onClick={togglePerspective}
 				/>
 
 				<IconButton

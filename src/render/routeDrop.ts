@@ -128,7 +128,8 @@ export interface IVehicleRouteDrag {
 	 * Park the vehicle on a road at `target` (where the drag would put it on the
 	 * ground), in its lane and facing the way it would drive. `ray` is the
 	 * pointer's: the vehicle is usually grabbed off-centre, so it's moved to pass
-	 * over `target` (the camera is orthographic, so that's the same view). Returns
+	 * over `target` (exactly the same view in the diorama camera, close enough in
+	 * perspective). Returns
 	 * false when there's no road there (or Alt is held), so the caller moves it
 	 * as usual.
 	 */

@@ -32,6 +32,7 @@ const PATHS = {
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
 	folder: "M3 6h6l2 2h10v11H3z",
 	layers: "M12 3 2 8l10 5 10-5zM2 13l10 5 10-5",
+	perspective: "M3 7l6-3h6l6 3v10l-6 3H9l-6-3zM9 4v16M15 4v16M3 7l6 2h6l6-2",
 	check: "m5 12.5 4.5 4.5L19 7",
 	scrub: "M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16",
 	search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4.2-4.2",

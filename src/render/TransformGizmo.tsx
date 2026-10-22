@@ -7,6 +7,7 @@ import { usePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import type { TScene, TVec2 } from "#/scene/schema";
 
+import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
 
 /** The handles a gizmo can show. `xz` is the square that slides freely on the ground. */
@@ -231,14 +232,15 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 	const session = useRef<IDragSession | null>(null);
 	const [active, setActive] = useState<TGizmoHandle | null>(null);
 
-	// Same size on screen at any zoom: r3f's orthographic zoom is pixels per world unit. Also tell
-	// the label layer where the gizmo is on screen.
+	// Same size on screen at any zoom and distance. Also tell the label layer where the gizmo is on
+	// screen.
 	useFrame(() => {
 		if (!root.current) {
 			return;
 		}
-		root.current.scale.setScalar(UNIT_PX / (camera.zoom || 1));
-		root.current.getWorldPosition(center).project(camera);
+		root.current.getWorldPosition(center);
+		root.current.scale.setScalar(UNIT_PX / pixelsPerUnitAt(camera, center, size.height));
+		center.project(camera);
 		const x = ((center.x + 1) / 2) * size.width;
 		const y = ((1 - center.y) / 2) * size.height;
 		gizmoArea.active = true;
@@ -305,7 +307,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			center,
 			anchor: center.clone(),
 			startY: e.nativeEvent.clientY,
-			pixelsPerUnit: Math.max(1, up.y * camera.zoom),
+			pixelsPerUnit: Math.max(1, up.y * pixelsPerUnitAt(camera, center, size.height)),
 			angle: 0,
 			turn: 0,
 			before: useEditor.getState().scene,

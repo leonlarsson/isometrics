@@ -237,7 +237,11 @@ const useViewInset = () => {
 
 	useFrame((_, delta) => {
 		const goal = useEditor.getState().viewInset / 2;
-		const view = camera instanceof THREE.OrthographicCamera ? camera.view : null;
+		const lens =
+			camera instanceof THREE.OrthographicCamera || camera instanceof THREE.PerspectiveCamera
+				? camera
+				: null;
+		const view = lens?.view ?? null;
 		const current =
 			view?.enabled && view.fullWidth === size.width && view.fullHeight === size.height;
 		if (Math.abs(goal - offset.current) < 0.5 && (goal === 0 ? !view?.enabled : current)) {
@@ -247,13 +251,13 @@ const useViewInset = () => {
 		if (Math.abs(goal - offset.current) < 0.5) {
 			offset.current = goal;
 		}
-		if (!(camera instanceof THREE.OrthographicCamera)) {
+		if (!lens) {
 			return;
 		}
 		if (offset.current === 0) {
-			camera.clearViewOffset();
+			lens.clearViewOffset();
 		} else {
-			camera.setViewOffset(size.width, size.height, 0, offset.current, size.width, size.height);
+			lens.setViewOffset(size.width, size.height, 0, offset.current, size.width, size.height);
 		}
 	});
 };
@@ -329,8 +333,11 @@ export const CameraControls = () => {
 				dampingFactor={0.12}
 				minPolarAngle={MIN_POLAR}
 				maxPolarAngle={MAX_POLAR}
+				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.
 				minZoom={2}
 				maxZoom={160}
+				minDistance={2}
+				maxDistance={400}
 				zoomToCursor
 				// Left-drag panning is useGroundPan's and orbiting is useOrbitAroundCursor's, so the mouse
 				// only zooms here (wheel or middle button). Touch keeps OrbitControls' pan, pinch and twist.

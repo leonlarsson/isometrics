@@ -23,6 +23,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
+ *   P perspective / diorama view
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -174,6 +175,11 @@ export const useShortcuts = () => {
 			hotkey: "Backspace",
 			callback: remove,
 			options: { enabled: canDelete, meta: { name: "Delete" } },
+		},
+		{
+			hotkey: "P",
+			callback: () => useEditor.getState().togglePerspective(),
+			options: { meta: { name: "Perspective / diorama view" } },
 		},
 		{
 			hotkey: "H",

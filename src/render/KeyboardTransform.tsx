@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { type ITransformSession, useEditor } from "#/editor/store";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
+import { pixelsPerUnitAt } from "./cameraMath";
 import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import type { IGizmoDrag, TGizmoHandle } from "./TransformGizmo";
 import {
@@ -208,7 +209,7 @@ export const KeyboardTransform = () => {
 			from,
 			now: from.clone(),
 			fromHit: groundHit(from, center.y),
-			pixelsPerUnit: Math.max(1, up.y * camera.zoom),
+			pixelsPerUnit: Math.max(1, up.y * pixelsPerUnitAt(camera, center, size.height)),
 			angle: (Math.atan2(fromPx.y - centerPx.y, fromPx.x - centerPx.x) * 180) / Math.PI,
 			turn: 0,
 			alt: false,
