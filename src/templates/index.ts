@@ -1,7 +1,7 @@
 import type { TScene } from "#/scene/schema";
 
+import { createBrightwaterScene } from "./brightwater";
 import { createMonacoScene } from "./monaco";
-import { createWarehouseScene } from "./warehouse";
 
 export { createEmptyScene } from "./empty";
 
@@ -14,10 +14,10 @@ export interface ITemplateInfo {
 
 export const TEMPLATES: ITemplateInfo[] = [
 	{
-		id: "warehouse",
-		name: "Delivery hub",
-		description: "Warehouse, office, depot and vans on a delivery loop",
-		create: createWarehouseScene,
+		id: "brightwater",
+		name: "Brightwater",
+		description: "Harbour city: river bridge, flyover, hill, stadium, marina and live city data",
+		create: createBrightwaterScene,
 	},
 	{
 		id: "monaco",

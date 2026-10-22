@@ -28,7 +28,7 @@ import {
 	type TScene,
 	type TVec2,
 } from "#/scene/schema";
-import { createWarehouseScene } from "#/templates/warehouse";
+import { createBrightwaterScene } from "#/templates/brightwater";
 
 export type TEditorMode = "edit" | "view";
 export type TInspectorTab = "object" | "data" | "scene";
@@ -226,7 +226,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 	}
 };
 
-export const createEditorStore = (initialScene: TScene = createWarehouseScene()) => {
+export const createEditorStore = (initialScene: TScene = createBrightwaterScene()) => {
 	return create<IEditorState>()((set, get) => ({
 		scene: initialScene,
 		past: [],

@@ -68,7 +68,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Verifying visually
 
-Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Orders packed/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
+Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
 
 ## Commits and PRs
 
