@@ -52,6 +52,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **Keyboard (ADR-0016):** all shortcuts go through `@tanstack/react-hotkeys` (`useHotkey` / `useHotkeys`). Editor-wide ones live in `src/editor/useShortcuts.ts`; widget-specific ones use `target: ref`. Never add `keydown` listeners or `onKeyDown` props (not lint-enforced, so follow it by hand). Register `Shift+X` variants explicitly, and give each hotkey `meta: { name }`.
 - The product name lives in one constant, `APP_NAME` (`src/lib/app.ts`). Never hard-code it in runtime code; derive variants from it (e.g. `APP_NAME.toLowerCase()`).
 - Styling: CSS Modules next to the component, using **only tokens** from `src/styles.css`. 3D colours come from `scenePalettes` in `src/scene/theme.ts`; keep the two in sync (ADR-0007).
+- **Component primitives (ADR-0024):** menus, dialogs and other interactive widgets build on Base UI (`@base-ui/react`), wrapped once with our styles in `src/ui/` (`Menu`, `ConfirmDialog`). Use the wrappers, not Base UI directly, and `ConfirmDialog` instead of `window.confirm`.
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
 - Never store runtime/UI state (selection, camera, animation progress) in the scene document.
 - Untrusted scene JSON (files, storage, AI) must go through `parseScene()`.
@@ -63,7 +64,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 **Change the scene format:** edit `schema.ts` with defaults for new fields. While the app is unreleased, change the schema in place: don't bump `SCENE_VERSION` or write migrations (old browser saves just fall back to the template). Once it's released, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 
-**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically.
+**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically, and it appears in File → Start from a template.
 
 ## Verifying visually
 

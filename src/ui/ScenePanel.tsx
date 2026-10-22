@@ -4,7 +4,6 @@ import { roadColor } from "#/render/RoadMesh";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference } from "#/scene/schema";
-import { TEMPLATES } from "#/templates";
 
 import { BackupsPanel } from "./BackupsPanel";
 import { ColorField, Section, Select, SliderField, TextInput } from "./fields";
@@ -15,7 +14,6 @@ import styles from "./Fields.module.css";
 export const ScenePanel = () => {
 	const scene = useEditor((s) => s.scene);
 	const commit = useEditor((s) => s.commit);
-	const loadScene = useEditor((s) => s.loadScene);
 	const resetView = useEditor((s) => s.resetView);
 	const palette = usePalette();
 	const selectedRoadId = useEditor((s) => s.selectedRoadId);
@@ -201,26 +199,6 @@ export const ScenePanel = () => {
 			</Section>
 
 			<BackupsPanel />
-
-			<Section title="Start over">
-				{TEMPLATES.map((template) => (
-					<button
-						key={template.id}
-						type="button"
-						className={styles.templateButton}
-						onClick={() => {
-							if (window.confirm(`Replace the current world with “${template.name}”?`)) {
-								loadScene(template.create());
-								resetView();
-							}
-						}}
-					>
-						<strong>{template.name}</strong>
-
-						<span>{template.description}</span>
-					</button>
-				))}
-			</Section>
 		</>
 	);
 };

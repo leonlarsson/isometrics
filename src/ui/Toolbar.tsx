@@ -1,9 +1,8 @@
-import { useRef } from "react";
-
-import { downloadScene, readSceneFile } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
+import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
+import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 
 import styles from "./Toolbar.module.css";
@@ -59,9 +58,6 @@ export const Toolbar = () => {
 	const resetView = useEditor((s) => s.resetView);
 	const theme = useEditor((s) => s.scene.theme);
 	const commit = useEditor((s) => s.commit);
-	const loadScene = useEditor((s) => s.loadScene);
-	const title = useEditor((s) => s.scene.meta.title);
-	const fileInput = useRef<HTMLInputElement>(null);
 
 	const themeInfo = THEME_CYCLE[theme];
 
@@ -70,7 +66,9 @@ export const Toolbar = () => {
 			<div className={styles.brand}>
 				<span className={styles.logo} aria-hidden="true" />
 
-				<span className={styles.title}>{title}</span>
+				<span className={styles.title}>{APP_NAME}</span>
+
+				<FileMenu />
 			</div>
 
 			<fieldset className={styles.modes} aria-label="Mode">
@@ -80,11 +78,13 @@ export const Toolbar = () => {
 						type="button"
 						aria-pressed={mode === m}
 						className={styles.mode}
+						title={m === "edit" ? "Edit" : "View"}
 						onClick={() => setMode(m)}
 					>
 						<Icon name={m === "edit" ? "edit" : "eye"} size={16} />
 
-						{m === "edit" ? "Edit" : "View"}
+						{/* Visually hidden on narrow screens, but still the button's name. */}
+						<span className={styles.modeLabel}>{m === "edit" ? "Edit" : "View"}</span>
 					</button>
 				))}
 			</fieldset>
@@ -128,38 +128,6 @@ export const Toolbar = () => {
 							s.theme = themeInfo.next;
 						})
 					}
-				/>
-
-				<span className={styles.divider} />
-
-				<ToolButton
-					icon="download"
-					label="Export as file"
-					onClick={() => downloadScene(useEditor.getState().scene)}
-				/>
-
-				<ToolButton icon="upload" label="Import file" onClick={() => fileInput.current?.click()} />
-
-				<input
-					ref={fileInput}
-					type="file"
-					accept="application/json,.json"
-					hidden
-					onChange={async (e) => {
-						const file = e.target.files?.[0];
-						e.target.value = "";
-						if (!file) {
-							return;
-						}
-						try {
-							loadScene(await readSceneFile(file));
-							resetView();
-						} catch (error) {
-							window.alert(
-								`That file isn’t a valid world.\n\n${error instanceof Error ? error.message : String(error)}`,
-							);
-						}
-					}}
 				/>
 			</div>
 		</header>

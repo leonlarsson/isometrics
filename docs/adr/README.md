@@ -27,3 +27,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0021](0021-free-form-areas.md) | Free-form areas: water, grass, sand, plazas and raised land | accepted |
 | [0022](0022-centre-lane-roads.md) | Roads can make vehicles drive down the centre | accepted |
 | [0023](0023-road-width-per-point.md) | Road width per point | accepted |
+| [0024](0024-base-ui-component-primitives.md) | Base UI for interactive component primitives | accepted |

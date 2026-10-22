@@ -1,5 +1,6 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 
+import { openWorldFile, saveWorldFile } from "./fileActions";
 import {
 	SNAP_STEP,
 	selectSelectedArea,
@@ -15,6 +16,7 @@ const isTextEntry = (target: EventTarget | null) =>
 /**
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Esc deselect · Space pause/play motion
+ *   Mod+O open a world file · Mod+S save the world to a file
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *
@@ -75,6 +77,18 @@ export const useShortcuts = () => {
 	};
 
 	useHotkeys([
+		{
+			hotkey: "Mod+O",
+			callback: () => {
+				openWorldFile();
+			},
+			options: { meta: { name: "Open file" } },
+		},
+		{
+			hotkey: "Mod+S",
+			callback: () => saveWorldFile(),
+			options: { meta: { name: "Save to file" } },
+		},
 		{
 			hotkey: "Mod+Z",
 			callback: () => useEditor.getState().undo(),

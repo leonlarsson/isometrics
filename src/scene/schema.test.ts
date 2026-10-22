@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TEMPLATES } from "#/templates";
+import { createEmptyScene, TEMPLATES } from "#/templates";
 
 import { parseScene } from "./migrate";
 import { RoadPointSchema, SceneSchema } from "./schema";
@@ -48,6 +48,12 @@ describe("SceneSchema", () => {
 	it.each(TEMPLATES)("template $id is valid and round-trips through JSON", (template) => {
 		const scene = template.create();
 		expect(parseScene(JSON.parse(JSON.stringify(scene)))).toEqual(scene);
+	});
+
+	it("creates an empty world with bare ground", () => {
+		const scene = createEmptyScene();
+		expect(parseScene(JSON.parse(JSON.stringify(scene)))).toEqual(scene);
+		expect([scene.entities, scene.roads, scene.areas, scene.data]).toEqual([[], [], [], []]);
 	});
 });
 

@@ -27,6 +27,7 @@
 }
 
 .title {
+	margin-right: 6px;
 	font-weight: 700;
 	white-space: nowrap;
 	overflow: hidden;
@@ -111,10 +112,34 @@
 
 @media (max-width: 700px) {
 	.toolbar {
-		grid-template-columns: auto 1fr;
+		grid-template-columns: auto auto 1fr;
+		gap: 4px;
+		padding: 0 8px;
 	}
 
-	.brand {
+	.logo,
+	.title {
 		display: none;
+	}
+
+	.mode {
+		padding: 6px 10px;
+	}
+
+	.modeLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.toolButton {
+		width: 30px;
+	}
+
+	.divider {
+		margin: 0 2px;
 	}
 }

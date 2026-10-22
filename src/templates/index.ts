@@ -3,6 +3,8 @@ import type { TScene } from "#/scene/schema";
 import { createMonacoScene } from "./monaco";
 import { createWarehouseScene } from "./warehouse";
 
+export { createEmptyScene } from "./empty";
+
 export interface ITemplateInfo {
 	id: string;
 	name: string;

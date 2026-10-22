@@ -9,7 +9,7 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-The app opens with the **Delivery hub** template. Your work autosaves in the browser; use the toolbar to export or import it as a `.json` file. The file format is published as JSON Schema at `/schema.json`.
+The app opens with the **Delivery hub** template. Your work autosaves in the browser; the **File** menu starts a new empty world or a template, and opens or saves worlds as `.json` files. The file format is published as JSON Schema at `/schema.json`.
 
 ## Using the editor
 
@@ -28,6 +28,7 @@ The app opens with the **Delivery hub** template. Your work autosaves in the bro
 | Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right |
 | Duplicate / delete | Ctrl+D / Delete |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
+| Open / save a world file | Ctrl+O / Ctrl+S, or the **File** menu |
 | Pause / play motion | Space |
 | Resize the right panel | Drag its left edge (double-click to reset) |
 | Present | Switch to **View** in the top bar and click objects for details |

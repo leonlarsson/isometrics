@@ -1,4 +1,6 @@
 .shell {
+	/* Own stacking context, so Base UI's portalled popups always sit above the app. */
+	isolation: isolate;
 	display: flex;
 	flex-direction: column;
 	height: 100dvh;
