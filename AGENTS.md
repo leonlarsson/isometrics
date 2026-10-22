@@ -33,7 +33,7 @@ src/
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
-  routes/     TanStack Start file routes (index = the editor, ssr: false)
+  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
 docs/adr/     Architecture Decision Records

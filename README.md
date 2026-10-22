@@ -9,7 +9,7 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-The app opens with the **Delivery hub** template. Your work autosaves in the browser; use the toolbar to export or import it as a `.json` file.
+The app opens with the **Delivery hub** template. Your work autosaves in the browser; use the toolbar to export or import it as a `.json` file. The file format is published as JSON Schema at `/schema.json`.
 
 ## Using the editor
 
