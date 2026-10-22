@@ -230,6 +230,8 @@ export interface IEditorState {
 		options?: ICommitOptions,
 	) => void;
 	removeViewpoint: (id: string) => void;
+	/** Move a viewpoint to another place in the list (`to` = its new index). */
+	moveViewpoint: (id: string, to: number) => void;
 
 	addEntity: (input: Omit<TEntityInput, "id"> & { id?: string }) => string;
 	updateEntity: (
@@ -644,6 +646,16 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					recipe(viewpoint);
 				}
 			}, options),
+
+		moveViewpoint: (id, to) =>
+			get().commit((scene) => {
+				const from = scene.viewpoints.findIndex((v) => v.id === id);
+				if (from < 0 || to < 0 || to >= scene.viewpoints.length || from === to) {
+					return;
+				}
+				const [viewpoint] = scene.viewpoints.splice(from, 1);
+				scene.viewpoints.splice(to, 0, viewpoint);
+			}),
 
 		removeViewpoint: (id) => {
 			get().commit((scene) => {

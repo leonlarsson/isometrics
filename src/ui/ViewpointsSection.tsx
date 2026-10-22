@@ -48,6 +48,11 @@ export const ViewpointsSection = () => {
 								meta={viewpoint.perspective ? "Perspective" : undefined}
 								current={viewpoint.id === activeId}
 								onClick={() => store().goToViewpoint(viewpoint.id)}
+								reorder={{
+									index,
+									count: viewpoints.length,
+									onMove: (to) => store().moveViewpoint(viewpoint.id, to),
+								}}
 								rename={{
 									value: viewpoint.name,
 									placeholder: `Viewpoint ${index + 1}`,

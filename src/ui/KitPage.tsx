@@ -41,6 +41,7 @@ export const KitPage = () => {
 	const [rowName, setRowName] = useState("Harbour depot");
 	const [renaming, setRenaming] = useState(false);
 	const [rowHidden, setRowHidden] = useState(false);
+	const [order, setOrder] = useState(["Overview", "Harbour", "Stadium"]);
 	const [keys, setKeys] = useState(["population"]);
 	const [color, setColor] = useState("#4a64e0");
 	const [tab, setTab] = useState<"one" | "two">("one");
@@ -224,6 +225,27 @@ export const KitPage = () => {
 								</TabPanel>
 
 								<TabPanel value="two">
+									<Section title="Reorderable list">
+										<List>
+											{order.map((name, index) => (
+												<ListItem
+													key={name}
+													label={name}
+													onClick={() => {}}
+													reorder={{
+														index,
+														count: order.length,
+														onMove: (to) => {
+															const next = order.filter((item) => item !== name);
+															next.splice(to, 0, name);
+															setOrder(next);
+														},
+													}}
+												/>
+											))}
+										</List>
+									</Section>
+
 									<Section title="Lists">
 										<List>
 											<ListItem

@@ -528,4 +528,24 @@ describe("editor store", () => {
 		expect(store.getState().frameBox).toBeNull();
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 	});
+
+	it("adds, reorders and removes viewpoints", () => {
+		const store = makeStore();
+		const pose = {
+			target: [0, 0] as [number, number],
+			azimuth: 315,
+			elevation: 32.5,
+			span: 40,
+			perspective: false,
+		};
+		const a = store.getState().addViewpoint(pose);
+		const b = store.getState().addViewpoint({ ...pose, span: 20 });
+		const c = store.getState().addViewpoint({ ...pose, span: 10 });
+		store.getState().moveViewpoint(c, 0);
+		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([c, a, b]);
+		store.getState().undo();
+		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, b, c]);
+		store.getState().removeViewpoint(b);
+		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
+	});
 });
