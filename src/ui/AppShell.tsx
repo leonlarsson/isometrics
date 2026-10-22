@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useState } from "react";
 
-import { type ISceneBackup, loadStoredScene, startAutosave } from "#/editor/persistence";
+import { loadStoredScene, startAutosave } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
@@ -12,7 +12,7 @@ import { Inspector } from "./Inspector";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
 import { PartsPalette } from "./PartsPalette";
-import { RecoveryBar } from "./RecoveryBar";
+import { RecoveryBar, type TRecovery } from "./RecoveryBar";
 import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
@@ -41,19 +41,16 @@ export const AppShell = () => {
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
-	const [unreadable, setUnreadable] = useState<{
-		raw: string;
-		backup: ISceneBackup | null;
-		reason: string;
-	} | null>(null);
+	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 
 	useEffect(() => {
 		const stored = loadStoredScene();
-		if (stored.status === "ok") {
+		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
-		} else if (stored.status === "unreadable") {
-			// The old save is already backed up, so autosaving the template over it is safe.
-			setUnreadable({ raw: stored.raw, backup: stored.backup, reason: stored.reason });
+		}
+		if (stored.status === "repaired" || stored.status === "unreadable") {
+			// The original save is already backed up, so autosaving over it is safe.
+			setRecovery(stored);
 		}
 		setReady(true);
 		return startAutosave(useEditor);
@@ -92,14 +89,7 @@ export const AppShell = () => {
 
 							<JoinOfferBar />
 
-							{unreadable && (
-								<RecoveryBar
-									raw={unreadable.raw}
-									backup={unreadable.backup}
-									reason={unreadable.reason}
-									onDismiss={() => setUnreadable(null)}
-								/>
-							)}
+							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 
 							<DetailSheet />
 						</main>

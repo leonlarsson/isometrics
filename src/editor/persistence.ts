@@ -1,5 +1,5 @@
 import { APP_NAME } from "#/lib/app";
-import { parseScene } from "#/scene/migrate";
+import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
 import type { useEditor } from "./store";
@@ -9,7 +9,8 @@ import type { useEditor } from "./store";
  * exported/imported as a JSON file. No backend. See docs/adr/0006.
  *
  * A saved world that this version can't read is never thrown away: it's
- * copied to a backup key before anything can overwrite it (ADR-0020).
+ * copied to a backup key before anything can overwrite it (ADR-0020). If
+ * most of it can still be read, it's repaired and opened (ADR-0026).
  */
 const STORAGE_KEY = `${APP_NAME.toLowerCase()}:scene`;
 const BACKUP_PREFIX = `${APP_NAME.toLowerCase()}:scene-backup:`;
@@ -27,6 +28,8 @@ export interface ISceneBackup {
 export type TStoredSceneResult =
 	| { status: "empty" }
 	| { status: "ok"; scene: TScene }
+	/** The save needed repairs (ADR-0026); the original has been kept as a backup (null if that failed). */
+	| { status: "repaired"; scene: TScene; raw: string; backup: ISceneBackup | null; summary: string }
 	/** The save exists but can't be read; it has been kept as a backup (null if that failed). */
 	| { status: "unreadable"; raw: string; backup: ISceneBackup | null; reason: string };
 
@@ -100,7 +103,18 @@ export const loadStoredScene = (): TStoredSceneResult => {
 		return { status: "empty" };
 	}
 	try {
-		return { status: "ok", scene: parseScene(JSON.parse(raw)) };
+		const { scene, report } = parseOrRepairScene(JSON.parse(raw));
+		if (!report) {
+			return { status: "ok", scene };
+		}
+		console.warn("Saved world needed repairs; keeping the original as a backup", report);
+		return {
+			status: "repaired",
+			scene,
+			raw,
+			backup: backUpRaw(raw),
+			summary: describeRepairs(report),
+		};
 	} catch (error) {
 		console.warn("Saved world can't be read by this version; keeping a backup", error);
 		return { status: "unreadable", raw, backup: backUpRaw(raw), reason: describeError(error) };
@@ -192,6 +206,13 @@ export const downloadSceneBackup = (backup: ISceneBackup) => {
 	downloadText(`${slugify(title)}-backup-${date}.json`, backup.raw);
 };
 
-export const readSceneFile = async (file: File): Promise<TScene> => {
-	return parseScene(JSON.parse(await file.text()));
+/**
+ * Read a world file, repairing it if needed (ADR-0026). `repairs` describes
+ * what changed, or is null if the file was fine. Throws if it isn't a world.
+ */
+export const readSceneFile = async (
+	file: File,
+): Promise<{ scene: TScene; repairs: string | null }> => {
+	const { scene, report } = parseOrRepairScene(JSON.parse(await file.text()));
+	return { scene, repairs: report ? describeRepairs(report) : null };
 };

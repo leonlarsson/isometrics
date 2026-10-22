@@ -43,8 +43,8 @@ export const BackupsPanel = () => {
 	return (
 		<Section title="Backups">
 			<Hint>
-				Saved worlds this version couldn’t open. Download one to keep it, or delete it when you no
-				longer need it.
+				Saved worlds this version couldn’t open, or had to repair, exactly as they were. Download
+				one to keep it, or delete it when you no longer need it.
 			</Hint>
 
 			<List>

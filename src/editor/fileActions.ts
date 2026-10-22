@@ -34,7 +34,12 @@ export const openWorldFile = async () => {
 		return;
 	}
 	try {
-		replaceWorld(await readSceneFile(file));
+		const { scene, repairs } = await readSceneFile(file);
+		replaceWorld(scene);
+		if (repairs) {
+			// The file itself is untouched on disk; only the opened copy was repaired (ADR-0026).
+			notify("Opened with repairs", repairs);
+		}
 	} catch (error) {
 		const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
 		notify("That file isn’t a valid world", reason, "error");

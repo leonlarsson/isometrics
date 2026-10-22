@@ -55,14 +55,14 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 - **UI kit (ADR-0024, ADR-0025):** build every panel, bar and dialog from the kit in `src/ui/`: `Button`/`IconButton`, the fields in `fields.tsx` (`TextField`, `SliderField`, `SelectField`, `SwitchField`, …), `Section`/`Hint`, `List`/`ListItem`, `Tabs`, `Tooltip`, `Menu`, `ConfirmDialog`. They wrap Base UI (`@base-ui/react`); don't import Base UI outside the kit, and don't style `<button>`s or inputs by hand. No `title` tooltips, `window.confirm` or `window.alert`: use `Tooltip`, `ConfirmDialog` and `notify()` (`src/editor/toasts.ts`). After changing the kit, check `/kit` (dev only) in both themes.
 - All scene mutations go through the store's `commit()` (or helpers built on it). Pass `{ coalesce: "<stable key>" }` for continuous edits (typing, sliders, drags) so they become a single undo step (ADR-0009).
 - Never store runtime/UI state (selection, camera, animation progress) in the scene document.
-- Untrusted scene JSON (files, storage, AI) must go through `parseScene()`.
+- Untrusted scene JSON (files, storage, AI) must go through `parseScene()`, or `parseOrRepairScene()` where a partly broken world should still open (ADR-0026).
 - Never discard user data. A save that fails to load is kept as a backup and the user is told (ADR-0020). Don't add code paths that overwrite or drop stored worlds without that safety net.
 
 ## Common tasks
 
 **Add a part:** create it with `definePart({...})` in the right `src/parts/*.tsx` file. Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
 
-**Change the scene format:** edit `schema.ts` with defaults for new fields. While the app is unreleased, change the schema in place: don't bump `SCENE_VERSION` or write migrations (old browser saves just fall back to the template). Once it's released, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
+**Change the scene format:** edit `schema.ts` with defaults for new fields. While the app is an experimental playground, change the schema in place: don't bump `SCENE_VERSION` or write migrations. Old saves and files are repaired on load instead (ADR-0026): invalid fields fall back to their defaults and unreadable items are left out, so give new fields sensible defaults and prefer adding fields over renaming them (a renamed field silently loses its value). Once worlds need a compatibility promise, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 
 **Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically, and it appears in File → Start from a template.
 
