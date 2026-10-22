@@ -31,9 +31,14 @@ import {
 } from "#/scene/schema";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
+import { boundsOf, type IFrameBox, type ISceneItem } from "./framing";
+
 export type TEditorMode = "edit" | "view";
-/** Inspector tabs. "add" (the Add to scene panel) only exists in the narrow layout. */
-export type TInspectorTab = "add" | "object" | "data" | "scene";
+/**
+ * Inspector tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
+ * layout; the wide layout has them in the left column.
+ */
+export type TInspectorTab = "add" | "outliner" | "object" | "data" | "scene";
 
 /** Road widths a point may have (the schema's limits). */
 const clampRoadWidth = (width: number) => round(Math.min(20, Math.max(0.4, width)));
@@ -149,6 +154,10 @@ export interface IEditorState {
 	playing: boolean;
 	/** Incremented to ask the viewport to re-frame the camera. */
 	viewNonce: number;
+	/** What the next re-frame shows: a box (frame selection), or null for the whole ground. */
+	frameBox: IFrameBox | null;
+	/** The item under the pointer in a list (outliner, Scene tab), highlighted in the world. */
+	hovered: ISceneItem | null;
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
 	loadScene: (scene: TScene) => void;
@@ -182,6 +191,15 @@ export interface IEditorState {
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
 	resetView: () => void;
+	/** Move the camera to the selected object, road or area. */
+	frameSelection: () => void;
+	setHovered: (item: ISceneItem | null) => void;
+	/** Set an item's `hidden` or `locked` flag (one undo step). */
+	setItemFlag: (item: ISceneItem, flag: "hidden" | "locked", value: boolean) => void;
+	/** Hide the selected item and deselect it (H). */
+	hideSelected: () => void;
+	/** Show every hidden item again (Alt+H). */
+	revealAll: () => void;
 
 	addEntity: (input: Omit<TEntityInput, "id"> & { id?: string }) => string;
 	updateEntity: (
@@ -267,6 +285,18 @@ const validRoadSelection = (
 	};
 };
 
+/** The selected object, road or area, if any. */
+const selectedItem = (
+	state: Pick<IEditorState, "selectedId" | "selectedRoadId" | "selectedAreaId">,
+): ISceneItem | null =>
+	state.selectedId
+		? { kind: "entity", id: state.selectedId }
+		: state.selectedRoadId
+			? { kind: "road", id: state.selectedRoadId }
+			: state.selectedAreaId
+				? { kind: "area", id: state.selectedAreaId }
+				: null;
+
 /** Selection fields cleared together whenever something else gets selected. */
 const NOTHING_SELECTED = {
 	selectedId: null,
@@ -308,6 +338,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		snapping: true,
 		playing: true,
 		viewNonce: 0,
+		frameBox: null,
+		hovered: null,
 
 		commit: (recipe, options = {}) =>
 			set((state) => {
@@ -471,7 +503,46 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		setViewInset: (pixels) => set({ viewInset: pixels }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
-		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1 })),
+		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null })),
+
+		frameSelection: () => {
+			const item = selectedItem(get());
+			const box = item ? boundsOf(get().scene, item) : null;
+			if (box) {
+				set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: box }));
+			}
+		},
+
+		setHovered: (item) => set({ hovered: item }),
+
+		setItemFlag: (item, flag, value) =>
+			get().commit((scene) => {
+				const list =
+					item.kind === "entity"
+						? scene.entities
+						: item.kind === "road"
+							? scene.roads
+							: scene.areas;
+				const found = list.find((thing) => thing.id === item.id);
+				if (found) {
+					found[flag] = value;
+				}
+			}),
+
+		hideSelected: () => {
+			const item = selectedItem(get());
+			if (item) {
+				get().setItemFlag(item, "hidden", true);
+				set({ ...NOTHING_SELECTED, followOffer: null, joinOffer: null });
+			}
+		},
+
+		revealAll: () =>
+			get().commit((scene) => {
+				for (const thing of [...scene.entities, ...scene.roads, ...scene.areas]) {
+					thing.hidden = false;
+				}
+			}),
 
 		addEntity: (input) => {
 			const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });

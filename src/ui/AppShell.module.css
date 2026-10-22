@@ -45,6 +45,16 @@
 	border-left: 1px solid var(--border);
 }
 
+/* Wide layout: the outliner on top of the inspector, like Blender. Capped so the inspector stays usable. */
+.outlinerPane {
+	flex: none;
+	max-height: calc(100% - 200px);
+	min-height: 0;
+	overflow: hidden;
+	background: var(--surface);
+	border-left: 1px solid var(--border);
+}
+
 .stage {
 	position: relative;
 	min-width: 0;

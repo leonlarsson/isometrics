@@ -38,3 +38,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0032](0032-schema-json-with-part-catalogue.md) | /schema.json includes the part catalogue and a format guide | accepted |
 | [0033](0033-road-snapping-for-every-free-move.md) | Road snapping for every free move; the gizmo's centre grabs the object | accepted |
 | [0034](0034-field-descriptions-and-example-worlds.md) | Field descriptions in the scene schema, and example worlds at /examples | accepted |
+| [0035](0035-outliner.md) | An outliner above the inspector; hide and lock are saved with the world | accepted |

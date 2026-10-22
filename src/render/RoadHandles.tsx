@@ -288,7 +288,7 @@ export const RoadHandles = () => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const palette = usePalette();
 
-	if (!road || mode !== "edit" || drawing) {
+	if (!road || mode !== "edit" || drawing || road.hidden || road.locked) {
 		return null;
 	}
 	const baseY = roadBaseY(Math.max(0, layer));

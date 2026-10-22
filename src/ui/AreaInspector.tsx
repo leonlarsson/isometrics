@@ -5,7 +5,7 @@ import { usePalette } from "#/editor/useTheme";
 import { AREA_TYPE_LABELS, areaColor, polygonArea } from "#/scene/areas";
 import type { TArea, TAreaType } from "#/scene/schema";
 
-import { IconButton } from "./Button";
+import { IconButton, IconButtonGroup } from "./Button";
 import {
 	ColorField,
 	Hint,
@@ -75,7 +75,24 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 			<Section
 				title={`${AREA_TYPE_LABELS[area.type]} area`}
 				actions={
-					<IconButton icon="trash" label="Delete area (Del)" onClick={() => removeArea(area.id)} />
+					<IconButtonGroup>
+						<IconButton
+							icon={area.locked ? "lock" : "unlock"}
+							label={area.locked ? "Unlock" : "Lock its shape"}
+							pressed={area.locked}
+							onClick={() =>
+								edit("locked", (a) => {
+									a.locked = !a.locked;
+								})
+							}
+						/>
+
+						<IconButton
+							icon="trash"
+							label="Delete area (Del)"
+							onClick={() => removeArea(area.id)}
+						/>
+					</IconButtonGroup>
 				}
 			>
 				<TextField

@@ -87,3 +87,28 @@ button.main:focus-visible {
 .text[data-stacked] .meta {
 	margin-left: 0;
 }
+
+/* Hidden things stay listed, dimmed; their buttons stay clear so they can be shown again. */
+.item[data-muted] .main {
+	color: var(--text-muted);
+}
+
+.item[data-muted] .swatch {
+	opacity: 0.4;
+}
+
+.rename {
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	height: 24px;
+	margin: -2px 0;
+	padding: 0 6px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--accent);
+	background: var(--surface-raised);
+	color: var(--text);
+	font: inherit;
+	box-shadow: 0 0 0 3px var(--accent-soft);
+	outline: none;
+}

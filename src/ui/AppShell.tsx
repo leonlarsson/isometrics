@@ -13,9 +13,10 @@ import { FollowOfferBar } from "./FollowOfferBar";
 import { Inspector } from "./Inspector";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
+import { Outliner } from "./Outliner";
 import { PartsPalette } from "./PartsPalette";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
-import { ResizeHandle, useInspectorWidth } from "./ResizeHandle";
+import { ResizeHandle, useInspectorWidth, useOutlinerHeight } from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
@@ -45,6 +46,7 @@ export const AppShell = () => {
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
+	const [outlinerHeight, setOutlinerHeight] = useOutlinerHeight();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 	const narrow = useNarrowLayout();
 	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
@@ -132,7 +134,7 @@ export const AppShell = () => {
 								className={styles.rightColumn}
 								data-sheet={narrow ? (sheetOpen ? "open" : "closed") : undefined}
 							>
-								<ResizeHandle width={inspectorWidth} onResize={setInspectorWidth} />
+								<ResizeHandle size={inspectorWidth} onResize={setInspectorWidth} />
 
 								{narrow && (
 									<div className={styles.sheetHandle}>
@@ -142,6 +144,25 @@ export const AppShell = () => {
 											onClick={() => setSheetOpen(!sheetOpen)}
 										/>
 									</div>
+								)}
+
+								{/* Like Blender: the outliner on top, the selection's settings below. */}
+								{!narrow && (
+									<>
+										<section
+											className={styles.outlinerPane}
+											style={{ height: outlinerHeight }}
+											aria-label="Outliner"
+										>
+											<Outliner />
+										</section>
+
+										<ResizeHandle
+											orientation="horizontal"
+											size={outlinerHeight}
+											onResize={setOutlinerHeight}
+										/>
+									</>
 								)}
 
 								<aside className={styles.right}>

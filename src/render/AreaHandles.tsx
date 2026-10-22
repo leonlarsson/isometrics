@@ -125,7 +125,7 @@ export const AreaHandles = () => {
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
 
-	if (!area || mode !== "edit" || drawing) {
+	if (!area || mode !== "edit" || drawing || area.hidden || area.locked) {
 		return null;
 	}
 	const y = areaBaseY(Math.max(0, layer)) + area.height;

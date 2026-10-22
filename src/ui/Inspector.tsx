@@ -10,6 +10,7 @@ import { AreaInspector } from "./AreaInspector";
 import { DataPanel } from "./DataPanel";
 import { EntityInspector } from "./EntityInspector";
 import { Hint } from "./fields";
+import { Outliner } from "./Outliner";
 import { PartsPalette } from "./PartsPalette";
 import { RoadInspector } from "./RoadInspector";
 import { ScenePanel } from "./ScenePanel";
@@ -48,10 +49,14 @@ const ObjectPanel = () => {
 	);
 };
 
-const ADD_TAB: { value: TInspectorTab; label: string } = { value: "add", label: "Add" };
+/** Narrow layout only: the left column's panels become tabs of the sheet. */
+const NARROW_TABS: { value: TInspectorTab; label: string }[] = [
+	{ value: "add", label: "Add" },
+	{ value: "outliner", label: "List" },
+];
 
 interface IInspectorProps {
-	/** Narrow layout: adds an Add tab with the Add to scene panel (the left column is hidden). */
+	/** Narrow layout: adds Add and List tabs with the left column's panels (it's hidden). */
 	narrow?: boolean;
 	/** False shows just the tab bar (the collapsed bottom sheet). */
 	open?: boolean;
@@ -62,7 +67,7 @@ interface IInspectorProps {
 export const Inspector = ({ narrow = false, open = true, onTabSelect }: IInspectorProps) => {
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
-	const shown = !narrow && tab === "add" ? "object" : tab;
+	const shown = !narrow && (tab === "add" || tab === "outliner") ? "object" : tab;
 
 	return (
 		<Tabs
@@ -71,12 +76,18 @@ export const Inspector = ({ narrow = false, open = true, onTabSelect }: IInspect
 				setTab(next);
 				onTabSelect?.();
 			}}
-			tabs={narrow ? [ADD_TAB, ...TABS] : TABS}
+			tabs={narrow ? [...NARROW_TABS, ...TABS] : TABS}
 			sticky
 		>
 			{open && narrow && (
 				<TabPanel value="add">
 					<PartsPalette />
+				</TabPanel>
+			)}
+
+			{open && narrow && (
+				<TabPanel value="outliner">
+					<Outliner />
 				</TabPanel>
 			)}
 

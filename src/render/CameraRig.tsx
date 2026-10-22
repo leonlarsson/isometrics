@@ -11,14 +11,18 @@ const CAMERA_DISTANCE = 150;
 /** Height of the box used for framing, so tall parts and labels fit too. */
 const FRAME_HEIGHT = 6;
 const FILL = 0.9;
+/** Framing one thing: leave room around it, and don't zoom in closer than this many units. */
+const FOCUS_FILL = 0.6;
+const FOCUS_MIN_SIZE = 16;
 
 const corner = new THREE.Vector3();
 
 /**
  * Frames the ground with the orthographic camera: fixed far position along
- * VIEW_DIRECTION, zoom computed from the ground's projected corners.
- * Runs once the canvas has a size, on ground resize, and when "re-centre" is
- * requested. Not on every canvas resize: that would throw away the user's pan
+ * VIEW_DIRECTION, zoom computed from the ground's projected corners. With a
+ * `frameBox` (frame selection, F) it frames that box instead, centred on it.
+ * Runs once the canvas has a size, on ground resize, and when "re-centre" or
+ * "frame selection" is requested. Not on every canvas resize: that would throw away the user's pan
  * and zoom whenever a panel opens (the orthographic view keeps its scale and
  * centre on resize by itself).
  *
@@ -36,6 +40,7 @@ export const CameraRig = () => {
 	const groundWidth = useEditor((s) => s.scene.ground.width);
 	const groundDepth = useEditor((s) => s.scene.ground.depth);
 	const nonce = useEditor((s) => s.viewNonce);
+	const box = useEditor((s) => s.frameBox);
 
 	useEffect(() => {
 		if (!(camera instanceof THREE.OrthographicCamera) || !hasSize) {
@@ -43,27 +48,35 @@ export const CameraRig = () => {
 		}
 		const { width, height } = get().size;
 
-		camera.position.copy(VIEW_DIRECTION).multiplyScalar(CAMERA_DISTANCE);
-		camera.lookAt(0, 0, 0);
+		// The box to fit: the ground (and a bit above it), or the thing being framed.
+		const [cx, cy, cz] = box ? box.center : [0, FRAME_HEIGHT / 2, 0];
+		const [sx, sy, sz] = box
+			? box.size.map((size) => Math.max(size, FOCUS_MIN_SIZE))
+			: [groundWidth, FRAME_HEIGHT, groundDepth];
+		const target = new THREE.Vector3(cx, box ? cy : 0, cz);
+
+		camera.position.copy(VIEW_DIRECTION).multiplyScalar(CAMERA_DISTANCE).add(target);
+		camera.lookAt(target);
 		camera.updateMatrixWorld();
 
 		let maxX = 0;
 		let maxY = 0;
-		for (const x of [-groundWidth / 2, groundWidth / 2]) {
-			for (const y of [0, FRAME_HEIGHT]) {
-				for (const z of [-groundDepth / 2, groundDepth / 2]) {
-					corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
+		const centre = target.clone().applyMatrix4(camera.matrixWorldInverse);
+		for (const x of [cx - sx / 2, cx + sx / 2]) {
+			for (const y of [cy - sy / 2, cy + sy / 2]) {
+				for (const z of [cz - sz / 2, cz + sz / 2]) {
+					corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).sub(centre);
 					maxX = Math.max(maxX, Math.abs(corner.x));
 					maxY = Math.max(maxY, Math.abs(corner.y));
 				}
 			}
 		}
 		// r3f sizes the orthographic frustum in pixels, so zoom = pixels per unit.
-		camera.zoom = Math.min(width / (2 * maxX), height / (2 * maxY)) * FILL;
+		camera.zoom = Math.min(width / (2 * maxX), height / (2 * maxY)) * (box ? FOCUS_FILL : FILL);
 		camera.updateProjectionMatrix();
 
 		if (controls) {
-			controls.target.set(0, 0, 0);
+			controls.target.copy(target);
 			controls.update();
 		}
 	}, [camera, controls, hasSize, groundWidth, groundDepth, nonce]);

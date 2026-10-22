@@ -36,3 +36,38 @@
 	cursor: col-resize;
 	user-select: none;
 }
+
+/* Between a top pane and the panel under it: a 1px divider with a taller grab area. */
+.handle[data-orientation="horizontal"] {
+	position: relative;
+	top: auto;
+	bottom: auto;
+	left: auto;
+	flex: none;
+	width: auto;
+	height: 1px;
+	background: var(--border);
+	cursor: row-resize;
+}
+
+.handle[data-orientation="horizontal"]::before {
+	content: "";
+	position: absolute;
+	top: -4px;
+	right: 0;
+	bottom: -4px;
+	left: 0;
+}
+
+.handle[data-orientation="horizontal"]::after {
+	top: -1px;
+	right: 0;
+	bottom: auto;
+	left: 0;
+	width: auto;
+	height: 3px;
+}
+
+:global(body[data-resizing="horizontal"]) {
+	cursor: row-resize;
+}

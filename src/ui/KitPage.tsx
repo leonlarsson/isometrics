@@ -38,6 +38,9 @@ export const KitPage = () => {
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [on, setOn] = useState(true);
+	const [rowName, setRowName] = useState("Harbour depot");
+	const [renaming, setRenaming] = useState(false);
+	const [rowHidden, setRowHidden] = useState(false);
 	const [keys, setKeys] = useState(["population"]);
 	const [color, setColor] = useState("#4a64e0");
 	const [tab, setTab] = useState<"one" | "two">("one");
@@ -237,6 +240,30 @@ export const KitPage = () => {
 												swatch="repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)"
 												current={selected === "ferry"}
 												onClick={() => setSelected("ferry")}
+											/>
+
+											<ListItem
+												label={rowName || "Warehouse"}
+												meta="2,340"
+												swatch="linear-gradient(135deg, #3d4fd6 55%, #f7f7f4 55%)"
+												muted={rowHidden}
+												current={selected === "depot"}
+												onClick={() => setSelected("depot")}
+												rename={{
+													value: rowName,
+													placeholder: "Warehouse",
+													editing: renaming,
+													onEditingChange: setRenaming,
+													onCommit: setRowName,
+												}}
+												actions={
+													<IconButton
+														icon={rowHidden ? "eyeOff" : "eye"}
+														label={rowHidden ? "Show" : "Hide"}
+														pressed={rowHidden}
+														onClick={() => setRowHidden(!rowHidden)}
+													/>
+												}
 											/>
 
 											<ListItem

@@ -6,62 +6,82 @@ import { clamp } from "#/lib/math";
 
 import styles from "./ResizeHandle.module.css";
 
-const STORAGE_KEY = `${APP_NAME.toLowerCase()}:inspector-width`;
-export const INSPECTOR_WIDTH = { min: 260, max: 640, initial: 320 };
+interface ISizeLimits {
+	min: number;
+	max: number;
+	initial: number;
+}
+
+export const INSPECTOR_WIDTH: ISizeLimits = { min: 260, max: 640, initial: 320 };
+/** The outliner's height on top of the inspector (the column caps it so the inspector stays usable). */
+export const OUTLINER_HEIGHT: ISizeLimits = { min: 140, max: 900, initial: 360 };
 const KEY_STEP = 16;
 const KEY_STEP_LARGE = 64;
 
-const readStoredWidth = () => {
-	try {
-		const stored = Number(localStorage.getItem(STORAGE_KEY));
-		return stored
-			? clamp(stored, INSPECTOR_WIDTH.min, INSPECTOR_WIDTH.max)
-			: INSPECTOR_WIDTH.initial;
-	} catch {
-		return INSPECTOR_WIDTH.initial;
-	}
-};
-
-const storeWidth = (width: number) => {
-	try {
-		localStorage.setItem(STORAGE_KEY, String(width));
-	} catch {
-		// Storage unavailable (private mode etc.): the width just won't persist.
-	}
-};
-
-/** Inspector width, persisted per browser. This is a UI preference, not part of the scene. */
-export const useInspectorWidth = () => {
-	const [width, setWidthState] = useState(readStoredWidth);
-	const setWidth = (next: number) => {
-		const value = Math.round(clamp(next, INSPECTOR_WIDTH.min, INSPECTOR_WIDTH.max));
-		setWidthState(value);
-		storeWidth(value);
+/** A panel size in pixels, persisted per browser. A UI preference, not part of the scene. */
+const useStoredSize = (name: string, limits: ISizeLimits) => {
+	const key = `${APP_NAME.toLowerCase()}:${name}`;
+	const [size, setSizeState] = useState(() => {
+		try {
+			const stored = Number(localStorage.getItem(key));
+			return stored ? clamp(stored, limits.min, limits.max) : limits.initial;
+		} catch {
+			return limits.initial;
+		}
+	});
+	const setSize = (next: number) => {
+		const value = Math.round(clamp(next, limits.min, limits.max));
+		setSizeState(value);
+		try {
+			localStorage.setItem(key, String(value));
+		} catch {
+			// Storage unavailable (private mode etc.): the size just won't persist.
+		}
 	};
-	return [width, setWidth] as const;
+	return [size, setSize] as const;
 };
+
+export const useInspectorWidth = () => useStoredSize("inspector-width", INSPECTOR_WIDTH);
+export const useOutlinerHeight = () => useStoredSize("outliner-height", OUTLINER_HEIGHT);
 
 interface IResizeHandleProps {
-	width: number;
-	onResize: (width: number) => void;
+	size: number;
+	onResize: (size: number) => void;
+	/**
+	 * vertical (default): on the left edge of a right-hand panel; dragging left widens it.
+	 * horizontal: under a top pane; dragging down makes the pane taller.
+	 */
+	orientation?: "vertical" | "horizontal";
 }
 
-/** Vertical drag handle on the left edge of a right-hand panel. */
-export const ResizeHandle = ({ width, onResize }: IResizeHandleProps) => {
-	const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+/** A drag handle that resizes a panel; arrow keys while focused, double-click resets. */
+export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResizeHandleProps) => {
+	const drag = useRef<{ start: number; startSize: number } | null>(null);
 	const handle = useRef<HTMLDivElement>(null);
+	const vertical = orientation === "vertical";
+	const limits = vertical ? INSPECTOR_WIDTH : OUTLINER_HEIGHT;
+	// The key (and pointer direction) that grows the panel.
+	const [grow, shrink] = vertical ? ["ArrowLeft", "ArrowRight"] : ["ArrowDown", "ArrowUp"];
 
-	// Only while the handle itself has focus. The panel is on the right, so Left widens it.
+	// Only while the handle itself has focus.
 	useHotkeys(
 		[
-			{ hotkey: "ArrowLeft", callback: () => onResize(width + KEY_STEP) },
-			{ hotkey: "ArrowRight", callback: () => onResize(width - KEY_STEP) },
-			{ hotkey: "Shift+ArrowLeft", callback: () => onResize(width + KEY_STEP_LARGE) },
-			{ hotkey: "Shift+ArrowRight", callback: () => onResize(width - KEY_STEP_LARGE) },
-			{ hotkey: "Home", callback: () => onResize(INSPECTOR_WIDTH.initial) },
+			{ hotkey: grow as "ArrowLeft", callback: () => onResize(size + KEY_STEP) },
+			{ hotkey: shrink as "ArrowRight", callback: () => onResize(size - KEY_STEP) },
+			{
+				hotkey: `Shift+${grow}` as "Shift+ArrowLeft",
+				callback: () => onResize(size + KEY_STEP_LARGE),
+			},
+			{
+				hotkey: `Shift+${shrink}` as "Shift+ArrowRight",
+				callback: () => onResize(size - KEY_STEP_LARGE),
+			},
+			{ hotkey: "Home", callback: () => onResize(limits.initial) },
 		],
 		{ target: handle },
 	);
+
+	const position = (event: PointerEvent) => (vertical ? event.clientX : event.clientY);
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
 		if (event.button !== 0) {
@@ -69,16 +89,17 @@ export const ResizeHandle = ({ width, onResize }: IResizeHandleProps) => {
 		}
 		event.preventDefault();
 		event.currentTarget.setPointerCapture(event.pointerId);
-		drag.current = { startX: event.clientX, startWidth: width };
-		document.body.dataset.resizing = "true";
+		drag.current = { start: position(event), startSize: size };
+		document.body.dataset.resizing = orientation;
 	};
 
 	const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
 		if (!drag.current) {
 			return;
 		}
-		// The panel is on the right, so dragging left makes it wider.
-		onResize(drag.current.startWidth + (drag.current.startX - event.clientX));
+		const moved = position(event) - drag.current.start;
+		// A right-hand panel grows to the left; a top pane grows downwards.
+		onResize(drag.current.startSize + (vertical ? -moved : moved));
 	};
 
 	const endDrag = () => {
@@ -91,19 +112,20 @@ export const ResizeHandle = ({ width, onResize }: IResizeHandleProps) => {
 		<div
 			ref={handle}
 			role="separator"
-			aria-orientation="vertical"
-			aria-label="Resize panel"
-			aria-valuenow={width}
-			aria-valuemin={INSPECTOR_WIDTH.min}
-			aria-valuemax={INSPECTOR_WIDTH.max}
+			aria-orientation={vertical ? "vertical" : "horizontal"}
+			aria-label={vertical ? "Resize panel" : "Resize outliner"}
+			aria-valuenow={size}
+			aria-valuemin={limits.min}
+			aria-valuemax={limits.max}
 			tabIndex={0}
 			title="Drag to resize · double-click to reset"
 			className={styles.handle}
+			data-orientation={orientation}
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={endDrag}
 			onLostPointerCapture={endDrag}
-			onDoubleClick={() => onResize(INSPECTOR_WIDTH.initial)}
+			onDoubleClick={() => onResize(limits.initial)}
 		/>
 	);
 };

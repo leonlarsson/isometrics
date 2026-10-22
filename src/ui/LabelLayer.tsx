@@ -71,7 +71,7 @@ export const LabelLayer = () => {
 		// While drawing a road, cards let clicks through to the ground.
 		<div className={styles.layer} data-drawing={drawing || undefined} data-label-layer="">
 			{entities
-				.filter((entity) => entity.label?.enabled)
+				.filter((entity) => entity.label?.enabled && !entity.hidden)
 				.map((entity) => (
 					<LabelCard key={entity.id} entity={entity} selected={entity.id === selectedId} />
 				))}

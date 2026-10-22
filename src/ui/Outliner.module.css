@@ -1,0 +1,47 @@
+/* Heading and filters stay put; only the list scrolls. */
+.outliner {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.top {
+	flex: none;
+	padding: 16px 12px 0;
+}
+
+.list {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+	padding: 0 12px 16px;
+}
+
+.heading {
+	margin: 0 4px 12px;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.filters {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0 0 14px;
+}
+
+.group {
+	margin-bottom: 14px;
+}
+
+/* Each group's name stays at the top while its rows scroll under it. */
+.group h3 {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 0;
+	padding: 4px 4px 4px;
+	background: var(--surface);
+}

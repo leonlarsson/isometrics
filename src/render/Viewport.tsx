@@ -9,6 +9,7 @@ import { CameraControls } from "./CameraControls";
 import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
+import { HoverHighlight } from "./HoverHighlight";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { PlacementPreview } from "./PlacementPreview";
@@ -68,9 +69,10 @@ export const Viewport = () => {
 
 			<Ground />
 
-			{areas.map((area, index) => (
-				<AreaMesh key={area.id} area={area} layer={index} />
-			))}
+			{/* Hidden items keep their index: it's their draw layer. */}
+			{areas.map((area, index) =>
+				area.hidden ? null : <AreaMesh key={area.id} area={area} layer={index} />,
+			)}
 
 			<AreaHandles />
 
@@ -78,9 +80,9 @@ export const Viewport = () => {
 				<EntityNode key={entity.id} entity={entity} />
 			))}
 
-			{roads.map((road, index) => (
-				<RoadMesh key={road.id} road={road} layer={index} />
-			))}
+			{roads.map((road, index) =>
+				road.hidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,
+			)}
 
 			<RoadHandles />
 
@@ -89,6 +91,8 @@ export const Viewport = () => {
 			<PlacementPreview />
 
 			<RouteHighlight />
+
+			<HoverHighlight />
 
 			<CameraControls />
 

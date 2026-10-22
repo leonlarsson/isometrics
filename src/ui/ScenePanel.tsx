@@ -1,7 +1,8 @@
+import { useEffect } from "react";
+
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { roadColor } from "#/render/RoadMesh";
-import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
+import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS, TURNS_OPTIONS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
 
@@ -9,13 +10,13 @@ import { BackupsPanel } from "./BackupsPanel";
 import { Button, ButtonGroup } from "./Button";
 import { ColorField, Hint, Section, SelectField, SliderField, TextField } from "./fields";
 import { List, ListItem } from "./List";
-
-/** Dashed chip for hidden routes, which have no colour of their own. */
-const HIDDEN_ROUTE_SWATCH =
-	"repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)";
+import { areaSwatch, roadSwatch } from "./swatches";
 
 export const ScenePanel = () => {
 	const scene = useEditor((s) => s.scene);
+	const setHovered = useEditor((s) => s.setHovered);
+	// A row under the pointer when the panel goes away mustn't stay highlighted.
+	useEffect(() => () => setHovered(null), []);
 	const commit = useEditor((s) => s.commit);
 	const resetView = useEditor((s) => s.resetView);
 	const palette = usePalette();
@@ -166,7 +167,8 @@ export const ScenePanel = () => {
 								key={road.id}
 								label={road.name || ROAD_STYLE_LABELS[road.style]}
 								meta={ROAD_STYLE_LABELS[road.style]}
-								swatch={road.style === "hidden" ? HIDDEN_ROUTE_SWATCH : roadColor(road, palette)}
+								swatch={roadSwatch(road, palette)}
+								onHover={(hovering) => setHovered(hovering ? { kind: "road", id: road.id } : null)}
 								current={road.id === selectedRoadId}
 								onClick={() => selectRoad(road.id)}
 							/>
@@ -187,7 +189,8 @@ export const ScenePanel = () => {
 								key={area.id}
 								label={area.name || AREA_TYPE_LABELS[area.type]}
 								meta={AREA_TYPE_LABELS[area.type]}
-								swatch={areaColor(area, palette)}
+								swatch={areaSwatch(area, palette)}
+								onHover={(hovering) => setHovered(hovering ? { kind: "area", id: area.id } : null)}
 								current={area.id === selectedAreaId}
 								onClick={() => selectArea(area.id)}
 							/>

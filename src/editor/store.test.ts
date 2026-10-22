@@ -492,4 +492,37 @@ describe("editor store", () => {
 		expect(parked?.follow).toBeNull();
 		expect(parked?.rotation).toBe(180);
 	});
+
+	it("hides the selection, shows everything again, and locks items", () => {
+		const store = makeStore();
+		store.getState().select("w");
+		store.getState().hideSelected();
+		expect(store.getState().scene.entities[0].hidden).toBe(true);
+		expect(store.getState().selectedId).toBeNull();
+
+		store.getState().revealAll();
+		expect(store.getState().scene.entities[0].hidden).toBe(false);
+
+		const roadId = store.getState().addRoad({
+			points: [
+				[0, 0],
+				[10, 0],
+			],
+		});
+		store.getState().setItemFlag({ kind: "road", id: roadId }, "locked", true);
+		expect(store.getState().scene.roads[0].locked).toBe(true);
+		store.getState().undo();
+		expect(store.getState().scene.roads[0].locked).toBe(false);
+	});
+
+	it("frames the selection, and re-centres on the whole ground", () => {
+		const store = makeStore();
+		store.getState().select("w");
+		store.getState().frameSelection();
+		expect(store.getState().frameBox?.center[0]).toBe(0);
+		const nonce = store.getState().viewNonce;
+		store.getState().resetView();
+		expect(store.getState().frameBox).toBeNull();
+		expect(store.getState().viewNonce).toBe(nonce + 1);
+	});
 });

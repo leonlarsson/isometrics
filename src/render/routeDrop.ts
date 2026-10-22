@@ -54,6 +54,9 @@ export const findRouteDrop = (
 	const { scene, snapping } = useEditor.getState();
 	let best: { road: TRoad; projection: IRoadProjection } | null = null;
 	for (const road of scene.roads) {
+		if (road.hidden) {
+			continue;
+		}
 		// Find where the ray crosses the road's own height: start on the ground, then refine.
 		let height = 0;
 		let projection: IRoadProjection | null = null;

@@ -110,7 +110,11 @@ export const EntitySchema = z
 		label: LabelSchema.nullable().default(null),
 		follow: FollowSchema.nullable().default(null),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
-		locked: z.boolean().default(false).describe("Can't be moved or changed in the editor."),
+		locked: z.boolean().default(false).describe("Can't be moved in the editor."),
+		hidden: z
+			.boolean()
+			.default(false)
+			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
 	})
 	.describe("An object in the world: a building, vehicle, tree, marker…");
 
@@ -192,6 +196,13 @@ export const RoadSchema = z
 			.nullable()
 			.default(null)
 			.describe("Surface colour as #rrggbb; null = the style's default for the theme."),
+		locked: z.boolean().default(false).describe("Its points can't be moved in the editor."),
+		hidden: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Not drawn, and vehicles can't be dropped onto it; vehicles already on it keep driving (it's still listed in the editor's outliner, and kept in the file).",
+			),
 	})
 	.describe(
 		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
@@ -227,6 +238,11 @@ export const AreaSchema = z
 			.nullable()
 			.default(null)
 			.describe("Colour as #rrggbb; null = the type's default for the theme."),
+		locked: z.boolean().default(false).describe("Its corners can't be moved in the editor."),
+		hidden: z
+			.boolean()
+			.default(false)
+			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
 	})
 	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 

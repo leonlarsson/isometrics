@@ -14,7 +14,7 @@ import {
 } from "#/scene/roads";
 import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports, TTurns } from "#/scene/schema";
 
-import { IconButton } from "./Button";
+import { IconButton, IconButtonGroup } from "./Button";
 import {
 	ColorField,
 	Hint,
@@ -58,7 +58,24 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 			<Section
 				title={ROAD_STYLE_LABELS[road.style]}
 				actions={
-					<IconButton icon="trash" label="Delete road (Del)" onClick={() => removeRoad(road.id)} />
+					<IconButtonGroup>
+						<IconButton
+							icon={road.locked ? "lock" : "unlock"}
+							label={road.locked ? "Unlock" : "Lock its shape"}
+							pressed={road.locked}
+							onClick={() =>
+								edit("locked", (r) => {
+									r.locked = !r.locked;
+								})
+							}
+						/>
+
+						<IconButton
+							icon="trash"
+							label="Delete road (Del)"
+							onClick={() => removeRoad(road.id)}
+						/>
+					</IconButtonGroup>
 				}
 			>
 				<TextField

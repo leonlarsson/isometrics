@@ -98,6 +98,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const drag = useRef<IDragState | null>(null);
 	const travelled = useRef(0);
 	const [hovered, setHovered] = useState(false);
+	// Hovered in a list (the outliner): highlighted like a hover in the scene.
+	const listHovered = useEditor((s) => s.hovered?.kind === "entity" && s.hovered.id === entity.id);
 
 	const props = useMemo(() => (part ? resolveProps(part, entity.props) : {}), [part, entity.props]);
 	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
@@ -266,6 +268,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		},
 	};
 
+	if (entity.hidden) {
+		return null;
+	}
 	if (!part) {
 		return (
 			<group position={[entity.position[0], entity.elevation, entity.position[1]]} {...handlers}>
@@ -298,7 +303,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					playing={playing}
 				/>
 
-				{mode === "edit" && (selected || hovered) && (
+				{mode === "edit" && (selected || hovered || listHovered) && (
 					<SelectionFrame size={footprint} color={palette.selection} dashed={!selected} />
 				)}
 			</group>

@@ -47,6 +47,11 @@ describe("findRouteDrop", () => {
 		expect(back?.position[1]).toBeLessThan(0);
 	});
 
+	it("ignores hidden roads", () => {
+		load({ hidden: true });
+		expect(findRouteDrop(down(5.2, 0.6), { vehicleLength: 1 })).toBeNull();
+	});
+
 	it("swaps lanes when driving on the left", () => {
 		load({}, "left");
 		expect(findRouteDrop(down(5, 0.6), { vehicleLength: 1 })?.reverse).toBe(true);
