@@ -45,8 +45,8 @@
 
 .grid {
 	display: grid;
-	/* minmax(0, …): equal columns even when one tile has a long word. */
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	/* As many equal columns as fit (two at the default width, more when the panel is widened). */
+	grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
 	gap: 6px;
 }
 

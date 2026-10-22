@@ -1,4 +1,4 @@
-/* Sits over the panel's left border; wider than it looks so it's easy to grab. */
+/* Sits over the panel's border; wider than it looks so it's easy to grab. */
 .handle {
 	position: absolute;
 	top: 0;
@@ -38,7 +38,7 @@
 }
 
 /* Between a top pane and the panel under it: a 1px divider with a taller grab area. */
-.handle[data-orientation="horizontal"] {
+.handle[data-edge="bottom"] {
 	position: relative;
 	top: auto;
 	bottom: auto;
@@ -50,7 +50,7 @@
 	cursor: row-resize;
 }
 
-.handle[data-orientation="horizontal"]::before {
+.handle[data-edge="bottom"]::before {
 	content: "";
 	position: absolute;
 	top: -4px;
@@ -59,7 +59,7 @@
 	left: 0;
 }
 
-.handle[data-orientation="horizontal"]::after {
+.handle[data-edge="bottom"]::after {
 	top: -1px;
 	right: 0;
 	bottom: auto;
@@ -70,4 +70,10 @@
 
 :global(body[data-resizing="horizontal"]) {
 	cursor: row-resize;
+}
+
+/* On a left-hand panel's right edge, straddling its border. */
+.handle[data-edge="right"] {
+	left: auto;
+	right: -4px;
 }

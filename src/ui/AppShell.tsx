@@ -16,7 +16,15 @@ import { LabelLayer } from "./LabelLayer";
 import { Outliner } from "./Outliner";
 import { PartsPalette } from "./PartsPalette";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
-import { ResizeHandle, useInspectorWidth, useOutlinerHeight } from "./ResizeHandle";
+import {
+	INSPECTOR_WIDTH,
+	OUTLINER_HEIGHT,
+	PALETTE_WIDTH,
+	ResizeHandle,
+	useInspectorWidth,
+	useOutlinerHeight,
+	usePaletteWidth,
+} from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
@@ -47,6 +55,7 @@ export const AppShell = () => {
 	const [ready, setReady] = useState(false);
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
 	const [outlinerHeight, setOutlinerHeight] = useOutlinerHeight();
+	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 	const narrow = useNarrowLayout();
 	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
@@ -95,7 +104,12 @@ export const AppShell = () => {
 				<div
 					className={styles.shell}
 					data-mode={mode}
-					style={{ "--inspector-width": `${inspectorWidth}px` } as CSSProperties}
+					style={
+						{
+							"--inspector-width": `${inspectorWidth}px`,
+							"--palette-width": `${paletteWidth}px`,
+						} as CSSProperties
+					}
 				>
 					<StatusBanner />
 
@@ -105,6 +119,14 @@ export const AppShell = () => {
 						{mode === "edit" && (
 							<aside className={styles.left}>
 								<PartsPalette />
+
+								<ResizeHandle
+									edge="right"
+									size={paletteWidth}
+									onResize={setPaletteWidth}
+									limits={PALETTE_WIDTH}
+									label="Resize Add to scene"
+								/>
 							</aside>
 						)}
 
@@ -134,7 +156,13 @@ export const AppShell = () => {
 								className={styles.rightColumn}
 								data-sheet={narrow ? (sheetOpen ? "open" : "closed") : undefined}
 							>
-								<ResizeHandle size={inspectorWidth} onResize={setInspectorWidth} />
+								<ResizeHandle
+									edge="left"
+									size={inspectorWidth}
+									onResize={setInspectorWidth}
+									limits={INSPECTOR_WIDTH}
+									label="Resize the inspector"
+								/>
 
 								{narrow && (
 									<div className={styles.sheetHandle}>
@@ -158,9 +186,11 @@ export const AppShell = () => {
 										</section>
 
 										<ResizeHandle
-											orientation="horizontal"
+											edge="bottom"
 											size={outlinerHeight}
 											onResize={setOutlinerHeight}
+											limits={OUTLINER_HEIGHT}
+											label="Resize the outliner"
 										/>
 									</>
 								)}

@@ -15,7 +15,7 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 
 | Action | How |
 |---|---|
-| Add an object | Click it in the left **Add to scene** panel (it lands at a free spot; hover a tile for a turning 3D preview), or drag it onto the scene to place it exactly (**Esc** cancels), or search it: press **/**, type (e.g. "boat"), **Enter** adds the first match |
+| Add an object | Click it in the left **Add to scene** panel (it lands at a free spot; hover a tile for a turning 3D preview, and drag the panel's edge to widen it), or drag it onto the scene to place it exactly (**Esc** cancels), or search it: press **/**, type (e.g. "boat"), **Enter** adds the first match |
 | Move the camera | Drag to pan (the ground follows the cursor), right-drag or **Ctrl**/**Shift**+drag to orbit, scroll to zoom towards the cursor. Drags never select or move anything; the re-centre button in the top bar resets the view |
 | Select | Click an object, road, area or label card, or a row in the **Outliner** (top right; the **List** tab on phones) |
 | Outliner | Everything in the world, grouped by kind, with search and an "only things that show data" filter. Hover a row to see it in the world, double-click (or **F2**) to rename, and use the eye and lock buttons to hide or lock it. **H** hides or shows the selection, **Alt**+**H** shows everything again, **F** zooms to the selection. Drag the line under it to resize |

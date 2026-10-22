@@ -11,7 +11,7 @@
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: 220px 1fr var(--inspector-width, 320px);
+	grid-template-columns: var(--palette-width, 220px) 1fr var(--inspector-width, 320px);
 }
 
 .shell[data-mode="view"] .body {
@@ -36,9 +36,13 @@
 	min-height: 0;
 }
 
-/* Its list scrolls, not the column: no scrollbar strip of its own. */
+/*
+ * Its list scrolls, not the column: no scrollbar strip of its own, and nothing to clip, so
+ * the resize handle can straddle the border instead of covering the list's scrollbar.
+ */
 .left {
-	overflow: hidden;
+	position: relative;
+	overflow: visible;
 	scrollbar-gutter: auto;
 	border-right: 1px solid var(--border);
 }

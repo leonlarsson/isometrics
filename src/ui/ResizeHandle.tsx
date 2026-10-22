@@ -15,6 +15,7 @@ interface ISizeLimits {
 export const INSPECTOR_WIDTH: ISizeLimits = { min: 260, max: 640, initial: 320 };
 /** The outliner's height on top of the inspector (the column caps it so the inspector stays usable). */
 export const OUTLINER_HEIGHT: ISizeLimits = { min: 140, max: 900, initial: 360 };
+export const PALETTE_WIDTH: ISizeLimits = { min: 200, max: 480, initial: 220 };
 const KEY_STEP = 16;
 const KEY_STEP_LARGE = 64;
 
@@ -43,25 +44,33 @@ const useStoredSize = (name: string, limits: ISizeLimits) => {
 
 export const useInspectorWidth = () => useStoredSize("inspector-width", INSPECTOR_WIDTH);
 export const useOutlinerHeight = () => useStoredSize("outliner-height", OUTLINER_HEIGHT);
+export const usePaletteWidth = () => useStoredSize("palette-width", PALETTE_WIDTH);
+
+/** Which edge of its panel the handle sits on; dragging that edge outwards grows the panel. */
+type TEdge = "left" | "right" | "bottom";
+
+const KEYS: Record<TEdge, [grow: string, shrink: string]> = {
+	left: ["ArrowLeft", "ArrowRight"],
+	right: ["ArrowRight", "ArrowLeft"],
+	bottom: ["ArrowDown", "ArrowUp"],
+};
 
 interface IResizeHandleProps {
 	size: number;
 	onResize: (size: number) => void;
-	/**
-	 * vertical (default): on the left edge of a right-hand panel; dragging left widens it.
-	 * horizontal: under a top pane; dragging down makes the pane taller.
-	 */
-	orientation?: "vertical" | "horizontal";
+	limits: ISizeLimits;
+	/** left: a right-hand panel (the inspector); right: a left-hand panel; bottom: a top pane. */
+	edge: TEdge;
+	/** Accessible name, e.g. "Resize the inspector". */
+	label: string;
 }
 
 /** A drag handle that resizes a panel; arrow keys while focused, double-click resets. */
-export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResizeHandleProps) => {
+export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHandleProps) => {
 	const drag = useRef<{ start: number; startSize: number } | null>(null);
 	const handle = useRef<HTMLDivElement>(null);
-	const vertical = orientation === "vertical";
-	const limits = vertical ? INSPECTOR_WIDTH : OUTLINER_HEIGHT;
-	// The key (and pointer direction) that grows the panel.
-	const [grow, shrink] = vertical ? ["ArrowLeft", "ArrowRight"] : ["ArrowDown", "ArrowUp"];
+	const horizontal = edge === "bottom";
+	const [grow, shrink] = KEYS[edge];
 
 	// Only while the handle itself has focus.
 	useHotkeys(
@@ -81,7 +90,7 @@ export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResi
 		{ target: handle },
 	);
 
-	const position = (event: PointerEvent) => (vertical ? event.clientX : event.clientY);
+	const position = (event: PointerEvent) => (horizontal ? event.clientY : event.clientX);
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
 		if (event.button !== 0) {
@@ -90,7 +99,7 @@ export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResi
 		event.preventDefault();
 		event.currentTarget.setPointerCapture(event.pointerId);
 		drag.current = { start: position(event), startSize: size };
-		document.body.dataset.resizing = orientation;
+		document.body.dataset.resizing = horizontal ? "horizontal" : "vertical";
 	};
 
 	const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -98,8 +107,8 @@ export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResi
 			return;
 		}
 		const moved = position(event) - drag.current.start;
-		// A right-hand panel grows to the left; a top pane grows downwards.
-		onResize(drag.current.startSize + (vertical ? -moved : moved));
+		// A panel's left edge grows it when dragged left; its right and bottom edges, right and down.
+		onResize(drag.current.startSize + (edge === "left" ? -moved : moved));
 	};
 
 	const endDrag = () => {
@@ -112,15 +121,15 @@ export const ResizeHandle = ({ size, onResize, orientation = "vertical" }: IResi
 		<div
 			ref={handle}
 			role="separator"
-			aria-orientation={vertical ? "vertical" : "horizontal"}
-			aria-label={vertical ? "Resize panel" : "Resize outliner"}
+			aria-orientation={horizontal ? "horizontal" : "vertical"}
+			aria-label={label}
 			aria-valuenow={size}
 			aria-valuemin={limits.min}
 			aria-valuemax={limits.max}
 			tabIndex={0}
 			title="Drag to resize · double-click to reset"
 			className={styles.handle}
-			data-orientation={orientation}
+			data-edge={edge}
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={endDrag}
