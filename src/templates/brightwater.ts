@@ -16,7 +16,7 @@ import {
  * marina in the front-right corner. A river runs from the north edge into the
  * sea and splits downtown (west) from the logistics park (east).
  *
- *   Areas: sea, river, beach, raised hill, plazas, park with a pond, stadium pitch
+ *   Areas: river and bay (one water area), beach, raised hill, plazas, park with a pond, stadium pitch
  *   Roads: ring road (loop), bridge over the river, a flyover that climbs onto
  *          the hill, an embankment trail, a road through a tunnel that widens
  *          at the quay, and a hidden ferry route across the sea
@@ -36,45 +36,46 @@ const HILL = 2;
 
 const AREAS: TAreaInput[] = [
 	{
-		id: "sea",
-		name: "Brightwater Bay",
+		// One water area for the river and the bay, so they meet without a seam.
+		id: "water",
+		name: "River Bright and the bay",
 		type: "water",
 		points: [
+			// North edge, where the river enters
+			[5.2, -24],
+			[10, -24],
+			// East bank, down to the quay
+			[9.8, -16],
+			[8.6, -9],
+			[9.2, -3],
+			[10.5, 1.5],
+			// Round headland between the river mouth and the marina
+			[12.4, 4.8],
+			[14, 7.6],
+			[15.6, 9.4],
+			[17.4, 9.8],
+			[19.4, 8.6],
+			// Marina and the bay
+			[21, 7],
+			[24, 6.4],
 			[30, 5.6],
 			[30, 24],
 			[-8, 24],
+			// Coast along Long Beach, then up the west bank
 			[-5.5, 21.4],
 			[0, 19],
 			[6, 17.6],
 			[11, 15.4],
-			[14.5, 12],
-			[17.5, 9.5],
-			[21, 7],
-			[24, 6.4],
-		],
-	},
-	{
-		id: "river",
-		name: "River Bright",
-		type: "water",
-		points: [
-			[5.2, -24],
-			[5.6, -16],
-			[4.4, -9],
-			[4.8, -2],
-			[7.2, 4],
+			[10.8, 12.8],
 			[10, 9.5],
-			[12, 14],
-			[16.6, 10.4],
-			[13.6, 6.4],
-			[10.4, 1.6],
-			[9.2, -3],
-			[8.6, -9],
-			[9.8, -16],
-			[10, -24],
+			[7.2, 4],
+			[4.8, -2],
+			[4.4, -9],
+			[5.6, -16],
 		],
 	},
 	{
+		// Shares its sea edge and east end with the water's outline.
 		id: "beach",
 		name: "Long Beach",
 		type: "sand",
@@ -85,8 +86,9 @@ const AREAS: TAreaInput[] = [
 			[-3, 17],
 			[3, 15.6],
 			[8, 14.4],
-			[10.6, 12.4],
-			[11.6, 14.6],
+			[10.5, 11.6],
+			[10.8, 12.8],
+			[11, 15.4],
 			[6, 17.6],
 			[0, 19],
 			[-5.5, 21.4],
@@ -128,7 +130,10 @@ const AREAS: TAreaInput[] = [
 			[-11, -0.6],
 			[-10.2, 4],
 			[-11, 8.6],
-			[-20.6, 8.6],
+			// Rounded to follow the ring road's corner
+			[-19, 8.5],
+			[-20.126, 8.136],
+			[-20.5, 7],
 		],
 	},
 	{
@@ -169,16 +174,21 @@ const AREAS: TAreaInput[] = [
 		],
 	},
 	{
+		// Runs along the river's east bank and the marina's edge of the water.
 		id: "quay",
 		name: "Marina quay",
 		type: "plaza",
 		points: [
-			[14.6, 1.4],
+			[10.5, 1.5],
 			[30, 1.4],
 			[30, 5.6],
 			[24, 6.4],
 			[21, 7],
-			[17.5, 9.5],
+			[19.4, 8.6],
+			[17.4, 9.8],
+			[15.6, 9.4],
+			[14, 7.6],
+			[12.4, 4.8],
 		],
 	},
 ];
@@ -223,7 +233,7 @@ const ROADS: TRoadInput[] = [
 		cornerRadius: 4,
 		points: [
 			[-11, -3],
-			[-11, -12, 1.9],
+			[-11, -12, HILL],
 			[-11, -17.6, HILL],
 			[-27, -17.6, HILL],
 		],
@@ -242,7 +252,7 @@ const ROADS: TRoadInput[] = [
 			[-27.4, 2],
 			[-27.4, -8, 0.8],
 			[-26.4, -13.6, HILL],
-			[-27, -16.6, HILL],
+			[-27, -16, HILL],
 		],
 	},
 	{
@@ -252,7 +262,7 @@ const ROADS: TRoadInput[] = [
 		width: 2,
 		cornerRadius: 3,
 		points: [
-			[-4, 11.2],
+			[-4, 11],
 			[-4, 14.6],
 			[6, 12.6],
 		],
@@ -279,7 +289,7 @@ const towers: TEntityInput[] = [
 		id: "tower_meridian",
 		kind: "tower",
 		name: "Meridian Tower",
-		position: [-20, -8],
+		position: [-18.8, -8],
 		props: { width: 3.4, depth: 3.4, floors: 16 },
 		details: { description: "The tallest building in Brightwater: offices and a sky bar." },
 	},
@@ -558,7 +568,9 @@ const civic: TEntityInput[] = [
 		id: "city_hall",
 		kind: "tower",
 		name: "City hall",
-		position: [-15.6, -7.4],
+		position: [-14.4, -6.8],
+		// Turned so its long side runs north–south, leaving room for Meridian Tower.
+		rotation: 90,
 		color: "#e2cfa8",
 		props: { width: 5, depth: 3.4, floors: 4 },
 		label: {
@@ -621,8 +633,8 @@ const PINES: [number, number, number, number][] = [
 	[-12.4, -23.4, 1.2, HILL],
 	[-7.4, -22.6, 1, HILL],
 	[-4.6, -20.4, 1.2, HILL],
-	[-17.6, -16.2, 0.9, HILL],
-	[-13.2, -16, 1, HILL],
+	[-17.6, -15.6, 0.9, HILL],
+	[-13.2, -15.4, 1, HILL],
 	[17, -21.6, 1.2, 0],
 	[20.4, -22.4, 1, 0],
 	[24, -21.4, 1.3, 0],
