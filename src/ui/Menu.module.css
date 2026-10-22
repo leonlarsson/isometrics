@@ -90,10 +90,18 @@
 	color: var(--text-muted);
 }
 
+/* A key cap, like the kit's Kbd, so "1" reads as a key to press rather than a count. */
 .shortcut {
+	flex: none;
 	margin-left: 16px;
-	font-family: inherit;
-	font-size: 12px;
+	min-width: 1.4em;
+	padding: 0 4px;
+	border-radius: 4px;
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	line-height: 1.6;
+	text-align: center;
 	color: var(--text-muted);
 }
 
