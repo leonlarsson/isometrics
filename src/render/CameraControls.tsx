@@ -313,9 +313,38 @@ const useRevealSelection = () => {
 	});
 };
 
+/**
+ * The perspective camera's depth range follows how far away you're looking.
+ * A fixed 0.1–2000 spreads depth precision so thin that, zoomed out, surfaces
+ * a hair apart (a pond on its lawn, a beacon's rings) flicker through each
+ * other. Near and far scale with the distance to the target instead, which
+ * keeps the ratio between them small. The orthographic camera's depth is
+ * linear and doesn't need this.
+ */
+const usePerspectiveDepthRange = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+
+	useFrame(() => {
+		if (!(camera instanceof THREE.PerspectiveCamera) || !controls) {
+			return;
+		}
+		const distance = camera.position.distanceTo(controls.target);
+		const near = clamp(distance / 40, 0.05, 10);
+		// Far enough to see across the largest ground from wherever the camera is.
+		const far = distance * 4 + 400;
+		if (Math.abs(camera.near - near) > near * 0.05 || Math.abs(camera.far - far) > far * 0.05) {
+			camera.near = near;
+			camera.far = far;
+			camera.updateProjectionMatrix();
+		}
+	});
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
+	usePerspectiveDepthRange();
 	useKeepTargetOnGround();
 	useViewInset();
 	useRevealSelection();
