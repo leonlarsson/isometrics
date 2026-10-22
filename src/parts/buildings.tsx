@@ -18,6 +18,7 @@ export const warehouse = definePart({
 	name: "Warehouse",
 	category: "buildings",
 	description: "Large hall with loading doors and solar roof",
+	keywords: ["factory", "hall", "storage", "logistics", "industrial"],
 	schema: WarehouseSchema,
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 2, max: 30, step: 0.5 },
@@ -96,6 +97,7 @@ export const tower = definePart({
 	name: "Office tower",
 	category: "buildings",
 	description: "Multi-storey building with a window grid",
+	keywords: ["office", "skyscraper", "high-rise", "apartments", "building", "block"],
 	schema: TowerSchema,
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 12, step: 0.25 },
@@ -184,6 +186,7 @@ export const house = definePart({
 	name: "House",
 	category: "buildings",
 	description: "Small house with a pitched roof",
+	keywords: ["home", "cottage", "villa", "residential"],
 	schema: HouseSchema,
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 8, step: 0.1 },
@@ -253,6 +256,7 @@ export const shed = definePart({
 	name: "Depot",
 	category: "buildings",
 	description: "Low flat-roofed building",
+	keywords: ["garage", "depot", "workshop", "shop", "kiosk", "café", "store"],
 	schema: ShedSchema,
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 16, step: 0.25 },

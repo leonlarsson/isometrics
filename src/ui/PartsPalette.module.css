@@ -8,6 +8,10 @@
 	font-weight: 700;
 }
 
+.search {
+	margin: 0 0 14px;
+}
+
 .group + .group {
 	margin-top: 16px;
 }

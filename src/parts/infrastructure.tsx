@@ -19,6 +19,7 @@ export const zone = definePart({
 	name: "Zone",
 	category: "infrastructure",
 	description: "Flat coloured area: parking, lawn, water, plaza",
+	keywords: ["area", "parking", "marker", "region"],
 	schema: ZoneSchema,
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 0.5, max: 200, step: 0.5 },
@@ -67,6 +68,7 @@ export const lamp = definePart({
 	name: "Street lamp",
 	category: "infrastructure",
 	description: "Lamp post",
+	keywords: ["light", "street light", "lantern"],
 	schema: LampSchema,
 	fields: [{ key: "height", label: "Height", type: "number", min: 0.5, max: 6, step: 0.1 }],
 	defaultColor: "#9a9a96",
@@ -109,6 +111,7 @@ export const parcels = definePart({
 	name: "Parcel stack",
 	category: "infrastructure",
 	description: "Pile of boxes on a pallet",
+	keywords: ["boxes", "packages", "cargo", "pallet"],
 	schema: ParcelsSchema,
 	fields: [{ key: "count", label: "Boxes", type: "number", min: 1, max: 24, step: 1 }],
 	defaultColor: (p) => p.cardboard,
@@ -184,6 +187,7 @@ export const beacon = definePart({
 	name: "Beacon",
 	category: "markers",
 	description: "Pulsing ring to highlight a live spot",
+	keywords: ["marker", "highlight", "pin", "ping"],
 	schema: BeaconSchema,
 	fields: [
 		{ key: "radius", label: "Radius", type: "number", min: 0.2, max: 10, step: 0.1 },

@@ -24,6 +24,7 @@ export const tunnel = definePart({
 	name: "Tunnel",
 	category: "infrastructure",
 	description: "Covered road section, open at both ends; place it over a road",
+	keywords: ["underpass", "covered", "bridge"],
 	schema: TunnelSchema,
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 2, max: 60, step: 0.5 },

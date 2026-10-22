@@ -15,7 +15,7 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 
 | Action | How |
 |---|---|
-| Add an object | Click it in the left **Add to scene** panel |
+| Add an object | Click it in the left **Add to scene** panel, or search it: press **/**, type (e.g. "boat"), **Enter** adds the first match |
 | Select | Click an object or its label card |
 | Move | Drag it on the ground (snaps to the grid; hold **Alt** for free placement) or nudge with the arrow keys |
 | Rotate | **Q** / **E** (hold Shift for 90°) or the Rotation slider |

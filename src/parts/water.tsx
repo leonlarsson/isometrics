@@ -34,6 +34,7 @@ export const yacht = definePart({
 	name: "Yacht",
 	category: "vehicles",
 	description: "Motor yacht for harbours and the sea; can cruise along a route",
+	keywords: ["boat", "ship", "ferry", "vessel"],
 	schema: YachtSchema,
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 1.5, max: 12, step: 0.1 },

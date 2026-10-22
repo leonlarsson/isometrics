@@ -31,6 +31,7 @@ const PATHS = {
 	layers: "M12 3 2 8l10 5 10-5zM2 13l10 5 10-5",
 	check: "m5 12.5 4.5 4.5L19 7",
 	scrub: "M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16",
+	search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4.2-4.2",
 } as const;
 
 export type TIconName = keyof typeof PATHS;

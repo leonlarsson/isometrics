@@ -195,6 +195,65 @@ textarea.input {
 	font-size: 12px;
 }
 
+/* ---------------------------------------------------------------- search */
+
+.search {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.search .input {
+	padding-left: 30px;
+	padding-right: 30px;
+}
+
+/* The browser's own clear button; ours is styled. */
+.search .input::-webkit-search-cancel-button {
+	display: none;
+}
+
+.searchIcon {
+	position: absolute;
+	left: 9px;
+	display: grid;
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.search > .kbd,
+.searchClear {
+	position: absolute;
+	right: 8px;
+}
+
+.search > .kbd {
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.searchClear {
+	all: unset;
+	position: absolute;
+	right: 6px;
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.searchClear:hover {
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.searchClear:focus-visible {
+	outline: 2px solid var(--accent);
+}
+
 /* ---------------------------------------------------------------- slider */
 
 .sliderRow {

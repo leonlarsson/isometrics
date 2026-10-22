@@ -56,6 +56,8 @@ export interface IPartDefinition<P extends object> {
 	name: string;
 	category: TPartCategory;
 	description: string;
+	/** Everyday words the palette search should also match, e.g. "boat" for a yacht. */
+	keywords?: string[];
 	/** Zod schema with defaults for every prop: `schema.parse({})` must succeed. */
 	schema: z.ZodType<P>;
 	fields: TFieldSpec[];

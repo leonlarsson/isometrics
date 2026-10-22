@@ -15,6 +15,7 @@ export const raceCar = definePart({
 	name: "Race car",
 	category: "vehicles",
 	description: "Open-wheel race car; can drive along a road",
+	keywords: ["f1", "formula", "racing", "vehicle"],
 	schema: z.object({}),
 	fields: [],
 	defaultColor: "#d5232f",
@@ -137,6 +138,7 @@ export const grandstand = definePart({
 	name: "Grandstand",
 	category: "buildings",
 	description: "Stepped seating with spectators; faces +Z",
+	keywords: ["stadium", "stand", "seats", "crowd", "arena", "spectators"],
 	schema: GrandstandSchema,
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 2, max: 40, step: 0.5 },
