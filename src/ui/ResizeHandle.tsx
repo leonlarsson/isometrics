@@ -15,7 +15,8 @@ interface ISizeLimits {
 export const INSPECTOR_WIDTH: ISizeLimits = { min: 260, max: 640, initial: 320 };
 /** The outliner's height on top of the inspector (the column caps it so the inspector stays usable). */
 export const OUTLINER_HEIGHT: ISizeLimits = { min: 140, max: 900, initial: 360 };
-export const PALETTE_WIDTH: ISizeLimits = { min: 200, max: 480, initial: 220 };
+/** No narrower than the default: below it, names like "Warehouse" no longer fit two tiles a row. */
+export const PALETTE_WIDTH: ISizeLimits = { min: 248, max: 480, initial: 248 };
 const KEY_STEP = 16;
 const KEY_STEP_LARGE = 64;
 

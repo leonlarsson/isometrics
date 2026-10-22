@@ -124,6 +124,8 @@
 	font-size: 12px;
 	font-weight: 600;
 	line-height: 1.2;
+	/* Last resort for a word longer than the whole tile: break it rather than overflow. */
+	overflow-wrap: break-word;
 }
 
 .part[aria-pressed="true"] {

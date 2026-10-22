@@ -11,7 +11,7 @@
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: var(--palette-width, 220px) 1fr var(--inspector-width, 320px);
+	grid-template-columns: var(--palette-width, 248px) 1fr var(--inspector-width, 320px);
 }
 
 .shell[data-mode="view"] .body {
