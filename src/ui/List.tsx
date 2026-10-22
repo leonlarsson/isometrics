@@ -2,6 +2,8 @@ import { Input as BaseInput } from "@base-ui/react/input";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { releaseFocusAfterPointerClick } from "./focus";
+
 import styles from "./List.module.css";
 
 /** A vertical list of rows, e.g. the roads in the Scene tab or saved backups. */
@@ -134,7 +136,10 @@ export const ListItem = ({
 					type="button"
 					className={styles.main}
 					aria-current={current || undefined}
-					onClick={onClick}
+					onClick={(event) => {
+						onClick();
+						releaseFocusAfterPointerClick(event);
+					}}
 					onDoubleClick={rename && (() => rename.onEditingChange(true))}
 				>
 					{content}

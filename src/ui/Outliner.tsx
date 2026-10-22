@@ -227,7 +227,7 @@ export const Outliner = () => {
 												<IconButtonGroup>
 													<IconButton
 														icon={row.hidden ? "eyeOff" : "eye"}
-														label={row.hidden ? `Show ${label}` : `Hide ${label} (H)`}
+														label={row.hidden ? `Show ${label} (H)` : `Hide ${label} (H)`}
 														pressed={row.hidden}
 														onClick={() => store().setItemFlag(row.item, "hidden", !row.hidden)}
 													/>
@@ -254,7 +254,8 @@ export const Outliner = () => {
 						</Hint>
 
 						<Hint>
-							<Kbd>H</Kbd> hides, <Kbd>Alt</Kbd>+<Kbd>H</Kbd> shows all, <Kbd>F</Kbd> zooms to it.
+							<Kbd>H</Kbd> hides or shows, <Kbd>Alt</Kbd>+<Kbd>H</Kbd> shows all, <Kbd>F</Kbd> zooms
+							to it.
 						</Hint>
 					</>
 				)}

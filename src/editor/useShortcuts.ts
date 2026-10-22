@@ -22,7 +22,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
- *   H hide the selection · Alt+H show everything hidden · F frame the selection
+ *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -177,8 +177,8 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "H",
-			callback: () => useEditor.getState().hideSelected(),
-			options: { enabled: canDelete, meta: { name: "Hide the selection" } },
+			callback: () => useEditor.getState().toggleSelectedHidden(),
+			options: { enabled: canDelete, meta: { name: "Hide or show the selection" } },
 		},
 		{
 			hotkey: "Alt+H",

@@ -493,13 +493,16 @@ describe("editor store", () => {
 		expect(parked?.rotation).toBe(180);
 	});
 
-	it("hides the selection, shows everything again, and locks items", () => {
+	it("toggles the selection's visibility, shows everything again, and locks items", () => {
 		const store = makeStore();
 		store.getState().select("w");
-		store.getState().hideSelected();
+		store.getState().toggleSelectedHidden();
 		expect(store.getState().scene.entities[0].hidden).toBe(true);
-		expect(store.getState().selectedId).toBeNull();
+		expect(store.getState().selectedId).toBe("w");
+		store.getState().toggleSelectedHidden();
+		expect(store.getState().scene.entities[0].hidden).toBe(false);
 
+		store.getState().toggleSelectedHidden();
 		store.getState().revealAll();
 		expect(store.getState().scene.entities[0].hidden).toBe(false);
 

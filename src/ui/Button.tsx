@@ -1,6 +1,7 @@
 import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactNode } from "react";
 
+import { releaseFocusAfterPointerClick } from "./focus";
 import { Icon, type TIconName } from "./Icon";
 import { Tooltip } from "./Tooltip";
 
@@ -90,7 +91,10 @@ export const IconButton = ({
 				aria-pressed={pressed}
 				disabled={disabled}
 				focusableWhenDisabled
-				onClick={onClick}
+				onClick={(event) => {
+					onClick();
+					releaseFocusAfterPointerClick(event);
+				}}
 			>
 				<Icon name={icon} size={size === "sm" ? 16 : 18} />
 			</BaseButton>

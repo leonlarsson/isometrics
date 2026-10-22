@@ -196,8 +196,8 @@ export interface IEditorState {
 	setHovered: (item: ISceneItem | null) => void;
 	/** Set an item's `hidden` or `locked` flag (one undo step). */
 	setItemFlag: (item: ISceneItem, flag: "hidden" | "locked", value: boolean) => void;
-	/** Hide the selected item and deselect it (H). */
-	hideSelected: () => void;
+	/** Hide the selected item, or show it again if it's hidden (H). It stays selected. */
+	toggleSelectedHidden: () => void;
 	/** Show every hidden item again (Alt+H). */
 	revealAll: () => void;
 
@@ -529,11 +529,18 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				}
 			}),
 
-		hideSelected: () => {
-			const item = selectedItem(get());
-			if (item) {
-				get().setItemFlag(item, "hidden", true);
-				set({ ...NOTHING_SELECTED, followOffer: null, joinOffer: null });
+		toggleSelectedHidden: () => {
+			const state = get();
+			const item = selectedItem(state);
+			const list =
+				item?.kind === "entity"
+					? state.scene.entities
+					: item?.kind === "road"
+						? state.scene.roads
+						: state.scene.areas;
+			const found = item && list.find((thing) => thing.id === item.id);
+			if (item && found) {
+				state.setItemFlag(item, "hidden", !found.hidden);
 			}
 		},
 

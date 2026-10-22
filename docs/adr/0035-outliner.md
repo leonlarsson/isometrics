@@ -28,7 +28,7 @@ Chosen option: **1** (the owner asked for Blender's layout).
 - **Layout:** in the wide layout the right column is the outliner (resizable height, persisted per browser like the inspector width) over the inspector. Only its list scrolls; the heading, search and "only things that show data" filter stay put, and group names stick to the top of the list. In the narrow layout it's a **List** tab in the bottom sheet.
 - **Rows:** grouped by part category (palette order), then Roads and Areas. Each shows its colour, its name (or the part, style or type when unnamed), its first data value, and eye and lock buttons. Click selects, double-click or F2 renames in place, and hovering a row outlines its item in the world. The Scene tab's road and area lists highlight on hover too.
 - **Data:** `hidden` on objects, roads and areas, and `locked` on roads and areas (objects already had it), all `false` by default so old worlds load unchanged (ADR-0026). Hidden items aren't drawn (an object's label card neither), vehicles can't be dropped onto a hidden road, and vehicles already on one keep driving. A locked road or area keeps its shape: no point handles. The hovered row is runtime state (`hovered`), never saved.
-- **Keys:** H hides the selection, Alt+H shows everything again, F frames the selection with the camera (a driving vehicle frames its route).
+- **Keys:** H hides the selection or shows it again (it stays selected, so H toggles), Alt+H shows everything again, F frames the selection with the camera (a driving vehicle frames its route).
 - **Kit:** `ListItem` gained `rename`, `muted` and `onHover`, so any list can rename in place and highlight what it lists.
 
 ### Consequences
