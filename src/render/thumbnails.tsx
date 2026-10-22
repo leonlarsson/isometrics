@@ -49,6 +49,51 @@ const box = new THREE.Box3();
 const center = new THREE.Vector3();
 const corner = new THREE.Vector3();
 
+/**
+ * Point an orthographic camera at a box from the scene's viewing angle and
+ * zoom so the box fills `fill` of a view `size` CSS pixels big. Shared by the
+ * thumbnails and the live preview (render/PartPreviewModel).
+ */
+export const frameBoxIn = (
+	camera: THREE.OrthographicCamera,
+	frame: THREE.Box3,
+	size: { width: number; height: number },
+	fill: number,
+) => {
+	frame.getCenter(center);
+	camera.position.copy(VIEW_DIRECTION).multiplyScalar(50).add(center);
+	camera.lookAt(center);
+	camera.updateMatrixWorld();
+	const middle = center.clone().applyMatrix4(camera.matrixWorldInverse);
+	let maxX = 1e-3;
+	let maxY = 1e-3;
+	for (const x of [frame.min.x, frame.max.x]) {
+		for (const y of [frame.min.y, frame.max.y]) {
+			for (const z of [frame.min.z, frame.max.z]) {
+				corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).sub(middle);
+				maxX = Math.max(maxX, Math.abs(corner.x));
+				maxY = Math.max(maxY, Math.abs(corner.y));
+			}
+		}
+	}
+	// The orthographic frustum is in CSS pixels, so zoom = pixels per unit (as in CameraRig).
+	camera.zoom = Math.min(size.width / (2 * maxX), size.height / (2 * maxY)) * fill;
+	camera.updateProjectionMatrix();
+};
+
+/** The lights of the scene, without shadows: for pictures and previews of single parts. */
+export const PartLights = ({ palette }: { palette: IScenePalette }) => {
+	return (
+		<>
+			<hemisphereLight args={[palette.hemiSky, palette.hemiGround, palette.hemiIntensity]} />
+
+			<ambientLight intensity={palette.ambientIntensity} />
+
+			<directionalLight position={[6, 12, 4]} intensity={palette.sunIntensity} />
+		</>
+	);
+};
+
 interface IShotProps {
 	part: TAnyPart;
 	palette: IScenePalette;
@@ -67,26 +112,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 		if (!group.current || !(camera instanceof THREE.OrthographicCamera)) {
 			return;
 		}
-		box.setFromObject(group.current);
-		box.getCenter(center);
-		camera.position.copy(VIEW_DIRECTION).multiplyScalar(50).add(center);
-		camera.lookAt(center);
-		camera.updateMatrixWorld();
-		const middle = center.clone().applyMatrix4(camera.matrixWorldInverse);
-		let maxX = 1e-3;
-		let maxY = 1e-3;
-		for (const x of [box.min.x, box.max.x]) {
-			for (const y of [box.min.y, box.max.y]) {
-				for (const z of [box.min.z, box.max.z]) {
-					corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).sub(middle);
-					maxX = Math.max(maxX, Math.abs(corner.x));
-					maxY = Math.max(maxY, Math.abs(corner.y));
-				}
-			}
-		}
-		// The orthographic frustum is in CSS pixels, so zoom = pixels per unit (as in CameraRig).
-		camera.zoom = Math.min(SIZE.width / (2 * maxX), SIZE.height / (2 * maxY)) * FILL;
-		camera.updateProjectionMatrix();
+		frameBoxIn(camera, box.setFromObject(group.current), SIZE, FILL);
 		gl.render(scene, camera);
 		onShot(gl.domElement.toDataURL("image/png"));
 	}, []);
@@ -96,11 +122,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 	const Component = part.Component;
 	return (
 		<>
-			<hemisphereLight args={[palette.hemiSky, palette.hemiGround, palette.hemiIntensity]} />
-
-			<ambientLight intensity={palette.ambientIntensity} />
-
-			<directionalLight position={[6, 12, 4]} intensity={palette.sunIntensity} />
+			<PartLights palette={palette} />
 
 			<group ref={group}>
 				<Component props={props} color={color} accent={accent} palette={palette} playing={false} />

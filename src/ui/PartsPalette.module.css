@@ -1,5 +1,22 @@
+/* Heading and search stay put; only the tiles scroll (like the outliner). */
 .palette {
-	padding: 16px 12px 24px;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.top {
+	flex: none;
+	padding: 16px 12px 0;
+}
+
+.list {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+	padding: 0 12px 24px;
 }
 
 .heading {
@@ -16,8 +33,14 @@
 	margin-top: 16px;
 }
 
+/* Each group's name stays at the top while its tiles scroll under it. */
 .group h3 {
-	margin: 0 4px 6px;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 0;
+	padding: 4px 4px 6px;
+	background: var(--surface);
 }
 
 .grid {
@@ -39,9 +62,7 @@
 	border-radius: var(--radius-sm);
 	background: var(--surface-raised);
 	border: 1px solid var(--border);
-	transition:
-		border-color 120ms ease,
-		transform 120ms ease;
+	transition: border-color 120ms ease;
 }
 
 .part[data-draggable] {
@@ -64,13 +85,15 @@
 	opacity: 1;
 }
 
+/* No lift on hover: it would slide the first row under the sticky group heading. */
 .part:hover {
 	border-color: var(--accent);
-	transform: translateY(-1px);
 }
 
+/* Inside the tile: drawn outside, the sticky group heading would cover its top. */
 .part:focus-visible {
 	outline: 2px solid var(--accent);
+	outline-offset: -2px;
 }
 
 /* The picture area: a rendered part, or a colour sample for roads and areas (and while loading). */

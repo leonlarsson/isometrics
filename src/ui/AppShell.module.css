@@ -36,7 +36,10 @@
 	min-height: 0;
 }
 
+/* Its list scrolls, not the column: no scrollbar strip of its own. */
 .left {
+	overflow: hidden;
+	scrollbar-gutter: auto;
 	border-right: 1px solid var(--border);
 }
 

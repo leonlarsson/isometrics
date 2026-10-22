@@ -1,0 +1,45 @@
+/* Floats beside the Add to scene panel, next to the hovered tile (placed by PartPreview). */
+.card {
+	position: fixed;
+	z-index: 50;
+	box-sizing: border-box;
+	width: 240px;
+	padding: 8px;
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	border: 1px solid var(--border);
+	box-shadow: var(--shadow-panel);
+	pointer-events: none;
+	animation: appear 120ms ease;
+}
+
+@keyframes appear {
+	from {
+		opacity: 0;
+	}
+}
+
+.model {
+	height: 170px;
+	border-radius: calc(var(--radius-md) - 4px);
+	background: var(--surface-sunken);
+	overflow: hidden;
+}
+
+.text {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 8px 4px 2px;
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+.name {
+	font-size: 13px;
+}
+
+.meta {
+	color: var(--text-muted);
+	font-size: 11px;
+}
