@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, snap, toRadians } from "#/lib/math";
+import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
 import { createPathSampler } from "#/scene/paths";
 import { laneOffset, resolveTurns, roadCenterlineOf, turnSmoothing } from "#/scene/roads";
@@ -20,6 +21,9 @@ interface IDragState {
 	dx: number;
 	dz: number;
 	token: string;
+	/** Where the press started (screen px); the object stays put until it passes the threshold. */
+	from: { clientX: number; clientY: number };
+	moving: boolean;
 }
 
 export const SelectionFrame = ({
@@ -137,19 +141,22 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 
 	const handlers = {
 		onPointerDown: (e: ThreeEvent<PointerEvent>) => {
-			// While drawing a road, let clicks pass through to the ground.
-			if (drawing || mode !== "edit" || e.nativeEvent.button !== 0) {
+			// Only a selected object can be dragged. Pressing anything else leaves the press to the
+			// camera (so panning across the scene never grabs a building); a click selects it.
+			// While drawing a road, presses pass through to the ground too.
+			if (drawing || !selected || !editable || e.nativeEvent.button !== 0) {
+				return;
+			}
+			if (!e.ray.intersectPlane(groundPlane, hit)) {
 				return;
 			}
 			e.stopPropagation();
-			select(entity.id);
-			if (!editable || !e.ray.intersectPlane(groundPlane, hit)) {
-				return;
-			}
 			drag.current = {
 				dx: entity.position[0] - hit.x,
 				dz: entity.position[1] - hit.z,
 				token: `${entity.id}:${performance.now()}`,
+				from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
+				moving: false,
 			};
 			(e.target as unknown as Element).setPointerCapture(e.pointerId);
 			if (controls) {
@@ -163,7 +170,19 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				return;
 			}
 			e.stopPropagation();
+			// A click that wobbles a few pixels only selects; it mustn't nudge the object.
+			if (!state.moving && !pastDragThreshold(state.from, e.nativeEvent)) {
+				return;
+			}
 			if (!e.ray.intersectPlane(groundPlane, hit)) {
+				return;
+			}
+			if (!state.moving) {
+				// Grab from here, not from the press: otherwise the distance already covered
+				// snaps the object a cell over the moment the drag starts.
+				state.moving = true;
+				state.dx = entity.position[0] - hit.x;
+				state.dz = entity.position[1] - hit.z;
 				return;
 			}
 			const free = e.nativeEvent.altKey || !useEditor.getState().snapping;
@@ -183,9 +202,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			}
 			// Always stop here: otherwise the click reaches the ground behind, which deselects.
 			e.stopPropagation();
-			// Edit mode selects on pointer-down (needed for dragging); view mode selects on click
-			// so that orbiting the camera over a building doesn't open its details.
-			if (mode !== "view" || e.delta > 5) {
+			if (!isClick(e)) {
 				return;
 			}
 			select(entity.id);
@@ -197,7 +214,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			}
 			e.stopPropagation();
 			setHovered(true);
-			document.body.style.cursor = editable ? "grab" : "pointer";
+			document.body.style.cursor = editable && selected ? "grab" : "pointer";
 		},
 		onPointerOut: () => {
 			setHovered(false);

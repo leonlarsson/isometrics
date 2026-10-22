@@ -31,7 +31,7 @@ src/
   parts/      procedural 3D parts + registry (definePart, PARTS)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
-  render/     R3F scene: Viewport, CameraRig, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
+  render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: the UI kit (Button, fields, List, Tabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
   routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles

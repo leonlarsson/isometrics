@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { isClick } from "#/lib/pointer";
 import { areaColor } from "#/scene/areas";
 import type { TArea } from "#/scene/schema";
 
@@ -68,15 +69,13 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const editable = mode === "edit" && !drawing;
 	const handlers = editable
 		? {
-				onPointerDown: (e: ThreeEvent<PointerEvent>) => {
-					if (e.nativeEvent.button !== 0) {
-						return;
-					}
+				onClick: (e: ThreeEvent<MouseEvent>) => {
+					// Stop here so the ground behind doesn't deselect, even after a camera drag.
 					e.stopPropagation();
-					selectArea(area.id);
+					if (isClick(e)) {
+						selectArea(area.id);
+					}
 				},
-				// Stop clicks reaching the ground, which would deselect.
-				onClick: (e: ThreeEvent<MouseEvent>) => e.stopPropagation(),
 			}
 		: {};
 

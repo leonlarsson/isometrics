@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { isClick } from "#/lib/pointer";
 import type { TVec2 } from "#/scene/schema";
 
 import { groundPointFrom } from "./useGroundDrag";
@@ -66,7 +67,7 @@ export const RoadDrawTool = () => {
 				onPointerOut={() => setCursor(null)}
 				onClick={(e: ThreeEvent<MouseEvent>) => {
 					// A drag is a camera orbit, not a click.
-					if (e.delta > 5) {
+					if (!isClick(e)) {
 						return;
 					}
 					e.stopPropagation();

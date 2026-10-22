@@ -4,6 +4,7 @@ import { type PointerEvent, useRef, useState } from "react";
 import { findFreeSpot } from "#/editor/placement";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { pastDragThreshold } from "#/lib/pointer";
 import { partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
@@ -54,9 +55,6 @@ interface IPaletteItem {
 	kind?: string;
 	onSelect: () => void;
 }
-
-/** How far (px) the pointer must move before pressing a tile turns into dragging it. */
-const DRAG_THRESHOLD = 5;
 
 /** Every word of the query must appear in the item's name, group, description or keywords. */
 const matches = (item: IPaletteItem, query: string) => {
@@ -141,13 +139,13 @@ export const PartsPalette = () => {
 		if (down.button !== 0 || down.pointerType === "touch") {
 			return;
 		}
-		const { clientX, clientY } = down;
+		const from = { clientX: down.clientX, clientY: down.clientY };
 		const stop = () => {
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", stop);
 		};
 		const onMove = (event: globalThis.PointerEvent) => {
-			if (Math.hypot(event.clientX - clientX, event.clientY - clientY) < DRAG_THRESHOLD) {
+			if (!pastDragThreshold(from, event)) {
 				return;
 			}
 			stop();

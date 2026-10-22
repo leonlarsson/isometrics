@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { type IJoinOffer, selectSelectedRoad, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { snap } from "#/lib/math";
+import { pastDragThreshold } from "#/lib/pointer";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
@@ -58,6 +59,9 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 		startHeight: number;
 		pixelsPerUnit: number;
 		join: IJoinOffer | null;
+		/** Where the press started (screen px); the point stays put until it passes the threshold. */
+		from: { clientX: number; clientY: number };
+		moving: boolean;
 	} | null>(null);
 
 	const end: TRoadEnd | null = road.closed
@@ -107,6 +111,8 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 					startHeight: point[2],
 					pixelsPerUnit: Math.max(1, up.y * zoom),
 					join: null,
+					from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
+					moving: false,
 				};
 				(e.target as unknown as Element).setPointerCapture(e.pointerId);
 				if (controls) {
@@ -120,6 +126,10 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 					return;
 				}
 				e.stopPropagation();
+				if (!state.moving && !pastDragThreshold(state.from, e.nativeEvent)) {
+					return;
+				}
+				state.moving = true;
 				const store = useEditor.getState();
 				// Shift can be pressed or released mid-drag: switch modes, starting from where the point is now.
 				const vertical = e.nativeEvent.shiftKey;

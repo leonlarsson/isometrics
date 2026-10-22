@@ -16,8 +16,9 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 | Action | How |
 |---|---|
 | Add an object | Click it in the left **Add to scene** panel (it lands at a free spot), or drag it onto the scene to place it exactly (**Esc** cancels), or search it: press **/**, type (e.g. "boat"), **Enter** adds the first match |
-| Select | Click an object or its label card |
-| Move | Drag it on the ground (snaps to the grid; hold **Alt** for free placement) or nudge with the arrow keys |
+| Move the camera | Drag to pan (the ground follows the cursor), right-drag or **Ctrl**/**Shift**+drag to orbit, scroll to zoom towards the cursor. Drags never select or move anything; the re-centre button in the top bar resets the view |
+| Select | Click an object, road, area or label card |
+| Move | Select it first, then drag it on the ground (snaps to the grid; hold **Alt** for free placement) or nudge with the arrow keys |
 | Rotate | **Q** / **E** (hold Shift for 90°) or the Rotation slider |
 | Resize, recolour, reshape | Right-hand **Object** tab |
 | Show numbers | **Data** tab for values, then the object's **Label** section to pick which ones appear |

@@ -1,4 +1,3 @@
-import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
 import { useEditor } from "#/editor/store";
@@ -6,6 +5,7 @@ import { usePalette } from "#/editor/useTheme";
 
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
+import { CameraControls } from "./CameraControls";
 import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
@@ -54,7 +54,12 @@ export const Viewport = () => {
 			orthographic
 			dpr={[1, 2]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
-			onPointerMissed={() => useEditor.getState().clearSelection()}
+			onPointerMissed={(event) => {
+				// Only a left click on nothing deselects; a right-click is the start of an orbit.
+				if (event.button === 0) {
+					useEditor.getState().clearSelection();
+				}
+			}}
 		>
 			<Lights />
 
@@ -80,15 +85,7 @@ export const Viewport = () => {
 
 			<PlacementPreview />
 
-			<OrbitControls
-				makeDefault
-				enableDamping
-				dampingFactor={0.12}
-				minPolarAngle={0.25}
-				maxPolarAngle={1.2}
-				minZoom={2}
-				maxZoom={160}
-			/>
+			<CameraControls />
 
 			<CameraRig />
 

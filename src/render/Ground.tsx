@@ -2,6 +2,7 @@ import { Grid, RoundedBox } from "@react-three/drei";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { isClick } from "#/lib/pointer";
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
@@ -18,7 +19,7 @@ export const Ground = () => {
 				position={[0, -0.5, 0]}
 				receiveShadow
 				onClick={(e) => {
-					if (e.delta > 5) {
+					if (!isClick(e)) {
 						return;
 					}
 					e.stopPropagation();

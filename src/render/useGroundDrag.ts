@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
+import { pastDragThreshold } from "#/lib/pointer";
 import type { TVec2 } from "#/scene/schema";
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -55,6 +56,8 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const token = useRef<string | null>(null);
 	const last = useRef<TVec2 | null>(null);
+	// Where the press started; nothing moves until the pointer passes the drag threshold.
+	const from = useRef<{ clientX: number; clientY: number } | null>(null);
 
 	const end = (event: ThreeEvent<PointerEvent>) => {
 		if (!token.current) {
@@ -62,6 +65,7 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 		}
 		token.current = null;
 		last.current = null;
+		from.current = null;
 		(event.target as unknown as Element).releasePointerCapture?.(event.pointerId);
 		if (controls) {
 			controls.enabled = true;
@@ -80,6 +84,7 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 				return;
 			}
 			token.current = next;
+			from.current = { clientX: event.nativeEvent.clientX, clientY: event.nativeEvent.clientY };
 			(event.target as unknown as Element).setPointerCapture(event.pointerId);
 			if (controls) {
 				controls.enabled = false;
@@ -91,6 +96,12 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 				return;
 			}
 			event.stopPropagation();
+			if (from.current) {
+				if (!pastDragThreshold(from.current, event.nativeEvent)) {
+					return;
+				}
+				from.current = null;
+			}
 			const point = groundPointFrom(event, planeY);
 			if (
 				!point ||
