@@ -33,7 +33,7 @@ src/
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: the UI kit (Button, fields, List, Tabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
-  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; kit = dev-only UI kit page)
+  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; examples = the templates as example worlds, ADR-0034; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
 docs/adr/     Architecture Decision Records
@@ -63,7 +63,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 **Add a part:** create it with `definePart({...})` in the right `src/parts/*.tsx` file. Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
 
-**Change the scene format:** edit `schema.ts` with defaults for new fields. While the app is an experimental playground, change the schema in place: don't bump `SCENE_VERSION` or write migrations. Old saves and files are repaired on load instead (ADR-0026): invalid fields fall back to their defaults and unreadable items are left out, so give new fields sensible defaults and prefer adding fields over renaming them (a renamed field silently loses its value). Once worlds need a compatibility promise, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
+**Change the scene format:** edit `schema.ts` with defaults for new fields, and give each one a `.describe()` saying what it means (it's what `/schema.json` shows people and AIs writing worlds; ADR-0034). While the app is an experimental playground, change the schema in place: don't bump `SCENE_VERSION` or write migrations. Old saves and files are repaired on load instead (ADR-0026): invalid fields fall back to their defaults and unreadable items are left out, so give new fields sensible defaults and prefer adding fields over renaming them (a renamed field silently loses its value). Once worlds need a compatibility promise, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 
 **Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. The schema test validates every template automatically, and it appears in File → Start from a template.
 

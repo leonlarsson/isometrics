@@ -23,7 +23,9 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Data: data holds named values (key, label, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it) or details.dataKeys (tiles when it's opened in view mode).
 
-Every id must be unique within its list, and follow.roadId must name a road in the same world.`;
+Every id must be unique within its list, and follow.roadId must name a road in the same world.
+
+Examples: /examples.json on this site lists complete example worlds (e.g. /examples/brightwater.json) to learn from or start with.`;
 
 /** A part's props as JSON Schema, with each inspector field's label as its description. */
 const propsSchema = (part: TAnyPart): TJsonSchema => {

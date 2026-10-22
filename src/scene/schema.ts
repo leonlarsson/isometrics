@@ -5,6 +5,9 @@ import { z } from "zod";
  * The renderer, editor, persistence and (future) AI generation all read and
  * write this shape. See docs/adr/0003-scene-as-json-document.md.
  *
+ * Field meanings live in `.describe()` text so they reach /schema.json, where
+ * people and AIs writing worlds read them (ADR-0032); comments are for code.
+ *
  * Bump SCENE_VERSION on breaking changes and add a migration in ./migrate.ts.
  */
 export const SCENE_VERSION = 1;
@@ -16,176 +19,254 @@ export const Vec2Schema = z.tuple([z.number(), z.number()]);
 /** [x, y, z] in world units. */
 export const Vec3Schema = z.tuple([z.number(), z.number(), z.number()]);
 
-/**
- * How vehicles take corners: `smooth` turns gradually over about half the
- * vehicle's length, `sharp` snaps to each new direction. Set for the scene,
- * overridable per road and per vehicle (null = inherit).
- */
-export const TurnsSchema = z.enum(["smooth", "sharp"]);
+export const TurnsSchema = z
+	.enum(["smooth", "sharp"])
+	.describe(
+		"How vehicles take corners: smooth turns gradually over about half the vehicle's length, sharp snaps to each new direction.",
+	);
 
-export const LabelSchema = z.object({
-	enabled: z.boolean().default(true),
-	title: z.string().default(""),
-	/** Keys into `scene.data`. One key renders as a big number, several as rows. */
-	dataKeys: z.array(z.string()).default([]),
-	/** Card position relative to the entity's label anchor (top of the part). */
-	offset: Vec3Schema.default([0, 2, 0]),
-});
+export const LabelSchema = z
+	.object({
+		enabled: z.boolean().default(true).describe("Show the card."),
+		title: z.string().default("").describe("Heading on the card."),
+		dataKeys: z
+			.array(z.string())
+			.default([])
+			.describe(
+				"Keys of entries in the world's data list. One key shows as a big number, several as rows.",
+			),
+		offset: Vec3Schema.default([0, 2, 0]).describe(
+			"Where the card floats, as [x, y, z] from the top of the part.",
+		),
+	})
+	.describe("A floating card above the object showing data values.");
 
-export const FollowSchema = z.object({
-	roadId: z.string(),
-	/** Grid units per second. */
-	speed: z.number().min(0).max(50).default(2),
-	/** Distance along the road where the entity starts, measured from the road's first point. */
-	offset: z.number().default(0),
-	/**
-	 * Drive the road the other way: against the order of its points, in the
-	 * opposite lane. Loops go round the other way; open roads set off backwards.
-	 */
-	reverse: z.boolean().default(false),
-	/** How this vehicle takes corners; null = the road's setting (or the scene's). */
-	turns: TurnsSchema.nullable().default(null),
-});
+export const FollowSchema = z
+	.object({
+		roadId: z.string().describe("Id of the road (or hidden route) to drive along."),
+		speed: z.number().min(0).max(50).default(2).describe("Grid units per second."),
+		offset: z
+			.number()
+			.default(0)
+			.describe(
+				"Where it starts: the distance along the road from its first point (also when reversed).",
+			),
+		reverse: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Drive the road the other way: against the order of its points, in the opposite lane. Loops go round the other way; open roads set off backwards.",
+			),
+		turns: TurnsSchema.nullable()
+			.default(null)
+			.describe("How this vehicle takes corners; null = the road's setting, else the world's."),
+	})
+	.describe(
+		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round.",
+	);
 
-export const DetailsSchema = z.object({
-	description: z.string().default(""),
-	/** Data shown as tiles when the entity is opened in view mode. */
-	dataKeys: z.array(z.string()).default([]),
-});
+export const DetailsSchema = z
+	.object({
+		description: z.string().default("").describe("Text shown when the object is opened."),
+		dataKeys: z
+			.array(z.string())
+			.default([])
+			.describe("Data keys shown as tiles when the object is opened in view mode."),
+	})
+	.describe("What view mode shows when someone clicks the object.");
 
-export const EntitySchema = z.object({
-	id: z.string().min(1),
-	/** Part kind from the part registry (src/parts/registry.ts). */
-	kind: z.string().min(1),
-	name: z.string().default(""),
-	position: Vec2Schema.default([0, 0]),
-	elevation: z.number().default(0),
-	/** Degrees around the vertical axis. */
-	rotation: z.number().default(0),
-	scale: z.number().min(0.1).max(10).default(1),
-	/** null = use the part's default colour for the active theme. */
-	color: hexColor.nullable().default(null),
-	accent: hexColor.nullable().default(null),
-	/** Part-specific parameters, validated by the part's own schema. */
-	props: z.record(z.string(), z.unknown()).default({}),
-	label: LabelSchema.nullable().default(null),
-	follow: FollowSchema.nullable().default(null),
-	details: DetailsSchema.default({ description: "", dataKeys: [] }),
-	locked: z.boolean().default(false),
-});
+export const EntitySchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the objects."),
+		// Validated against the part registry (src/parts/registry.ts) at render time, not here.
+		kind: z.string().min(1).describe("Which part this is."),
+		name: z.string().default("").describe("Shown in the editor; empty uses the part's name."),
+		position: Vec2Schema.default([0, 0]).describe(
+			"Where the part stands: [x, z] in grid units, the centre of its footprint. Ignored while it follows a road.",
+		),
+		elevation: z
+			.number()
+			.default(0)
+			.describe("Height above the ground (e.g. on a raised area); 0 = on the ground."),
+		rotation: z
+			.number()
+			.default(0)
+			.describe(
+				"Degrees around the vertical axis, counter-clockwise seen from above. At 0 the front faces +z and vehicles face +x. While following a road it turns the vehicle relative to the road.",
+			),
+		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
+		color: hexColor
+			.nullable()
+			.default(null)
+			.describe("Main colour as #rrggbb; null = the part's default for the theme."),
+		accent: hexColor
+			.nullable()
+			.default(null)
+			.describe("Second colour as #rrggbb; null = the part's default for the theme."),
+		props: z
+			.record(z.string(), z.unknown())
+			.default({})
+			.describe("The part's own parameters (see its kind); missing ones use their defaults."),
+		label: LabelSchema.nullable().default(null),
+		follow: FollowSchema.nullable().default(null),
+		details: DetailsSchema.default({ description: "", dataKeys: [] }),
+		locked: z.boolean().default(false).describe("Can't be moved or changed in the editor."),
+	})
+	.describe("An object in the world: a building, vehicle, tree, marker…");
 
-export const DataEntrySchema = z.object({
-	key: z.string().regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores"),
-	label: z.string().default(""),
-	value: z.union([z.number(), z.string()]),
-	unit: z.string().default(""),
-});
+export const DataEntrySchema = z
+	.object({
+		key: z
+			.string()
+			.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores")
+			.describe("Unique name that labels refer to: lowercase letters, numbers and underscores."),
+		label: z.string().default("").describe("Human-readable name shown next to the value."),
+		value: z.union([z.number(), z.string()]).describe("The value: a number or a short text."),
+		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+	})
+	.describe("A named value that cards and detail tiles show.");
 
-/**
- * A road control point: [x, z, height above ground, width?]. Without a width
- * the point uses the road's width; with one, the road eases to that width
- * here (see docs/adr/0023-road-width-per-point.md). `[x, z]` is accepted as
- * height 0.
- */
-export const RoadPointSchema = z.union([
-	z.tuple([z.number(), z.number(), z.number().min(0).max(50), z.number().min(0.4).max(20)]),
-	z.tuple([z.number(), z.number(), z.number().min(0).max(50)]),
-	z
-		.tuple([z.number(), z.number()])
-		.transform(([x, zPos]): [number, number, number] => [x, zPos, 0]),
-]);
+// See docs/adr/0023-road-width-per-point.md for widths per point.
+export const RoadPointSchema = z
+	.union([
+		z.tuple([z.number(), z.number(), z.number().min(0).max(50), z.number().min(0.4).max(20)]),
+		z.tuple([z.number(), z.number(), z.number().min(0).max(50)]),
+		z
+			.tuple([z.number(), z.number()])
+			.transform(([x, zPos]): [number, number, number] => [x, zPos, 0]),
+	])
+	.describe(
+		"A road control point: [x, z], [x, z, height] or [x, z, height, width]. A height above 0 lifts the road there (bridges, flyovers); a width there overrides the road's width, easing in from the neighbouring points.",
+	);
 
-/** What holds up elevated sections: pillars (roads can pass underneath) or a sloped bank. */
-export const RoadSupportsSchema = z.enum(["pillars", "embankment"]);
+export const RoadSupportsSchema = z
+	.enum(["pillars", "embankment"])
+	.describe(
+		"What holds up elevated sections: pillars (other roads can pass underneath) or a sloped bank.",
+	);
 
-/** asphalt = paved road with markings, dirt = path, hidden = invisible route for vehicles only. */
-export const RoadStyleSchema = z.enum(["asphalt", "dirt", "hidden"]);
+export const RoadStyleSchema = z
+	.enum(["asphalt", "dirt", "hidden"])
+	.describe(
+		"asphalt = paved road with markings, dirt = path, hidden = invisible route that only vehicles use (ferry lines, forklift paths).",
+	);
 
-/** Where on a road vehicles drive. See docs/adr/0022-centre-lane-roads.md. */
-export const RoadLaneSchema = z.enum(["side", "centre"]);
+// See docs/adr/0022-centre-lane-roads.md.
+export const RoadLaneSchema = z
+	.enum(["side", "centre"])
+	.describe(
+		"Where vehicles drive: in a lane on the world's driving side, or down the centre (one-way roads, race tracks).",
+	);
 
-/**
- * A road drawn as a polyline on the ground. Corners are rounded with
- * `cornerRadius`, and every road doubles as a route vehicles can follow.
- * See docs/adr/0017-drawable-roads.md.
- */
-export const RoadSchema = z.object({
-	id: z.string().min(1),
-	name: z.string().default(""),
-	style: RoadStyleSchema.default("asphalt"),
-	/** Control points [x, z, height]; the road passes through the first and last (unless closed). */
-	points: z.array(RoadPointSchema).min(2),
-	/** Loop back from the last point to the first. */
-	closed: z.boolean().default(false),
-	width: z.number().min(0.4).max(20).default(2.4),
-	/** Radius of the curve at each corner; 0 = sharp corners. */
-	cornerRadius: z.number().min(0).max(50).default(3),
-	/** Centre-line markings (asphalt only). */
-	markings: z.boolean().default(true),
-	/** How elevated sections are held up. See docs/adr/0018-elevated-roads-and-road-editing.md. */
-	supports: RoadSupportsSchema.default("pillars"),
-	/** Low barriers along the edges of elevated sections. */
-	railings: z.boolean().default(true),
-	/**
-	 * Where vehicles drive: in a lane on the scene's driving side, or down the
-	 * centre (one-way roads, race tracks).
-	 */
-	lane: RoadLaneSchema.default("side"),
-	/** How vehicles on this road take corners; null = the scene's setting. */
-	turns: TurnsSchema.nullable().default(null),
-	/** null = the style's default colour for the active theme. */
-	color: hexColor.nullable().default(null),
-});
+// See docs/adr/0017-drawable-roads.md and 0018-elevated-roads-and-road-editing.md.
+export const RoadSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the roads; vehicles refer to it."),
+		name: z.string().default("").describe("Shown in the editor."),
+		style: RoadStyleSchema.default("asphalt"),
+		points: z
+			.array(RoadPointSchema)
+			.min(2)
+			.describe(
+				"Control points in drawing order; the road passes through the first and last (unless closed). This order is a vehicle's forward direction.",
+			),
+		closed: z.boolean().default(false).describe("Loop back from the last point to the first."),
+		width: z.number().min(0.4).max(20).default(2.4).describe("Width in grid units."),
+		cornerRadius: z
+			.number()
+			.min(0)
+			.max(50)
+			.default(3)
+			.describe("Radius of the curve at each corner; 0 = sharp corners."),
+		markings: z.boolean().default(true).describe("Centre-line markings (asphalt only)."),
+		supports: RoadSupportsSchema.default("pillars"),
+		railings: z
+			.boolean()
+			.default(true)
+			.describe("Low barriers along the edges of elevated sections."),
+		lane: RoadLaneSchema.default("side"),
+		turns: TurnsSchema.nullable()
+			.default(null)
+			.describe("How vehicles on this road take corners; null = the world's setting."),
+		color: hexColor
+			.nullable()
+			.default(null)
+			.describe("Surface colour as #rrggbb; null = the style's default for the theme."),
+	})
+	.describe(
+		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
+	);
 
-/** Which side of the road vehicles drive on. */
-export const DrivingSideSchema = z.enum(["right", "left"]);
+export const DrivingSideSchema = z
+	.enum(["right", "left"])
+	.describe("Which side of the road vehicles drive on.");
 
-/** What an area is: sets its default colour. `land` is meant for raised ground (rocks, plateaus). */
-export const AreaTypeSchema = z.enum(["water", "grass", "sand", "plaza", "land"]);
+export const AreaTypeSchema = z
+	.enum(["water", "grass", "sand", "plaza", "land"])
+	.describe(
+		"What the area is; sets its colour. land is meant for raised ground (rocks, plateaus).",
+	);
 
-/**
- * A free-form area on the ground (water, lawn, beach, square…), drawn as a
- * polygon. With a height it becomes raised land with cliff sides.
- * See docs/adr/0021-free-form-areas.md.
- */
-export const AreaSchema = z.object({
-	id: z.string().min(1),
-	name: z.string().default(""),
-	type: AreaTypeSchema.default("grass"),
-	/** Outline corners [x, z]; always closed. */
-	points: z.array(Vec2Schema).min(3),
-	/** 0 = flat on the ground; above 0 = raised with vertical sides. */
-	height: z.number().min(0).max(30).default(0),
-	/** null = the type's default colour for the active theme. */
-	color: hexColor.nullable().default(null),
-});
+// See docs/adr/0021-free-form-areas.md.
+export const AreaSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the areas."),
+		name: z.string().default("").describe("Shown in the editor."),
+		type: AreaTypeSchema.default("grass"),
+		points: z
+			.array(Vec2Schema)
+			.min(3)
+			.describe("Outline corners as [x, z], in order; the outline always closes."),
+		height: z
+			.number()
+			.min(0)
+			.max(30)
+			.default(0)
+			.describe("0 = flat on the ground; above 0 = raised with cliff sides."),
+		color: hexColor
+			.nullable()
+			.default(null)
+			.describe("Colour as #rrggbb; null = the type's default for the theme."),
+	})
+	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 
-export const GroundSchema = z.object({
-	width: z.number().min(4).max(200).default(40),
-	depth: z.number().min(4).max(200).default(30),
-	color: hexColor.nullable().default(null),
-});
+export const GroundSchema = z
+	.object({
+		width: z.number().min(4).max(200).default(40).describe("Size along x, in grid units."),
+		depth: z.number().min(4).max(200).default(30).describe("Size along z, in grid units."),
+		color: hexColor
+			.nullable()
+			.default(null)
+			.describe("Colour as #rrggbb; null = the theme's ground colour."),
+	})
+	.describe("The slab everything stands on, centred on the origin.");
 
-export const ThemeSchema = z.enum(["system", "light", "dark"]);
+export const ThemeSchema = z
+	.enum(["system", "light", "dark"])
+	.describe("Light or dark look; system follows the viewer's device.");
 
 export const SceneSchema = z
 	.object({
-		version: z.literal(SCENE_VERSION),
+		version: z.literal(SCENE_VERSION).describe("Format version; always 1 for now."),
 		meta: z
 			.object({
-				title: z.string().default("Untitled world"),
-				subtitle: z.string().default(""),
+				title: z.string().default("Untitled world").describe("The world's name, shown on top."),
+				subtitle: z.string().default("").describe("A line under the title."),
 			})
 			.default({ title: "Untitled world", subtitle: "" }),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
 		driving: DrivingSideSchema.default("right"),
-		/** How vehicles take corners, unless a road or vehicle says otherwise. */
-		turns: TurnsSchema.default("smooth"),
-		entities: z.array(EntitySchema).default([]),
-		roads: z.array(RoadSchema).default([]),
-		areas: z.array(AreaSchema).default([]),
-		data: z.array(DataEntrySchema).default([]),
+		turns: TurnsSchema.default("smooth").describe(
+			"How vehicles take corners, unless a road or vehicle says otherwise.",
+		),
+		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
+		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
+		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
+		data: z
+			.array(DataEntrySchema)
+			.default([])
+			.describe("Named values the world shows on cards and detail tiles."),
 	})
 	.superRefine((scene, ctx) => {
 		const checkUnique = (values: string[], path: (string | number)[], what: string) => {

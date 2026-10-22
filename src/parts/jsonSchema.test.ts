@@ -31,4 +31,17 @@ describe("worldJsonSchema", () => {
 	it("explains the format", () => {
 		expect(worldJsonSchema().description).toMatch(/counter-clockwise/);
 	});
+
+	it("describes the scene's fields", () => {
+		const schema = worldJsonSchema() as unknown as {
+			properties: {
+				roads: { items: { properties: { points: { description?: string } } } };
+				entities: { items: { properties: { rotation: { description?: string } } } };
+			};
+		};
+		expect(schema.properties.entities.items.properties.rotation.description).toMatch(
+			/counter-clockwise/,
+		);
+		expect(schema.properties.roads.items.properties.points.description).toMatch(/drawing order/);
+	});
 });
