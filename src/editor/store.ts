@@ -14,6 +14,7 @@ import {
 import {
 	AreaSchema,
 	EntitySchema,
+	FollowSchema,
 	RoadSchema,
 	type TArea,
 	type TAreaInput,
@@ -104,6 +105,21 @@ export interface IJoinOffer {
 	bEnd: TRoadEnd;
 }
 
+/** Where a vehicle being dragged would join a road if dropped now, for the route preview. */
+export interface IRoutePreview {
+	roadId: string;
+	reverse: boolean;
+}
+
+/** A vehicle that was just dropped onto a road; the UI asks whether it should drive along it. */
+export interface IFollowOffer extends IRoutePreview {
+	entityId: string;
+	/** Distance along the road where it would start (FollowSchema `offset`). */
+	offset: number;
+	/** Where it was dropped; the offer lapses once it has moved. */
+	position: TVec2;
+}
+
 export interface IEditorState {
 	scene: TScene;
 	past: TScene[];
@@ -122,6 +138,10 @@ export interface IEditorState {
 	/** Pixels at the bottom of the viewport covered by UI (the narrow layout's sheet). */
 	viewInset: number;
 	joinOffer: IJoinOffer | null;
+	routePreview: IRoutePreview | null;
+	/** A driving vehicle is being dragged: dropped off a road, it parks. */
+	rerouting: boolean;
+	followOffer: IFollowOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
 	dragging: boolean;
@@ -201,6 +221,11 @@ export interface IEditorState {
 	/** Join two road ends into one road; joining a road's own two ends makes a loop. */
 	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
 	setJoinOffer: (offer: IJoinOffer | null) => void;
+	setRoutePreview: (preview: IRoutePreview | null) => void;
+	setRerouting: (rerouting: boolean) => void;
+	setFollowOffer: (offer: IFollowOffer | null) => void;
+	/** Make the offered vehicle drive along the road, as one undo step. */
+	acceptFollowOffer: () => void;
 
 	addArea: (input: Omit<TAreaInput, "id"> & { id?: string }) => string;
 	updateArea: (id: string, recipe: (area: Draft<TArea>) => void, options?: ICommitOptions) => void;
@@ -274,6 +299,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		transform: null,
 		viewInset: 0,
 		joinOffer: null,
+		routePreview: null,
+		rerouting: false,
+		followOffer: null,
 		mode: "edit",
 		tab: "object",
 		dragging: false,
@@ -330,6 +358,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				...NOTHING_SELECTED,
 				drawing: null,
 				joinOffer: null,
+				followOffer: null,
 			}),
 
 		undo: () =>
@@ -348,6 +377,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						: null,
 					...validRoadSelection(previous, state),
 					joinOffer: null,
+					followOffer: null,
 				};
 			}),
 
@@ -367,6 +397,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						: null,
 					...validRoadSelection(next, state),
 					joinOffer: null,
+					followOffer: null,
 				};
 			}),
 
@@ -377,8 +408,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							...NOTHING_SELECTED,
 							selectedId: id,
 							tab: state.mode === "edit" ? "object" : state.tab,
+							followOffer: state.followOffer?.entityId === id ? state.followOffer : null,
 						}
-					: { selectedId: null },
+					: { selectedId: null, followOffer: null },
 			),
 		selectRoad: (id) =>
 			set((state) =>
@@ -416,7 +448,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				selectedPointIndex: index,
 				tab: state.mode === "edit" ? "object" : state.tab,
 			})),
-		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null }),
+		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null }),
 		setMode: (mode) =>
 			set({
 				mode,
@@ -425,10 +457,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				placingKind: null,
 				transform: null,
 				joinOffer: null,
+				routePreview: null,
+				followOffer: null,
 			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
-		startPlacing: (kind) => set({ placingKind: kind, drawing: null }),
+		startPlacing: (kind) => set({ placingKind: kind, drawing: null, followOffer: null }),
 		stopPlacing: () => set({ placingKind: null }),
 		startTransform: (mode) => set({ transform: { mode, axis: null, typed: "" } }),
 		updateTransform: (patch) =>
@@ -708,12 +742,34 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		},
 
 		setJoinOffer: (offer) => set({ joinOffer: offer }),
+		setRoutePreview: (preview) => set({ routePreview: preview }),
+		setRerouting: (rerouting) => set({ rerouting }),
+		setFollowOffer: (offer) => set({ followOffer: offer }),
+
+		acceptFollowOffer: () => {
+			const offer = get().followOffer;
+			if (!offer) {
+				return;
+			}
+			set({ followOffer: null });
+			get().updateEntity(offer.entityId, (entity) => {
+				entity.follow = FollowSchema.parse({
+					roadId: offer.roadId,
+					offset: round(offer.offset),
+					reverse: offer.reverse,
+				});
+				// The road sets height and heading now; these would add on top of it.
+				entity.elevation = 0;
+				entity.rotation = 0;
+			});
+		},
 
 		startDrawing: (style) =>
 			set({
 				drawing: { target: "road", style, areaType: "grass", points: [] },
 				...NOTHING_SELECTED,
 				joinOffer: null,
+				followOffer: null,
 			}),
 
 		startAreaDrawing: (areaType) =>
@@ -721,6 +777,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				drawing: { target: "area", style: "asphalt", areaType, points: [] },
 				...NOTHING_SELECTED,
 				joinOffer: null,
+				followOffer: null,
 			}),
 
 		continueDrawing: (roadId, end) => {
@@ -734,6 +791,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				drawing: { target: "road", style: road.style, areaType: "grass", points, roadId },
 				...NOTHING_SELECTED,
 				joinOffer: null,
+				followOffer: null,
 			});
 		},
 

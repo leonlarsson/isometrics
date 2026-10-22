@@ -36,8 +36,13 @@ export const FollowSchema = z.object({
 	roadId: z.string(),
 	/** Grid units per second. */
 	speed: z.number().min(0).max(50).default(2),
-	/** Distance along the road where the entity starts. */
+	/** Distance along the road where the entity starts, measured from the road's first point. */
 	offset: z.number().default(0),
+	/**
+	 * Drive the road the other way: against the order of its points, in the
+	 * opposite lane. Loops go round the other way; open roads set off backwards.
+	 */
+	reverse: z.boolean().default(false),
 	/** How this vehicle takes corners; null = the road's setting (or the scene's). */
 	turns: TurnsSchema.nullable().default(null),
 });

@@ -458,4 +458,38 @@ describe("editor store", () => {
 			[10, 0, 0, 4],
 		]);
 	});
+
+	it("makes an offered vehicle drive along the road as one undo step", () => {
+		const store = makeStore();
+		const roadId = store.getState().addRoad({
+			points: [
+				[0, 0],
+				[10, 0],
+			],
+		});
+		const id = store
+			.getState()
+			.addEntity({ kind: "van", position: [4, -0.5], elevation: 0.2, rotation: 180 });
+		store
+			.getState()
+			.setFollowOffer({ entityId: id, roadId, offset: 4, reverse: true, position: [4, -0.5] });
+
+		store.getState().select("w");
+		expect(store.getState().followOffer).toBeNull();
+
+		store
+			.getState()
+			.setFollowOffer({ entityId: id, roadId, offset: 4, reverse: true, position: [4, -0.5] });
+		store.getState().acceptFollowOffer();
+		const van = store.getState().scene.entities.find((e) => e.id === id);
+		expect(van?.follow).toMatchObject({ roadId, offset: 4, reverse: true, speed: 2 });
+		expect(van?.elevation).toBe(0);
+		expect(van?.rotation).toBe(0);
+		expect(store.getState().followOffer).toBeNull();
+
+		store.getState().undo();
+		const parked = store.getState().scene.entities.find((e) => e.id === id);
+		expect(parked?.follow).toBeNull();
+		expect(parked?.rotation).toBe(180);
+	});
 });

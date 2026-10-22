@@ -5,15 +5,16 @@ import * as THREE from "three";
 
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { clamp, snap, toRadians } from "#/lib/math";
+import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
-import { createPathSampler } from "#/scene/paths";
-import { laneOffset, resolveTurns, roadCenterlineOf, turnSmoothing } from "#/scene/roads";
-import type { TEntity } from "#/scene/schema";
+import { resolveTurns, turnSmoothing } from "#/scene/roads";
+import { createRouteSampler } from "#/scene/routes";
+import type { TEntity, TVec2 } from "#/scene/schema";
 
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
+import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -25,6 +26,8 @@ interface IDragState {
 	/** Where the press started (screen px); the object stays put until it passes the threshold. */
 	from: { clientX: number; clientY: number };
 	moving: boolean;
+	/** Snaps a vehicle onto roads it's dragged over. */
+	route: IVehicleRouteDrag | null;
 }
 
 export const SelectionFrame = ({
@@ -100,44 +103,63 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
 	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
 	const turns = resolveTurns(sceneTurns, road?.turns, entity.follow?.turns);
+	const reverse = entity.follow?.reverse ?? false;
 	const sampler = useMemo(
 		() =>
 			road
-				? createPathSampler(roadCenterlineOf(road), road.closed, {
-						lane: laneOffset(road, driving),
+				? createRouteSampler(road, driving, {
+						reverse,
 						smoothing: turnSmoothing(turns, vehicleLength),
 					})
 				: null,
-		[road, driving, turns, vehicleLength],
+		[road, driving, turns, vehicleLength, reverse],
 	);
 	const following = Boolean(sampler && entity.follow);
 
 	useFrame((_, delta) => {
 		if (!sampler || !entity.follow || !outer.current || !inner.current) {
+			// Driving again later starts from its start point, not from how far it had got.
+			travelled.current = 0;
 			return;
 		}
 		if (playing) {
 			travelled.current += Math.min(delta, 0.1) * entity.follow.speed;
 		}
-		const sample = sampler.at(entity.follow.offset + travelled.current);
+		const sample = sampler.at(entity.follow.offset, travelled.current);
 		const [x, z] = sample.position;
 		outer.current.position.set(x, entity.elevation + sample.height, z);
 		// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
 		inner.current.rotation.set(0, sample.heading + toRadians(entity.rotation), sample.pitch);
 	});
 
-	const editable = mode === "edit" && !entity.locked && !following;
+	const editable = mode === "edit" && !entity.locked;
+
+	/** Where a driving vehicle is on screen right now (the scene only knows where it started). */
+	const currentPose = () => {
+		const position = outer.current?.position;
+		const heading = inner.current?.rotation.y;
+		if (!position || heading === undefined) {
+			return undefined;
+		}
+		return {
+			position: [round(position.x), round(position.z)] as TVec2,
+			elevation: round(position.y),
+			rotation: round(normalizeDegrees(heading / DEG2RAD), 1),
+		};
+	};
 
 	const endDrag = (e: ThreeEvent<PointerEvent>) => {
 		if (!drag.current) {
 			return;
 		}
+		const { route, token } = drag.current;
 		drag.current = null;
 		(e.target as unknown as Element).releasePointerCapture?.(e.pointerId);
 		if (controls) {
 			controls.enabled = true;
 		}
 		setDragging(false);
+		route?.end(true, { coalesce: `drag:${token}`, gesture: true });
 	};
 
 	const handlers = {
@@ -153,11 +175,12 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			}
 			e.stopPropagation();
 			drag.current = {
-				dx: entity.position[0] - hit.x,
-				dz: entity.position[1] - hit.z,
+				dx: 0,
+				dz: 0,
 				token: `${entity.id}:${performance.now()}`,
 				from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 				moving: false,
+				route: null,
 			};
 			(e.target as unknown as Element).setPointerCapture(e.pointerId);
 			if (controls) {
@@ -178,12 +201,22 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			if (!e.ray.intersectPlane(groundPlane, hit)) {
 				return;
 			}
+			const options = { coalesce: `drag:${state.token}`, gesture: true };
 			if (!state.moving) {
 				// Grab from here, not from the press: otherwise the distance already covered
-				// snaps the object a cell over the moment the drag starts.
+				// snaps the object a cell over the moment the drag starts. A driving vehicle is
+				// lifted off its route where it is right now.
+				const pose = following ? currentPose() : undefined;
+				const from = pose?.position ?? entity.position;
 				state.moving = true;
-				state.dx = entity.position[0] - hit.x;
-				state.dz = entity.position[1] - hit.z;
+				state.dx = from[0] - hit.x;
+				state.dz = from[1] - hit.z;
+				state.route = createVehicleRouteDrag(entity.id, pose);
+				state.route?.start(options);
+				return;
+			}
+			const target: TVec2 = [hit.x + state.dx, hit.z + state.dz];
+			if (state.route?.move(e.ray, target, e.nativeEvent.altKey, options)) {
 				return;
 			}
 			const free = e.nativeEvent.altKey || !useEditor.getState().snapping;
@@ -193,7 +226,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			if (x === entity.position[0] && z === entity.position[1]) {
 				return;
 			}
-			moveEntity(entity.id, [x, z], { coalesce: `drag:${state.token}` });
+			moveEntity(entity.id, [x, z], options);
 		},
 		onPointerUp: endDrag,
 		onLostPointerCapture: endDrag,
@@ -260,7 +293,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				)}
 			</group>
 
-			{mode === "edit" && selected && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
+			{mode === "edit" && selected && !entity.locked && !drawing && (
+				<EntityGizmo entity={entity} pose={following ? currentPose : undefined} />
+			)}
 
 			{entity.label?.enabled && (
 				<EntityLabel

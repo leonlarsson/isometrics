@@ -27,13 +27,20 @@ export interface IGizmoDrag {
 	free: boolean;
 	/** Coalesce key shared by every step of this drag. */
 	token: string;
+	/** The pointer, for drags with the mouse (keyboard transforms have none). */
+	pointer?: { ray: THREE.Ray; altKey: boolean };
 }
 
 interface ITransformGizmoProps {
 	handles: TGizmoHandle[];
-	/** Called once when a drag really starts (past the drag threshold): snapshot the start values. */
-	onStart: () => void;
+	/**
+	 * Called once when a drag really starts (past the drag threshold): snapshot the start values.
+	 * Gets the drag's coalesce key, for changes that belong to the same undo step, and the handle.
+	 */
+	onStart: (token: string, handle: TGizmoHandle) => void;
 	onDrag: (drag: IGizmoDrag) => void;
+	/** Called when a started drag ends: `completed` false when it was cancelled. */
+	onEnd?: (completed: boolean, token: string) => void;
 }
 
 /** Gizmo size on screen: one gizmo unit is this many pixels at any zoom. */
@@ -206,7 +213,7 @@ const ArrowHit = ({ direction }: { direction: "x" | "y" | "z" }) => {
  * and commits them (with `{ coalesce: token, gesture: true }`). Esc or a right
  * click during a drag cancels it.
  */
-export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProps) => {
+export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGizmoProps) => {
 	const palette = usePalette();
 	const colors = palette.gizmo;
 	const camera = useThree((s) => s.camera);
@@ -239,8 +246,9 @@ export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProp
 		[],
 	);
 
-	const finish = (target: EventTarget | null, pointerId?: number) => {
-		if (!session.current) {
+	const finish = (target: EventTarget | null, pointerId?: number, completed = false) => {
+		const current = session.current;
+		if (!current) {
 			return;
 		}
 		session.current = null;
@@ -254,6 +262,9 @@ export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProp
 		const store = useEditor.getState();
 		store.setDragging(false);
 		store.setCancelGesture(null);
+		if (current.started) {
+			onEnd?.(completed, current.token);
+		}
 	};
 
 	const cancel = () => {
@@ -321,7 +332,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProp
 			current.startY = e.nativeEvent.clientY;
 			current.angle = angleOf(anchor, current.center);
 			current.before = useEditor.getState().scene;
-			onStart();
+			onStart(current.token, current.handle);
 			return;
 		}
 		const point = groundHit(e, current.center.y);
@@ -347,6 +358,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProp
 			ratio: startDistance > 1e-6 ? distance / startDistance : 1,
 			free: e.nativeEvent.altKey || !useEditor.getState().snapping,
 			token: current.token,
+			pointer: { ray: e.ray, altKey: e.nativeEvent.altKey },
 		});
 	};
 
@@ -356,9 +368,9 @@ export const TransformGizmo = ({ handles, onStart, onDrag }: ITransformGizmoProp
 			if (session.current) {
 				e.stopPropagation();
 			}
-			finish(e.target, e.pointerId);
+			finish(e.target, e.pointerId, true);
 		},
-		onLostPointerCapture: (e: ThreeEvent<PointerEvent>) => finish(e.target),
+		onLostPointerCapture: (e: ThreeEvent<PointerEvent>) => finish(e.target, undefined, true),
 		onContextMenu: (e: ThreeEvent<MouseEvent>) => {
 			if (session.current) {
 				e.stopPropagation();

@@ -1,28 +1,59 @@
 import { useRef } from "react";
 
-import type { TEntity } from "#/scene/schema";
+import type { TEntity, TVec2 } from "#/scene/schema";
 
+import { createVehicleRouteDrag, type IVehiclePose, type IVehicleRouteDrag } from "./routeDrop";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyEntityDrag, entityStart, type IEntityStart } from "./transforms";
 
 const MOVE_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "scale"];
-/** A vehicle following a road gets its position from the road. */
-const FOLLOWING_HANDLES: TGizmoHandle[] = ["y", "rotate", "scale"];
+/**
+ * A vehicle following a road gets its position from the road, so it has no axis arrows. The
+ * square lifts it off its route to drop it on another road, or anywhere to park it.
+ */
+const FOLLOWING_HANDLES: TGizmoHandle[] = ["xz", "y", "rotate", "scale"];
+
+interface IEntityGizmoProps {
+	entity: TEntity;
+	/** Where a driving vehicle is right now (it moves, so the scene doesn't know). */
+	pose?: () => IVehiclePose | undefined;
+}
 
 /** The transform gizmo for the selected object: move, lift, turn and resize it. */
-export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
+export const EntityGizmo = ({ entity, pose }: IEntityGizmoProps) => {
 	const start = useRef<IEntityStart | null>(null);
+	const route = useRef<IVehicleRouteDrag | null>(null);
 
 	return (
 		<TransformGizmo
 			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
-			onStart={() => {
+			onStart={(token, handle) => {
+				// Only the move square snaps onto roads (and lifts a driving vehicle off its route).
+				route.current = handle === "xz" ? createVehicleRouteDrag(entity.id, pose?.()) : null;
+				route.current?.start({ coalesce: token, gesture: true });
 				start.current = entityStart(entity.id);
 			}}
 			onDrag={(drag) => {
-				if (start.current) {
-					applyEntityDrag(entity.id, start.current, drag);
+				const from = start.current;
+				if (!from) {
+					return;
 				}
+				const { pointer } = drag;
+				if (pointer && route.current) {
+					const target: TVec2 = [
+						from.position[0] + drag.offset[0],
+						from.position[1] + drag.offset[1],
+					];
+					const options = { coalesce: drag.token, gesture: true };
+					if (route.current.move(pointer.ray, target, pointer.altKey, options)) {
+						return;
+					}
+				}
+				applyEntityDrag(entity.id, from, drag);
+			}}
+			onEnd={(completed, token) => {
+				route.current?.end(completed, { coalesce: token, gesture: true });
+				route.current = null;
 			}}
 		/>
 	);

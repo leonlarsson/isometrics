@@ -17,7 +17,7 @@ const isTextEntry = (target: EventTarget | null) =>
 /**
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Space pause/play motion
- *   Esc cancels a gizmo drag or a drag from the palette, else deselects
+ *   Esc cancels a gizmo drag or a drag from the palette, dismisses the drive-along offer, else deselects
  *   Mod+O open a world file · Mod+S save the world to a file
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
@@ -116,14 +116,16 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "Escape",
-			// Cancel dragging a new part in; otherwise step out one level: a selected point
-			// first, then the road or object.
+			// Cancel dragging a new part in, or dismiss the offer to drive along a road; otherwise
+			// step out one level: a selected point first, then the road or object.
 			callback: () => {
 				const state = useEditor.getState();
 				if (state.cancelGesture) {
 					state.cancelGesture();
 				} else if (state.placingKind) {
 					state.stopPlacing();
+				} else if (state.followOffer) {
+					state.setFollowOffer(null);
 				} else if (state.selectedPointIndex !== null && state.selectedRoadId) {
 					state.selectRoadPoint(state.selectedRoadId, null);
 				} else if (state.selectedPointIndex !== null && state.selectedAreaId) {

@@ -9,6 +9,7 @@ import { Viewport } from "#/render/Viewport";
 import { IconButton } from "./Button";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
+import { FollowOfferBar } from "./FollowOfferBar";
 import { Inspector } from "./Inspector";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
@@ -117,6 +118,8 @@ export const AppShell = () => {
 							<TransformBar />
 
 							<JoinOfferBar />
+
+							<FollowOfferBar />
 
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 

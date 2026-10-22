@@ -365,6 +365,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 											roadId,
 											speed: e.follow?.speed ?? 2,
 											offset: e.follow?.offset ?? 0,
+											reverse: e.follow?.reverse ?? false,
 											turns: e.follow?.turns ?? null,
 										}
 									: null;
@@ -399,6 +400,18 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 									edit("follow.offset", (e) => {
 										if (e.follow) {
 											e.follow.offset = v;
+										}
+									})
+								}
+							/>
+
+							<SwitchField
+								label="Drive the other way"
+								checked={entity.follow.reverse}
+								onChange={(v) =>
+									edit("follow.reverse", (e) => {
+										if (e.follow) {
+											e.follow.reverse = v;
 										}
 									})
 								}

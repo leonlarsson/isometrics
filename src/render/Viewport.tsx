@@ -15,6 +15,7 @@ import { PlacementPreview } from "./PlacementPreview";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
+import { RouteHighlight } from "./RouteHighlight";
 import { GizmoFirst } from "./TransformGizmo";
 
 const Lights = () => {
@@ -86,6 +87,8 @@ export const Viewport = () => {
 			<RoadDrawTool />
 
 			<PlacementPreview />
+
+			<RouteHighlight />
 
 			<CameraControls />
 
