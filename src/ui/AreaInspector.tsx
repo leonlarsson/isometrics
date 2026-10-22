@@ -124,17 +124,19 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 				<ColorField
 					label="Colour"
 					value={areaColor(area, palette)}
-					isDefault={area.color === null}
 					onChange={(v) =>
 						edit("color", (a) => {
 							a.color = v;
 						})
 					}
-					onReset={() =>
-						edit("color", (a) => {
-							a.color = null;
-						})
-					}
+					inherit={{
+						from: "default",
+						inherited: area.color === null,
+						onReset: () =>
+							edit("color", (a) => {
+								a.color = null;
+							}),
+					}}
 				/>
 			</Section>
 		</>

@@ -10,6 +10,7 @@ import { type ReactNode, useId } from "react";
 import { SWATCHES } from "#/scene/theme";
 
 import { Icon } from "./Icon";
+import { Tooltip } from "./Tooltip";
 
 import styles from "./Fields.module.css";
 
@@ -76,12 +77,38 @@ export const Kbd = ({ children }: { children: ReactNode }) => {
 	return <kbd className={styles.kbd}>{children}</kbd>;
 };
 
-/** The "Default" link on a field's label row; only shown while the value isn't the default. */
-const ResetAction = ({ onReset }: { onReset: () => void }) => {
+/**
+ * A value that comes from somewhere else (a default, the scene, the road…)
+ * unless this field overrides it (ADR-0027). The field always shows the value
+ * in effect; its label row says where an inherited value comes from, or offers
+ * Reset once the value is overridden. Changing the control is the override.
+ */
+export interface IInherit {
+	/** Where the value comes from when not overridden: "default", "scene", "road"… */
+	from: string;
+	/** True while the field shows the inherited value (nothing overridden). */
+	inherited: boolean;
+	/** Drop the override and go back to the inherited value. */
+	onReset: () => void;
+	/** The inherited value in words, for Reset's tooltip, e.g. "smoothly" or "2.4". */
+	value?: string;
+}
+
+/** The label row's right side: "Default" / "From scene" while inherited, Reset once overridden. */
+const InheritAction = ({ inherit }: { inherit: IInherit }) => {
+	const { from, inherited, onReset, value } = inherit;
+	if (inherited) {
+		return (
+			<span className={styles.inheritTag}>{from === "default" ? "Default" : `From ${from}`}</span>
+		);
+	}
+	const target = from === "default" ? "the default" : `the ${from}’s setting`;
 	return (
-		<button type="button" className={styles.reset} onClick={onReset}>
-			<Icon name="reset" size={13} /> Default
-		</button>
+		<Tooltip label={`Back to ${target}${value ? ` (${value})` : ""}`}>
+			<button type="button" className={styles.reset} onClick={onReset}>
+				<Icon name="reset" size={13} /> Reset
+			</button>
+		</Tooltip>
 	);
 };
 
@@ -122,17 +149,23 @@ const LabelRow = ({ label, htmlFor, id, action, scrub }: ILabelRowProps) => {
 interface IFieldProps {
 	label: string;
 	children: (id: string) => ReactNode;
-	/** A small control on the label's row, right-aligned (e.g. a reset link). */
+	/** A small control on the label's row, right-aligned. */
 	action?: ReactNode;
+	/** The value is inherited unless overridden (shows Default / From… or Reset). */
+	inherit?: IInherit;
 	hint?: ReactNode;
 }
 
 /** The field anatomy for custom controls: label row, the control (given the label's id), hint. */
-export const Field = ({ label, children, action, hint }: IFieldProps) => {
+export const Field = ({ label, children, action, inherit, hint }: IFieldProps) => {
 	const id = useId();
 	return (
 		<div className={styles.field}>
-			<LabelRow label={label} htmlFor={id} action={action} />
+			<LabelRow
+				label={label}
+				htmlFor={id}
+				action={inherit ? <InheritAction inherit={inherit} /> : action}
+			/>
 
 			{children(id)}
 
@@ -227,6 +260,7 @@ const NumberBox = ({ ariaLabel }: { ariaLabel?: string }) => {
 interface INumberFieldProps extends INumberRangeProps {
 	label: string;
 	suffix?: string;
+	inherit?: IInherit;
 	hint?: ReactNode;
 }
 
@@ -239,6 +273,7 @@ export const NumberField = ({
 	max,
 	step = 0.1,
 	suffix,
+	inherit,
 	hint,
 }: INumberFieldProps) => {
 	const id = useId();
@@ -254,7 +289,12 @@ export const NumberField = ({
 			locale={NUMBER_LOCALE}
 			onValueChange={(next) => next !== null && onChange(next)}
 		>
-			<LabelRow label={label} htmlFor={id} scrub />
+			<LabelRow
+				label={label}
+				htmlFor={id}
+				scrub
+				action={inherit && <InheritAction inherit={inherit} />}
+			/>
 
 			<div className={styles.numberRow}>
 				<NumberBox />
@@ -273,9 +313,7 @@ interface ISliderFieldProps extends INumberRangeProps {
 	max: number;
 	step: number;
 	suffix?: string;
-	/** With `onReset`: whether the value is the default, which hides the reset link. */
-	isDefault?: boolean;
-	onReset?: () => void;
+	inherit?: IInherit;
 	hint?: ReactNode;
 }
 
@@ -288,8 +326,7 @@ export const SliderField = ({
 	max,
 	step,
 	suffix,
-	isDefault = true,
-	onReset,
+	inherit,
 	hint,
 }: ISliderFieldProps) => {
 	const id = useId();
@@ -309,7 +346,7 @@ export const SliderField = ({
 				label={label}
 				htmlFor={id}
 				scrub
-				action={onReset && !isDefault && <ResetAction onReset={onReset} />}
+				action={inherit && <InheritAction inherit={inherit} />}
 			/>
 
 			<div className={styles.sliderRow}>
@@ -413,6 +450,8 @@ interface ISelectFieldProps<TValue extends string> {
 	value: TValue;
 	options: { value: TValue; label: string }[];
 	onChange: (value: TValue) => void;
+	inherit?: IInherit;
+	hint?: ReactNode;
 }
 
 /** A dropdown of options, styled like the menus. */
@@ -421,9 +460,11 @@ export const SelectField = <TValue extends string>({
 	value,
 	options,
 	onChange,
+	inherit,
+	hint,
 }: ISelectFieldProps<TValue>) => {
 	return (
-		<Field label={label}>
+		<Field label={label} inherit={inherit} hint={hint}>
 			{(id) => (
 				<Select.Root
 					items={options}
@@ -536,15 +577,15 @@ export const CheckboxGroupField = ({
 interface IColorFieldProps {
 	label: string;
 	value: string;
-	isDefault: boolean;
 	onChange: (value: string) => void;
-	onReset?: () => void;
+	/** Colours usually default to the part's or theme's colour until changed. */
+	inherit?: IInherit;
 }
 
 /** Colour picker with friendly preset swatches and an optional reset to default. */
-export const ColorField = ({ label, value, isDefault, onChange, onReset }: IColorFieldProps) => {
+export const ColorField = ({ label, value, onChange, inherit }: IColorFieldProps) => {
 	return (
-		<Field label={label} action={onReset && !isDefault && <ResetAction onReset={onReset} />}>
+		<Field label={label} inherit={inherit}>
 			{(id) => (
 				<div className={styles.color}>
 					<div className={styles.swatches}>

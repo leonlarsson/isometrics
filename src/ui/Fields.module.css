@@ -96,6 +96,16 @@
 	filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.4));
 }
 
+.inheritTag {
+	margin-left: auto;
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--surface-sunken);
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
 .reset {
 	all: unset;
 	cursor: pointer;

@@ -4,8 +4,15 @@ import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { getPart, resolveColors, resolveProps } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
-import { polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
-import type { TEntity } from "#/scene/schema";
+import {
+	polylineLength,
+	ROAD_STYLE_LABELS,
+	resolveTurns,
+	roadCenterlineOf,
+	TURNS_LABELS,
+	TURNS_OPTIONS,
+} from "#/scene/roads";
+import type { TEntity, TTurns } from "#/scene/schema";
 
 import { Button, IconButton, IconButtonGroup } from "./Button";
 import {
@@ -83,6 +90,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 	const removeEntity = useEditor((s) => s.removeEntity);
 	const duplicateEntity = useEditor((s) => s.duplicateEntity);
 	const roads = useEditor((s) => s.scene.roads);
+	const sceneTurns = useEditor((s) => s.scene.turns);
 	const palette = usePalette();
 	const part = getPart(entity.kind);
 
@@ -111,6 +119,8 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 		: 1;
 	const colors = resolveColors(part, entity, palette);
 	const following = entity.follow !== null;
+	/** What this vehicle inherits: its road's setting, else the scene's. */
+	const roadTurns = resolveTurns(sceneTurns, followedRoad?.turns, null);
 
 	return (
 		<>
@@ -215,34 +225,38 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				<ColorField
 					label={part.colorLabel ?? "Main colour"}
 					value={colors.color}
-					isDefault={entity.color === null}
 					onChange={(v) =>
 						edit("color", (e) => {
 							e.color = v;
 						})
 					}
-					onReset={() =>
-						edit("color", (e) => {
-							e.color = null;
-						})
-					}
+					inherit={{
+						from: "default",
+						inherited: entity.color === null,
+						onReset: () =>
+							edit("color", (e) => {
+								e.color = null;
+							}),
+					}}
 				/>
 
 				{part.accentLabel !== "Unused" && (
 					<ColorField
 						label={part.accentLabel ?? "Accent"}
 						value={colors.accent}
-						isDefault={entity.accent === null}
 						onChange={(v) =>
 							edit("accent", (e) => {
 								e.accent = v;
 							})
 						}
-						onReset={() =>
-							edit("accent", (e) => {
-								e.accent = null;
-							})
-						}
+						inherit={{
+							from: "default",
+							inherited: entity.accent === null,
+							onReset: () =>
+								edit("accent", (e) => {
+									e.accent = null;
+								}),
+						}}
 					/>
 				)}
 			</Section>
@@ -344,7 +358,12 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						onChange={(roadId) =>
 							edit("follow", (e) => {
 								e.follow = roadId
-									? { roadId, speed: e.follow?.speed ?? 2, offset: e.follow?.offset ?? 0 }
+									? {
+											roadId,
+											speed: e.follow?.speed ?? 2,
+											offset: e.follow?.offset ?? 0,
+											turns: e.follow?.turns ?? null,
+										}
 									: null;
 							})
 						}
@@ -380,6 +399,31 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 										}
 									})
 								}
+							/>
+
+							<SelectField<TTurns>
+								label="Turns"
+								value={entity.follow.turns ?? roadTurns}
+								options={TURNS_OPTIONS}
+								onChange={(v) =>
+									edit("follow.turns", (e) => {
+										if (e.follow) {
+											e.follow.turns = v;
+										}
+									})
+								}
+								inherit={{
+									// The road's own setting, or the scene's when the road has none.
+									from: followedRoad?.turns ? "road" : "scene",
+									inherited: entity.follow.turns === null,
+									onReset: () =>
+										edit("follow.turns", (e) => {
+											if (e.follow) {
+												e.follow.turns = null;
+											}
+										}),
+									value: TURNS_LABELS[roadTurns].toLowerCase(),
+								}}
 							/>
 						</>
 					)}

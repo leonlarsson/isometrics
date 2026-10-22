@@ -8,7 +8,7 @@ import { usePalette } from "#/editor/useTheme";
 import { clamp, snap, toRadians } from "#/lib/math";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
 import { createPathSampler } from "#/scene/paths";
-import { applyLane, laneOffset, roadCenterlineOf } from "#/scene/roads";
+import { laneOffset, resolveTurns, roadCenterlineOf, turnSmoothing } from "#/scene/roads";
 import type { TEntity } from "#/scene/schema";
 
 import { EntityLabel } from "./EntityLabel";
@@ -76,6 +76,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		entity.follow ? (s.scene.roads.find((r) => r.id === entity.follow?.roadId) ?? null) : null,
 	);
 	const driving = useEditor((s) => s.scene.driving);
+	const sceneTurns = useEditor((s) => s.scene.turns);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const select = useEditor((s) => s.select);
 	const moveEntity = useEditor((s) => s.moveEntity);
@@ -91,11 +92,19 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const [hovered, setHovered] = useState(false);
 
 	const props = useMemo(() => (part ? resolveProps(part, entity.props) : {}), [part, entity.props]);
+	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
+	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
+	const turns = resolveTurns(sceneTurns, road?.turns, entity.follow?.turns);
 	const sampler = useMemo(
-		() => (road ? createPathSampler(roadCenterlineOf(road), road.closed) : null),
-		[road],
+		() =>
+			road
+				? createPathSampler(roadCenterlineOf(road), road.closed, {
+						lane: laneOffset(road, driving),
+						smoothing: turnSmoothing(turns, vehicleLength),
+					})
+				: null,
+		[road, driving, turns, vehicleLength],
 	);
-	const lane = road ? laneOffset(road, driving) : 0;
 	const following = Boolean(sampler && entity.follow);
 
 	useFrame((_, delta) => {
@@ -106,7 +115,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			travelled.current += Math.min(delta, 0.1) * entity.follow.speed;
 		}
 		const sample = sampler.at(entity.follow.offset + travelled.current);
-		const [x, z] = applyLane(sample.position, sample.heading, lane);
+		const [x, z] = sample.position;
 		outer.current.position.set(x, entity.elevation + sample.height, z);
 		// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
 		inner.current.rotation.set(0, sample.heading + toRadians(entity.rotation), sample.pitch);

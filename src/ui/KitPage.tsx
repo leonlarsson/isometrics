@@ -88,8 +88,12 @@ export const KitPage = () => {
 									min={0.4}
 									max={8}
 									step={0.1}
-									isDefault={slider === 2.4}
-									onReset={() => setSlider(2.4)}
+									inherit={{
+										from: "road",
+										inherited: slider === 2.4,
+										onReset: () => setSlider(2.4),
+										value: "2.4",
+									}}
 								/>
 
 								<VectorField
@@ -121,7 +125,16 @@ export const KitPage = () => {
 									onChange={setKeys}
 								/>
 
-								<ColorField label="Colour" value={color} isDefault={false} onChange={setColor} />
+								<ColorField
+									label="Colour"
+									value={color}
+									onChange={setColor}
+									inherit={{
+										from: "default",
+										inherited: color === "#4a64e0",
+										onReset: () => setColor("#4a64e0"),
+									}}
+								/>
 							</Section>
 						</div>
 

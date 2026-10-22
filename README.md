@@ -25,7 +25,7 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 | Reshape a road | Select it and drag its points; drag the small dot between two points to add one; double-click a point (or select it and press **Delete**) to remove it; **Curves** in the panel rounds the corners |
 | Bridges and flyovers | Click a road point and set its **Height** in the panel, or **Shift**+drag it up. Choose **Pillars** or **Embankment** and railings under *Elevated sections* |
 | Cut, join, extend | Click a point: **Split road here** / **Open loop here**; on an end point **Continue drawing** or **Join with** a nearby road end. Dragging an end onto another road's end also offers to join |
-| Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right |
+| Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right, and *Vehicles turn* smoothly or sharply (each road and vehicle can override it) |
 | Duplicate / delete | Ctrl+D / Delete |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
 | Open / save a world file | Ctrl+O / Ctrl+S, or the **File** menu |

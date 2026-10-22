@@ -8,9 +8,11 @@ import {
 	polylineLength,
 	ROAD_STYLE_LABELS,
 	roadCenterlineOf,
+	TURNS_LABELS,
+	TURNS_OPTIONS,
 	widthForStyle,
 } from "#/scene/roads";
-import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports } from "#/scene/schema";
+import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports, TTurns } from "#/scene/schema";
 
 import { IconButton } from "./Button";
 import {
@@ -37,6 +39,8 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 	);
 	const palette = usePalette();
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const sceneTurns = useEditor((s) => s.scene.turns);
+	const driving = useEditor((s) => s.scene.driving);
 
 	/** Every edit coalesces per road+field so typing or sliding is one undo step. */
 	const edit = (field: string, recipe: (r: Draft<TRoad>) => void) =>
@@ -85,7 +89,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						label="Vehicles drive"
 						value={road.lane}
 						options={[
-							{ value: "side", label: "In lanes (on the scene's side)" },
+							{ value: "side", label: `In lanes (keep ${driving})` },
 							{ value: "centre", label: "Down the centre (one-way, race track)" },
 						]}
 						onChange={(v) =>
@@ -95,6 +99,26 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						}
 					/>
 				)}
+
+				<SelectField<TTurns>
+					label="Vehicles turn"
+					value={road.turns ?? sceneTurns}
+					options={TURNS_OPTIONS}
+					onChange={(v) =>
+						edit("turns", (r) => {
+							r.turns = v;
+						})
+					}
+					inherit={{
+						from: "scene",
+						inherited: road.turns === null,
+						onReset: () =>
+							edit("turns", (r) => {
+								r.turns = null;
+							}),
+						value: TURNS_LABELS[sceneTurns].toLowerCase(),
+					}}
+				/>
 
 				<Hint>
 					{Math.round(length)} units long · {road.points.length} points
@@ -195,17 +219,19 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					<ColorField
 						label="Surface"
 						value={roadColor(road, palette)}
-						isDefault={road.color === null}
 						onChange={(v) =>
 							edit("color", (r) => {
 								r.color = v;
 							})
 						}
-						onReset={() =>
-							edit("color", (r) => {
-								r.color = null;
-							})
-						}
+						inherit={{
+							from: "default",
+							inherited: road.color === null,
+							onReset: () =>
+								edit("color", (r) => {
+									r.color = null;
+								}),
+						}}
 					/>
 
 					{road.style === "asphalt" && (

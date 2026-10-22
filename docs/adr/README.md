@@ -30,3 +30,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0024](0024-base-ui-component-primitives.md) | Base UI for interactive component primitives | accepted |
 | [0025](0025-unified-ui-kit.md) | One UI kit for every panel | accepted |
 | [0026](0026-repair-old-worlds.md) | Repair old worlds instead of rejecting them | accepted |
+| [0027](0027-inherited-values-and-overrides.md) | Inherited values and overrides look the same everywhere | accepted |

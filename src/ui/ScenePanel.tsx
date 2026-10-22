@@ -2,8 +2,8 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TDrivingSide, TThemePreference } from "#/scene/schema";
+import { ROAD_STYLE_LABELS, TURNS_OPTIONS } from "#/scene/roads";
+import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
 
 import { BackupsPanel } from "./BackupsPanel";
 import { Button, ButtonGroup } from "./Button";
@@ -105,7 +105,6 @@ export const ScenePanel = () => {
 				<ColorField
 					label="Colour"
 					value={scene.ground.color ?? palette.ground}
-					isDefault={scene.ground.color === null}
 					onChange={(v) =>
 						commit(
 							(s) => {
@@ -114,11 +113,14 @@ export const ScenePanel = () => {
 							{ coalesce: "ground.color" },
 						)
 					}
-					onReset={() =>
-						commit((s) => {
-							s.ground.color = null;
-						})
-					}
+					inherit={{
+						from: "default",
+						inherited: scene.ground.color === null,
+						onReset: () =>
+							commit((s) => {
+								s.ground.color = null;
+							}),
+					}}
 				/>
 
 				<ButtonGroup>
@@ -141,6 +143,18 @@ export const ScenePanel = () => {
 							s.driving = v;
 						})
 					}
+				/>
+
+				<SelectField<TTurns>
+					label="Vehicles turn"
+					value={scene.turns}
+					options={TURNS_OPTIONS}
+					onChange={(v) =>
+						commit((s) => {
+							s.turns = v;
+						})
+					}
+					hint="Smoothly eases through corners; sharply snaps to each new direction. Roads and vehicles can override this."
 				/>
 
 				{scene.roads.length === 0 ? (

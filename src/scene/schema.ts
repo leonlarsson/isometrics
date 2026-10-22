@@ -16,6 +16,13 @@ export const Vec2Schema = z.tuple([z.number(), z.number()]);
 /** [x, y, z] in world units. */
 export const Vec3Schema = z.tuple([z.number(), z.number(), z.number()]);
 
+/**
+ * How vehicles take corners: `smooth` turns gradually over about half the
+ * vehicle's length, `sharp` snaps to each new direction. Set for the scene,
+ * overridable per road and per vehicle (null = inherit).
+ */
+export const TurnsSchema = z.enum(["smooth", "sharp"]);
+
 export const LabelSchema = z.object({
 	enabled: z.boolean().default(true),
 	title: z.string().default(""),
@@ -31,6 +38,8 @@ export const FollowSchema = z.object({
 	speed: z.number().min(0).max(50).default(2),
 	/** Distance along the road where the entity starts. */
 	offset: z.number().default(0),
+	/** How this vehicle takes corners; null = the road's setting (or the scene's). */
+	turns: TurnsSchema.nullable().default(null),
 });
 
 export const DetailsSchema = z.object({
@@ -117,6 +126,8 @@ export const RoadSchema = z.object({
 	 * centre (one-way roads, race tracks).
 	 */
 	lane: RoadLaneSchema.default("side"),
+	/** How vehicles on this road take corners; null = the scene's setting. */
+	turns: TurnsSchema.nullable().default(null),
 	/** null = the style's default colour for the active theme. */
 	color: hexColor.nullable().default(null),
 });
@@ -164,6 +175,8 @@ export const SceneSchema = z
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
 		driving: DrivingSideSchema.default("right"),
+		/** How vehicles take corners, unless a road or vehicle says otherwise. */
+		turns: TurnsSchema.default("smooth"),
 		entities: z.array(EntitySchema).default([]),
 		roads: z.array(RoadSchema).default([]),
 		areas: z.array(AreaSchema).default([]),
@@ -222,6 +235,7 @@ export type TArea = z.output<typeof AreaSchema>;
 export type TAreaInput = z.input<typeof AreaSchema>;
 export type TAreaType = z.output<typeof AreaTypeSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
+export type TTurns = z.output<typeof TurnsSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

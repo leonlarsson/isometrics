@@ -86,9 +86,13 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 				min={0.4}
 				max={8}
 				step={0.1}
-				isDefault={pointWidth(point) === undefined}
 				onChange={(value) => store().setRoadPointWidth(road.id, index, value, coalesce("width"))}
-				onReset={() => store().setRoadPointWidth(road.id, index, null)}
+				inherit={{
+					from: "road",
+					inherited: pointWidth(point) === undefined,
+					onReset: () => store().setRoadPointWidth(road.id, index, null),
+					value: String(road.width),
+				}}
 			/>
 
 			<Hint>Tip: hold Shift while dragging a point to raise or lower it.</Hint>

@@ -1,4 +1,4 @@
-import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TVec2 } from "./schema";
+import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurns, TVec2 } from "./schema";
 
 /**
  * Road geometry, framework-free so it can be unit-tested and reused.
@@ -13,6 +13,34 @@ export const ROAD_STYLE_LABELS: Record<TRoadStyle, string> = {
 	dirt: "Dirt path",
 	hidden: "Hidden route",
 };
+
+export const TURNS_LABELS: Record<TTurns, string> = {
+	smooth: "Smoothly",
+	sharp: "Sharply",
+};
+
+/** The same two choices everywhere turns can be set (scene, road, vehicle). */
+export const TURNS_OPTIONS = (Object.keys(TURNS_LABELS) as TTurns[]).map((value) => ({
+	value,
+	label: TURNS_LABELS[value],
+}));
+
+/**
+ * How a vehicle takes corners: its own setting, else its road's, else the
+ * scene's (see TurnsSchema).
+ */
+export const resolveTurns = (
+	scene: TTurns,
+	road: TTurns | null | undefined,
+	vehicle: TTurns | null | undefined,
+): TTurns => vehicle ?? road ?? scene;
+
+/**
+ * How far behind and ahead a vehicle looks to smooth its heading (the path
+ * sampler's `smoothing`): half its length for smooth turns, 0 for sharp ones.
+ */
+export const turnSmoothing = (turns: TTurns, vehicleLength: number) =>
+	turns === "sharp" ? 0 : Math.min(Math.max(vehicleLength / 2, 0.3), 3);
 
 /** Default width per style when drawing a new road. */
 export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
@@ -607,16 +635,6 @@ export const laneOffset = (
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);
-};
-
-/** Shift a sampled position sideways, given the heading from the path sampler. */
-export const applyLane = (position: TVec2, heading: number, offset: number): TVec2 => {
-	if (offset === 0) {
-		return position;
-	}
-	// heading is the Y rotation that points +X along travel; forward = (cos, -sin).
-	const forward: TVec2 = [Math.cos(heading), -Math.sin(heading)];
-	return add(position, scale(rightOf(forward), offset));
 };
 
 /** Midpoint of segment i → i+1 (wrapping for closed roads), for "insert point" handles. */

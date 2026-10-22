@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { createPathSampler } from "./paths";
 import {
-	applyLane,
 	buildElevatedSides,
 	buildRibbon,
 	DECK_THICKNESS,
@@ -15,8 +14,10 @@ import {
 	pointWidth,
 	polylineLength,
 	ROAD_STYLE_WIDTH,
+	resolveTurns,
 	roadCenterline,
 	segmentMidpoints,
+	turnSmoothing,
 	widthForStyle,
 } from "./roads";
 import type { TRoadPoint, TVec2 } from "./schema";
@@ -158,13 +159,11 @@ describe("lanes", () => {
 				[10, 0],
 			],
 			false,
+			{ lane: 1 },
 		);
-		const forward = sampler.at(5); // heading +X
-		const back = sampler.at(15); // ping-pong, heading -X
-		const a = applyLane(forward.position, forward.heading, 1);
-		const b = applyLane(back.position, back.heading, 1);
-		expect(a[1]).toBeCloseTo(1); // right of +X is +Z
-		expect(b[1]).toBeCloseTo(-1);
+		const turn = Math.PI; // the U-turn at the far end: half a circle of radius 1
+		expect(sampler.at(5).position[1]).toBeCloseTo(1); // heading +X: right of +X is +Z
+		expect(sampler.at(15 + turn).position[1]).toBeCloseTo(-1); // coming back, heading -X
 	});
 });
 
@@ -562,5 +561,21 @@ describe("widthForStyle", () => {
 
 	it("keeps a custom width", () => {
 		expect(widthForStyle(5, "hidden", "asphalt")).toBe(5);
+	});
+});
+
+describe("turns", () => {
+	it("uses the vehicle's setting, else the road's, else the scene's", () => {
+		expect(resolveTurns("smooth", null, null)).toBe("smooth");
+		expect(resolveTurns("smooth", "sharp", null)).toBe("sharp");
+		expect(resolveTurns("smooth", "sharp", "smooth")).toBe("smooth");
+		expect(resolveTurns("sharp", undefined, undefined)).toBe("sharp");
+	});
+
+	it("smooths over half the vehicle's length, within limits; sharp is 0", () => {
+		expect(turnSmoothing("smooth", 2)).toBe(1);
+		expect(turnSmoothing("smooth", 0.2)).toBe(0.3);
+		expect(turnSmoothing("smooth", 20)).toBe(3);
+		expect(turnSmoothing("sharp", 2)).toBe(0);
 	});
 });

@@ -273,11 +273,12 @@ const ROADS: TRoadInput[] = [
 		name: "Ferry route",
 		style: "hidden",
 		cornerRadius: 6,
+		// Both ends in open water: the ferry turns on the spot there (about its own length).
 		points: [
-			[22.5, 9.5],
-			[17, 15],
+			[23.5, 12.4],
+			[17, 15.6],
 			[6, 20.4],
-			[-3, 22.6],
+			[-2, 22],
 		],
 	},
 ];
@@ -471,8 +472,9 @@ const harbour: TEntityInput[] = [
 		props: { length: i === 2 ? 3.6 : 2.6, decks: i === 2 ? 2 : 1 },
 	})),
 	...[
-		[2.4, 22.6, 30],
-		[8.6, 19.6, -20],
+		// Well clear of the ferry route.
+		[13.5, 21.6, 30],
+		[21, 18.6, -20],
 	].map(([x, z, rotation], i) => ({
 		id: `anchored_yacht_${i}`,
 		kind: "yacht",
