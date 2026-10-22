@@ -7,6 +7,7 @@ import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
 import { CameraControls } from "./CameraControls";
 import { CameraFlight } from "./CameraFlight";
+import { CameraFollow } from "./CameraFollow";
 import { CameraRig, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
@@ -106,6 +107,8 @@ export const Viewport = () => {
 			<ProjectionSwitch />
 
 			<CameraFlight />
+
+			<CameraFollow />
 
 			<LabelProjector />
 		</Canvas>

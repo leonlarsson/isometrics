@@ -14,7 +14,8 @@ import {
 } from "#/scene/roads";
 import type { TEntity, TTurns } from "#/scene/schema";
 
-import { Button, IconButton, IconButtonGroup } from "./Button";
+import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
+import { CameraFollowButtons } from "./CameraFollowBar";
 import {
 	CheckboxGroupField,
 	ColorField,
@@ -442,6 +443,12 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 								}}
 							/>
 						</>
+					)}
+
+					{entity.follow && (
+						<ButtonGroup>
+							<CameraFollowButtons entityId={entity.id} />
+						</ButtonGroup>
 					)}
 
 					{roads.length === 0 && (

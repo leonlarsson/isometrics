@@ -15,7 +15,9 @@ export const ViewpointBar = () => {
 	const mode = useEditor((s) => s.mode);
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const activeId = useEditor((s) => s.activeViewpointId);
-	const shown = mode === "view" && viewpoints.length > 0;
+	// The follow bar takes the same spot while the camera follows a vehicle.
+	const following = useEditor((s) => s.cameraFollow !== null);
+	const shown = mode === "view" && viewpoints.length > 0 && !following;
 	const index = viewpoints.findIndex((v) => v.id === activeId);
 
 	const step = (by: number) => {

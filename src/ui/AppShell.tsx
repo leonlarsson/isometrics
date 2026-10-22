@@ -7,6 +7,7 @@ import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
 
 import { IconButton } from "./Button";
+import { CameraFollowBar } from "./CameraFollowBar";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
@@ -147,6 +148,8 @@ export const AppShell = () => {
 							<FollowOfferBar />
 
 							<ViewpointBar />
+
+							<CameraFollowBar />
 
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 

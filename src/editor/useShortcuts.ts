@@ -125,6 +125,8 @@ export const useShortcuts = () => {
 				const state = useEditor.getState();
 				if (state.cancelGesture) {
 					state.cancelGesture();
+				} else if (state.cameraFollow) {
+					state.stopFollowing();
 				} else if (state.placingKind) {
 					state.stopPlacing();
 				} else if (state.followOffer) {

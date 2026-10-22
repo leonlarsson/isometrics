@@ -167,6 +167,11 @@ export interface IEditorState {
 	flight: { pose: TViewPose; nonce: number } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
+	/**
+	 * The camera follows a vehicle (render/CameraFollow): keeping its angle, or riding along
+	 * behind it in perspective. Runtime UI state.
+	 */
+	cameraFollow: { entityId: string; ride: boolean; perspectiveBefore: boolean } | null;
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
 	loadScene: (scene: TScene) => void;
@@ -211,6 +216,10 @@ export interface IEditorState {
 	/** Show every hidden item again (Alt+H). */
 	revealAll: () => void;
 
+	/** Follow a vehicle with the camera, or ride along behind it (perspective). */
+	followWithCamera: (entityId: string, ride: boolean) => void;
+	/** Stop following; a ride-along goes back to the camera type it started from. */
+	stopFollowing: () => void;
 	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
 	goToViewpoint: (id: string) => void;
 	/** Save a view as a new viewpoint at the end of the list. Returns its id. */
@@ -364,6 +373,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		hovered: null,
 		flight: null,
 		activeViewpointId: null,
+		cameraFollow: null,
 
 		commit: (recipe, options = {}) =>
 			set((state) => {
@@ -417,6 +427,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				followOffer: null,
 				activeViewpointId: null,
 				flight: null,
+				cameraFollow: null,
 			}),
 
 		undo: () =>
@@ -530,13 +541,14 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
-		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null })),
+		resetView: () =>
+			set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null, cameraFollow: null })),
 
 		frameSelection: () => {
 			const item = selectedItem(get());
 			const box = item ? boundsOf(get().scene, item) : null;
 			if (box) {
-				set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: box }));
+				set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: box, cameraFollow: null }));
 			}
 		},
 
@@ -578,12 +590,33 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				}
 			}),
 
+		followWithCamera: (entityId, ride) =>
+			set((s) => {
+				const perspectiveBefore = s.cameraFollow?.perspectiveBefore ?? s.perspective;
+				return {
+					cameraFollow: { entityId, ride, perspectiveBefore },
+					perspective: ride ? true : perspectiveBefore,
+					flight: null,
+				};
+			}),
+
+		stopFollowing: () =>
+			set((s) =>
+				s.cameraFollow
+					? {
+							cameraFollow: null,
+							perspective: s.cameraFollow.ride ? s.cameraFollow.perspectiveBefore : s.perspective,
+						}
+					: s,
+			),
+
 		goToViewpoint: (id) => {
 			const viewpoint = get().scene.viewpoints.find((v) => v.id === id);
 			if (!viewpoint) {
 				return;
 			}
 			set((s) => ({
+				cameraFollow: null,
 				perspective: viewpoint.perspective,
 				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1 },
 				activeViewpointId: id,

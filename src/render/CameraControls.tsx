@@ -206,6 +206,10 @@ const useKeepTargetOnGround = () => {
 			return;
 		}
 		const onChange = () => {
+			// The camera following a vehicle keeps up with it; the vehicle is on the ground anyway.
+			if (useEditor.getState().cameraFollow) {
+				return;
+			}
 			const { target } = controls;
 			const x = clamp(target.x, -ground.width / 2, ground.width / 2);
 			const z = clamp(target.z, -ground.depth / 2, ground.depth / 2);

@@ -2,7 +2,8 @@ import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { getPart } from "#/parts/registry";
 import { formatEntry } from "#/scene/format";
 
-import { IconButton } from "./Button";
+import { ButtonGroup, IconButton } from "./Button";
+import { CameraFollowButtons } from "./CameraFollowBar";
 
 import styles from "./DetailSheet.module.css";
 
@@ -35,6 +36,12 @@ export const DetailSheet = () => {
 
 				<IconButton icon="close" label="Close details" size="md" onClick={() => select(null)} />
 			</header>
+
+			{entity.follow && (
+				<ButtonGroup>
+					<CameraFollowButtons entityId={entity.id} />
+				</ButtonGroup>
+			)}
 
 			{keys.length > 0 && (
 				<div className={styles.tiles}>
