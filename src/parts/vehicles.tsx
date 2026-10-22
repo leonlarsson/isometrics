@@ -82,10 +82,15 @@ export const truck = definePart({
 
 			<RBox size={[1.85, 1.15, 1.04]} position={[-0.4, 0.76, 0]} color={color} radius={0.06} />
 
-			{[0.95, -0.15, -0.9].flatMap((x) =>
-				[0.46, -0.46].map((z) => (
-					<Wheel key={`${x}:${z}`} position={[x, 0.18, z]} radius={0.18} color={palette.tire} />
-				)),
+			{[0.95, -0.15, -0.9].flatMap(
+				(x) =>
+					[0.46, -0.46].map((z) => (
+						<Wheel key={`${x}:${z}`} position={[x, 0.18, z]} radius={0.18} color={palette.tire} />
+					)),
+				// No clipping, but looks odd...
+				// [0.452, -0.452].map((z) => (
+				// 	<Wheel key={`${x}:${z}`} position={[x, 0.18, z]} radius={0.18} color={palette.tire} />
+				// )),
 			)}
 		</group>
 	),
