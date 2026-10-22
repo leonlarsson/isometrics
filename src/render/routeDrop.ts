@@ -32,6 +32,8 @@ export interface IRouteDrop {
 	height: number;
 	/** Facing the way it would drive, in degrees (an entity's `rotation`). */
 	rotation: number;
+	/** Nose up or down with the road's slope there, in degrees (an entity's `pitch`). */
+	pitch: number;
 }
 
 interface IRouteDropOptions {
@@ -101,15 +103,27 @@ export const findRouteDrop = (
 		position: [round(sample.position[0]), round(sample.position[1])],
 		height: round(sample.height),
 		rotation: round(normalizeDegrees(sample.heading / DEG2RAD)),
+		pitch: round(sample.pitch / DEG2RAD, 1),
 	};
 };
 
-/** Where a vehicle stands, as an entity's position, elevation and rotation. */
+/** Where a vehicle stands, as an entity's position, elevation, rotation and pitch. */
 export interface IVehiclePose {
 	position: TVec2;
 	elevation: number;
 	rotation: number;
+	pitch?: number;
 }
+
+const down = new THREE.Vector3(0, -1, 0);
+const above = new THREE.Vector3();
+
+/** Whether a vehicle stands on a road: one under it, at its height. */
+const standsOnRoad = (position: TVec2, elevation: number, vehicleLength: number) => {
+	above.set(position[0], 100, position[1]);
+	const drop = findRouteDrop(new THREE.Ray(above, down), { vehicleLength });
+	return drop !== null && Math.abs(drop.height - elevation) < 0.05;
+};
 
 /**
  * Where each driving vehicle is right now, by entity id. They move every
@@ -160,8 +174,12 @@ export const createVehicleRouteDrag = (
 	}
 	const vehicleLength = part.footprint(resolveProps(part, entity.props))[0] * entity.scale;
 	const follow = entity.follow;
-	// How it stood when picked up, to go back to when it leaves a road again.
-	const { rotation, elevation } = pose ?? entity;
+	// How it stood when picked up, to go back to when it leaves a road again. One picked up off
+	// a road (parked on a bridge, or driving) goes back down to the ground instead of hovering.
+	const start = pose ?? entity;
+	const { rotation } = start;
+	const elevation =
+		follow || standsOnRoad(start.position, start.elevation, vehicleLength) ? 0 : start.elevation;
 	let drop: IRouteDrop | null = null;
 
 	return {
@@ -179,6 +197,7 @@ export const createVehicleRouteDrag = (
 					draft.position = pose.position;
 					draft.elevation = pose.elevation;
 					draft.rotation = pose.rotation;
+					draft.pitch = pose.pitch ?? 0;
 				},
 				options,
 			);
@@ -203,6 +222,7 @@ export const createVehicleRouteDrag = (
 						draft.position = next.position;
 						draft.rotation = next.rotation;
 						draft.elevation = next.height;
+						draft.pitch = next.pitch;
 					},
 					options,
 				);
@@ -216,6 +236,8 @@ export const createVehicleRouteDrag = (
 					(draft) => {
 						draft.rotation = rotation;
 						draft.elevation = elevation;
+						// Off the road the ground is flat.
+						draft.pitch = 0;
 					},
 					options,
 				);
@@ -235,6 +257,7 @@ export const createVehicleRouteDrag = (
 						draft.follow = { ...follow, roadId, offset, reverse };
 						draft.elevation = entity.elevation;
 						draft.rotation = entity.rotation;
+						draft.pitch = 0;
 					},
 					options,
 				);

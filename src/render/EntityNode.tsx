@@ -140,6 +140,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const currentPose = () => {
 		const position = outer.current?.position;
 		const heading = inner.current?.rotation.y;
+		const tilt = inner.current?.rotation.z ?? 0;
 		if (!position || heading === undefined) {
 			return undefined;
 		}
@@ -147,6 +148,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			position: [round(position.x), round(position.z)] as TVec2,
 			elevation: round(position.y),
 			rotation: round(normalizeDegrees(heading / DEG2RAD), 1),
+			pitch: round(tilt / DEG2RAD, 1),
 		};
 	};
 
@@ -291,7 +293,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		>
 			<group
 				ref={inner}
-				rotation={following ? undefined : [0, toRadians(entity.rotation), 0]}
+				// Heading, then nose up or down (vehicles face +X, so pitch turns about Z), as when driving.
+				rotation={following ? undefined : [0, toRadians(entity.rotation), toRadians(entity.pitch)]}
 				scale={entity.scale}
 				{...handlers}
 			>

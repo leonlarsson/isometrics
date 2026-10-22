@@ -951,9 +951,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					offset: round(offer.offset),
 					reverse: offer.reverse,
 				});
-				// The road sets height and heading now; these would add on top of it.
+				// The road sets height, heading and slope now; these would add on top of it.
 				entity.elevation = 0;
 				entity.rotation = 0;
+				entity.pitch = 0;
 			});
 		},
 

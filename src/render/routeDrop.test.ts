@@ -70,6 +70,20 @@ describe("findRouteDrop", () => {
 		}
 	});
 
+	it("tilts the vehicle with the road's slope, nose up going uphill", () => {
+		load({
+			points: [
+				[0, 0, 0],
+				[10, 0, 2],
+			],
+		});
+		// Shallow ramp, read where the ray meets it from straight above.
+		const up = findRouteDrop(down(5, 0.6), { vehicleLength: 1 });
+		const downhill = findRouteDrop(down(5, -0.6), { vehicleLength: 1 });
+		expect(up?.pitch).toBeGreaterThan(5);
+		expect(downhill?.pitch).toBeLessThan(-5);
+	});
+
 	it("parks on an elevated road at its height", () => {
 		load({
 			points: [
@@ -149,6 +163,34 @@ describe("createVehicleRouteDrag", () => {
 		expect(drag?.move(down(5, 3), [5, 3], false, options)).toBe(false);
 		drag?.end(true, options);
 		expect(van()?.follow).toBeNull();
+	});
+
+	it("puts a vehicle dragged off an elevated road back on the ground, level", () => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				roads: [
+					{
+						id: "bridge",
+						cornerRadius: 0,
+						points: [
+							[0, 0, 0],
+							[10, 0, 2],
+						],
+					},
+				],
+				entities: [{ id: "van", kind: "van" }],
+			}),
+		);
+		const drag = createVehicleRouteDrag("van");
+		drag?.start(options);
+		drag?.move(down(5, 0.6), [5, 0.6], false, options);
+		expect(van()?.pitch).toBeGreaterThan(5);
+		expect(van()?.elevation).toBeGreaterThan(0.5);
+		// Off the road again.
+		drag?.move(down(5, 6), [5, 6], false, options);
+		expect(van()?.pitch).toBe(0);
+		expect(van()?.elevation).toBe(0);
 	});
 
 	it("offers to drive a parked vehicle dropped on a road", () => {

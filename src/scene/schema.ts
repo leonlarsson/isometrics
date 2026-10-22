@@ -94,6 +94,14 @@ export const EntitySchema = z
 			.describe(
 				"Degrees around the vertical axis, counter-clockwise seen from above. At 0 the front faces +z and vehicles face +x. While following a road it turns the vehicle relative to the road.",
 			),
+		pitch: z
+			.number()
+			.min(-60)
+			.max(60)
+			.default(0)
+			.describe(
+				"Nose up (positive) or down, in degrees, e.g. a vehicle parked on a sloped road (set when it's dropped on one). Ignored while it follows a road, which tilts it itself.",
+			),
 		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
 		color: hexColor
 			.nullable()

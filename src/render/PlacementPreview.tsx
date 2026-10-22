@@ -40,6 +40,8 @@ interface IPlacement {
 	point: TVec2;
 	elevation: number;
 	rotation: number;
+	/** Nose up or down on a sloped road (degrees). */
+	pitch: number;
 }
 
 const samePlacement = (a: IPlacement | null, b: IPlacement | null) =>
@@ -49,7 +51,8 @@ const samePlacement = (a: IPlacement | null, b: IPlacement | null) =>
 		a.point[0] === b.point[0] &&
 		a.point[1] === b.point[1] &&
 		a.elevation === b.elevation &&
-		a.rotation === b.rotation);
+		a.rotation === b.rotation &&
+		a.pitch === b.pitch);
 
 const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => {
 	const palette = usePalette();
@@ -72,7 +75,7 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 	return (
 		<group
 			position={[placement.point[0], placement.elevation, placement.point[1]]}
-			rotation={[0, toRadians(placement.rotation), 0]}
+			rotation={[0, toRadians(placement.rotation), toRadians(placement.pitch)]}
 		>
 			<group ref={group}>
 				<Component props={props} color={color} accent={accent} palette={palette} playing={false} />
@@ -122,11 +125,14 @@ export const PlacementPreview = () => {
 					point: drop.position,
 					elevation: drop.height,
 					rotation: drop.rotation,
+					pitch: drop.pitch,
 				};
 				return { placement, drop };
 			}
 			const point = groundPointOnRay(raycaster.ray, event.altKey);
-			return point ? { placement: { point, elevation: 0, rotation: 0 }, drop: null } : null;
+			return point
+				? { placement: { point, elevation: 0, rotation: 0, pitch: 0 }, drop: null }
+				: null;
 		};
 
 		const onMove = (event: PointerEvent) => {
@@ -152,9 +158,9 @@ export const PlacementPreview = () => {
 			if (!at) {
 				return;
 			}
-			const { point, elevation, rotation } = at.placement;
+			const { point, elevation, rotation, pitch } = at.placement;
 			const state = useEditor.getState();
-			const id = state.addEntity({ kind, name: "", position: point, elevation, rotation });
+			const id = state.addEntity({ kind, name: "", position: point, elevation, rotation, pitch });
 			if (at.drop) {
 				const { roadId, offset, reverse } = at.drop;
 				state.setFollowOffer({ entityId: id, roadId, offset, reverse, position: point });
