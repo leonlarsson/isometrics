@@ -14,8 +14,10 @@ import {
 	pillarPositions,
 	pointWidth,
 	polylineLength,
+	ROAD_STYLE_WIDTH,
 	roadCenterline,
 	segmentMidpoints,
+	widthForStyle,
 } from "./roads";
 import type { TRoadPoint, TVec2 } from "./schema";
 
@@ -548,5 +550,17 @@ describe("road width per point", () => {
 		const dashes = dashPolyline(roadCenterline(straight, false, 0, 2), false, 1, 1);
 		expect(dashes.length).toBeGreaterThan(0);
 		expect(dashes.flat().every((p) => p.length === 3)).toBe(true);
+	});
+});
+
+describe("widthForStyle", () => {
+	it("adopts the new style's default when the width is still the old default", () => {
+		expect(widthForStyle(ROAD_STYLE_WIDTH.hidden, "hidden", "asphalt")).toBe(
+			ROAD_STYLE_WIDTH.asphalt,
+		);
+	});
+
+	it("keeps a custom width", () => {
+		expect(widthForStyle(5, "hidden", "asphalt")).toBe(5);
 	});
 });

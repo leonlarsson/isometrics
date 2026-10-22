@@ -21,6 +21,13 @@ export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
 	hidden: 1.6,
 };
 
+/**
+ * The road width after switching from one style to another: a width still at
+ * the old style's default adopts the new style's default; a custom width stays.
+ */
+export const widthForStyle = (width: number, from: TRoadStyle, to: TRoadStyle) =>
+	Math.abs(width - ROAD_STYLE_WIDTH[from]) < 1e-6 ? ROAD_STYLE_WIDTH[to] : width;
+
 /** Above this height a road counts as elevated: deck, supports and railings appear. */
 export const ELEVATED_MIN = 0.05;
 /** Thickness of an elevated road deck. */

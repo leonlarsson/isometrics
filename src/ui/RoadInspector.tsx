@@ -3,7 +3,13 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
-import { pointWidth, polylineLength, ROAD_STYLE_LABELS, roadCenterlineOf } from "#/scene/roads";
+import {
+	pointWidth,
+	polylineLength,
+	ROAD_STYLE_LABELS,
+	roadCenterlineOf,
+	widthForStyle,
+} from "#/scene/roads";
 import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports } from "#/scene/schema";
 
 import { ColorField, Section, Select, SliderField, TextInput, Toggle } from "./fields";
@@ -69,6 +75,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					options={STYLE_OPTIONS}
 					onChange={(v) =>
 						edit("style", (r) => {
+							r.width = widthForStyle(r.width, r.style, v);
 							r.style = v;
 						})
 					}
