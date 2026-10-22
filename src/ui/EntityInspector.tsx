@@ -217,7 +217,10 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				/>
 
 				{!following && (
-					<Hint>Drag in the scene to move · Q/E to rotate · hold Alt to place freely</Hint>
+					<Hint>
+						Drag it or use the arrows in the scene · G move, R turn, S resize · Q/E to rotate · hold
+						Alt to place freely
+					</Hint>
 				)}
 			</Section>
 

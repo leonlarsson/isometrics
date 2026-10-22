@@ -32,3 +32,5 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0026](0026-repair-old-worlds.md) | Repair old worlds instead of rejecting them | accepted |
 | [0027](0027-inherited-values-and-overrides.md) | Inherited values and overrides look the same everywhere | accepted |
 | [0028](0028-map-style-camera-and-click-to-select.md) | Map-style camera; clicks select, drags move the camera | accepted |
+| [0029](0029-transform-gizmo-and-keyboard-transforms.md) | Transform gizmo and Blender-style keyboard transforms | accepted |
+| [0030](0030-narrow-layout-bottom-sheet.md) | Narrow layout: the scene keeps the screen, panels live in a bottom sheet | accepted |

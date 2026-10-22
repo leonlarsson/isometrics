@@ -6,6 +6,7 @@ import {
 	selectSelectedArea,
 	selectSelectedEntity,
 	selectSelectedRoad,
+	type TTransformMode,
 	useEditor,
 } from "./store";
 
@@ -16,9 +17,10 @@ const isTextEntry = (target: EventTarget | null) =>
 /**
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Space pause/play motion
- *   Esc cancels a drag from the palette, else deselects
+ *   Esc cancels a gizmo drag or a drag from the palette, else deselects
  *   Mod+O open a world file · Mod+S save the world to a file
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
+ *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *
  * The library skips single keys while typing in text fields and prevents the
@@ -36,6 +38,13 @@ export const useShortcuts = () => {
 		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
 	const canTransform = canEdit && !selected.locked;
 	const canNudge = canTransform && !selected.follow;
+	const selectedPoint = useEditor(
+		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
+	);
+	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
+	// A vehicle following a road is placed by the road, so it uses the gizmo instead.
+	const canGrab = canNudge || selectedPoint;
+	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
 		const { selectedId, rotateEntity } = useEditor.getState();
@@ -111,7 +120,9 @@ export const useShortcuts = () => {
 			// first, then the road or object.
 			callback: () => {
 				const state = useEditor.getState();
-				if (state.placingKind) {
+				if (state.cancelGesture) {
+					state.cancelGesture();
+				} else if (state.placingKind) {
 					state.stopPlacing();
 				} else if (state.selectedPointIndex !== null && state.selectedRoadId) {
 					state.selectRoadPoint(state.selectedRoadId, null);
@@ -160,6 +171,21 @@ export const useShortcuts = () => {
 			hotkey: "Backspace",
 			callback: remove,
 			options: { enabled: canDelete, meta: { name: "Delete" } },
+		},
+		{
+			hotkey: "G",
+			callback: () => start("grab"),
+			options: { enabled: canGrab, meta: { name: "Move (grab)" } },
+		},
+		{
+			hotkey: "R",
+			callback: () => start("rotate"),
+			options: { enabled: canNudge, meta: { name: "Turn" } },
+		},
+		{
+			hotkey: "S",
+			callback: () => start("scale"),
+			options: { enabled: canNudge, meta: { name: "Resize" } },
 		},
 		{
 			hotkey: "Q",

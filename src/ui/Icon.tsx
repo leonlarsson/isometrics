@@ -25,6 +25,7 @@ const PATHS = {
 	cut: "M6 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 8.5 20 20M8.5 15.5 20 4",
 	join: "M4 12h6M14 12h6M10 9l3 3-3 3M14 9l-3 3 3 3",
 	chevronDown: "m6 9 6 6 6-6",
+	chevronUp: "m6 15 6-6 6 6",
 	chevronRight: "m9 6 6 6-6 6",
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
 	folder: "M3 6h6l2 2h10v11H3z",

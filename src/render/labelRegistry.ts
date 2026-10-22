@@ -24,3 +24,10 @@ export const registerLabelElement = (id: string, element: HTMLElement | null) =>
 		labelElements.delete(id);
 	}
 };
+
+/**
+ * Screen area (canvas pixels) covered by the transform gizmo, written by the
+ * gizmo every frame. Label cards over it fade and let the pointer through, so
+ * a card never hides the handle underneath it.
+ */
+export const gizmoArea = { active: false, left: 0, top: 0, right: 0, bottom: 0 };

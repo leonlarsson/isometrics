@@ -61,6 +61,43 @@ describe("editor store", () => {
 		expect(store.getState().scene.entities[0].position).toEqual([0, 0]);
 	});
 
+	it("keeps a gesture in one undo step however long it pauses", () => {
+		const store = makeStore();
+		const { moveEntity } = store.getState();
+		moveEntity("w", [1, 0], { coalesce: "gizmo:1", gesture: true });
+		vi.advanceTimersByTime(5000);
+		moveEntity("w", [2, 0], { coalesce: "gizmo:1", gesture: true });
+		expect(store.getState().past).toHaveLength(1);
+
+		store.getState().undo();
+		expect(store.getState().scene.entities[0].position).toEqual([0, 0]);
+	});
+
+	it("cancels a gesture without leaving an undo step behind", () => {
+		const store = makeStore();
+		store.getState().moveEntity("w", [1, 0]);
+		const before = store.getState().scene;
+		store.getState().moveEntity("w", [2, 0], { coalesce: "gizmo:2", gesture: true });
+		store.getState().moveEntity("w", [3, 0], { coalesce: "gizmo:2", gesture: true });
+
+		store.getState().revertTo(before);
+		expect(store.getState().scene).toBe(before);
+		expect(store.getState().past).toHaveLength(1);
+
+		// Reverting to the current scene (a gesture that never moved) changes nothing.
+		store.getState().revertTo(before);
+		expect(store.getState().past).toHaveLength(1);
+	});
+
+	it("tracks a keyboard transform's axis and typed value", () => {
+		const store = makeStore();
+		store.getState().startTransform("grab");
+		store.getState().updateTransform({ axis: "x", typed: "2.5" });
+		expect(store.getState().transform).toEqual({ mode: "grab", axis: "x", typed: "2.5" });
+		store.getState().setMode("view");
+		expect(store.getState().transform).toBeNull();
+	});
+
 	it("does not record no-op commits", () => {
 		const store = makeStore();
 		store.getState().commit(() => {});

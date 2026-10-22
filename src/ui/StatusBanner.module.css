@@ -13,3 +13,28 @@
 .banner strong {
 	color: var(--accent);
 }
+
+.long,
+.short {
+	margin-left: 0.3em;
+}
+
+.short {
+	display: none;
+}
+
+/* Phones: one short line instead of four. */
+@media (max-width: 700px) {
+	.banner {
+		padding: 4px 12px;
+		font-size: 11px;
+	}
+
+	.long {
+		display: none;
+	}
+
+	.short {
+		display: inline;
+	}
+}

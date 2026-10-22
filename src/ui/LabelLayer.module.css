@@ -94,3 +94,16 @@
 	pointer-events: none;
 	opacity: 0.6;
 }
+
+/* Over the transform gizmo (set by LabelProjector): step aside so the handles stay usable. */
+.anchor[data-under-gizmo] .card {
+	pointer-events: none;
+	opacity: 0.25;
+}
+
+/* Phones: smaller cards, so they don't cover the world. */
+@media (max-width: 700px) {
+	.card {
+		zoom: 0.8;
+	}
+}

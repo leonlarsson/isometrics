@@ -31,7 +31,8 @@ import {
 import { createBrightwaterScene } from "#/templates/brightwater";
 
 export type TEditorMode = "edit" | "view";
-export type TInspectorTab = "object" | "data" | "scene";
+/** Inspector tabs. "add" (the Add to scene panel) only exists in the narrow layout. */
+export type TInspectorTab = "add" | "object" | "data" | "scene";
 
 /** Road widths a point may have (the schema's limits). */
 const clampRoadWidth = (width: number) => round(Math.min(20, Math.max(0.4, width)));
@@ -63,6 +64,11 @@ export interface ICommitOptions {
 	record?: boolean;
 	/** Group rapid edits (typing, slider drags, entity drags) into one undo step. */
 	coalesce?: string;
+	/**
+	 * With `coalesce`: the edits are one gesture (a drag with a unique key), so they merge
+	 * however long the pointer pauses, not just within the usual second.
+	 */
+	gesture?: boolean;
 }
 
 /** A road or area being drawn point by point. Runtime UI state; never saved in the scene. */
@@ -76,6 +82,18 @@ export interface IRoadDrawing {
 	points: TRoadPoint[];
 	/** When continuing an existing road: its id. Finishing replaces that road's points. */
 	roadId?: string;
+}
+
+export type TTransformMode = "grab" | "rotate" | "scale";
+export type TTransformAxis = "x" | "y" | "z";
+
+/** A keyboard transform (G / R / S) in progress. Runtime UI state; never saved in the scene. */
+export interface ITransformSession {
+	mode: TTransformMode;
+	/** Axis the move is locked to (X / Y / Z keys), or null for free movement on the ground. */
+	axis: TTransformAxis | null;
+	/** Number typed for an exact value, as typed (e.g. "-2.5"). Empty: follow the mouse. */
+	typed: string;
 }
 
 /** Two road ends that touch after a drag; the UI offers to join them. */
@@ -100,6 +118,9 @@ export interface IEditorState {
 	drawing: IRoadDrawing | null;
 	/** Part kind being dragged from the palette onto the scene. Runtime UI state. */
 	placingKind: string | null;
+	transform: ITransformSession | null;
+	/** Pixels at the bottom of the viewport covered by UI (the narrow layout's sheet). */
+	viewInset: number;
 	joinOffer: IJoinOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
@@ -111,6 +132,11 @@ export interface IEditorState {
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
 	loadScene: (scene: TScene) => void;
+	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
+	revertTo: (before: TScene) => void;
+	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
+	cancelGesture: (() => void) | null;
+	setCancelGesture: (cancel: (() => void) | null) => void;
 	undo: () => void;
 	redo: () => void;
 
@@ -128,6 +154,11 @@ export interface IEditorState {
 	setDragging: (dragging: boolean) => void;
 	startPlacing: (kind: string) => void;
 	stopPlacing: () => void;
+	startTransform: (mode: TTransformMode) => void;
+	updateTransform: (patch: Partial<ITransformSession>) => void;
+	/** End a keyboard transform, keeping what it did (cancelling goes through cancelGesture). */
+	endTransform: () => void;
+	setViewInset: (pixels: number) => void;
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
 	resetView: () => void;
@@ -240,6 +271,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		...NOTHING_SELECTED,
 		drawing: null,
 		placingKind: null,
+		transform: null,
+		viewInset: 0,
 		joinOffer: null,
 		mode: "edit",
 		tab: "object",
@@ -261,7 +294,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const now = Date.now();
 				const { coalesce } = options;
 				const last = state.lastCommit;
-				if (coalesce && last && last.key === coalesce && now - last.at < COALESCE_MS) {
+				const recent = options.gesture || (last !== null && now - last.at < COALESCE_MS);
+				if (coalesce && last && last.key === coalesce && recent) {
 					return { scene: next, future: [], lastCommit: { key: coalesce, at: now } };
 				}
 				return {
@@ -271,6 +305,21 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					lastCommit: coalesce ? { key: coalesce, at: now } : null,
 				};
 			}),
+
+		revertTo: (before) =>
+			set((state) => {
+				if (state.scene === before) {
+					return state;
+				}
+				const index = state.past.lastIndexOf(before);
+				return {
+					scene: before,
+					past: index >= 0 ? state.past.slice(0, index) : state.past,
+					lastCommit: null,
+				};
+			}),
+		cancelGesture: null,
+		setCancelGesture: (cancel) => set({ cancelGesture: cancel }),
 
 		loadScene: (scene) =>
 			set({
@@ -369,11 +418,23 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			})),
 		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null }),
 		setMode: (mode) =>
-			set({ mode, ...NOTHING_SELECTED, drawing: null, placingKind: null, joinOffer: null }),
+			set({
+				mode,
+				...NOTHING_SELECTED,
+				drawing: null,
+				placingKind: null,
+				transform: null,
+				joinOffer: null,
+			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
 		startPlacing: (kind) => set({ placingKind: kind, drawing: null }),
 		stopPlacing: () => set({ placingKind: null }),
+		startTransform: (mode) => set({ transform: { mode, axis: null, typed: "" } }),
+		updateTransform: (patch) =>
+			set((s) => (s.transform ? { transform: { ...s.transform, ...patch } } : s)),
+		endTransform: () => set({ transform: null }),
+		setViewInset: (pixels) => set({ viewInset: pixels }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		resetView: () => set((s) => ({ viewNonce: s.viewNonce + 1 })),

@@ -31,7 +31,7 @@ src/
   parts/      procedural 3D parts + registry (definePart, PARTS)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
-  render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, RoadMesh + road handles/draw tool, labels (3D side)
+  render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: the UI kit (Button, fields, List, Tabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Inspector panels, LabelLayer, DetailSheet
   routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
@@ -81,11 +81,11 @@ Write a new ADR (copy `docs/adr/template.md`, next free number) for anything tha
 
 ## Known gaps / next steps
 
-Agreed, planned work lives in [`TODO.md`](TODO.md) (e.g. the Blender-style transform gizmo). Check it before starting related work.
+Agreed, planned work lives in [`TODO.md`](TODO.md). Check it before starting related work.
 
 
 - Label collision avoidance (cards can overlap).
 - Live data providers (ADR-0010), sharing links (ADR-0006), AI generation (ADR-0012).
 - Road junctions: crossing roads overlap visually, and a vehicle follows a single road (ADR-0017).
 - Terrain/mountains with roads tunnelling through them: road heights are already modelled for this (ADR-0018).
-- Multi-select; mobile editing layout is basic.
+- Multi-select. On phones (ADR-0030), dragging parts from the panel and keyboard transforms are desktop-only.

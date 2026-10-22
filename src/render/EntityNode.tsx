@@ -12,6 +12,7 @@ import { createPathSampler } from "#/scene/paths";
 import { laneOffset, resolveTurns, roadCenterlineOf, turnSmoothing } from "#/scene/roads";
 import type { TEntity } from "#/scene/schema";
 
+import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -258,6 +259,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					<SelectionFrame size={footprint} color={palette.selection} dashed={!selected} />
 				)}
 			</group>
+
+			{mode === "edit" && selected && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
 
 			{entity.label?.enabled && (
 				<EntityLabel

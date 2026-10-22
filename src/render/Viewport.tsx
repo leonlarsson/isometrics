@@ -9,11 +9,13 @@ import { CameraControls } from "./CameraControls";
 import { CameraRig } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
+import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { PlacementPreview } from "./PlacementPreview";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
+import { GizmoFirst } from "./TransformGizmo";
 
 const Lights = () => {
 	const palette = usePalette();
@@ -86,6 +88,10 @@ export const Viewport = () => {
 			<PlacementPreview />
 
 			<CameraControls />
+
+			<GizmoFirst />
+
+			<KeyboardTransform />
 
 			<CameraRig />
 

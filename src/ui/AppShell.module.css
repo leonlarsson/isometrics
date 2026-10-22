@@ -72,23 +72,60 @@
 	color: var(--text-muted);
 }
 
+/*
+ * Narrow layout (keep in sync with useNarrowLayout): the scene keeps the whole
+ * screen and the inspector floats over its bottom as a sheet, so opening it
+ * never resizes the canvas. The Add to scene panel lives in the sheet's Add tab.
+ */
 @media (max-width: 900px) {
 	.body {
+		position: relative;
 		grid-template-columns: 1fr;
-		grid-template-rows: 1fr auto;
 	}
 
 	.left {
 		display: none;
 	}
 
-	.right {
-		max-height: 45dvh;
-		border-left: none;
+	.rightColumn {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 30;
+		max-height: 55dvh;
+		overflow: hidden;
+		background: var(--surface);
 		border-top: 1px solid var(--border);
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		box-shadow: var(--shadow-panel);
+	}
+
+	.right {
+		border-left: none;
+		background: none;
 	}
 
 	.rightColumn > [role="separator"] {
 		display: none;
+	}
+
+	.sheetHandle {
+		display: flex;
+		justify-content: center;
+		padding-top: 2px;
+	}
+
+	.sceneTitle {
+		top: 12px;
+		left: 16px;
+	}
+
+	.sceneTitle h1 {
+		font-size: 17px;
+	}
+
+	.sceneTitle p {
+		font-size: 12px;
 	}
 }

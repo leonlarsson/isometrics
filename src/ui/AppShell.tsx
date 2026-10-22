@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import { loadStoredScene, startAutosave } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
@@ -6,6 +6,7 @@ import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
 
+import { IconButton } from "./Button";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { Inspector } from "./Inspector";
@@ -18,6 +19,8 @@ import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
 import { TooltipProvider } from "./Tooltip";
+import { TransformBar } from "./TransformBar";
+import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./AppShell.module.css";
 
@@ -42,6 +45,30 @@ export const AppShell = () => {
 	const [ready, setReady] = useState(false);
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
+	const narrow = useNarrowLayout();
+	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
+	// selected or a tab is picked, and folds down to its tab bar when the selection is cleared.
+	const [sheetOpen, setSheetOpen] = useState(false);
+	const selection = useEditor((s) => s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId);
+	useEffect(() => {
+		setSheetOpen(selection !== null);
+	}, [selection]);
+	// Tell the camera how much of the scene the sheet covers, so it can keep the selection in view.
+	const sheet = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const element = sheet.current;
+		const { setViewInset } = useEditor.getState();
+		if (!narrow || !element) {
+			setViewInset(0);
+			return;
+		}
+		const observer = new ResizeObserver(() => setViewInset(element.offsetHeight));
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+			setViewInset(0);
+		};
+	}, [narrow, mode]);
 
 	useEffect(() => {
 		const stored = loadStoredScene();
@@ -87,6 +114,8 @@ export const AppShell = () => {
 
 							<DrawingBar />
 
+							<TransformBar />
+
 							<JoinOfferBar />
 
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
@@ -95,11 +124,29 @@ export const AppShell = () => {
 						</main>
 
 						{mode === "edit" && (
-							<div className={styles.rightColumn}>
+							<div
+								ref={sheet}
+								className={styles.rightColumn}
+								data-sheet={narrow ? (sheetOpen ? "open" : "closed") : undefined}
+							>
 								<ResizeHandle width={inspectorWidth} onResize={setInspectorWidth} />
 
+								{narrow && (
+									<div className={styles.sheetHandle}>
+										<IconButton
+											icon={sheetOpen ? "chevronDown" : "chevronUp"}
+											label={sheetOpen ? "Hide panel" : "Show panel"}
+											onClick={() => setSheetOpen(!sheetOpen)}
+										/>
+									</div>
+								)}
+
 								<aside className={styles.right}>
-									<Inspector />
+									<Inspector
+										narrow={narrow}
+										open={!narrow || sheetOpen}
+										onTabSelect={() => setSheetOpen(true)}
+									/>
 								</aside>
 							</div>
 						)}

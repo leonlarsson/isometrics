@@ -31,6 +31,8 @@ export interface IScenePalette {
 	cliff: string;
 	cardboard: string;
 	selection: string;
+	/** Transform gizmo: one colour per axis (X red, Y/up green, Z blue), size handle, hover. */
+	gizmo: { x: string; y: string; z: string; size: string; hover: string };
 	hemiSky: string;
 	hemiGround: string;
 	hemiIntensity: number;
@@ -67,6 +69,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		cliff: "#c9bfa9",
 		cardboard: "#d8a967",
 		selection: "#e2603b",
+		gizmo: { x: "#e5484d", y: "#3f9b5a", z: "#3e63dd", size: "#4b4a46", hover: "#f5b301" },
 		hemiSky: "#ffffff",
 		hemiGround: "#cfc8b8",
 		hemiIntensity: 1.5,
@@ -101,6 +104,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		cliff: "#3d3b34",
 		cardboard: "#b48a52",
 		selection: "#e8714c",
+		gizmo: { x: "#ff6369", y: "#5bb98b", z: "#7b93ff", size: "#e8e6e1", hover: "#ffd60a" },
 		hemiSky: "#c9ccd6",
 		hemiGround: "#2a2b27",
 		hemiIntensity: 0.9,

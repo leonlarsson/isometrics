@@ -89,3 +89,14 @@
 	border-color: var(--accent);
 	background: var(--accent-soft);
 }
+
+/* Touch screens can't drag tiles onto the scene (a drag scrolls the list), so no grip there. */
+@media (hover: none) {
+	.grip {
+		display: none;
+	}
+
+	.part[data-draggable] {
+		cursor: pointer;
+	}
+}

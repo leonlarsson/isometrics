@@ -11,6 +11,8 @@ import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
+import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
+import { applyRoadPointDrag, roadPointStart } from "./transforms";
 import { groundPointFrom, useGroundDrag } from "./useGroundDrag";
 
 const HANDLE_LIFT = 0.12;
@@ -244,6 +246,39 @@ const InsertHandle = ({ roadId, index, point, baseY }: IInsertHandleProps) => {
 	);
 };
 
+const POINT_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y"];
+
+/** Move gizmo on the selected road point: along X / Z, on the ground, and up for height. */
+const RoadPointGizmo = ({
+	roadId,
+	index,
+	point,
+	baseY,
+}: {
+	roadId: string;
+	index: number;
+	point: TRoadPoint;
+	baseY: number;
+}) => {
+	const start = useRef<TRoadPoint | null>(null);
+
+	return (
+		<group position={[point[0], baseY + (point[2] ?? 0), point[1]]}>
+			<TransformGizmo
+				handles={POINT_HANDLES}
+				onStart={() => {
+					start.current = roadPointStart(roadId, index);
+				}}
+				onDrag={(drag) => {
+					if (start.current) {
+						applyRoadPointDrag(roadId, index, start.current, drag);
+					}
+				}}
+			/>
+		</group>
+	);
+};
+
 /** Point and insert handles for the selected road (edit mode only). */
 export const RoadHandles = () => {
 	const road = useEditor(selectSelectedRoad);
@@ -299,6 +334,15 @@ export const RoadHandles = () => {
 					/>
 				</group>
 			))}
+
+			{selectedPoint !== null && road.points[selectedPoint] && (
+				<RoadPointGizmo
+					roadId={road.id}
+					index={selectedPoint}
+					point={road.points[selectedPoint]}
+					baseY={baseY}
+				/>
+			)}
 		</group>
 	);
 };

@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
-import { useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
@@ -124,9 +124,95 @@ const useKeepTargetOnGround = () => {
 	}, [camera, controls, ground.width, ground.depth]);
 };
 
-const GroundPan = () => {
+/** Keep this much room (px) between a revealed selection and the edges of the visible area. */
+const REVEAL_MARGIN = 48;
+
+/**
+ * When UI covers the bottom of the viewport (the narrow layout's sheet), render
+ * the view shifted up by half that height, so the uncovered part acts as a full
+ * viewport centred on the camera target. Eases in and out as the sheet moves.
+ * Raycasts and label projection use the same projection, so they stay aligned.
+ */
+const useViewInset = () => {
+	const camera = useThree((s) => s.camera);
+	const size = useThree((s) => s.size);
+	const offset = useRef(0);
+
+	useFrame((_, delta) => {
+		const goal = useEditor.getState().viewInset / 2;
+		const view = camera instanceof THREE.OrthographicCamera ? camera.view : null;
+		const current =
+			view?.enabled && view.fullWidth === size.width && view.fullHeight === size.height;
+		if (Math.abs(goal - offset.current) < 0.5 && (goal === 0 ? !view?.enabled : current)) {
+			return;
+		}
+		offset.current += (goal - offset.current) * Math.min(1, delta * 10);
+		if (Math.abs(goal - offset.current) < 0.5) {
+			offset.current = goal;
+		}
+		if (!(camera instanceof THREE.OrthographicCamera)) {
+			return;
+		}
+		if (offset.current === 0) {
+			camera.clearViewOffset();
+		} else {
+			camera.setViewOffset(size.width, size.height, 0, offset.current, size.width, size.height);
+		}
+	});
+};
+
+/**
+ * When the sheet covers the newly selected object, glide the camera so the
+ * object is centred in the part of the scene that's still visible.
+ */
+const useRevealSelection = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+	const size = useThree((s) => s.size);
+	const selectedId = useEditor((s) => s.selectedId);
+	const inset = useEditor((s) => s.viewInset);
+	const remaining = useRef(new THREE.Vector3());
+
+	useEffect(() => {
+		const entity = useEditor.getState().scene.entities.find((e) => e.id === selectedId);
+		if (!entity || inset === 0 || !controls) {
+			return;
+		}
+		// Where the object will be once the view offset has settled: the target sits in the middle
+		// of the visible area, and the orthographic view moves everything by the same offset.
+		const object = new THREE.Vector3(entity.position[0], entity.elevation, entity.position[1]);
+		const onScreen = object.clone().project(camera);
+		const target = controls.target.clone().project(camera);
+		const visible = size.height - inset;
+		const x = size.width / 2 + ((onScreen.x - target.x) * size.width) / 2;
+		const y = visible / 2 - ((onScreen.y - target.y) * size.height) / 2;
+		const inView =
+			x > REVEAL_MARGIN &&
+			x < size.width - REVEAL_MARGIN &&
+			y > REVEAL_MARGIN &&
+			y < visible - REVEAL_MARGIN;
+		if (!inView) {
+			remaining.current.set(object.x - controls.target.x, 0, object.z - controls.target.z);
+		}
+	}, [selectedId, inset]);
+
+	useFrame((_, delta) => {
+		if (!controls || remaining.current.lengthSq() < 1e-6) {
+			return;
+		}
+		const step = remaining.current.clone().multiplyScalar(Math.min(1, delta * 8));
+		remaining.current.sub(step);
+		camera.position.add(step);
+		controls.target.add(step);
+		controls.update();
+	});
+};
+
+const CameraBehaviours = () => {
 	useGroundPan();
 	useKeepTargetOnGround();
+	useViewInset();
+	useRevealSelection();
 	return null;
 };
 
@@ -147,7 +233,7 @@ export const CameraControls = () => {
 				minZoom={2}
 				maxZoom={160}
 				zoomToCursor
-				// Plain left-drag panning is GroundPan's; with Ctrl/Shift held, OrbitControls turns
+				// Plain left-drag panning is useGroundPan's; with Ctrl/Shift held, OrbitControls turns
 				// its left-button "pan" into an orbit, which is the one we want.
 				enablePan={false}
 				mouseButtons={{
@@ -158,7 +244,7 @@ export const CameraControls = () => {
 				touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE }}
 			/>
 
-			<GroundPan />
+			<CameraBehaviours />
 		</>
 	);
 };

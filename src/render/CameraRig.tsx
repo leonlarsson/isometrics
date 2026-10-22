@@ -17,7 +17,10 @@ const corner = new THREE.Vector3();
 /**
  * Frames the ground with the orthographic camera: fixed far position along
  * VIEW_DIRECTION, zoom computed from the ground's projected corners.
- * Re-runs on resize, ground resize, and when "re-centre" is requested.
+ * Runs once the canvas has a size, on ground resize, and when "re-centre" is
+ * requested. Not on every canvas resize: that would throw away the user's pan
+ * and zoom whenever a panel opens (the orthographic view keeps its scale and
+ * centre on resize by itself).
  *
  * (drei's <Bounds> moves an orthographic camera very close to the scene,
  * which makes drei <Html> hide labels it thinks are behind the camera.)
@@ -28,16 +31,17 @@ export const CameraRig = () => {
 		target: THREE.Vector3;
 		update: () => void;
 	} | null;
-	const width = useThree((s) => s.size.width);
-	const height = useThree((s) => s.size.height);
+	const get = useThree((s) => s.get);
+	const hasSize = useThree((s) => s.size.width > 0 && s.size.height > 0);
 	const groundWidth = useEditor((s) => s.scene.ground.width);
 	const groundDepth = useEditor((s) => s.scene.ground.depth);
 	const nonce = useEditor((s) => s.viewNonce);
 
 	useEffect(() => {
-		if (!(camera instanceof THREE.OrthographicCamera) || width === 0 || height === 0) {
+		if (!(camera instanceof THREE.OrthographicCamera) || !hasSize) {
 			return;
 		}
+		const { width, height } = get().size;
 
 		camera.position.copy(VIEW_DIRECTION).multiplyScalar(CAMERA_DISTANCE);
 		camera.lookAt(0, 0, 0);
@@ -62,7 +66,7 @@ export const CameraRig = () => {
 			controls.target.set(0, 0, 0);
 			controls.update();
 		}
-	}, [camera, controls, width, height, groundWidth, groundDepth, nonce]);
+	}, [camera, controls, hasSize, groundWidth, groundDepth, nonce]);
 
 	return null;
 };

@@ -18,13 +18,14 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 | Add an object | Click it in the left **Add to scene** panel (it lands at a free spot), or drag it onto the scene to place it exactly (**Esc** cancels), or search it: press **/**, type (e.g. "boat"), **Enter** adds the first match |
 | Move the camera | Drag to pan (the ground follows the cursor), right-drag or **Ctrl**/**Shift**+drag to orbit, scroll to zoom towards the cursor. Drags never select or move anything; the re-centre button in the top bar resets the view |
 | Select | Click an object, road, area or label card |
-| Move | Select it first, then drag it on the ground (snaps to the grid; hold **Alt** for free placement) or nudge with the arrow keys |
-| Rotate | **Q** / **E** (hold Shift for 90°) or the Rotation slider |
+| Move | Select it first, then drag it on the ground, or use the gizmo: red and blue arrows move along one axis, the green arrow lifts it, the square slides it. Snaps to the grid (hold **Alt** for free placement); arrow keys nudge |
+| Rotate, resize | Drag the gizmo's ring to turn it (15° steps) and the knob outside the ring to resize it, or **Q** / **E** (hold Shift for 90°) and the sliders |
+| Keyboard transforms | With something selected: **G** move, **R** turn, **S** resize, then move the mouse. While moving, **X** / **Y** / **Z** lock an axis (Y is height); type a number for an exact value; **Enter** or click confirms, **Esc** or right-click cancels. A selected road point moves with **G** too |
 | Resize, recolour, reshape | Right-hand **Object** tab |
 | Show numbers | **Data** tab for values, then the object's **Label** section to pick which ones appear |
 | Draw a road | **Roads** → Road, Dirt path or Hidden route, then click points on the ground; **Enter** to finish, click the first point to make a loop, **Esc** to cancel |
 | Reshape a road | Select it and drag its points; drag the small dot between two points to add one; double-click a point (or select it and press **Delete**) to remove it; **Curves** in the panel rounds the corners |
-| Bridges and flyovers | Click a road point and set its **Height** in the panel, or **Shift**+drag it up. Choose **Pillars** or **Embankment** and railings under *Elevated sections* |
+| Bridges and flyovers | Click a road point and drag its green arrow up, set its **Height** in the panel, or **Shift**+drag it. Choose **Pillars** or **Embankment** and railings under *Elevated sections* |
 | Cut, join, extend | Click a point: **Split road here** / **Open loop here**; on an end point **Continue drawing** or **Join with** a nearby road end. Dragging an end onto another road's end also offers to join |
 | Moving vehicles | Select a vehicle → **Motion** → *Drive along* a road. **Scene** tab → *Vehicles drive on the* left or right, and *Vehicles turn* smoothly or sharply (each road and vehicle can override it) |
 | Duplicate / delete | Ctrl+D / Delete |
@@ -33,6 +34,7 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 | Pause / play motion | Space |
 | Resize the right panel | Drag its left edge (double-click to reset) |
 | Present | Switch to **View** in the top bar and click objects for details |
+| On a phone | One finger pans, two pinch and twist. The panels are a sheet at the bottom: **Add** to add parts, tap something to edit it, the arrow button hides the sheet |
 
 ## Development
 
