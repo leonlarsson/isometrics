@@ -54,8 +54,11 @@ export const CameraRig = () => {
 			? box.size.map((size) => Math.max(size, FOCUS_MIN_SIZE))
 			: [groundWidth, FRAME_HEIGHT, groundDepth];
 		const target = new THREE.Vector3(cx, box ? cy : 0, cz);
+		// Re-centring goes back to the iso view; framing one thing keeps the angle you're looking from.
+		const direction =
+			box && controls ? camera.position.clone().sub(controls.target).normalize() : VIEW_DIRECTION;
 
-		camera.position.copy(VIEW_DIRECTION).multiplyScalar(CAMERA_DISTANCE).add(target);
+		camera.position.copy(direction).multiplyScalar(CAMERA_DISTANCE).add(target);
 		camera.lookAt(target);
 		camera.updateMatrixWorld();
 

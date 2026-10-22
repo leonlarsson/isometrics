@@ -6,12 +6,15 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
+import { MAX_POLAR, MIN_POLAR, orbitAround, settleTarget } from "./orbit";
+
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const anchor = new THREE.Vector3();
 const hit = new THREE.Vector3();
 const shift = new THREE.Vector3();
+const pivot = new THREE.Vector3();
 
 interface IOrbitControls {
 	enabled: boolean;
@@ -96,6 +99,100 @@ const useGroundPan = () => {
 			window.removeEventListener("pointercancel", onUp);
 		};
 	}, [camera, element, controls]);
+};
+
+/**
+ * Right-drag (or Ctrl/Shift + left-drag) orbits around the point under the
+ * cursor, like Google Maps: an object if one is there, otherwise the ground.
+ * OrbitControls can only orbit around its target, so the camera and target
+ * are turned together around that point (render/orbit), then the target
+ * slides along the line of sight back over the ground, which doesn't change
+ * the view. Touch twist still uses OrbitControls (around the view's centre).
+ */
+const useOrbitAroundCursor = () => {
+	const camera = useThree((s) => s.camera);
+	const scene = useThree((s) => s.scene);
+	const element = useThree(
+		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
+	);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+
+	useEffect(() => {
+		if (!controls) {
+			return;
+		}
+		let orbiting: { id: number; x: number; y: number } | null = null;
+
+		/** What's under the pointer: the nearest visible mesh, else the ground. */
+		const pivotAt = (event: PointerEvent) => {
+			const rect = element.getBoundingClientRect();
+			pointer.set(
+				((event.clientX - rect.left) / rect.width) * 2 - 1,
+				-((event.clientY - rect.top) / rect.height) * 2 + 1,
+			);
+			raycaster.setFromCamera(pointer, camera);
+			const found = raycaster.intersectObjects(scene.children, true).find(
+				(item) =>
+					item.object instanceof THREE.Mesh &&
+					item.object.visible &&
+					// Not the gizmo's invisible grab areas.
+					(item.object.material as THREE.Material).visible !== false,
+			);
+			if (found) {
+				pivot.copy(found.point);
+				return true;
+			}
+			return raycaster.ray.intersectPlane(groundPlane, pivot) !== null;
+		};
+
+		const onDown = (event: PointerEvent) => {
+			const modified = event.ctrlKey || event.metaKey || event.shiftKey;
+			const wants = event.button === 2 || (event.button === 0 && modified);
+			if (!wants || !controls.enabled || useEditor.getState().placingKind || !pivotAt(event)) {
+				return;
+			}
+			orbiting = { id: event.pointerId, x: event.clientX, y: event.clientY };
+		};
+
+		const onMove = (event: PointerEvent) => {
+			if (event.pointerId !== orbiting?.id) {
+				return;
+			}
+			const height = element.clientHeight || 1;
+			const dx = event.clientX - orbiting.x;
+			const dy = event.clientY - orbiting.y;
+			orbiting.x = event.clientX;
+			orbiting.y = event.clientY;
+			// A drag across the canvas height turns the view once (as OrbitControls does); dragging
+			// down tips it towards straight down.
+			orbitAround(
+				camera.position,
+				controls.target,
+				pivot,
+				(-2 * Math.PI * dx) / height,
+				(-2 * Math.PI * dy) / height,
+			);
+			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
+			controls.update();
+		};
+
+		const onUp = (event: PointerEvent) => {
+			if (event.pointerId === orbiting?.id) {
+				orbiting = null;
+			}
+		};
+
+		element.addEventListener("pointerdown", onDown);
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onUp);
+		return () => {
+			element.removeEventListener("pointerdown", onDown);
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onUp);
+		};
+	}, [camera, scene, element, controls]);
 };
 
 /** Keep the view's centre over the ground, so panning or zooming can't lose the world. */
@@ -210,6 +307,7 @@ const useRevealSelection = () => {
 
 const CameraBehaviours = () => {
 	useGroundPan();
+	useOrbitAroundCursor();
 	useKeepTargetOnGround();
 	useViewInset();
 	useRevealSelection();
@@ -218,8 +316,9 @@ const CameraBehaviours = () => {
 
 /**
  * Map-style camera: left-drag pans (grabbing the ground), right-drag or
- * Ctrl/Shift + left-drag orbits, the wheel zooms towards the cursor. On touch,
- * one finger pans and two pinch to zoom and twist to orbit.
+ * Ctrl/Shift + left-drag orbits around the point under the cursor, the wheel
+ * zooms towards the cursor. On touch, one finger pans and two pinch to zoom
+ * and twist to orbit. See docs/adr/0028 and 0037.
  */
 export const CameraControls = () => {
 	return (
@@ -228,18 +327,18 @@ export const CameraControls = () => {
 				makeDefault
 				enableDamping
 				dampingFactor={0.12}
-				minPolarAngle={0.25}
-				maxPolarAngle={1.2}
+				minPolarAngle={MIN_POLAR}
+				maxPolarAngle={MAX_POLAR}
 				minZoom={2}
 				maxZoom={160}
 				zoomToCursor
-				// Plain left-drag panning is useGroundPan's; with Ctrl/Shift held, OrbitControls turns
-				// its left-button "pan" into an orbit, which is the one we want.
+				// Left-drag panning is useGroundPan's and orbiting is useOrbitAroundCursor's, so the mouse
+				// only zooms here (wheel or middle button). Touch keeps OrbitControls' pan, pinch and twist.
 				enablePan={false}
 				mouseButtons={{
-					LEFT: THREE.MOUSE.PAN,
+					LEFT: null as unknown as THREE.MOUSE,
 					MIDDLE: THREE.MOUSE.DOLLY,
-					RIGHT: THREE.MOUSE.ROTATE,
+					RIGHT: null as unknown as THREE.MOUSE,
 				}}
 				touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE }}
 			/>
