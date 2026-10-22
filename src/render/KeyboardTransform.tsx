@@ -3,8 +3,9 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { type ITransformSession, useEditor } from "#/editor/store";
-import type { TRoadPoint, TScene } from "#/scene/schema";
+import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
+import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import type { IGizmoDrag, TGizmoHandle } from "./TransformGizmo";
 import {
 	applyEntityDrag,
@@ -21,6 +22,8 @@ type TTarget =
 
 interface IContext {
 	target: TTarget;
+	/** Snaps a vehicle onto roads while it's moved (G), like dragging it does. */
+	route: IVehicleRouteDrag | null;
 	token: string;
 	before: TScene;
 	/** World position the transform pivots on, and where it shows on screen (px, y up). */
@@ -93,6 +96,20 @@ export const KeyboardTransform = () => {
 		});
 
 		const steps: IGizmoDrag[] = [];
+		const { target, route } = ctx;
+		if (session.mode === "grab" && route && target.kind === "entity") {
+			// A free move parks a vehicle on a road under it. An axis lock or a typed number asks for
+			// an exact move, so those leave the road (passing "Alt" makes it let go).
+			const hit = groundHit(ctx.now, ctx.center.y);
+			const ray = raycaster.ray.clone();
+			const offset: TVec2 =
+				hit && ctx.fromHit ? [hit.x - ctx.fromHit.x, hit.z - ctx.fromHit.z] : [0, 0];
+			const at: TVec2 = [target.from.position[0] + offset[0], target.from.position[1] + offset[1]];
+			const exactMove = exact || session.axis !== null;
+			if (route.move(ray, at, ctx.alt || exactMove, { coalesce: ctx.token, gesture: true })) {
+				return;
+			}
+		}
 		if (session.mode === "grab") {
 			// Always set both the ground position and the height, so switching axis resets the other.
 			let offset: [number, number] = [0, 0];
@@ -128,7 +145,6 @@ export const KeyboardTransform = () => {
 			steps.push(drag("scale", { ratio }));
 		}
 
-		const { target } = ctx;
 		for (const step of steps) {
 			if (target.kind === "entity") {
 				applyEntityDrag(target.id, target.from, step);
@@ -144,9 +160,17 @@ export const KeyboardTransform = () => {
 			return;
 		}
 		const state = useEditor.getState();
+		const token = `transform:${mode}:${performance.now()}`;
+		const before = state.scene;
 		let target: TTarget | null = null;
 		let center: THREE.Vector3 | null = null;
+		let route: IVehicleRouteDrag | null = null;
 		if (state.selectedId) {
+			// Moving a vehicle snaps it onto roads; a driving one is lifted off its route first.
+			if (mode === "grab") {
+				route = createVehicleRouteDrag(state.selectedId);
+				route?.start({ coalesce: token, gesture: true });
+			}
 			const from = entityStart(state.selectedId);
 			if (from) {
 				target = { kind: "entity", id: state.selectedId, from };
@@ -176,8 +200,9 @@ export const KeyboardTransform = () => {
 		const centerPx = toPx(new THREE.Vector2(projected.x, projected.y));
 		context.current = {
 			target,
-			token: `transform:${mode}:${performance.now()}`,
-			before: state.scene,
+			route,
+			token,
+			before,
 			center,
 			centerPx,
 			from,
@@ -198,6 +223,8 @@ export const KeyboardTransform = () => {
 			if (context.current) {
 				useEditor.getState().revertTo(context.current.before);
 			}
+			route?.end(false, { coalesce: token, gesture: true });
+			route = null;
 			finish();
 		};
 		state.setCancelGesture(cancel);
@@ -227,8 +254,12 @@ export const KeyboardTransform = () => {
 			event.preventDefault();
 			event.stopPropagation();
 		};
+		// Label cards float over the canvas in their own DOM layer, but they're part of the scene.
+		const inScene = (target: EventTarget | null) =>
+			target instanceof Element &&
+			(element.contains(target) || target.closest("[data-label-layer]") !== null);
 		const onDown = (event: PointerEvent) => {
-			if (!element.contains(event.target as Node)) {
+			if (!inScene(event.target)) {
 				return;
 			}
 			swallow(event);
@@ -246,7 +277,7 @@ export const KeyboardTransform = () => {
 			}
 		};
 		const onContextMenu = (event: MouseEvent) => {
-			if (element.contains(event.target as Node)) {
+			if (inScene(event.target)) {
 				event.preventDefault();
 			}
 		};
@@ -262,6 +293,9 @@ export const KeyboardTransform = () => {
 				useEditor.getState().setCancelGesture(null);
 			}
 			context.current = null;
+			// Confirmed (a click here, or Enter in the transform bar): a vehicle left on a road drives
+			// on, or gets the offer to. A cancel has already ended the route.
+			route?.end(true, { coalesce: token, gesture: true });
 		};
 	}, [mode]);
 

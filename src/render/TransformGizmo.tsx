@@ -48,6 +48,9 @@ const UNIT_PX = 64;
 const RING_RADIUS = 1.35;
 const SCALE_DISTANCE = 1.8;
 const RENDER_ORDER = 1000;
+/** Arrow hit areas run from 0.45 to 1.15 gizmo units out (the tip ends at 1.12). */
+const ARROW_HIT_CENTRE = 0.8;
+const ARROW_HIT_LENGTH = 0.7;
 
 /** The gizmo's extent around its centre, in gizmo units (for keeping label cards off it). */
 const EXTENT = { side: 1.6, up: 1.3, down: 2.0 };
@@ -193,12 +196,17 @@ const Arrow = ({ color, direction }: { color: string; direction: "x" | "y" | "z"
 	);
 };
 
+/**
+ * The grabbable part of an arrow: its outer part and tip. The inner part is
+ * left free, so the object under the gizmo's centre can still be grabbed
+ * (small vehicles would otherwise sit entirely under the arrows).
+ */
 const ArrowHit = ({ direction }: { direction: "x" | "y" | "z" }) => {
 	const rotation: [number, number, number] =
 		direction === "x" ? [0, 0, -Math.PI / 2] : direction === "z" ? [Math.PI / 2, 0, 0] : [0, 0, 0];
 	return (
 		<mesh rotation={rotation} position={[0, 0, 0]}>
-			<cylinderGeometry args={[0.16, 0.16, 1.0, 8, 1, false]} />
+			<cylinderGeometry args={[0.16, 0.16, ARROW_HIT_LENGTH, 8, 1, false]} />
 
 			<HitMaterial />
 		</mesh>
@@ -400,7 +408,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 					{...handleProps("x")}
 					color={colors.x}
 					hitArea={
-						<group position={[0.6, 0, 0]}>
+						<group position={[ARROW_HIT_CENTRE, 0, 0]}>
 							<ArrowHit direction="x" />
 						</group>
 					}
@@ -414,7 +422,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 					{...handleProps("z")}
 					color={colors.z}
 					hitArea={
-						<group position={[0, 0, 0.6]}>
+						<group position={[0, 0, ARROW_HIT_CENTRE]}>
 							<ArrowHit direction="z" />
 						</group>
 					}
@@ -428,7 +436,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 					{...handleProps("y")}
 					color={colors.y}
 					hitArea={
-						<group position={[0, 0.6, 0]}>
+						<group position={[0, ARROW_HIT_CENTRE, 0]}>
 							<ArrowHit direction="y" />
 						</group>
 					}

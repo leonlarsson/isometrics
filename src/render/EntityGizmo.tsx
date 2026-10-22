@@ -2,7 +2,7 @@ import { useRef } from "react";
 
 import type { TEntity, TVec2 } from "#/scene/schema";
 
-import { createVehicleRouteDrag, type IVehiclePose, type IVehicleRouteDrag } from "./routeDrop";
+import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyEntityDrag, entityStart, type IEntityStart } from "./transforms";
 
@@ -13,14 +13,8 @@ const MOVE_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "scale"];
  */
 const FOLLOWING_HANDLES: TGizmoHandle[] = ["xz", "y", "rotate", "scale"];
 
-interface IEntityGizmoProps {
-	entity: TEntity;
-	/** Where a driving vehicle is right now (it moves, so the scene doesn't know). */
-	pose?: () => IVehiclePose | undefined;
-}
-
 /** The transform gizmo for the selected object: move, lift, turn and resize it. */
-export const EntityGizmo = ({ entity, pose }: IEntityGizmoProps) => {
+export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 	const start = useRef<IEntityStart | null>(null);
 	const route = useRef<IVehicleRouteDrag | null>(null);
 
@@ -29,7 +23,7 @@ export const EntityGizmo = ({ entity, pose }: IEntityGizmoProps) => {
 			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
 			onStart={(token, handle) => {
 				// Only the move square snaps onto roads (and lifts a driving vehicle off its route).
-				route.current = handle === "xz" ? createVehicleRouteDrag(entity.id, pose?.()) : null;
+				route.current = handle === "xz" ? createVehicleRouteDrag(entity.id) : null;
 				route.current?.start({ coalesce: token, gesture: true });
 				start.current = entityStart(entity.id);
 			}}

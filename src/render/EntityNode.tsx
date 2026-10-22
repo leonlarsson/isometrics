@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { SNAP_STEP, useEditor } from "#/editor/store";
@@ -14,7 +14,7 @@ import type { TEntity, TVec2 } from "#/scene/schema";
 
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
-import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
+import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -148,6 +148,17 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		};
 	};
 
+	// Let drags (and the G key) pick a driving vehicle up where it is.
+	useEffect(() => {
+		if (!following) {
+			return;
+		}
+		livePoses.set(entity.id, currentPose);
+		return () => {
+			livePoses.delete(entity.id);
+		};
+	}, [following, entity.id]);
+
 	const endDrag = (e: ThreeEvent<PointerEvent>) => {
 		if (!drag.current) {
 			return;
@@ -206,12 +217,11 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				// Grab from here, not from the press: otherwise the distance already covered
 				// snaps the object a cell over the moment the drag starts. A driving vehicle is
 				// lifted off its route where it is right now.
-				const pose = following ? currentPose() : undefined;
-				const from = pose?.position ?? entity.position;
+				const from = (following ? currentPose()?.position : undefined) ?? entity.position;
 				state.moving = true;
 				state.dx = from[0] - hit.x;
 				state.dz = from[1] - hit.z;
-				state.route = createVehicleRouteDrag(entity.id, pose);
+				state.route = createVehicleRouteDrag(entity.id);
 				state.route?.start(options);
 				return;
 			}
@@ -293,9 +303,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				)}
 			</group>
 
-			{mode === "edit" && selected && !entity.locked && !drawing && (
-				<EntityGizmo entity={entity} pose={following ? currentPose : undefined} />
-			)}
+			{mode === "edit" && selected && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
 
 			{entity.label?.enabled && (
 				<EntityLabel

@@ -7,7 +7,20 @@ import { Button } from "./Button";
 
 import styles from "./DrawingBar.module.css";
 
-const roadName = (road: TRoad) => road.name || ROAD_STYLE_LABELS[road.style];
+export const roadName = (road: TRoad) => road.name || ROAD_STYLE_LABELS[road.style];
+
+/**
+ * While a vehicle is being moved by hand: the road it's snapped onto (if any),
+ * and whether it was driving (then letting go off the roads parks it).
+ */
+export const useRouteHint = () => {
+	const roadId = useEditor((s) => s.routePreview?.roadId ?? null);
+	const rerouting = useEditor((s) => s.rerouting);
+	const road = useEditor((s) =>
+		roadId ? (s.scene.roads.find((r) => r.id === roadId) ?? null) : null,
+	);
+	return road || rerouting ? { road, rerouting } : null;
+};
 
 /** A hint while dragging: what letting go does. */
 const DragHint = ({ title, keys }: { title: string; keys: string }) => (
@@ -27,34 +40,38 @@ const DragHint = ({ title, keys }: { title: string; keys: string }) => (
  */
 export const FollowOfferBar = () => {
 	const offer = useEditor((s) => s.followOffer);
-	const preview = useEditor((s) => s.routePreview);
-	const rerouting = useEditor((s) => s.rerouting);
 	const roads = useEditor((s) => s.scene.roads);
 	const entity = useEditor((s) =>
 		offer ? (s.scene.entities.find((e) => e.id === offer.entityId) ?? null) : null,
 	);
+	const hint = useRouteHint();
+	// A keyboard move (G) says this in its own bar.
+	const transforming = useEditor((s) => s.transform !== null);
 
-	const road = roads.find((r) => r.id === (preview ?? offer)?.roadId);
-	if (rerouting) {
-		return road ? (
-			<DragHint
-				title={`Drop it on “${roadName(road)}”`}
-				keys="It drives on from here · Alt: park it"
-			/>
-		) : (
-			<DragHint title="Drop it here to park it" keys="Or drop it on a road to keep it driving" />
-		);
-	}
-	if (!road) {
-		return null;
-	}
-	if (preview) {
+	if (hint) {
+		if (transforming) {
+			return null;
+		}
+		const { road, rerouting } = hint;
+		if (!road) {
+			return (
+				<DragHint title="Drop it here to park it" keys="Or drop it on a road to keep it driving" />
+			);
+		}
 		return (
 			<DragHint
 				title={`Drop it on “${roadName(road)}”`}
-				keys="You can then make it drive along the road · Alt: place it freely"
+				keys={
+					rerouting
+						? "It drives on from here · Alt: park it"
+						: "You can then make it drive along the road · Alt: place it freely"
+				}
 			/>
 		);
+	}
+	const road = roads.find((r) => r.id === offer?.roadId);
+	if (!road) {
+		return null;
 	}
 
 	// The offer lapses once the vehicle is gone, already driving, or moved elsewhere.

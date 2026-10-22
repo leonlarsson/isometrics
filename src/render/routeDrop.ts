@@ -108,6 +108,13 @@ export interface IVehiclePose {
 	rotation: number;
 }
 
+/**
+ * Where each driving vehicle is right now, by entity id. They move every
+ * frame, so only the renderer knows; EntityNode registers a getter while a
+ * vehicle drives.
+ */
+export const livePoses = new Map<string, () => IVehiclePose | undefined>();
+
 export interface IVehicleRouteDrag {
 	/**
 	 * The drag really started (past the threshold). A driving vehicle is lifted
@@ -133,16 +140,17 @@ export interface IVehicleRouteDrag {
 
 /**
  * Road snapping for a vehicle moved by hand, shared by dragging the vehicle
- * itself and the gizmo's move square. A driving vehicle needs `pose`, where it
- * is right now (it moves, so the scene doesn't know). Null for anything that
- * can't follow a road.
+ * itself, the gizmo's move square and the G key. A driving vehicle is picked
+ * up where it is right now: `pose`, or else its `livePoses` entry. Null for
+ * anything that can't follow a road, or a driving vehicle whose pose is unknown.
  */
 export const createVehicleRouteDrag = (
 	entityId: string,
-	pose?: IVehiclePose,
+	livePose?: IVehiclePose,
 ): IVehicleRouteDrag | null => {
 	const entity = useEditor.getState().scene.entities.find((e) => e.id === entityId);
 	const part = entity ? getPart(entity.kind) : undefined;
+	const pose = livePose ?? (entity?.follow ? livePoses.get(entityId)?.() : undefined);
 	if (!entity || !part?.canFollowPath || (entity.follow && !pose)) {
 		return null;
 	}

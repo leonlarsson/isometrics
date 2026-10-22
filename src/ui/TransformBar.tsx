@@ -10,6 +10,7 @@ import {
 import { getPart } from "#/parts/registry";
 
 import { Button } from "./Button";
+import { roadName, useRouteHint } from "./FollowOfferBar";
 import { Kbd } from "./fields";
 
 // Same floating bar as road drawing: both are short modal states over the scene.
@@ -34,6 +35,7 @@ const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 const TransformControls = () => {
 	const transform = useEditor((s) => s.transform);
 	const entity = useEditor(selectSelectedEntity);
+	const route = useRouteHint();
 
 	const update = useEditor.getState().updateTransform;
 	const typed = transform?.typed ?? "";
@@ -104,8 +106,17 @@ const TransformControls = () => {
 	const what = entity ? entity.name || getPart(entity.kind)?.name || "object" : "road point";
 	const how = transform.axis ? ` ${AXIS_LABELS[transform.axis]}` : "";
 	const value = typed ? `${typed}${UNITS[transform.mode]}` : null;
-	const hint =
-		transform.mode === "grab"
+	// A vehicle moved over a road snaps onto it (see render/routeDrop).
+	const routeHint = !route
+		? null
+		: !route.road
+			? "Off the roads: confirm to park it here."
+			: route.rerouting
+				? `On “${roadName(route.road)}”: confirm and it drives on from here.`
+				: `On “${roadName(route.road)}”: confirm, then choose whether it drives along it.`;
+	const hint = routeHint
+		? routeHint
+		: transform.mode === "grab"
 			? "Move the mouse, or type a distance."
 			: transform.mode === "rotate"
 				? "Move the mouse around it, or type an angle."

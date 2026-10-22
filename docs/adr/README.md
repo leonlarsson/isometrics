@@ -36,3 +36,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0030](0030-narrow-layout-bottom-sheet.md) | Narrow layout: the scene keeps the screen, panels live in a bottom sheet | accepted |
 | [0031](0031-two-way-routes-and-road-drops.md) | Vehicles drive either way; dropping one on a road offers to follow it | accepted |
 | [0032](0032-schema-json-with-part-catalogue.md) | /schema.json includes the part catalogue and a format guide | accepted |
+| [0033](0033-road-snapping-for-every-free-move.md) | Road snapping for every free move; the gizmo's centre grabs the object | accepted |

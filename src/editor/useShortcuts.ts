@@ -42,8 +42,8 @@ export const useShortcuts = () => {
 		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
 	);
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
-	// A vehicle following a road is placed by the road, so it uses the gizmo instead.
-	const canGrab = canNudge || selectedPoint;
+	// G on a vehicle following a road lifts it off to drop on another road or park it.
+	const canGrab = canTransform || selectedPoint;
 	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
