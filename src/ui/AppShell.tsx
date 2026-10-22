@@ -31,6 +31,7 @@ import { Toolbar } from "./Toolbar";
 import { TooltipProvider } from "./Tooltip";
 import { TransformBar } from "./TransformBar";
 import { useNarrowLayout } from "./useNarrowLayout";
+import { ViewpointBar } from "./ViewpointBar";
 
 import styles from "./AppShell.module.css";
 
@@ -144,6 +145,8 @@ export const AppShell = () => {
 							<JoinOfferBar />
 
 							<FollowOfferBar />
+
+							<ViewpointBar />
 
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 

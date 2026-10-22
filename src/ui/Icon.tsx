@@ -29,6 +29,8 @@ const PATHS = {
 	chevronDown: "m6 9 6 6 6-6",
 	chevronUp: "m6 15 6-6 6 6",
 	chevronRight: "m9 6 6 6-6 6",
+	chevronLeft: "m15 6-6 6 6 6",
+	camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 10.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
 	folder: "M3 6h6l2 2h10v11H3z",
 	layers: "M12 3 2 8l10 5 10-5zM2 13l10 5 10-5",

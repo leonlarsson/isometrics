@@ -28,6 +28,9 @@ import {
 	type TRoadStyle,
 	type TScene,
 	type TVec2,
+	type TViewPose,
+	type TViewpoint,
+	ViewpointSchema,
 } from "#/scene/schema";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
@@ -160,6 +163,10 @@ export interface IEditorState {
 	frameBox: IFrameBox | null;
 	/** The item under the pointer in a list (outliner, Scene tab), highlighted in the world. */
 	hovered: ISceneItem | null;
+	/** Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. */
+	flight: { pose: TViewPose; nonce: number } | null;
+	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
+	activeViewpointId: string | null;
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
 	loadScene: (scene: TScene) => void;
@@ -203,6 +210,17 @@ export interface IEditorState {
 	toggleSelectedHidden: () => void;
 	/** Show every hidden item again (Alt+H). */
 	revealAll: () => void;
+
+	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
+	goToViewpoint: (id: string) => void;
+	/** Save a view as a new viewpoint at the end of the list. Returns its id. */
+	addViewpoint: (pose: TViewPose) => string;
+	updateViewpoint: (
+		id: string,
+		recipe: (viewpoint: Draft<TViewpoint>) => void,
+		options?: ICommitOptions,
+	) => void;
+	removeViewpoint: (id: string) => void;
 
 	addEntity: (input: Omit<TEntityInput, "id"> & { id?: string }) => string;
 	updateEntity: (
@@ -344,6 +362,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
+		flight: null,
+		activeViewpointId: null,
 
 		commit: (recipe, options = {}) =>
 			set((state) => {
@@ -395,6 +415,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				drawing: null,
 				joinOffer: null,
 				followOffer: null,
+				activeViewpointId: null,
+				flight: null,
 			}),
 
 		undo: () =>
@@ -555,6 +577,49 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					thing.hidden = false;
 				}
 			}),
+
+		goToViewpoint: (id) => {
+			const viewpoint = get().scene.viewpoints.find((v) => v.id === id);
+			if (!viewpoint) {
+				return;
+			}
+			set((s) => ({
+				perspective: viewpoint.perspective,
+				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1 },
+				activeViewpointId: id,
+			}));
+		},
+
+		addViewpoint: (pose) => {
+			const count = get().scene.viewpoints.length;
+			const viewpoint = ViewpointSchema.parse({
+				...pose,
+				id: newId("view"),
+				name: `Viewpoint ${count + 1}`,
+			});
+			get().commit((scene) => {
+				scene.viewpoints.push(viewpoint);
+			});
+			set({ activeViewpointId: viewpoint.id });
+			return viewpoint.id;
+		},
+
+		updateViewpoint: (id, recipe, options) =>
+			get().commit((scene) => {
+				const viewpoint = scene.viewpoints.find((v) => v.id === id);
+				if (viewpoint) {
+					recipe(viewpoint);
+				}
+			}, options),
+
+		removeViewpoint: (id) => {
+			get().commit((scene) => {
+				scene.viewpoints = scene.viewpoints.filter((v) => v.id !== id);
+			});
+			if (get().activeViewpointId === id) {
+				set({ activeViewpointId: null });
+			}
+		},
 
 		addEntity: (input) => {
 			const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });

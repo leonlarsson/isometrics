@@ -23,7 +23,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
- *   P perspective / diorama view
+ *   P perspective / diorama view · 1–9 go to viewpoint 1–9
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -36,6 +36,7 @@ export const useShortcuts = () => {
 	const selectedArea = useEditor(selectSelectedArea);
 
 	const canEdit = mode === "edit" && selected !== null;
+	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
 	const canDelete =
 		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
 	const canTransform = canEdit && !selected.locked;
@@ -176,6 +177,17 @@ export const useShortcuts = () => {
 			callback: remove,
 			options: { enabled: canDelete, meta: { name: "Delete" } },
 		},
+		// 1–9 glide to the world's first nine viewpoints, in Edit and View mode.
+		...(["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const).map((digit, index) => ({
+			hotkey: digit,
+			callback: () => {
+				const viewpoint = useEditor.getState().scene.viewpoints[index];
+				if (viewpoint) {
+					useEditor.getState().goToViewpoint(viewpoint.id);
+				}
+			},
+			options: { enabled: viewpointCount > index, meta: { name: `Viewpoint ${digit}` } },
+		})),
 		{
 			hotkey: "P",
 			callback: () => useEditor.getState().togglePerspective(),

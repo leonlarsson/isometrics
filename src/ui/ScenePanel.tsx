@@ -11,6 +11,7 @@ import { Button, ButtonGroup } from "./Button";
 import { ColorField, Hint, Section, SelectField, SliderField, TextField } from "./fields";
 import { List, ListItem } from "./List";
 import { areaSwatch, roadSwatch } from "./swatches";
+import { ViewpointsSection } from "./ViewpointsSection";
 
 export const ScenePanel = () => {
 	const scene = useEditor((s) => s.scene);
@@ -69,6 +70,8 @@ export const ScenePanel = () => {
 					}
 				/>
 			</Section>
+
+			<ViewpointsSection />
 
 			<Section title="Ground">
 				<SliderField

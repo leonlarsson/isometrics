@@ -5,6 +5,7 @@ import type { TThemePreference } from "#/scene/schema";
 import { IconButton } from "./Button";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
+import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
 
@@ -96,6 +97,8 @@ export const Toolbar = () => {
 						<span className={styles.divider} />
 					</>
 				)}
+
+				<ViewpointsMenu />
 
 				<IconButton
 					size="md"

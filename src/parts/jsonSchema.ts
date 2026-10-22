@@ -23,6 +23,8 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Data: data holds named values (key, label, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it) or details.dataKeys (tiles when it's opened in view mode).
 
+Viewpoints: prepared camera views (target, azimuth, elevation, span), stepped through in View mode like slides; give each a name and a description of what the data there shows.
+
 Every id must be unique within its list, and follow.roadId must name a road in the same world.
 
 Examples: /examples.json on this site lists complete example worlds (e.g. /examples/brightwater.json) to learn from or start with.`;

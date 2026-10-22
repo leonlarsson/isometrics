@@ -257,6 +257,45 @@ export const GroundSchema = z
 	})
 	.describe("The slab everything stands on, centred on the origin.");
 
+// See docs/adr/0039-saved-viewpoints.md.
+export const ViewpointSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the viewpoints."),
+		name: z.string().default("").describe("Shown in the list and in View mode."),
+		description: z
+			.string()
+			.default("")
+			.describe("A line shown with it in View mode, e.g. what the data there tells."),
+		target: Vec2Schema.default([0, 0]).describe(
+			"The ground point [x, z] in the middle of the view.",
+		),
+		azimuth: z
+			.number()
+			.default(315)
+			.describe(
+				"The compass direction the camera looks from, in degrees counter-clockwise seen from above: 0 = from +x, 90 = from -z, 180 = from -x, 270 = from +z. The default view is 315.",
+			),
+		elevation: z
+			.number()
+			.min(15)
+			.max(87)
+			.default(32.5)
+			.describe(
+				"Degrees above the ground: 87 is nearly straight down, 15 looks low across the world. The default view is 32.5.",
+			),
+		span: z
+			.number()
+			.min(2)
+			.max(400)
+			.default(40)
+			.describe("How many grid units fit from the top to the bottom of the view."),
+		perspective: z
+			.boolean()
+			.default(false)
+			.describe("A perspective view instead of the flat diorama view."),
+	})
+	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
+
 export const ThemeSchema = z
 	.enum(["system", "light", "dark"])
 	.describe("Light or dark look; system follows the viewer's device.");
@@ -283,6 +322,10 @@ export const SceneSchema = z
 			.array(DataEntrySchema)
 			.default([])
 			.describe("Named values the world shows on cards and detail tiles."),
+		viewpoints: z
+			.array(ViewpointSchema)
+			.default([])
+			.describe("Saved camera views, in the order View mode steps through them."),
 	})
 	.superRefine((scene, ctx) => {
 		const checkUnique = (values: string[], path: (string | number)[], what: string) => {
@@ -318,6 +361,11 @@ export const SceneSchema = z
 			["data"],
 			"data key",
 		);
+		checkUnique(
+			scene.viewpoints.map((v) => v.id),
+			["viewpoints"],
+			"viewpoint id",
+		);
 	});
 
 export type TScene = z.output<typeof SceneSchema>;
@@ -339,5 +387,11 @@ export type TAreaType = z.output<typeof AreaTypeSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurns = z.output<typeof TurnsSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
+export type TViewpoint = z.output<typeof ViewpointSchema>;
+/** Where a viewpoint puts the camera: everything but its id, name and description. */
+export type TViewPose = Pick<
+	TViewpoint,
+	"target" | "azimuth" | "elevation" | "span" | "perspective"
+>;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

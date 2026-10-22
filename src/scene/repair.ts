@@ -9,6 +9,7 @@ import {
 	SCENE_VERSION,
 	SceneSchema,
 	type TScene,
+	ViewpointSchema,
 } from "./schema";
 
 /**
@@ -29,7 +30,7 @@ import {
 
 export interface IRepairReport {
 	/** Items dropped because they couldn't be repaired. */
-	removed: { objects: number; roads: number; areas: number; values: number };
+	removed: { objects: number; roads: number; areas: number; values: number; viewpoints: number };
 	/** Invalid fields reset to their default, or invalid list entries dropped. */
 	fixed: number;
 	/** The world came from a newer version of the app. */
@@ -99,6 +100,7 @@ const LISTS = [
 	{ key: "roads", schema: RoadSchema, id: "id", counter: "roads" },
 	{ key: "areas", schema: AreaSchema, id: "id", counter: "areas" },
 	{ key: "data", schema: DataEntrySchema, id: "key", counter: "values" },
+	{ key: "viewpoints", schema: ViewpointSchema, id: "id", counter: "viewpoints" },
 ] as const;
 
 const SETTINGS = ["meta", "theme", "ground", "driving", "turns"] as const;
@@ -115,7 +117,7 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 	}
 
 	const report: IRepairReport = {
-		removed: { objects: 0, roads: 0, areas: 0, values: 0 },
+		removed: { objects: 0, roads: 0, areas: 0, values: 0, viewpoints: 0 },
 		fixed: 0,
 		newerVersion: hasVersion && (raw.version as number) > SCENE_VERSION,
 		missingVersion: !hasVersion,
@@ -175,14 +177,15 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 /** A short, plain description of what a repair changed, for the user. */
 export const describeRepairs = (report: IRepairReport) => {
-	const { objects, roads, areas, values } = report.removed;
+	const { objects, roads, areas, values, viewpoints } = report.removed;
 	const removed = [
 		objects && plural(objects, "object", "objects"),
 		roads && plural(roads, "road", "roads"),
 		areas && plural(areas, "area", "areas"),
 		values && plural(values, "data value", "data values"),
+		viewpoints && plural(viewpoints, "viewpoint", "viewpoints"),
 	].filter((part): part is string => Boolean(part));
-	const removedCount = objects + roads + areas + values;
+	const removedCount = objects + roads + areas + values + viewpoints;
 
 	const parts: string[] = [];
 	if (report.newerVersion) {
