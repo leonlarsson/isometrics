@@ -36,6 +36,7 @@ import {
 import { createBrightwaterScene } from "#/templates/brightwater";
 
 import { boundsOf, type IFrameBox, type ISceneItem } from "./framing";
+import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
 /**
@@ -336,6 +337,50 @@ const validRoadSelection = (
 	};
 };
 
+/**
+ * Part kinds in a world that no part has: objects from an older version
+ * (before the numbered ids of ADR-0050, say), or from a newer one. Most
+ * common first.
+ */
+export const unknownPartKinds = (scene: Pick<TScene, "entities">) => {
+	const counts = new Map<string, number>();
+	for (const entity of scene.entities) {
+		if (!getPart(entity.kind)) {
+			counts.set(entity.kind, (counts.get(entity.kind) ?? 0) + 1);
+		}
+	}
+	return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+};
+
+/** The last warning about unknown parts and when it was shown, so a world loaded twice warns once. */
+let lastPartWarning = { text: "", at: 0 };
+
+/** Say when a world that's opened has objects whose part doesn't exist: they show as placeholders. */
+const warnAboutUnknownParts = (scene: TScene) => {
+	const unknown = unknownPartKinds(scene);
+	if (unknown.length === 0) {
+		return;
+	}
+	// The same world loaded twice in a row (React's double start in development) warns once.
+	const text = JSON.stringify(unknown);
+	const now = Date.now();
+	if (lastPartWarning.text === text && now - lastPartWarning.at < 3000) {
+		return;
+	}
+	lastPartWarning = { text, at: now };
+	const objects = unknown.reduce((sum, [, count]) => sum + count, 0);
+	const kinds = unknown.map(([kind]) => `“${kind}”`);
+	const shown =
+		kinds.length > 4
+			? `${kinds.slice(0, 4).join(", ")} and ${kinds.length - 4} more`
+			: kinds.join(", ");
+	notify(
+		`${objects} ${objects === 1 ? "object uses a part" : "objects use parts"} this version doesn't have`,
+		`${shown}: probably from an older version. They show as pink placeholders and are kept as they are; delete them from the outliner, or add the new parts in their place.`,
+		"error",
+	);
+};
+
 /** The selected object, road or area, if any. */
 const selectedItem = (
 	state: Pick<IEditorState, "selectedId" | "selectedRoadId" | "selectedAreaId">,
@@ -443,7 +488,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		cancelGesture: null,
 		setCancelGesture: (cancel) => set({ cancelGesture: cancel }),
 
-		loadScene: (scene) =>
+		loadScene: (scene) => {
+			warnAboutUnknownParts(scene);
 			set({
 				scene,
 				past: [],
@@ -456,7 +502,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				activeViewpointId: null,
 				flight: null,
 				cameraFollow: null,
-			}),
+			});
+		},
 
 		undo: () =>
 			set((state) => {

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SceneSchema } from "#/scene/schema";
+import { SceneSchema, type TScene } from "#/scene/schema";
 
-import { createEditorStore } from "./store";
+import { createEditorStore, unknownPartKinds } from "./store";
 
 const makeStore = () =>
 	createEditorStore(
@@ -560,5 +560,20 @@ describe("editor store", () => {
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, b, c]);
 		store.getState().removeViewpoint(b);
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
+	});
+});
+
+describe("unknownPartKinds", () => {
+	it("lists kinds no part has, most common first", () => {
+		const entities = [
+			{ kind: "house_01" },
+			{ kind: "tower" },
+			{ kind: "house" },
+			{ kind: "house" },
+		] as TScene["entities"];
+		expect(unknownPartKinds({ entities })).toEqual([
+			["house", 2],
+			["tower", 1],
+		]);
 	});
 });
