@@ -21,6 +21,8 @@
 	/* Card bottom-centre sits on the leader line end. */
 	translate: -50% calc(-100% - 6px);
 	pointer-events: auto;
+	/* Touches here move the world (handed to the camera), not the page. */
+	touch-action: none;
 	cursor: pointer;
 	display: flex;
 	flex-direction: column;

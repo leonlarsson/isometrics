@@ -3,11 +3,18 @@ import { memo } from "react";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { getPart, resolveLabelColor } from "#/parts/registry";
-import { registerLabelElement } from "#/render/labelRegistry";
+import { cardTouchHandover, registerLabelElement } from "#/render/labelRegistry";
 import { formatEntry } from "#/scene/format";
 import type { TEntity } from "#/scene/schema";
 
 import styles from "./LabelLayer.module.css";
+
+/** Touches on a card pan, pinch and twist the world like touches on the ground. */
+const handTouchToCamera = (event: PointerEvent) => {
+	if (event.pointerType === "touch") {
+		cardTouchHandover.current?.(event);
+	}
+};
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {
 	const data = useEditor((s) => s.scene.data);
@@ -38,6 +45,8 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 				className={styles.card}
 				data-selected={selected || undefined}
 				onClick={() => select(entity.id)}
+				onPointerDown={(event) => handTouchToCamera(event.nativeEvent)}
+				onPointerCancel={(event) => handTouchToCamera(event.nativeEvent)}
 			>
 				<span className={styles.title}>
 					<span className={styles.dot} style={{ background: color }} />

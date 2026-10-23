@@ -31,3 +31,13 @@ export const registerLabelElement = (id: string, element: HTMLElement | null) =>
  * a card never hides the handle underneath it.
  */
 export const gizmoArea = { active: false, left: 0, top: 0, right: 0, bottom: 0 };
+
+/**
+ * Passes a touch that starts on a label card on to the camera, set by
+ * CameraControls while it's mounted. Cards sit over the canvas, so their
+ * touches never reach it: a pinch or drag on one would zoom or scroll the
+ * page instead of the world.
+ */
+export const cardTouchHandover: { current: ((event: PointerEvent) => void) | null } = {
+	current: null,
+};

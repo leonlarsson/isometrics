@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
+import { cardTouchHandover } from "./labelRegistry";
 import { MAX_POLAR, MIN_POLAR, orbitAround, settleTarget } from "./orbit";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -341,6 +342,52 @@ const usePerspectiveDepthRange = () => {
 	});
 };
 
+/**
+ * A touch that starts on a label card still moves the world. The card hands
+ * its pointerdown (and pointercancel) over, and it's replayed on the canvas
+ * element with 3D picking off, so OrbitControls and the ground pan take the
+ * finger up without grabbing whatever is under the card. They follow the
+ * finger's moves on the document, where the card's events bubble anyway.
+ * A tap stays a click on the card.
+ */
+const useCardTouchHandover = () => {
+	const element = useThree(
+		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
+	);
+	const get = useThree((s) => s.get);
+
+	useEffect(() => {
+		cardTouchHandover.current = (event) => {
+			const { events, setEvents } = get();
+			const enabled = events.enabled;
+			setEvents({ enabled: false });
+			try {
+				element.dispatchEvent(
+					new PointerEvent(event.type, {
+						pointerId: event.pointerId,
+						pointerType: event.pointerType,
+						isPrimary: event.isPrimary,
+						button: event.button,
+						buttons: event.buttons,
+						clientX: event.clientX,
+						clientY: event.clientY,
+						screenX: event.screenX,
+						screenY: event.screenY,
+						width: event.width,
+						height: event.height,
+						pressure: event.pressure,
+					}),
+				);
+			} finally {
+				setEvents({ enabled });
+			}
+		};
+		return () => {
+			cardTouchHandover.current = null;
+		};
+	}, [element, get]);
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
@@ -348,6 +395,7 @@ const CameraBehaviours = () => {
 	useKeepTargetOnGround();
 	useViewInset();
 	useRevealSelection();
+	useCardTouchHandover();
 	return null;
 };
 
