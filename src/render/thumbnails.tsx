@@ -27,6 +27,12 @@ const EMPTY: TThumbnails = {};
 const cache = new Map<TResolvedTheme, TThumbnails>();
 const listeners = new Set<() => void>();
 const queued = new Set<TResolvedTheme>();
+/**
+ * Themes asked for so far. The cache only has a theme once its first picture is done, so a
+ * second request before that (a remount while starting up) would otherwise queue it again
+ * and render every part twice.
+ */
+const requested = new Set<TResolvedTheme>();
 let working = false;
 
 /** Wait until the browser has a quiet moment, so rendering pictures never makes the page stutter. */
@@ -215,7 +221,8 @@ export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails => {
 		() => EMPTY,
 	);
 	useEffect(() => {
-		if (!cache.has(theme)) {
+		if (!requested.has(theme)) {
+			requested.add(theme);
 			queued.add(theme);
 			void work();
 		}
