@@ -26,18 +26,23 @@ export const ViewpointBar = () => {
 		useEditor.getState().goToViewpoint(viewpoints[next].id);
 	};
 
-	useHotkeys([
-		{
-			hotkey: "ArrowRight",
-			callback: () => step(1),
-			options: { enabled: shown, meta: { name: "Next viewpoint" } },
-		},
-		{
-			hotkey: "ArrowLeft",
-			callback: () => step(-1),
-			options: { enabled: shown, meta: { name: "Previous viewpoint" } },
-		},
-	]);
+	// In Edit mode the same keys nudge the selection (editor/useShortcuts); the two are never
+	// enabled at once, so sharing them is intended.
+	useHotkeys(
+		[
+			{
+				hotkey: "ArrowRight",
+				callback: () => step(1),
+				options: { enabled: shown, meta: { name: "Next viewpoint" } },
+			},
+			{
+				hotkey: "ArrowLeft",
+				callback: () => step(-1),
+				options: { enabled: shown, meta: { name: "Previous viewpoint" } },
+			},
+		],
+		{ conflictBehavior: "allow" },
+	);
 
 	if (!shown) {
 		return null;

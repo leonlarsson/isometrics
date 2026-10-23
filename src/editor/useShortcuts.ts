@@ -286,12 +286,13 @@ export const useShortcuts = () => {
 		{
 			hotkey: "ArrowLeft",
 			callback: () => nudge(-1, 0),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge left" } },
+			// Shared with stepping through viewpoints in View mode (ViewpointBar); never both enabled.
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge left" } },
 		},
 		{
 			hotkey: "ArrowRight",
 			callback: () => nudge(1, 0),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge right" } },
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge right" } },
 		},
 		{
 			hotkey: "ArrowUp",
