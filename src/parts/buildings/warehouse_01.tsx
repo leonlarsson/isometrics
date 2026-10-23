@@ -15,6 +15,7 @@ export const warehouse01 = definePart({
 	kind: "warehouse_01",
 	name: "Warehouse",
 	category: "buildings",
+	lights: {},
 	description: "Large hall with loading doors and solar roof",
 	keywords: ["factory", "hall", "storage", "logistics", "industrial"],
 	schema: WarehouseSchema,

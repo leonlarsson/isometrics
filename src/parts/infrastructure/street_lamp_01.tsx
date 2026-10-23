@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { LightPool } from "../nightLights";
+import { LightPool } from "../lights";
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
@@ -12,6 +12,7 @@ export const streetLamp01 = definePart({
 	kind: "street_lamp_01",
 	name: "Street lamp",
 	category: "infrastructure",
+	lights: {},
 	description: "Lamp post",
 	keywords: ["light", "street light", "lantern"],
 	schema: LampSchema,

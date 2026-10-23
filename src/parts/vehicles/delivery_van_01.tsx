@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { Headlights } from "../nightLights";
+import { Headlights } from "../lights";
 import { Box, RBox, Wheel } from "../primitives";
 import { definePart } from "../types";
 
@@ -8,6 +8,7 @@ export const deliveryVan01 = definePart({
 	kind: "delivery_van_01",
 	name: "Delivery van",
 	category: "vehicles",
+	lights: { whileDriving: true },
 	description: "Small van; can drive along a road",
 	keywords: ["delivery", "vehicle"],
 	schema: z.object({}),
@@ -19,7 +20,7 @@ export const deliveryVan01 = definePart({
 	canFollowPath: true,
 	footprint: () => [1.7, 0.85],
 	height: () => 1.05,
-	Component: ({ color, accent, palette, driving }) => {
+	Component: ({ color, accent, palette, lightsOn }) => {
 		const L = 1.7;
 		const W = 0.85;
 		const H = 0.8;
@@ -49,7 +50,7 @@ export const deliveryVan01 = definePart({
 					)),
 				)}
 
-				<Headlights palette={palette} driving={driving} position={[0.86, 0.35, 0]} spread={0.58} />
+				<Headlights palette={palette} on={lightsOn} position={[0.86, 0.35, 0]} spread={0.58} />
 			</group>
 		);
 	},

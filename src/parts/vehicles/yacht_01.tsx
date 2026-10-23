@@ -33,6 +33,7 @@ export const yacht01 = definePart({
 	kind: "yacht_01",
 	name: "Yacht",
 	category: "vehicles",
+	lights: {},
 	description: "Motor yacht for harbours and the sea; can cruise along a route",
 	keywords: ["boat", "ship", "ferry", "vessel"],
 	schema: YachtSchema,

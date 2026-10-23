@@ -48,8 +48,12 @@ export interface IPartRenderProps<P> {
 	palette: IScenePalette;
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;
-	/** A vehicle that drives along a road (rather than parked): its headlights are on at night. */
-	driving?: boolean;
+	/**
+	 * Its lights are switched on (its Lights setting, `lightsFor`): after dark
+	 * by default (a vehicle's only while it drives), always, or never. Lights
+	 * that are on shine as much as `palette.night` says.
+	 */
+	lightsOn?: boolean;
 	/** The world's data, for parts that show values (absent in previews and thumbnails). */
 	data?: TDataEntry[];
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */
@@ -84,6 +88,12 @@ export interface IPartDefinition<P extends object> {
 	height: (props: P) => number;
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
+	/**
+	 * Its lights (windows, lamps, cabins, headlights), switched by its Lights
+	 * setting in the inspector; absent = it has none. `whileDriving`: by default
+	 * they're on only while it drives along a road (a vehicle's headlights).
+	 */
+	lights?: { whileDriving?: boolean };
 	/** It lies flat on the ground (a marked zone): other parts can be placed on top of it. */
 	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */

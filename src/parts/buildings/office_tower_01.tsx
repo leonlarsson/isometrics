@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { LitWindows } from "../nightLights";
+import { LitWindows } from "../lights";
 import { Box, RBox, spread } from "../primitives";
 import { definePart } from "../types";
 
@@ -19,6 +19,7 @@ export const officeTower01 = definePart({
 	kind: "office_tower_01",
 	name: "Office tower",
 	category: "buildings",
+	lights: {},
 	description: "Multi-storey building with a window grid",
 	keywords: ["office", "skyscraper", "high-rise", "apartments", "building", "block"],
 	schema: TowerSchema,

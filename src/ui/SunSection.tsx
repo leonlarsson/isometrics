@@ -23,7 +23,7 @@ const SOURCES: { value: TLighting["timeSource"]; label: string }[] = [
 	{ value: "data", label: "A data value" },
 ];
 
-const NIGHT_LIGHTS: { value: TLighting["nightLights"]; label: string }[] = [
+const LIGHTS_OPTIONS: { value: TLighting["lights"]; label: string }[] = [
 	{ value: "auto", label: "After dark" },
 	{ value: "on", label: "Always" },
 	{ value: "off", label: "Never" },
@@ -168,16 +168,14 @@ export const SunSection = () => {
 				inherit={following("sunStrength", `${Math.round(fromTime.strength * 100) / 100}×`)}
 			/>
 
-			<SelectField<TLighting["nightLights"]>
+			<SelectField<TLighting["lights"]>
 				label="Lit windows, lamps and headlights"
-				value={lighting.nightLights}
-				options={NIGHT_LIGHTS}
-				onChange={(nightLights) => set("nightLights", nightLights)}
+				value={lighting.lights}
+				options={LIGHTS_OPTIONS}
+				onChange={(lights) => set("lights", lights)}
 			/>
 
-			{fromTime.night > 0 && lighting.nightLights === "auto" && (
-				<Hint>It's dark: lights are on.</Hint>
-			)}
+			{fromTime.night > 0 && lighting.lights === "auto" && <Hint>It's dark: lights are on.</Hint>}
 		</Section>
 	);
 };

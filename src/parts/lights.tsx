@@ -72,6 +72,27 @@ const GroundGlow = ({
 	</mesh>
 );
 
+/**
+ * What an object lights, from its Lights setting: `palette`, whose `night`
+ * says how lit its windows, lamps and cabins are, and `lightsOn`, whether its
+ * lights are switched on. auto = after dark (a vehicle's only while it drives
+ * along a road); on = always, day or night, parked or not, whatever the
+ * scene's setting; off = never.
+ */
+export const lightsFor = (
+	lights: "auto" | "on" | "off",
+	palette: IScenePalette,
+	{ vehicle, driving }: { vehicle: boolean; driving: boolean },
+): { palette: IScenePalette; lightsOn: boolean } => {
+	if (lights === "off") {
+		return { palette: palette.night === 0 ? palette : { ...palette, night: 0 }, lightsOn: false };
+	}
+	if (lights === "on") {
+		return { palette: palette.night === 1 ? palette : { ...palette, night: 1 }, lightsOn: true };
+	}
+	return { palette, lightsOn: !vehicle || driving };
+};
+
 /** How far a headlight beam reaches along the road, and how wide it gets there (ground units). */
 const BEAM_LENGTH = 2.4;
 const BEAM_WIDTH = 1.5;
@@ -116,19 +137,19 @@ const getBeam = () => {
 	return beam;
 };
 
-/** Two headlights at a vehicle's front (+x), `spread` apart sideways; on only while it drives. */
+/** Two headlights at a vehicle's front (+x), `spread` apart sideways, when they're on. */
 export const Headlights = ({
 	palette,
-	driving,
+	on,
 	position: [x, y, z],
 	spread,
 }: {
 	palette: IScenePalette;
-	driving: boolean | undefined;
+	on: boolean | undefined;
 	position: TV3;
 	spread: number;
 }) => {
-	if (palette.night === 0 || !driving) {
+	if (palette.night === 0 || !on) {
 		return null;
 	}
 	return (

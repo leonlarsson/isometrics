@@ -118,6 +118,12 @@ export const EntitySchema = z
 		label: LabelSchema.nullable().default(null),
 		follow: FollowSchema.nullable().default(null),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
+		lights: z
+			.enum(["auto", "on", "off"])
+			.default("auto")
+			.describe(
+				"Its lights (lit windows, lamps, cabins, headlights), for parts that have them: auto = after dark (headlights only while driving); on = always, day and night, even parked; off = never lit.",
+			),
 		locked: z.boolean().default(false).describe("Can't be moved in the editor."),
 		hidden: z
 			.boolean()
@@ -408,11 +414,11 @@ export const LightingSchema = z
 			.nullable()
 			.default(null)
 			.describe("How strong the sunlight is; 1 = normal daylight. null = from the time of day."),
-		nightLights: z
+		lights: z
 			.enum(["auto", "on", "off"])
 			.default("auto")
 			.describe(
-				"Lit windows, street lamps and headlights: auto = after dark, on = always, off = never.",
+				"The world's lit windows, lamps, cabins and headlights: auto = after dark (headlights only while driving), on = always, off = never. An object's own `lights` setting other than auto overrides this.",
 			),
 	})
 	.describe("The sun, the sky and the time of day.");
@@ -442,7 +448,7 @@ export const SceneSchema = z
 			sunElevation: null,
 			sunColor: null,
 			sunStrength: null,
-			nightLights: "auto",
+			lights: "auto",
 		}),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),

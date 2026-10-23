@@ -242,7 +242,7 @@ export const skyLightAt = (lighting: TLighting, hour: number | null): ISkyLight 
 		elevation: lighting.sunElevation ?? base.elevation,
 		color: lighting.sunColor ?? base.color,
 		strength: lighting.sunStrength ?? base.strength,
-		night: lighting.nightLights === "on" ? 1 : lighting.nightLights === "off" ? 0 : base.night,
+		night: lighting.lights === "on" ? 1 : lighting.lights === "off" ? 0 : base.night,
 	};
 };
 

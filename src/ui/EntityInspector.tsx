@@ -299,6 +299,31 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						}}
 					/>
 				)}
+
+				{part.lights && (
+					<SelectField<TEntity["lights"]>
+						label="Lights"
+						value={entity.lights}
+						options={[
+							{
+								value: "auto",
+								label: part.lights?.whileDriving ? "After dark, while driving" : "After dark",
+							},
+							{ value: "on", label: "Always" },
+							{ value: "off", label: "Never" },
+						]}
+						onChange={(lights) =>
+							edit("lights", (e) => {
+								e.lights = lights;
+							})
+						}
+						hint={
+							part.lights?.whileDriving
+								? "Headlights. Always: day and night, even parked."
+								: "Always: lit day and night too."
+						}
+					/>
+				)}
 			</Section>
 
 			{part.fields.length > 0 && (

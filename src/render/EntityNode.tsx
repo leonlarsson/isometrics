@@ -7,6 +7,7 @@ import { SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
+import { lightsFor } from "#/parts/lights";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
 import { laneOffset, resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
@@ -327,6 +328,11 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	}
 
 	const { color, accent } = resolveColors(part, entity, palette);
+	// What it lights after dark, from its Lights setting (headlights while driving by default).
+	const lit = lightsFor(entity.lights, palette, {
+		vehicle: part.lights?.whileDriving === true,
+		driving: following,
+	});
 	const footprint = part.footprint(props);
 	const anchorY = part.height(props) * entity.scale;
 	const Component = part.Component;
@@ -347,9 +353,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					props={props}
 					color={color}
 					accent={accent}
-					palette={palette}
+					palette={lit.palette}
 					playing={playing}
-					driving={following}
+					lightsOn={lit.lightsOn}
 					data={data}
 				/>
 

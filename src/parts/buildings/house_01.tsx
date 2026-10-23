@@ -15,6 +15,7 @@ export const house01 = definePart({
 	kind: "house_01",
 	name: "House",
 	category: "buildings",
+	lights: {},
 	description: "Small house with a pitched roof",
 	keywords: ["home", "cottage", "villa", "residential"],
 	schema: HouseSchema,

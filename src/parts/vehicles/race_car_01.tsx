@@ -19,9 +19,11 @@ export const raceCar01 = definePart({
 	colorLabel: "Livery",
 	accentLabel: "Wings & details",
 	canFollowPath: true,
+	// No headlights, like a real F1 car: a red rain light at the back, on while it races after dark.
+	lights: { whileDriving: true },
 	footprint: () => [2 * CAR_SCALE, 0.95 * CAR_SCALE],
 	height: () => 0.65 * CAR_SCALE,
-	Component: ({ color, accent, palette }) => (
+	Component: ({ color, accent, palette, lightsOn }) => (
 		<group scale={CAR_SCALE}>
 			{/* Floor, body and nose */}
 			<Box size={[1.7, 0.06, 0.62]} position={[-0.05, 0.11, 0]} color={accent} />
@@ -53,6 +55,16 @@ export const raceCar01 = definePart({
 			<Box size={[0.22, 0.22, 0.03]} position={[-0.84, 0.48, 0.33]} color={accent} />
 
 			<Box size={[0.22, 0.22, 0.03]} position={[-0.84, 0.48, -0.33]} color={accent} />
+
+			{/* Rain light, under the rear wing. */}
+			<Box
+				size={[0.04, 0.08, 0.14]}
+				position={[-0.9, 0.3, 0]}
+				color={lightsOn && palette.night > 0 ? "#ff2a2a" : accent}
+				castShadow={false}
+				emissive={lightsOn && palette.night > 0 ? "#ff2a2a" : undefined}
+				emissiveIntensity={2.5 * palette.night}
+			/>
 
 			{[0.62, -0.62].flatMap((x) =>
 				[0.42, -0.42].map((z) => (

@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import { toRadians } from "#/lib/math";
+import { lightsFor } from "#/parts/lights";
 import { getPart, resolveColors, resolveProps } from "#/parts/registry";
 import { resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
@@ -104,6 +105,10 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 	}
 	const { position, rotation } = startPose(entity, scene);
 	const { color, accent } = resolveColors(part, entity, palette);
+	const lit = lightsFor(entity.lights, palette, {
+		vehicle: part.lights?.whileDriving === true,
+		driving: entity.follow !== null,
+	});
 	const Component = part.Component;
 	return (
 		<group position={position}>
@@ -112,9 +117,9 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 					props={resolveProps(part, entity.props)}
 					color={color}
 					accent={accent}
-					palette={palette}
+					palette={lit.palette}
 					playing={false}
-					driving={entity.follow !== null}
+					lightsOn={lit.lightsOn}
 					data={scene.data}
 					onReady={part.rendersAsync ? onReady : undefined}
 				/>
