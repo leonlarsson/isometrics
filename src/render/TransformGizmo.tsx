@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { pastDragThreshold } from "#/lib/pointer";
+import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -60,6 +60,9 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const center = new THREE.Vector3();
 const hit = new THREE.Vector3();
 const up = new THREE.Vector3();
+
+/** Handles that move the target: the cursor hides while they're dragged, so it doesn't cover the spot. */
+const MOVE_HANDLES = new Set<TGizmoHandle>(["x", "z", "xz", "y"]);
 
 /** Mark the gizmo's meshes so the scene's event filter puts them first (see GizmoFirst). */
 const GIZMO_USER_DATA = { gizmo: true };
@@ -263,6 +266,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 		}
 		session.current = null;
 		setActive(null);
+		setCursorHidden(false);
 		if (pointerId !== undefined) {
 			(target as Element | null)?.releasePointerCapture?.(pointerId);
 		}
@@ -342,6 +346,9 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			current.startY = e.nativeEvent.clientY;
 			current.angle = angleOf(anchor, current.center);
 			current.before = useEditor.getState().scene;
+			if (MOVE_HANDLES.has(current.handle)) {
+				setCursorHidden(true);
+			}
 			onStart(current.token, current.handle);
 			return;
 		}

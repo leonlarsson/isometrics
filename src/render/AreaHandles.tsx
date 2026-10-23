@@ -1,5 +1,6 @@
 import type { ThreeEvent } from "@react-three/fiber";
 import { useState } from "react";
+import type * as THREE from "three";
 
 import { selectSelectedArea, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
@@ -8,8 +9,11 @@ import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
 import { useGroundDrag } from "./useGroundDrag";
+import { useScreenScale } from "./useScreenScale";
 
 const HANDLE_LIFT = 0.12;
+/** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
+const HANDLE_PX = 24;
 
 interface ICornerHandleProps {
 	areaId: string;
@@ -23,6 +27,7 @@ interface ICornerHandleProps {
 const CornerHandle = ({ areaId, index, point, y, selected }: ICornerHandleProps) => {
 	const palette = usePalette();
 	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
 	const drag = useGroundDrag({
 		planeY: y,
 		onStart: () => {
@@ -36,7 +41,7 @@ const CornerHandle = ({ areaId, index, point, y, selected }: ICornerHandleProps)
 	return (
 		<group
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
-			scale={hovered || selected ? 1.2 : 1}
+			ref={handle}
 			{...drag}
 			onDoubleClick={(e: ThreeEvent<MouseEvent>) => {
 				e.stopPropagation();
@@ -68,20 +73,23 @@ const CornerHandle = ({ areaId, index, point, y, selected }: ICornerHandleProps)
 	);
 };
 
-/** Small dot halfway along an edge: drag it to add a corner there. */
+/** Small dot halfway along an edge: drag it to add a corner there. Hidden while a handle is dragged. */
 const InsertHandle = ({
 	areaId,
 	index,
 	point,
 	y,
+	visible,
 }: {
 	areaId: string;
 	index: number;
 	point: TVec2;
 	y: number;
+	visible: boolean;
 }) => {
 	const palette = usePalette();
 	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Mesh>(HANDLE_PX, hovered ? 1.3 : 1);
 	const drag = useGroundDrag({
 		planeY: y,
 		onStart: (token) => {
@@ -97,7 +105,8 @@ const InsertHandle = ({
 	return (
 		<mesh
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
-			scale={hovered ? 1.3 : 1}
+			ref={handle}
+			visible={visible}
 			{...drag}
 			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
@@ -124,6 +133,7 @@ export const AreaHandles = () => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
+	const dragging = useEditor((s) => s.dragging);
 
 	if (!area || mode !== "edit" || drawing || area.hidden || area.locked) {
 		return null;
@@ -139,6 +149,7 @@ export const AreaHandles = () => {
 					index={index}
 					point={[point[0], point[1]]}
 					y={y}
+					visible={!dragging}
 				/>
 			))}
 

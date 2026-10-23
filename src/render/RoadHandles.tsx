@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { type IJoinOffer, selectSelectedRoad, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { snap } from "#/lib/math";
-import { pastDragThreshold } from "#/lib/pointer";
+import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
@@ -15,8 +15,11 @@ import { roadBaseY } from "./RoadMesh";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyRoadPointDrag, roadPointStart } from "./transforms";
 import { groundPointFrom, useGroundDrag } from "./useGroundDrag";
+import { useScreenScale } from "./useScreenScale";
 
 const HANDLE_LIFT = 0.12;
+/** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
+const HANDLE_PX = 24;
 /** Dragged road ends snap onto another road end within this distance. */
 const JOIN_SNAP = 0.8;
 const HEIGHT_STEP = 0.25;
@@ -56,6 +59,7 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 	const size = useThree((s) => s.size);
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
 	const drag = useRef<{
 		token: string;
 		vertical: boolean;
@@ -82,6 +86,7 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 			return;
 		}
 		drag.current = null;
+		setCursorHidden(false);
 		(event.target as unknown as Element).releasePointerCapture?.(event.pointerId);
 		if (controls) {
 			controls.enabled = true;
@@ -96,7 +101,7 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 	return (
 		<group
 			position={[point[0], baseY + point[2] + HANDLE_LIFT, point[1]]}
-			scale={hovered || selected ? 1.2 : 1}
+			ref={handle}
 			onPointerDown={(e: ThreeEvent<PointerEvent>) => {
 				if (e.nativeEvent.button !== 0) {
 					return;
@@ -134,10 +139,14 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 					return;
 				}
 				e.stopPropagation();
-				if (!state.moving && !pastDragThreshold(state.from, e.nativeEvent)) {
-					return;
+				if (!state.moving) {
+					if (!pastDragThreshold(state.from, e.nativeEvent)) {
+						return;
+					}
+					state.moving = true;
+					// Hide the cursor while dragging, so it doesn't cover the spot.
+					setCursorHidden(true);
 				}
-				state.moving = true;
 				const store = useEditor.getState();
 				// Shift can be pressed or released mid-drag: switch modes, starting from where the point is now.
 				const vertical = e.nativeEvent.shiftKey;
@@ -211,12 +220,14 @@ interface IInsertHandleProps {
 	index: number;
 	point: TRoadPoint;
 	baseY: number;
+	visible: boolean;
 }
 
-/** Small handle halfway along a segment: drag it to add a point there. */
-const InsertHandle = ({ roadId, index, point, baseY }: IInsertHandleProps) => {
+/** Small handle halfway along a segment: drag it to add a point there. Hidden while a handle is dragged. */
+const InsertHandle = ({ roadId, index, point, baseY, visible }: IInsertHandleProps) => {
 	const palette = usePalette();
 	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Mesh>(HANDLE_PX, hovered ? 1.3 : 1);
 	const drag = useGroundDrag({
 		planeY: baseY + point[2],
 		onStart: (token) => {
@@ -232,7 +243,8 @@ const InsertHandle = ({ roadId, index, point, baseY }: IInsertHandleProps) => {
 	return (
 		<mesh
 			position={[point[0], baseY + point[2] + HANDLE_LIFT, point[1]]}
-			scale={hovered ? 1.3 : 1}
+			ref={handle}
+			visible={visible}
 			{...drag}
 			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
@@ -292,6 +304,7 @@ export const RoadHandles = () => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
+	const dragging = useEditor((s) => s.dragging);
 	const palette = usePalette();
 
 	if (!road || mode !== "edit" || drawing || road.hidden || road.locked) {
@@ -308,6 +321,7 @@ export const RoadHandles = () => {
 					index={index}
 					point={point}
 					baseY={baseY}
+					visible={!dragging}
 				/>
 			))}
 

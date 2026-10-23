@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
-import { pastDragThreshold } from "#/lib/pointer";
+import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import type { TVec2 } from "#/scene/schema";
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -49,8 +49,9 @@ interface IGroundDragOptions {
 
 /**
  * Pointer handlers that drag something across the ground plane: captures the
- * pointer, pauses camera controls, and reports snapped ground points. Every
- * move in one gesture shares a coalesce token, so it undoes as one step.
+ * pointer, pauses camera controls, hides the cursor (the dragged thing marks
+ * the spot) and reports snapped ground points. Every move in one gesture
+ * shares a coalesce token, so it undoes as one step.
  */
 export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOptions) => {
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
@@ -66,6 +67,7 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 		token.current = null;
 		last.current = null;
 		from.current = null;
+		setCursorHidden(false);
 		(event.target as unknown as Element).releasePointerCapture?.(event.pointerId);
 		if (controls) {
 			controls.enabled = true;
@@ -101,6 +103,7 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 					return;
 				}
 				from.current = null;
+				setCursorHidden(true);
 			}
 			const point = groundPointFrom(event, planeY);
 			if (

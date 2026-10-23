@@ -17,3 +17,11 @@ export const pastDragThreshold = (from: IScreenPoint, to: IScreenPoint) =>
  * that starts over something never selects it.
  */
 export const isClick = (event: { delta: number }) => event.delta < DRAG_THRESHOLD_PX;
+
+/**
+ * Hide the mouse cursor everywhere, or show it again, so it doesn't cover a
+ * handle being placed precisely. Wins over every hover cursor (see styles.css).
+ */
+export const setCursorHidden = (hidden: boolean) => {
+	document.documentElement.toggleAttribute("data-cursor-hidden", hidden);
+};
