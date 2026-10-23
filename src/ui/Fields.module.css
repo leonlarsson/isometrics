@@ -258,9 +258,29 @@ textarea.input {
 
 .sliderRow {
 	display: grid;
-	grid-template-columns: 1fr 64px 12px;
+	grid-template-columns: 1fr 68px;
 	align-items: center;
 	gap: 10px;
+}
+
+/* The number box, with its unit (°, %, ×) inside on the right. */
+.sliderNumber {
+	position: relative;
+	display: block;
+}
+
+.sliderNumber[data-unit] input {
+	padding-right: 22px;
+}
+
+.unit {
+	position: absolute;
+	top: 50%;
+	right: 9px;
+	transform: translateY(-50%);
+	color: var(--text-muted);
+	font-size: 12px;
+	pointer-events: none;
 }
 
 .slider {

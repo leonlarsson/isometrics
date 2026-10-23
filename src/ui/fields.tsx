@@ -458,10 +458,12 @@ export const SliderField = ({
 					</Slider.Control>
 				</Slider.Root>
 
-				<NumberBox />
+				{/* The unit sits inside the box, so every row's box ends at the panel's edge. */}
+				<span className={styles.sliderNumber} data-unit={suffix ? "" : undefined}>
+					<NumberBox />
 
-				{/* Always present, so number boxes line up whether or not a row has a unit. */}
-				<span className={styles.suffix}>{suffix}</span>
+					{suffix && <span className={styles.unit}>{suffix}</span>}
+				</span>
 			</div>
 
 			{hint && <Hint>{hint}</Hint>}
