@@ -1,5 +1,5 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Button } from "./Button";
 
@@ -16,6 +16,11 @@ interface IConfirmDialogProps {
 	danger?: boolean;
 	/** An extra button on the left that doesn't close the dialog, e.g. "Save to file first". */
 	extraAction?: { label: string; onClick: () => void };
+	/**
+	 * Seconds the confirm button stays disabled (counting down) each time the
+	 * dialog opens, for actions that can't be undone, so it isn't clicked in a hurry.
+	 */
+	confirmDelaySeconds?: number;
 }
 
 /**
@@ -31,7 +36,19 @@ export const ConfirmDialog = ({
 	onConfirm,
 	danger,
 	extraAction,
+	confirmDelaySeconds = 0,
 }: IConfirmDialogProps) => {
+	const [waiting, setWaiting] = useState(0);
+	useEffect(() => {
+		if (!open || confirmDelaySeconds <= 0) {
+			setWaiting(0);
+			return;
+		}
+		setWaiting(confirmDelaySeconds);
+		const timer = setInterval(() => setWaiting((left) => Math.max(0, left - 1)), 1000);
+		return () => clearInterval(timer);
+	}, [open, confirmDelaySeconds]);
+
 	return (
 		<AlertDialog.Root open={open} onOpenChange={onOpenChange}>
 			<AlertDialog.Portal>
@@ -55,12 +72,15 @@ export const ConfirmDialog = ({
 
 						<Button
 							variant={danger ? "danger" : "primary"}
+							disabled={waiting > 0}
 							onClick={() => {
 								onConfirm();
 								onOpenChange(false);
 							}}
 						>
 							{confirmLabel}
+
+							{waiting > 0 && <span className={styles.countdown}> ({waiting})</span>}
 						</Button>
 					</div>
 				</AlertDialog.Popup>

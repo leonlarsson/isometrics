@@ -13,6 +13,7 @@ import {
 	readSavedRaw,
 	saveScene,
 	startFreshAfterCrash,
+	wipeEverything,
 } from "./persistence";
 
 /** Minimal in-memory Storage, since tests run in Node. */
@@ -199,5 +200,33 @@ describe("several worlds", () => {
 				.map((world) => world.title)
 				.sort(),
 		).toEqual(["Crashed", "Fresh"]);
+	});
+});
+
+// Last in the file: after wiping, saving stays off for the rest of the module's life.
+describe("wipeEverything", () => {
+	beforeEach(() => {
+		vi.stubGlobal("localStorage", memoryStorage());
+		vi.stubGlobal("sessionStorage", memoryStorage());
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+	});
+
+	it("deletes every world, backup and setting, and stops saving", () => {
+		createWorld(scene("One"));
+		createWorld(scene("Two"));
+		storeRaw("{not json");
+		loadStoredScene(); // makes a backup
+		localStorage.setItem("isometrics:panel-width", "320");
+		expect(wipeEverything()).toBe(true);
+		expect(localStorage.length).toBe(0);
+		expect(listWorlds()).toEqual([]);
+		expect(listSceneBackups()).toEqual([]);
+		// A pending autosave can't bring the open world back before the page reloads.
+		saveScene(scene("Late autosave"));
+		expect(localStorage.length).toBe(0);
 	});
 });

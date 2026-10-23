@@ -298,9 +298,14 @@ export const openStoredWorld = (id: string): TStoredSceneResult => {
 };
 
 let warnedFull = false;
+/** Set by `wipeEverything`: nothing is saved any more, until the page reloads. */
+let wiped = false;
 
 /** Write a world into its slot and the index; says so once if storage is full. */
 const writeWorld = (id: string, scene: TScene) => {
+	if (wiped) {
+		return;
+	}
 	try {
 		localStorage.setItem(worldKey(id), JSON.stringify(scene));
 		touchWorld(id, scene.meta.title);
@@ -320,6 +325,9 @@ const writeWorld = (id: string, scene: TScene) => {
 
 /** Save `scene` into the open world (creating one if none is open yet). */
 export const saveScene = (scene: TScene) => {
+	if (wiped) {
+		return;
+	}
 	let id = storedOpenWorldId();
 	if (!id) {
 		id = nanoid(10);
@@ -380,6 +388,25 @@ export const startFreshAfterCrash = (): boolean => {
 		return false;
 	}
 	return true;
+};
+
+/**
+ * Delete everything this app keeps in the browser: every world, every backup,
+ * which world was open and preferences such as panel sizes. Deliberately with
+ * no backup (ADR-0045): the user confirmed twice. Saving stops, so a pending
+ * autosave can't write the open world back; reload the page afterwards.
+ * Returns false if the browser refused.
+ */
+export const wipeEverything = (): boolean => {
+	wiped = true;
+	try {
+		localStorage.clear();
+		sessionStorage.clear();
+		return true;
+	} catch (error) {
+		console.warn("Could not wipe the browser storage", error);
+		return false;
+	}
 };
 
 /** Save the scene shortly after every change. Returns an unsubscribe function. */

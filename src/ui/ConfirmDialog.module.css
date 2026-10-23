@@ -62,3 +62,8 @@
 .extra {
 	margin-right: auto;
 }
+
+/* The confirm button's countdown: equal-width digits, so the button doesn't shift as it counts. */
+.countdown {
+	font-variant-numeric: tabular-nums;
+}
