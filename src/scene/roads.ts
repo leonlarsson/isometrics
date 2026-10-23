@@ -63,7 +63,7 @@ export const DECK_THICKNESS = 0.3;
 /** Railings appear where the road is at least this high. */
 export const RAILING_MIN = 0.5;
 export const RAILING_HEIGHT = 0.3;
-/** Distance between pillars along the road, and the minimum height that gets one. */
+/** Default distance between pillars along the road, and the minimum height that gets one. */
 export const PILLAR_SPACING = 4;
 export const PILLAR_MIN = 0.8;
 /** Horizontal run per unit of height for an embankment side this steep (degrees; 90 = a wall). */
@@ -566,11 +566,16 @@ export const buildElevatedSides = (
 	return { deck, railings, embankment };
 };
 
-/** Pillar positions [x, z, height] every `PILLAR_SPACING` along the road where it's high enough. */
-export const pillarPositions = (center: TRoadPoint[], closed: boolean): TRoadPoint[] => {
+/** Pillar positions [x, z, height] every `spacing` along the road where it's high enough. */
+export const pillarPositions = (
+	center: TRoadPoint[],
+	closed: boolean,
+	spacing = PILLAR_SPACING,
+): TRoadPoint[] => {
 	const pts = closed && center.length > 2 ? [...center, center[0]] : center;
 	const pillars: TRoadPoint[] = [];
-	let nextAt = PILLAR_SPACING / 2;
+	const step = Math.max(0.5, spacing);
+	let nextAt = step / 2;
 	let travelled = 0;
 	for (let i = 0; i < pts.length - 1; i++) {
 		const a = pts[i];
@@ -582,7 +587,7 @@ export const pillarPositions = (center: TRoadPoint[], closed: boolean): TRoadPoi
 			if (h >= PILLAR_MIN) {
 				pillars.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, h]);
 			}
-			nextAt += PILLAR_SPACING;
+			nextAt += step;
 		}
 		travelled += len;
 	}

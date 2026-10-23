@@ -192,6 +192,12 @@ export const RoadSchema = z
 			.describe("Radius of the curve at each corner; 0 = sharp corners."),
 		markings: z.boolean().default(true).describe("Centre-line markings (asphalt only)."),
 		supports: RoadSupportsSchema.default("pillars"),
+		pillarSpacing: z
+			.number()
+			.min(1)
+			.max(40)
+			.default(4)
+			.describe("Distance between pillars along elevated sections, in grid units."),
 		embankmentAngle: z
 			.number()
 			.min(10)

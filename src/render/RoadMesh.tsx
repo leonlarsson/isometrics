@@ -142,8 +142,11 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y), [sides, y]));
 	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
 	const pillars = useMemo(
-		() => (road.supports === "pillars" && !hidden ? pillarPositions(center, road.closed) : []),
-		[center, road.closed, road.supports, hidden],
+		() =>
+			road.supports === "pillars" && !hidden
+				? pillarPositions(center, road.closed, road.pillarSpacing)
+				: [],
+		[center, road.closed, road.supports, road.pillarSpacing, hidden],
 	);
 
 	const outline = useMemo(() => {

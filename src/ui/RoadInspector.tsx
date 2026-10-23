@@ -214,6 +214,21 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 								}
 							/>
 
+							{road.supports === "pillars" && (
+								<SliderField
+									label="Pillar spacing"
+									value={road.pillarSpacing}
+									min={1}
+									max={20}
+									step={0.5}
+									onChange={(v) =>
+										edit("pillarSpacing", (r) => {
+											r.pillarSpacing = v;
+										})
+									}
+								/>
+							)}
+
 							{road.supports === "embankment" && (
 								<>
 									<SliderField

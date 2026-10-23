@@ -337,6 +337,7 @@ describe("road heights", () => {
 		const pillars = pillarPositions(line, false);
 		expect(pillars.length).toBe(40 / PILLAR_SPACING);
 		expect(pillars.every((p) => p[2] >= PILLAR_MIN)).toBe(true);
+		expect(pillarPositions(line, false, 10)).toHaveLength(4);
 		expect(pillarPositions(roadCenterline(L, false, 0), false)).toHaveLength(0);
 	});
 });
