@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
-import { loadStoredScene, startAutosave } from "#/editor/persistence";
+import { loadStoredScene, saveScene, startAutosave } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
@@ -92,6 +92,11 @@ export const AppShell = () => {
 		if (stored.status === "repaired" || stored.status === "unreadable") {
 			// The original save is already backed up, so autosaving over it is safe.
 			setRecovery(stored);
+		}
+		if (stored.status === "repaired" && stored.backup) {
+			// Save the repaired world now, so the next visit opens it as it is instead of repairing
+			// (and reporting) the same original again. Only once the original is safely backed up.
+			saveScene(stored.scene);
 		}
 		setReady(true);
 		return startAutosave(useEditor);
