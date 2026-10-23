@@ -11,6 +11,7 @@ import { CameraFollowBar } from "./CameraFollowBar";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
+import { GroundContextMenu } from "./GroundContextMenu";
 import { Inspector } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
@@ -163,6 +164,8 @@ export const AppShell = () => {
 							<DetailSheet />
 
 							<ItemContextMenu />
+
+							<GroundContextMenu />
 						</main>
 
 						{mode === "edit" && (

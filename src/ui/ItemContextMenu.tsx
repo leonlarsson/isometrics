@@ -10,6 +10,7 @@ import type { TArea, TEntity, TRoad } from "#/scene/schema";
 import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
 import { useLastNonNull } from "./useLastNonNull";
+import { saveCurrentView } from "./ViewpointsMenu";
 
 /** What to call a road in a menu: its name, or its style. */
 const roadName = (road: { name: string; style: keyof typeof ROAD_STYLE_LABELS }) =>
@@ -192,6 +193,13 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 				label="Zoom to it"
 				shortcut="F"
 				onClick={() => store().frameSelection()}
+			/>
+
+			<Menu.Item
+				icon="camera"
+				label="Save this view"
+				description="As a viewpoint, listed in the Scene tab"
+				onClick={saveCurrentView}
 			/>
 
 			<Menu.Separator />

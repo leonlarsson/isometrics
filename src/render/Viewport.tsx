@@ -11,6 +11,7 @@ import { CameraFollow } from "./CameraFollow";
 import { CameraRig, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
+import { GroundMenuMarker } from "./GroundMenuMarker";
 import { HoverHighlight } from "./HoverHighlight";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
@@ -73,6 +74,8 @@ export const Viewport = () => {
 			<PlacementPreview />
 
 			<RouteHighlight />
+
+			<GroundMenuMarker />
 
 			<HoverHighlight />
 

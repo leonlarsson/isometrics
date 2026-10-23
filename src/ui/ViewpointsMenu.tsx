@@ -7,6 +7,14 @@ import { viewpointName } from "./ViewpointsSection";
 
 import styles from "./ViewpointsMenu.module.css";
 
+/** Save the camera's view as a new viewpoint (Views menu and the context menus). */
+export const saveCurrentView = () => {
+	const pose = currentView.read?.();
+	if (pose) {
+		useEditor.getState().addViewpoint(pose);
+	}
+};
+
 /**
  * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), and in
  * Edit mode save the current view or open the list in the Scene tab.
@@ -42,16 +50,7 @@ export const ViewpointsMenu = () => {
 				{mode === "edit" && <Menu.Separator />}
 
 				{mode === "edit" && (
-					<Menu.Item
-						icon="plus"
-						label="Save the current view"
-						onClick={() => {
-							const pose = currentView.read?.();
-							if (pose) {
-								store().addViewpoint(pose);
-							}
-						}}
-					/>
+					<Menu.Item icon="plus" label="Save the current view" onClick={saveCurrentView} />
 				)}
 
 				{mode === "edit" && (

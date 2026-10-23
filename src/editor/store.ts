@@ -2,7 +2,7 @@ import { type Draft, produce } from "immer";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 
-import { normalizeDegrees, round } from "#/lib/math";
+import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { AREA_TYPE_HEIGHT, AREA_TYPE_LABELS } from "#/scene/areas";
 import {
@@ -66,6 +66,10 @@ const withPoint = (
 export const SNAP_STEP = 0.5;
 /** Alt+arrow nudges by this much instead of a grid step, for lining things up by eye. */
 export const FINE_NUDGE_STEP = 0.1;
+
+/** A ground point as things placed there land: on the grid while snapping is on. */
+export const spotOnGrid = ([x, z]: TVec2, snapping: boolean): TVec2 =>
+	snapping ? [snap(x, SNAP_STEP), snap(z, SNAP_STEP)] : [round(x, 2), round(z, 2)];
 
 const HISTORY_LIMIT = 100;
 /** Commits with the same coalesce key within this window share one undo step. */
@@ -168,6 +172,8 @@ export interface IEditorState {
 	hovered: ISceneItem | null;
 	/** The item whose context menu is open, and where (screen px). Runtime UI state. */
 	contextMenu: { item: ISceneItem; x: number; y: number } | null;
+	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
+	groundMenu: { point: TVec2; x: number; y: number } | null;
 	/** Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. */
 	flight: { pose: TViewPose; nonce: number } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
@@ -216,6 +222,10 @@ export interface IEditorState {
 	setHovered: (item: ISceneItem | null) => void;
 	/** Select an item and open its context menu at a screen point, or close the menu (null). */
 	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }) => void;
+	/** Open the ground's context menu for a ground point at a screen point (deselecting), or close it (null). */
+	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }) => void;
+	/** Move the camera to a ground point, framing a few cells around it. */
+	framePoint: (point: TVec2) => void;
 	/** Give an object, road or area a new name (empty: it's called by its kind again). */
 	renameItem: (item: ISceneItem, name: string) => void;
 	/** Set an item's `hidden` or `locked` flag (one undo step). */
@@ -388,6 +398,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		frameBox: null,
 		hovered: null,
 		contextMenu: null,
+		groundMenu: null,
 		flight: null,
 		activeViewpointId: null,
 		cameraFollow: null,
@@ -546,6 +557,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				routePreview: null,
 				followOffer: null,
 				contextMenu: null,
+				groundMenu: null,
 			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
@@ -585,8 +597,24 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			} else {
 				state.selectArea(item.id);
 			}
-			set({ contextMenu: { item, ...at } });
+			set({ contextMenu: { item, ...at }, groundMenu: null });
 		},
+
+		openGroundMenu: (point, at) => {
+			if (!point || !at) {
+				set({ groundMenu: null });
+				return;
+			}
+			get().clearSelection();
+			set({ groundMenu: { point, ...at }, contextMenu: null });
+		},
+
+		framePoint: ([x, z]) =>
+			set((s) => ({
+				viewNonce: s.viewNonce + 1,
+				frameBox: { center: [x, 0, z], size: [10, 2, 10] },
+				cameraFollow: null,
+			})),
 		renameItem: (item, name) => {
 			const recipe = (thing: { name: string }) => {
 				thing.name = name;

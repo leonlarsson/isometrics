@@ -4,6 +4,8 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 
+import { openGroundMenuOnClick } from "./contextMenu";
+
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const mode = useEditor((s) => s.mode);
@@ -25,6 +27,7 @@ export const Ground = () => {
 					e.stopPropagation();
 					clearSelection();
 				}}
+				onContextMenu={openGroundMenuOnClick}
 			>
 				<meshStandardMaterial color={ground.color ?? palette.ground} roughness={0.95} />
 			</RoundedBox>
