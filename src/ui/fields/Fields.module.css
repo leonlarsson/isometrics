@@ -389,7 +389,7 @@ textarea.input {
 }
 
 .selectPositioner {
-	z-index: 100;
+	z-index: var(--z-popup);
 	outline: 0;
 }
 

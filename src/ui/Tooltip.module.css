@@ -1,5 +1,5 @@
 .positioner {
-	z-index: 150;
+	z-index: var(--z-tooltip);
 }
 
 .popup {

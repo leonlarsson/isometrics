@@ -2,7 +2,7 @@
 	position: fixed;
 	right: 16px;
 	bottom: 16px;
-	z-index: 300;
+	z-index: var(--z-toast);
 	width: min(360px, calc(100vw - 32px));
 }
 
