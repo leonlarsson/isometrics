@@ -2,9 +2,11 @@ import { memo } from "react";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { pastDragThreshold } from "#/lib/pointer";
 import { getPart, resolveLabelColor } from "#/parts/registry";
+import { openContextMenuUnlessDragged } from "#/render/contextMenu";
 import {
-	cardTouchHandover,
+	cardEventHandover,
 	labelSizes,
 	registerLabelElement,
 	registerLabelLeader,
@@ -14,10 +16,32 @@ import type { TEntity } from "#/scene/schema";
 
 import styles from "./LabelLayer.module.css";
 
-/** Touches on a card pan, pinch and twist the world like touches on the ground. */
-const handTouchToCamera = (event: PointerEvent) => {
-	if (event.pointerType === "touch") {
-		cardTouchHandover.current?.(event);
+/** Where the last press on a card started, so the click that ends a drag doesn't select. */
+let press: { clientX: number; clientY: number } | null = null;
+
+/**
+ * A press on a card is handed to the camera, so dragging pans or orbits the
+ * world, and pinching zooms it, as on the ground; a click still selects.
+ */
+const handPressToCamera = (event: PointerEvent) => {
+	if (event.type === "pointerdown") {
+		press = { clientX: event.clientX, clientY: event.clientY };
+	}
+	cardEventHandover.current?.(event);
+};
+
+/** Whether the press that ended at `event` moved far enough to be a drag of the world. */
+const endedADrag = (event: { clientX: number; clientY: number }) =>
+	press !== null && pastDragThreshold(press, event);
+
+/**
+ * The wheel over a card zooms the world, as over the ground. A native listener,
+ * because React's wheel handlers are passive and can't stop the page scrolling.
+ */
+const onLayerWheel = (event: WheelEvent) => {
+	if (event.target instanceof Element && event.target.closest("[data-label-part]")) {
+		event.preventDefault();
+		cardEventHandover.current?.(event);
 	}
 };
 
@@ -77,9 +101,20 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	// The chip shows the main value, or the title when there's no data.
 	const main = entries.length > 0 ? formatEntry(entries[0].entry) : title;
 	const handlers = {
-		onClick: () => select(entity.id),
-		onPointerDown: (event: { nativeEvent: PointerEvent }) => handTouchToCamera(event.nativeEvent),
-		onPointerCancel: (event: { nativeEvent: PointerEvent }) => handTouchToCamera(event.nativeEvent),
+		onClick: (event: { clientX: number; clientY: number }) => {
+			if (!endedADrag(event)) {
+				select(entity.id);
+			}
+		},
+		onPointerDown: (event: { nativeEvent: PointerEvent }) => handPressToCamera(event.nativeEvent),
+		onPointerCancel: (event: { nativeEvent: PointerEvent }) => handPressToCamera(event.nativeEvent),
+		// Right-click: the object's menu; right-drag orbits like on the ground (no browser menu either way).
+		onContextMenu: (event: { nativeEvent: MouseEvent }) =>
+			openContextMenuUnlessDragged(
+				{ kind: "entity", id: entity.id },
+				event.nativeEvent,
+				endedADrag(event.nativeEvent),
+			),
 	};
 
 	return (
@@ -159,7 +194,15 @@ export const LabelLayer = () => {
 
 	return (
 		// While drawing a road, cards let clicks through to the ground.
-		<div className={styles.layer} data-drawing={drawing || undefined} data-label-layer="">
+		<div
+			className={styles.layer}
+			data-drawing={drawing || undefined}
+			data-label-layer=""
+			ref={(element) => {
+				element?.addEventListener("wheel", onLayerWheel, { passive: false });
+				return () => element?.removeEventListener("wheel", onLayerWheel);
+			}}
+		>
 			<svg className={styles.leaders} aria-hidden="true">
 				{labelled.map((entity) => (
 					<LabelLeader key={entity.id} entity={entity} />

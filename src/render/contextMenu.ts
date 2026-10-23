@@ -13,18 +13,30 @@ import { isClick, pastDragThreshold } from "#/lib/pointer";
  * it waits for the release.
  */
 export const openContextMenuOnClick = (item: ISceneItem) => (event: ThreeEvent<MouseEvent>) => {
+	// The nearest thing under the pointer gets the menu, not what's behind it.
+	event.stopPropagation();
+	openContextMenuUnlessDragged(item, event.nativeEvent, !isClick(event));
+};
+
+/**
+ * The same for any `contextmenu` event (a label card's, say): `dragged` says
+ * whether the pointer moved far from where the button was pressed, for
+ * browsers that fire the event on release.
+ */
+export const openContextMenuUnlessDragged = (
+	item: ISceneItem,
+	native: MouseEvent,
+	dragged: boolean,
+) => {
+	native.preventDefault();
 	const { mode, drawing, placingKind } = useEditor.getState();
 	if (mode !== "edit" || drawing || placingKind) {
 		return;
 	}
-	// The nearest thing under the pointer gets the menu, not what's behind it.
-	event.stopPropagation();
-	event.nativeEvent.preventDefault();
 	const open = (x: number, y: number) => useEditor.getState().openContextMenu(item, { x, y });
-	const native = event.nativeEvent;
 
 	if ((native.buttons & 2) === 0) {
-		if (isClick(event)) {
+		if (!dragged) {
 			open(native.clientX, native.clientY);
 		}
 		return;
