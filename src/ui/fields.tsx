@@ -441,6 +441,8 @@ export const SliderField = ({
 			<div className={styles.sliderRow}>
 				<Slider.Root
 					className={styles.slider}
+					// The thumb stops at the track's ends instead of overhanging them by half its width.
+					thumbAlignment="edge"
 					value={value}
 					min={min}
 					max={max}

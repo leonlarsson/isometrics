@@ -265,12 +265,16 @@ textarea.input {
 
 .slider {
 	min-width: 0;
+	/* With the row's gap, keeps the thumb clear of the number box at the maximum. */
+	margin-inline-end: 6px;
 }
 
 .sliderControl {
 	display: flex;
 	align-items: center;
 	height: 20px;
+	/* Room for the thumb's 2px ring at either end. */
+	padding-inline: 2px;
 	touch-action: none;
 	cursor: pointer;
 }
