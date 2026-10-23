@@ -108,7 +108,7 @@ export const WorldsDialog = ({ open, onOpenChange }: IWorldsDialogProps) => {
 				open={confirmingDelete}
 				onOpenChange={setConfirmingDelete}
 				title={`Delete “${deleting?.title ?? "this world"}”?`}
-				description="It’s removed from your worlds, and undo can’t bring it back. A copy is kept under Scene → Backups."
+				description="It’s removed from your worlds, and undo can’t bring it back. A copy is kept under File → Backups."
 				confirmLabel="Delete"
 				danger
 				onConfirm={() => {

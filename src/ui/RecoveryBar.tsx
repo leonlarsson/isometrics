@@ -20,7 +20,7 @@ export const RecoveryBar = ({ recovery, onDismiss }: IRecoveryBarProps) => {
 	const { raw, backup } = recovery;
 	const repaired = recovery.status === "repaired";
 	const keptNote = backup
-		? "The original is kept as a backup under Scene → Backups."
+		? "The original is kept as a backup under File → Backups."
 		: "The original couldn’t be backed up automatically (browser storage may be full). Download it now, before you edit, or it will be replaced.";
 
 	return (

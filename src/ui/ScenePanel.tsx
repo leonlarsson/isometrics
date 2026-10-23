@@ -6,7 +6,6 @@ import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS, TURNS_OPTIONS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
 
-import { BackupsPanel } from "./BackupsPanel";
 import { Button, ButtonGroup } from "./Button";
 import {
 	ColorField,
@@ -233,8 +232,6 @@ export const ScenePanel = () => {
 					</List>
 				)}
 			</Section>
-
-			<BackupsPanel />
 		</>
 	);
 };

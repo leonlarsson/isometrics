@@ -72,7 +72,7 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 
 			<p className={styles.hint}>
 				Starting fresh opens a new world; this one stays in File → Open world, and a copy is kept
-				under Scene → Backups.
+				under File → Backups.
 			</p>
 
 			{problem && <p className={styles.problem}>{problem}</p>}

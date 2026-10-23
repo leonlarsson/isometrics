@@ -19,6 +19,7 @@ import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { createEmptyScene, TEMPLATES } from "#/templates";
 
+import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
@@ -38,6 +39,8 @@ export const FileMenu = () => {
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [browsing, setBrowsing] = useState(false);
+	const [viewingBackups, setViewingBackups] = useState(false);
+	const [backupCount, setBackupCount] = useState(0);
 	// Kept while the dialog animates out, so its text doesn't change.
 	const [deletingTitle, setDeletingTitle] = useState(title);
 	// Wiping everything takes two confirmations; the second one names what goes.
@@ -51,6 +54,7 @@ export const FileMenu = () => {
 				onOpenChange={(open) => {
 					if (open) {
 						setWorlds(listWorlds());
+						setBackupCount(listSceneBackups().length);
 						setOpenId(openWorldId());
 					}
 				}}
@@ -113,6 +117,17 @@ export const FileMenu = () => {
 						}}
 					/>
 
+					<Menu.Item
+						icon="reset"
+						label="Backups…"
+						description={
+							backupCount === 0
+								? "None kept yet"
+								: `${backupCount} kept: restore, download or delete`
+						}
+						onClick={() => setViewingBackups(true)}
+					/>
+
 					<Menu.Separator />
 
 					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
@@ -137,11 +152,13 @@ export const FileMenu = () => {
 
 			<WorldsDialog open={browsing} onOpenChange={setBrowsing} />
 
+			<BackupsDialog open={viewingBackups} onOpenChange={setViewingBackups} />
+
 			<ConfirmDialog
 				open={deleting}
 				onOpenChange={setDeleting}
 				title={`Delete “${deletingTitle}”?`}
-				description="It’s removed from your worlds, and undo can’t bring it back. A copy is kept under Scene → Backups."
+				description="It’s removed from your worlds, and undo can’t bring it back. A copy is kept under File → Backups."
 				confirmLabel="Delete"
 				danger
 				onConfirm={() => deleteOpenWorld(createEmptyScene)}

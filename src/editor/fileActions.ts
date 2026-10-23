@@ -1,9 +1,11 @@
+import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
 import {
 	createWorld,
 	deleteWorld,
 	downloadScene,
+	type ISceneBackup,
 	listWorlds,
 	openStoredWorld,
 	openWorldId,
@@ -81,12 +83,12 @@ export const openSavedWorld = (id: string) => {
 		showWorld(result.scene);
 	}
 	if (result.status === "repaired") {
-		notify("Opened with repairs", `${result.summary} The original is kept under Scene → Backups.`);
+		notify("Opened with repairs", `${result.summary} The original is kept under File → Backups.`);
 	}
 	if (result.status === "unreadable") {
 		notify(
 			"That world can’t be opened",
-			`${result.reason}. A copy is kept under Scene → Backups.`,
+			`${result.reason}. A copy is kept under File → Backups.`,
 			"error",
 		);
 	}
@@ -140,7 +142,7 @@ export const deleteOpenWorld = (createEmpty: () => TScene) => {
 		createWorld(empty);
 		showWorld(empty);
 	}
-	notify("World deleted", "A copy is kept under Scene → Backups.", "success");
+	notify("World deleted", "A copy is kept under File → Backups.", "success");
 };
 
 /** Delete any saved world (kept as a backup first); the open one is replaced as above. */
@@ -157,7 +159,25 @@ export const deleteSavedWorld = (id: string, createEmpty: () => TScene) => {
 		);
 		return;
 	}
-	notify("World deleted", "A copy is kept under Scene → Backups.", "success");
+	notify("World deleted", "A copy is kept under File → Backups.", "success");
+};
+
+/** Open a backup as a new world (repaired if needed); the backup itself stays as it is. */
+export const restoreBackup = (backup: ISceneBackup) => {
+	try {
+		const { scene, report } = parseOrRepairScene(JSON.parse(backup.raw));
+		startNewWorld(scene);
+		notify(
+			"Backup restored",
+			report
+				? `It opened as a new world, with repairs: ${describeRepairs(report)}`
+				: "It opened as a new world. The backup is still kept.",
+			"success",
+		);
+	} catch (error) {
+		const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+		notify("That backup can’t be opened", `${reason}. Download it to keep it as a file.`, "error");
+	}
 };
 
 /** Let the user pick a world file and open it as a new world. */
