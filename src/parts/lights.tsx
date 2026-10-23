@@ -181,15 +181,28 @@ export const Headlights = ({
 };
 
 /** A soft pool of light on the ground around a lamp. */
-export const LightPool = ({ palette, radius }: { palette: IScenePalette; radius: number }) => {
-	if (palette.night === 0) {
+export const LightPool = ({
+	palette,
+	radius,
+	color = palette.lamplight,
+	strength = 1,
+}: {
+	palette: IScenePalette;
+	radius: number;
+	/** The light's colour; the theme's lamplight by default. */
+	color?: string;
+	/** 1 = a normal street lamp, 0 = no light, up to 3. */
+	strength?: number;
+}) => {
+	if (palette.night === 0 || strength === 0) {
 		return null;
 	}
 	return (
 		<GroundGlow
-			color={palette.lamplight}
+			color={color}
 			radius={radius}
-			strength={0.8 * palette.night}
+			// Eases off as it gets stronger, so a bright lamp glows wider rather than blowing out to white.
+			strength={palette.night * (1 - Math.exp(-1.1 * strength))}
 			position={[0, GLOW_HEIGHT, 0]}
 		/>
 	);
