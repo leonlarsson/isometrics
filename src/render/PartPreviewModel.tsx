@@ -19,14 +19,16 @@ const Turntable = ({ kind }: { kind: string }) => {
 	const camera = useThree((s) => s.camera);
 	const size = useThree((s) => s.size);
 	const turning = useRef<THREE.Group>(null);
+	const framed = useRef(false);
 	const part = getPart(kind);
 
-	// After the part's own layout effects: frame the space it sweeps while it turns (a
-	// box as wide as its widest corner in every direction), so the zoom never changes.
-	useEffect(() => {
-		if (!turning.current || !(camera instanceof THREE.OrthographicCamera)) {
+	// Frame the space the part sweeps while it turns (a box as wide as its widest corner in
+	// every direction), so the zoom never changes.
+	const frame = () => {
+		if (framed.current || !turning.current || !(camera instanceof THREE.OrthographicCamera)) {
 			return;
 		}
+		framed.current = true;
 		bounds.setFromObject(turning.current);
 		const reach = Math.max(
 			...[bounds.min.x, bounds.max.x].flatMap((x) =>
@@ -38,7 +40,15 @@ const Turntable = ({ kind }: { kind: string }) => {
 		bounds.min.z = -reach;
 		bounds.max.z = reach;
 		frameBoxIn(camera, bounds, size, FILL);
-	}, [camera, size]);
+	};
+
+	// After the part's own layout effects, so everything it builds is there. Parts that build
+	// asynchronously (text) call onReady instead.
+	useEffect(() => {
+		if (!part?.rendersAsync) {
+			frame();
+		}
+	}, []);
 
 	useFrame((_, delta) => {
 		if (turning.current) {
@@ -58,7 +68,14 @@ const Turntable = ({ kind }: { kind: string }) => {
 
 			{/* Start turned a little, like the thumbnail's angle but alive. */}
 			<group ref={turning} rotation={[0, -0.4, 0]}>
-				<Component props={props} color={color} accent={accent} palette={palette} playing />
+				<Component
+					props={props}
+					color={color}
+					accent={accent}
+					palette={palette}
+					playing
+					onReady={part.rendersAsync ? frame : undefined}
+				/>
 			</group>
 		</>
 	);

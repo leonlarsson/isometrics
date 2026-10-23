@@ -102,6 +102,9 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const listHovered = useEditor((s) => s.hovered?.kind === "entity" && s.hovered.id === entity.id);
 
 	const props = useMemo(() => (part ? resolveProps(part, entity.props) : {}), [part, entity.props]);
+	// Only parts that show values follow the data, so editing a value doesn't redraw everything.
+	const usesData = part?.fields.some((field) => field.type === "dataKey") ?? false;
+	const data = useEditor((s) => (usesData ? s.scene.data : undefined));
 	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
 	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
 	const turns = resolveTurns(sceneTurns, road?.turns, entity.follow?.turns);
@@ -304,6 +307,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					accent={accent}
 					palette={palette}
 					playing={playing}
+					data={data}
 				/>
 
 				{mode === "edit" && (selected || hovered || listHovered) && (

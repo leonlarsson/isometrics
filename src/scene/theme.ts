@@ -30,6 +30,8 @@ export interface IScenePalette {
 	/** Cliff sides of raised areas. */
 	cliff: string;
 	cardboard: string;
+	/** Default colour of text in the world (the text part). */
+	text: string;
 	selection: string;
 	/** Transform gizmo: one colour per axis (X red, Y/up green, Z blue), size handle, hover. */
 	gizmo: { x: string; y: string; z: string; size: string; hover: string };
@@ -68,6 +70,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		},
 		cliff: "#c9bfa9",
 		cardboard: "#d8a967",
+		text: "#2f3437",
 		selection: "#e2603b",
 		gizmo: { x: "#e5484d", y: "#3f9b5a", z: "#3e63dd", size: "#4b4a46", hover: "#f5b301" },
 		hemiSky: "#ffffff",
@@ -103,6 +106,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		},
 		cliff: "#3d3b34",
 		cardboard: "#b48a52",
+		text: "#ecebe6",
 		selection: "#e8714c",
 		gizmo: { x: "#ff6369", y: "#5bb98b", z: "#7b93ff", size: "#e8e6e1", hover: "#ffd60a" },
 		hemiSky: "#c9ccd6",

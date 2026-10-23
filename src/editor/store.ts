@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 
 import { normalizeDegrees, round } from "#/lib/math";
+import { getPart } from "#/parts/registry";
 import { AREA_TYPE_HEIGHT, AREA_TYPE_LABELS } from "#/scene/areas";
 import {
 	joinedPoints,
@@ -337,7 +338,7 @@ const NOTHING_SELECTED = {
 	selectedPointIndex: null,
 } as const;
 
-/** Replace every reference to a data key (labels and detail tiles). */
+/** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
 	for (const entity of scene.entities) {
@@ -345,6 +346,11 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			entity.label.dataKeys = swap(entity.label.dataKeys);
 		}
 		entity.details.dataKeys = swap(entity.details.dataKeys);
+		for (const field of getPart(entity.kind)?.fields ?? []) {
+			if (field.type === "dataKey" && entity.props[field.key] === from) {
+				entity.props[field.key] = to ?? "";
+			}
+		}
 	}
 };
 

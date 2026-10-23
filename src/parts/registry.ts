@@ -5,6 +5,7 @@ import { house, shed, tower, warehouse } from "./buildings";
 import { beacon, lamp, parcels, zone } from "./infrastructure";
 import { pine, tree } from "./nature";
 import { grandstand, raceCar } from "./racing";
+import { text } from "./text";
 import { tunnel } from "./tunnel";
 import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
 import { car, truck, van } from "./vehicles";
@@ -32,6 +33,7 @@ export const PARTS: TAnyPart[] = [
 	lamp,
 	parcels,
 	beacon,
+	text,
 ];
 
 const byKind = new Map(PARTS.map((part) => [part.kind, part]));

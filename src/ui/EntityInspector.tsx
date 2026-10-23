@@ -51,6 +51,31 @@ const KeyPicker = ({
 	);
 };
 
+/** Pick one of the world's data keys, or none. */
+const DataKeyField = ({
+	label,
+	value,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	onChange: (key: string) => void;
+}) => {
+	const data = useEditor((s) => s.scene.data);
+	return (
+		<SelectField
+			label={label}
+			value={value}
+			options={[
+				{ value: "", label: "None" },
+				...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
+			]}
+			onChange={onChange}
+			hint={data.length === 0 ? "Add values in the Data tab to show one here." : undefined}
+		/>
+	);
+};
+
 const PropField = ({
 	spec,
 	value,
@@ -74,6 +99,17 @@ const PropField = ({
 			);
 		case "boolean":
 			return <SwitchField label={spec.label} checked={Boolean(value)} onChange={onChange} />;
+		case "text":
+			return (
+				<TextField
+					label={spec.label}
+					value={String(value ?? "")}
+					placeholder={spec.placeholder}
+					onChange={onChange}
+				/>
+			);
+		case "dataKey":
+			return <DataKeyField label={spec.label} value={String(value ?? "")} onChange={onChange} />;
 		case "select":
 			return (
 				<SelectField

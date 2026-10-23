@@ -107,14 +107,24 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 	const camera = useThree((s) => s.camera);
 	const group = useRef<THREE.Group>(null);
 
-	// Runs after the part's own layout effects, so everything it builds is there.
-	useEffect(() => {
-		if (!group.current || !(camera instanceof THREE.OrthographicCamera)) {
+	const shot = useRef(false);
+
+	const shoot = () => {
+		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {
 			return;
 		}
+		shot.current = true;
 		frameBoxIn(camera, box.setFromObject(group.current), SIZE, FILL);
 		gl.render(scene, camera);
 		onShot(gl.domElement.toDataURL("image/png"));
+	};
+
+	// Runs after the part's own layout effects, so everything it builds is there. Parts that build
+	// asynchronously (text) call onReady instead.
+	useEffect(() => {
+		if (!part.rendersAsync) {
+			shoot();
+		}
 	}, []);
 
 	const props = resolveProps(part, {});
@@ -125,7 +135,14 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 			<PartLights palette={palette} />
 
 			<group ref={group}>
-				<Component props={props} color={color} accent={accent} palette={palette} playing={false} />
+				<Component
+					props={props}
+					color={color}
+					accent={accent}
+					palette={palette}
+					playing={false}
+					onReady={part.rendersAsync ? shoot : undefined}
+				/>
 			</group>
 		</>
 	);

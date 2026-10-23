@@ -122,6 +122,9 @@ describe("editor store", () => {
 
 	it("renames data keys everywhere they are referenced", () => {
 		const store = makeStore();
+		const textId = store
+			.getState()
+			.addEntity({ kind: "text", props: { text: "Orders", dataKey: "orders" } });
 		store
 			.getState()
 			.upsertData({ key: "orders_packed", label: "Orders", value: 3, unit: "" }, "orders");
@@ -129,12 +132,22 @@ describe("editor store", () => {
 		expect(store.getState().scene.data[0].key).toBe("orders_packed");
 		expect(entity.label?.dataKeys).toEqual(["orders_packed"]);
 		expect(entity.details.dataKeys).toEqual(["orders_packed"]);
+		// A part's data key field (the text part's value) follows too.
+		const text = store.getState().scene.entities.find((e) => e.id === textId);
+		expect(text?.props.dataKey).toBe("orders_packed");
 	});
 
-	it("removes deleted data keys from labels", () => {
+	it("removes deleted data keys from labels and parts", () => {
 		const store = makeStore();
+		const textId = store
+			.getState()
+			.addEntity({ kind: "text", props: { text: "Orders", dataKey: "orders" } });
 		store.getState().removeData("orders");
-		expect(store.getState().scene.entities[0].label?.dataKeys).toEqual([]);
+		const { entities } = store.getState().scene;
+		const text = entities.find((e) => e.id === textId);
+		expect(entities[0].label?.dataKeys).toEqual([]);
+		expect(text?.props.dataKey).toBe("");
+		expect(text?.props.text).toBe("Orders");
 	});
 
 	it("loading a scene clears history and selection", () => {

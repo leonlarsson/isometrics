@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import type { z } from "zod";
 
+import type { TDataEntry } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 export type TPartCategory = "buildings" | "vehicles" | "nature" | "infrastructure" | "markers";
@@ -24,6 +25,9 @@ export type TFieldSpec =
 			step: number;
 	  }
 	| { key: string; label: string; type: "boolean" }
+	| { key: string; label: string; type: "text"; placeholder?: string }
+	/** One of the world's data keys, or "" for none (ADR-0041). Renamed and removed with the key. */
+	| { key: string; label: string; type: "dataKey" }
 	| {
 			key: string;
 			label: string;
@@ -41,6 +45,10 @@ export interface IPartRenderProps<P> {
 	palette: IScenePalette;
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;
+	/** The world's data, for parts that show values (absent in previews and thumbnails). */
+	data?: TDataEntry[];
+	/** Parts that set `rendersAsync` call this once everything they draw is built. */
+	onReady?: () => void;
 }
 
 /**
@@ -71,6 +79,8 @@ export interface IPartDefinition<P extends object> {
 	height: (props: P) => number;
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
+	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
+	rendersAsync?: boolean;
 	Component: FC<IPartRenderProps<P>>;
 }
 
