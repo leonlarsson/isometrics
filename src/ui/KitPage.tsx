@@ -4,6 +4,7 @@ import { notify } from "#/editor/toasts";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Dialog } from "./Dialog";
 import {
 	CheckboxGroupField,
 	ColorField,
@@ -47,6 +48,7 @@ export const KitPage = () => {
 	const [tab, setTab] = useState<"one" | "two">("one");
 	const [selected, setSelected] = useState("ring");
 	const [confirming, setConfirming] = useState(false);
+	const [browsing, setBrowsing] = useState(false);
 
 	useEffect(() => {
 		document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -198,6 +200,8 @@ export const KitPage = () => {
 
 											<Button onClick={() => setConfirming(true)}>Dialog</Button>
 
+											<Button onClick={() => setBrowsing(true)}>Panel dialog</Button>
+
 											<Menu.Root>
 												<Menu.Trigger>Menu</Menu.Trigger>
 
@@ -302,6 +306,26 @@ export const KitPage = () => {
 							</Tabs>
 						</div>
 					</div>
+
+					<Dialog
+						open={browsing}
+						onOpenChange={setBrowsing}
+						title="All worlds"
+						description="A long list scrolls inside the dialog."
+					>
+						<List>
+							{Array.from({ length: 30 }, (_, i) => (
+								<ListItem
+									// biome-ignore lint/suspicious/noArrayIndexKey: a fixed demo list
+									key={i}
+									label={`World ${i + 1}`}
+									meta="Edited today"
+									stacked
+									onClick={() => notify(`Opened world ${i + 1}`)}
+								/>
+							))}
+						</List>
+					</Dialog>
 
 					<ConfirmDialog
 						open={confirming}

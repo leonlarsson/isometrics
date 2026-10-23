@@ -1,19 +1,32 @@
+import { nanoid } from "nanoid";
+
 import { APP_NAME } from "#/lib/app";
 import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
 import type { useEditor } from "./store";
+import { notify } from "./toasts";
 
 /**
- * Local-first persistence: the scene autosaves to localStorage and can be
- * exported/imported as a JSON file. No backend. See docs/adr/0006.
+ * Local-first persistence: worlds autosave to localStorage and can be
+ * exported/imported as JSON files. No backend. See docs/adr/0006.
+ *
+ * The browser keeps several worlds (ADR-0044): each under its own key, with a
+ * small index for listing them and the id of the one that's open.
  *
  * A saved world that this version can't read is never thrown away: it's
  * copied to a backup key before anything can overwrite it (ADR-0020). If
  * most of it can still be read, it's repaired and opened (ADR-0026).
  */
-const STORAGE_KEY = `${APP_NAME.toLowerCase()}:scene`;
-const BACKUP_PREFIX = `${APP_NAME.toLowerCase()}:scene-backup:`;
+const PREFIX = APP_NAME.toLowerCase();
+/** The single saved world from before there were several (moved into a slot on load). */
+const SINGLE_SAVE_KEY = `${PREFIX}:scene`;
+const WORLD_KEY_PREFIX = `${PREFIX}:world:`;
+const WORLD_INDEX_KEY = `${PREFIX}:world-index`;
+const OPEN_WORLD_ID_KEY = `${PREFIX}:open-world-id`;
+const BACKUP_PREFIX = `${PREFIX}:scene-backup:`;
+/** Stored as the open world's id to mean "open a new one" (after starting fresh). */
+const START_FRESH = "";
 /** Oldest backups beyond this many are deleted. */
 const MAX_BACKUPS = 5;
 
@@ -92,16 +105,138 @@ const backUpRaw = (raw: string): ISceneBackup | null => {
 	}
 };
 
-export const loadStoredScene = (): TStoredSceneResult => {
-	let raw: string | null;
+/** A saved world in the list (the world itself is stored separately). */
+export interface IWorldInfo {
+	id: string;
+	/** The world's title (meta.title) when it was last saved. */
+	title: string;
+	/** When it was last saved (ms since epoch). */
+	updatedAt: number;
+}
+
+const worldKey = (id: string) => `${WORLD_KEY_PREFIX}${id}`;
+
+const getItem = (key: string) => {
 	try {
-		raw = localStorage.getItem(STORAGE_KEY);
+		return localStorage.getItem(key);
 	} catch {
-		return { status: "empty" }; // storage unavailable (private mode etc.)
+		return null; // storage unavailable (private mode etc.)
 	}
-	if (!raw) {
-		return { status: "empty" };
+};
+
+/** The title stored in a world's raw text, if it can be read. */
+const titleOf = (raw: string) => {
+	try {
+		const title = (JSON.parse(raw) as { meta?: { title?: unknown } }).meta?.title;
+		return typeof title === "string" && title.trim() ? title : "Untitled world";
+	} catch {
+		return "Unreadable world";
 	}
+};
+
+const writeIndex = (worlds: IWorldInfo[]) => {
+	try {
+		localStorage.setItem(WORLD_INDEX_KEY, JSON.stringify(worlds));
+	} catch (error) {
+		console.warn("Could not save the list of worlds", error);
+	}
+};
+
+/**
+ * Every saved world, most recently edited first. The index is checked
+ * against the stored worlds, so a world missing from it (or an index that
+ * can't be read) still shows up.
+ */
+export const listWorlds = (): IWorldInfo[] => {
+	let indexed: IWorldInfo[] = [];
+	try {
+		const parsed = JSON.parse(getItem(WORLD_INDEX_KEY) ?? "[]") as unknown;
+		if (Array.isArray(parsed)) {
+			indexed = parsed.filter(
+				(item): item is IWorldInfo =>
+					typeof item?.id === "string" &&
+					typeof item.title === "string" &&
+					typeof item.updatedAt === "number",
+			);
+		}
+	} catch {
+		// Rebuilt from the stored worlds below.
+	}
+	const stored = new Set<string>();
+	try {
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key?.startsWith(WORLD_KEY_PREFIX)) {
+				stored.add(key.slice(WORLD_KEY_PREFIX.length));
+			}
+		}
+	} catch {
+		return [];
+	}
+	const worlds = indexed.filter((world) => stored.has(world.id));
+	for (const id of stored) {
+		if (!worlds.some((world) => world.id === id)) {
+			worlds.push({ id, title: titleOf(getItem(worldKey(id)) ?? ""), updatedAt: 0 });
+		}
+	}
+	return worlds.sort((a, b) => b.updatedAt - a.updatedAt);
+};
+
+/** Record a world in the index (title and time), keeping the rest. */
+const touchWorld = (id: string, title: string) => {
+	const others = listWorlds().filter((world) => world.id !== id);
+	writeIndex([{ id, title, updatedAt: Date.now() }, ...others]);
+};
+
+/** The open world's id as stored, whether or not that world has been written yet. */
+const storedOpenWorldId = () => getItem(OPEN_WORLD_ID_KEY) || null;
+
+/** The world that's open (the one autosave writes to), if it's stored. */
+export const openWorldId = (): string | null => {
+	const id = storedOpenWorldId();
+	return id && getItem(worldKey(id)) !== null ? id : null;
+};
+
+const setOpenWorldId = (id: string | null) => {
+	try {
+		if (id) {
+			localStorage.setItem(OPEN_WORLD_ID_KEY, id);
+		} else {
+			localStorage.removeItem(OPEN_WORLD_ID_KEY);
+		}
+	} catch {
+		// Storage unavailable: nothing to remember.
+	}
+};
+
+/**
+ * Move the single saved world from before there were several into its own
+ * slot, exactly as stored. The old key is only removed once the copy is
+ * written (and not at all if it can't be), so nothing is lost.
+ */
+const moveSingleSaveIntoList = () => {
+	const raw = getItem(SINGLE_SAVE_KEY);
+	if (raw === null) {
+		return;
+	}
+	try {
+		const existing = listWorlds().find((world) => getItem(worldKey(world.id)) === raw);
+		const id = existing?.id ?? nanoid(10);
+		if (!existing) {
+			localStorage.setItem(worldKey(id), raw);
+			touchWorld(id, titleOf(raw));
+		}
+		if (!openWorldId()) {
+			setOpenWorldId(id);
+		}
+		localStorage.removeItem(SINGLE_SAVE_KEY);
+	} catch (error) {
+		console.warn("Could not move the saved world into the list of worlds", error);
+	}
+};
+
+/** Read one stored world: as it is, repaired (original backed up), or unreadable (backed up). */
+const readWorld = (raw: string): TStoredSceneResult => {
 	try {
 		const { scene, report } = parseOrRepairScene(JSON.parse(raw));
 		if (!report) {
@@ -121,39 +256,130 @@ export const loadStoredScene = (): TStoredSceneResult => {
 	}
 };
 
-/** The saved world exactly as stored, or null if there is none (or storage is unavailable). */
-export const readSavedRaw = (): string | null => {
-	try {
-		return localStorage.getItem(STORAGE_KEY);
-	} catch {
-		return null;
+/**
+ * Load the world to open on start: the one that was open, or else the most
+ * recently edited one. Moves an old single save into the list first.
+ */
+export const loadStoredScene = (): TStoredSceneResult => {
+	moveSingleSaveIntoList();
+	// Started fresh after a crash (see startFreshAfterCrash): open a new world.
+	if (getItem(OPEN_WORLD_ID_KEY) === START_FRESH) {
+		return { status: "empty" };
 	}
+	const id = openWorldId() ?? listWorlds()[0]?.id ?? null;
+	const raw = id ? getItem(worldKey(id)) : null;
+	if (!id || raw === null) {
+		return { status: "empty" };
+	}
+	setOpenWorldId(id);
+	return readWorld(raw);
+};
+
+/** Read a stored world without opening it (e.g. to copy it). */
+export const readStoredWorld = (id: string): TStoredSceneResult => {
+	const raw = getItem(worldKey(id));
+	return raw === null ? { status: "empty" } : readWorld(raw);
 };
 
 /**
- * Clear the saved world so the next load starts from the template, but only
- * after it has been kept as a backup (ADR-0020). Returns false (and changes
- * nothing) if the backup couldn't be made.
+ * Open a stored world: it becomes the open one if it can be read (as it
+ * is, or repaired). An unreadable world is backed up and left as it was.
  */
-export const clearSavedScene = (): boolean => {
+export const openStoredWorld = (id: string): TStoredSceneResult => {
+	const raw = getItem(worldKey(id));
+	if (raw === null) {
+		return { status: "empty" };
+	}
+	const result = readWorld(raw);
+	if (result.status === "ok" || result.status === "repaired") {
+		setOpenWorldId(id);
+	}
+	return result;
+};
+
+let warnedFull = false;
+
+/** Write a world into its slot and the index; says so once if storage is full. */
+const writeWorld = (id: string, scene: TScene) => {
+	try {
+		localStorage.setItem(worldKey(id), JSON.stringify(scene));
+		touchWorld(id, scene.meta.title);
+		warnedFull = false;
+	} catch (error) {
+		console.warn("Could not save scene", error);
+		if (!warnedFull) {
+			warnedFull = true;
+			notify(
+				"Couldn’t save your world",
+				"The browser’s storage for this site may be full. Save it to a file, or delete worlds you no longer need.",
+				"error",
+			);
+		}
+	}
+};
+
+/** Save `scene` into the open world (creating one if none is open yet). */
+export const saveScene = (scene: TScene) => {
+	let id = storedOpenWorldId();
+	if (!id) {
+		id = nanoid(10);
+		setOpenWorldId(id);
+	}
+	writeWorld(id, scene);
+};
+
+/** Store `scene` as a new world and make it the open one. Returns its id. */
+export const createWorld = (scene: TScene): string => {
+	const id = nanoid(10);
+	setOpenWorldId(id);
+	writeWorld(id, scene);
+	return id;
+};
+
+/**
+ * Delete a stored world, after keeping it as a backup (ADR-0020). Returns
+ * false (and deletes nothing) if the backup couldn't be made.
+ */
+export const deleteWorld = (id: string): boolean => {
+	const raw = getItem(worldKey(id));
+	if (raw !== null && !backUpRaw(raw)) {
+		return false;
+	}
+	try {
+		localStorage.removeItem(worldKey(id));
+	} catch {
+		return false;
+	}
+	writeIndex(listWorlds().filter((world) => world.id !== id));
+	if (getItem(OPEN_WORLD_ID_KEY) === id) {
+		setOpenWorldId(null);
+	}
+	return true;
+};
+
+/** The open world exactly as stored, or null if there is none (or storage is unavailable). */
+export const readSavedRaw = (): string | null => {
+	const id = openWorldId();
+	return id ? getItem(worldKey(id)) : null;
+};
+
+/**
+ * Start fresh after a crash: the next load opens a new world instead of the
+ * open one, which stays in the list and is also kept as a backup
+ * (ADR-0020). Returns false (and changes nothing) if the backup couldn't be made.
+ */
+export const startFreshAfterCrash = (): boolean => {
 	const raw = readSavedRaw();
 	if (raw && !backUpRaw(raw)) {
 		return false;
 	}
 	try {
-		localStorage.removeItem(STORAGE_KEY);
-		return true;
+		// Not even the most recent world: that may be the one that crashed.
+		localStorage.setItem(OPEN_WORLD_ID_KEY, START_FRESH);
 	} catch {
 		return false;
 	}
-};
-
-export const saveScene = (scene: TScene) => {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(scene));
-	} catch (error) {
-		console.warn("Could not save scene", error);
-	}
+	return true;
 };
 
 /** Save the scene shortly after every change. Returns an unsubscribe function. */

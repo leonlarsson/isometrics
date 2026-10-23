@@ -2,10 +2,10 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
-	clearSavedScene,
 	downloadScene,
 	downloadSceneBackup,
 	readSavedRaw,
+	startFreshAfterCrash,
 } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 
@@ -56,7 +56,7 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 
 				<Button
 					onClick={() => {
-						if (clearSavedScene()) {
+						if (startFreshAfterCrash()) {
 							// Reload on the plain path, dropping any query string (e.g. the dev ?crash trigger).
 							window.location.assign(window.location.pathname);
 						} else {
@@ -70,7 +70,10 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 				</Button>
 			</div>
 
-			<p className={styles.hint}>Starting fresh keeps your current world under Scene → Backups.</p>
+			<p className={styles.hint}>
+				Starting fresh opens a new world; this one stays in File → Open world, and a copy is kept
+				under Scene → Backups.
+			</p>
 
 			{problem && <p className={styles.problem}>{problem}</p>}
 

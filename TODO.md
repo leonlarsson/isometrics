@@ -11,8 +11,7 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
 
-- [ ] **File menu, Save as:** the File menu has New empty world, Start from a template, Open file and Save to file. Add **Save / Save as** (and recent worlds) with the save slots below.
-- [ ] **Multiple save slots:** keep several worlds in the browser, each with a name and last-edited time, with open, rename, duplicate and delete. Today there's one autosaved world plus backups (ADR-0006, ADR-0020). Needs an ADR for the storage layout.
+- [ ] **Storage used:** show how much of the browser's storage for this site (about 5 MB) the worlds and backups take, so people can tidy up before saving fails (ADR-0044).
 - [ ] **People:** pedestrians as a part, walking along paths, pavements or hidden routes; maybe standing crowds. *Data:* crowd size or walking speed from a value (visitors, queue length).
 - [ ] **Building clusters:** one object that grows with a number: more, taller or bigger buildings as the value rises (abstract; needs exploring). *Data:* naturally driven by a value, e.g. revenue or headcount per city block.
 - [ ] **Multiple areas / cities (SimCity-like):** several districts or grounds in one world, maybe linked by roads, each with its own name and data. Affects the scene model (ground is a single slab today), camera framing and navigation between areas.
