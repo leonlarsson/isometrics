@@ -29,3 +29,15 @@ export const pixelsPerUnitAt = (
 	}
 	return 20;
 };
+
+/** The longest straight line across the ground: its diagonal. */
+export const groundSpan = (ground: { width: number; depth: number }) =>
+	Math.hypot(ground.width, ground.depth);
+
+/**
+ * How far the orthographic camera stands back from its target. In that view
+ * distance doesn't change how big things look, only what's in front of the
+ * camera: far enough that the whole ground, and tall things on it, are.
+ */
+export const orthographicDistance = (ground: { width: number; depth: number }) =>
+	Math.max(150, groundSpan(ground) + 50);

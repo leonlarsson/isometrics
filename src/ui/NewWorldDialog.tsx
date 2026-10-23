@@ -21,6 +21,7 @@ const GROUND_PRESETS = {
 	blocks: { name: "Blocks", width: 40, depth: 30, fits: "a few blocks" },
 	district: { name: "District", width: 80, depth: 60, fits: "a neighbourhood" },
 	town: { name: "Town", width: 120, depth: 90, fits: "a small town" },
+	city: { name: "City", width: 240, depth: 180, fits: "a whole city" },
 };
 
 type TGroundPreset = keyof typeof GROUND_PRESETS;

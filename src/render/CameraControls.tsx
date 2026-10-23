@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
+import { groundSpan, orthographicDistance } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
 import { MAX_POLAR, MIN_POLAR, orbitAround, settleTarget } from "./orbit";
 
@@ -404,10 +405,40 @@ const useCardEventHandover = () => {
 	}, [element, get]);
 };
 
+/**
+ * Keeps the orthographic camera far enough back for the whole ground to be in
+ * front of it, with a far plane past the other side (render/cameraMath). Its
+ * distance doesn't change the picture, so this never shows; without it a big
+ * ground's near corner would be cut off.
+ */
+const useOrthographicDepth = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+	const ground = useEditor((s) => s.scene.ground);
+
+	useFrame(() => {
+		if (!(camera instanceof THREE.OrthographicCamera) || !controls) {
+			return;
+		}
+		const distance = orthographicDistance(ground);
+		if (Math.abs(camera.position.distanceTo(controls.target) - distance) > 1) {
+			shift.subVectors(camera.position, controls.target).setLength(distance);
+			camera.position.copy(controls.target).add(shift);
+			camera.updateMatrixWorld();
+		}
+		const far = distance * 2 + 100;
+		if (camera.far !== far) {
+			camera.far = far;
+			camera.updateProjectionMatrix();
+		}
+	});
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
 	usePerspectiveDepthRange();
+	useOrthographicDepth();
 	useKeepTargetOnGround();
 	useViewInset();
 	useRevealSelection();
@@ -422,6 +453,7 @@ const CameraBehaviours = () => {
  * and twist to orbit. See docs/adr/0028 and 0037.
  */
 export const CameraControls = () => {
+	const span = useEditor((s) => groundSpan(s.scene.ground));
 	return (
 		<>
 			<OrbitControls
@@ -430,11 +462,12 @@ export const CameraControls = () => {
 				dampingFactor={0.12}
 				minPolarAngle={MIN_POLAR}
 				maxPolarAngle={MAX_POLAR}
-				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.
-				minZoom={2}
+				// Zoom limits: orthographic zoom for the diorama view, distance for perspective. How far
+				// out depends on the ground, so the whole of a big one fits on screen.
+				minZoom={Math.min(2, 300 / span)}
 				maxZoom={160}
 				minDistance={2}
-				maxDistance={400}
+				maxDistance={Math.max(400, span * 1.5)}
 				zoomToCursor
 				// Left-drag panning is useGroundPan's and orbiting is useOrbitAroundCursor's, so the mouse
 				// only zooms here (wheel or middle button). Touch keeps OrbitControls' pan, pinch and twist.

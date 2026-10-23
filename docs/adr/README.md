@@ -52,3 +52,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0046](0046-phone-toolbar-and-bars.md) | Phones: a More menu in the toolbar, the sheet toggle in its tab bar, bars at the bottom in View mode | accepted |
 | [0047](0047-new-world-dialog.md) | File → New world is a dialog: a blank world with settings, or a starter with a rendered picture | accepted |
 | [0048](0048-label-collision-avoidance.md) | Label cards step aside for each other and for the UI, and shrink to chips where there's no room | accepted |
+| [0049](0049-larger-grounds.md) | Grounds up to 500 per side: the sun's shadows follow the view, and the camera and grid scale with the ground | accepted |

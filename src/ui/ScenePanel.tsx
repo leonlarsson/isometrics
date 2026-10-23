@@ -85,7 +85,7 @@ export const ScenePanel = () => {
 					label="Width"
 					value={scene.ground.width}
 					min={8}
-					max={120}
+					max={500}
 					step={1}
 					onChange={(v) =>
 						commit(
@@ -101,7 +101,7 @@ export const ScenePanel = () => {
 					label="Depth"
 					value={scene.ground.depth}
 					min={8}
-					max={120}
+					max={500}
 					step={1}
 					onChange={(v) =>
 						commit(

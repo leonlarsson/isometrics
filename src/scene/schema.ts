@@ -300,8 +300,8 @@ export const AreaSchema = z
 
 export const GroundSchema = z
 	.object({
-		width: z.number().min(4).max(200).default(40).describe("Size along x, in grid units."),
-		depth: z.number().min(4).max(200).default(30).describe("Size along z, in grid units."),
+		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
+		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
 		color: hexColor
 			.nullable()
 			.default(null)
