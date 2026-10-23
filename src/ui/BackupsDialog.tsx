@@ -13,6 +13,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import { Hint } from "./fields";
 import { List, ListItem } from "./List";
+import { StorageMeter } from "./StorageMeter";
 
 const titleOf = (raw: string) => {
 	try {
@@ -61,6 +62,8 @@ export const BackupsDialog = ({ open, onOpenChange }: IBackupsDialogProps) => {
 				title="Backups"
 				description="Copies of worlds kept before they were deleted, repaired or couldn’t be opened, exactly as they were."
 			>
+				<StorageMeter />
+
 				{backups.length === 0 ? (
 					<Hint>No backups. One is made whenever a world is deleted or has to be repaired.</Hint>
 				) : (

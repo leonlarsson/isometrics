@@ -9,6 +9,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import { Hint, TextField } from "./fields";
 import { List, ListItem } from "./List";
+import { StorageMeter } from "./StorageMeter";
 
 /** "Edited 23 Oct 2026, 13:55", for a world's last save. */
 export const formatEdited = (ms: number) =>
@@ -58,6 +59,8 @@ export const WorldsDialog = ({ open, onOpenChange }: IWorldsDialogProps) => {
 				title="All worlds"
 				description={`${worlds.length} saved in this browser, most recently edited first.`}
 			>
+				<StorageMeter />
+
 				<TextField label="Search" value={query} onChange={setQuery} placeholder="Search by title" />
 
 				{shown.length === 0 ? (

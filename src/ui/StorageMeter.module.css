@@ -1,0 +1,47 @@
+.meter {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* Worlds then backups, side by side on one track. */
+.bar {
+	display: flex;
+	gap: 2px;
+	height: 8px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--border);
+}
+
+/* A sliver of storage still shows, even at 1%. */
+.worlds,
+.backups {
+	min-width: 6px;
+	border-radius: 999px;
+}
+
+.worlds {
+	background: var(--accent);
+}
+
+.backups {
+	background: var(--border-strong);
+}
+
+/* Almost full: the whole fill turns red, backups a little lighter. */
+.bar[data-almost-full] .worlds,
+.bar[data-almost-full] .backups {
+	background: var(--danger);
+}
+
+.bar[data-almost-full] .backups {
+	opacity: 0.6;
+}
+
+.text {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}

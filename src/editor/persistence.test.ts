@@ -13,6 +13,7 @@ import {
 	readSavedRaw,
 	saveScene,
 	startFreshAfterCrash,
+	storageUsage,
 	wipeEverything,
 } from "./persistence";
 
@@ -200,6 +201,25 @@ describe("several worlds", () => {
 				.map((world) => world.title)
 				.sort(),
 		).toEqual(["Crashed", "Fresh"]);
+	});
+});
+
+describe("storageUsage", () => {
+	beforeEach(() => {
+		vi.stubGlobal("localStorage", memoryStorage());
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("adds up worlds, backups and everything else this site stores", () => {
+		localStorage.setItem("isometrics:world:a", "x".repeat(100));
+		localStorage.setItem("isometrics:scene-backup:1", "y".repeat(40));
+		localStorage.setItem("isometrics:panel-width", "320");
+		const usage = storageUsage();
+		expect(usage.worlds).toBe("isometrics:world:a".length + 100);
+		expect(usage.backups).toBe("isometrics:scene-backup:1".length + 40);
+		expect(usage.total).toBe(usage.worlds + usage.backups + "isometrics:panel-width".length + 3);
 	});
 });
 

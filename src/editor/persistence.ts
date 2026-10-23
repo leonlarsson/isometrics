@@ -57,6 +57,44 @@ const describeError = (error: unknown) => {
 	return error instanceof Error ? error.message.split("\n")[0].slice(0, 200) : String(error);
 };
 
+/**
+ * What browsers let one site keep in localStorage, in characters (keys plus
+ * values; any character counts as one). The HTML spec suggests "a mostly
+ * arbitrary limit of five megabytes per origin"; Chromium 156 measures exactly
+ * 5 × 1024 × 1024 characters. Others are close, so it's shown as "about 5 MB".
+ */
+export const STORAGE_LIMIT_CHARS = 5 * 1024 * 1024;
+
+/** How much of this site's storage is in use, in characters (keys and values). */
+export interface IStorageUsage {
+	worlds: number;
+	backups: number;
+	/** Everything this site stores, including the index and settings. */
+	total: number;
+}
+
+export const storageUsage = (): IStorageUsage => {
+	const usage: IStorageUsage = { worlds: 0, backups: 0, total: 0 };
+	try {
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key === null) {
+				continue;
+			}
+			const size = key.length + (localStorage.getItem(key)?.length ?? 0);
+			usage.total += size;
+			if (key.startsWith(WORLD_KEY_PREFIX)) {
+				usage.worlds += size;
+			} else if (key.startsWith(BACKUP_PREFIX)) {
+				usage.backups += size;
+			}
+		}
+	} catch {
+		// Storage unavailable: nothing is in use.
+	}
+	return usage;
+};
+
 /** Every scene backup in this browser, newest first. */
 export const listSceneBackups = (): ISceneBackup[] => {
 	try {
