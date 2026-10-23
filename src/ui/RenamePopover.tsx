@@ -54,22 +54,21 @@ export const RenamePopover = ({
 					<Popover.Popup className={styles.popup} initialFocus={false} finalFocus={false}>
 						<Popover.Title className={styles.title}>Rename</Popover.Title>
 
-						{open && (
-							<RenameInput
-								label={label}
-								rename={{
-									value,
-									placeholder,
-									editing: true,
-									onEditingChange: (editing) => {
-										if (!editing) {
-											onClose();
-										}
-									},
-									onCommit,
-								}}
-							/>
-						)}
+						{/* Base UI unmounts it once it has faded out, so each rename starts afresh. */}
+						<RenameInput
+							label={label}
+							rename={{
+								value,
+								placeholder,
+								editing: true,
+								onEditingChange: (editing) => {
+									if (!editing) {
+										onClose();
+									}
+								},
+								onCommit,
+							}}
+						/>
 					</Popover.Popup>
 				</Popover.Positioner>
 			</Popover.Portal>

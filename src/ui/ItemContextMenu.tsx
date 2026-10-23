@@ -9,6 +9,7 @@ import type { TArea, TEntity, TRoad } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
+import { useLastNonNull } from "./useLastNonNull";
 
 /** What to call a road in a menu: its name, or its style. */
 const roadName = (road: { name: string; style: keyof typeof ROAD_STYLE_LABELS }) =>
@@ -224,8 +225,13 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
  * store (`openContextMenu`).
  */
 export const ItemContextMenu = () => {
-	const menu = useEditor((s) => s.contextMenu);
-	const [renaming, setRenaming] = useState<{ item: ISceneItem; x: number; y: number } | null>(null);
+	const menuNow = useEditor((s) => s.contextMenu);
+	const [renamingNow, setRenaming] = useState<{ item: ISceneItem; x: number; y: number } | null>(
+		null,
+	);
+	// What was last shown, kept while each one animates closed.
+	const menu = useLastNonNull(menuNow);
+	const renaming = useLastNonNull(renamingNow);
 	const item = menu?.item;
 	const thing = useItem(item);
 	const renamed = useItem(renaming?.item);
@@ -234,7 +240,7 @@ export const ItemContextMenu = () => {
 	return (
 		<>
 			<ContextMenu
-				open={menu !== null}
+				open={menuNow !== null}
 				onOpenChange={(open) => {
 					if (!open) {
 						close();
@@ -261,7 +267,7 @@ export const ItemContextMenu = () => {
 			</ContextMenu>
 
 			<RenamePopover
-				open={renaming !== null && renamed !== undefined}
+				open={renamingNow !== null && renamed !== undefined}
 				onClose={() => setRenaming(null)}
 				x={renaming?.x ?? 0}
 				y={renaming?.y ?? 0}
