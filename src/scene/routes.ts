@@ -32,6 +32,28 @@ const centerlineOf = (road: TRouteRoad) => {
 const reversed = <T>(points: readonly T[], closed: boolean): T[] =>
 	closed && points.length > 2 ? [points[0], ...points.slice(1).reverse()] : [...points].reverse();
 
+/**
+ * Where a vehicle is in its road's traffic (ADR-0042). Vehicles in the same
+ * stream drive in the same lane and direction around the same cycle, so they
+ * can follow and pass each other.
+ */
+export interface ITrafficPlace {
+	/** Loops have a forward and a reverse stream; open roads one, driven there and back. */
+	stream: "forward" | "reverse" | "both";
+	/** Length of the stream's cycle. */
+	ring: number;
+	/** Where the vehicle is around the cycle, 0 to `ring`. */
+	position: number;
+	/** Distance along the road's centre line from its first point. */
+	centre: number;
+	/** 1 = driving towards the road's last point, -1 = towards its first. */
+	direction: 1 | -1;
+	/** Turning around at an open road's end. */
+	turning: boolean;
+}
+
+const wrap = (value: number, period: number) => ((value % period) + period) % period;
+
 export interface IRouteSampler {
 	/** Length of the road's centre line (one way). */
 	length: number;
@@ -42,6 +64,8 @@ export interface IRouteSampler {
 	at: (offset: number, travelled?: number) => IPathSample;
 	/** Distance `d` from where travel begins: the road's first point, or its last when reversed. */
 	travel: (d: number) => IPathSample;
+	/** Where a vehicle (as for `at`) is in the road's traffic. */
+	place: (offset: number, travelled?: number) => ITrafficPlace;
 }
 
 export interface IRouteOptions {
@@ -63,10 +87,44 @@ export const createRouteSampler = (
 		smoothing,
 	});
 	const start = (offset: number) => (reverse ? sampler.length - offset : offset);
+	const { length, period, turn } = sampler;
+	const looped = period === length;
+
+	const place = (offset: number, travelled = 0): ITrafficPlace => {
+		const d = start(offset) + travelled;
+		if (looped || length === 0) {
+			// A loop: the reverse stream runs the reversed loop, which keeps the first point.
+			const position = length > 0 ? wrap(d, length) : 0;
+			return {
+				stream: reverse ? "reverse" : "forward",
+				ring: length,
+				position,
+				centre: reverse && position > 0 ? length - position : position,
+				direction: reverse ? -1 : 1,
+				turning: false,
+			};
+		}
+		// An open road is one cycle: there, U-turn, back, U-turn. Driving it reversed is the same
+		// cycle, starting on the way back.
+		const position = wrap(reverse ? d + length + turn : d, period);
+		const base = { stream: "both" as const, ring: period, position };
+		if (position < length) {
+			return { ...base, centre: position, direction: 1, turning: false };
+		}
+		if (position < length + turn) {
+			return { ...base, centre: length, direction: -1, turning: true };
+		}
+		if (position < 2 * length + turn) {
+			return { ...base, centre: 2 * length + turn - position, direction: -1, turning: false };
+		}
+		return { ...base, centre: 0, direction: 1, turning: true };
+	};
+
 	return {
-		length: sampler.length,
+		length,
 		at: (offset, travelled = 0) => sampler.at(start(offset) + travelled),
 		travel: (d) => sampler.at(d),
+		place,
 	};
 };
 

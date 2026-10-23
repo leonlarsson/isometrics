@@ -246,6 +246,24 @@ export const DrivingSideSchema = z
 	.enum(["right", "left"])
 	.describe("Which side of the road vehicles drive on.");
 
+// See docs/adr/0042-traffic-following-and-passing.md.
+export const TrafficSchema = z
+	.object({
+		spacing: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Vehicles on the same road keep their distance behind slower ones; false = each drives at its own speed, through the others.",
+			),
+		overtaking: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Vehicles overtake slower ones when the way is clear (only with spacing on); false = they queue behind.",
+			),
+	})
+	.describe("How vehicles on the same road deal with each other.");
+
 export const AreaTypeSchema = z
 	.enum(["water", "grass", "sand", "plaza", "land"])
 	.describe(
@@ -349,6 +367,7 @@ export const SceneSchema = z
 		turns: TurnsSchema.default("smooth").describe(
 			"How vehicles take corners, unless a road or vehicle says otherwise.",
 		),
+		traffic: TrafficSchema.default({ spacing: true, overtaking: true }),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
@@ -420,6 +439,7 @@ export type TAreaInput = z.input<typeof AreaSchema>;
 export type TAreaType = z.output<typeof AreaTypeSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurns = z.output<typeof TurnsSchema>;
+export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */

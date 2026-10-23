@@ -20,6 +20,7 @@ import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
 import { RouteHighlight } from "./RouteHighlight";
 import { GizmoFirst } from "./TransformGizmo";
+import { TrafficStep } from "./traffic";
 
 const Lights = () => {
 	const palette = usePalette();
@@ -107,6 +108,8 @@ export const Viewport = () => {
 			<ProjectionSwitch />
 
 			<CameraFlight />
+
+			<TrafficStep />
 
 			<CameraFollow />
 

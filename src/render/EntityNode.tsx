@@ -8,13 +8,14 @@ import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
-import { resolveTurns, turnSmoothing } from "#/scene/roads";
+import { laneOffset, resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
+import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -96,7 +97,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const outer = useRef<THREE.Group>(null);
 	const inner = useRef<THREE.Group>(null);
 	const drag = useRef<IDragState | null>(null);
-	const travelled = useRef(0);
+	// Its place in the traffic while it drives along a road (moved by TrafficStep).
+	const vehicle = useRef<IDrivingVehicle | null>(null);
 	const [hovered, setHovered] = useState(false);
 	// Hovered in a list (the outliner): highlighted like a hover in the scene.
 	const listHovered = useEditor((s) => s.hovered?.kind === "entity" && s.hovered.id === entity.id);
@@ -120,21 +122,59 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		[road, driving, turns, vehicleLength, reverse],
 	);
 	const following = Boolean(sampler && entity.follow);
+	// Sideways from its lane to where it overtakes (right of travel is positive): the oncoming lane,
+	// or beside the line on roads without lanes.
+	const vehicleWidth = part ? part.footprint(props)[1] * entity.scale : 1;
+	const lane = road ? laneOffset(road, driving) : 0;
+	const passOffset =
+		lane !== 0 ? -2 * lane : (driving === "right" ? -1 : 1) * Math.max(vehicleWidth * 1.3, 0.6);
 
-	useFrame((_, delta) => {
-		if (!sampler || !entity.follow || !outer.current || !inner.current) {
-			// Driving again later starts from its start point, not from how far it had got.
-			travelled.current = 0;
+	// Join the traffic while driving (hidden vehicles don't); driving again later starts from its
+	// start point, not from how far it had got.
+	const inTraffic = following && !entity.hidden;
+	useEffect(() => {
+		if (!inTraffic || !sampler || !entity.follow) {
 			return;
 		}
-		if (playing) {
-			travelled.current += Math.min(delta, 0.1) * entity.follow.speed;
+		const entry: IDrivingVehicle = {
+			roadId: entity.follow.roadId,
+			sampler,
+			offset: entity.follow.offset,
+			speed: entity.follow.speed,
+			length: vehicleLength,
+			travelled: 0,
+			state: null,
+		};
+		vehicle.current = entry;
+		drivingVehicles.set(entity.id, entry);
+		return () => {
+			drivingVehicles.delete(entity.id);
+			vehicle.current = null;
+		};
+	}, [inTraffic, entity.id]);
+
+	useFrame(() => {
+		if (!sampler || !entity.follow || !outer.current || !inner.current) {
+			return;
 		}
-		const sample = sampler.at(entity.follow.offset, travelled.current);
-		const [x, z] = sample.position;
+		const current = vehicle.current;
+		if (current) {
+			current.roadId = entity.follow.roadId;
+			current.sampler = sampler;
+			current.offset = entity.follow.offset;
+			current.speed = entity.follow.speed;
+			current.length = vehicleLength;
+		}
+		const sample = sampler.at(entity.follow.offset, current?.travelled ?? 0);
+		// Out towards the overtaking line, leaning into the lane change.
+		const state = current?.state;
+		const out = state ? state.shift * passOffset : 0;
+		const lean = state ? Math.atan2(state.shiftRate * passOffset, Math.max(state.speed, 0.5)) : 0;
+		const x = sample.position[0] + Math.sin(sample.heading) * out;
+		const z = sample.position[1] + Math.cos(sample.heading) * out;
 		outer.current.position.set(x, entity.elevation + sample.height, z);
 		// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
-		inner.current.rotation.set(0, sample.heading + toRadians(entity.rotation), sample.pitch);
+		inner.current.rotation.set(0, sample.heading - lean + toRadians(entity.rotation), sample.pitch);
 	});
 
 	const editable = mode === "edit" && !entity.locked;

@@ -8,7 +8,15 @@ import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
 
 import { BackupsPanel } from "./BackupsPanel";
 import { Button, ButtonGroup } from "./Button";
-import { ColorField, Hint, Section, SelectField, SliderField, TextField } from "./fields";
+import {
+	ColorField,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { List, ListItem } from "./List";
 import { areaSwatch, roadSwatch } from "./swatches";
 import { ViewpointsSection } from "./ViewpointsSection";
@@ -160,6 +168,30 @@ export const ScenePanel = () => {
 					}
 					hint="Smoothly eases through corners; sharply snaps to each new direction. Roads and vehicles can override this."
 				/>
+
+				<SwitchField
+					label="Keep distance"
+					checked={scene.traffic.spacing}
+					onChange={(v) =>
+						commit((s) => {
+							s.traffic.spacing = v;
+						})
+					}
+				/>
+
+				{scene.traffic.spacing ? (
+					<SwitchField
+						label="Overtake slower vehicles"
+						checked={scene.traffic.overtaking}
+						onChange={(v) =>
+							commit((s) => {
+								s.traffic.overtaking = v;
+							})
+						}
+					/>
+				) : (
+					<Hint>Every vehicle drives at its own speed, through slower ones.</Hint>
+				)}
 
 				{scene.roads.length === 0 ? (
 					<Hint>No roads yet. Draw one from Add to scene → Roads.</Hint>

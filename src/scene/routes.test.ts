@@ -34,6 +34,27 @@ describe("createRouteSampler", () => {
 		}
 	});
 
+	it("places vehicles in their road's traffic: one cycle on open roads, two streams on loops", () => {
+		const sideLine = road({ ...line, lane: "side" });
+		const forward = createRouteSampler(sideLine, "right");
+		const back = createRouteSampler(sideLine, "right", { reverse: true });
+		// Reversed on an open road is the same cycle, on the way back.
+		const there = forward.place(4);
+		const returning = back.place(4);
+		expect(there).toMatchObject({ stream: "both", centre: 4, direction: 1, turning: false });
+		expect(returning).toMatchObject({ stream: "both", direction: -1, turning: false });
+		expect(returning.centre).toBeCloseTo(4);
+		expect(returning.ring).toBe(there.ring);
+		// Driving on from the far end, a forward vehicle turns and comes back the way the other went.
+		expect(forward.place(4, 6.1).turning).toBe(true);
+
+		const loopForward = createRouteSampler(square, "right").place(4, 3);
+		const loopBack = createRouteSampler(square, "right", { reverse: true }).place(4, 3);
+		expect(loopForward).toMatchObject({ stream: "forward", centre: 7, direction: 1 });
+		expect(loopBack).toMatchObject({ stream: "reverse", direction: -1 });
+		expect(loopBack.centre).toBeCloseTo(1);
+	});
+
 	it("drives loops the other way round when reversed", () => {
 		const back = createRouteSampler(square, "right", { reverse: true });
 		// From (4, 0) heading -X, two units later it's at (2, 0).

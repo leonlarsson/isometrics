@@ -13,6 +13,10 @@ export interface IPathSample {
 export interface IPathSampler {
 	/** Length of the path itself (one way for open paths, U-turns not included). */
 	length: number;
+	/** Distance after which the motion repeats: the loop, or there, U-turn, back and U-turn. */
+	period: number;
+	/** Length of each U-turn at an open path's ends (0 on loops). */
+	turn: number;
 	at(distance: number): IPathSample;
 }
 
@@ -101,7 +105,7 @@ export const createPathSampler = (
 			heading: 0,
 			pitch: 0,
 		};
-		return { length: 0, at: () => still };
+		return { length: 0, period: 0, turn: 0, at: () => still };
 	}
 
 	/** Distance along the path: wrapped on loops, clamped to the ends otherwise. */
@@ -167,7 +171,7 @@ export const createPathSampler = (
 	};
 
 	if (looped) {
-		return { length: total, at: (distance) => onPath(distance, false) };
+		return { length: total, period: total, turn: 0, at: (distance) => onPath(distance, false) };
 	}
 
 	// Open path: forward, U-turn at the end, back, U-turn at the start.
@@ -201,6 +205,8 @@ export const createPathSampler = (
 
 	return {
 		length: total,
+		period,
+		turn,
 		at(distance) {
 			const s = ((distance % period) + period) % period;
 			if (s < total) {

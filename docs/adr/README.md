@@ -45,3 +45,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0039](0039-saved-viewpoints.md) | Saved viewpoints are part of the world, and View mode steps through them | accepted |
 | [0040](0040-follow-and-ride-along.md) | The camera can follow a vehicle, or ride along behind it | accepted |
 | [0041](0041-text-part-and-bundled-font.md) | A text part: SDF text with a bundled font, and part fields for text and data keys | accepted |
+| [0042](0042-traffic-following-and-passing.md) | Vehicles on a road keep their distance and overtake | accepted |
