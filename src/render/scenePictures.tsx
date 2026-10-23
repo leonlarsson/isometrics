@@ -114,6 +114,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 					accent={accent}
 					palette={palette}
 					playing={false}
+					driving={entity.follow !== null}
 					data={scene.data}
 					onReady={part.rendersAsync ? onReady : undefined}
 				/>
@@ -167,7 +168,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 
 	return (
 		<>
-			<SceneLights ground={scene.ground} palette={palette} />
+			<SceneLights ground={scene.ground} palette={palette} lighting={scene.lighting} />
 
 			<group ref={group}>
 				<RoundedBox

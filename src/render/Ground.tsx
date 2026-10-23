@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -80,8 +81,9 @@ export const Ground = () => {
 					sectionSize={cell * 5}
 					cellThickness={0.6}
 					sectionThickness={1}
-					cellColor={palette.gridCell}
-					sectionColor={palette.gridSection}
+					// Darkened at night: the grid isn't lit, so it would glare on a dark world.
+					cellColor={tintColor(palette.gridCell, "#000000", palette.night * 0.75)}
+					sectionColor={tintColor(palette.gridSection, "#000000", palette.night * 0.7)}
 					// Never fades: a big ground reaches further from the camera than any fixed distance.
 					fadeDistance={100_000}
 					fadeStrength={0}

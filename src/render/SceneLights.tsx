@@ -2,17 +2,22 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 
-import type { TScene } from "#/scene/schema";
+import { advanceDayCycle, sceneHoursNow } from "#/editor/dayClock";
+import { useEditor } from "#/editor/store";
+import { tintColor } from "#/lib/color";
+import type { TLighting, TScene } from "#/scene/schema";
+import { type ISkyLight, skyLightAt } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
 import { groundSpan } from "./cameraMath";
+import { directionOf } from "./viewpoints";
 
-/** Towards the sun: high, from +x a little more than from +z. */
-const SUN = new THREE.Vector3(0.6, 1.2, 0.4).normalize();
 /** The shadow map's size; its pixels are spread over the area the sun's shadows cover. */
 const SHADOW_MAP = 2048;
 /** Room around the visible ground that keeps shadows near the edges of the view. */
 const VIEW_MARGIN = 4;
+/** A sun lower than this (degrees) would cast endless shadows; it lights from here at least. */
+const LOWEST_SHADOW_SUN = 6;
 
 /**
  * How far (ground units) shadow lookups are pushed out of surfaces, so a
@@ -21,17 +26,22 @@ const VIEW_MARGIN = 4;
  */
 const normalBiasFor = (radius: number) => Math.max(0.03, ((2 * radius) / SHADOW_MAP) * 1.5);
 
-// The shadow camera's axes (it looks from the sun towards its target, with +y up), for snapping.
-const lightZ = SUN.clone();
-const lightX = new THREE.Vector3(0, 1, 0).cross(lightZ).normalize();
-const lightY = lightZ.clone().cross(lightX);
+/** Towards the sun (or the moon) from the ground, for a light's direction in degrees. */
+const sunDirectionOf = (light: Pick<ISkyLight, "azimuth" | "elevation">) =>
+	directionOf(light.azimuth, Math.max(light.elevation, LOWEST_SHADOW_SUN));
+
+// The sun's direction and its shadow camera's axes (looking from the sun, +y up), for snapping.
+const sun = new THREE.Vector3();
+const lightX = new THREE.Vector3();
+const lightY = new THREE.Vector3();
 const centre = new THREE.Vector3();
 const toCamera = new THREE.Vector3();
+const up = new THREE.Vector3(0, 1, 0);
 
-/** Point a sun at `centre`, its shadows covering `radius` around it. */
+/** Point a sun at `centre` from `sun`, its shadows covering `radius` around it. */
 const aimSun = (light: THREE.DirectionalLight, radius: number) => {
 	const distance = radius * 2 + 50;
-	light.position.copy(centre).addScaledVector(SUN, distance);
+	light.position.copy(centre).addScaledVector(sun, distance);
 	light.target.position.copy(centre);
 	light.target.updateMatrixWorld();
 	light.shadow.normalBias = normalBiasFor(radius);
@@ -74,27 +84,63 @@ const visibleRadius = (
 	return Number.POSITIVE_INFINITY;
 };
 
+interface ILights {
+	sun: THREE.DirectionalLight | null;
+	sky: THREE.HemisphereLight | null;
+	ambient: THREE.AmbientLight | null;
+}
+
+/** Colour and strengthen the lights for the time of day (the theme's own light at full day). */
+const lightFor = (lights: ILights, sky: ISkyLight, palette: IScenePalette) => {
+	lights.sun?.color.set(sky.color);
+	if (lights.sun) {
+		lights.sun.intensity = palette.sunIntensity * sky.strength;
+	}
+	if (lights.sky) {
+		lights.sky.color.set(tintColor(palette.hemiSky, sky.tint, sky.tintAmount));
+		lights.sky.groundColor.set(tintColor(palette.hemiGround, sky.tint, sky.tintAmount * 0.6));
+		lights.sky.intensity = palette.hemiIntensity * sky.fill;
+	}
+	if (lights.ambient) {
+		lights.ambient.intensity = palette.ambientIntensity * sky.fill;
+	}
+};
+
 interface ISunProps {
 	ground: TScene["ground"];
 	palette: IScenePalette;
+	lighting: TLighting;
+	lights: ILights;
 }
 
 /**
- * The editor's sun: its shadows cover the ground in view rather than all of
- * it, so they stay sharp on a big ground. The area grows and shrinks in steps
- * (so shadows don't crawl while zooming) and moves in whole shadow pixels (so
- * they don't shimmer while panning). Zoomed out, it covers the whole ground.
+ * The editor's sun: placed and coloured for the time of day every frame (it
+ * moves while a day cycle plays), its shadows covering the ground in view
+ * rather than all of it, so they stay sharp on a big ground. The area grows
+ * and shrinks in steps (so shadows don't crawl while zooming) and moves in
+ * whole shadow pixels (so they don't shimmer while panning). Zoomed out, it
+ * covers the whole ground.
  */
-const SunFollowingTheView = ({ ground, palette }: ISunProps) => {
+const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) => {
 	const light = useRef<THREE.DirectionalLight>(null);
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
 	const size = useThree((s) => s.size);
 
-	useFrame(() => {
+	useFrame((_, delta) => {
 		if (!light.current) {
 			return;
 		}
+		if (lighting.timeSource === "cycle" && useEditor.getState().playing) {
+			advanceDayCycle(Math.min(delta, 0.1), lighting);
+		}
+		const sky = skyLightAt(lighting, sceneHoursNow());
+		lights.sun = light.current;
+		lightFor(lights, sky, palette);
+		sun.copy(sunDirectionOf(sky));
+		lightX.crossVectors(up, sun).normalize();
+		lightY.crossVectors(sun, lightX);
+
 		const whole = groundSpan(ground) / 2 + VIEW_MARGIN;
 		const target = controls?.target;
 		const needed = target
@@ -112,8 +158,8 @@ const SunFollowingTheView = ({ ground, palette }: ISunProps) => {
 		centre.set(target.x, 0, target.z);
 		const x = Math.round(centre.dot(lightX) / texel) * texel;
 		const y = Math.round(centre.dot(lightY) / texel) * texel;
-		const z = centre.dot(lightZ);
-		centre.copy(lightX).multiplyScalar(x).addScaledVector(lightY, y).addScaledVector(lightZ, z);
+		const z = centre.dot(sun);
+		centre.copy(lightX).multiplyScalar(x).addScaledVector(lightY, y).addScaledVector(sun, z);
 		aimSun(light.current, stepped);
 	});
 
@@ -128,14 +174,24 @@ const SunFollowingTheView = ({ ground, palette }: ISunProps) => {
 	);
 };
 
-/** A sun whose shadows cover the whole ground (pictures of worlds, which don't move). */
-const SunOverTheGround = ({ ground, palette }: ISunProps) => {
+/**
+ * A sun whose shadows cover the whole ground, at the world's set time of day
+ * (pictures of worlds, which don't move).
+ */
+const SunOverTheGround = ({ ground, palette, lighting, lights }: ISunProps) => {
 	const half = Math.max(ground.width, ground.depth) * 0.75;
+	const sky = skyLightAt(lighting, lighting.time);
+	const position = sunDirectionOf(sky).multiplyScalar(half * 1.4);
 	return (
 		<directionalLight
+			ref={(light) => {
+				lights.sun = light;
+				lightFor(lights, sky, palette);
+			}}
 			castShadow
-			position={[half * 0.6, half * 1.2, half * 0.4]}
-			intensity={palette.sunIntensity}
+			position={position}
+			intensity={palette.sunIntensity * sky.strength}
+			color={sky.color}
 			shadow-mapSize={[SHADOW_MAP, SHADOW_MAP]}
 			shadow-camera-left={-half}
 			shadow-camera-right={half}
@@ -149,23 +205,50 @@ const SunOverTheGround = ({ ground, palette }: ISunProps) => {
 	);
 };
 
-interface ISceneLightsProps extends ISunProps {
-	/** The editor's view: shadows cover what's on screen, sharp on any ground (see docs/adr/0049). */
+interface ISceneLightsProps {
+	ground: TScene["ground"];
+	palette: IScenePalette;
+	lighting: TLighting;
+	/**
+	 * The editor's view: the sun follows the time of day as it passes, and its
+	 * shadows cover what's on screen, sharp on any ground (docs/adr/0049, 0052).
+	 */
 	followView?: boolean;
 }
 
-/** The scene's sky, fill and sun. */
-export const SceneLights = ({ ground, palette, followView = false }: ISceneLightsProps) => {
+/** The scene's sky, fill and sun (or moon), for the world's time of day. */
+export const SceneLights = ({
+	ground,
+	palette,
+	lighting,
+	followView = false,
+}: ISceneLightsProps) => {
+	const lights = useRef<ILights>({ sun: null, sky: null, ambient: null }).current;
 	return (
 		<>
-			<hemisphereLight args={[palette.hemiSky, palette.hemiGround, palette.hemiIntensity]} />
+			<hemisphereLight
+				ref={(light) => {
+					lights.sky = light;
+				}}
+				args={[palette.hemiSky, palette.hemiGround, palette.hemiIntensity]}
+			/>
 
-			<ambientLight intensity={palette.ambientIntensity} />
+			<ambientLight
+				ref={(light) => {
+					lights.ambient = light;
+				}}
+				intensity={palette.ambientIntensity}
+			/>
 
 			{followView ? (
-				<SunFollowingTheView ground={ground} palette={palette} />
+				<SunFollowingTheView
+					ground={ground}
+					palette={palette}
+					lighting={lighting}
+					lights={lights}
+				/>
 			) : (
-				<SunOverTheGround ground={ground} palette={palette} />
+				<SunOverTheGround ground={ground} palette={palette} lighting={lighting} lights={lights} />
 			)}
 		</>
 	);

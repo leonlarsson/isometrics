@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { Headlights } from "../nightLights";
 import { RBox, Wheel } from "../primitives";
 import { definePart } from "../types";
 
@@ -18,7 +19,7 @@ export const car01 = definePart({
 	canFollowPath: true,
 	footprint: () => [1.25, 0.66],
 	height: () => 0.8,
-	Component: ({ color, accent, palette }) => (
+	Component: ({ color, accent, palette, driving }) => (
 		<group>
 			<RBox size={[1.25, 0.34, 0.66]} position={[0, 0.3, 0]} color={color} radius={0.1} />
 
@@ -35,6 +36,8 @@ export const car01 = definePart({
 					/>
 				)),
 			)}
+
+			<Headlights palette={palette} driving={driving} position={[0.63, 0.32, 0]} spread={0.42} />
 		</group>
 	),
 });

@@ -27,7 +27,8 @@ import { TrafficStep } from "./traffic";
 const Lights = () => {
 	const palette = usePalette();
 	const ground = useEditor((s) => s.scene.ground);
-	return <SceneLights ground={ground} palette={palette} followView />;
+	const lighting = useEditor((s) => s.scene.lighting);
+	return <SceneLights ground={ground} palette={palette} lighting={lighting} followView />;
 };
 
 export const Viewport = () => {

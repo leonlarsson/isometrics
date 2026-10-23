@@ -90,6 +90,9 @@ export const yacht01 = definePart({
 								position={[x, y + 0.02, 0]}
 								color={palette.glass}
 								castShadow={false}
+								// Cabin lights after dark, the lower decks a little brighter.
+								emissive={palette.night > 0 ? palette.lamplight : undefined}
+								emissiveIntensity={(1.1 - d * 0.15) * palette.night}
 							/>
 						</group>
 					);

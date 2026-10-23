@@ -66,7 +66,12 @@
 	position: relative;
 	min-width: 0;
 	min-height: 0;
-	background: radial-gradient(ellipse at 50% 40%, var(--surface) 0%, var(--bg) 70%);
+	background: radial-gradient(
+		ellipse at 50% 40%,
+		color-mix(in oklab, var(--surface), var(--sky, var(--surface)) var(--sky-weight, 0%)) 0%,
+		color-mix(in oklab, var(--bg), var(--sky, var(--bg)) var(--sky-weight, 0%)) 70%
+	);
+	transition: background 1.2s ease;
 }
 
 .sceneTitle {
@@ -87,6 +92,15 @@
 .sceneTitle p {
 	margin: 2px 0 0;
 	color: var(--text-muted);
+}
+
+/* On a night sky (the time of day, ADR-0052) the light theme's dark title turns light. */
+:global(:root[data-theme="light"]) .stage[data-sky-dark] .sceneTitle h1 {
+	color: var(--surface-raised);
+}
+
+:global(:root[data-theme="light"]) .stage[data-sky-dark] .sceneTitle p {
+	color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
 }
 
 /*

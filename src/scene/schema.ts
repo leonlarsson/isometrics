@@ -352,6 +352,71 @@ export const ThemeSchema = z
 	.enum(["system", "light", "dark"])
 	.describe("Light or dark look; system follows the viewer's device.");
 
+// See docs/adr/0052-time-of-day.md. Fields left null follow the time of day.
+export const LightingSchema = z
+	.object({
+		time: z
+			.number()
+			.min(0)
+			.max(24)
+			.nullable()
+			.default(null)
+			.describe(
+				"Time of day in hours (0–24, e.g. 6.5 = 06:30): sets the sun's place, its colour and the sky, and turns lights on at night. null = the classic studio daylight, which never changes.",
+			),
+		timeSource: z
+			.enum(["fixed", "cycle", "clock", "data"])
+			.default("fixed")
+			.describe(
+				"Where the time comes from: fixed = `time`; cycle = days pass while motion plays, starting at `time`; clock = the viewer's own local time; data = the value of the data entry `timeKey` (hours, 0–24).",
+			),
+		dayLength: z
+			.number()
+			.min(10)
+			.max(3600)
+			.default(120)
+			.describe("With timeSource cycle: how many seconds a whole day takes."),
+		timeKey: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe("With timeSource data: the key of the data entry that holds the time (hours)."),
+		sunAzimuth: z
+			.number()
+			.min(0)
+			.max(360)
+			.nullable()
+			.default(null)
+			.describe(
+				"Compass direction the sunlight comes from, in degrees counter-clockwise from +x seen from above (as viewpoints' azimuth). null = from the time of day.",
+			),
+		sunElevation: z
+			.number()
+			.min(2)
+			.max(90)
+			.nullable()
+			.default(null)
+			.describe("Height of the sun above the horizon, in degrees. null = from the time of day."),
+		sunColor: hexColor
+			.nullable()
+			.default(null)
+			.describe("Colour of the sunlight as #rrggbb. null = from the time of day."),
+		sunStrength: z
+			.number()
+			.min(0)
+			.max(3)
+			.nullable()
+			.default(null)
+			.describe("How strong the sunlight is; 1 = normal daylight. null = from the time of day."),
+		nightLights: z
+			.enum(["auto", "on", "off"])
+			.default("auto")
+			.describe(
+				"Lit windows, street lamps and headlights: auto = after dark, on = always, off = never.",
+			),
+	})
+	.describe("The sun, the sky and the time of day.");
+
 export const SceneSchema = z
 	.object({
 		version: z.literal(SCENE_VERSION).describe("Format version; always 1 for now."),
@@ -368,6 +433,17 @@ export const SceneSchema = z
 			"How vehicles take corners, unless a road or vehicle says otherwise.",
 		),
 		traffic: TrafficSchema.default({ spacing: true, overtaking: true }),
+		lighting: LightingSchema.default({
+			time: null,
+			timeSource: "fixed",
+			dayLength: 120,
+			timeKey: null,
+			sunAzimuth: null,
+			sunElevation: null,
+			sunColor: null,
+			sunStrength: null,
+			nightLights: "auto",
+		}),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
@@ -441,6 +517,7 @@ export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurns = z.output<typeof TurnsSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
+export type TLighting = z.output<typeof LightingSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<

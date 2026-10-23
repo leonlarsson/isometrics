@@ -28,6 +28,8 @@ Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height abov
 
 Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land with a height).
 
+Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
+
 Data: data holds named values (key, label, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it) or details.dataKeys (tiles when it's opened in view mode).
 
 Viewpoints: prepared camera views (target, azimuth, elevation, span), stepped through in View mode like slides; give each a name and a description of what the data there shows.

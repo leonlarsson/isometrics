@@ -349,6 +349,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					accent={accent}
 					palette={palette}
 					playing={playing}
+					driving={following}
 					data={data}
 				/>
 

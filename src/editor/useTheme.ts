@@ -1,7 +1,9 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
+import { skyLightAt } from "#/scene/sun";
 import { resolveTheme, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
+import { useSceneHours } from "./dayClock";
 import { useEditor } from "./store";
 
 const QUERY = "(prefers-color-scheme: dark)";
@@ -20,8 +22,17 @@ export const useResolvedTheme = (): TResolvedTheme => {
 	return resolveTheme(preference, dark);
 };
 
+/**
+ * The theme's colours for the world, with how dark it is there (`night`, from
+ * the time of day) so parts can light their windows and lamps. Stays the same
+ * object until the theme or the darkness (in steps of a tenth) changes.
+ */
 export const usePalette = () => {
-	return scenePalettes[useResolvedTheme()];
+	const base = scenePalettes[useResolvedTheme()];
+	const lighting = useEditor((s) => s.scene.lighting);
+	const hours = useSceneHours();
+	const night = Math.round(skyLightAt(lighting, hours).night * 10) / 10;
+	return useMemo(() => (night === 0 ? base : { ...base, night }), [base, night]);
 };
 
 /**

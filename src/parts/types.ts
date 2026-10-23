@@ -48,6 +48,8 @@ export interface IPartRenderProps<P> {
 	palette: IScenePalette;
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;
+	/** A vehicle that drives along a road (rather than parked): its headlights are on at night. */
+	driving?: boolean;
 	/** The world's data, for parts that show values (absent in previews and thumbnails). */
 	data?: TDataEntry[];
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */

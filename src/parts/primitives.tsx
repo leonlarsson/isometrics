@@ -11,6 +11,9 @@ interface IBoxProps {
 	color: string;
 	castShadow?: boolean;
 	roughness?: number;
+	/** A colour it glows with (lit windows at night), and how brightly. */
+	emissive?: string;
+	emissiveIntensity?: number;
 }
 
 export const Mat = ({
@@ -18,11 +21,13 @@ export const Mat = ({
 	roughness = 0.85,
 	flat = false,
 	emissive,
+	emissiveIntensity = 0.8,
 }: {
 	color: string;
 	roughness?: number;
 	flat?: boolean;
 	emissive?: string;
+	emissiveIntensity?: number;
 }) => {
 	return (
 		<meshStandardMaterial
@@ -31,7 +36,7 @@ export const Mat = ({
 			metalness={0}
 			flatShading={flat}
 			emissive={emissive ?? "#000000"}
-			emissiveIntensity={emissive ? 0.8 : 0}
+			emissiveIntensity={emissive ? emissiveIntensity : 0}
 		/>
 	);
 };
@@ -43,12 +48,19 @@ export const Box = ({
 	color,
 	castShadow = true,
 	roughness,
+	emissive,
+	emissiveIntensity,
 }: IBoxProps) => {
 	return (
 		<mesh position={position} rotation={rotation} castShadow={castShadow} receiveShadow>
 			<boxGeometry args={size} />
 
-			<Mat color={color} roughness={roughness} />
+			<Mat
+				color={color}
+				roughness={roughness}
+				emissive={emissive}
+				emissiveIntensity={emissiveIntensity}
+			/>
 		</mesh>
 	);
 };

@@ -59,6 +59,8 @@ export const house01 = definePart({
 				position={[-p.width * 0.22, p.height * 0.58, p.depth / 2 + 0.025]}
 				color={palette.glass}
 				castShadow={false}
+				emissive={palette.night > 0 ? palette.lamplight : undefined}
+				emissiveIntensity={1.4 * palette.night}
 			/>
 
 			{p.chimney && (

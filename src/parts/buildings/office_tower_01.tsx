@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { LitWindows } from "../nightLights";
 import { Box, RBox, spread } from "../primitives";
 import { definePart } from "../types";
 
@@ -32,13 +33,25 @@ export const officeTower01 = definePart({
 	accentLabel: "Window grid",
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.floors * FLOOR_HEIGHT + ROOF_CAP + 0.5,
-	Component: ({ props: p, color, accent }) => {
+	Component: ({ props: p, color, accent, palette }) => {
 		const h = p.floors * FLOOR_HEIGHT;
 		const columnsX = Math.max(2, Math.round(p.width / 0.7));
 		const columnsZ = Math.max(2, Math.round(p.depth / 0.7));
 		return (
 			<group>
 				<RBox size={[p.width, h, p.depth]} position={[0, h / 2, 0]} color={color} radius={0.08} />
+
+				<LitWindows
+					palette={palette}
+					color={color}
+					width={p.width}
+					depth={p.depth}
+					height={h}
+					columnsX={columnsX}
+					columnsZ={columnsZ}
+					floors={p.floors}
+					seed={p.floors * 7 + Math.round(p.width * 13) + Math.round(p.depth * 5)}
+				/>
 
 				{/* Bands between floors only; the roof cap covers the top so no faces are coplanar. */}
 

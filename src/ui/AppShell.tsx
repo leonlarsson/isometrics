@@ -1,10 +1,12 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
+import { useSceneHours } from "#/editor/dayClock";
 import { loadStoredScene, saveScene, startAutosave } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
+import { skyLightAt } from "#/scene/sun";
 
 import { IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
@@ -37,6 +39,27 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewpointBar } from "./ViewpointBar";
 
 import styles from "./AppShell.module.css";
+
+/**
+ * The sky behind the world for its time of day (ADR-0052): the theme's own
+ * background at noon, blended towards the day's sky as the light colours
+ * (dawn, golden hour) and almost fully at dusk and night. Nothing with the
+ * classic daylight.
+ */
+const useSky = (): { style: CSSProperties; dark: boolean } => {
+	const lighting = useEditor((s) => s.scene.lighting);
+	const sky = skyLightAt(lighting, useSceneHours());
+	if (!sky.sky) {
+		return { style: {}, dark: false };
+	}
+	// As coloured as the light: the theme's own background at noon, the day's sky at dusk and night.
+	const weight = Math.min(0.9, 0.9 * Math.max(sky.night, sky.tintAmount * 1.2));
+	return {
+		style: { "--sky": sky.sky, "--sky-weight": `${Math.round(weight * 100)}%` } as CSSProperties,
+		// The world's title switches to light text on a night sky (AppShell.module.css).
+		dark: sky.night >= 0.5,
+	};
+};
 
 const SceneTitle = () => {
 	const meta = useEditor((s) => s.scene.meta);
@@ -106,6 +129,7 @@ export const AppShell = () => {
 	}, []);
 
 	useThemeAttribute();
+	const sky = useSky();
 	useShortcuts();
 
 	return (
@@ -140,7 +164,7 @@ export const AppShell = () => {
 							</aside>
 						)}
 
-						<main className={styles.stage}>
+						<main className={styles.stage} style={sky.style} data-sky-dark={sky.dark || undefined}>
 							<SceneTitle />
 
 							{ready && <Viewport />}

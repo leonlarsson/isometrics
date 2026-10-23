@@ -17,6 +17,7 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
+import { SunSection } from "./SunSection";
 import { areaSwatch, roadSwatch } from "./swatches";
 import { ViewpointsSection } from "./ViewpointsSection";
 
@@ -79,6 +80,8 @@ export const ScenePanel = () => {
 			</Section>
 
 			<ViewpointsSection />
+
+			<SunSection />
 
 			<Section title="Ground">
 				<SliderField

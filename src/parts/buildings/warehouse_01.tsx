@@ -63,6 +63,8 @@ export const warehouse01 = definePart({
 						position={[x, Math.min(1.8, h * 0.6) / 2, d / 2 + 0.03]}
 						color={palette.glass}
 						castShadow={false}
+						emissive={palette.night > 0 ? palette.lamplight : undefined}
+						emissiveIntensity={0.9 * palette.night}
 					/>
 				))}
 

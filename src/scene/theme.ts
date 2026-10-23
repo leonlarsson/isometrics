@@ -33,6 +33,13 @@ export interface IScenePalette {
 	/** Default colour of text in the world (the text part). */
 	text: string;
 	selection: string;
+	/**
+	 * How dark it is in the world: 0 by day, 1 at night (the time of day,
+	 * ADR-0052). Parts light their windows, lamps and headlights by it.
+	 */
+	night: number;
+	/** The colour of lit windows, lamps and headlights. */
+	lamplight: string;
 	/** Transform gizmo: one colour per axis (X red, Y/up green, Z blue), size handle, hover. */
 	gizmo: { x: string; y: string; z: string; size: string; hover: string };
 	hemiSky: string;
@@ -72,6 +79,8 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		cardboard: "#d8a967",
 		text: "#2f3437",
 		selection: "#e2603b",
+		night: 0,
+		lamplight: "#ffc97a",
 		gizmo: { x: "#e5484d", y: "#3f9b5a", z: "#3e63dd", size: "#4b4a46", hover: "#f5b301" },
 		hemiSky: "#ffffff",
 		hemiGround: "#cfc8b8",
@@ -108,6 +117,8 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		cardboard: "#b48a52",
 		text: "#ecebe6",
 		selection: "#e8714c",
+		night: 0,
+		lamplight: "#ffc97a",
 		gizmo: { x: "#ff6369", y: "#5bb98b", z: "#7b93ff", size: "#e8e6e1", hover: "#ffd60a" },
 		hemiSky: "#c9ccd6",
 		hemiGround: "#2a2b27",

@@ -55,3 +55,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0049](0049-larger-grounds.md) | Grounds up to 500 per side: the sun's shadows follow the view, and the camera and grid scale with the ground | accepted |
 | [0050](0050-numbered-variants.md) | Parts, road styles and area types have numbered ids, so each can have variants | accepted |
 | [0051](0051-add-to-scene.md) | Add to scene remembers favourites, recently used items and folded sections per browser | accepted |
+| [0052](0052-time-of-day.md) | Time of day: a sun that moves, a sky that changes, and lights after dark | accepted |
