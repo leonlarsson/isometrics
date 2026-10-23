@@ -37,6 +37,30 @@ describe("viewpoints", () => {
 		}
 	});
 
+	it("gives back the same view when the target is off the ground (after zooming to the cursor)", () => {
+		const point = new THREE.Vector3(7, 1.5, -2);
+		const cameras = [
+			new THREE.OrthographicCamera(-400, 400, 300, -300, 0.1, 1000),
+			new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000),
+		];
+		for (const camera of cameras) {
+			placeCamera(camera, pose, 600);
+			// Slide the camera and its target sideways together, lifting the target off the ground.
+			const lift = new THREE.Vector3(1.2, 2.5, -0.7);
+			const raised = new THREE.Vector3(pose.target[0], 0, pose.target[1]).add(lift);
+			camera.position.add(lift);
+			camera.updateMatrixWorld();
+			const seen = point.clone().project(camera);
+
+			const saved = poseOf(camera, raised, 600, pose.perspective);
+			placeCamera(camera, saved, 600);
+			const again = point.clone().project(camera);
+			// Within a hundredth of the view (a few px): only the pose's rounding differs.
+			expect(Math.abs(again.x - seen.x)).toBeLessThan(0.01);
+			expect(Math.abs(again.y - seen.y)).toBeLessThan(0.01);
+		}
+	});
+
 	it("blends the short way round", () => {
 		const a = { ...pose, azimuth: 350 };
 		const b = { ...pose, azimuth: 10, span: 96 };

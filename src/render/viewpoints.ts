@@ -21,7 +21,13 @@ export const directionOf = (azimuth: number, elevation: number) => {
 	return new THREE.Vector3(Math.cos(e) * Math.cos(a), Math.sin(e), -Math.cos(e) * Math.sin(a));
 };
 
-/** The pose a camera looking at `target` has now. `height` is the canvas height (CSS px). */
+/**
+ * The pose a camera looking at `target` has now. `height` is the canvas height
+ * (CSS px). A pose's target is on the ground, but the controls' target can be
+ * above or below it (zooming to the cursor moves it sideways in 3D), so it's
+ * slid along the line of sight down to the ground first: the same view, with
+ * a target that placeCamera puts back in the same place.
+ */
 export const poseOf = (
 	camera: THREE.Camera,
 	target: THREE.Vector3,
@@ -29,11 +35,16 @@ export const poseOf = (
 	perspective: boolean,
 ): TViewPose => {
 	const direction = camera.position.clone().sub(target).normalize();
+	const onGround =
+		Math.abs(direction.y) > 1e-6
+			? target.clone().addScaledVector(direction, -target.y / direction.y)
+			: target.clone().setY(0);
 	return {
-		target: [round(target.x, 2), round(target.z, 2)],
-		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 1),
-		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 15, 87), 1),
-		span: round(clamp(height / pixelsPerUnitAt(camera, target, height), 2, 400), 2),
+		target: [round(onGround.x, 2), round(onGround.z, 2)],
+		// Hundredths of a degree: coarser rounding shows as a shift when zoomed in close.
+		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 2),
+		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 15, 87), 2),
+		span: round(clamp(height / pixelsPerUnitAt(camera, onGround, height), 2, 400), 2),
 		perspective,
 	};
 };
