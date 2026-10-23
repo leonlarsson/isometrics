@@ -190,8 +190,8 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 
 				<Hint>
 					Click a point to select it. Drag points to reshape (or nudge a selected one with the arrow
-					keys), Shift+drag to raise them. Drag a small dot between two points to add one;
-					double-click a point to remove it.
+					keys, Alt for small steps), Shift+drag to raise them. Drag a small dot between two points
+					to add one; double-click a point to remove it.
 				</Hint>
 			</Section>
 

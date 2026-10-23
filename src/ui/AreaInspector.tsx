@@ -132,9 +132,9 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 
 				<Hint>
 					{Math.round(size)} square units · {area.points.length} corners. Drag corners to reshape
-					(or select one and nudge it with the arrow keys), drag a small dot between two corners to
-					add one, double-click a corner to remove it. Above 0, the area becomes raised ground with
-					cliff sides.
+					(or select one and nudge it with the arrow keys, Alt for small steps), drag a small dot
+					between two corners to add one, double-click a corner to remove it. Above 0, the area
+					becomes raised ground with cliff sides.
 				</Hint>
 			</Section>
 

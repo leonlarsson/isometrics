@@ -64,6 +64,8 @@ const withPoint = (
 
 /** Grid step for dragging and nudging, in ground units. */
 export const SNAP_STEP = 0.5;
+/** Alt+arrow nudges by this much instead of a grid step, for lining things up by eye. */
+export const FINE_NUDGE_STEP = 0.1;
 
 const HISTORY_LIMIT = 100;
 /** Commits with the same coalesce key within this window share one undo step. */

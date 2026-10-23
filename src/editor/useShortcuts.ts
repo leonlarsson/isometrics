@@ -5,6 +5,7 @@ import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
 import {
+	FINE_NUDGE_STEP,
 	SNAP_STEP,
 	selectSelectedArea,
 	selectSelectedEntity,
@@ -23,7 +24,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Esc cancels a gizmo drag or a drag from the palette, dismisses the drive-along offer, else deselects
  *   Mod+O open a world file · Mod+S save the world to a file
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°)
- *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×)
+ *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×, Alt: 0.1)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
@@ -69,14 +70,17 @@ export const useShortcuts = () => {
 		}
 	};
 
-	/** Move the selected object, or the selected road or area point, by grid steps. */
-	const nudge = (dx: number, dz: number) => {
+	/**
+	 * Move the selected object, or the selected road or area point, `dx` and `dz`
+	 * steps of `step` (a grid step unless finer, for lining things up by eye).
+	 */
+	const nudge = (dx: number, dz: number, step = SNAP_STEP) => {
 		const state = useEditor.getState();
 		const entity = selectSelectedEntity(state);
 		if (entity) {
 			state.moveEntity(
 				entity.id,
-				[entity.position[0] + dx * SNAP_STEP, entity.position[1] + dz * SNAP_STEP],
+				[entity.position[0] + dx * step, entity.position[1] + dz * step],
 				{ coalesce: `nudge:${entity.id}` },
 			);
 			return;
@@ -91,8 +95,8 @@ export const useShortcuts = () => {
 		// Kept on the ground, like a dragged point.
 		const { width, depth } = state.scene.ground;
 		const next: TVec2 = [
-			clamp(point[0] + dx * SNAP_STEP, -width / 2, width / 2),
-			clamp(point[1] + dz * SNAP_STEP, -depth / 2, depth / 2),
+			clamp(point[0] + dx * step, -width / 2, width / 2),
+			clamp(point[1] + dz * step, -depth / 2, depth / 2),
 		];
 		const options = { coalesce: `nudge:${shape.id}:${index}` };
 		if (road) {
@@ -318,6 +322,26 @@ export const useShortcuts = () => {
 			hotkey: "Shift+ArrowDown",
 			callback: () => nudge(0, 5),
 			options: { enabled: canNudgeAny, meta: { name: "Nudge forward ×5" } },
+		},
+		{
+			hotkey: "Alt+ArrowLeft",
+			callback: () => nudge(-1, 0, FINE_NUDGE_STEP),
+			options: { enabled: canNudgeAny, meta: { name: "Nudge left a little" } },
+		},
+		{
+			hotkey: "Alt+ArrowRight",
+			callback: () => nudge(1, 0, FINE_NUDGE_STEP),
+			options: { enabled: canNudgeAny, meta: { name: "Nudge right a little" } },
+		},
+		{
+			hotkey: "Alt+ArrowUp",
+			callback: () => nudge(0, -1, FINE_NUDGE_STEP),
+			options: { enabled: canNudgeAny, meta: { name: "Nudge back a little" } },
+		},
+		{
+			hotkey: "Alt+ArrowDown",
+			callback: () => nudge(0, 1, FINE_NUDGE_STEP),
+			options: { enabled: canNudgeAny, meta: { name: "Nudge forward a little" } },
 		},
 	]);
 };
