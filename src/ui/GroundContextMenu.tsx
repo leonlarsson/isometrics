@@ -26,8 +26,8 @@ export const GroundContextMenu = () => {
 	// The last one opened, kept while it animates closed.
 	const menu = useLastNonNull(menuNow);
 	const store = () => useEditor.getState();
-	// Where things go: on the grid while snapping is on, like everything placed by hand.
-	// Where things go (the crosshair on the ground marks it, render/GroundMenuMarker).
+	// Where things go: on the grid while snapping is on, like everything placed by hand. The
+	// crosshair on the ground marks it (render/GroundMenuMarker).
 	const spot = () => spotOnGrid(menu?.point ?? [0, 0], store().snapping);
 	const draw = (start: () => void) => {
 		const point = spot();
