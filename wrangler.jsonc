@@ -1,10 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  
   "name": "isometrics",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
-  // Workers Logs: requests, errors and console output, queryable in the Cloudflare dashboard.
+
   "observability": {
     "enabled": true
   }
