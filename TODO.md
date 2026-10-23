@@ -2,6 +2,12 @@
 
 Planned work that has been discussed and agreed but not built yet. Write an ADR when starting anything that changes the editing model or data format (see `docs/adr/`).
 
+## Bugs and polish (2026-10-23)
+
+- [ ] **Truck trailer wheels z-fight:** the truck's trailer wheels flicker where their faces overlap another surface (`src/parts/vehicles/truck.tsx`).
+- [ ] **Phone gestures on label cards move the page:** pinching or dragging with a finger on a label card zooms or scrolls the whole page instead of the world. Touches that start on a card should reach the camera controls (or the page should block browser zoom/scroll there), while a tap still opens the card.
+- [ ] **Phone layout UI pass:** the narrow layout (ADR-0030) feels crowded. Review the toolbar, bottom sheet and bars for what can be merged, hidden behind a menu or made smaller.
+
 ## Before going public
 
 - [ ] Remove the `noindex, nofollow` robots meta tag and the `X-Robots-Tag` header in `src/routes/__root.tsx`.
