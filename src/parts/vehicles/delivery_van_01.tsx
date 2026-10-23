@@ -7,7 +7,7 @@ export const deliveryVan01 = definePart({
 	kind: "delivery_van_01",
 	name: "Delivery van",
 	category: "vehicles",
-	description: "Small van; can drive along a route",
+	description: "Small van; can drive along a road",
 	keywords: ["delivery", "vehicle"],
 	schema: z.object({}),
 	fields: [],
