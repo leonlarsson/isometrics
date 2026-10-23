@@ -273,9 +273,56 @@ describe("road heights", () => {
 
 		const bank = buildElevatedSides(bridge, false, 1, { railings: false, embankment: true });
 		expect(bank.railings.quads).toHaveLength(0);
+		expect(bank.deck.quads).toHaveLength(0); // the bank covers the deck's edge
 		for (const quad of bank.embankment.quads) {
 			expect(quad[2][1]).toBe(0); // slopes reach the ground
 		}
+	});
+
+	it("builds embankment sides as steep as their angle, down to straight walls", () => {
+		const raised = roadCenterline(
+			[
+				[0, 0, 2],
+				[10, 0, 2],
+			],
+			false,
+			0,
+		);
+		const footOffset = (angle: number) => {
+			const { embankment } = buildElevatedSides(raised, false, 1, {
+				railings: false,
+				embankment: true,
+				embankmentAngle: angle,
+			});
+			// The road runs along x, so a side's foot sits out from its top in z.
+			return Math.max(...embankment.quads.map(([top, , foot]) => Math.abs(foot[2] - top[2])));
+		};
+		expect(footOffset(45)).toBeCloseTo(2);
+		expect(footOffset(60)).toBeCloseTo(2 / Math.tan(Math.PI / 3));
+		expect(footOffset(90)).toBeCloseTo(0);
+	});
+
+	it("narrows the embankment's top to its share of the road's width, showing the deck's edge", () => {
+		const raised = roadCenterline(
+			[
+				[0, 0, 2],
+				[10, 0, 2],
+			],
+			false,
+			0,
+		);
+		const { embankment, deck } = buildElevatedSides(raised, false, 1, {
+			railings: false,
+			embankment: true,
+			embankmentAngle: 90,
+			embankmentWidth: 0.3,
+		});
+		// A straight wall 0.3 units out from the centre line (z = 0) on each side.
+		for (const [top, , foot] of embankment.quads) {
+			expect(Math.abs(top[2])).toBeCloseTo(0.3);
+			expect(Math.abs(foot[2])).toBeCloseTo(0.3);
+		}
+		expect(deck.quads.length).toBeGreaterThan(0);
 	});
 
 	it("places pillars at regular spacing only under high enough sections", () => {

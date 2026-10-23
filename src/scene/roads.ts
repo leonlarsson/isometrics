@@ -66,8 +66,9 @@ export const RAILING_HEIGHT = 0.3;
 /** Distance between pillars along the road, and the minimum height that gets one. */
 export const PILLAR_SPACING = 4;
 export const PILLAR_MIN = 0.8;
-/** Embankment slope: horizontal run per unit of height (1 = 45°). */
-export const EMBANKMENT_RUN = 1;
+/** Horizontal run per unit of height for an embankment side this steep (degrees; 90 = a wall). */
+export const embankmentRun = (angle: number) =>
+	angle >= 90 ? 0 : 1 / Math.tan((Math.max(1, angle) * Math.PI) / 180);
 
 /** How far from the centre line vehicles drive, as a fraction of the road width. */
 const LANE_FRACTION = 0.22;
@@ -459,11 +460,11 @@ export interface IWall {
 /**
  * Left and right edge points for every centre-line vertex, offset along one
  * shared sideways direction per vertex (the average of its two segments), by
- * `offset` or the vertex's own half width.
+ * `offset` or the vertex's own half width, times `widthScale`.
  * Strips built from these are continuous: neighbouring quads share edges, so
  * there are no gaps on the outside of curves. (Per-segment offsets fan apart.)
  */
-const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number) => {
+const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number, widthScale = 1) => {
 	const n = center.length;
 	const isClosed = closed && n > 2;
 	return center.map((p, i) => {
@@ -475,7 +476,7 @@ const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number) => {
 		if (side[0] === 0 && side[1] === 0) {
 			side = rightOf(outDir ?? inDir ?? [1, 0]); // a full reversal: use the outgoing direction
 		}
-		const off = scale(side, halfWidthAt(p, offset));
+		const off = scale(side, halfWidthAt(p, offset) * widthScale);
 		return { point: p, side, left: sub(xz(p), off), right: add(xz(p), off) };
 	});
 };
@@ -483,8 +484,9 @@ const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number) => {
 /**
  * Side faces for the elevated parts of a road: the deck's edge (thickness
  * below the surface), railings above it, and embankment slopes below when
- * `embankment` is on. Only segments above `ELEVATED_MIN`. Each is a
- * continuous strip along the road (see `vertexEdges`).
+ * `embankment` is on (a full-width bank replaces the deck's edge, which it
+ * would cover or z-fight with). Only segments above `ELEVATED_MIN`. Each is a continuous
+ * strip along the road (see `vertexEdges`).
  */
 export const buildElevatedSides = (
 	center: TRoadPoint[],
@@ -493,6 +495,10 @@ export const buildElevatedSides = (
 	options: {
 		railings: boolean;
 		embankment: boolean;
+		/** Steepness of the embankment's sides in degrees (default 45; 90 = straight walls). */
+		embankmentAngle?: number;
+		/** Width of the embankment's top as a share of the road's width (default 1). */
+		embankmentWidth?: number;
 		/** Keep embankment feet on the ground slab: half its width (x) and depth (z). */
 		bounds?: TVec2;
 	},
@@ -507,8 +513,13 @@ export const buildElevatedSides = (
 	const deck: IWall = { quads: [] };
 	const railings: IWall = { quads: [] };
 	const embankment: IWall = { quads: [] };
+	const run = embankmentRun(options.embankmentAngle ?? 45);
+	const bankScale = Math.min(1, Math.max(0, options.embankmentWidth ?? 1));
+	// A full-width bank covers the deck's edge; a narrower one leaves it showing.
+	const fullBank = options.embankment && bankScale >= 1;
 
 	const edges = vertexEdges(center, closed, halfWidth);
+	const bankEdges = bankScale < 1 ? vertexEdges(center, closed, halfWidth, bankScale) : edges;
 	const n = edges.length;
 	const segments = closed && n > 2 ? n : n - 1;
 	for (let i = 0; i < segments; i++) {
@@ -521,12 +532,14 @@ export const buildElevatedSides = (
 		for (const sign of [-1, 1] as const) {
 			const pa = sign < 0 ? a.left : a.right;
 			const pb = sign < 0 ? b.left : b.right;
-			deck.quads.push([
-				[pa[0], ha, pa[1]],
-				[pb[0], hb, pb[1]],
-				[pa[0], Math.max(0, ha - DECK_THICKNESS), pa[1]],
-				[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
-			]);
+			if (!fullBank) {
+				deck.quads.push([
+					[pa[0], ha, pa[1]],
+					[pb[0], hb, pb[1]],
+					[pa[0], Math.max(0, ha - DECK_THICKNESS), pa[1]],
+					[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
+				]);
+			}
 			if (options.railings && ha >= RAILING_MIN && hb >= RAILING_MIN) {
 				railings.quads.push([
 					[pa[0], ha + RAILING_HEIGHT, pa[1]],
@@ -536,12 +549,14 @@ export const buildElevatedSides = (
 				]);
 			}
 			if (options.embankment) {
-				// Slope outward and down to the ground.
-				const footA = keepOnGround(add(pa, scale(a.side, sign * ha * EMBANKMENT_RUN)));
-				const footB = keepOnGround(add(pb, scale(b.side, sign * hb * EMBANKMENT_RUN)));
+				// Slope outward and down to the ground, from the bank's top edge.
+				const ta = sign < 0 ? bankEdges[i].left : bankEdges[i].right;
+				const tb = sign < 0 ? bankEdges[(i + 1) % n].left : bankEdges[(i + 1) % n].right;
+				const footA = keepOnGround(add(ta, scale(a.side, sign * ha * run)));
+				const footB = keepOnGround(add(tb, scale(b.side, sign * hb * run)));
 				embankment.quads.push([
-					[pa[0], ha, pa[1]],
-					[pb[0], hb, pb[1]],
+					[ta[0], ha, ta[1]],
+					[tb[0], hb, tb[1]],
 					[footA[0], 0, footA[1]],
 					[footB[0], 0, footB[1]],
 				]);

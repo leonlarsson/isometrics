@@ -192,6 +192,26 @@ export const RoadSchema = z
 			.describe("Radius of the curve at each corner; 0 = sharp corners."),
 		markings: z.boolean().default(true).describe("Centre-line markings (asphalt only)."),
 		supports: RoadSupportsSchema.default("pillars"),
+		embankmentAngle: z
+			.number()
+			.min(10)
+			.max(90)
+			.default(45)
+			.describe(
+				"Steepness of the embankment's sides in degrees: 45 = a sloped bank, 90 = straight walls (the road sits on a solid raised block).",
+			),
+		embankmentWidth: z
+			.number()
+			.min(0.05)
+			.max(1)
+			.default(1)
+			.describe(
+				"Width of the embankment's top as a share of the road's width: 1 = as wide as the road, less = a narrower bank or wall under the middle of the road.",
+			),
+		embankmentColor: hexColor
+			.nullable()
+			.default(null)
+			.describe("Embankment colour as #rrggbb; null = the theme's default."),
 		railings: z
 			.boolean()
 			.default(true)

@@ -214,6 +214,58 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 								}
 							/>
 
+							{road.supports === "embankment" && (
+								<>
+									<SliderField
+										label="Bank slope"
+										value={road.embankmentAngle}
+										min={10}
+										max={90}
+										step={5}
+										suffix="°"
+										hint="90° gives straight walls, as if the road sits on a raised block."
+										onChange={(v) =>
+											edit("embankmentAngle", (r) => {
+												r.embankmentAngle = v;
+											})
+										}
+									/>
+
+									<SliderField
+										label="Bank width"
+										value={Math.round(road.embankmentWidth * 100)}
+										min={5}
+										max={100}
+										step={5}
+										suffix="%"
+										hint="Of the road's width. Narrow with a steep slope for a solid wall under the road."
+										onChange={(v) =>
+											edit("embankmentWidth", (r) => {
+												r.embankmentWidth = v / 100;
+											})
+										}
+									/>
+
+									<ColorField
+										label="Bank colour"
+										value={road.embankmentColor ?? palette.embankment}
+										onChange={(v) =>
+											edit("embankmentColor", (r) => {
+												r.embankmentColor = v;
+											})
+										}
+										inherit={{
+											from: "default",
+											inherited: road.embankmentColor === null,
+											onReset: () =>
+												edit("embankmentColor", (r) => {
+													r.embankmentColor = null;
+												}),
+										}}
+									/>
+								</>
+							)}
+
 							<SwitchField
 								label="Railings"
 								checked={road.railings}

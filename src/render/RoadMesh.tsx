@@ -121,6 +121,8 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 			buildElevatedSides(center, road.closed, road.width / 2, {
 				railings: road.railings && !hidden,
 				embankment: road.supports === "embankment" && !hidden,
+				embankmentAngle: road.embankmentAngle,
+				embankmentWidth: road.embankmentWidth,
 				bounds: [groundWidth / 2, groundDepth / 2],
 			}),
 		[
@@ -129,6 +131,8 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 			road.width,
 			road.railings,
 			road.supports,
+			road.embankmentAngle,
+			road.embankmentWidth,
 			hidden,
 			groundWidth,
 			groundDepth,
@@ -205,7 +209,11 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 
 			{sides.embankment.quads.length > 0 && (
 				<mesh geometry={embankment} castShadow receiveShadow {...handlers}>
-					<meshStandardMaterial color={palette.embankment} roughness={1} side={THREE.DoubleSide} />
+					<meshStandardMaterial
+						color={road.embankmentColor ?? palette.embankment}
+						roughness={1}
+						side={THREE.DoubleSide}
+					/>
 				</mesh>
 			)}
 
