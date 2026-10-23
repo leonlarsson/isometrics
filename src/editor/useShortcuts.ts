@@ -1,5 +1,8 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 
+import { clamp } from "#/lib/math";
+import type { TVec2 } from "#/scene/schema";
+
 import { openWorldFile, saveWorldFile } from "./fileActions";
 import {
 	SNAP_STEP,
@@ -19,7 +22,8 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Space pause/play motion
  *   Esc cancels a gizmo drag or a drag from the palette, dismisses the drive-along offer, else deselects
  *   Mod+O open a world file · Mod+S save the world to a file
- *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°) · arrows nudge (Shift: 5×)
+ *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°)
+ *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
@@ -44,6 +48,15 @@ export const useShortcuts = () => {
 	const selectedPoint = useEditor(
 		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
 	);
+	// A point of a road or area that can be edited (visible, not locked): the arrows nudge it.
+	const nudgePoint = useEditor((s) => {
+		if (s.mode !== "edit" || s.selectedPointIndex === null) {
+			return false;
+		}
+		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s);
+		return shape !== null && !shape.hidden && !shape.locked;
+	});
+	const canNudgeAny = canNudge || nudgePoint;
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
 	// G on a vehicle following a road lifts it off to drop on another road or park it.
 	const canGrab = canTransform || selectedPoint;
@@ -56,6 +69,7 @@ export const useShortcuts = () => {
 		}
 	};
 
+	/** Move the selected object, or the selected road or area point, by grid steps. */
 	const nudge = (dx: number, dz: number) => {
 		const state = useEditor.getState();
 		const entity = selectSelectedEntity(state);
@@ -65,6 +79,26 @@ export const useShortcuts = () => {
 				[entity.position[0] + dx * SNAP_STEP, entity.position[1] + dz * SNAP_STEP],
 				{ coalesce: `nudge:${entity.id}` },
 			);
+			return;
+		}
+		const index = state.selectedPointIndex;
+		const road = selectSelectedRoad(state);
+		const shape = road ?? selectSelectedArea(state);
+		const point = index === null ? undefined : shape?.points[index];
+		if (!shape || index === null || !point) {
+			return;
+		}
+		// Kept on the ground, like a dragged point.
+		const { width, depth } = state.scene.ground;
+		const next: TVec2 = [
+			clamp(point[0] + dx * SNAP_STEP, -width / 2, width / 2),
+			clamp(point[1] + dz * SNAP_STEP, -depth / 2, depth / 2),
+		];
+		const options = { coalesce: `nudge:${shape.id}:${index}` };
+		if (road) {
+			state.moveRoadPoint(road.id, index, next, options);
+		} else {
+			state.moveAreaPoint(shape.id, index, next, options);
 		}
 	};
 
@@ -248,42 +282,42 @@ export const useShortcuts = () => {
 		{
 			hotkey: "ArrowLeft",
 			callback: () => nudge(-1, 0),
-			options: { enabled: canNudge, meta: { name: "Nudge left" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge left" } },
 		},
 		{
 			hotkey: "ArrowRight",
 			callback: () => nudge(1, 0),
-			options: { enabled: canNudge, meta: { name: "Nudge right" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge right" } },
 		},
 		{
 			hotkey: "ArrowUp",
 			callback: () => nudge(0, -1),
-			options: { enabled: canNudge, meta: { name: "Nudge back" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge back" } },
 		},
 		{
 			hotkey: "ArrowDown",
 			callback: () => nudge(0, 1),
-			options: { enabled: canNudge, meta: { name: "Nudge forward" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge forward" } },
 		},
 		{
 			hotkey: "Shift+ArrowLeft",
 			callback: () => nudge(-5, 0),
-			options: { enabled: canNudge, meta: { name: "Nudge left ×5" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge left ×5" } },
 		},
 		{
 			hotkey: "Shift+ArrowRight",
 			callback: () => nudge(5, 0),
-			options: { enabled: canNudge, meta: { name: "Nudge right ×5" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge right ×5" } },
 		},
 		{
 			hotkey: "Shift+ArrowUp",
 			callback: () => nudge(0, -5),
-			options: { enabled: canNudge, meta: { name: "Nudge back ×5" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge back ×5" } },
 		},
 		{
 			hotkey: "Shift+ArrowDown",
 			callback: () => nudge(0, 5),
-			options: { enabled: canNudge, meta: { name: "Nudge forward ×5" } },
+			options: { enabled: canNudgeAny, meta: { name: "Nudge forward ×5" } },
 		},
 	]);
 };
