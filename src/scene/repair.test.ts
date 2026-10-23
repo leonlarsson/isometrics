@@ -106,6 +106,21 @@ describe("parseOrRepairScene", () => {
 		expect(report.fixed).toBe(2);
 	});
 
+	it("repairs and counts every world setting, including newer ones like traffic", () => {
+		// An older save stored traffic as a plain switch.
+		const { scene, report } = repairScene({ version: 1, traffic: true });
+		expect(scene.traffic).toEqual({ spacing: true, overtaking: true });
+		expect(report.fixed).toBe(1);
+
+		// A valid setting survives when something else needs repairing.
+		const kept = repairScene({
+			version: 1,
+			traffic: { spacing: true, overtaking: false },
+			theme: "neon",
+		});
+		expect(kept.scene.traffic.overtaking).toBe(false);
+	});
+
 	it("repairs worlds from a newer version", () => {
 		const { scene, report } = parseOrRepairScene({ version: 99, roads: [road()] });
 		expect(scene.roads).toHaveLength(1);

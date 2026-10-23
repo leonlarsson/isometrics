@@ -103,7 +103,17 @@ const LISTS = [
 	{ key: "viewpoints", schema: ViewpointSchema, id: "id", counter: "viewpoints" },
 ] as const;
 
-const SETTINGS = ["meta", "theme", "ground", "driving", "turns"] as const;
+type TSceneKey = keyof typeof SceneSchema.shape;
+const LIST_KEYS = new Set<string>(LISTS.map(({ key }) => key));
+
+/**
+ * Every other top-level field is a world setting, repaired on its own. Taken
+ * from the schema, so a new setting can't be forgotten here (and silently
+ * reset whenever a world needs repairing for another reason).
+ */
+const SETTINGS = (Object.keys(SceneSchema.shape) as TSceneKey[]).filter(
+	(key) => key !== "version" && !LIST_KEYS.has(key),
+);
 
 /** Repair a world (see above). Throws if the input doesn't look like a world at all. */
 export const repairScene = (input: unknown): { scene: TScene; report: IRepairReport } => {
