@@ -57,8 +57,8 @@ const Crowd = ({ positions }: { positions: [number, number, number][] }) => {
 	);
 };
 
-export const grandstand = definePart({
-	kind: "grandstand",
+export const grandstand01 = definePart({
+	kind: "grandstand_01",
 	name: "Grandstand",
 	category: "buildings",
 	description: "Stepped seating with spectators; faces +Z",

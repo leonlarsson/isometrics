@@ -129,7 +129,7 @@ const pier = (id: string, base: TVec2, length: number, width = 14): TAreaInput =
 	return {
 		id,
 		name: "Pier",
-		type: "plaza",
+		type: "plaza_01",
 		// Timber, so the piers read as piers rather than white lines on the water.
 		color: "#a8916f",
 		points: outline([
@@ -154,7 +154,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "water",
 		name: "Port Hercule & the sea",
-		type: "water",
+		type: "water_01",
 		points: outline([
 			[1000, 414], // north quay, below Tabac
 			[1090, 422],
@@ -185,7 +185,7 @@ const AREAS: TAreaInput[] = [
 		// The F1 paddock's quay, between the harbour and Avenue de la Quarantaine.
 		id: "quai_antoine",
 		name: "Quai Antoine Ier",
-		type: "plaza",
+		type: "plaza_01",
 		points: outline([
 			[785, 668],
 			[810, 630],
@@ -197,7 +197,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "terminal",
 		name: "Digue & cruise terminal",
-		type: "plaza",
+		type: "plaza_01",
 		points: outline([
 			[990, 790],
 			[1100, 826],
@@ -212,7 +212,7 @@ const AREAS: TAreaInput[] = [
 		// Monaco-Ville, with the Prince's Palace.
 		id: "the_rock",
 		name: "The Rock",
-		type: "land",
+		type: "raised_land_01",
 		height: ROCK,
 		points: outline([
 			[385, 592],
@@ -232,7 +232,7 @@ const AREAS: TAreaInput[] = [
 		// Monte-Carlo, on the hill above Beau Rivage and Casino Square.
 		id: "hillside",
 		name: "Monte-Carlo hillside",
-		type: "land",
+		type: "raised_land_01",
 		height: HILLSIDE,
 		points: outline([
 			[385, 166],
@@ -261,7 +261,7 @@ const AREAS: TAreaInput[] = [
 		// Inside the Casino / Mirabeau loop: the Casino and its terraces.
 		id: "casino_plateau",
 		name: "Casino Square",
-		type: "land",
+		type: "raised_land_01",
 		height: CASINO_PLATEAU,
 		points: outline([
 			[1597, 454],
@@ -276,7 +276,7 @@ const AREAS: TAreaInput[] = [
 		// Mirabeau and the hairpin, on a terrace with retaining walls below the Casino.
 		id: "hairpin_terrace",
 		name: "Mirabeau terrace",
-		type: "land",
+		type: "raised_land_01",
 		height: HAIRPIN_TERRACE,
 		points: outline([
 			[1714, 452],
@@ -292,7 +292,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "hairpin_island",
 		name: "Hairpin island",
-		type: "grass",
+		type: "grass_01",
 		height: HAIRPIN_ISLAND_TOP,
 		points: outline(
 			Array.from({ length: 10 }, (_, i): TVec2 => {
@@ -324,7 +324,7 @@ const CAR_SIZE = 0.6;
 
 const cars: TEntityInput[] = LIVERIES.map(([color, accent], i) => ({
 	id: `car_${i + 1}`,
-	kind: "raceCar",
+	kind: "race_car_01",
 	name: `Car ${[16, 1, 4, 63, 14, 23, 10, 77][i]}`,
 	color,
 	accent,
@@ -356,7 +356,7 @@ const paddock: TEntityInput[] = (
 	] as TVec2[]
 ).map((spot, i) => ({
 	id: `paddock_${i + 1}`,
-	kind: "shed",
+	kind: "depot_01",
 	name: `Team hospitality ${i + 1}`,
 	position: fromMap(spot),
 	rotation: -38.8,
@@ -389,7 +389,7 @@ const city: TEntityInput[] = (
 	] as [number, number, number][]
 ).map(([x, y, floors], i) => ({
 	id: `building_${i}`,
-	kind: "tower",
+	kind: "office_tower_01",
 	position: fromMap([x, y]),
 	elevation: HILLSIDE,
 	color: ["#e9d8b8", "#d9c3a5", "#f1e4cf", "#c9d6e0"][i % 4],
@@ -412,7 +412,7 @@ const lowCity: TEntityInput[] = (
 	] as [number, number, number, number][]
 ).map(([x, y, floors, elevation], i) => ({
 	id: `low_building_${i}`,
-	kind: "tower",
+	kind: "office_tower_01",
 	position: fromMap([x, y]),
 	elevation,
 	color: ["#f1e4cf", "#e9d8b8", "#efd9c0", "#d9c3a5"][i % 4],
@@ -429,7 +429,7 @@ const yachts: TEntityInput[] = [
 				const spot: TVec2 = [bx + dx * along - dy * 24 * side, by + dy * along + dx * 24 * side];
 				return {
 					id: `yacht_${p}_${k}_${side === 1 ? "a" : "b"}`,
-					kind: "yacht",
+					kind: "yacht_01",
 					position: fromMap(spot),
 					rotation: ALONG_PIERS + (side === 1 ? 0 : 180),
 					accent: (p + k) % 3 === 0 ? "#1f1f24" : null,
@@ -447,7 +447,7 @@ const yachts: TEntityInput[] = [
 		] as [number, number, number, number][]
 	).map(([x, y, length, decks], i) => ({
 		id: `superyacht_${i}`,
-		kind: "yacht",
+		kind: "yacht_01",
 		position: fromMap([x, y]),
 		accent: i % 2 === 0 ? "#1f1f24" : null,
 		props: { length, decks },
@@ -469,7 +469,7 @@ const trees: TEntityInput[] = (
 	] as [number, number, number][]
 ).map(([x, y, elevation], i) => ({
 	id: `tree_${i}`,
-	kind: i % 2 === 0 ? "tree" : "pine",
+	kind: i % 2 === 0 ? "round_tree_01" : "pine_tree_01",
 	position: fromMap([x, y]),
 	elevation,
 	props: { size: 0.9 },
@@ -498,7 +498,7 @@ export const createMonacoScene = (): TScene => {
 			{
 				id: TRACK_ID,
 				name: "Circuit de Monaco",
-				style: "asphalt",
+				style: "road_01",
 				closed: true,
 				width: 1.2,
 				cornerRadius: 1,
@@ -514,14 +514,14 @@ export const createMonacoScene = (): TScene => {
 			{
 				id: "sea_lane",
 				name: "Sea lane",
-				style: "hidden",
+				style: "hidden_route_01",
 				points: [fromMap([1580, 885]), fromMap([1910, 760])],
 			},
 		],
 		entities: [
 			{
 				id: "pool",
-				kind: "zone",
+				kind: "zone_01",
 				name: "Stade Nautique Rainier III (swimming pool)",
 				position: fromMap([850, 480]),
 				rotation: 38.5,
@@ -530,7 +530,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "fairmont",
-				kind: "tunnel",
+				kind: "tunnel_01",
 				name: "Tunnel (under the Fairmont)",
 				position: fromMap([1610, 588]),
 				rotation: 1.5,
@@ -541,7 +541,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "casino",
-				kind: "shed",
+				kind: "depot_01",
 				name: "Casino de Monte-Carlo",
 				position: fromMap([1665, 495]),
 				elevation: CASINO_PLATEAU,
@@ -553,7 +553,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "hotel_de_paris",
-				kind: "shed",
+				kind: "depot_01",
 				name: "Hôtel de Paris",
 				position: fromMap([1533, 470]),
 				elevation: HILLSIDE,
@@ -563,7 +563,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "palace",
-				kind: "shed",
+				kind: "depot_01",
 				name: "Prince's Palace",
 				position: fromMap([480, 680]),
 				elevation: ROCK,
@@ -574,7 +574,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "start_line",
-				kind: "beacon",
+				kind: "beacon_01",
 				name: "Start / finish",
 				position: fromMap([816, 456]),
 				props: { radius: 0.8, pulse: true },
@@ -586,7 +586,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "grandstand_straight",
-				kind: "grandstand",
+				kind: "grandstand_01",
 				name: "Grandstand (start straight)",
 				position: fromMap([747, 461]),
 				rotation: 38.5,
@@ -595,7 +595,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "grandstand_condamine",
-				kind: "grandstand",
+				kind: "grandstand_01",
 				name: "Grandstand (La Condamine)",
 				position: fromMap([845, 391]),
 				rotation: 33.5,
@@ -604,7 +604,7 @@ export const createMonacoScene = (): TScene => {
 			},
 			{
 				id: "grandstand_rascasse",
-				kind: "grandstand",
+				kind: "grandstand_01",
 				name: "Grandstand (La Rascasse)",
 				position: fromMap([713, 699]),
 				rotation: 153.4,
@@ -617,7 +617,7 @@ export const createMonacoScene = (): TScene => {
 			...yachts,
 			{
 				id: "cruiser",
-				kind: "yacht",
+				kind: "yacht_01",
 				name: "Cruising yacht",
 				props: { length: 3.6, decks: 2 },
 				follow: { roadId: "sea_lane", speed: 0.8, offset: 4 },

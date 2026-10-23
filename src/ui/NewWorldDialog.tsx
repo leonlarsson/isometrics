@@ -55,9 +55,9 @@ const blankPictureScene = (preset: TGroundPreset) => {
 	return SceneSchema.parse({
 		...createEmptyScene({ ground: { width, depth } }),
 		entities: [
-			{ id: "scale_house", kind: "house", position: [-1.2, 0] },
-			{ id: "scale_tree", kind: "tree", position: [1.4, -0.9] },
-			{ id: "scale_car", kind: "car", position: [1.6, 1.3] },
+			{ id: "scale_house", kind: "house_01", position: [-1.2, 0] },
+			{ id: "scale_tree", kind: "round_tree_01", position: [1.4, -0.9] },
+			{ id: "scale_car", kind: "car_01", position: [1.6, 1.3] },
 		],
 	});
 };

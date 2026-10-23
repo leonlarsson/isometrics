@@ -1,5 +1,5 @@
 import { selectSelectedEntity, useEditor } from "#/editor/store";
-import { getPart } from "#/parts/registry";
+import { partNameOf } from "#/parts/registry";
 import { formatEntry } from "#/scene/format";
 
 import { ButtonGroup, IconButton } from "./Button";
@@ -21,7 +21,7 @@ export const DetailSheet = () => {
 	const keys = entity.details.dataKeys.length
 		? entity.details.dataKeys
 		: (entity.label?.dataKeys ?? []);
-	const title = entity.name || entity.label?.title || getPart(entity.kind)?.name || "Object";
+	const title = entity.name || entity.label?.title || partNameOf(entity.kind) || "Object";
 
 	return (
 		<aside className={styles.sheet} data-label-obstacle="" aria-label={`${title} details`}>

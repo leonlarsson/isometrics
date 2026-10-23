@@ -82,6 +82,8 @@ export interface IPartDefinition<P extends object> {
 	height: (props: P) => number;
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
+	/** It lies flat on the ground (a marked zone): other parts can be placed on top of it. */
+	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
 	rendersAsync?: boolean;
 	Component: FC<IPartRenderProps<P>>;

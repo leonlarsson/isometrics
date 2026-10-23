@@ -18,13 +18,15 @@ describe("worldJsonSchema", () => {
 	it("lists every part kind with a description", () => {
 		const kinds = entitySchema().properties.kind.oneOf;
 		expect(kinds.map((k) => k.const)).toEqual(PARTS.map((part) => part.kind));
-		const van = kinds.find((k) => k.const === "van");
+		const van = kinds.find((k) => k.const === "delivery_van_01");
 		expect(van?.description).toMatch(/Delivery van/);
 		expect(van?.description).toMatch(/drive along a road/);
 	});
 
 	it("describes each kind's props, labelled like the inspector", () => {
-		const tower = entitySchema().allOf.find((rule) => rule.if.properties.kind.const === "tower");
+		const tower = entitySchema().allOf.find(
+			(rule) => rule.if.properties.kind.const === "office_tower_01",
+		);
 		expect(tower?.then.properties.props.properties.floors?.description).toBe("Floors");
 	});
 

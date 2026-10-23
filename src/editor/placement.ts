@@ -40,12 +40,12 @@ const overlaps = (a: IRect, b: IRect) =>
 export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]): TVec2 => {
 	const [w, d] = part.footprint(part.schema.parse({}));
 	const obstacles = scene.entities
-		.filter((e) => e.kind !== "zone")
+		.filter((e) => !getPart(e.kind)?.flat)
 		.map(footprintRect)
 		.filter((r): r is IRect => r !== null);
 	const halfGroundW = scene.ground.width / 2;
 	const halfGroundD = scene.ground.depth / 2;
-	const isFlat = part.kind === "zone";
+	const isFlat = part.flat === true;
 
 	for (let radius = 0; radius < Math.max(halfGroundW, halfGroundD); radius++) {
 		for (let dx = -radius; dx <= radius; dx++) {

@@ -41,8 +41,8 @@ const BeaconRing = ({
 	);
 };
 
-export const beacon = definePart({
-	kind: "beacon",
+export const beacon01 = definePart({
+	kind: "beacon_01",
 	name: "Beacon",
 	category: "markers",
 	description: "Pulsing ring to highlight a live spot",

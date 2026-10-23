@@ -158,9 +158,9 @@ export const RoadSupportsSchema = z
 	);
 
 export const RoadStyleSchema = z
-	.enum(["asphalt", "dirt", "hidden"])
+	.enum(["road_01", "dirt_path_01", "hidden_route_01"])
 	.describe(
-		"asphalt = paved road with markings, dirt = path, hidden = invisible route that only vehicles use (ferry lines, forklift paths).",
+		"Numbered so each can get variants. road_01 = paved road with markings, dirt_path_01 = path, hidden_route_01 = invisible route that only vehicles use (ferry lines, forklift paths).",
 	);
 
 // See docs/adr/0022-centre-lane-roads.md.
@@ -175,7 +175,7 @@ export const RoadSchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the roads; vehicles refer to it."),
 		name: z.string().default("").describe("Shown in the editor."),
-		style: RoadStyleSchema.default("asphalt"),
+		style: RoadStyleSchema.default("road_01"),
 		points: z
 			.array(RoadPointSchema)
 			.min(2)
@@ -265,9 +265,9 @@ export const TrafficSchema = z
 	.describe("How vehicles on the same road deal with each other.");
 
 export const AreaTypeSchema = z
-	.enum(["water", "grass", "sand", "plaza", "land"])
+	.enum(["water_01", "grass_01", "sand_01", "plaza_01", "raised_land_01"])
 	.describe(
-		"What the area is; sets its colour. land is meant for raised ground (rocks, plateaus).",
+		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
 	);
 
 // See docs/adr/0021-free-form-areas.md.
@@ -275,7 +275,7 @@ export const AreaSchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the areas."),
 		name: z.string().default("").describe("Shown in the editor."),
-		type: AreaTypeSchema.default("grass"),
+		type: AreaTypeSchema.default("grass_01"),
 		points: z
 			.array(Vec2Schema)
 			.min(3)

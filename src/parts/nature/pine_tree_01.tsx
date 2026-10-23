@@ -3,8 +3,8 @@ import { definePart } from "../types";
 
 import { TreeSizeSchema, treeSizeFields } from "./treeSize";
 
-export const pine = definePart({
-	kind: "pine",
+export const pineTree01 = definePart({
+	kind: "pine_tree_01",
 	name: "Pine tree",
 	category: "nature",
 	description: "Conifer made of stacked cones",

@@ -11,8 +11,8 @@ const WarehouseSchema = z.object({
 	solar: z.boolean().default(true),
 });
 
-export const warehouse = definePart({
-	kind: "warehouse",
+export const warehouse01 = definePart({
+	kind: "warehouse_01",
 	name: "Warehouse",
 	category: "buildings",
 	description: "Large hall with loading doors and solar roof",

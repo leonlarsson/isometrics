@@ -11,8 +11,8 @@ const HouseSchema = z.object({
 	chimney: z.boolean().default(true),
 });
 
-export const house = definePart({
-	kind: "house",
+export const house01 = definePart({
+	kind: "house_01",
 	name: "House",
 	category: "buildings",
 	description: "Small house with a pitched roof",

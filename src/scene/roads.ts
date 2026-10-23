@@ -1,4 +1,5 @@
 import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurns, TVec2 } from "./schema";
+import { variantName } from "./variants";
 
 /**
  * Road geometry, framework-free so it can be unit-tested and reused.
@@ -8,11 +9,37 @@ import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurns, TVec2 } from 
  * derives from that centre line. See docs/adr/0017 and 0018.
  */
 
-export const ROAD_STYLE_LABELS: Record<TRoadStyle, string> = {
-	asphalt: "Road",
-	dirt: "Dirt path",
-	hidden: "Hidden route",
+/**
+ * What each road style looks like. Ids are numbered so a style can get
+ * variants (road_02…); code asks these, never the id.
+ */
+export const ROAD_STYLES: Record<
+	TRoadStyle,
+	{ surface: "road" | "dirt" | null; centreLine: boolean }
+> = {
+	road_01: { surface: "road", centreLine: true },
+	dirt_path_01: { surface: "dirt", centreLine: false },
+	hidden_route_01: { surface: null, centreLine: false },
 };
+
+/** An invisible route: vehicles follow it, but nothing is drawn outside the editor. */
+export const isHiddenRoute = (style: TRoadStyle) => ROAD_STYLES[style].surface === null;
+
+/** Each style's family name; variants of a family are told apart by number (scene/variants). */
+const ROAD_STYLE_NAMES: Record<TRoadStyle, string> = {
+	road_01: "Road",
+	dirt_path_01: "Dirt path",
+	hidden_route_01: "Hidden route",
+};
+
+const ROAD_STYLE_IDS = Object.keys(ROAD_STYLE_NAMES) as TRoadStyle[];
+
+export const ROAD_STYLE_LABELS = Object.fromEntries(
+	ROAD_STYLE_IDS.map((style) => [
+		style,
+		variantName(style, ROAD_STYLE_NAMES[style], ROAD_STYLE_IDS),
+	]),
+) as Record<TRoadStyle, string>;
 
 export const TURNS_LABELS: Record<TTurns, string> = {
 	smooth: "Smoothly",
@@ -44,9 +71,9 @@ export const turnSmoothing = (turns: TTurns, vehicleLength: number) =>
 
 /** Default width per style when drawing a new road. */
 export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
-	asphalt: 2.4,
-	dirt: 1.4,
-	hidden: 1.6,
+	road_01: 2.4,
+	dirt_path_01: 1.4,
+	hidden_route_01: 1.6,
 };
 
 /**
@@ -651,7 +678,7 @@ export const laneOffset = (
 	road: Pick<TRoad, "width" | "style" | "lane">,
 	driving: TDrivingSide,
 ) => {
-	if (road.style === "hidden" || road.lane === "centre") {
+	if (isHiddenRoute(road.style) || road.lane === "centre") {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);

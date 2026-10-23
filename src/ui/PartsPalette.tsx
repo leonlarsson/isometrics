@@ -5,10 +5,10 @@ import { findFreeSpot } from "#/editor/placement";
 import { useEditor } from "#/editor/store";
 import { usePalette, useResolvedTheme } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
-import { partsByCategory, resolveColors } from "#/parts/registry";
+import { partName, partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { usePartThumbnails } from "#/render/thumbnails";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
+import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
 
@@ -20,27 +20,36 @@ import { Tooltip } from "./Tooltip";
 
 import styles from "./PartsPalette.module.css";
 
-const ROAD_TOOLS: { style: TRoadStyle; description: string; keywords: string }[] = [
-	{ style: "asphalt", description: "Paved road with a centre line", keywords: "street" },
-	{ style: "dirt", description: "Unpaved path", keywords: "trail footpath track" },
-	{
-		style: "hidden",
+// Keyed by id, so a new road style or area type (a variant) can't be left out of the palette.
+const ROAD_TOOL_INFO: Record<TRoadStyle, { description: string; keywords: string }> = {
+	road_01: { description: "Paved road with a centre line", keywords: "street" },
+	dirt_path_01: { description: "Unpaved path", keywords: "trail footpath track" },
+	hidden_route_01: {
 		description: "Invisible route that vehicles follow, e.g. a forklift path",
 		keywords: "path track ferry route",
 	},
-];
+};
 
-const AREA_TOOLS: { type: TAreaType; description: string; keywords: string }[] = [
-	{ type: "water", description: "Sea, lake, harbour or pond", keywords: "river ocean bay" },
-	{ type: "grass", description: "Lawn, park or field", keywords: "garden meadow green" },
-	{ type: "sand", description: "Beach or sand", keywords: "desert dune" },
-	{ type: "plaza", description: "Paved square, quay or car park", keywords: "parking pavement" },
-	{
-		type: "land",
+const AREA_TOOL_INFO: Record<TAreaType, { description: string; keywords: string }> = {
+	water_01: { description: "Sea, lake, harbour or pond", keywords: "river ocean bay" },
+	grass_01: { description: "Lawn, park or field", keywords: "garden meadow green" },
+	sand_01: { description: "Beach or sand", keywords: "desert dune" },
+	plaza_01: { description: "Paved square, quay or car park", keywords: "parking pavement" },
+	raised_land_01: {
 		description: "Raised ground with cliff sides, e.g. a rock or plateau",
 		keywords: "hill mountain cliff terrain",
 	},
-];
+};
+
+const ROAD_TOOLS = (Object.keys(ROAD_TOOL_INFO) as TRoadStyle[]).map((style) => ({
+	style,
+	...ROAD_TOOL_INFO[style],
+}));
+
+const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaType[]).map((type) => ({
+	type,
+	...AREA_TOOL_INFO[type],
+}));
 
 interface IPaletteItem {
 	key: string;
@@ -137,9 +146,9 @@ export const PartsPalette = () => {
 	useHotkey("/", () => searchRef.current?.focus(), { meta: { name: "Search parts" } });
 
 	const roadSwatch: Record<TRoadStyle, string> = {
-		asphalt: `linear-gradient(180deg, ${palette.road} 42%, ${palette.roadMark} 42% 58%, ${palette.road} 58%)`,
-		dirt: palette.dirt,
-		hidden: `repeating-linear-gradient(90deg, ${palette.selection} 0 5px, transparent 5px 9px)`,
+		road_01: `linear-gradient(180deg, ${palette.road} 42%, ${palette.roadMark} 42% 58%, ${palette.road} 58%)`,
+		dirt_path_01: palette.dirt,
+		hidden_route_01: `repeating-linear-gradient(90deg, ${palette.selection} 0 5px, transparent 5px 9px)`,
 	};
 
 	const items: IPaletteItem[] = [
@@ -159,7 +168,7 @@ export const PartsPalette = () => {
 			name: AREA_TYPE_LABELS[type],
 			tooltip: `${description}. Click its corners on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} area`,
-			swatch: palette.areas[type],
+			swatch: areaColor({ type, color: null }, palette),
 			pressed: drawingArea === type,
 			onSelect: () => startAreaDrawing(type),
 		})),
@@ -169,7 +178,7 @@ export const PartsPalette = () => {
 				return {
 					key: `part:${part.kind}`,
 					group: CATEGORY_LABELS[category],
-					name: part.name,
+					name: partName(part),
 					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
 					swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,

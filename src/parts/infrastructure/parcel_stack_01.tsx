@@ -7,8 +7,8 @@ const ParcelsSchema = z.object({
 	count: z.number().int().min(1).max(24).default(6),
 });
 
-export const parcels = definePart({
-	kind: "parcels",
+export const parcelStack01 = definePart({
+	kind: "parcel_stack_01",
 	name: "Parcel stack",
 	category: "infrastructure",
 	description: "Pile of boxes on a pallet",

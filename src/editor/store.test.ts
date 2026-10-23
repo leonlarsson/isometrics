@@ -12,7 +12,7 @@ const makeStore = () =>
 			entities: [
 				{
 					id: "w",
-					kind: "warehouse",
+					kind: "warehouse_01",
 					label: { title: "Orders", dataKeys: ["orders"] },
 					details: { dataKeys: ["orders"] },
 				},
@@ -26,7 +26,7 @@ describe("editor store", () => {
 
 	it("adds, selects and removes entities with undo/redo", () => {
 		const store = makeStore();
-		const id = store.getState().addEntity({ kind: "house", position: [2, 3] });
+		const id = store.getState().addEntity({ kind: "house_01", position: [2, 3] });
 		expect(store.getState().selectedId).toBe(id);
 		expect(store.getState().scene.entities).toHaveLength(2);
 
@@ -124,7 +124,7 @@ describe("editor store", () => {
 		const store = makeStore();
 		const textId = store
 			.getState()
-			.addEntity({ kind: "text", props: { text: "Orders", dataKey: "orders" } });
+			.addEntity({ kind: "text_01", props: { text: "Orders", dataKey: "orders" } });
 		store
 			.getState()
 			.upsertData({ key: "orders_packed", label: "Orders", value: 3, unit: "" }, "orders");
@@ -141,7 +141,7 @@ describe("editor store", () => {
 		const store = makeStore();
 		const textId = store
 			.getState()
-			.addEntity({ kind: "text", props: { text: "Orders", dataKey: "orders" } });
+			.addEntity({ kind: "text_01", props: { text: "Orders", dataKey: "orders" } });
 		store.getState().removeData("orders");
 		const { entities } = store.getState().scene;
 		const text = entities.find((e) => e.id === textId);
@@ -160,7 +160,7 @@ describe("editor store", () => {
 	it("draws a road point by point and selects it", () => {
 		const store = makeStore();
 		const s = () => store.getState();
-		s().startDrawing("dirt");
+		s().startDrawing("dirt_path_01");
 		s().addDrawingPoint([0, 0]);
 		s().addDrawingPoint([0, 0]); // duplicate click is ignored
 		s().addDrawingPoint([4, 0]);
@@ -168,7 +168,7 @@ describe("editor store", () => {
 		s().undoDrawingPoint();
 		const id = s().finishDrawing();
 		const road = s().scene.roads.find((r) => r.id === id);
-		expect(road).toMatchObject({ style: "dirt", name: "Dirt path 1", closed: false });
+		expect(road).toMatchObject({ style: "dirt_path_01", name: "Dirt path 1", closed: false });
 		expect(road?.points).toEqual([
 			[0, 0, 0],
 			[4, 0, 0],
@@ -180,12 +180,12 @@ describe("editor store", () => {
 	it("needs two points to finish, and three to close a loop", () => {
 		const store = makeStore();
 		const s = () => store.getState();
-		s().startDrawing("asphalt");
+		s().startDrawing("road_01");
 		s().addDrawingPoint([0, 0]);
 		expect(s().finishDrawing()).toBeNull();
 		expect(s().scene.roads).toHaveLength(0);
 
-		s().startDrawing("asphalt");
+		s().startDrawing("road_01");
 		s().addDrawingPoint([0, 0]);
 		s().addDrawingPoint([4, 0]);
 		const id = s().finishDrawing({ closed: true });
@@ -201,7 +201,7 @@ describe("editor store", () => {
 				[10, 0],
 			],
 		});
-		const van = s().addEntity({ kind: "van", follow: { roadId: id } });
+		const van = s().addEntity({ kind: "delivery_van_01", follow: { roadId: id } });
 		s().insertRoadPoint(id, 1, [5, 2, 0]);
 		s().moveRoadPoint(id, 1, [5.25, 3]);
 		expect(s().scene.roads[0].points[1]).toEqual([5.25, 3, 0]);
@@ -256,7 +256,7 @@ describe("editor store", () => {
 		const store = makeStore();
 		const s = () => store.getState();
 		const id = straightRoad(s);
-		const van = s().addEntity({ kind: "van", follow: { roadId: id } });
+		const van = s().addEntity({ kind: "delivery_van_01", follow: { roadId: id } });
 		const second = s().splitRoad(id, 2);
 		const [a, b] = s().scene.roads;
 		expect(a.id).toBe(id);
@@ -305,7 +305,7 @@ describe("editor store", () => {
 				[5, 0],
 			],
 		});
-		const van = s().addEntity({ kind: "van", follow: { roadId: b } });
+		const van = s().addEntity({ kind: "delivery_van_01", follow: { roadId: b } });
 		s().joinRoads(a, "end", b, "end");
 		expect(s().scene.roads).toHaveLength(1);
 		expect(s().scene.roads[0].points.map((p) => p[0])).toEqual([0, 5, 10]);
@@ -355,19 +355,19 @@ describe("editor store", () => {
 	it("draws an area from three or more corners and selects it", () => {
 		const store = makeStore();
 		const s = () => store.getState();
-		s().startAreaDrawing("water");
+		s().startAreaDrawing("water_01");
 		s().addDrawingPoint([0, 0]);
 		s().addDrawingPoint([4, 0]);
 		expect(s().finishDrawing()).toBeNull(); // two corners aren't an area
 		expect(s().scene.areas).toHaveLength(0);
 
-		s().startAreaDrawing("land");
+		s().startAreaDrawing("raised_land_01");
 		s().addDrawingPoint([0, 0]);
 		s().addDrawingPoint([4, 0]);
 		s().addDrawingPoint([4, 4]);
 		const id = s().finishDrawing();
 		const area = s().scene.areas.find((a) => a.id === id);
-		expect(area).toMatchObject({ type: "land", name: "Raised land 1", height: 1.5 });
+		expect(area).toMatchObject({ type: "raised_land_01", name: "Raised land 1", height: 1.5 });
 		expect(area?.points).toEqual([
 			[0, 0],
 			[4, 0],
@@ -482,7 +482,7 @@ describe("editor store", () => {
 		});
 		const id = store
 			.getState()
-			.addEntity({ kind: "van", position: [4, -0.5], elevation: 0.2, rotation: 180 });
+			.addEntity({ kind: "delivery_van_01", position: [4, -0.5], elevation: 0.2, rotation: 180 });
 		store
 			.getState()
 			.setFollowOffer({ entityId: id, roadId, offset: 4, reverse: true, position: [4, -0.5] });

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { Box, RBox, Wheel } from "../primitives";
 import { definePart } from "../types";
 
-export const van = definePart({
-	kind: "van",
+export const deliveryVan01 = definePart({
+	kind: "delivery_van_01",
 	name: "Delivery van",
 	category: "vehicles",
 	description: "Small van; can drive along a route",

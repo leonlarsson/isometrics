@@ -7,7 +7,7 @@ import {
 	type TTransformMode,
 	useEditor,
 } from "#/editor/store";
-import { getPart } from "#/parts/registry";
+import { partNameOf } from "#/parts/registry";
 
 import { Button } from "./Button";
 import { roadName, useRouteHint } from "./FollowOfferBar";
@@ -103,7 +103,7 @@ const TransformControls = () => {
 		return null;
 	}
 
-	const what = entity ? entity.name || getPart(entity.kind)?.name || "object" : "road point";
+	const what = entity ? entity.name || partNameOf(entity.kind) || "object" : "road point";
 	const how = transform.axis ? ` ${AXIS_LABELS[transform.axis]}` : "";
 	const value = typed ? `${typed}${UNITS[transform.mode]}` : null;
 	// A vehicle moved over a road snaps onto it (see render/routeDrop).

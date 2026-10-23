@@ -4,9 +4,11 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadColor } from "#/render/RoadMesh";
 import {
+	isHiddenRoute,
 	pointWidth,
 	polylineLength,
 	ROAD_STYLE_LABELS,
+	ROAD_STYLES,
 	roadCenterlineOf,
 	TURNS_LABELS,
 	TURNS_OPTIONS,
@@ -101,7 +103,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					}
 				/>
 
-				{road.style !== "hidden" && (
+				{!isHiddenRoute(road.style) && (
 					<SelectField<TRoadLane>
 						label="Vehicles drive"
 						value={road.lane}
@@ -195,7 +197,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 				</Hint>
 			</Section>
 
-			{road.style !== "hidden" && (
+			{!isHiddenRoute(road.style) && (
 				<Section title="Elevated sections">
 					{elevated ? (
 						<>
@@ -300,7 +302,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 				</Section>
 			)}
 
-			{road.style !== "hidden" && (
+			{!isHiddenRoute(road.style) && (
 				<Section title="Look">
 					<ColorField
 						label="Surface"
@@ -320,7 +322,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						}}
 					/>
 
-					{road.style === "asphalt" && (
+					{ROAD_STYLES[road.style].centreLine && (
 						<SwitchField
 							label="Centre line"
 							checked={road.markings}

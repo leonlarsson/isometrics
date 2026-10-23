@@ -14,8 +14,8 @@ const TowerSchema = z.object({
 	floors: z.number().int().min(1).max(40).default(9),
 });
 
-export const tower = definePart({
-	kind: "tower",
+export const officeTower01 = definePart({
+	kind: "office_tower_01",
 	name: "Office tower",
 	category: "buildings",
 	description: "Multi-storey building with a window grid",

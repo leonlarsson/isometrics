@@ -2,7 +2,7 @@ import type { Draft } from "immer";
 
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { getPart, resolveColors, resolveProps } from "#/parts/registry";
+import { getPart, partName, resolveColors, resolveProps } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
@@ -162,7 +162,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 	return (
 		<>
 			<Section
-				title={part.name}
+				title={partName(part)}
 				actions={
 					<IconButtonGroup>
 						<IconButton
@@ -189,7 +189,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				<TextField
 					label="Name"
 					value={entity.name}
-					placeholder={part.name}
+					placeholder={partName(part)}
 					onChange={(v) =>
 						edit("name", (e) => {
 							e.name = v;
@@ -346,7 +346,7 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						<TextField
 							label="Title"
 							value={entity.label.title}
-							placeholder={entity.name || part.name}
+							placeholder={entity.name || partName(part)}
 							onChange={(v) =>
 								edit("label.title", (e) => {
 									if (e.label) {

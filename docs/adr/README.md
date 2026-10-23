@@ -53,3 +53,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0047](0047-new-world-dialog.md) | File → New world is a dialog: a blank world with settings, or a starter with a rendered picture | accepted |
 | [0048](0048-label-collision-avoidance.md) | Label cards step aside for each other and for the UI, and shrink to chips where there's no room | accepted |
 | [0049](0049-larger-grounds.md) | Grounds up to 500 per side: the sun's shadows follow the view, and the camera and grid scale with the ground | accepted |
+| [0050](0050-numbered-variants.md) | Parts, road styles and area types have numbered ids, so each can have variants | accepted |

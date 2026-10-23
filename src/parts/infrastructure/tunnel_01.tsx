@@ -19,8 +19,8 @@ const WALL = 0.35;
  * optional building on top. Place it over a road (its length runs along X;
  * rotate to match). Stands in for real tunnels until terrain exists.
  */
-export const tunnel = definePart({
-	kind: "tunnel",
+export const tunnel01 = definePart({
+	kind: "tunnel_01",
 	name: "Tunnel",
 	category: "infrastructure",
 	description: "Covered road section, open at both ends; place it over a road",

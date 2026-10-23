@@ -9,10 +9,11 @@ const ZoneSchema = z.object({
 	shape: z.enum(["rect", "circle"]).default("rect"),
 });
 
-export const zone = definePart({
-	kind: "zone",
+export const zone01 = definePart({
+	kind: "zone_01",
 	name: "Zone",
 	category: "infrastructure",
+	flat: true,
 	description: "Flat coloured area: parking, lawn, water, plaza",
 	keywords: ["area", "parking", "marker", "region"],
 	schema: ZoneSchema,

@@ -1,4 +1,4 @@
-import type { TAreaType, TThemePreference } from "./schema";
+import type { TThemePreference } from "./schema";
 
 export type TResolvedTheme = "light" | "dark";
 
@@ -26,7 +26,7 @@ export interface IScenePalette {
 	railing: string;
 	embankment: string;
 	/** Default colours per area type (see AreaTypeSchema). */
-	areas: Record<TAreaType, string>;
+	areas: { water: string; grass: string; sand: string; plaza: string; land: string };
 	/** Cliff sides of raised areas. */
 	cliff: string;
 	cardboard: string;

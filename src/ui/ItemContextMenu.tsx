@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
 import { useEditor } from "#/editor/store";
-import { getPart } from "#/parts/registry";
+import { getPart, partNameOf } from "#/parts/registry";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TArea, TEntity, TRoad } from "#/scene/schema";
@@ -154,7 +154,7 @@ const useItem = (item: ISceneItem | undefined) =>
 /** What an item is called without a name: its part, road style or area type. */
 const kindName = (item: ISceneItem, thing: TEntity | TRoad | TArea) =>
 	item.kind === "entity"
-		? (getPart((thing as TEntity).kind)?.name ?? (thing as TEntity).kind)
+		? (partNameOf((thing as TEntity).kind) ?? (thing as TEntity).kind)
 		: item.kind === "road"
 			? ROAD_STYLE_LABELS[(thing as TRoad).style]
 			: AREA_TYPE_LABELS[(thing as TArea).type];

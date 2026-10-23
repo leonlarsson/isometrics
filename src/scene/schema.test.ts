@@ -14,7 +14,7 @@ describe("SceneSchema", () => {
 	});
 
 	it("fills entity defaults", () => {
-		const scene = SceneSchema.parse({ version: 1, entities: [{ id: "a", kind: "house" }] });
+		const scene = SceneSchema.parse({ version: 1, entities: [{ id: "a", kind: "house_01" }] });
 		expect(scene.entities[0]).toMatchObject({
 			position: [0, 0],
 			rotation: 0,
@@ -30,8 +30,8 @@ describe("SceneSchema", () => {
 		const result = SceneSchema.safeParse({
 			version: 1,
 			entities: [
-				{ id: "a", kind: "house" },
-				{ id: "a", kind: "tree" },
+				{ id: "a", kind: "house_01" },
+				{ id: "a", kind: "round_tree_01" },
 			],
 		});
 		expect(result.success).toBe(false);
@@ -40,7 +40,7 @@ describe("SceneSchema", () => {
 	it("rejects invalid colours", () => {
 		const result = SceneSchema.safeParse({
 			version: 1,
-			entities: [{ id: "a", kind: "house", color: "red" }],
+			entities: [{ id: "a", kind: "house_01", color: "red" }],
 		});
 		expect(result.success).toBe(false);
 	});

@@ -39,7 +39,7 @@ const AREAS: TAreaInput[] = [
 		// One water area for the river and the bay, so they meet without a seam.
 		id: "water",
 		name: "River Bright and the bay",
-		type: "water",
+		type: "water_01",
 		points: [
 			// North edge, where the river enters
 			[5.2, -24],
@@ -78,7 +78,7 @@ const AREAS: TAreaInput[] = [
 		// Shares its sea edge and east end with the water's outline.
 		id: "beach",
 		name: "Long Beach",
-		type: "sand",
+		type: "sand_01",
 		points: [
 			[-8, 24],
 			[-10.6, 24],
@@ -97,7 +97,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "hill",
 		name: "Lookout Hill",
-		type: "land",
+		type: "raised_land_01",
 		height: HILL,
 		points: [
 			[-30, -24],
@@ -113,7 +113,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "civic_square",
 		name: "Civic Square",
-		type: "plaza",
+		type: "plaza_01",
 		points: [
 			[-20.6, -10.4],
 			[-1.4, -10.4],
@@ -124,7 +124,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "park",
 		name: "Riverside Park",
-		type: "grass",
+		type: "grass_01",
 		points: [
 			[-20.6, -0.6],
 			[-11, -0.6],
@@ -139,7 +139,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "pond",
 		name: "Duck pond",
-		type: "water",
+		type: "water_01",
 		points: [
 			[-18.4, 3.2],
 			[-17.2, 1.6],
@@ -153,7 +153,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "pitch",
 		name: "Stadium pitch",
-		type: "grass",
+		type: "grass_01",
 		color: "#7cc46a",
 		points: [
 			[-26, 14.4],
@@ -165,7 +165,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "logistics_yard",
 		name: "Logistics yard",
-		type: "plaza",
+		type: "plaza_01",
 		points: [
 			[12.6, -17],
 			[29, -17],
@@ -177,7 +177,7 @@ const AREAS: TAreaInput[] = [
 		// Runs along the river's east bank and the marina's edge of the water.
 		id: "quay",
 		name: "Marina quay",
-		type: "plaza",
+		type: "plaza_01",
 		points: [
 			[10.5, 1.5],
 			[30, 1.4],
@@ -199,7 +199,7 @@ const ROADS: TRoadInput[] = [
 	{
 		id: RING_ID,
 		name: "Ring road",
-		style: "asphalt",
+		style: "road_01",
 		closed: true,
 		cornerRadius: 4,
 		points: [
@@ -214,7 +214,7 @@ const ROADS: TRoadInput[] = [
 		// harbour gate (a tunnel) and widens into a turning area on the quay.
 		id: BRIDGE_ID,
 		name: "Harbour road",
-		style: "asphalt",
+		style: "road_01",
 		cornerRadius: 2,
 		points: [
 			[1.2, -1],
@@ -229,7 +229,7 @@ const ROADS: TRoadInput[] = [
 		// Climbs from Civic Square over the ring road on pillars, then onto the hill.
 		id: HILL_ROAD_ID,
 		name: "Hill road",
-		style: "asphalt",
+		style: "road_01",
 		cornerRadius: 4,
 		points: [
 			[-11, -3],
@@ -242,7 +242,7 @@ const ROADS: TRoadInput[] = [
 		// Walking trail up the west flank of the hill, on an earth bank.
 		id: "hill_trail",
 		name: "Hill trail",
-		style: "dirt",
+		style: "dirt_path_01",
 		width: 1.2,
 		cornerRadius: 3,
 		supports: "embankment",
@@ -258,7 +258,7 @@ const ROADS: TRoadInput[] = [
 	{
 		id: "beach_road",
 		name: "Beach road",
-		style: "asphalt",
+		style: "road_01",
 		width: 2,
 		cornerRadius: 3,
 		points: [
@@ -271,7 +271,7 @@ const ROADS: TRoadInput[] = [
 		// Invisible route across the bay for the ferry.
 		id: FERRY_ID,
 		name: "Ferry route",
-		style: "hidden",
+		style: "hidden_route_01",
 		closed: true,
 		cornerRadius: 6,
 		// A loop round the bay.
@@ -299,7 +299,7 @@ const ROADS: TRoadInput[] = [
 const towers: TEntityInput[] = [
 	{
 		id: "tower_meridian",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "Meridian Tower",
 		position: [-18.8, -8],
 		props: { width: 3.4, depth: 3.4, floors: 16 },
@@ -307,7 +307,7 @@ const towers: TEntityInput[] = [
 	},
 	{
 		id: "tower_north",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "Northgate offices",
 		position: [-3.6, -8.4],
 		color: "#4a64e0",
@@ -315,7 +315,7 @@ const towers: TEntityInput[] = [
 	},
 	{
 		id: "tower_square",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "Square apartments",
 		position: [-3.6, -3.8],
 		color: "#8a5cf0",
@@ -323,7 +323,7 @@ const towers: TEntityInput[] = [
 	},
 	{
 		id: "tower_park",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "Parkside residences",
 		position: [-4.2, 2.6],
 		color: "#e8b83a",
@@ -331,7 +331,7 @@ const towers: TEntityInput[] = [
 	},
 	{
 		id: "tower_low",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "Library",
 		position: [-7.6, 6.8],
 		color: "#f07b4f",
@@ -342,7 +342,7 @@ const towers: TEntityInput[] = [
 const hillHouses: TEntityInput[] = ["#f07b4f", "#4a64e0", "#3cbf9a", "#e8b83a", "#8a5cf0"].map(
 	(color, i) => ({
 		id: `hill_house_${i}`,
-		kind: "house",
+		kind: "house_01",
 		name: `Hill house ${i + 1}`,
 		position: [-24 + i * 4, -21] as TVec2,
 		elevation: HILL,
@@ -357,7 +357,7 @@ const beachHouses: TEntityInput[] = [
 	[-12.2, 18.2],
 ].map(([x, z], i) => ({
 	id: `beach_house_${i}`,
-	kind: "house",
+	kind: "house_01",
 	name: `Beach house ${i + 1}`,
 	position: [x, z] as TVec2,
 	rotation: 90,
@@ -367,7 +367,7 @@ const beachHouses: TEntityInput[] = [
 const stadium: TEntityInput[] = [
 	{
 		id: "stand_main",
-		kind: "grandstand",
+		kind: "grandstand_01",
 		name: "Main stand",
 		position: [-21, 13.2],
 		props: { length: 10, rows: 4 },
@@ -383,7 +383,7 @@ const stadium: TEntityInput[] = [
 	},
 	{
 		id: "stand_south",
-		kind: "grandstand",
+		kind: "grandstand_01",
 		name: "South stand",
 		position: [-21, 21.2],
 		rotation: 180,
@@ -391,7 +391,7 @@ const stadium: TEntityInput[] = [
 	},
 	{
 		id: "stand_west",
-		kind: "grandstand",
+		kind: "grandstand_01",
 		name: "West stand",
 		position: [-27.2, 17.2],
 		rotation: 90,
@@ -399,7 +399,7 @@ const stadium: TEntityInput[] = [
 	},
 	{
 		id: "stand_east",
-		kind: "grandstand",
+		kind: "grandstand_01",
 		name: "East stand",
 		position: [-14.8, 17.2],
 		rotation: -90,
@@ -410,7 +410,7 @@ const stadium: TEntityInput[] = [
 const logistics: TEntityInput[] = [
 	{
 		id: "distribution_centre",
-		kind: "warehouse",
+		kind: "warehouse_01",
 		name: "Distribution centre",
 		position: [19, -11],
 		props: { width: 10, depth: 6, height: 3, doors: 4 },
@@ -427,7 +427,7 @@ const logistics: TEntityInput[] = [
 	},
 	{
 		id: "truck_depot",
-		kind: "shed",
+		kind: "depot_01",
 		name: "Truck depot",
 		position: [27, -12],
 		rotation: -90,
@@ -435,16 +435,16 @@ const logistics: TEntityInput[] = [
 	},
 	{
 		id: "loading_dock",
-		kind: "beacon",
+		kind: "beacon_01",
 		name: "Loading dock",
 		position: [19, -6.4],
 		props: { radius: 1.1 },
 	},
-	{ id: "parcels_a", kind: "parcels", position: [15.6, -6.4], props: { count: 8 } },
-	{ id: "parcels_b", kind: "parcels", position: [22.4, -6], props: { count: 5 } },
+	{ id: "parcels_a", kind: "parcel_stack_01", position: [15.6, -6.4], props: { count: 8 } },
+	{ id: "parcels_b", kind: "parcel_stack_01", position: [22.4, -6], props: { count: 5 } },
 	...[-7.4, -5.2].map((z, i) => ({
 		id: `parked_truck_${i}`,
-		kind: "truck",
+		kind: "truck_01",
 		name: `Parked truck ${i + 1}`,
 		position: [26.8, z] as TVec2,
 	})),
@@ -453,14 +453,14 @@ const logistics: TEntityInput[] = [
 const harbour: TEntityInput[] = [
 	{
 		id: "harbour_gate",
-		kind: "tunnel",
+		kind: "tunnel_01",
 		name: "Harbour gate",
 		position: [20, -1],
 		props: { length: 4, width: 3, height: 1.5, building: 1 },
 	},
 	{
 		id: "harbour_office",
-		kind: "shed",
+		kind: "depot_01",
 		name: "Harbour office",
 		position: [19, 3.6],
 		props: { width: 3.6, depth: 2.4, height: 1.6, garageDoor: false },
@@ -476,7 +476,7 @@ const harbour: TEntityInput[] = [
 	},
 	...[21.2, 23.6, 26, 28.4].map((x, i) => ({
 		id: `moored_yacht_${i}`,
-		kind: "yacht",
+		kind: "yacht_01",
 		name: `Moored yacht ${i + 1}`,
 		position: [x, 8.6] as TVec2,
 		rotation: -90,
@@ -488,7 +488,7 @@ const harbour: TEntityInput[] = [
 		[19.5, 16.5, -20],
 	].map(([x, z, rotation], i) => ({
 		id: `anchored_yacht_${i}`,
-		kind: "yacht",
+		kind: "yacht_01",
 		name: `Anchored yacht ${i + 1}`,
 		position: [x, z] as TVec2,
 		rotation,
@@ -496,7 +496,7 @@ const harbour: TEntityInput[] = [
 	})),
 	{
 		id: "ferry",
-		kind: "yacht",
+		kind: "yacht_01",
 		name: "Bay ferry",
 		color: "#ffffff",
 		accent: "#4a64e0",
@@ -514,7 +514,7 @@ const harbour: TEntityInput[] = [
 	},
 	{
 		id: "beach_cafe",
-		kind: "shed",
+		kind: "depot_01",
 		name: "Beach café",
 		position: [2, 17],
 		rotation: -12,
@@ -526,7 +526,7 @@ const harbour: TEntityInput[] = [
 const traffic: TEntityInput[] = [
 	{
 		id: "ring_car_1",
-		kind: "car",
+		kind: "car_01",
 		name: "City car",
 		color: "#e05a4a",
 		follow: { roadId: RING_ID, speed: 3.2, offset: 6 },
@@ -542,44 +542,44 @@ const traffic: TEntityInput[] = [
 	},
 	{
 		id: "ring_car_2",
-		kind: "car",
+		kind: "car_01",
 		name: "Taxi",
 		color: "#e8b83a",
 		follow: { roadId: RING_ID, speed: 3, offset: 34 },
 	},
 	{
 		id: "ring_van",
-		kind: "van",
+		kind: "delivery_van_01",
 		name: "Delivery van",
 		follow: { roadId: RING_ID, speed: 2.6, offset: 60 },
 	},
 	{
 		id: "harbour_truck",
-		kind: "truck",
+		kind: "truck_01",
 		name: "Harbour truck",
 		follow: { roadId: BRIDGE_ID, speed: 2.4, offset: 13 },
 	},
 	{
 		id: "harbour_van",
-		kind: "van",
+		kind: "delivery_van_01",
 		name: "Parcel van",
 		accent: "#3cbf9a",
 		follow: { roadId: BRIDGE_ID, speed: 2.8, offset: 23 },
 	},
 	{
 		id: "hill_car",
-		kind: "car",
+		kind: "car_01",
 		name: "Hill car",
 		color: "#4a64e0",
 		follow: { roadId: HILL_ROAD_ID, speed: 2.6, offset: 24 },
 	},
-	{ id: "beach_car", kind: "car", name: "Parked car", position: [3, 11.2], rotation: 170 },
+	{ id: "beach_car", kind: "car_01", name: "Parked car", position: [3, 11.2], rotation: 170 },
 ];
 
 const civic: TEntityInput[] = [
 	{
 		id: "city_hall",
-		kind: "tower",
+		kind: "office_tower_01",
 		name: "City hall",
 		position: [-14.4, -6.8],
 		// Turned so its long side runs north–south, leaving room for Meridian Tower.
@@ -599,12 +599,12 @@ const civic: TEntityInput[] = [
 	},
 	...[-18.4, -14.6, -7.4].map((x, i) => ({
 		id: `square_lamp_${i}`,
-		kind: "lamp",
+		kind: "street_lamp_01",
 		position: [x, -3.4] as TVec2,
 	})),
 	{
 		id: "park_oak",
-		kind: "tree",
+		kind: "round_tree_01",
 		name: "Old oak",
 		position: [-12.6, 6.6],
 		props: { size: 1.6 },
@@ -660,20 +660,20 @@ const PINES: [number, number, number, number][] = [
 const nature: TEntityInput[] = [
 	...TREES.map(([x, z, size], i) => ({
 		id: `tree_${i}`,
-		kind: "tree",
+		kind: "round_tree_01",
 		position: [x, z] as TVec2,
 		props: { size },
 	})),
 	...PINES.map(([x, z, size, elevation], i) => ({
 		id: `pine_${i}`,
-		kind: "pine",
+		kind: "pine_tree_01",
 		position: [x, z] as TVec2,
 		elevation,
 		props: { size },
 	})),
 	{
 		id: "lookout",
-		kind: "beacon",
+		kind: "beacon_01",
 		name: "Lookout point",
 		position: [-5.6, -21.2],
 		elevation: HILL,

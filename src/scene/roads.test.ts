@@ -146,10 +146,10 @@ describe("dashPolyline", () => {
 
 describe("lanes", () => {
 	it("drives on the right or left, and down the centre of hidden or centre-lane roads", () => {
-		expect(laneOffset({ width: 2, style: "asphalt", lane: "side" }, "right")).toBeGreaterThan(0);
-		expect(laneOffset({ width: 2, style: "asphalt", lane: "side" }, "left")).toBeLessThan(0);
-		expect(laneOffset({ width: 2, style: "hidden", lane: "side" }, "right")).toBe(0);
-		expect(laneOffset({ width: 2, style: "asphalt", lane: "centre" }, "right")).toBe(0);
+		expect(laneOffset({ width: 2, style: "road_01", lane: "side" }, "right")).toBeGreaterThan(0);
+		expect(laneOffset({ width: 2, style: "road_01", lane: "side" }, "left")).toBeLessThan(0);
+		expect(laneOffset({ width: 2, style: "hidden_route_01", lane: "side" }, "right")).toBe(0);
+		expect(laneOffset({ width: 2, style: "road_01", lane: "centre" }, "right")).toBe(0);
 	});
 
 	it("puts opposite directions on opposite sides", () => {
@@ -602,13 +602,13 @@ describe("road width per point", () => {
 
 describe("widthForStyle", () => {
 	it("adopts the new style's default when the width is still the old default", () => {
-		expect(widthForStyle(ROAD_STYLE_WIDTH.hidden, "hidden", "asphalt")).toBe(
-			ROAD_STYLE_WIDTH.asphalt,
+		expect(widthForStyle(ROAD_STYLE_WIDTH.hidden_route_01, "hidden_route_01", "road_01")).toBe(
+			ROAD_STYLE_WIDTH.road_01,
 		);
 	});
 
 	it("keeps a custom width", () => {
-		expect(widthForStyle(5, "hidden", "asphalt")).toBe(5);
+		expect(widthForStyle(5, "hidden_route_01", "road_01")).toBe(5);
 	});
 });
 

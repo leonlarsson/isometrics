@@ -1,6 +1,6 @@
 import { spotOnGrid, useEditor } from "#/editor/store";
 import { round } from "#/lib/math";
-import { partsByCategory } from "#/parts/registry";
+import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
@@ -55,7 +55,7 @@ export const GroundContextMenu = () => {
 						{parts.map((part) => (
 							<Menu.Item
 								key={part.kind}
-								label={part.name}
+								label={partName(part)}
 								onClick={() => store().addEntity({ kind: part.kind, name: "", position: spot() })}
 							/>
 						))}

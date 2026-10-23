@@ -6,8 +6,8 @@ import { definePart } from "../types";
 /** Modelled at 2 units long; shown about 1.2× a road car's length, like a real F1 car. */
 const CAR_SCALE = 0.75;
 
-export const raceCar = definePart({
-	kind: "raceCar",
+export const raceCar01 = definePart({
+	kind: "race_car_01",
 	name: "Race car",
 	category: "vehicles",
 	description: "Open-wheel race car; can drive along a road",

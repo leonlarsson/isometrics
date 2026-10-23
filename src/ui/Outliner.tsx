@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ISceneItem } from "#/editor/framing";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { getPart, partsByCategory, resolveColors } from "#/parts/registry";
+import { getPart, partName, partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { formatEntry } from "#/scene/format";
@@ -55,7 +55,7 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 				item: { kind: "entity", id: entity.id },
 				group: part ? CATEGORY_LABELS[part.category] : OTHER,
 				name: entity.name,
-				fallback: part?.name ?? entity.kind,
+				fallback: part ? partName(part) : entity.kind,
 				swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,
 				hidden: entity.hidden,
 				locked: entity.locked,

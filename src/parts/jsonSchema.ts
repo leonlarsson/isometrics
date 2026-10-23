@@ -2,10 +2,17 @@ import { z } from "zod";
 
 import { APP_NAME } from "#/lib/app";
 import { sceneJsonSchema } from "#/scene/jsonSchema";
+import { isHiddenRoute, ROAD_STYLES } from "#/scene/roads";
+import type { TRoadStyle } from "#/scene/schema";
 
-import { PARTS, type TAnyPart } from "./registry";
+import { PARTS, partName, type TAnyPart } from "./registry";
 
 type TJsonSchema = Record<string, unknown> & { properties?: Record<string, TJsonSchema> };
+
+const HIDDEN_STYLES = (Object.keys(ROAD_STYLES) as TRoadStyle[])
+	.filter(isHiddenRoute)
+	.map((style) => `"${style}"`)
+	.join(", ");
 
 /**
  * How to build a world, for people and AIs writing scene files by hand. The
@@ -17,7 +24,7 @@ Coordinates: the ground is a flat slab centred on the origin, ground.width along
 
 Entities: kind picks the part; each kind's description says what it is and how big it is, and props takes that kind's parameters. Leave color and accent null to use the theme's colours. scale resizes the whole part.
 
-Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. closed: true makes a loop. Style "hidden" is an invisible route, e.g. a ferry line across water. A vehicle part drives along a road with follow: { roadId, speed, offset, reverse }; offset is the distance from the road's first point where it starts, and reverse drives it the other way (in the other lane).
+Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. closed: true makes a loop. Styles ${HIDDEN_STYLES} are invisible routes, e.g. a ferry line across water. A vehicle part drives along a road with follow: { roadId, speed, offset, reverse }; offset is the distance from the road's first point where it starts, and reverse drives it the other way (in the other lane).
 
 Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land with a height).
 
@@ -48,7 +55,7 @@ const describePart = (part: TAnyPart) => {
 	const props = part.schema.parse({});
 	const [width, depth] = part.footprint(props);
 	return [
-		`${part.name}: ${part.description}.`,
+		`${partName(part)}: ${part.description}.`,
 		`About ${round(width)} × ${round(depth)} grid units (x × z) and ${round(part.height(props))} tall at scale 1 with default props.`,
 		`color paints the ${(part.colorLabel ?? "body").toLowerCase()}, accent the ${(part.accentLabel ?? "details").toLowerCase()}.`,
 		part.canFollowPath ? "Can drive along a road (follow)." : "",
@@ -72,7 +79,7 @@ export const worldJsonSchema = () => {
 		description: "Which part this is.",
 		oneOf: PARTS.map((part) => ({
 			const: part.kind,
-			title: part.name,
+			title: partName(part),
 			description: describePart(part),
 		})),
 	};

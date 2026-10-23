@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { getPart } from "#/parts/registry";
+import { partNameOf } from "#/parts/registry";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
@@ -84,7 +84,7 @@ export const FollowOfferBar = () => {
 	) {
 		return null;
 	}
-	const vehicle = entity.name || getPart(entity.kind)?.name.toLowerCase() || "vehicle";
+	const vehicle = entity.name || partNameOf(entity.kind)?.toLowerCase() || "vehicle";
 
 	return (
 		<div className={styles.bar} data-label-obstacle="" role="status">

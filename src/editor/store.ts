@@ -4,7 +4,7 @@ import { create } from "zustand";
 
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
-import { AREA_TYPE_HEIGHT, AREA_TYPE_LABELS } from "#/scene/areas";
+import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
 import {
 	joinedPoints,
 	pointWidth,
@@ -1032,7 +1032,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 		startDrawing: (style) =>
 			set({
-				drawing: { target: "road", style, areaType: "grass", points: [] },
+				drawing: { target: "road", style, areaType: "grass_01", points: [] },
 				...NOTHING_SELECTED,
 				joinOffer: null,
 				followOffer: null,
@@ -1040,7 +1040,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 		startAreaDrawing: (areaType) =>
 			set({
-				drawing: { target: "area", style: "asphalt", areaType, points: [] },
+				drawing: { target: "area", style: "road_01", areaType, points: [] },
 				...NOTHING_SELECTED,
 				joinOffer: null,
 				followOffer: null,
@@ -1054,7 +1054,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			// Orient the points so new ones are added after the chosen end.
 			const points = end === "end" ? [...road.points] : [...road.points].reverse();
 			set({
-				drawing: { target: "road", style: road.style, areaType: "grass", points, roadId },
+				drawing: { target: "road", style: road.style, areaType: "grass_01", points, roadId },
 				...NOTHING_SELECTED,
 				joinOffer: null,
 				followOffer: null,
@@ -1156,7 +1156,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					name: `${AREA_TYPE_LABELS[drawing.areaType]} ${count + 1}`,
 					type: drawing.areaType,
 					points: drawing.points.map(([x, z]) => [x, z]),
-					height: AREA_TYPE_HEIGHT[drawing.areaType],
+					height: AREA_TYPES[drawing.areaType].startHeight,
 				});
 			}
 			const closed = Boolean(options.closed) && drawing.points.length > 2;

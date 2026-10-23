@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { getPart, resolveProps } from "#/parts/registry";
+import { getPart, partName, resolveProps } from "#/parts/registry";
 import { PartPreviewModel } from "#/render/PartPreviewModel";
 
 import styles from "./PartPreview.module.css";
@@ -60,7 +60,7 @@ export const PartPreview = ({ kind, anchor }: { kind: string; anchor: IPreviewAn
 			</div>
 
 			<div className={styles.text}>
-				<strong className={styles.name}>{part.name}</strong>
+				<strong className={styles.name}>{partName(part)}</strong>
 
 				<span>{part.description}.</span>
 

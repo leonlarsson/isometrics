@@ -3,7 +3,7 @@ import { memo } from "react";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
-import { getPart, resolveLabelColor } from "#/parts/registry";
+import { getPart, partNameOf, resolveLabelColor } from "#/parts/registry";
 import { openContextMenuUnlessDragged } from "#/render/contextMenu";
 import {
 	cardEventHandover,
@@ -97,7 +97,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 		key,
 		entry: data.find((d) => d.key === key),
 	}));
-	const title = entity.label.title || entity.name || getPart(entity.kind)?.name || "";
+	const title = entity.label.title || entity.name || partNameOf(entity.kind) || "";
 	// The chip shows the main value, or the title when there's no data.
 	const main = entries.length > 0 ? formatEntry(entries[0].entry) : title;
 	const handlers = {

@@ -1,52 +1,63 @@
 import type { TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
+import { variantName } from "#/scene/variants";
 
-import { grandstand } from "./buildings/grandstand";
-import { house } from "./buildings/house";
-import { shed } from "./buildings/shed";
-import { tower } from "./buildings/tower";
-import { warehouse } from "./buildings/warehouse";
-import { lamp } from "./infrastructure/lamp";
-import { parcels } from "./infrastructure/parcels";
-import { tunnel } from "./infrastructure/tunnel";
-import { zone } from "./infrastructure/zone";
-import { beacon } from "./markers/beacon";
-import { text } from "./markers/text";
-import { pine } from "./nature/pine";
-import { tree } from "./nature/tree";
+import { depot01 } from "./buildings/depot_01";
+import { grandstand01 } from "./buildings/grandstand_01";
+import { house01 } from "./buildings/house_01";
+import { officeTower01 } from "./buildings/office_tower_01";
+import { warehouse01 } from "./buildings/warehouse_01";
+import { parcelStack01 } from "./infrastructure/parcel_stack_01";
+import { streetLamp01 } from "./infrastructure/street_lamp_01";
+import { tunnel01 } from "./infrastructure/tunnel_01";
+import { zone01 } from "./infrastructure/zone_01";
+import { beacon01 } from "./markers/beacon_01";
+import { text01 } from "./markers/text_01";
+import { pineTree01 } from "./nature/pine_tree_01";
+import { roundTree01 } from "./nature/round_tree_01";
 import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
-import { car } from "./vehicles/car";
-import { raceCar } from "./vehicles/raceCar";
-import { truck } from "./vehicles/truck";
-import { van } from "./vehicles/van";
-import { yacht } from "./vehicles/yacht";
+import { car01 } from "./vehicles/car_01";
+import { deliveryVan01 } from "./vehicles/delivery_van_01";
+import { raceCar01 } from "./vehicles/race_car_01";
+import { truck01 } from "./vehicles/truck_01";
+import { yacht01 } from "./vehicles/yacht_01";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; props are validated per part at runtime
 export type TAnyPart = IPartDefinition<any>;
 
 /** Order here is the order shown in the parts palette. */
 export const PARTS: TAnyPart[] = [
-	warehouse,
-	tower,
-	house,
-	shed,
-	grandstand,
-	van,
-	truck,
-	car,
-	raceCar,
-	yacht,
-	tree,
-	pine,
-	zone,
-	tunnel,
-	lamp,
-	parcels,
-	beacon,
-	text,
+	warehouse01,
+	officeTower01,
+	house01,
+	depot01,
+	grandstand01,
+	deliveryVan01,
+	truck01,
+	car01,
+	raceCar01,
+	yacht01,
+	roundTree01,
+	pineTree01,
+	zone01,
+	tunnel01,
+	streetLamp01,
+	parcelStack01,
+	beacon01,
+	text01,
 ];
 
 const byKind = new Map(PARTS.map((part) => [part.kind, part]));
+const KINDS = PARTS.map((part) => part.kind);
+
+/** What to call a part: "Office tower", or "Office tower 2" once its family has several variants. */
+export const partName = (part: TAnyPart) => variantName(part.kind, part.name, KINDS);
+
+/** The same for a kind; undefined if no part has it. */
+export const partNameOf = (kind: string) => {
+	const part = byKind.get(kind);
+	return part ? partName(part) : undefined;
+};
 
 export const getPart = (kind: string): TAnyPart | undefined => {
 	return byKind.get(kind);

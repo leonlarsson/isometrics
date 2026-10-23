@@ -58,7 +58,7 @@ describe("findRouteDrop", () => {
 	});
 
 	it("picks the direction by the half of the road on roads without lanes too", () => {
-		for (const road of [{ lane: "centre" as const }, { style: "hidden" as const }]) {
+		for (const road of [{ lane: "centre" as const }, { style: "hidden_route_01" as const }]) {
 			load(road);
 			const forward = findRouteDrop(down(5, 0.3), { vehicleLength: 1 });
 			expect(forward).toMatchObject({ reverse: false, rotation: 0 });
@@ -125,7 +125,12 @@ describe("createVehicleRouteDrag", () => {
 					},
 				],
 				entities: [
-					{ id: "van", kind: "van", rotation: 0, follow: { roadId: "a", speed: 4, offset: 2 } },
+					{
+						id: "van",
+						kind: "delivery_van_01",
+						rotation: 0,
+						follow: { roadId: "a", speed: 4, offset: 2 },
+					},
 				],
 			}),
 		);
@@ -179,7 +184,7 @@ describe("createVehicleRouteDrag", () => {
 						],
 					},
 				],
-				entities: [{ id: "van", kind: "van" }],
+				entities: [{ id: "van", kind: "delivery_van_01" }],
 			}),
 		);
 		const drag = createVehicleRouteDrag("van");

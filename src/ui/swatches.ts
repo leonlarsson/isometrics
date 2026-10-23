@@ -1,5 +1,6 @@
 import { roadColor } from "#/render/RoadMesh";
 import { areaColor } from "#/scene/areas";
+import { isHiddenRoute } from "#/scene/roads";
 import type { TArea, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -9,7 +10,7 @@ const HIDDEN_ROUTE_SWATCH =
 
 /** The colour chip for a road in lists (CSS background). */
 export const roadSwatch = (road: TRoad, palette: IScenePalette) =>
-	road.style === "hidden" ? HIDDEN_ROUTE_SWATCH : roadColor(road, palette);
+	isHiddenRoute(road.style) ? HIDDEN_ROUTE_SWATCH : roadColor(road, palette);
 
 /** The colour chip for an area in lists. */
 export const areaSwatch = (area: TArea, palette: IScenePalette) => areaColor(area, palette);

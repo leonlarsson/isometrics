@@ -3,8 +3,8 @@ import { definePart } from "../types";
 
 import { TreeSizeSchema, treeSizeFields } from "./treeSize";
 
-export const tree = definePart({
-	kind: "tree",
+export const roundTree01 = definePart({
+	kind: "round_tree_01",
 	name: "Round tree",
 	category: "nature",
 	description: "Leafy tree",

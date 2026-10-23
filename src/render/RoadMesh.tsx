@@ -12,7 +12,9 @@ import {
 	DECK_THICKNESS,
 	dashPolyline,
 	type IWall,
+	isHiddenRoute,
 	pillarPositions,
+	ROAD_STYLES,
 	roadCenterlineOf,
 } from "#/scene/roads";
 import type { TRoad, TRoadPoint } from "#/scene/schema";
@@ -74,7 +76,7 @@ const useDisposable = (geometry: THREE.BufferGeometry) => {
 };
 
 export const roadColor = (road: TRoad, palette: IScenePalette) =>
-	road.color ?? (road.style === "dirt" ? palette.dirt : palette.road);
+	road.color ?? (ROAD_STYLES[road.style].surface === "dirt" ? palette.dirt : palette.road);
 
 /** Height of the road surface above the ground plane for a given layer. */
 export const roadBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
@@ -112,7 +114,7 @@ export const RoadBody = ({
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
 	const groundDepth = ground.depth;
-	const hidden = road.style === "hidden";
+	const hidden = isHiddenRoute(road.style);
 	const y = roadBaseY(layer);
 	const center = useMemo(() => roadCenterlineOf(road), [road]);
 
@@ -192,7 +194,7 @@ export const RoadBody = ({
 				)}
 			</mesh>
 
-			{road.style === "asphalt" && road.markings && (
+			{ROAD_STYLES[road.style].centreLine && road.markings && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
 				</mesh>

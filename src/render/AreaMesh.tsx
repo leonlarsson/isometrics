@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
-import { areaColor } from "#/scene/areas";
+import { AREA_TYPES, areaColor } from "#/scene/areas";
 import type { TArea } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -93,7 +93,7 @@ export const AreaBody = ({ area, layer, palette, selected, handlers = {} }: IAre
 				) : (
 					<meshStandardMaterial
 						color={color}
-						roughness={area.type === "water" ? 0.4 : 0.95}
+						roughness={AREA_TYPES[area.type].roughness}
 						polygonOffset
 						polygonOffsetFactor={-1}
 					/>

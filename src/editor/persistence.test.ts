@@ -83,7 +83,7 @@ describe("loadStoredScene", () => {
 		const old = JSON.stringify({
 			version: 1,
 			meta: { title: "Mine" },
-			entities: [{ kind: "x" }, { id: "a", kind: "house" }], // the first has no id
+			entities: [{ kind: "x" }, { id: "a", kind: "house_01" }], // the first has no id
 		});
 		localStorage.setItem(SINGLE_SAVE_KEY, old);
 		const result = loadStoredScene();

@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { getPart } from "#/parts/registry";
+import { partNameOf } from "#/parts/registry";
 
 import { Button } from "./Button";
 import { Kbd } from "./fields";
@@ -15,7 +15,7 @@ export const CameraFollowBar = () => {
 	if (!follow || !entity) {
 		return null;
 	}
-	const name = entity.name || getPart(entity.kind)?.name || "vehicle";
+	const name = entity.name || partNameOf(entity.kind) || "vehicle";
 	const store = () => useEditor.getState();
 
 	return (

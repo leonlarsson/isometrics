@@ -123,8 +123,8 @@ const TextModel = ({ props: p, color, accent, data, onReady }: IPartRenderProps<
 	);
 };
 
-export const text = definePart({
-	kind: "text",
+export const text01 = definePart({
+	kind: "text_01",
 	name: "Text",
 	category: "markers",
 	description:

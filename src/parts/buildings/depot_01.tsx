@@ -10,8 +10,8 @@ const ShedSchema = z.object({
 	garageDoor: z.boolean().default(true),
 });
 
-export const shed = definePart({
-	kind: "shed",
+export const depot01 = definePart({
+	kind: "depot_01",
 	name: "Depot",
 	category: "buildings",
 	description: "Low flat-roofed building",

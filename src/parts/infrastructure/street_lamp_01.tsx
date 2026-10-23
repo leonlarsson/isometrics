@@ -7,8 +7,8 @@ const LampSchema = z.object({
 	height: z.number().min(0.5).max(6).default(1.6),
 });
 
-export const lamp = definePart({
-	kind: "lamp",
+export const streetLamp01 = definePart({
+	kind: "street_lamp_01",
 	name: "Street lamp",
 	category: "infrastructure",
 	description: "Lamp post",

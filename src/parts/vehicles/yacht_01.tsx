@@ -29,8 +29,8 @@ const hullGeometry = (length: number, width: number, height: number) => {
 const HULL_HEIGHT = 0.42;
 const DECK_HEIGHT = 0.3;
 
-export const yacht = definePart({
-	kind: "yacht",
+export const yacht01 = definePart({
+	kind: "yacht_01",
 	name: "Yacht",
 	category: "vehicles",
 	description: "Motor yacht for harbours and the sea; can cruise along a route",

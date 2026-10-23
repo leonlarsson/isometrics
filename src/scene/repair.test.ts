@@ -27,7 +27,7 @@ describe("parseOrRepairScene", () => {
 			version: 1,
 			roads: [road({ style: "cobblestone", width: 3 })],
 		});
-		expect(scene.roads[0]).toMatchObject({ id: "r1", style: "asphalt", width: 3 });
+		expect(scene.roads[0]).toMatchObject({ id: "r1", style: "road_01", width: 3 });
 		expect(report?.fixed).toBe(1);
 		expect(report?.removed.roads).toBe(0);
 	});
@@ -81,20 +81,20 @@ describe("parseOrRepairScene", () => {
 		const { scene, report } = repairScene({
 			version: 1,
 			entities: [
-				{ id: "a", kind: "house" },
-				{ kind: "tree" },
-				{ id: "a", kind: "car" },
+				{ id: "a", kind: "house_01" },
+				{ kind: "round_tree_01" },
+				{ id: "a", kind: "car_01" },
 				"not an object",
 			],
 		});
-		expect(scene.entities.map((e) => [e.id, e.kind])).toEqual([["a", "house"]]);
+		expect(scene.entities.map((e) => [e.id, e.kind])).toEqual([["a", "house_01"]]);
 		expect(report.removed.objects).toBe(3);
 	});
 
 	it("resets a broken nested value such as a label's card offset", () => {
 		const { scene } = repairScene({
 			version: 1,
-			entities: [{ id: "a", kind: "house", label: { title: "Hi", offset: [1, 2] } }],
+			entities: [{ id: "a", kind: "house_01", label: { title: "Hi", offset: [1, 2] } }],
 		});
 		expect(scene.entities[0].label).toMatchObject({ title: "Hi", offset: [0, 2, 0] });
 	});

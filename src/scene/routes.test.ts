@@ -68,7 +68,7 @@ describe("createRouteSampler", () => {
 	});
 
 	it("puts a reversed vehicle in the other lane", () => {
-		const sided = road({ ...line, lane: "side", style: "asphalt" });
+		const sided = road({ ...line, lane: "side", style: "road_01" });
 		const forward = createRouteSampler(sided, "right").at(5);
 		const back = createRouteSampler(sided, "right", { reverse: true }).at(5);
 		expect(forward.position[1]).toBeGreaterThan(0);
