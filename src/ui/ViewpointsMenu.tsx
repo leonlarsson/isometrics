@@ -5,6 +5,8 @@ import { Icon } from "./Icon";
 import { Menu } from "./Menu";
 import { viewpointName } from "./ViewpointsSection";
 
+import styles from "./ViewpointsMenu.module.css";
+
 /**
  * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), and in
  * Edit mode save the current view or open the list in the Scene tab.
@@ -18,7 +20,8 @@ export const ViewpointsMenu = () => {
 		<Menu.Root>
 			<Menu.Trigger label="Viewpoints">
 				<Icon name="camera" size={16} />
-				Views
+
+				<span className={styles.label}>Views</span>
 			</Menu.Trigger>
 
 			<Menu.Popup>

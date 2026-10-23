@@ -5,17 +5,23 @@ import type { TThemePreference } from "#/scene/schema";
 import { IconButton } from "./Button";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
+import { Menu } from "./Menu";
 import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
 
 const THEME_CYCLE: Record<
 	TThemePreference,
-	{ next: TThemePreference; icon: TIconName; label: string }
+	{ next: TThemePreference; icon: TIconName; label: string; nextLabel: string }
 > = {
-	system: { next: "light", icon: "system", label: "Theme: match device" },
-	light: { next: "dark", icon: "sun", label: "Theme: light" },
-	dark: { next: "system", icon: "moon", label: "Theme: dark" },
+	system: {
+		next: "light",
+		icon: "system",
+		label: "Theme: match device",
+		nextLabel: "Switch to light",
+	},
+	light: { next: "dark", icon: "sun", label: "Theme: light", nextLabel: "Switch to dark" },
+	dark: { next: "system", icon: "moon", label: "Theme: dark", nextLabel: "Switch to match device" },
 };
 
 export const Toolbar = () => {
@@ -36,6 +42,10 @@ export const Toolbar = () => {
 	const commit = useEditor((s) => s.commit);
 
 	const themeInfo = THEME_CYCLE[theme];
+	const cycleTheme = () =>
+		commit((s) => {
+			s.theme = themeInfo.next;
+		});
 
 	return (
 		<header className={styles.toolbar}>
@@ -85,57 +95,102 @@ export const Toolbar = () => {
 							disabled={!canRedo}
 						/>
 
-						<IconButton
-							size="md"
-							tooltipSide="bottom"
-							icon="grid"
-							label={snapping ? "Snap to grid: on" : "Snap to grid: off"}
-							pressed={snapping}
-							onClick={toggleSnapping}
-						/>
+						<span className={styles.wideOnly}>
+							<IconButton
+								size="md"
+								tooltipSide="bottom"
+								icon="grid"
+								label={snapping ? "Snap to grid: on" : "Snap to grid: off"}
+								pressed={snapping}
+								onClick={toggleSnapping}
+							/>
 
-						<span className={styles.divider} />
+							<span className={styles.divider} />
+						</span>
 					</>
 				)}
 
 				<ViewpointsMenu />
 
-				<IconButton
-					size="md"
-					tooltipSide="bottom"
-					icon={playing ? "pause" : "play"}
-					label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
-					onClick={togglePlaying}
-				/>
+				<span className={styles.wideOnly}>
+					<IconButton
+						size="md"
+						tooltipSide="bottom"
+						icon={playing ? "pause" : "play"}
+						label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
+						onClick={togglePlaying}
+					/>
 
-				<IconButton
-					size="md"
-					tooltipSide="bottom"
-					icon="perspective"
-					label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
-					pressed={perspective}
-					onClick={togglePerspective}
-				/>
+					<IconButton
+						size="md"
+						tooltipSide="bottom"
+						icon="perspective"
+						label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
+						pressed={perspective}
+						onClick={togglePerspective}
+					/>
 
-				<IconButton
-					size="md"
-					tooltipSide="bottom"
-					icon="focus"
-					label="Re-centre camera"
-					onClick={resetView}
-				/>
+					<IconButton
+						size="md"
+						tooltipSide="bottom"
+						icon="focus"
+						label="Re-centre camera"
+						onClick={resetView}
+					/>
 
-				<IconButton
-					size="md"
-					tooltipSide="bottom"
-					icon={themeInfo.icon}
-					label={themeInfo.label}
-					onClick={() =>
-						commit((s) => {
-							s.theme = themeInfo.next;
-						})
-					}
-				/>
+					<IconButton
+						size="md"
+						tooltipSide="bottom"
+						icon={themeInfo.icon}
+						label={themeInfo.label}
+						onClick={cycleTheme}
+					/>
+				</span>
+
+				{/* Phones: the buttons above that don't fit, as a menu. */}
+				<span className={styles.narrowOnly}>
+					<Menu.Root>
+						<Menu.Trigger label="More" chevron={false}>
+							<Icon name="more" size={18} />
+						</Menu.Trigger>
+
+						<Menu.Popup>
+							<Menu.CheckboxItem
+								icon="play"
+								label="Play motion"
+								checked={playing}
+								onCheckedChange={togglePlaying}
+							/>
+
+							<Menu.CheckboxItem
+								icon="perspective"
+								label="Perspective view"
+								checked={perspective}
+								onCheckedChange={togglePerspective}
+							/>
+
+							{mode === "edit" && (
+								<Menu.CheckboxItem
+									icon="grid"
+									label="Snap to grid"
+									checked={snapping}
+									onCheckedChange={toggleSnapping}
+								/>
+							)}
+
+							<Menu.Separator />
+
+							<Menu.Item icon="focus" label="Re-centre camera" onClick={resetView} />
+
+							<Menu.Item
+								icon={themeInfo.icon}
+								label={themeInfo.label}
+								description={themeInfo.nextLabel}
+								onClick={cycleTheme}
+							/>
+						</Menu.Popup>
+					</Menu.Root>
+				</span>
 			</div>
 		</header>
 	);

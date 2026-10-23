@@ -49,3 +49,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0043](0043-one-file-per-part.md) | One file per part, in a folder per palette category | accepted |
 | [0044](0044-several-worlds-per-browser.md) | Several worlds per browser, each in its own slot | accepted |
 | [0045](0045-wipe-everything.md) | "Wipe everything" deletes all browser data, after two confirmations | accepted |
+| [0046](0046-phone-toolbar-and-bars.md) | Phones: a More menu in the toolbar, the sheet toggle in its tab bar, bars at the bottom in View mode | accepted |

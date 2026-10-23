@@ -14,14 +14,16 @@ import styles from "./Menu.module.css";
 interface IMenuTriggerProps {
 	children: ReactNode;
 	label?: string;
+	/** False leaves out the down arrow, e.g. for a "More" button that is just an icon. */
+	chevron?: boolean;
 }
 
-const MenuTrigger = ({ children, label }: IMenuTriggerProps) => {
+const MenuTrigger = ({ children, label, chevron = true }: IMenuTriggerProps) => {
 	return (
 		<BaseMenu.Trigger className={styles.trigger} aria-label={label}>
 			{children}
 
-			<Icon name="chevronDown" size={14} />
+			{chevron && <Icon name="chevronDown" size={14} />}
 		</BaseMenu.Trigger>
 	);
 };
@@ -71,6 +73,37 @@ const MenuItem = ({ label, icon, description, shortcut, disabled, onClick }: IMe
 	);
 };
 
+interface IMenuCheckboxItemProps {
+	label: string;
+	icon?: TIconName;
+	checked: boolean;
+	onCheckedChange: (checked: boolean) => void;
+}
+
+/** A setting that is on or off, ticked on the right while on. Picking it closes the menu. */
+const MenuCheckboxItem = ({ label, icon, checked, onCheckedChange }: IMenuCheckboxItemProps) => {
+	return (
+		<BaseMenu.CheckboxItem
+			className={styles.item}
+			checked={checked}
+			onCheckedChange={(next) => onCheckedChange(next)}
+			closeOnClick
+		>
+			{icon && (
+				<span className={styles.icon}>
+					<Icon name={icon} size={16} />
+				</span>
+			)}
+
+			<span className={styles.text}>{label}</span>
+
+			<BaseMenu.CheckboxItemIndicator className={styles.check}>
+				<Icon name="check" size={16} />
+			</BaseMenu.CheckboxItemIndicator>
+		</BaseMenu.CheckboxItem>
+	);
+};
+
 interface IMenuSubmenuProps {
 	label: string;
 	icon?: TIconName;
@@ -110,6 +143,7 @@ export const Menu = {
 	Trigger: MenuTrigger,
 	Popup: MenuPopup,
 	Item: MenuItem,
+	CheckboxItem: MenuCheckboxItem,
 	Submenu: MenuSubmenu,
 	Separator: MenuSeparator,
 };

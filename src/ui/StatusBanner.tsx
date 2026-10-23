@@ -16,6 +16,6 @@ export const StatusBanner = () => (
 			this browser or exported as files, may be lost or only partly open in later versions.
 		</span>
 
-		<span className={styles.short}>Things will change, and saved worlds may be lost.</span>
+		<span className={styles.short}>Saved worlds may be lost.</span>
 	</p>
 );

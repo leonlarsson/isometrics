@@ -32,3 +32,26 @@
 	display: flex;
 	gap: 6px;
 }
+
+/* Touch screens get their own wording instead of key hints. */
+.touchOnly {
+	display: none;
+}
+
+@media (hover: none) {
+	.keyboardOnly {
+		display: none;
+	}
+
+	.touchOnly {
+		display: inline;
+	}
+}
+
+/* Phones in View mode (no bottom sheet): bars sit at the bottom, in thumb reach and clear of the title. */
+@media (max-width: 900px) {
+	:global([data-mode="view"]) .bar {
+		top: auto;
+		bottom: 16px;
+	}
+}

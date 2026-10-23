@@ -66,7 +66,11 @@ export const ViewpointBar = () => {
 							{viewpoints.length === 1 ? "1 viewpoint" : `${viewpoints.length} viewpoints`}
 						</strong>
 
-						<span className={styles.keys}>Press → or the arrow to start</span>
+						<span className={`${styles.keys} ${styles.keyboardOnly}`}>
+							Press → or the arrow to start
+						</span>
+
+						<span className={`${styles.keys} ${styles.touchOnly}`}>Tap the arrow to start</span>
 					</>
 				)}
 			</div>

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
 	selectSelectedArea,
 	selectSelectedEntity,
@@ -62,9 +64,16 @@ interface IInspectorProps {
 	open?: boolean;
 	/** Called when the user picks a tab, so a collapsed sheet can open. */
 	onTabSelect?: () => void;
+	/** Shown at the end of the tab bar (the sheet's hide/show button). */
+	tabBarEnd?: ReactNode;
 }
 
-export const Inspector = ({ narrow = false, open = true, onTabSelect }: IInspectorProps) => {
+export const Inspector = ({
+	narrow = false,
+	open = true,
+	onTabSelect,
+	tabBarEnd,
+}: IInspectorProps) => {
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
 	const shown = !narrow && (tab === "add" || tab === "outliner") ? "object" : tab;
@@ -78,6 +87,7 @@ export const Inspector = ({ narrow = false, open = true, onTabSelect }: IInspect
 			}}
 			tabs={narrow ? [...NARROW_TABS, ...TABS] : TABS}
 			sticky
+			barEnd={tabBarEnd}
 		>
 			{open && narrow && (
 				<TabPanel value="add">

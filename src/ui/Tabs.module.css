@@ -5,6 +5,9 @@
 }
 
 .bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	padding: 10px 12px;
 	background: var(--surface);
 	border-bottom: 1px solid var(--border);
@@ -17,6 +20,8 @@
 }
 
 .list {
+	flex: 1;
+	min-width: 0;
 	position: relative;
 	z-index: 0;
 	display: flex;

@@ -175,16 +175,6 @@ export const AppShell = () => {
 									label="Resize the inspector"
 								/>
 
-								{narrow && (
-									<div className={styles.sheetHandle}>
-										<IconButton
-											icon={sheetOpen ? "chevronDown" : "chevronUp"}
-											label={sheetOpen ? "Hide panel" : "Show panel"}
-											onClick={() => setSheetOpen(!sheetOpen)}
-										/>
-									</div>
-								)}
-
 								{/* Like Blender: the outliner on top, the selection's settings below. */}
 								{!narrow && (
 									<>
@@ -211,6 +201,15 @@ export const AppShell = () => {
 										narrow={narrow}
 										open={!narrow || sheetOpen}
 										onTabSelect={() => setSheetOpen(true)}
+										tabBarEnd={
+											narrow && (
+												<IconButton
+													icon={sheetOpen ? "chevronDown" : "chevronUp"}
+													label={sheetOpen ? "Hide panel" : "Show panel"}
+													onClick={() => setSheetOpen(!sheetOpen)}
+												/>
+											)
+										}
 									/>
 								</aside>
 							</div>

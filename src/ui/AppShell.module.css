@@ -127,12 +127,6 @@
 		display: none;
 	}
 
-	.sheetHandle {
-		display: flex;
-		justify-content: center;
-		padding-top: 2px;
-	}
-
 	.sceneTitle {
 		top: 12px;
 		left: 16px;

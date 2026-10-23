@@ -36,6 +36,7 @@ export const KitPage = () => {
 	const [text, setText] = useState("Brightwater");
 	const [number, setNumber] = useState(12.5);
 	const [slider, setSlider] = useState(2.4);
+	const [ticked, setTicked] = useState(true);
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [on, setOn] = useState(true);
@@ -217,6 +218,13 @@ export const KitPage = () => {
 														label="With description"
 														description="Muted second line"
 														onClick={() => {}}
+													/>
+
+													<Menu.CheckboxItem
+														icon="grid"
+														label="Checkbox item"
+														checked={ticked}
+														onCheckedChange={setTicked}
 													/>
 												</Menu.Popup>
 											</Menu.Root>

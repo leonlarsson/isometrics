@@ -11,6 +11,8 @@ interface ITabsProps<TValue extends string> {
 	children: ReactNode;
 	/** Keep the tab list at the top of a scrolling panel. */
 	sticky?: boolean;
+	/** Shown at the end of the tab bar, after the tabs (e.g. a hide button). */
+	barEnd?: ReactNode;
 }
 
 /** Segmented tabs with a sliding indicator, built on Base UI's Tabs (ADR-0024). */
@@ -20,6 +22,7 @@ export const Tabs = <TValue extends string>({
 	tabs,
 	children,
 	sticky,
+	barEnd,
 }: ITabsProps<TValue>) => {
 	return (
 		<BaseTabs.Root
@@ -37,6 +40,8 @@ export const Tabs = <TValue extends string>({
 
 					<BaseTabs.Indicator className={styles.indicator} />
 				</BaseTabs.List>
+
+				{barEnd}
 			</div>
 
 			{children}

@@ -108,6 +108,14 @@
 	color: var(--text-muted);
 }
 
+.check {
+	display: grid;
+	place-items: center;
+	flex: none;
+	margin-left: 16px;
+	color: var(--accent);
+}
+
 .separator {
 	height: 1px;
 	margin: 4px 6px;
