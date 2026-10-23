@@ -152,9 +152,9 @@ export const RoadPointSchema = z
 	);
 
 export const RoadSupportsSchema = z
-	.enum(["pillars", "embankment"])
+	.enum(["pillars", "embankment", "none"])
 	.describe(
-		"What holds up elevated sections: pillars (other roads can pass underneath) or a sloped bank.",
+		"What holds up elevated sections: pillars (other roads can pass underneath), a sloped bank, or nothing (the deck floats, e.g. a road on raised land or a bridge between cliffs).",
 	);
 
 export const RoadStyleSchema = z

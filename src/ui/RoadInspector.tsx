@@ -205,6 +205,7 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 								options={[
 									{ value: "pillars", label: "Pillars (roads can pass under)" },
 									{ value: "embankment", label: "Embankment (sloped bank)" },
+									{ value: "none", label: "Nothing (floating deck)" },
 								]}
 								onChange={(v) =>
 									edit("supports", (r) => {
