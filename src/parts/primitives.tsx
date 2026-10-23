@@ -132,3 +132,9 @@ export const Wheel = ({
 /** Evenly spaced positions centred on 0. */
 export const spread = (count: number, span: number) =>
 	Array.from({ length: count }, (_, i) => -span / 2 + (span / count) * (i + 0.5));
+
+/** Deterministic pseudo-random in [0, 1), so things look varied but the same every time. */
+export const jitter = (i: number) => {
+	const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+	return x - Math.floor(x);
+};

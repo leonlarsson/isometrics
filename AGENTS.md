@@ -28,7 +28,7 @@ Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`. CI (
 ```
 src/
   scene/      document model: Zod schema, parsing, road geometry, areas, path sampling, formatting, theme palettes (no React)
-  parts/      procedural 3D parts + registry (definePart, PARTS)
+  parts/      procedural 3D parts, one file per part in a folder per palette category, + registry (definePart, PARTS)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
@@ -61,7 +61,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Common tasks
 
-**Add a part:** create it with `definePart({...})` in the right `src/parts/*.tsx` file. Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
+**Add a part:** create it with `definePart({...})` in its own file, `src/parts/<category>/<kind>.tsx`, where the folder is its palette category (ADR-0043). Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
 
 **Change the scene format:** edit `schema.ts` with defaults for new fields, and give each one a `.describe()` saying what it means (it's what `/schema.json` shows people and AIs writing worlds; ADR-0034). While the app is an experimental playground, change the schema in place: don't bump `SCENE_VERSION` or write migrations. Old saves and files are repaired on load instead (ADR-0026): invalid fields fall back to their defaults and unreadable items are left out, so give new fields sensible defaults and prefer adding fields over renaming them (a renamed field silently loses its value). Once worlds need a compatibility promise, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 

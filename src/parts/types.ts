@@ -14,22 +14,25 @@ export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	markers: "Markers",
 };
 
-/** Describes one editable part parameter so the inspector can render a control. */
-export type TFieldSpec =
+/**
+ * Describes one editable part parameter so the inspector can render a control.
+ * `K` is the part's prop names, so a field can't name a prop the part doesn't have.
+ */
+export type TFieldSpec<K extends string = string> =
 	| {
-			key: string;
+			key: K;
 			label: string;
 			type: "number";
 			min: number;
 			max: number;
 			step: number;
 	  }
-	| { key: string; label: string; type: "boolean" }
-	| { key: string; label: string; type: "text"; placeholder?: string }
+	| { key: K; label: string; type: "boolean" }
+	| { key: K; label: string; type: "text"; placeholder?: string }
 	/** One of the world's data keys, or "" for none (ADR-0041). Renamed and removed with the key. */
-	| { key: string; label: string; type: "dataKey" }
+	| { key: K; label: string; type: "dataKey" }
 	| {
-			key: string;
+			key: K;
 			label: string;
 			type: "select";
 			options: { value: string; label: string }[];
@@ -68,7 +71,7 @@ export interface IPartDefinition<P extends object> {
 	keywords?: string[];
 	/** Zod schema with defaults for every prop: `schema.parse({})` must succeed. */
 	schema: z.ZodType<P>;
-	fields: TFieldSpec[];
+	fields: TFieldSpec<Extract<keyof P, string>>[];
 	defaultColor: TColorDefault;
 	defaultAccent: TColorDefault;
 	colorLabel?: string;

@@ -1,15 +1,25 @@
 import type { TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
-import { house, shed, tower, warehouse } from "./buildings";
-import { beacon, lamp, parcels, zone } from "./infrastructure";
-import { pine, tree } from "./nature";
-import { grandstand, raceCar } from "./racing";
-import { text } from "./text";
-import { tunnel } from "./tunnel";
+import { grandstand } from "./buildings/grandstand";
+import { house } from "./buildings/house";
+import { shed } from "./buildings/shed";
+import { tower } from "./buildings/tower";
+import { warehouse } from "./buildings/warehouse";
+import { lamp } from "./infrastructure/lamp";
+import { parcels } from "./infrastructure/parcels";
+import { tunnel } from "./infrastructure/tunnel";
+import { zone } from "./infrastructure/zone";
+import { beacon } from "./markers/beacon";
+import { text } from "./markers/text";
+import { pine } from "./nature/pine";
+import { tree } from "./nature/tree";
 import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
-import { car, truck, van } from "./vehicles";
-import { yacht } from "./water";
+import { car } from "./vehicles/car";
+import { raceCar } from "./vehicles/raceCar";
+import { truck } from "./vehicles/truck";
+import { van } from "./vehicles/van";
+import { yacht } from "./vehicles/yacht";
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous registry; props are validated per part at runtime
 export type TAnyPart = IPartDefinition<any>;

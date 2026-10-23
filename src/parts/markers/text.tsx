@@ -6,8 +6,8 @@ import { z } from "zod";
 import { formatEntry } from "#/scene/format";
 import type { TDataEntry } from "#/scene/schema";
 
-import { Box } from "./primitives";
-import { definePart, type IPartRenderProps } from "./types";
+import { Box } from "../primitives";
+import { definePart, type IPartRenderProps } from "../types";
 
 // See docs/adr/0041-text-part-and-bundled-font.md.
 

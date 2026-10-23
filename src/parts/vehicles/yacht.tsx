@@ -2,8 +2,8 @@ import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { z } from "zod";
 
-import { Box, Mat } from "./primitives";
-import { definePart } from "./types";
+import { Box, Mat } from "../primitives";
+import { definePart } from "../types";
 
 const YachtSchema = z.object({
 	length: z.number().min(1.5).max(12).default(3.4),

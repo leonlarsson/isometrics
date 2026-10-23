@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { Box, RBox } from "./primitives";
-import { definePart } from "./types";
+import { Box, RBox } from "../primitives";
+import { definePart } from "../types";
 
 const TunnelSchema = z.object({
 	length: z.number().min(2).max(60).default(10),
