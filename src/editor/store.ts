@@ -166,6 +166,8 @@ export interface IEditorState {
 	frameBox: IFrameBox | null;
 	/** The item under the pointer in a list (outliner, Scene tab), highlighted in the world. */
 	hovered: ISceneItem | null;
+	/** The item whose context menu is open, and where (screen px). Runtime UI state. */
+	contextMenu: { item: ISceneItem; x: number; y: number } | null;
 	/** Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. */
 	flight: { pose: TViewPose; nonce: number } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
@@ -212,6 +214,10 @@ export interface IEditorState {
 	/** Move the camera to the selected object, road or area. */
 	frameSelection: () => void;
 	setHovered: (item: ISceneItem | null) => void;
+	/** Select an item and open its context menu at a screen point, or close the menu (null). */
+	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }) => void;
+	/** Give an object, road or area a new name (empty: it's called by its kind again). */
+	renameItem: (item: ISceneItem, name: string) => void;
 	/** Set an item's `hidden` or `locked` flag (one undo step). */
 	setItemFlag: (item: ISceneItem, flag: "hidden" | "locked", value: boolean) => void;
 	/** Hide the selected item, or show it again if it's hidden (H). It stays selected. */
@@ -381,6 +387,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
+		contextMenu: null,
 		flight: null,
 		activeViewpointId: null,
 		cameraFollow: null,
@@ -538,6 +545,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				joinOffer: null,
 				routePreview: null,
 				followOffer: null,
+				contextMenu: null,
 			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
@@ -563,6 +571,34 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		},
 
 		setHovered: (item) => set({ hovered: item }),
+
+		openContextMenu: (item, at) => {
+			if (!item || !at) {
+				set({ contextMenu: null });
+				return;
+			}
+			const state = get();
+			if (item.kind === "entity") {
+				state.select(item.id);
+			} else if (item.kind === "road") {
+				state.selectRoad(item.id);
+			} else {
+				state.selectArea(item.id);
+			}
+			set({ contextMenu: { item, ...at } });
+		},
+		renameItem: (item, name) => {
+			const recipe = (thing: { name: string }) => {
+				thing.name = name;
+			};
+			if (item.kind === "entity") {
+				get().updateEntity(item.id, recipe);
+			} else if (item.kind === "road") {
+				get().updateRoad(item.id, recipe);
+			} else {
+				get().updateArea(item.id, recipe);
+			}
+		},
 
 		setItemFlag: (item, flag, value) =>
 			get().commit((scene) => {

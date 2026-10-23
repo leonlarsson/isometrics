@@ -116,6 +116,23 @@
 	color: var(--accent);
 }
 
+/* A context menu's heading: what was right-clicked. */
+.header {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 6px 10px 4px 8px;
+	cursor: default;
+	user-select: none;
+}
+
+.headerTitle {
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .separator {
 	height: 1px;
 	margin: 4px 6px;

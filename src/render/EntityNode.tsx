@@ -12,6 +12,7 @@ import { laneOffset, resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
+import { openContextMenuOnClick } from "./contextMenu";
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
@@ -311,6 +312,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			setHovered(false);
 			document.body.style.cursor = "";
 		},
+		onContextMenu: openContextMenuOnClick({ kind: "entity", id: entity.id }),
 	};
 
 	if (entity.hidden) {

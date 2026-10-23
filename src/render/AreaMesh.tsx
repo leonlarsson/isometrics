@@ -10,6 +10,8 @@ import { areaColor } from "#/scene/areas";
 import type { TArea } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+import { openContextMenuOnClick } from "./contextMenu";
+
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
 const LAYER_STEP = 0.0008;
@@ -33,7 +35,7 @@ const outlineShape = (points: TArea["points"]) => {
 	return shape;
 };
 
-type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick">;
+type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick" | "onContextMenu">;
 
 interface IAreaBodyProps {
 	area: TArea;
@@ -127,6 +129,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 						selectArea(area.id);
 					}
 				},
+				onContextMenu: openContextMenuOnClick({ kind: "area", id: area.id }),
 			}
 		: {};
 

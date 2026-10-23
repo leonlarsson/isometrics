@@ -25,8 +25,8 @@ export interface IListItemRename {
 	onCommit: (value: string) => void;
 }
 
-/** The field that replaces a row's label while it's renamed. */
-const RenameInput = ({ rename, label }: { rename: IListItemRename; label: string }) => {
+/** The field that replaces a row's label while it's renamed; also used by RenamePopover. */
+export const RenameInput = ({ rename, label }: { rename: IListItemRename; label: string }) => {
 	const ref = useRef<HTMLInputElement>(null);
 	const [text, setText] = useState(rename.value);
 	// Esc and Enter end editing themselves; the blur that follows mustn't commit again.
@@ -204,6 +204,8 @@ interface IListItemProps {
 	rename?: IListItemRename;
 	/** Lets the row be moved within its list (a grip before it). */
 	reorder?: IListItemReorder;
+	/** A right-click on the row, at that screen point; the browser's own menu is held back. */
+	onContextMenu?: (at: { x: number; y: number }) => void;
 }
 
 export const ListItem = ({
@@ -218,6 +220,7 @@ export const ListItem = ({
 	onHover,
 	rename,
 	reorder,
+	onContextMenu,
 }: IListItemProps) => {
 	const content = (
 		<>
@@ -237,6 +240,13 @@ export const ListItem = ({
 			data-muted={muted || undefined}
 			onPointerEnter={onHover && (() => onHover(true))}
 			onPointerLeave={onHover && (() => onHover(false))}
+			onContextMenu={
+				onContextMenu &&
+				((event) => {
+					event.preventDefault();
+					onContextMenu({ x: event.clientX, y: event.clientY });
+				})
+			}
 		>
 			{reorder && (
 				<ReorderGrip

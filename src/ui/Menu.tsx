@@ -134,6 +134,70 @@ const MenuSubmenu = ({ label, icon, children }: IMenuSubmenuProps) => {
 	);
 };
 
+interface IContextMenuProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	/** Where it opens, in screen px: usually where the right-click was. */
+	x: number;
+	y: number;
+	/** A heading saying what the menu is for, e.g. the name of the thing that was right-clicked. */
+	title?: ReactNode;
+	/** A muted line under the title, e.g. what kind of thing it is. */
+	subtitle?: ReactNode;
+	/** Menu.Item, Menu.CheckboxItem, Menu.Submenu and Menu.Separator. */
+	children: ReactNode;
+}
+
+/**
+ * A menu that opens at a point instead of under a trigger, for right-clicks.
+ * Controlled, so one menu can serve the scene and lists alike.
+ */
+export const ContextMenu = ({
+	open,
+	onOpenChange,
+	x,
+	y,
+	title,
+	subtitle,
+	children,
+}: IContextMenuProps) => {
+	const anchor = {
+		getBoundingClientRect: () => DOMRect.fromRect({ x, y, width: 0, height: 0 }),
+	};
+	return (
+		<BaseMenu.Root open={open} onOpenChange={onOpenChange}>
+			<BaseMenu.Portal>
+				<BaseMenu.Positioner
+					className={styles.positioner}
+					anchor={anchor}
+					side="bottom"
+					align="start"
+					sideOffset={2}
+				>
+					{/* No trigger to give focus back to; an action may open something that takes it. */}
+					<BaseMenu.Popup className={styles.popup} finalFocus={false}>
+						{title ? (
+							<BaseMenu.Group>
+								<BaseMenu.GroupLabel className={styles.header}>
+									<span className={styles.headerTitle}>{title}</span>
+
+									{subtitle && <span className={styles.description}>{subtitle}</span>}
+								</BaseMenu.GroupLabel>
+
+								<BaseMenu.Separator className={styles.separator} />
+
+								{children}
+							</BaseMenu.Group>
+						) : (
+							children
+						)}
+					</BaseMenu.Popup>
+				</BaseMenu.Positioner>
+			</BaseMenu.Portal>
+		</BaseMenu.Root>
+	);
+};
+
 const MenuSeparator = () => {
 	return <BaseMenu.Separator className={styles.separator} />;
 };

@@ -18,6 +18,8 @@ import {
 import type { TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+import { openContextMenuOnClick } from "./contextMenu";
+
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
 const BASE_Y = 0.012;
 const LAYER_STEP = 0.003;
@@ -77,7 +79,10 @@ export const roadColor = (road: TRoad, palette: IScenePalette) =>
 /** Height of the road surface above the ground plane for a given layer. */
 export const roadBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
 
-type TRoadHandlers = Pick<ThreeElements["mesh"], "onClick" | "onPointerOver" | "onPointerOut">;
+type TRoadHandlers = Pick<
+	ThreeElements["mesh"],
+	"onClick" | "onPointerOver" | "onPointerOut" | "onContextMenu"
+>;
 
 interface IRoadBodyProps {
 	road: TRoad;
@@ -273,6 +278,7 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 				onPointerOut: () => {
 					document.body.style.cursor = "";
 				},
+				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 			}
 		: {};
 

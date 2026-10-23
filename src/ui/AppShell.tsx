@@ -12,6 +12,7 @@ import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { Inspector } from "./Inspector";
+import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
 import { Outliner } from "./Outliner";
@@ -160,6 +161,8 @@ export const AppShell = () => {
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 
 							<DetailSheet />
+
+							<ItemContextMenu />
 						</main>
 
 						{mode === "edit" && (

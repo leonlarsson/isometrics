@@ -140,19 +140,6 @@ export const Outliner = () => {
 			state.selectArea(item.id);
 		}
 	};
-	const rename = (item: ISceneItem, name: string) => {
-		const state = store();
-		const recipe = (thing: { name: string }) => {
-			thing.name = name;
-		};
-		if (item.kind === "entity") {
-			state.updateEntity(item.id, recipe);
-		} else if (item.kind === "road") {
-			state.updateRoad(item.id, recipe);
-		} else {
-			state.updateArea(item.id, recipe);
-		}
-	};
 
 	// A row under the pointer when the outliner goes away mustn't stay highlighted.
 	useEffect(() => () => store().setHovered(null), []);
@@ -216,12 +203,13 @@ export const Outliner = () => {
 											muted={row.hidden}
 											onClick={() => select(row.item)}
 											onHover={(hovering) => store().setHovered(hovering ? row.item : null)}
+											onContextMenu={(at) => store().openContextMenu(row.item, at)}
 											rename={{
 												value: row.name,
 												placeholder: row.fallback,
 												editing: renaming === key,
 												onEditingChange: (editing) => setRenaming(editing ? key : null),
-												onCommit: (name) => rename(row.item, name),
+												onCommit: (name) => store().renameItem(row.item, name),
 											}}
 											actions={
 												<IconButtonGroup>
@@ -250,7 +238,7 @@ export const Outliner = () => {
 				{rows.length > 0 && (
 					<>
 						<Hint>
-							Double-click a name or press <Kbd>F2</Kbd> to rename.
+							Double-click a name or press <Kbd>F2</Kbd> to rename. Right-click for more.
 						</Hint>
 
 						<Hint>
