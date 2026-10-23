@@ -36,6 +36,10 @@
 		opacity 120ms ease-out;
 }
 
+.popup[data-wide] {
+	width: 840px;
+}
+
 .popup[data-starting-style],
 .popup[data-ending-style] {
 	opacity: 0;

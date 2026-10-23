@@ -6,7 +6,6 @@ import {
 	openSavedWorld,
 	openWorldFile,
 	saveWorldFile,
-	startNewWorld,
 } from "#/editor/fileActions";
 import {
 	type IWorldInfo,
@@ -17,11 +16,12 @@ import {
 } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
-import { createEmptyScene, TEMPLATES } from "#/templates";
+import { createEmptyScene } from "#/templates";
 
 import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
+import { NewWorldDialog } from "./NewWorldDialog";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
 /** How many worlds Open world lists; All worlds… shows the rest. */
@@ -38,6 +38,7 @@ export const FileMenu = () => {
 	const [worlds, setWorlds] = useState<IWorldInfo[]>([]);
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
+	const [creating, setCreating] = useState(false);
 	const [browsing, setBrowsing] = useState(false);
 	const [viewingBackups, setViewingBackups] = useState(false);
 	const [backupCount, setBackupCount] = useState(0);
@@ -64,20 +65,10 @@ export const FileMenu = () => {
 				<Menu.Popup>
 					<Menu.Item
 						icon="file"
-						label="New empty world"
-						onClick={() => startNewWorld(createEmptyScene())}
+						label="New world…"
+						description="Blank, or from a starter world"
+						onClick={() => setCreating(true)}
 					/>
-
-					<Menu.Submenu icon="layers" label="New from a template">
-						{TEMPLATES.map((template) => (
-							<Menu.Item
-								key={template.id}
-								label={template.name}
-								description={template.description}
-								onClick={() => startNewWorld(template.create())}
-							/>
-						))}
-					</Menu.Submenu>
 
 					<Menu.Submenu icon="folder" label="Open world">
 						{worlds.length === 0 && (
@@ -149,6 +140,8 @@ export const FileMenu = () => {
 					/>
 				</Menu.Popup>
 			</Menu.Root>
+
+			<NewWorldDialog open={creating} onOpenChange={setCreating} />
 
 			<WorldsDialog open={browsing} onOpenChange={setBrowsing} />
 

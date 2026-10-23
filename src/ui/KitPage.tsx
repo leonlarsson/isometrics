@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { notify } from "#/editor/toasts";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
+import { ChoiceCards } from "./ChoiceCards";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import {
@@ -12,6 +13,7 @@ import {
 	Hint,
 	Kbd,
 	NumberField,
+	RadioGroupField,
 	Section,
 	SelectField,
 	SliderField,
@@ -37,6 +39,8 @@ export const KitPage = () => {
 	const [number, setNumber] = useState(12.5);
 	const [slider, setSlider] = useState(2.4);
 	const [ticked, setTicked] = useState(true);
+	const [startFrom, setStartFrom] = useState("blank");
+	const [size, setSize] = useState("blocks");
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [on, setOn] = useState(true);
@@ -237,6 +241,41 @@ export const KitPage = () => {
 								</TabPanel>
 
 								<TabPanel value="two">
+									<Section title="Choice cards">
+										<ChoiceCards
+											label="Start from"
+											value={startFrom}
+											onChange={setStartFrom}
+											cards={[
+												{
+													value: "blank",
+													title: "Blank",
+													description: "No picture yet: a placeholder",
+												},
+												{
+													value: "starter",
+													title: "Starter",
+													description:
+														"A longer description is cut off after two lines like this one",
+												},
+											]}
+										/>
+									</Section>
+
+									<Section title="Radio group">
+										<RadioGroupField
+											label="Ground"
+											value={size}
+											options={[
+												{ value: "corner", label: "Corner", meta: "24 × 18 · a street corner" },
+												{ value: "blocks", label: "Blocks", meta: "40 × 30 · a few blocks" },
+												{ value: "town", label: "Town" },
+											]}
+											onChange={setSize}
+											hint="Each option can carry a muted note."
+										/>
+									</Section>
+
 									<Section title="Reorderable list">
 										<List>
 											{order.map((name, index) => (

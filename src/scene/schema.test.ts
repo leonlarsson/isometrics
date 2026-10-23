@@ -55,6 +55,18 @@ describe("SceneSchema", () => {
 		expect(parseScene(JSON.parse(JSON.stringify(scene)))).toEqual(scene);
 		expect([scene.entities, scene.roads, scene.areas, scene.data]).toEqual([[], [], [], []]);
 	});
+
+	it("creates an empty world with the chosen settings", () => {
+		const scene = createEmptyScene({
+			title: "Harbour",
+			ground: { width: 60, depth: 24 },
+			theme: "dark",
+			driving: "left",
+		});
+		expect(scene.meta.title).toBe("Harbour");
+		expect(scene.ground).toEqual({ width: 60, depth: 24, color: null });
+		expect([scene.theme, scene.driving]).toEqual(["dark", "left"]);
+	});
 });
 
 describe("parseScene", () => {

@@ -1,5 +1,5 @@
 import { Line } from "@react-three/drei";
-import type { ThreeEvent } from "@react-three/fiber";
+import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
@@ -77,21 +77,36 @@ export const roadColor = (road: TRoad, palette: IScenePalette) =>
 /** Height of the road surface above the ground plane for a given layer. */
 export const roadBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
 
-interface IRoadMeshProps {
+type TRoadHandlers = Pick<ThreeElements["mesh"], "onClick" | "onPointerOver" | "onPointerOut">;
+
+interface IRoadBodyProps {
 	road: TRoad;
 	/** Draw order among roads; later roads sit on top at junctions. */
 	layer: number;
+	palette: IScenePalette;
+	ground: { width: number; depth: number };
+	/** Hidden routes show as a dashed line while editing; otherwise they draw nothing. */
+	editing: boolean;
+	/** Outlined as the selection. */
+	selected: boolean;
+	handlers?: TRoadHandlers;
 }
 
-export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
-	const palette = usePalette();
-	const mode = useEditor((s) => s.mode);
-	const selected = useEditor((s) => s.selectedRoadId === road.id);
-	const drawing = useEditor((s) => s.drawing !== null);
-	const selectRoad = useEditor((s) => s.selectRoad);
-	const groundWidth = useEditor((s) => s.scene.ground.width);
-	const groundDepth = useEditor((s) => s.scene.ground.depth);
-
+/**
+ * How a road looks, from its props alone: the editor's RoadMesh adds the
+ * selection and clicks, and world pictures (scenePictures) use it as is.
+ */
+export const RoadBody = ({
+	road,
+	layer,
+	palette,
+	ground,
+	editing,
+	selected,
+	handlers = {},
+}: IRoadBodyProps) => {
+	const groundWidth = ground.width;
+	const groundDepth = ground.depth;
 	const hidden = road.style === "hidden";
 	const y = roadBaseY(layer);
 	const center = useMemo(() => roadCenterlineOf(road), [road]);
@@ -157,29 +172,9 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 		return pts;
 	}, [center, road.closed, y]);
 
-	if (hidden && mode !== "edit") {
+	if (hidden && !editing) {
 		return null;
 	}
-
-	const editable = mode === "edit" && !drawing;
-	const handlers = editable
-		? {
-				onClick: (e: ThreeEvent<MouseEvent>) => {
-					// Stop here so the ground behind doesn't deselect, even after a camera drag.
-					e.stopPropagation();
-					if (isClick(e)) {
-						selectRoad(road.id);
-					}
-				},
-				onPointerOver: (e: ThreeEvent<PointerEvent>) => {
-					e.stopPropagation();
-					document.body.style.cursor = "pointer";
-				},
-				onPointerOut: () => {
-					document.body.style.cursor = "";
-				},
-			}
-		: {};
 
 	return (
 		<group>
@@ -242,9 +237,54 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 				/>
 			)}
 
-			{selected && mode === "edit" && (
-				<Line points={outline} color={palette.selection} lineWidth={3} />
-			)}
+			{selected && <Line points={outline} color={palette.selection} lineWidth={3} />}
 		</group>
+	);
+};
+
+interface IRoadMeshProps {
+	road: TRoad;
+	/** Draw order among roads; later roads sit on top at junctions. */
+	layer: number;
+}
+
+export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
+	const palette = usePalette();
+	const mode = useEditor((s) => s.mode);
+	const selected = useEditor((s) => s.selectedRoadId === road.id);
+	const drawing = useEditor((s) => s.drawing !== null);
+	const selectRoad = useEditor((s) => s.selectRoad);
+	const ground = useEditor((s) => s.scene.ground);
+
+	const editable = mode === "edit" && !drawing;
+	const handlers: TRoadHandlers = editable
+		? {
+				onClick: (e: ThreeEvent<MouseEvent>) => {
+					// Stop here so the ground behind doesn't deselect, even after a camera drag.
+					e.stopPropagation();
+					if (isClick(e)) {
+						selectRoad(road.id);
+					}
+				},
+				onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+					e.stopPropagation();
+					document.body.style.cursor = "pointer";
+				},
+				onPointerOut: () => {
+					document.body.style.cursor = "";
+				},
+			}
+		: {};
+
+	return (
+		<RoadBody
+			road={road}
+			layer={layer}
+			palette={palette}
+			ground={ground}
+			editing={mode === "edit"}
+			selected={selected && mode === "edit"}
+			handlers={handlers}
+		/>
 	);
 });

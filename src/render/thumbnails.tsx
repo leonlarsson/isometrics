@@ -61,7 +61,11 @@ export const frameBoxIn = (
 	fill: number,
 ) => {
 	frame.getCenter(center);
-	camera.position.copy(VIEW_DIRECTION).multiplyScalar(50).add(center);
+	// Far enough back that the whole box is in front of the camera (a big ground's near corner
+	// would otherwise be behind it and cut off). The view is orthographic, so distance doesn't zoom.
+	const distance = 10 + frame.getSize(corner).length();
+	camera.position.copy(VIEW_DIRECTION).multiplyScalar(distance).add(center);
+	camera.far = Math.max(camera.far, distance * 2 + 10);
 	camera.lookAt(center);
 	camera.updateMatrixWorld();
 	const middle = center.clone().applyMatrix4(camera.matrixWorldInverse);

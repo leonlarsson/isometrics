@@ -1,5 +1,30 @@
-import { SCENE_VERSION, SceneSchema, type TScene } from "#/scene/schema";
+import {
+	SCENE_VERSION,
+	SceneSchema,
+	type TDrivingSide,
+	type TScene,
+	type TThemePreference,
+} from "#/scene/schema";
+
+/** What File → New world lets you set for a blank world; anything left out gets its default. */
+export interface IEmptySceneOptions {
+	title?: string;
+	ground?: { width: number; depth: number };
+	theme?: TThemePreference;
+	driving?: TDrivingSide;
+}
 
 /** Starting option: bare ground, with no objects, roads, areas or data. */
-export const createEmptyScene = (): TScene =>
-	SceneSchema.parse({ version: SCENE_VERSION, meta: { title: "Untitled world" } });
+export const createEmptyScene = ({
+	title = "Untitled world",
+	ground,
+	theme,
+	driving,
+}: IEmptySceneOptions = {}): TScene =>
+	SceneSchema.parse({
+		version: SCENE_VERSION,
+		meta: { title },
+		...(ground && { ground: { ...ground, color: null } }),
+		...(theme && { theme }),
+		...(driving && { driving }),
+	});

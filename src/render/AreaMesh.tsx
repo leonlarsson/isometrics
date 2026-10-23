@@ -1,5 +1,5 @@
 import { Line } from "@react-three/drei";
-import type { ThreeEvent } from "@react-three/fiber";
+import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
@@ -8,6 +8,7 @@ import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { areaColor } from "#/scene/areas";
 import type { TArea } from "#/scene/schema";
+import type { IScenePalette } from "#/scene/theme";
 
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
@@ -32,20 +33,24 @@ const outlineShape = (points: TArea["points"]) => {
 	return shape;
 };
 
-interface IAreaMeshProps {
+type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick">;
+
+interface IAreaBodyProps {
 	area: TArea;
 	/** Draw order among areas; later areas sit on top where they overlap. */
 	layer: number;
+	palette: IScenePalette;
+	/** Outlined as the selection. */
+	selected: boolean;
+	handlers?: TAreaHandlers;
 }
 
-/** A free-form area: a flat coloured polygon, or raised land with cliff sides. */
-export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
-	const palette = usePalette();
-	const mode = useEditor((s) => s.mode);
-	const selected = useEditor((s) => s.selectedAreaId === area.id);
-	const drawing = useEditor((s) => s.drawing !== null);
-	const selectArea = useEditor((s) => s.selectArea);
-
+/**
+ * How an area looks, from its props alone: a flat coloured polygon, or raised
+ * land with cliff sides. The editor's AreaMesh adds the selection and clicks,
+ * and world pictures (scenePictures) use it as is.
+ */
+export const AreaBody = ({ area, layer, palette, selected, handlers = {} }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = area.height > 0;
 	const geometry = useMemo(() => {
@@ -66,18 +71,6 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	}, [area.points, area.height, y]);
 
 	const color = areaColor(area, palette);
-	const editable = mode === "edit" && !drawing;
-	const handlers = editable
-		? {
-				onClick: (e: ThreeEvent<MouseEvent>) => {
-					// Stop here so the ground behind doesn't deselect, even after a camera drag.
-					e.stopPropagation();
-					if (isClick(e)) {
-						selectArea(area.id);
-					}
-				},
-			}
-		: {};
 
 	return (
 		<group>
@@ -105,9 +98,45 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 				)}
 			</mesh>
 
-			{selected && mode === "edit" && (
-				<Line points={outline} color={palette.selection} lineWidth={3} />
-			)}
+			{selected && <Line points={outline} color={palette.selection} lineWidth={3} />}
 		</group>
+	);
+};
+
+interface IAreaMeshProps {
+	area: TArea;
+	/** Draw order among areas; later areas sit on top where they overlap. */
+	layer: number;
+}
+
+/** An area in the editor: selectable while editing. */
+export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
+	const palette = usePalette();
+	const mode = useEditor((s) => s.mode);
+	const selected = useEditor((s) => s.selectedAreaId === area.id);
+	const drawing = useEditor((s) => s.drawing !== null);
+	const selectArea = useEditor((s) => s.selectArea);
+
+	const editable = mode === "edit" && !drawing;
+	const handlers: TAreaHandlers = editable
+		? {
+				onClick: (e: ThreeEvent<MouseEvent>) => {
+					// Stop here so the ground behind doesn't deselect, even after a camera drag.
+					e.stopPropagation();
+					if (isClick(e)) {
+						selectArea(area.id);
+					}
+				},
+			}
+		: {};
+
+	return (
+		<AreaBody
+			area={area}
+			layer={layer}
+			palette={palette}
+			selected={selected && mode === "edit"}
+			handlers={handlers}
+		/>
 	);
 });

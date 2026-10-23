@@ -15,12 +15,17 @@ interface IDialogProps {
 	children: ReactNode;
 	/** Label of the button that closes it. */
 	closeLabel?: string;
+	/** A main action next to the close button (which then says Cancel), e.g. Create. */
+	confirm?: { label: string; onConfirm: () => void; disabled?: boolean };
+	/** Room for two columns, e.g. choices on the left and their settings on the right. */
+	wide?: boolean;
 }
 
 /**
  * A modal panel for content that needs more room than a menu: a title, a
- * scrolling body and a close button. Built on Base UI's Dialog (ADR-0024);
- * for a yes/no question use `ConfirmDialog`. Escape and the backdrop close it.
+ * scrolling body and a close button, optionally with a main action beside
+ * it. Built on Base UI's Dialog (ADR-0024); for a yes/no question use
+ * `ConfirmDialog`. Escape and the backdrop close it.
  */
 export const Dialog = ({
 	open,
@@ -28,14 +33,16 @@ export const Dialog = ({
 	title,
 	description,
 	children,
-	closeLabel = "Done",
+	closeLabel,
+	confirm,
+	wide,
 }: IDialogProps) => {
 	return (
 		<BaseDialog.Root open={open} onOpenChange={onOpenChange}>
 			<BaseDialog.Portal>
 				<BaseDialog.Backdrop className={styles.backdrop} />
 
-				<BaseDialog.Popup className={styles.popup}>
+				<BaseDialog.Popup className={styles.popup} data-wide={wide || undefined}>
 					<BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
 
 					{description && (
@@ -47,7 +54,22 @@ export const Dialog = ({
 					<div className={styles.body}>{children}</div>
 
 					<div className={styles.actions}>
-						<Button onClick={() => onOpenChange(false)}>{closeLabel}</Button>
+						<Button onClick={() => onOpenChange(false)}>
+							{closeLabel ?? (confirm ? "Cancel" : "Done")}
+						</Button>
+
+						{confirm && (
+							<Button
+								variant="primary"
+								disabled={confirm.disabled}
+								onClick={() => {
+									confirm.onConfirm();
+									onOpenChange(false);
+								}}
+							>
+								{confirm.label}
+							</Button>
+						)}
 					</div>
 				</BaseDialog.Popup>
 			</BaseDialog.Portal>
