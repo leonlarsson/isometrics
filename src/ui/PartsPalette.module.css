@@ -33,13 +33,17 @@
 	margin-top: 16px;
 }
 
-/* Each group's name stays at the top while its tiles scroll under it. */
+/*
+ * Each group's name stays at the top while its tiles scroll under it. The gap under it is margin,
+ * not padding, so its background ends short of the first row: flush, a stuck heading can cover
+ * the tiles' top border when the edge falls between device pixels (display scaling).
+ */
 .group h3 {
 	position: sticky;
 	top: 0;
 	z-index: 1;
-	margin: 0;
-	padding: 4px 4px 6px;
+	margin: 0 0 3px;
+	padding: 4px 4px 3px;
 	background: var(--surface);
 }
 
