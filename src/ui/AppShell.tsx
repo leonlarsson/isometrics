@@ -39,7 +39,8 @@ import styles from "./AppShell.module.css";
 const SceneTitle = () => {
 	const meta = useEditor((s) => s.scene.meta);
 	return (
-		<div className={styles.sceneTitle}>
+		// Label cards step aside for it (data-label-obstacle), like for the bars.
+		<div className={styles.sceneTitle} data-label-obstacle="">
 			<h1>{meta.title}</h1>
 
 			{meta.subtitle && <p>{meta.subtitle}</p>}
@@ -166,6 +167,8 @@ export const AppShell = () => {
 								ref={sheet}
 								className={styles.rightColumn}
 								data-sheet={narrow ? (sheetOpen ? "open" : "closed") : undefined}
+								// The narrow layout's sheet floats over the scene: label cards keep clear of it.
+								data-label-obstacle={narrow ? "" : undefined}
 							>
 								<ResizeHandle
 									edge="left"

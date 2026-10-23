@@ -8,6 +8,29 @@ import type * as THREE from "three";
  */
 export const labelAnchors = new Map<string, THREE.Object3D>();
 export const labelElements = new Map<string, HTMLElement>();
+/** The pin on top of each labelled object, where its leader line starts. */
+export const labelPins = new Map<string, THREE.Object3D>();
+/** Each card's leader line, drawn in screen space so it follows a card that moved aside. */
+export const labelLeaders = new Map<string, SVGLineElement>();
+/** Measured sizes (px) of each card and of its chip; kept from the last time each was shown. */
+export const labelSizes = new Map<
+	string,
+	{ card?: { width: number; height: number }; chip?: { width: number; height: number } }
+>();
+
+/** Add `value` under `id`, or remove it when null: the shape every registration here takes. */
+const register =
+	<T>(map: Map<string, T>) =>
+	(id: string, value: T | null) => {
+		if (value) {
+			map.set(id, value);
+		} else {
+			map.delete(id);
+		}
+	};
+
+export const registerLabelPin = register(labelPins);
+export const registerLabelLeader = register(labelLeaders);
 
 export const registerLabelAnchor = (id: string, object: THREE.Object3D | null) => {
 	if (object) {

@@ -53,7 +53,7 @@ const DrawingControls = () => {
 		: ROAD_STYLE_LABELS[drawing.style].toLowerCase();
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
 				<strong>Drawing {what}</strong>
 

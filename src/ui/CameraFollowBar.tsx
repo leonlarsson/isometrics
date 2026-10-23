@@ -19,7 +19,7 @@ export const CameraFollowBar = () => {
 	const store = () => useEditor.getState();
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
 				<strong>{follow.ride ? `Riding along with “${name}”` : `Following “${name}”`}</strong>
 

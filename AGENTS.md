@@ -84,7 +84,6 @@ Write a new ADR (copy `docs/adr/template.md`, next free number) for anything tha
 Agreed, planned work lives in [`TODO.md`](TODO.md). Check it before starting related work.
 
 
-- Label collision avoidance (cards can overlap).
 - Live data providers (ADR-0010), sharing links (ADR-0006), AI generation (ADR-0012).
 - Road junctions: crossing roads overlap visually, and a vehicle follows a single road (ADR-0017).
 - Terrain/mountains with roads tunnelling through them: road heights are already modelled for this (ADR-0018).

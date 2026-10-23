@@ -24,7 +24,7 @@ export const RecoveryBar = ({ recovery, onDismiss }: IRecoveryBarProps) => {
 		: "The original couldn’t be backed up automatically (browser storage may be full). Download it now, before you edit, or it will be replaced.";
 
 	return (
-		<div className={styles.bar} role="alert">
+		<div className={styles.bar} data-label-obstacle="" role="alert">
 			<div className={styles.text}>
 				<strong>
 					{repaired

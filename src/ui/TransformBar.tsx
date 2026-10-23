@@ -123,7 +123,7 @@ const TransformControls = () => {
 				: "Move the mouse away or closer, or type a factor.";
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
 				<strong>{`${VERBS[transform.mode]} ${what}${how}${value ? ` · ${value}` : ""}`}</strong>
 

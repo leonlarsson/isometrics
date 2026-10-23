@@ -1,8 +1,6 @@
-import { Line } from "@react-three/drei";
-
 import type { TEntity } from "#/scene/schema";
 
-import { registerLabelAnchor } from "./labelRegistry";
+import { registerLabelAnchor, registerLabelPin } from "./labelRegistry";
 
 type TV3 = [number, number, number];
 
@@ -13,8 +11,9 @@ interface IEntityLabelProps {
 }
 
 /**
- * The 3D half of a label: pin dot, dashed leader line, and an invisible anchor
- * at the card position. The card itself is DOM, rendered by ui/LabelLayer.
+ * The 3D half of a label: the pin dot and an invisible anchor where the card
+ * would like to sit. The card and its dashed leader line are DOM (ui/LabelLayer),
+ * placed by LabelProjector, which may move the card aside so cards don't overlap.
  */
 export const EntityLabel = ({ entity, anchorY, color }: IEntityLabelProps) => {
 	const label = entity.label;
@@ -27,20 +26,11 @@ export const EntityLabel = ({ entity, anchorY, color }: IEntityLabelProps) => {
 
 	return (
 		<group>
-			<mesh position={anchor}>
+			<mesh position={anchor} ref={(object) => registerLabelPin(entity.id, object)}>
 				<sphereGeometry args={[0.13, 16, 16]} />
 
 				<meshBasicMaterial color={color} />
 			</mesh>
-
-			<Line
-				points={[anchor, card]}
-				color={color}
-				lineWidth={1.6}
-				dashed
-				dashSize={0.22}
-				gapSize={0.16}
-			/>
 
 			<group position={card} ref={(object) => registerLabelAnchor(entity.id, object)} />
 		</group>

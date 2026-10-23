@@ -24,7 +24,7 @@ export const useRouteHint = () => {
 
 /** A hint while dragging: what letting go does. */
 const DragHint = ({ title, keys }: { title: string; keys: string }) => (
-	<div className={styles.bar} role="status">
+	<div className={styles.bar} data-label-obstacle="" role="status">
 		<div className={styles.text}>
 			<strong>{title}</strong>
 
@@ -87,7 +87,7 @@ export const FollowOfferBar = () => {
 	const vehicle = entity.name || getPart(entity.kind)?.name.toLowerCase() || "vehicle";
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
 				<strong>Drive along “{roadName(road)}”?</strong>
 

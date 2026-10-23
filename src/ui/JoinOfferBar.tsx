@@ -21,7 +21,7 @@ export const JoinOfferBar = () => {
 	const sameRoad = a.id === b.id;
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
 				<strong>These road ends touch</strong>
 

@@ -47,6 +47,69 @@
 	transform: translateY(-1px);
 }
 
+/* The short form of a card, where there's no room for the whole one: its dot and main value. */
+.chip {
+	all: unset;
+	box-sizing: border-box;
+	translate: -50% calc(-100% - 6px);
+	pointer-events: auto;
+	touch-action: none;
+	cursor: pointer;
+	display: none;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 9px;
+	border-radius: 999px;
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-card);
+	border: 1px solid var(--border);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.anchor[data-compact] .card {
+	display: none;
+}
+
+.anchor[data-compact] .chip {
+	display: flex;
+}
+
+/* Hovering a chip opens the whole card in its place, above the others. */
+.anchor:hover {
+	z-index: 1;
+}
+
+.anchor[data-compact]:hover .card {
+	display: flex;
+}
+
+.anchor[data-compact]:hover .chip {
+	display: none;
+}
+
+/* Leader lines from each pin to its card, under the cards; LabelProjector sets their ends. */
+.leaders {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.leader {
+	stroke-width: 1.6;
+	stroke-dasharray: 5 4;
+	stroke-linecap: round;
+	visibility: hidden;
+}
+
 .card[data-selected] {
 	outline: 2px solid var(--accent);
 	outline-offset: 1px;
@@ -92,20 +155,23 @@
 	font-variant-numeric: tabular-nums;
 }
 
-.layer[data-drawing] .card {
+.layer[data-drawing] .card,
+.layer[data-drawing] .chip {
 	pointer-events: none;
 	opacity: 0.6;
 }
 
 /* Over the transform gizmo (set by LabelProjector): step aside so the handles stay usable. */
-.anchor[data-under-gizmo] .card {
+.anchor[data-under-gizmo] .card,
+.anchor[data-under-gizmo] .chip {
 	pointer-events: none;
 	opacity: 0.25;
 }
 
 /* Phones: smaller cards, so they don't cover the world. */
 @media (max-width: 700px) {
-	.card {
+	.card,
+	.chip {
 		zoom: 0.8;
 	}
 }

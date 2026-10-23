@@ -50,7 +50,7 @@ export const ViewpointBar = () => {
 	const current = viewpoints[index];
 
 	return (
-		<div className={styles.bar} role="status">
+		<div className={styles.bar} data-label-obstacle="" role="status">
 			<IconButton icon="chevronLeft" label="Previous viewpoint (←)" onClick={() => step(-1)} />
 
 			<div className={styles.text}>

@@ -24,7 +24,7 @@ export const DetailSheet = () => {
 	const title = entity.name || entity.label?.title || getPart(entity.kind)?.name || "Object";
 
 	return (
-		<aside className={styles.sheet} aria-label={`${title} details`}>
+		<aside className={styles.sheet} data-label-obstacle="" aria-label={`${title} details`}>
 			<header className={styles.header}>
 				<div>
 					<h2 className={styles.title}>{title}</h2>
