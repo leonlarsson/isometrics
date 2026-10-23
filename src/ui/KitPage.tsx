@@ -224,6 +224,10 @@ export const KitPage = () => {
 														onClick={() => {}}
 													/>
 
+													<Menu.Group label="Group heading">
+														<Menu.Item label="Item in a group" onClick={() => {}} />
+													</Menu.Group>
+
 													<Menu.CheckboxItem
 														icon="grid"
 														label="Checkbox item"

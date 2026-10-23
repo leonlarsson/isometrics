@@ -198,6 +198,23 @@ export const ContextMenu = ({
 	);
 };
 
+interface IMenuGroupProps {
+	/** A muted heading over the group's items. */
+	label: string;
+	children: ReactNode;
+}
+
+/** Items under a heading, e.g. one category in a long list (instead of another submenu level). */
+const MenuGroup = ({ label, children }: IMenuGroupProps) => {
+	return (
+		<BaseMenu.Group>
+			<BaseMenu.GroupLabel className={styles.groupLabel}>{label}</BaseMenu.GroupLabel>
+
+			{children}
+		</BaseMenu.Group>
+	);
+};
+
 const MenuSeparator = () => {
 	return <BaseMenu.Separator className={styles.separator} />;
 };
@@ -209,5 +226,6 @@ export const Menu = {
 	Item: MenuItem,
 	CheckboxItem: MenuCheckboxItem,
 	Submenu: MenuSubmenu,
+	Group: MenuGroup,
 	Separator: MenuSeparator,
 };

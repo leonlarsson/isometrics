@@ -49,8 +49,9 @@ export const GroundContextMenu = () => {
 			subtitle={menu ? describePoint(menu.point) : undefined}
 		>
 			<Menu.Submenu icon="plus" label="Add here">
+				{/* One list with headings, not a submenu per category: a third level would flip over the others near the window's edge. */}
 				{partsByCategory().map(([category, parts]) => (
-					<Menu.Submenu key={category} label={CATEGORY_LABELS[category]}>
+					<Menu.Group key={category} label={CATEGORY_LABELS[category]}>
 						{parts.map((part) => (
 							<Menu.Item
 								key={part.kind}
@@ -58,7 +59,7 @@ export const GroundContextMenu = () => {
 								onClick={() => store().addEntity({ kind: part.kind, name: "", position: spot() })}
 							/>
 						))}
-					</Menu.Submenu>
+					</Menu.Group>
 				))}
 			</Menu.Submenu>
 
