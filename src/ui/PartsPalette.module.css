@@ -29,24 +29,6 @@
 	margin: 0 0 14px;
 }
 
-.group + .group {
-	margin-top: 16px;
-}
-
-/*
- * Each group's name stays at the top while its tiles scroll under it. The gap under it is margin,
- * not padding, so its background ends short of the first row: flush, a stuck heading can cover
- * the tiles' top border when the edge falls between device pixels (display scaling).
- */
-.group h3 {
-	position: sticky;
-	top: 0;
-	z-index: 1;
-	margin: 0 0 3px;
-	padding: 4px 4px 3px;
-	background: var(--surface);
-}
-
 .grid {
 	display: grid;
 	/* As many equal columns as fit (two at the default width, more when the panel is widened). */
@@ -72,6 +54,38 @@
 .part[data-draggable] {
 	position: relative;
 	cursor: grab;
+}
+
+/* A tile and its favourite star, which sits over its top-left corner. */
+.tile {
+	position: relative;
+	display: flex;
+}
+
+.tile > .part,
+.tile > [data-base-ui-tooltip-trigger] {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Shown on hover or keyboard focus, and always once it's a favourite (filled in). */
+.star {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.tile:hover .star,
+.star:focus-within,
+.star[data-on] {
+	opacity: 1;
+}
+
+.star[data-on] svg {
+	fill: var(--accent);
+	color: var(--accent);
 }
 
 /* Grip in the corner of tiles that can be dragged onto the scene. */

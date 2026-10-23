@@ -2,6 +2,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { rememberUsed } from "#/editor/paletteMemory";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { toRadians } from "#/lib/math";
@@ -161,6 +162,7 @@ export const PlacementPreview = () => {
 			const { point, elevation, rotation, pitch } = at.placement;
 			const state = useEditor.getState();
 			const id = state.addEntity({ kind, name: "", position: point, elevation, rotation, pitch });
+			rememberUsed(`part:${kind}`);
 			if (at.drop) {
 				const { roadId, offset, reverse } = at.drop;
 				state.setFollowOffer({ entityId: id, roadId, offset, reverse, position: point });

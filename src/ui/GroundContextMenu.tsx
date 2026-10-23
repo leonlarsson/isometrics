@@ -1,3 +1,4 @@
+import { rememberUsed } from "#/editor/paletteMemory";
 import { spotOnGrid, useEditor } from "#/editor/store";
 import { round } from "#/lib/math";
 import { partName, partsByCategory } from "#/parts/registry";
@@ -56,7 +57,10 @@ export const GroundContextMenu = () => {
 							<Menu.Item
 								key={part.kind}
 								label={partName(part)}
-								onClick={() => store().addEntity({ kind: part.kind, name: "", position: spot() })}
+								onClick={() => {
+									store().addEntity({ kind: part.kind, name: "", position: spot() });
+									rememberUsed(`part:${part.kind}`);
+								}}
 							/>
 						))}
 					</Menu.Group>
@@ -68,7 +72,10 @@ export const GroundContextMenu = () => {
 					<Menu.Item
 						key={style}
 						label={ROAD_STYLE_LABELS[style]}
-						onClick={() => draw(() => store().startDrawing(style))}
+						onClick={() => {
+							draw(() => store().startDrawing(style));
+							rememberUsed(`road:${style}`);
+						}}
 					/>
 				))}
 			</Menu.Submenu>
@@ -78,7 +85,10 @@ export const GroundContextMenu = () => {
 					<Menu.Item
 						key={type}
 						label={AREA_TYPE_LABELS[type]}
-						onClick={() => draw(() => store().startAreaDrawing(type))}
+						onClick={() => {
+							draw(() => store().startAreaDrawing(type));
+							rememberUsed(`area:${type}`);
+						}}
 					/>
 				))}
 			</Menu.Submenu>

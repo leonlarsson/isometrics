@@ -1,0 +1,59 @@
+.section + .section {
+	margin-top: 12px;
+}
+
+/*
+ * Stays at the top while the group scrolls under it. The gap under it is margin, not padding, so
+ * its background ends short of the first row (flush, it can cover the row's top border when the
+ * edge falls between device pixels).
+ */
+.heading {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 0 0 3px;
+	padding: 2px 0 1px;
+	background: var(--surface);
+}
+
+.trigger {
+	all: unset;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+	padding: 3px 4px;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+}
+
+.trigger:hover {
+	color: var(--text);
+}
+
+.trigger:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.chevron {
+	display: grid;
+	transition: rotate 120ms ease;
+}
+
+.trigger[data-panel-open] .chevron {
+	rotate: 90deg;
+}
+
+.count {
+	margin-left: auto;
+	font-weight: 500;
+	letter-spacing: 0;
+	opacity: 0.8;
+}

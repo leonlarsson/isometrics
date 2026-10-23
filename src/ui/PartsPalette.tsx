@@ -1,6 +1,12 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { type PointerEvent, type ReactElement, useEffect, useRef, useState } from "react";
 
+import {
+	rememberUsed,
+	setSectionCollapsed,
+	toggleFavourite,
+	usePaletteMemory,
+} from "#/editor/paletteMemory";
 import { findFreeSpot } from "#/editor/placement";
 import { useEditor } from "#/editor/store";
 import { usePalette, useResolvedTheme } from "#/editor/useTheme";
@@ -8,13 +14,17 @@ import { pastDragThreshold } from "#/lib/pointer";
 import { partName, partsByCategory, resolveColors } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { usePartThumbnails } from "#/render/thumbnails";
+import { currentView } from "#/render/viewpoints";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
 
-import { GroupLabel, Hint, SearchField } from "./fields";
+import { IconButton } from "./Button";
+import { CollapsibleSection } from "./CollapsibleSection";
+import { Hint, SearchField } from "./fields";
 import { releaseFocusAfterPointerClick } from "./focus";
 import { Icon } from "./Icon";
+import { ContextMenu, Menu } from "./Menu";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
 import { Tooltip } from "./Tooltip";
 
@@ -100,9 +110,12 @@ const TileTooltip = ({ item, children }: { item: IPaletteItem; children: ReactEl
 
 /**
  * The "Add to scene" panel: roads and areas to draw, parts to place, with a
- * search. Clicking a part adds it at a free spot; dragging it onto the scene
- * places it there (render/PlacementPreview shows it under the cursor).
- * Hovering a part opens a card with a live, turning model of it.
+ * search. Clicking a part adds it at a free spot in the middle of the view;
+ * dragging it onto the scene places it there (render/PlacementPreview shows it
+ * under the cursor). Hovering a part opens a card with a live, turning model.
+ * Favourites (the star, or right-click) and recently used items sit on top,
+ * and every section folds; all remembered per browser (editor/paletteMemory).
+ * See docs/adr/0051-add-to-scene.md.
  */
 export const PartsPalette = () => {
 	const addEntity = useEditor((s) => s.addEntity);
@@ -119,6 +132,8 @@ export const PartsPalette = () => {
 	const [preview, setPreview] = useState<{ kind: string; anchor: IPreviewAnchor } | null>(null);
 	const previewTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 	const placing = useEditor((s) => s.placingKind !== null);
+	const memory = usePaletteMemory();
+	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
 
 	/** Show the card for a tile: after a pause, or straight away if one is open or `now`. */
 	const showPreview = (kind: string, tile: HTMLElement, now = false) => {
@@ -186,7 +201,9 @@ export const PartsPalette = () => {
 					kind: part.kind,
 					onSelect: () => {
 						const scene = useEditor.getState().scene;
-						addEntity({ kind: part.kind, name: "", position: findFreeSpot(scene, part) });
+						// Where you're looking, not the middle of the world (far off screen on a big ground).
+						const near = currentView.read?.()?.target ?? [0, 0];
+						addEntity({ kind: part.kind, name: "", position: findFreeSpot(scene, part, near) });
 					},
 				};
 			}),
@@ -217,8 +234,104 @@ export const PartsPalette = () => {
 		window.addEventListener("pointerup", stop);
 	};
 
-	const shown = query.trim() ? items.filter((item) => matches(item, query)) : items;
-	const groups = [...new Set(shown.map((item) => item.group))];
+	const byKey = new Map(items.map((item) => [item.key, item]));
+	const use = (item: IPaletteItem) => {
+		item.onSelect();
+		rememberUsed(item.key);
+	};
+	const searching = query.trim() !== "";
+	const shown = searching ? items.filter((item) => matches(item, query)) : items;
+	const pick = (keys: string[]) =>
+		keys.map((key) => byKey.get(key)).filter((item): item is IPaletteItem => item !== undefined);
+	// Favourites and recently used first (not while searching: the matches are what count then).
+	const sections = [
+		...(searching
+			? []
+			: [
+					{ id: "favourites", label: "Favourites", items: pick(memory.favourites) },
+					{ id: "recent", label: "Recently used", items: pick(memory.recent) },
+				]),
+		...[...new Set(shown.map((item) => item.group))].map((group) => ({
+			id: group,
+			label: group,
+			items: shown.filter((item) => item.group === group),
+		})),
+	].filter((section) => section.items.length > 0);
+	const menuItem = menu ? byKey.get(menu.key) : undefined;
+
+	const tile = (item: IPaletteItem, section: string) => {
+		const favourite = memory.favourites.includes(item.key);
+		return (
+			<div key={`${section}:${item.key}`} className={styles.tile}>
+				<TileTooltip item={item}>
+					<button
+						type="button"
+						className={styles.part}
+						data-draggable={item.kind ? "" : undefined}
+						aria-pressed={item.pressed}
+						aria-description={item.kind ? item.tooltip : undefined}
+						onPointerEnter={(event) => {
+							if (item.kind && event.pointerType === "mouse") {
+								showPreview(item.kind, event.currentTarget);
+							}
+						}}
+						onPointerLeave={() => hidePreview()}
+						onFocus={(event) => {
+							// Keyboard focus only; a click focuses too, and the pointer already shows it.
+							if (item.kind && event.currentTarget.matches(":focus-visible")) {
+								showPreview(item.kind, event.currentTarget, true);
+							}
+						}}
+						onBlur={() => hidePreview(true)}
+						onPointerDown={(event) => {
+							if (item.kind) {
+								hidePreview(true);
+								watchDrag(item.kind, event);
+							}
+						}}
+						onClick={(event) => {
+							if (!dragged.current) {
+								use(item);
+							}
+							releaseFocusAfterPointerClick(event);
+						}}
+						onContextMenu={(event) => {
+							event.preventDefault();
+							hidePreview(true);
+							setMenu({ key: item.key, x: event.clientX, y: event.clientY });
+						}}
+					>
+						<span className={styles.preview} aria-hidden="true">
+							{item.thumbnail ? (
+								<img className={styles.thumbnail} src={item.thumbnail} alt="" draggable={false} />
+							) : (
+								<span className={styles.swatch} style={{ background: item.swatch }} />
+							)}
+						</span>
+
+						<span className={styles.name}>{item.name}</span>
+
+						{item.kind && (
+							<span className={styles.grip} aria-hidden="true">
+								<Icon name="grip" size={14} />
+							</span>
+						)}
+					</button>
+				</TileTooltip>
+
+				<span className={styles.star} data-on={favourite || undefined}>
+					<IconButton
+						icon="star"
+						label={
+							favourite ? `Remove ${item.name} from favourites` : `Add ${item.name} to favourites`
+						}
+						pressed={favourite}
+						onClick={() => toggleFavourite(item.key)}
+					/>
+				</span>
+			</div>
+		);
+	};
 
 	return (
 		<nav className={styles.palette} aria-label="Parts">
@@ -238,76 +351,51 @@ export const PartsPalette = () => {
 			</div>
 
 			<div className={styles.list} onScroll={() => hidePreview(true)}>
-				{groups.length === 0 && <Hint>Nothing matches “{query.trim()}”.</Hint>}
+				{sections.length === 0 && <Hint>Nothing matches “{query.trim()}”.</Hint>}
 
-				{groups.map((group) => (
-					<section key={group} className={styles.group}>
-						<GroupLabel as="h3">{group}</GroupLabel>
-
-						<div className={styles.grid}>
-							{shown
-								.filter((item) => item.group === group)
-								.map((item) => (
-									<TileTooltip key={item.key} item={item}>
-										<button
-											type="button"
-											className={styles.part}
-											data-draggable={item.kind ? "" : undefined}
-											aria-pressed={item.pressed}
-											aria-description={item.kind ? item.tooltip : undefined}
-											onPointerEnter={(event) => {
-												if (item.kind && event.pointerType === "mouse") {
-													showPreview(item.kind, event.currentTarget);
-												}
-											}}
-											onPointerLeave={() => hidePreview()}
-											onFocus={(event) => {
-												// Keyboard focus only; a click focuses too, and the pointer already shows it.
-												if (item.kind && event.currentTarget.matches(":focus-visible")) {
-													showPreview(item.kind, event.currentTarget, true);
-												}
-											}}
-											onBlur={() => hidePreview(true)}
-											onPointerDown={(event) => {
-												if (item.kind) {
-													hidePreview(true);
-													watchDrag(item.kind, event);
-												}
-											}}
-											onClick={(event) => {
-												if (!dragged.current) {
-													item.onSelect();
-												}
-												releaseFocusAfterPointerClick(event);
-											}}
-										>
-											<span className={styles.preview} aria-hidden="true">
-												{item.thumbnail ? (
-													<img
-														className={styles.thumbnail}
-														src={item.thumbnail}
-														alt=""
-														draggable={false}
-													/>
-												) : (
-													<span className={styles.swatch} style={{ background: item.swatch }} />
-												)}
-											</span>
-
-											<span className={styles.name}>{item.name}</span>
-
-											{item.kind && (
-												<span className={styles.grip} aria-hidden="true">
-													<Icon name="grip" size={14} />
-												</span>
-											)}
-										</button>
-									</TileTooltip>
-								))}
-						</div>
-					</section>
+				{sections.map((section) => (
+					<CollapsibleSection
+						key={section.id}
+						label={section.label}
+						count={section.items.length}
+						// While searching every match shows, folded or not.
+						open={searching || !memory.collapsed.includes(section.id)}
+						onOpenChange={(open) => setSectionCollapsed(section.id, !open)}
+					>
+						<div className={styles.grid}>{section.items.map((item) => tile(item, section.id))}</div>
+					</CollapsibleSection>
 				))}
 			</div>
+
+			<ContextMenu
+				open={menu !== null && menuItem !== undefined}
+				onOpenChange={(open) => {
+					if (!open) {
+						setMenu(null);
+					}
+				}}
+				x={menu?.x ?? 0}
+				y={menu?.y ?? 0}
+				title={menuItem?.name}
+				subtitle={menuItem?.group}
+			>
+				{menuItem && (
+					<Menu.Item
+						icon={menuItem.kind ? "plus" : "edit"}
+						label={menuItem.kind ? "Add where you're looking" : "Draw it"}
+						onClick={() => use(menuItem)}
+					/>
+				)}
+
+				{menuItem && (
+					<Menu.CheckboxItem
+						icon="star"
+						label="Favourite"
+						checked={memory.favourites.includes(menuItem.key)}
+						onCheckedChange={() => toggleFavourite(menuItem.key)}
+					/>
+				)}
+			</ContextMenu>
 
 			{preview && !placing && <PartPreview kind={preview.kind} anchor={preview.anchor} />}
 		</nav>

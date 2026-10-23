@@ -4,6 +4,7 @@ import { notify } from "#/editor/toasts";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { ChoiceCards } from "./ChoiceCards";
+import { CollapsibleSection } from "./CollapsibleSection";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import {
@@ -41,6 +42,7 @@ export const KitPage = () => {
 	const [ticked, setTicked] = useState(true);
 	const [startFrom, setStartFrom] = useState("blank");
 	const [size, setSize] = useState("blocks");
+	const [sectionOpen, setSectionOpen] = useState(true);
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [on, setOn] = useState(true);
@@ -264,6 +266,17 @@ export const KitPage = () => {
 												},
 											]}
 										/>
+									</Section>
+
+									<Section title="Collapsible section">
+										<CollapsibleSection
+											label="Buildings"
+											count={2}
+											open={sectionOpen}
+											onOpenChange={setSectionOpen}
+										>
+											<Hint>Folded away with its heading.</Hint>
+										</CollapsibleSection>
 									</Section>
 
 									<Section title="Radio group">
