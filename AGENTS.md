@@ -90,6 +90,10 @@ Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the p
 
 Never add AI attribution: no `Co-Authored-By: Claude …` (or any other AI) trailer, no "Generated with Claude Code" line in commit messages or PR descriptions. Commit as the configured git user only. Don't hard-wrap commit message bodies; use one line per bullet. Never commit or push without the owner's explicit go-ahead, every time. Pushing to `main` deploys to production (Cloudflare is connected to the repo).
 
+## Recommending a fresh start
+
+When a release changes the app so much that people are better off starting over (old worlds or settings would get in the way), bump `FRESH_START` in `src/editor/wipeOffer.ts` (ADR-0059). Every browser that has worlds and hasn't seen the new number is offered, once, to start fresh (File → Wipe everything's two confirmations, with Save to file) or carry on. Worlds must still open after the update (ADR-0026, ADR-0056); this is a recommendation, never a replacement for repairing old worlds. Only bump it with the owner's go-ahead.
+
 ## ADR workflow
 
 Write a new ADR (copy `docs/adr/template.md`, next free number) for anything that changes structure, dependencies, data formats, conventions or system-level behaviour, and add it to the index table in `docs/adr/README.md`. Don't edit accepted ADRs; supersede them with a new one.

@@ -14,6 +14,7 @@ import { CameraFollowBar } from "./CameraFollowBar";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
+import { FreshStartOffer } from "./FreshStartOffer";
 import { GroundContextMenu } from "./GroundContextMenu";
 import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
@@ -198,6 +199,9 @@ export const AppShell = () => {
 							<ItemContextMenu />
 
 							<GroundContextMenu />
+
+							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
+							{ready && <FreshStartOffer />}
 						</main>
 
 						{mode === "edit" && !rightOpen && (

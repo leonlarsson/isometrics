@@ -62,3 +62,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0056](0056-safe-schema-and-part-changes.md) | Changes to the world format and to parts are checked against old worlds | accepted |
 | [0057](0057-save-status.md) | A save status next to the File menu says whether the world is saved | accepted |
 | [0058](0058-lights.md) | Lights are a shared system: parts declare them, objects set each one, data can switch them | accepted |
+| [0059](0059-fresh-start-offer.md) | After a big update, the app offers once to start fresh | accepted |

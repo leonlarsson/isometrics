@@ -7,21 +7,15 @@ import {
 	openWorldFile,
 	saveWorldFile,
 } from "#/editor/fileActions";
-import {
-	type IWorldInfo,
-	listSceneBackups,
-	listWorlds,
-	openWorldId,
-	wipeEverything,
-} from "#/editor/persistence";
+import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
-import { notify } from "#/editor/toasts";
 import { createEmptyScene } from "#/templates";
 
 import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
 import { NewWorldDialog } from "./NewWorldDialog";
+import { WipeEverything } from "./WipeEverything";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
 /** How many worlds Open world lists; All worlds… shows the rest. */
@@ -45,9 +39,7 @@ export const FileMenu = () => {
 	// Kept while the dialog animates out, so its text doesn't change.
 	const [deletingTitle, setDeletingTitle] = useState(title);
 	// Wiping everything takes two confirmations; the second one names what goes.
-	const [wipeStep, setWipeStep] = useState<0 | 1 | 2>(0);
-	const [wipeCounts, setWipeCounts] = useState({ worlds: 0, backups: 0 });
-	const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
+	const [wiping, setWiping] = useState(false);
 
 	return (
 		<>
@@ -136,7 +128,7 @@ export const FileMenu = () => {
 						icon="trash"
 						label="Wipe everything…"
 						description="Every world, backup and setting in this browser"
-						onClick={() => setWipeStep(1)}
+						onClick={() => setWiping(true)}
 					/>
 				</Menu.Popup>
 			</Menu.Root>
@@ -158,42 +150,7 @@ export const FileMenu = () => {
 				extraAction={{ label: "Save to file", onClick: saveWorldFile }}
 			/>
 
-			<ConfirmDialog
-				open={wipeStep === 1}
-				// Closing after Continue mustn't undo the step to the second dialog.
-				onOpenChange={(open) => setWipeStep((step) => (open ? 1 : step === 1 ? 0 : step))}
-				title="Wipe everything?"
-				description="This deletes every world in this browser, all backups, and settings such as panel sizes. Save any world you want to keep to a file first."
-				confirmLabel="Continue"
-				danger
-				onConfirm={() => {
-					setWipeCounts({ worlds: listWorlds().length, backups: listSceneBackups().length });
-					setWipeStep(2);
-				}}
-				extraAction={{ label: "Save to file", onClick: saveWorldFile }}
-			/>
-
-			<ConfirmDialog
-				open={wipeStep === 2}
-				onOpenChange={(open) => setWipeStep((step) => (open ? 2 : step === 2 ? 0 : step))}
-				title="This can’t be undone"
-				description={`${plural(wipeCounts.worlds, "world")} and ${plural(wipeCounts.backups, "backup")} will be deleted for good.`}
-				confirmLabel="Wipe everything"
-				danger
-				confirmDelaySeconds={3}
-				onConfirm={() => {
-					if (wipeEverything()) {
-						// Start over on the plain path, as on a first visit.
-						window.location.assign(window.location.pathname);
-					} else {
-						notify(
-							"Nothing was wiped",
-							"The browser refused to clear this site’s storage.",
-							"error",
-						);
-					}
-				}}
-			/>
+			<WipeEverything open={wiping} onClose={() => setWiping(false)} />
 		</>
 	);
 };

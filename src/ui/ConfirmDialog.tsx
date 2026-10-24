@@ -12,6 +12,8 @@ interface IConfirmDialogProps {
 	description: ReactNode;
 	confirmLabel: string;
 	onConfirm: () => void;
+	/** What the button that closes it without acting says; "Cancel" by default (e.g. "Not now"). */
+	cancelLabel?: string;
 	/** The confirm button is red: the action deletes something. */
 	danger?: boolean;
 	/** An extra button on the left that doesn't close the dialog, e.g. "Save to file first". */
@@ -34,6 +36,7 @@ export const ConfirmDialog = ({
 	description,
 	confirmLabel,
 	onConfirm,
+	cancelLabel = "Cancel",
 	danger,
 	extraAction,
 	confirmDelaySeconds = 0,
@@ -68,7 +71,7 @@ export const ConfirmDialog = ({
 							</span>
 						)}
 
-						<Button onClick={() => onOpenChange(false)}>Cancel</Button>
+						<Button onClick={() => onOpenChange(false)}>{cancelLabel}</Button>
 
 						<Button
 							variant={danger ? "danger" : "primary"}
