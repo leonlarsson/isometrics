@@ -117,7 +117,22 @@ export const ButtonGroup = ({
 	);
 };
 
-/** A row of icon buttons, e.g. in a section header. */
-export const IconButtonGroup = ({ children }: { children: ReactNode }) => {
-	return <div className={styles.group}>{children}</div>;
+interface IIconButtonGroupProps {
+	children: ReactNode;
+	/**
+	 * Related buttons on a sunken pill, like the toolbar's clusters (ADR-0054).
+	 * Its value names the group for screen readers, e.g. "History".
+	 */
+	cluster?: string;
+}
+
+/** A row of icon buttons, e.g. in a section header, or a named cluster in the toolbar. */
+export const IconButtonGroup = ({ children, cluster }: IIconButtonGroupProps) => {
+	return cluster ? (
+		<fieldset className={styles.cluster} aria-label={cluster}>
+			{children}
+		</fieldset>
+	) : (
+		<div className={styles.group}>{children}</div>
+	);
 };

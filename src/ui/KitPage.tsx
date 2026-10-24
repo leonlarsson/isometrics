@@ -24,6 +24,8 @@ import {
 } from "./fields";
 import { List, ListItem } from "./List";
 import { Menu } from "./Menu";
+import { PaneHeader } from "./PaneHeader";
+import { RailTabPanel, RailTabs } from "./RailTabs";
 import { TabPanel, Tabs } from "./Tabs";
 import { Toaster } from "./Toaster";
 import { TooltipProvider } from "./Tooltip";
@@ -53,6 +55,7 @@ export const KitPage = () => {
 	const [keys, setKeys] = useState(["population"]);
 	const [color, setColor] = useState("#4a64e0");
 	const [tab, setTab] = useState<"one" | "two">("one");
+	const [railTab, setRailTab] = useState<"world" | "sky" | "object">("world");
 	const [selected, setSelected] = useState("ring");
 	const [confirming, setConfirming] = useState(false);
 	const [browsing, setBrowsing] = useState(false);
@@ -149,6 +152,49 @@ export const KitPage = () => {
 									}}
 								/>
 							</Section>
+						</div>
+
+						<div className={styles.panel}>
+							<PaneHeader
+								icon="list"
+								title="Pane header"
+								actions={<IconButton icon="chart" label="A filter" pressed onClick={() => {}} />}
+							/>
+
+							<div className={styles.railDemo}>
+								<RailTabs
+									label="Rail tabs"
+									value={railTab}
+									onChange={setRailTab}
+									groups={[
+										[
+											{ value: "world", label: "World", icon: "globe" },
+											{ value: "sky", label: "Sun & sky", icon: "sun" },
+										],
+										[{ value: "object", label: "Object", icon: "cube" }],
+									]}
+								>
+									<RailTabPanel value={railTab}>
+										<Section id="kit.foldable" icon="palette" title="Foldable panel">
+											<ColorField label="Colour" value={color} onChange={setColor} />
+
+											<SwitchField label="A switch" checked={on} onChange={setOn} />
+										</Section>
+
+										<Section id="kit.folded" icon="info" title="Folded at first" defaultClosed>
+											<Hint>Folding is remembered in this browser.</Hint>
+										</Section>
+									</RailTabPanel>
+								</RailTabs>
+							</div>
+
+							<div className={styles.clusterDemo}>
+								<IconButtonGroup cluster="History">
+									<IconButton icon="undo" label="Undo" size="md" onClick={() => {}} />
+
+									<IconButton icon="redo" label="Redo" size="md" onClick={() => {}} />
+								</IconButtonGroup>
+							</div>
 						</div>
 
 						<div className={styles.panel}>

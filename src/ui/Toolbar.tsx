@@ -2,7 +2,7 @@ import { useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
-import { IconButton } from "./Button";
+import { IconButton, IconButtonGroup } from "./Button";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
@@ -75,8 +75,9 @@ export const Toolbar = () => {
 			</fieldset>
 
 			<div className={styles.actions}>
+				{/* Buttons come in clusters, like the mode switch: history, snapping, the view. */}
 				{mode === "edit" && (
-					<>
+					<IconButtonGroup cluster="History">
 						<IconButton
 							size="md"
 							tooltipSide="bottom"
@@ -94,8 +95,12 @@ export const Toolbar = () => {
 							onClick={redo}
 							disabled={!canRedo}
 						/>
+					</IconButtonGroup>
+				)}
 
-						<span className={styles.wideOnly}>
+				{mode === "edit" && (
+					<span className={styles.wideOnly}>
+						<IconButtonGroup cluster="Snapping">
 							<IconButton
 								size="md"
 								tooltipSide="bottom"
@@ -104,47 +109,47 @@ export const Toolbar = () => {
 								pressed={snapping}
 								onClick={toggleSnapping}
 							/>
-
-							<span className={styles.divider} />
-						</span>
-					</>
+						</IconButtonGroup>
+					</span>
 				)}
 
 				<ViewpointsMenu />
 
 				<span className={styles.wideOnly}>
-					<IconButton
-						size="md"
-						tooltipSide="bottom"
-						icon={playing ? "pause" : "play"}
-						label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
-						onClick={togglePlaying}
-					/>
+					<IconButtonGroup cluster="View">
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon={playing ? "pause" : "play"}
+							label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
+							onClick={togglePlaying}
+						/>
 
-					<IconButton
-						size="md"
-						tooltipSide="bottom"
-						icon="perspective"
-						label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
-						pressed={perspective}
-						onClick={togglePerspective}
-					/>
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon="perspective"
+							label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
+							pressed={perspective}
+							onClick={togglePerspective}
+						/>
 
-					<IconButton
-						size="md"
-						tooltipSide="bottom"
-						icon="focus"
-						label="Re-centre camera"
-						onClick={resetView}
-					/>
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon="focus"
+							label="Re-centre camera"
+							onClick={resetView}
+						/>
 
-					<IconButton
-						size="md"
-						tooltipSide="bottom"
-						icon={themeInfo.icon}
-						label={themeInfo.label}
-						onClick={cycleTheme}
-					/>
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon={themeInfo.icon}
+							label={themeInfo.label}
+							onClick={cycleTheme}
+						/>
+					</IconButtonGroup>
 				</span>
 
 				{/* Phones: the buttons above that don't fit, as a menu. */}

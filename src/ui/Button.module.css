@@ -165,3 +165,31 @@
 	flex-direction: column;
 	gap: 4px;
 }
+
+/* --------------------------------------------------------------- cluster */
+
+/* Related toolbar buttons on a sunken pill, matching the mode switch. */
+.cluster {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	margin: 0;
+	padding: 3px;
+	border: none;
+	border-radius: 999px;
+	background: var(--surface-sunken);
+}
+
+.cluster .iconButton {
+	border-radius: 999px;
+}
+
+.cluster .iconButton[data-size="md"] {
+	width: 32px;
+	height: 30px;
+}
+
+.cluster .iconButton:hover:not([data-disabled]) {
+	background: var(--surface-raised);
+}

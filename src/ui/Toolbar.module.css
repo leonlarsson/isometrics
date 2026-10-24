@@ -70,7 +70,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	gap: 2px;
+	gap: 8px;
 }
 
 /* Buttons that only fit on wider screens; on phones they're in the More menu instead. */
@@ -80,13 +80,6 @@
 
 .narrowOnly {
 	display: none;
-}
-
-.divider {
-	width: 1px;
-	height: 20px;
-	margin: 0 6px;
-	background: var(--border-strong);
 }
 
 @media (max-width: 700px) {
@@ -117,6 +110,10 @@
 
 	.wideOnly {
 		display: none;
+	}
+
+	.actions {
+		gap: 4px;
 	}
 
 	.narrowOnly {
