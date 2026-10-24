@@ -25,7 +25,11 @@ const MenuTrigger = ({ children, label, chevron = true, tone }: IMenuTriggerProp
 		<BaseMenu.Trigger className={styles.trigger} aria-label={label} data-tone={tone}>
 			{children}
 
-			{chevron && <Icon name="chevronDown" size={14} />}
+			{chevron && (
+				<span className={styles.chevron}>
+					<Icon name="chevronDown" size={14} />
+				</span>
+			)}
 		</BaseMenu.Trigger>
 	);
 };

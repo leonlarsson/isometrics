@@ -95,8 +95,13 @@
 		display: none;
 	}
 
+	/* File and the save status side by side, with no room to spare. */
+	.brand {
+		gap: 2px;
+	}
+
 	.mode {
-		padding: 6px 10px;
+		padding: 6px 9px;
 	}
 
 	.modeLabel {

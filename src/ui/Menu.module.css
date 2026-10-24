@@ -21,6 +21,17 @@
 	outline: 2px solid var(--accent);
 }
 
+/* The smallest phones: no room in the toolbar for the down arrows; the menus still open. */
+.chevron {
+	display: grid;
+}
+
+@media (max-width: 359px) {
+	.chevron {
+		display: none;
+	}
+}
+
 .trigger[data-tone="danger"] {
 	color: var(--danger);
 }

@@ -193,3 +193,10 @@
 .cluster .iconButton:hover:not([data-disabled]) {
 	background: var(--surface-raised);
 }
+
+/* Phones: narrower, like other toolbar buttons there, so the whole toolbar fits. */
+@media (max-width: 700px) {
+	.cluster .iconButton[data-size="md"] {
+		width: 28px;
+	}
+}
