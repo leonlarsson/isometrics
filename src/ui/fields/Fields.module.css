@@ -29,6 +29,8 @@
 .sectionTrigger {
 	all: unset;
 	box-sizing: border-box;
+	/* Equal-width digits, so a title with a live value ("Time of day · 19:30") doesn't jitter. */
+	font-variant-numeric: tabular-nums;
 	flex: 1;
 	min-width: 0;
 	display: flex;

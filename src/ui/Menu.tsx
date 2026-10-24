@@ -2,6 +2,7 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ReactNode } from "react";
 
 import { Icon, type TIconName } from "./Icon";
+import { Tooltip } from "./Tooltip";
 
 import styles from "./Menu.module.css";
 
@@ -18,20 +19,37 @@ interface IMenuTriggerProps {
 	chevron?: boolean;
 	/** "danger" for a trigger that warns, e.g. the save status when saving failed. */
 	tone?: "danger";
+	/** A tooltip on hover, for a trigger that is just an icon. */
+	tooltip?: string;
+	/** Just an icon (the children), as a small square like a small IconButton, e.g. in a panel's title bar. */
+	iconOnly?: boolean;
 }
 
-const MenuTrigger = ({ children, label, chevron = true, tone }: IMenuTriggerProps) => {
-	return (
-		<BaseMenu.Trigger className={styles.trigger} aria-label={label} data-tone={tone}>
+const MenuTrigger = ({
+	children,
+	label,
+	chevron = true,
+	tone,
+	tooltip,
+	iconOnly = false,
+}: IMenuTriggerProps) => {
+	const trigger = (
+		<BaseMenu.Trigger
+			className={styles.trigger}
+			aria-label={label}
+			data-tone={tone}
+			data-icon-only={iconOnly || undefined}
+		>
 			{children}
 
-			{chevron && (
+			{chevron && !iconOnly && (
 				<span className={styles.chevron}>
 					<Icon name="chevronDown" size={14} />
 				</span>
 			)}
 		</BaseMenu.Trigger>
 	);
+	return tooltip ? <Tooltip label={tooltip}>{trigger}</Tooltip> : trigger;
 };
 
 interface IMenuPopupProps {

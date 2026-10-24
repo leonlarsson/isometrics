@@ -4,8 +4,9 @@ import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import type { TLighting } from "#/scene/schema";
 import { formatHour, skyLightAt } from "#/scene/sun";
 
-import { Button, ButtonGroup } from "./Button";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
+import { Icon } from "./Icon";
+import { Menu } from "./Menu";
 
 /** Times of day a click away. */
 const PRESETS: { label: string; hour: number }[] = [
@@ -76,14 +77,40 @@ export const SkyTab = () => {
 
 	return (
 		<>
-			<Section id="sky.time" icon="clock" title="Time of day" keywords="day night cycle clock">
+			<Section
+				id="sky.time"
+				icon="clock"
+				// The world's time in the title while it has one, so nothing jumps in and out below.
+				title={hours === null ? "Time of day" : `Time of day · ${formatHour(hours)}`}
+				keywords="time of day night cycle clock presets dawn noon dusk"
+				actions={
+					// Shortcuts to times with a distinctive light, for the time slider below.
+					(lighting.timeSource === "fixed" || cycling) && (
+						<Menu.Root>
+							<Menu.Trigger label="Preset times" tooltip="Preset times" iconOnly>
+								<Icon name="sun" size={16} />
+							</Menu.Trigger>
+
+							<Menu.Popup>
+								{PRESETS.map((preset) => (
+									<Menu.Item
+										key={preset.label}
+										label={preset.label}
+										description={formatHour(preset.hour)}
+										onClick={() => setTime(preset.hour)}
+									/>
+								))}
+							</Menu.Popup>
+						</Menu.Root>
+					)
+				}
+			>
 				{/* First: it decides what the rest of the panel means. */}
 				<SelectField<TLighting["timeSource"]>
 					label="Time follows"
 					value={lighting.timeSource}
 					options={SOURCES}
 					onChange={(timeSource) => set("timeSource", timeSource)}
-					hint={hours === null ? undefined : `It's ${formatHour(hours)} in the world.`}
 				/>
 
 				{(lighting.timeSource === "fixed" || lighting.timeSource === "cycle") && (
@@ -108,14 +135,6 @@ export const SkyTab = () => {
 									: undefined
 							}
 						/>
-
-						<ButtonGroup>
-							{PRESETS.map((preset) => (
-								<Button key={preset.label} size="sm" onClick={() => setTime(preset.hour)}>
-									{preset.label}
-								</Button>
-							))}
-						</ButtonGroup>
 					</>
 				)}
 

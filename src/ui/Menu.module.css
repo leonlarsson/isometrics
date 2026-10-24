@@ -11,6 +11,15 @@
 	color: var(--text-muted);
 }
 
+/* Just an icon, centred in a square the size of a small IconButton. */
+.trigger[data-icon-only] {
+	box-sizing: border-box;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+}
+
 .trigger:hover,
 .trigger[data-popup-open] {
 	background: var(--surface-sunken);
