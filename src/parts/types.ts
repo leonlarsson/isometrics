@@ -75,8 +75,19 @@ export interface IPartDefinition<P extends object> {
 	description: string;
 	/** Everyday words the palette search should also match, e.g. "boat" for a yacht. */
 	keywords?: string[];
-	/** Zod schema with defaults for every prop: `schema.parse({})` must succeed. */
+	/** Zod schema with defaults for every prop: `schema.parse({})` must succeed (a test checks). */
 	schema: z.ZodType<P>;
+	/**
+	 * Props that were renamed: old name → new name. A world saved with the old
+	 * name keeps its value (`resolveProps` reads it when the new one is missing).
+	 * Never remove an entry. See docs/adr/0056-safe-schema-and-part-changes.md.
+	 */
+	renamedProps?: Readonly<Record<string, Extract<keyof P, string>>>;
+	/**
+	 * Props it no longer has, removed on purpose. Old worlds keep their values
+	 * (unused); listing them tells the old-world tests it isn't a mistake.
+	 */
+	removedProps?: readonly string[];
 	fields: TFieldSpec<Extract<keyof P, string>>[];
 	defaultColor: TColorDefault;
 	defaultAccent: TColorDefault;

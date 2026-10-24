@@ -73,8 +73,28 @@ export const partsByCategory = (): [TPartCategory, TAnyPart[]][] => {
 	return [...groups.entries()];
 };
 
-/** Parse stored props with the part's schema, falling back to defaults. */
-export const resolveProps = (part: TAnyPart, raw: Record<string, unknown>) => {
+/** Stored props with renamed ones under their new names, unless the new name is set too. */
+const withRenamedProps = (part: TAnyPart, raw: Record<string, unknown>) => {
+	const renamed = Object.entries(part.renamedProps ?? {}).filter(
+		([from, to]) => raw[from] !== undefined && raw[to] === undefined,
+	);
+	if (renamed.length === 0) {
+		return raw;
+	}
+	const props = { ...raw };
+	for (const [from, to] of renamed) {
+		props[to] = raw[from];
+	}
+	return props;
+};
+
+/**
+ * A part's props from what's stored: every valid prop as it is, renamed ones
+ * under their new names, a missing or invalid one as its default. Props the
+ * part doesn't know are left out here, but stay in the world (ADR-0056).
+ */
+export const resolveProps = (part: TAnyPart, stored: Record<string, unknown>) => {
+	const raw = withRenamedProps(part, stored);
 	const result = part.schema.safeParse(raw);
 	if (result.success) {
 		return result.data;

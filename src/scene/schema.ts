@@ -115,8 +115,12 @@ export const EntitySchema = z
 			.record(z.string(), z.unknown())
 			.default({})
 			.describe("The part's own parameters (see its kind); missing ones use their defaults."),
-		label: LabelSchema.nullable().default(null),
-		follow: FollowSchema.nullable().default(null),
+		label: LabelSchema.nullable()
+			.default(null)
+			.describe("A floating card with data values above it; null = no card."),
+		follow: FollowSchema.nullable()
+			.default(null)
+			.describe("The road it drives along (vehicles); null = parked where it stands."),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
 		lights: z
 			.enum(["auto", "on", "off"])
@@ -431,7 +435,8 @@ export const SceneSchema = z
 				title: z.string().default("Untitled world").describe("The world's name, shown on top."),
 				subtitle: z.string().default("").describe("A line under the title."),
 			})
-			.default({ title: "Untitled world", subtitle: "" }),
+			.default({ title: "Untitled world", subtitle: "" })
+			.describe("The world's title and subtitle."),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
 		driving: DrivingSideSchema.default("right"),

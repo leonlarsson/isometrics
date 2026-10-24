@@ -9,14 +9,10 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 
 ## Safer schema and part changes
 
-- [ ] **Make adding a field or a part property fail safe** (e.g. balconies on the office tower). Worlds are repaired on load (ADR-0026) and renamed kinds are mapped (ADR-0053), but nothing checks that a new property is added safely. Ideas:
-  - **Guard tests that fail CI:** every part's schema parses `{}` (a prop without a default fails), every inspector field (`fields`) names a prop with a default, and every scene field has a default and a `.describe()`.
-  - **Tests for `resolveProps`** (it has none): a missing prop gets its default, an invalid one resets alone while the rest are kept, an unknown one is ignored.
-  - **Old-world fixtures:** a folder of real saved worlds from earlier versions, one per notable change, each opened in a test through `parseOrRepairScene()` that checks nothing is reported lost and that the objects keep their props. Add one with each schema change.
-  - **Defaults that keep the old look:** a new prop's default should draw existing worlds as they were (balconies off), or old worlds change looks on update without anyone touching them. Say so in the checklist, and maybe test it by comparing rendered pictures (ADR-0036 thumbnails) before and after.
-  - **Renamed props:** ADR-0053 maps old part kinds, road styles and area types, but a renamed prop still loses its value. Add per-part prop aliases (old name → new).
-  - **Forward compatibility:** when an older app opens a world from a newer version, unknown world and object fields are dropped on load (Zod strips them). Unknown part props survive loading and saving (`props` is a free-form record), but editing any of the object's Shape settings writes back only the props this version knows (`e.props = { ...resolved, [key]: v }` in `EntityInspector`), dropping the rest. Decide whether to keep unknown fields and props; for props, writing `{ ...e.props, [key]: v }` would do it.
-  - **A checklist in AGENTS.md** ("Add a part prop") listing the above.
+Guard tests, old-world fixtures, renamed/removed props and keeping unknown props are done (ADR-0056). Still open:
+
+- [ ] **Old worlds look the same:** render each old-world fixture before and after a change and compare the pictures (the thumbnails of ADR-0036 could do it), so a default that changes the look of existing worlds is caught too.
+- [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links.
 
 ## Ideas backlog (2026-10-21)
 

@@ -11,4 +11,54 @@ describe("sceneJsonSchema", () => {
 			expect.arrayContaining(["meta", "entities", "roads", "areas", "data"]),
 		);
 	});
+
+	it("describes every field, and requires only the fields listed here (ADR-0056)", () => {
+		// Required = no default: a world saved before such a field existed couldn't be read.
+		// Only identities and contents belong here; anything new gets a default instead.
+		const allowedRequired = [
+			"version",
+			"entities.id",
+			"entities.kind",
+			"entities.follow.roadId",
+			"roads.id",
+			"roads.points",
+			"areas.id",
+			"areas.points",
+			"data.key",
+			"data.value",
+			"viewpoints.id",
+		];
+		const required: string[] = [];
+		const undescribed: string[] = [];
+		const walk = (node: unknown, path: string) => {
+			if (typeof node !== "object" || node === null) {
+				return;
+			}
+			const schema = node as {
+				properties?: Record<string, { description?: string }>;
+				required?: string[];
+				items?: unknown;
+				anyOf?: unknown[];
+			};
+			for (const [key, child] of Object.entries(schema.properties ?? {})) {
+				const field = path ? `${path}.${key}` : key;
+				if (schema.required?.includes(key)) {
+					required.push(field);
+				}
+				if (!child.description) {
+					undescribed.push(field);
+				}
+				walk(child, field);
+			}
+			walk(schema.items, path);
+			for (const option of schema.anyOf ?? []) {
+				walk(option, path);
+			}
+		};
+		walk(sceneJsonSchema(), "");
+		expect(undescribed, "fields without a .describe()").toEqual([]);
+		expect(required.sort(), "required fields (add a default instead)").toEqual(
+			allowedRequired.sort(),
+		);
+	});
 });

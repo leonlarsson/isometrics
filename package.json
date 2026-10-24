@@ -18,7 +18,8 @@
     "check:fix": "biome check --write && node scripts/jsx-spacing.mjs --fix && biome format --write src",
     "deploy": "pnpm run build && wrangler deploy",
     "generate-routes": "tsr generate",
-    "lint:jsx": "node scripts/jsx-spacing.mjs"
+    "lint:jsx": "node scripts/jsx-spacing.mjs",
+    "fixture:old-world": "node scripts/old-world-fixture.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

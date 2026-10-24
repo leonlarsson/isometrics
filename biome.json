@@ -13,7 +13,8 @@
 			"**/.vscode/**/*",
 			"**/vite.config.ts",
 			"**/vitest.config.ts",
-			"!**/src/routeTree.gen.ts"
+			"!**/src/routeTree.gen.ts",
+			"!**/src/scene/fixtures/old-worlds"
 		]
 	},
 	"formatter": {

@@ -48,6 +48,7 @@ pnpm typecheck    # TypeScript
 pnpm check        # Biome + JSX spacing check: the gate to pass before committing
 pnpm check:fix    # same, fixing what it can
 pnpm build        # production build
+pnpm fixture:old-world <commit> <template>   # save a template as that commit made it, for the old-world tests
 pnpm run deploy   # build + deploy to Cloudflare Workers (needs `wrangler login`; plain `pnpm deploy` is a different, built-in pnpm command)
 ```
 
