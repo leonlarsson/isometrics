@@ -21,9 +21,9 @@
 	box-sizing: border-box;
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 5px;
 	width: 100%;
-	padding: 3px 4px;
+	padding: 4px;
 	border-radius: var(--radius-sm);
 	cursor: pointer;
 	font-size: 11px;
@@ -35,6 +35,11 @@
 
 .trigger:hover {
 	color: var(--text);
+}
+
+.icon {
+	display: grid;
+	margin-right: 2px;
 }
 
 .trigger:focus-visible {

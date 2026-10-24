@@ -12,7 +12,7 @@ import { useEditor } from "#/editor/store";
 import { usePalette, useResolvedTheme } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import { partName, partsByCategory, resolveColors } from "#/parts/registry";
-import { CATEGORY_LABELS } from "#/parts/types";
+import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { usePartThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
@@ -23,8 +23,10 @@ import { IconButton } from "./Button";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { Hint, SearchField } from "./fields";
 import { releaseFocusAfterPointerClick } from "./focus";
-import { Icon } from "./Icon";
+import { Icon, type TIconName } from "./Icon";
+import { CATEGORY_ICONS } from "./inspectorTabs";
 import { ContextMenu, Menu } from "./Menu";
+import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
 import { Tooltip } from "./Tooltip";
 
@@ -49,6 +51,20 @@ const AREA_TOOL_INFO: Record<TAreaType, { description: string; keywords: string 
 		description: "Raised ground with cliff sides, e.g. a rock or plateau",
 		keywords: "hill mountain cliff terrain",
 	},
+};
+
+/** Each section's icon on its heading. */
+const SECTION_ICONS: Record<string, TIconName> = {
+	favourites: "star",
+	recent: "clock",
+	Roads: "road",
+	Areas: "area",
+	...Object.fromEntries(
+		(Object.keys(CATEGORY_LABELS) as TPartCategory[]).map((category) => [
+			CATEGORY_LABELS[category],
+			CATEGORY_ICONS[category],
+		]),
+	),
 };
 
 const ROAD_TOOLS = (Object.keys(ROAD_TOOL_INFO) as TRoadStyle[]).map((style) => ({
@@ -335,9 +351,9 @@ export const PartsPalette = () => {
 
 	return (
 		<nav className={styles.palette} aria-label="Parts">
-			<div className={styles.top}>
-				<h2 className={styles.heading}>Add to scene</h2>
+			<PaneHeader icon="plusSquare" title="Add to scene" />
 
+			<div className={styles.top}>
 				<div className={styles.search}>
 					<SearchField
 						label="Search parts"
@@ -357,6 +373,7 @@ export const PartsPalette = () => {
 					<CollapsibleSection
 						key={section.id}
 						label={section.label}
+						icon={SECTION_ICONS[section.id]}
 						count={section.items.length}
 						// While searching every match shows, folded or not.
 						open={searching || !memory.collapsed.includes(section.id)}

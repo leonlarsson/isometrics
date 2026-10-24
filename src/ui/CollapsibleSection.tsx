@@ -1,12 +1,14 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { ReactNode } from "react";
 
-import { Icon } from "./Icon";
+import { Icon, type TIconName } from "./Icon";
 
 import styles from "./CollapsibleSection.module.css";
 
 interface ICollapsibleSectionProps {
 	label: string;
+	/** Shown before the label. */
+	icon?: TIconName;
 	/** Shown muted after the label, e.g. how many items the section holds. */
 	count?: number;
 	open: boolean;
@@ -20,6 +22,7 @@ interface ICollapsibleSectionProps {
  */
 export const CollapsibleSection = ({
 	label,
+	icon,
 	count,
 	open,
 	onOpenChange,
@@ -32,6 +35,12 @@ export const CollapsibleSection = ({
 					<span className={styles.chevron}>
 						<Icon name="chevronRight" size={12} />
 					</span>
+
+					{icon && (
+						<span className={styles.icon}>
+							<Icon name={icon} size={14} />
+						</span>
+					)}
 
 					{label}
 

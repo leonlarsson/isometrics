@@ -2,10 +2,11 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { useEffect, useRef, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
+import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { getPart, partName, partsByCategory, resolveColors } from "#/parts/registry";
-import { CATEGORY_LABELS } from "#/parts/types";
+import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { formatEntry } from "#/scene/format";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
@@ -13,8 +14,12 @@ import type { TScene } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { IconButton, IconButtonGroup } from "./Button";
-import { GroupLabel, Hint, Kbd, SearchField, SwitchField } from "./fields";
+import { CollapsibleSection } from "./CollapsibleSection";
+import { Hint, Kbd, SearchField } from "./fields";
+import type { TIconName } from "./Icon";
+import { CATEGORY_ICONS } from "./inspectorTabs";
 import { List, ListItem } from "./List";
+import { PaneHeader } from "./PaneHeader";
 import { areaSwatch, roadSwatch } from "./swatches";
 
 import styles from "./Outliner.module.css";
@@ -97,6 +102,19 @@ const GROUP_ORDER = [
 	AREAS,
 ];
 
+/** Each group's icon on its heading. */
+const GROUP_ICONS: Record<string, TIconName> = {
+	...Object.fromEntries(
+		(Object.keys(CATEGORY_LABELS) as TPartCategory[]).map((category) => [
+			CATEGORY_LABELS[category],
+			CATEGORY_ICONS[category],
+		]),
+	),
+	[OTHER]: "cube",
+	[ROADS]: "road",
+	[AREAS]: "area",
+};
+
 /** Every word of the query must appear in the row's name, kind or group. */
 const matches = (row: IOutlinerRow, query: string) => {
 	const text = `${row.name} ${row.fallback} ${row.group}`.toLowerCase();
@@ -128,6 +146,8 @@ export const Outliner = () => {
 	const [onlyData, setOnlyData] = useState(false);
 	const [renaming, setRenaming] = useState<string | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
+	// Folded groups are remembered per browser, with the properties' panels.
+	const panels = usePanelMemory();
 
 	const store = () => useEditor.getState();
 	const select = (item: ISceneItem) => {
@@ -162,18 +182,21 @@ export const Outliner = () => {
 
 	return (
 		<div className={styles.outliner}>
-			<div className={styles.top}>
-				<h2 className={styles.heading}>Outliner</h2>
-
-				<div className={styles.filters}>
-					<SearchField label="Search the world" value={query} onChange={setQuery} />
-
-					<SwitchField
-						label="Only things that show data"
-						checked={onlyData}
-						onChange={setOnlyData}
+			<PaneHeader
+				icon="list"
+				title="Outliner"
+				actions={
+					<IconButton
+						icon="chart"
+						label={onlyData ? "Showing only things that show data" : "Only things that show data"}
+						pressed={onlyData}
+						onClick={() => setOnlyData(!onlyData)}
 					/>
-				</div>
+				}
+			/>
+
+			<div className={styles.top}>
+				<SearchField label="Search the world" value={query} onChange={setQuery} />
 			</div>
 
 			<div ref={listRef} className={styles.list}>
@@ -184,9 +207,15 @@ export const Outliner = () => {
 				{rows.length > 0 && groups.length === 0 && <Hint>Nothing matches.</Hint>}
 
 				{groups.map((group) => (
-					<section key={group} className={styles.group}>
-						<GroupLabel as="h3">{group}</GroupLabel>
-
+					<CollapsibleSection
+						key={group}
+						label={group}
+						icon={GROUP_ICONS[group]}
+						count={shown.filter((row) => row.group === group).length}
+						// While searching every match shows, folded or not.
+						open={query.trim() !== "" || (panels[`outliner:${group}`] ?? true)}
+						onOpenChange={(open) => setPanelOpen(`outliner:${group}`, open)}
+					>
 						<List>
 							{shown
 								.filter((row) => row.group === group)
@@ -232,7 +261,7 @@ export const Outliner = () => {
 									);
 								})}
 						</List>
-					</section>
+					</CollapsibleSection>
 				))}
 
 				{rows.length > 0 && (

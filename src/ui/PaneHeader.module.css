@@ -1,0 +1,33 @@
+.header {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 6px 8px 6px 14px;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+.icon {
+	display: grid;
+	color: var(--accent);
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 650;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.actions {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
