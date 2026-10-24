@@ -360,6 +360,7 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const data = useEditor((s) => s.scene.data);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const setEntityLight = useEditor((s) => s.setEntityLight);
+	const setTab = useEditor((s) => s.setTab);
 	// Without a time of day it never gets dark, so lights that come on after dark stay off.
 	const noNight =
 		lighting.time === null && lighting.timeSource === "fixed" && lighting.lights === "auto";
@@ -372,6 +373,20 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						This world has no time of day, so lights that turn on after dark stay off. Pick a time
 						in Sun &amp; sky (the sun icon above), or set a light to turn on Always.
 					</Hint>
+				</Section>
+			)}
+
+			{data.length === 0 && (
+				<Section icon="chart" title="Lights can follow data">
+					<Hint>
+						A light can turn on, get brighter or change colour with a value from the Data tab, like
+						a lamp that turns on while an alert is above 0. This world has no values yet, so those
+						options are greyed out: add one, then pick From data.
+					</Hint>
+
+					<Button size="sm" icon="chart" onClick={() => setTab("data")}>
+						Open the Data tab
+					</Button>
 				</Section>
 			)}
 

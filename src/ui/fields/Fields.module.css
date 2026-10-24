@@ -562,6 +562,10 @@ textarea.input {
 	font-weight: 600;
 }
 
+.selectItem[data-disabled] {
+	color: var(--text-muted);
+}
+
 .selectCheck {
 	grid-column: 1;
 	display: grid;

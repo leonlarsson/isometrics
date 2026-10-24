@@ -11,7 +11,8 @@ import styles from "./Fields.module.css";
 interface ISelectFieldProps<TValue extends string> {
 	label: string;
 	value: TValue;
-	options: { value: TValue; label: string }[];
+	/** A disabled option is shown but can't be picked; say why near the field. */
+	options: { value: TValue; label: string; disabled?: boolean }[];
 	onChange: (value: TValue) => void;
 	inherit?: IInherit;
 	hint?: ReactNode;
@@ -54,6 +55,7 @@ export const SelectField = <TValue extends string>({
 										<Select.Item
 											key={option.value}
 											value={option.value}
+											disabled={option.disabled}
 											className={styles.selectItem}
 										>
 											<Select.ItemIndicator className={styles.selectCheck}>

@@ -9,7 +9,7 @@ import {
 } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
-import { ColorField, FieldGroup, Hint, Section, SelectField, SliderField } from "./fields";
+import { ColorField, FieldGroup, Section, SelectField, SliderField } from "./fields";
 
 interface ILightSettingsProps {
 	/** The light, as its part declares it. */
@@ -35,11 +35,6 @@ type TTurnsOn = TLightMode | "data";
 
 /** Where a setting's value comes from. */
 type TSource = "hand" | "data";
-
-const SOURCE_OPTIONS: { value: TSource; label: string }[] = [
-	{ value: "hand", label: "By hand" },
-	{ value: "data", label: "From data" },
-];
 
 const percent = (strength: number) => `${Math.round(strength * 100)}%`;
 
@@ -89,22 +84,26 @@ export const LightSettings = ({
 			/>
 		) : null;
 	};
+	/** Data options are always offered; without data values they're greyed out (the tab says why). */
+	const needsData = hasData ? "" : " (no values yet)";
 	/** "By hand" or "From data", for a setting that can follow data. */
-	const sourceField = (target: TLightDataTarget) =>
-		hasData && (
-			<SelectField<TSource>
-				label="Source"
-				value={bound[target] ? "data" : "hand"}
-				options={SOURCE_OPTIONS}
-				onChange={(source) => (source === "data" ? follow(target) : stopFollowing(target))}
-			/>
-		);
+	const sourceField = (target: TLightDataTarget) => (
+		<SelectField<TSource>
+			label="Source"
+			value={bound[target] ? "data" : "hand"}
+			options={[
+				{ value: "hand", label: "By hand" },
+				{ value: "data", label: `From data${needsData}`, disabled: !hasData },
+			]}
+			onChange={(source) => (source === "data" ? follow(target) : stopFollowing(target))}
+		/>
+	);
 
 	const turnsOnLabels: Record<TTurnsOn, string> = {
 		auto: "After dark",
 		on: "Always",
 		off: "Never",
-		data: "By a data value",
+		data: "From data",
 	};
 	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.mode ?? inheritedMode);
 	const reach = REACH[spec.shape];
@@ -120,10 +119,11 @@ export const LightSettings = ({
 				<SelectField<TTurnsOn>
 					label="When"
 					value={turnsOn}
-					options={(hasData
-						? (["auto", "on", "off", "data"] as const)
-						: (["auto", "on", "off"] as const)
-					).map((option) => ({ value: option, label: turnsOnLabels[option] }))}
+					options={(["auto", "on", "off", "data"] as const).map((option) =>
+						option === "data"
+							? { value: option, label: `${turnsOnLabels.data}${needsData}`, disabled: !hasData }
+							: { value: option, label: turnsOnLabels[option] },
+					)}
 					onChange={(next) =>
 						next === "data" ? follow("on") : onChange({ mode: next, data: { on: null } })
 					}
@@ -208,10 +208,6 @@ export const LightSettings = ({
 					/>
 				)}
 			</FieldGroup>
-
-			{!hasData && (
-				<Hint>Add values in the Data tab to drive this light's settings with data.</Hint>
-			)}
 		</Section>
 	);
 };
