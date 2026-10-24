@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { loadStoredScene, saveScene, startAutosave } from "#/editor/persistence";
@@ -64,6 +64,20 @@ const useSky = (): { style: CSSProperties; dark: boolean } => {
 		// The world's title switches to light text on a night sky (AppShell.module.css).
 		dark: sky.night >= 0.5,
 	};
+};
+
+/**
+ * The stage, with the sky behind the world. Its own component, so a running
+ * day re-renders only this element, not the whole app: the children it's given
+ * stay the same, so React skips them.
+ */
+const Stage = ({ children }: { children: ReactNode }) => {
+	const sky = useSky();
+	return (
+		<main className={styles.stage} style={sky.style} data-sky-dark={sky.dark || undefined}>
+			{children}
+		</main>
+	);
 };
 
 /**
@@ -184,7 +198,6 @@ export const AppShell = () => {
 	}, []);
 
 	useThemeAttribute();
-	const sky = useSky();
 	useShortcuts();
 
 	return (
@@ -220,7 +233,7 @@ export const AppShell = () => {
 							</aside>
 						)}
 
-						<main className={styles.stage} style={sky.style} data-sky-dark={sky.dark || undefined}>
+						<Stage>
 							<SceneTitle
 								onOpenSky={() => {
 									setTab("sky");
@@ -255,7 +268,7 @@ export const AppShell = () => {
 
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}
-						</main>
+						</Stage>
 
 						{mode === "edit" && !rightOpen && (
 							<PaneStrip

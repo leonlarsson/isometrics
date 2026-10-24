@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { TDataEntry, TLighting } from "#/scene/schema";
+import { skyLightAt } from "#/scene/sun";
 
 import { useEditor } from "./store";
 
@@ -106,19 +107,17 @@ const subscribe = (listener: () => void) => {
 };
 
 /**
- * The world's hour for React (`shownHours`): exact for a set time, to the
- * minute for the viewer's clock, in steps for a day cycle; null = the
- * classic daylight. Follows the settings, the data, the cycle and the clock.
+ * Something worked out from the world's hour, for React: it re-renders only
+ * when that changes, not on every step of a running day. `select` must give a
+ * number or null (compared by value). Follows the settings, the data (only
+ * when the time comes from data), the cycle and the clock.
  */
-export const useSceneHours = (): number | null => {
+const useFromSceneHours = <T extends number | null>(
+	select: (hours: number | null, lighting: TLighting) => T,
+): T => {
 	const lighting = useEditor((s) => s.scene.lighting);
-	const data = useEditor((s) => s.scene.data);
+	const data = useEditor((s) => (s.scene.lighting.timeSource === "data" ? s.scene.data : NO_DATA));
 	const step = stepOf(lighting);
-	const cycled = useSyncExternalStore(
-		subscribe,
-		() => Math.floor(cycleSeconds / step) * step,
-		() => 0,
-	);
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {
 		if (lighting.timeSource !== "clock") {
@@ -139,6 +138,29 @@ export const useSceneHours = (): number | null => {
 		nextMinute();
 		return () => window.clearTimeout(timer);
 	}, [lighting.timeSource]);
-	const hours = sceneHours(lighting, data, now, cycled);
-	return hours === null ? null : shownHours(hours, lighting);
+	return useSyncExternalStore(
+		subscribe,
+		() => select(sceneHours(lighting, data, now, Math.floor(cycleSeconds / step) * step), lighting),
+		() => select(sceneHours(lighting, data, now, 0), lighting),
+	);
 };
+
+const NO_DATA: readonly TDataEntry[] = [];
+
+/**
+ * The world's hour for React: exact for a set time, to the minute for the
+ * viewer's clock, in steps for a day cycle (`shownHours`); null = the classic
+ * daylight, and always null while `enabled` is false (so a component that only
+ * sometimes needs the hour doesn't re-render on every step).
+ */
+export const useSceneHours = (enabled = true): number | null =>
+	useFromSceneHours((hours, lighting) =>
+		!enabled || hours === null ? null : shownHours(hours, lighting),
+	);
+
+/**
+ * How dark it is in the world (0 by day to 1 at night, in tenths), re-rendering
+ * only when that changes: about twenty times a day, at dusk and dawn.
+ */
+export const useSceneNight = (): number =>
+	useFromSceneHours((hours, lighting) => Math.round(skyLightAt(lighting, hours).night * 10) / 10);

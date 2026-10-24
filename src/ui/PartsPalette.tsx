@@ -10,7 +10,7 @@ import {
 import { findFreeSpot } from "#/editor/placement";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
-import { usePalette, useResolvedTheme } from "#/editor/useTheme";
+import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolvePartColors, swatchColors } from "#/parts/colorModel";
 import { partName, partsByCategory } from "#/parts/registry";
@@ -142,7 +142,7 @@ export const PartsPalette = () => {
 	const drawingArea = useEditor((s) => (s.drawing?.target === "area" ? s.drawing.areaType : null));
 	const startDrawing = useEditor((s) => s.startDrawing);
 	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
-	const palette = usePalette();
+	const palette = useThemePalette();
 	const thumbnails = usePartThumbnails(useResolvedTheme());
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);

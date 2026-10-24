@@ -1,7 +1,7 @@
 import { memo } from "react";
 
 import { useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
 import { getPart, partNameOf } from "#/parts/registry";
@@ -81,7 +81,7 @@ const measured = (id: string, part: TLabelPart) => (element: HTMLElement | null)
 };
 
 const useLabelColor = (entity: TEntity) => {
-	const palette = usePalette();
+	const palette = useThemePalette();
 	const data = useEditor((s) => s.scene.data);
 	const part = getPart(entity.kind);
 	return part ? resolveLabelColor(part, entity, palette, data) : palette.selection;

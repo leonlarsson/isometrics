@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { TURNS_OPTIONS } from "#/scene/roads";
 import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
 
@@ -19,7 +19,7 @@ export const WorldTab = () => {
 	const scene = useEditor((s) => s.scene);
 	const commit = useEditor((s) => s.commit);
 	const resetView = useEditor((s) => s.resetView);
-	const palette = usePalette();
+	const palette = useThemePalette();
 
 	return (
 		<>

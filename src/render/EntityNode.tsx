@@ -82,8 +82,11 @@ const UnknownPart = () => {
 export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const part = getPart(entity.kind);
 	const palette = usePalette();
-	// The world's hour, for lights on a schedule (usePalette already re-renders on each step).
-	const hour = useSceneHours();
+	// The world's hour, only for objects with a light on a schedule (others needn't re-render with it).
+	const hour = useSceneHours(
+		typeof entity.lights === "object" &&
+			Object.values(entity.lights).some((light) => light.mode === "schedule"),
+	);
 	const mode = useEditor((s) => s.mode);
 	const selected = useEditor((s) => s.selectedId === entity.id);
 	const playing = useEditor((s) => s.playing);

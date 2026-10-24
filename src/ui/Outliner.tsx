@@ -5,7 +5,7 @@ import type { ISceneItem } from "#/editor/framing";
 import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
@@ -144,7 +144,7 @@ export const Outliner = () => {
 					? `area:${s.selectedAreaId}`
 					: null,
 	);
-	const palette = usePalette();
+	const palette = useThemePalette();
 	const [query, setQuery] = useState("");
 	const [onlyData, setOnlyData] = useState(false);
 	const [renaming, setRenaming] = useState<string | null>(null);

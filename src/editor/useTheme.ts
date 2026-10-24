@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import { skyLightAt } from "#/scene/sun";
 import { resolveTheme, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
-import { useSceneHours } from "./dayClock";
+import { useSceneNight } from "./dayClock";
 import { useEditor } from "./store";
 
 const QUERY = "(prefers-color-scheme: dark)";
@@ -29,11 +28,15 @@ export const useResolvedTheme = (): TResolvedTheme => {
  */
 export const usePalette = () => {
 	const base = scenePalettes[useResolvedTheme()];
-	const lighting = useEditor((s) => s.scene.lighting);
-	const hours = useSceneHours();
-	const night = Math.round(skyLightAt(lighting, hours).night * 10) / 10;
+	const night = useSceneNight();
 	return useMemo(() => (night === 0 ? base : { ...base, night }), [base, night]);
 };
+
+/**
+ * The theme's colours without the time of day, for the DOM panels (swatches,
+ * label pins): they never re-render as the day runs.
+ */
+export const useThemePalette = () => scenePalettes[useResolvedTheme()];
 
 /**
  * Mirror the resolved theme onto <html data-theme> so CSS tokens follow it, and
