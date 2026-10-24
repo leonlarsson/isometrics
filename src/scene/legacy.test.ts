@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPart } from "#/parts/registry";
+import { getPart, PARTS } from "#/parts/registry";
 
 import {
 	LEGACY_AREA_TYPES,
@@ -40,6 +40,31 @@ const oldWorld = () => ({
 			],
 		},
 	],
+});
+
+/** Every id in use, per kind of thing, with its table of old ids. */
+const CURRENT = [
+	{ what: "part kind", ids: PARTS.map((part) => part.kind), legacy: LEGACY_PART_KINDS },
+	{ what: "road style", ids: RoadStyleSchema.options, legacy: LEGACY_ROAD_STYLES },
+	{ what: "area type", ids: AreaTypeSchema.options, legacy: LEGACY_AREA_TYPES },
+];
+
+describe("current ids", () => {
+	it("are snake_case with a two-digit variant number (ADR-0050)", () => {
+		for (const { what, ids } of CURRENT) {
+			for (const id of ids) {
+				expect(id, `${what} ${id}`).toMatch(/^[a-z]+(?:_[a-z]+)*_\d{2}$/);
+			}
+		}
+	});
+
+	it("are never an old id, so an old world can't be upgraded into the wrong thing", () => {
+		for (const { what, ids, legacy } of CURRENT) {
+			for (const id of ids) {
+				expect(Object.hasOwn(legacy, id), `${what} ${id} is also an old id`).toBe(false);
+			}
+		}
+	});
 });
 
 describe("legacy ids", () => {
