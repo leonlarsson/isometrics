@@ -234,50 +234,76 @@ const PATTERN = 16;
 /** Pixels per cell in the pattern; a lit window fills all but a hair of its cell. */
 const CELL = 8;
 
-/** One pattern of lit and dark windows for every building: warm, a few cooler or brighter. */
-let windowPattern: THREE.CanvasTexture | null = null;
-const getWindowPattern = () => {
-	if (windowPattern || typeof document === "undefined") {
-		return windowPattern;
+/**
+ * The shared pattern of windows, split between lights: one mask per light,
+ * white where its panes are lit and black elsewhere, so each light draws its
+ * own panes in exactly its colour. `weights` decide whose each pane is (relative
+ * to each other: 9 and 1 give nine panes in ten to the first); each light then
+ * lights `litPanes` of its own panes, on the busiest floors first, so more
+ * lit panes only ever adds panes and never moves another light's.
+ */
+const windowMasks = new Map<string, THREE.CanvasTexture[]>();
+const getWindowMasks = (weights: readonly number[], litPanes: readonly number[]) => {
+	const cacheKey = `${weights.join(",")}|${litPanes.map((part) => part.toFixed(3)).join(",")}`;
+	const cached = windowMasks.get(cacheKey);
+	if (cached || typeof document === "undefined") {
+		return cached ?? null;
 	}
-	const canvas = document.createElement("canvas");
-	canvas.width = PATTERN * CELL;
-	canvas.height = PATTERN * CELL;
-	const ctx = canvas.getContext("2d");
-	if (!ctx) {
-		return null;
-	}
-	ctx.fillStyle = "#000000";
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// Panes by light, with when each comes on: a lower score is earlier, sooner on busy floors.
+	const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+	const panes: { cell: number; score: number }[][] = weights.map(() => []);
 	for (let row = 0; row < PATTERN; row++) {
 		// Floors differ: some mostly lit (people working late), most only here and there.
 		const busy = 0.12 + 0.6 * jitter(row + 101) ** 2;
 		for (let column = 0; column < PATTERN; column++) {
-			if (jitter(row * PATTERN + column + 7) > busy) {
-				continue;
+			const cell = row * PATTERN + column;
+			// Whose pane it is: the weights laid end to end.
+			const pick = jitter(cell + 211) * total;
+			let owner = 0;
+			for (let sum = weights[0]; owner < weights.length - 1 && pick >= sum; sum += weights[owner]) {
+				owner++;
 			}
-			// Mostly warm lamplight, some cool screens, a few dimmer.
-			const tone = jitter(row * PATTERN + column + 211);
-			ctx.fillStyle = tone > 0.9 ? "#8fb4e0" : tone > 0.7 ? "#b9853e" : "#e3a14c";
-			// The whole pane between the frame lines, a little brighter at the top (the ceiling lamp).
-			ctx.fillRect(column * CELL, row * CELL, CELL, CELL);
-			ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
-			ctx.fillRect(column * CELL, row * CELL, CELL, 2);
+			panes[owner].push({ cell, score: jitter(cell + 7) / busy });
 		}
 	}
-	windowPattern = new THREE.CanvasTexture(canvas);
-	windowPattern.colorSpace = THREE.SRGBColorSpace;
-	windowPattern.magFilter = THREE.NearestFilter;
-	windowPattern.wrapS = THREE.RepeatWrapping;
-	windowPattern.wrapT = THREE.RepeatWrapping;
-	return windowPattern;
+	const masks = panes.map((own, index) => {
+		const canvas = document.createElement("canvas");
+		canvas.width = PATTERN * CELL;
+		canvas.height = PATTERN * CELL;
+		const ctx = canvas.getContext("2d");
+		if (ctx) {
+			ctx.fillStyle = "#000000";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			// Fully lit, so the pane is exactly its light's colour (variety is more lights, not shading).
+			ctx.fillStyle = "#ffffff";
+			const lit = [...own].sort((a, b) => a.score - b.score);
+			for (const { cell } of lit.slice(0, Math.round((litPanes[index] ?? 1) * own.length))) {
+				ctx.fillRect((cell % PATTERN) * CELL, Math.floor(cell / PATTERN) * CELL, CELL, CELL);
+			}
+		}
+		const mask = new THREE.CanvasTexture(canvas);
+		mask.colorSpace = THREE.SRGBColorSpace;
+		mask.magFilter = THREE.NearestFilter;
+		mask.wrapS = THREE.RepeatWrapping;
+		mask.wrapT = THREE.RepeatWrapping;
+		return mask;
+	});
+	// Lit panes can follow data, so keep only the latest few splits.
+	if (windowMasks.size > 32) {
+		windowMasks.clear();
+	}
+	windowMasks.set(cacheKey, masks);
+	return masks;
 };
 
 interface ILitWindowsProps {
-	/** The windows' light: lit panes glow in its colour (white leaves the pattern's own warm and cool tones). */
-	light: IResolvedLight;
-	/** The building's own colour: dark windows look like the wall, lit ones glow out of it. */
-	color: string;
+	/**
+	 * Its window lights (ADR-0058), each lighting its own panes in exactly its
+	 * colour, e.g. warm room lights and cool screens. Each light's `weight` says
+	 * how many panes are its and `litPanes` how many of those are lit. Keep the
+	 * order and weights fixed: changing them moves which panes are whose.
+	 */
+	lights: readonly IResolvedLight[];
 	/** The building's body: the windows sit on its four faces. */
 	width: number;
 	depth: number;
@@ -291,12 +317,13 @@ interface ILitWindowsProps {
 }
 
 /**
- * Lit windows on a building's four faces at night: a pattern of lit and dark
- * cells, one per window, just outside its walls (under its window grid).
+ * Lit windows on a building's four faces: a pattern of lit and dark panes, one
+ * per window, just outside its walls (under its window grid). Each light adds
+ * its own panes' glow, so dark panes show the wall, and the lights turn on,
+ * dim and change colour independently.
  */
 export const LitWindows = ({
-	light,
-	color,
+	lights,
 	width,
 	depth,
 	height,
@@ -305,14 +332,14 @@ export const LitWindows = ({
 	floors,
 	seed,
 }: ILitWindowsProps) => {
-	const pattern = getWindowPattern();
-	// Each face its own copy (sharing the image), repeated to one cell per window.
+	const masks = getWindowMasks(
+		lights.map((light) => light.weight),
+		lights.map((light) => light.litPanes),
+	);
+	// Each face of each light its own copy (sharing the image), repeated to one cell per window.
 	const faces = useMemo(() => {
-		const face = (columns: number, offset: number) => {
-			if (!pattern) {
-				return null;
-			}
-			const texture = pattern.clone();
+		const face = (mask: THREE.CanvasTexture, columns: number, offset: number) => {
+			const texture = mask.clone();
 			texture.repeat.set(columns / PATTERN, floors / PATTERN);
 			// Shifted by whole cells, so lit panes stay in line with the window grid.
 			texture.offset.set(
@@ -322,20 +349,22 @@ export const LitWindows = ({
 			texture.needsUpdate = true;
 			return texture;
 		};
-		return [face(columnsX, 1), face(columnsZ, 2), face(columnsX, 3), face(columnsZ, 4)];
-	}, [pattern, columnsX, columnsZ, floors, seed]);
+		return (masks ?? []).map((mask) => [
+			face(mask, columnsX, 1),
+			face(mask, columnsZ, 2),
+			face(mask, columnsX, 3),
+			face(mask, columnsZ, 4),
+		]);
+	}, [masks, columnsX, columnsZ, floors, seed]);
 	useLayoutEffect(
 		() => () => {
-			for (const texture of faces) {
-				texture?.dispose();
+			for (const texture of faces.flat()) {
+				texture.dispose();
 			}
 		},
 		[faces],
 	);
 
-	if (!light.on || !pattern) {
-		return null;
-	}
 	const sides: { position: TV3; rotation: number; size: number }[] = [
 		{ position: [0, height / 2, depth / 2 + 0.012], rotation: 0, size: width },
 		{ position: [width / 2 + 0.012, height / 2, 0], rotation: Math.PI / 2, size: depth },
@@ -344,19 +373,26 @@ export const LitWindows = ({
 	];
 	return (
 		<group>
-			{sides.map((side, i) => (
-				<mesh key={side.rotation} position={side.position} rotation={[0, side.rotation, 0]}>
-					<planeGeometry args={[side.size, height]} />
+			{lights.map((light, index) =>
+				light.on && faces[index] ? (
+					// biome-ignore lint/suspicious/noArrayIndexKey: a part's window lights are fixed, in order
+					<group key={index}>
+						{sides.map((side, i) => (
+							<mesh key={side.rotation} position={side.position} rotation={[0, side.rotation, 0]}>
+								<planeGeometry args={[side.size, height]} />
 
-					<meshStandardMaterial
-						color={color}
-						emissive={light.color}
-						emissiveMap={faces[i]}
-						emissiveIntensity={light.level}
-						roughness={0.6}
-					/>
-				</mesh>
-			))}
+								<meshBasicMaterial
+									color={new THREE.Color(light.color).multiplyScalar(light.level)}
+									map={faces[index][i]}
+									transparent
+									blending={THREE.AdditiveBlending}
+									depthWrite={false}
+								/>
+							</mesh>
+						))}
+					</group>
+				) : null,
+			)}
 		</group>
 	);
 };

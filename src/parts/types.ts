@@ -22,6 +22,8 @@ export interface ILightSpec {
 	id: string;
 	/** What the Lights tab calls it, e.g. "Headlights". */
 	name: string;
+	/** What it is, when the name doesn't say it all, e.g. "Computer screens left on at desks." Shown on its card. */
+	description?: string;
 	shape: TLightShape;
 	/** Its colour; the theme's lamplight if left out. */
 	color?: TColorDefault;
@@ -29,6 +31,14 @@ export interface ILightSpec {
 	strength?: number;
 	/** How far it lights the ground, in grid units at scale 1 (beams and pools). */
 	reach?: number;
+	/** Window lights: the part of its own panes that are lit, 0–1 (all of them if left out). */
+	litPanes?: number;
+	/**
+	 * Window lights: how many of the building's panes are its, relative to its
+	 * other window lights' weights (9 and 1: nine panes in ten are its); 1 if
+	 * left out. Changing it moves which panes are whose.
+	 */
+	weight?: number;
 	/** When it's on by itself: "dark" (the default) after dark; "driving" after dark while it drives along a road. */
 	when?: "dark" | "driving";
 	/**
@@ -70,6 +80,10 @@ export interface IResolvedLight {
 	color: string;
 	/** How far it lights the ground, in grid units at scale 1. */
 	reach: number;
+	/** Window lights: the part of its own panes that are lit, 0–1. */
+	litPanes: number;
+	/** Window lights: how many of the building's panes are its, relative to the others' weights. */
+	weight: number;
 }
 
 export type TPartCategory = "buildings" | "vehicles" | "nature" | "infrastructure" | "markers";

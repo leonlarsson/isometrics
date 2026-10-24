@@ -128,6 +128,15 @@ export const EntityLightSchema = z
 			.describe(
 				"How far its light reaches on the ground, in grid units, for beams and pools. null = the part's.",
 			),
+		litPanes: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"For window lights: the part of its own panes that are lit, 0 (none) to 1 (all). null = the part's.",
+			),
 		data: z
 			.record(z.string(), DataBindingSchema)
 			.default({})

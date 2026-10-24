@@ -59,6 +59,8 @@ describe("resolveLights (ADR-0058)", () => {
 			level: 1,
 			color: night.lamplight,
 			reach: 2.4,
+			litPanes: 1,
+			weight: 1,
 		});
 	});
 
@@ -71,7 +73,14 @@ describe("resolveLights (ADR-0058)", () => {
 			}),
 			{ palette: day, driving: false },
 		);
-		expect(lights.headlights).toEqual({ on: true, level: 2, color: "#ffffff", reach: 4 });
+		expect(lights.headlights).toEqual({
+			on: true,
+			level: 2,
+			color: "#ffffff",
+			reach: 4,
+			litPanes: 1,
+			weight: 1,
+		});
 		expect(lights.rain.on).toBe(false);
 	});
 
@@ -96,7 +105,14 @@ describe("resolveLights (ADR-0058)", () => {
 			{ props: { brightness: 2, reach: 5 }, accent: "#ff8800", lights: "auto" },
 			{ palette: night, driving: false },
 		);
-		expect(old.lamp).toEqual({ on: true, level: 2, color: "#ff8800", reach: 5 });
+		expect(old.lamp).toEqual({
+			on: true,
+			level: 2,
+			color: "#ff8800",
+			reach: 5,
+			litPanes: 1,
+			weight: 1,
+		});
 		const set = resolveLights(
 			lamp,
 			{ props: { brightness: 2 }, accent: "#ff8800", lights: { lamp: setting({ strength: 0.5 }) } },
@@ -171,5 +187,35 @@ describe("colour by data", () => {
 		expect(color("status")).toBe("#ff0000");
 		expect(color("word")).toBe("#123456");
 		expect(color("missing")).toBe("#123456");
+	});
+});
+
+describe("lit panes", () => {
+	const tower: IPartLights = {
+		lights: [
+			{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.28 },
+			{ id: "screens", name: "Screens", shape: "windows", litPanes: 0.2 },
+		],
+	};
+
+	it("lights the part's share of each window light's panes, the object's own, or a data value's", () => {
+		const data = [{ key: "occupancy", label: "Occupancy", value: 45, unit: "%" }];
+		const lit = (lights: Record<string, TEntityLight>) => {
+			const resolved = resolveLights(tower, entity(lights), {
+				palette: night,
+				driving: false,
+				data,
+			});
+			return [resolved.windows.litPanes, resolved.screens.litPanes];
+		};
+		expect(lit({})).toEqual([0.28, 0.2]);
+		expect(lit({ screens: setting({ litPanes: 0.9 }) })).toEqual([0.28, 0.9]);
+		expect(
+			lit({ windows: setting({ data: { litPanes: bind("occupancy", { full: 100 }) } }) }),
+		).toEqual([0.45, 0.2]);
+		// Never more than all of them.
+		expect(
+			lit({ windows: setting({ data: { litPanes: bind("occupancy", { full: 10 }) } }) })[0],
+		).toBe(1);
 	});
 });

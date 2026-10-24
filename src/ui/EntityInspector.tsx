@@ -369,6 +369,10 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 			{(part.lights ?? []).map((spec) => {
 				const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
+				// Window lights split the part's windows between them by weight.
+				const windowWeights = (part.lights ?? [])
+					.filter((light) => light.shape === "windows")
+					.reduce((sum, light) => sum + (light.weight ?? 1), 0);
 				return (
 					<LightSettings
 						key={spec.id}
@@ -377,6 +381,7 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						setting={setting}
 						inheritedMode={objectMode}
 						data={data}
+						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
 						onChange={(change, field) =>
 							setEntityLight(
 								entity.id,

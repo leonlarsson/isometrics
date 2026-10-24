@@ -19,8 +19,28 @@ export const officeTower01 = definePart({
 	kind: "office_tower_01",
 	name: "Office tower",
 	category: "buildings",
-	// White leaves the window pattern's own warm and cool panes as they are.
-	lights: [{ id: "windows", name: "Windows", shape: "windows", color: "#ffffff" }],
+	// Two kinds of window light, each lighting its own panes: nine in ten are rooms, one a screen.
+	// Keep the weights: they decide whose panes are whose.
+	lights: [
+		{
+			id: "windows",
+			name: "Windows",
+			description: "Lamps in the offices.",
+			shape: "windows",
+			color: "#e3a14c",
+			litPanes: 0.28,
+			weight: 9,
+		},
+		{
+			id: "screens",
+			name: "Screens",
+			description: "Computer screens left on at desks.",
+			shape: "windows",
+			color: "#8fb4e0",
+			litPanes: 0.2,
+			weight: 1,
+		},
+	],
 	description: "Multi-storey building with a window grid",
 	keywords: ["office", "skyscraper", "high-rise", "apartments", "building", "block"],
 	schema: TowerSchema,
@@ -49,8 +69,7 @@ export const officeTower01 = definePart({
 				/>
 
 				<LitWindows
-					light={lights.windows}
-					color={colors.facade}
+					lights={[lights.windows, lights.screens]}
 					width={p.width}
 					depth={p.depth}
 					height={h}

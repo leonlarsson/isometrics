@@ -45,6 +45,7 @@ export const LIGHT_DATA = {
 	on: "switch",
 	strength: "scale",
 	color: "color",
+	litPanes: "scale",
 } as const satisfies Record<string, TBindingKind>;
 
 export type TLightDataTarget = keyof typeof LIGHT_DATA;
@@ -80,6 +81,8 @@ export const lightDefaults = (
 		color: legacy.color ?? resolveColor(spec.color ?? palette.lamplight, palette),
 		strength: legacy.strength ?? spec.strength ?? 1,
 		reach: legacy.reach ?? spec.reach ?? 1,
+		litPanes: spec.litPanes ?? 1,
+		weight: spec.weight ?? 1,
 	};
 };
 
@@ -96,6 +99,8 @@ export const resolveLight = (
 	const bound = setting?.data ?? {};
 	const color = readColor(bound.color, data) ?? setting?.color ?? defaults.color;
 	const reach = setting?.reach ?? defaults.reach;
+	const litPanes =
+		readScale(bound.litPanes, data, { max: 1 }) ?? setting?.litPanes ?? defaults.litPanes;
 	const strength =
 		readScale(bound.strength, data, { max: MAX_STRENGTH }) ??
 		setting?.strength ??
@@ -116,7 +121,7 @@ export const resolveLight = (
 						? 0
 						: palette.night * strength;
 	}
-	return { on: level > 0, level, color, reach };
+	return { on: level > 0, level, color, reach, litPanes, weight: defaults.weight };
 };
 
 /** Every light of a part on an object, by id, as it is right now. */

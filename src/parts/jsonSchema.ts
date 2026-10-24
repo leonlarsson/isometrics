@@ -35,7 +35,7 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
-Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true, day and night, instead of mode; "strength" is the value divided by "full" (up to 3); "color" reads its value like a colour's data (above). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
+Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach (beams and pools), litPanes (window lights: the part of its own panes that are lit, 0–1; a building's panes are split between its window lights, so each lights only its own), and data: settings that follow a data value, by setting, each { key, above, full }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true, day and night, instead of mode; "strength" is the value divided by "full" (up to 3); "litPanes" is the value divided by "full" (up to 1, all panes), e.g. lit windows following occupancy; "color" reads its value like a colour's data (above). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
 "lights": { "lamp": { "color": "#ff3b3b", "data": { "on": { "key": "alert" }, "strength": { "key": "queue", "full": 50 } } } }
 "lights": { "headlights": { "color": "#ffffff", "reach": 5 } }
 
@@ -69,6 +69,11 @@ const describeLight = (light: ILightSpec) =>
 		`colour ${typeof light.color === "string" ? light.color : "the theme's lamplight"}`,
 		`strength ${light.strength ?? 1}`,
 		LIGHT_SHAPES_WITH_REACH.includes(light.shape) ? `reach ${light.reach ?? 1}` : "",
+		light.shape === "windows" ? `litPanes ${light.litPanes ?? 1}` : "",
+		light.shape === "windows"
+			? `weight ${light.weight ?? 1} (its part of the panes, against its other window lights')`
+			: "",
+		light.description ? `“${light.description}”` : "",
 		light.when === "driving" ? "on after dark only while driving" : "on after dark",
 	]
 		.filter(Boolean)

@@ -11,19 +11,21 @@ import {
 
 import { DataBindingFields } from "./DataBindingFields";
 import { DataDrivenField } from "./DataDrivenField";
-import { ColorField, FieldGroup, Section, SelectField, SliderField } from "./fields";
+import { ColorField, FieldGroup, Hint, Section, SelectField, SliderField } from "./fields";
 
 interface ILightSettingsProps {
 	/** The light, as its part declares it. */
 	spec: ILightSpec;
 	/** Its colour, strength and reach as the part has them, shown while not set here. */
-	defaults: { color: string; strength: number; reach: number };
+	defaults: { color: string; strength: number; reach: number; litPanes: number };
 	/** The object's settings for it (undefined: none yet). */
 	setting: TEntityLight | undefined;
 	/** When it turns on while that isn't set here: older worlds had one setting for all an object's lights. */
 	inheritedMode: TLightMode;
 	/** The world's data, to drive its settings by a value. */
 	data: readonly TDataEntry[];
+	/** Window lights: its part of the part's windows (its weight against the others'), 0–1. */
+	windowShare?: number;
 	/**
 	 * A change to its settings (null = back to the part's; a data binding of
 	 * null stops that setting following data). `coalesce` names the setting
@@ -57,6 +59,7 @@ export const LightSettings = ({
 	setting,
 	inheritedMode,
 	data,
+	windowShare,
 	onChange,
 }: ILightSettingsProps) => {
 	const bound = setting?.data ?? {};
@@ -85,8 +88,10 @@ export const LightSettings = ({
 			id={`light.${spec.id}`}
 			icon="bulb"
 			title={spec.name}
-			keywords="light lights night glow colour brightness turns on data"
+			keywords="light lights night glow colour brightness turns on data windows lit panes"
 		>
+			{spec.description && <Hint>{spec.description}</Hint>}
+
 			<FieldGroup title="Turns on">
 				<SelectField<TTurnsOn>
 					label="When"
@@ -153,6 +158,43 @@ export const LightSettings = ({
 					/>
 				</DataDrivenField>
 			</FieldGroup>
+
+			{spec.shape === "windows" && (
+				<FieldGroup title="Lit windows">
+					<DataDrivenField
+						kind={LIGHT_DATA.litPanes}
+						binding={bound.litPanes}
+						data={data}
+						onBindingChange={onBindingChange("litPanes")}
+						formatScale={percent}
+						max={1}
+					>
+						<SliderField
+							label="Lit panes"
+							value={Math.round((setting?.litPanes ?? defaults.litPanes) * 100)}
+							min={0}
+							max={100}
+							step={1}
+							suffix="%"
+							onChange={(value) => onChange({ litPanes: value / 100 }, "litPanes")}
+							inherit={{
+								from: "default",
+								inherited: setting?.litPanes == null,
+								onReset: () => onChange({ litPanes: null }),
+								value: percent(defaults.litPanes),
+							}}
+							hint={
+								<>
+									How many of its own windows are lit; more only ever adds windows.
+									{windowShare !== undefined && windowShare < 1 && (
+										<strong> It has {percent(windowShare)} of the windows.</strong>
+									)}
+								</>
+							}
+						/>
+					</DataDrivenField>
+				</FieldGroup>
+			)}
 
 			<FieldGroup title="Look">
 				<DataDrivenField
