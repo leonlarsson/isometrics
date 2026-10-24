@@ -137,10 +137,11 @@ button.sectionTrigger:hover .sectionIcon {
 
 /* ---------------------------------------------------------------- fields */
 
+/* Stacked: the label close over its control, so it reads as that control's. */
 .field {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 3px;
 }
 
 .labelRow {
@@ -810,6 +811,16 @@ textarea.input {
  * Wide panels (last, so it overrides the rules above): one row per setting, the label on the left and the control on the right, like
  * Blender. Hints sit under the control; "Default" / Reset stay with the label (ADR-0027).
  */
+/*
+ * Narrow panels keep the label above the control: more room between one field and the next
+ * than between a label and its control, so each label clearly belongs to the control under it.
+ */
+@container fields (max-width: 199.98px) {
+	.field:not(:first-child) {
+		margin-top: 6px;
+	}
+}
+
 @container fields (min-width: 200px) {
 	.field {
 		/* Narrow enough that short labels sit close to their controls (switches line up with it). */
