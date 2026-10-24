@@ -95,10 +95,11 @@ const shrankAt = new Map<string, number>();
  */
 export const LabelProjector = () => {
 	const camera = useThree((s) => s.camera);
-	const size = useThree((s) => s.size);
 	const gl = useThree((s) => s.gl);
 
-	useFrame(({ clock }, delta) => {
+	// The frame's own size, not one from the last render: a frame can be drawn right after a resize
+	// (InstantResize), before React has re-rendered.
+	useFrame(({ clock, size }, delta) => {
 		const now = clock.elapsedTime;
 		// Read everything first (sizes, obstacles), then write, so the browser never lays out mid-frame.
 		const canvas = gl.domElement.getBoundingClientRect();

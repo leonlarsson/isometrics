@@ -237,7 +237,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 
 	// Same size on screen at any zoom and distance. Also tell the label layer where the gizmo is on
 	// screen.
-	useFrame(() => {
+	useFrame(({ size }) => {
 		if (!root.current) {
 			return;
 		}

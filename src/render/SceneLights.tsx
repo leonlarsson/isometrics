@@ -125,9 +125,8 @@ const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) =
 	const light = useRef<THREE.DirectionalLight>(null);
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
-	const size = useThree((s) => s.size);
 
-	useFrame((_, delta) => {
+	useFrame(({ size }, delta) => {
 		if (!light.current) {
 			return;
 		}

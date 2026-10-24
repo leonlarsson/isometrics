@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 
 import { PERSPECTIVE_FOV, pixelsPerUnitAt } from "./cameraMath";
+import { resetViewShift } from "./viewShift";
 
 /** Isometric-ish viewing direction (from target towards camera). */
 export const VIEW_DIRECTION = new THREE.Vector3(1, 0.9, 1).normalize();
@@ -69,6 +70,7 @@ export const CameraRig = () => {
 			return;
 		}
 		framed.current = request;
+		resetViewShift();
 		const { width, height } = get().size;
 
 		// The box to fit: the ground (and a bit above it), or the thing being framed.
@@ -151,6 +153,7 @@ export const ProjectionSwitch = () => {
 		if (next === current || !controls) {
 			return;
 		}
+		resetViewShift();
 		const { width, height } = get().size;
 		const target = controls.target.clone();
 		const direction = current.position.clone().sub(target).normalize();

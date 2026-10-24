@@ -13,6 +13,7 @@ import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { HoverHighlight } from "./HoverHighlight";
+import { InstantResize } from "./InstantResize";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { PlacementPreview } from "./PlacementPreview";
@@ -97,6 +98,8 @@ export const Viewport = () => {
 			<CameraFollow />
 
 			<LabelProjector />
+
+			<InstantResize />
 		</Canvas>
 	);
 };

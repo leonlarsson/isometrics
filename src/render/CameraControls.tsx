@@ -9,6 +9,7 @@ import { clamp } from "#/lib/math";
 import { groundSpan, orthographicDistance } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
 import { MAX_POLAR, MIN_POLAR, orbitAround, settleTarget } from "./orbit";
+import { viewShift } from "./viewShift";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const raycaster = new THREE.Raycaster();
@@ -231,39 +232,48 @@ const useKeepTargetOnGround = () => {
 const REVEAL_MARGIN = 48;
 
 /**
- * When UI covers the bottom of the viewport (the narrow layout's sheet), render
- * the view shifted up by half that height, so the uncovered part acts as a full
- * viewport centred on the camera target. Eases in and out as the sheet moves.
- * Raycasts and label projection use the same projection, so they stay aligned.
+ * Shifts the rendered view without moving the camera. Up by half the height
+ * of UI covering the bottom of the viewport (the narrow layout's sheet), so
+ * the uncovered part acts as a full viewport centred on the camera target,
+ * easing as the sheet moves. Sideways by viewShift for the perspective camera,
+ * so side panels don't move the world (InstantResize). Raycasts
+ * and label projection use the same projection, so they stay aligned.
  */
-const useViewInset = () => {
+const useViewOffset = () => {
 	const camera = useThree((s) => s.camera);
-	const size = useThree((s) => s.size);
-	const offset = useRef(0);
+	const offsetY = useRef(0);
 
-	useFrame((_, delta) => {
-		const goal = useEditor.getState().viewInset / 2;
+	// The frame's own size: a frame can be drawn right after a resize (InstantResize).
+	useFrame(({ size }, delta) => {
 		const lens =
 			camera instanceof THREE.OrthographicCamera || camera instanceof THREE.PerspectiveCamera
 				? camera
 				: null;
-		const view = lens?.view ?? null;
-		const current =
-			view?.enabled && view.fullWidth === size.width && view.fullHeight === size.height;
-		if (Math.abs(goal - offset.current) < 0.5 && (goal === 0 ? !view?.enabled : current)) {
-			return;
-		}
-		offset.current += (goal - offset.current) * Math.min(1, delta * 10);
-		if (Math.abs(goal - offset.current) < 0.5) {
-			offset.current = goal;
-		}
 		if (!lens) {
 			return;
 		}
-		if (offset.current === 0) {
-			lens.clearViewOffset();
-		} else {
-			lens.setViewOffset(size.width, size.height, 0, offset.current, size.width, size.height);
+		const goal = useEditor.getState().viewInset / 2;
+		offsetY.current += (goal - offsetY.current) * Math.min(1, delta * 10);
+		if (Math.abs(goal - offsetY.current) < 0.5) {
+			offsetY.current = goal;
+		}
+		const x = lens instanceof THREE.PerspectiveCamera ? -viewShift.x : 0;
+		const y = offsetY.current;
+		const view = lens.view;
+		if (x === 0 && y === 0) {
+			if (view?.enabled) {
+				lens.clearViewOffset();
+			}
+			return;
+		}
+		const applied =
+			view?.enabled &&
+			view.offsetX === x &&
+			view.offsetY === y &&
+			view.fullWidth === size.width &&
+			view.fullHeight === size.height;
+		if (!applied) {
+			lens.setViewOffset(size.width, size.height, x, y, size.width, size.height);
 		}
 	});
 };
@@ -440,7 +450,7 @@ const CameraBehaviours = () => {
 	usePerspectiveDepthRange();
 	useOrthographicDepth();
 	useKeepTargetOnGround();
-	useViewInset();
+	useViewOffset();
 	useRevealSelection();
 	useCardEventHandover();
 	return null;

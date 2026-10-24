@@ -6,6 +6,7 @@ import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
 import { blendPoses, currentView, placeCamera, poseOf } from "./viewpoints";
+import { resetViewShift } from "./viewShift";
 
 /** How long gliding to a viewpoint takes. */
 const FLIGHT_SECONDS = 0.8;
@@ -45,6 +46,7 @@ export const CameraFlight = () => {
 
 	useEffect(() => {
 		if (request) {
+			resetViewShift();
 			flight.current = { from: null, to: request.pose, progress: 0 };
 		}
 	}, [request?.nonce]);

@@ -7,6 +7,7 @@ import { DEG2RAD } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
 
 import { livePoses } from "./routeDrop";
+import { resetViewShift } from "./viewShift";
 
 /** How quickly the camera catches up (per second): higher is tighter, lower is smoother. */
 const FOLLOW_RATE = 8;
@@ -41,6 +42,13 @@ export const CameraFollow = () => {
 			? part.footprint(resolveProps(part, entity?.props ?? {}))[0] * (entity?.scale ?? 1)
 			: 1.5;
 	}, [entity?.kind, entity?.props, entity?.scale]);
+
+	// Following moves the camera anyway: the vehicle goes in the middle of the canvas.
+	useEffect(() => {
+		if (follow) {
+			resetViewShift();
+		}
+	}, [follow?.entityId, follow?.ride]);
 
 	// Taking the camera back: a pan (plain left-drag) stops following; while riding, any press or
 	// scroll does.
