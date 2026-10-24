@@ -98,7 +98,9 @@ button.sectionTrigger:hover .sectionIcon {
  * The settings search (ADR-0054): a panel whose title doesn't match shows only the fields
  * that do, and hides altogether when none of them match.
  */
-.section[data-searching]:not([data-title-match]) .sectionBody > :not([data-search-match]) {
+.section[data-searching]:not([data-title-match])
+	.sectionBody
+	> :not([data-search-match]):not(:has([data-search-match])) {
 	display: none;
 }
 
@@ -111,6 +113,40 @@ button.sectionTrigger:hover .sectionIcon {
 	font-size: 12px;
 	line-height: 1.45;
 	color: var(--text-muted);
+}
+
+/* A titled inset box of related fields inside a panel (FieldGroup). */
+.fieldGroup {
+	min-width: 0;
+	margin: 0;
+	padding: 6px 10px 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: color-mix(in oklab, var(--surface-sunken) 55%, transparent);
+}
+
+.fieldGroupTitle {
+	padding: 0 4px;
+	margin-left: -4px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.fieldGroupBody {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* Searching: in a group whose title doesn't match, only the matching fields show. */
+.section[data-searching]:not([data-title-match])
+	.fieldGroup:not([data-search-match])
+	> .fieldGroupBody
+	> :not([data-search-match]) {
+	display: none;
 }
 
 .groupLabel {

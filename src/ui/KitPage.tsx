@@ -10,6 +10,7 @@ import { Dialog } from "./Dialog";
 import {
 	CheckboxGroupField,
 	ColorField,
+	FieldGroup,
 	GroupLabel,
 	Hint,
 	Kbd,
@@ -183,6 +184,21 @@ export const KitPage = () => {
 
 										<Section id="kit.folded" icon="info" title="Folded at first" defaultClosed>
 											<Hint>Folding is remembered in this browser.</Hint>
+										</Section>
+
+										<Section icon="bulb" title="Field groups">
+											<FieldGroup title="Brightness">
+												<SliderField
+													label="Level"
+													value={slider}
+													min={0}
+													max={5}
+													step={0.1}
+													onChange={setSlider}
+												/>
+
+												<SwitchField label="Inside a group" checked={on} onChange={setOn} />
+											</FieldGroup>
 										</Section>
 									</RailTabPanel>
 								</RailTabs>

@@ -10,6 +10,7 @@
 export { CheckboxGroupField } from "./CheckboxGroupField";
 export { ColorField } from "./ColorField";
 export { Field } from "./Field";
+export { FieldGroup } from "./FieldGroup";
 export { GroupLabel } from "./GroupLabel";
 export { Hint } from "./Hint";
 export type { IInherit } from "./InheritAction";
