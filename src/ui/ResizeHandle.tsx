@@ -4,6 +4,8 @@ import { type PointerEvent, useRef, useState } from "react";
 import { APP_NAME } from "#/lib/app";
 import { clamp } from "#/lib/math";
 
+import { Tooltip } from "./Tooltip";
+
 import styles from "./ResizeHandle.module.css";
 
 interface ISizeLimits {
@@ -166,27 +168,37 @@ export const ResizeHandle = ({
 	};
 
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: an <hr> can't be focused or dragged; role="separator" is the ARIA pattern for splitters
-		<div
-			ref={handle}
-			role="separator"
-			aria-orientation={horizontal ? "horizontal" : "vertical"}
-			aria-label={label}
-			aria-valuenow={size}
-			aria-valuemin={limits.min}
-			aria-valuemax={limits.max}
-			tabIndex={0}
-			title="Drag to resize · double-click to reset"
-			className={styles.handle}
-			data-edge={edge}
-			data-collapsed={collapse?.collapsed || undefined}
-			onPointerDown={onPointerDown}
-			onPointerMove={onPointerMove}
-			onPointerUp={endDrag}
-			onLostPointerCapture={endDrag}
-			onDoubleClick={() =>
-				collapse?.collapsed ? collapse.onChange(false) : onResize(limits.initial)
+		<Tooltip
+			label={
+				collapse?.collapsed
+					? "Drag out or double-click to open"
+					: collapse
+						? "Drag to resize, or all the way in to fold · double-click to reset"
+						: "Drag to resize · double-click to reset"
 			}
-		/>
+			side={edge === "left" ? "left" : edge === "right" ? "right" : "bottom"}
+		>
+			{/* biome-ignore lint/a11y/useSemanticElements: an <hr> can't be focused or dragged; role="separator" is the ARIA pattern for splitters */}
+			<div
+				ref={handle}
+				role="separator"
+				aria-orientation={horizontal ? "horizontal" : "vertical"}
+				aria-label={label}
+				aria-valuenow={size}
+				aria-valuemin={limits.min}
+				aria-valuemax={limits.max}
+				tabIndex={0}
+				className={styles.handle}
+				data-edge={edge}
+				data-collapsed={collapse?.collapsed || undefined}
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={endDrag}
+				onLostPointerCapture={endDrag}
+				onDoubleClick={() =>
+					collapse?.collapsed ? collapse.onChange(false) : onResize(limits.initial)
+				}
+			/>
+		</Tooltip>
 	);
 };

@@ -33,6 +33,7 @@ Chosen option: **2**.
 - **Label cards** aren't affected by the panes: they keep to the canvas and step aside only for UI floating over it (ADR-0048), so with the world still they stay where they are.
 - **Memory:** per browser, with the panels' folds (`editor/panelMemory`, ids `pane:left` and `pane:right`; ADR-0054), via `editor/sidePanes`.
 - **Phones:** unchanged; the sheet has its own hide button, and the panes' hide buttons don't show there.
+- The resize handle's hint is now a `Tooltip` instead of a `title` attribute (ADR-0025).
 
 ### Consequences
 
