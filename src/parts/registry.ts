@@ -7,6 +7,7 @@ import { grandstand01 } from "./buildings/grandstand_01";
 import { house01 } from "./buildings/house_01";
 import { officeTower01 } from "./buildings/office_tower_01";
 import { warehouse01 } from "./buildings/warehouse_01";
+import { light01 } from "./infrastructure/light_01";
 import { parcelStack01 } from "./infrastructure/parcel_stack_01";
 import { streetLamp01 } from "./infrastructure/street_lamp_01";
 import { tunnel01 } from "./infrastructure/tunnel_01";
@@ -42,6 +43,7 @@ export const PARTS: TAnyPart[] = [
 	zone01,
 	tunnel01,
 	streetLamp01,
+	light01,
 	parcelStack01,
 	beacon01,
 	text01,
