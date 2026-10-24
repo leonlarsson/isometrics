@@ -94,6 +94,7 @@ export const SkyTab = () => {
 							min={0}
 							max={24}
 							step={0.25}
+							clock
 							onChange={(time) => setTime(time, "time")}
 							inherit={{
 								from: "default",
@@ -150,6 +151,7 @@ export const SkyTab = () => {
 							min={0}
 							max={24}
 							step={0.25}
+							clock
 							onChange={(time) => set("time", time, "time")}
 							inherit={{
 								from: "default",

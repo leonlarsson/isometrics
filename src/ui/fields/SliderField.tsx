@@ -2,6 +2,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import { Slider } from "@base-ui/react/slider";
 import { type ReactNode, useId } from "react";
 
+import { ClockInput } from "./ClockInput";
 import { Hint } from "./Hint";
 import { type IInherit, InheritAction } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
@@ -16,6 +17,8 @@ interface ISliderFieldProps extends INumberRangeProps {
 	max: number;
 	step: number;
 	suffix?: string;
+	/** The value is a time of day in hours (0–24): the box shows and takes it as "19:30". */
+	clock?: boolean;
 	inherit?: IInherit;
 	hint?: ReactNode;
 }
@@ -29,6 +32,7 @@ export const SliderField = ({
 	max,
 	step,
 	suffix,
+	clock,
 	inherit,
 	hint,
 }: ISliderFieldProps) => {
@@ -75,7 +79,11 @@ export const SliderField = ({
 
 				{/* The unit sits inside the box, so every row's box ends at the panel's edge. */}
 				<span className={styles.sliderNumber} data-unit={suffix ? "" : undefined}>
-					<NumberBox />
+					{clock ? (
+						<ClockInput hours={value} onChange={onChange} ariaLabel={label} />
+					) : (
+						<NumberBox />
+					)}
 
 					{suffix && <span className={styles.unit}>{suffix}</span>}
 				</span>

@@ -1,17 +1,10 @@
-import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type ReactNode, useRef } from "react";
 
 import { Button, IconButton } from "../Button";
 
+import { ClockInput } from "./ClockInput";
 import { Field } from "./Field";
-import { Input } from "./Input";
-import {
-	dragPeriods,
-	formatClock,
-	type ITimePeriod,
-	parseClock,
-	periodSpans,
-	type TPeriodDrag,
-} from "./periods";
+import { dragPeriods, type ITimePeriod, periodSpans, type TPeriodDrag } from "./periods";
 
 import styles from "./Fields.module.css";
 
@@ -23,55 +16,6 @@ interface IPeriodsFieldProps {
 	newPeriod?: ITimePeriod;
 	hint?: ReactNode;
 }
-
-interface IClockInputProps {
-	hours: number;
-	onChange: (hours: number) => void;
-	ariaLabel: string;
-}
-
-/** A whole time as typed, "8:25" or "08:25", so nothing changes while it's half typed ("0", "08:2"). */
-const WHOLE_TIME = /^\d{1,2}:\d{2}$/;
-
-/**
- * A time of day typed as 24-hour "19:30". While it's being typed the text is
- * left alone: the value changes once it's a whole time, and on leaving the box
- * it also reads shortcuts ("1930", "19") and shows the value tidily again.
- */
-const ClockInput = ({ hours, onChange, ariaLabel }: IClockInputProps) => {
-	const [text, setText] = useState(formatClock(hours));
-	// Typed in since it got focus: only then does it stop following the value.
-	const [typing, setTyping] = useState(false);
-	// Follow changes from elsewhere (undo, dragging on the strip), but never rewrite what's being typed.
-	useEffect(() => {
-		if (!typing) {
-			setText(formatClock(hours));
-		}
-	}, [hours, typing]);
-	return (
-		<Input
-			ariaLabel={ariaLabel}
-			value={text}
-			placeholder="18:00"
-			onChange={(next) => {
-				setTyping(true);
-				setText(next);
-				const parsed = WHOLE_TIME.test(next.trim()) ? parseClock(next) : null;
-				if (parsed !== null && parsed !== hours) {
-					onChange(parsed);
-				}
-			}}
-			onBlur={() => {
-				setTyping(false);
-				const parsed = parseClock(text);
-				if (parsed !== null && parsed !== hours) {
-					onChange(parsed);
-				}
-				setText(formatClock(parsed ?? hours));
-			}}
-		/>
-	);
-};
 
 /**
  * A list of periods of the day, like the on-times of a timer: a row per
