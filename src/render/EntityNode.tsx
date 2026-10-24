@@ -236,8 +236,10 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		onPointerDown: (e: ThreeEvent<PointerEvent>) => {
 			// Only a selected object can be dragged. Pressing anything else leaves the press to the
 			// camera (so panning across the scene never grabs a building); a click selects it.
-			// While drawing a road, presses pass through to the ground too.
-			if (drawing || !selected || !editable || e.nativeEvent.button !== 0) {
+			// While drawing a road, presses pass through to the ground too, and with Ctrl, Cmd or
+			// Shift held the press orbits the camera, as it does anywhere else.
+			const { button, ctrlKey, metaKey, shiftKey } = e.nativeEvent;
+			if (drawing || !selected || !editable || button !== 0 || ctrlKey || metaKey || shiftKey) {
 				return;
 			}
 			if (!e.ray.intersectPlane(groundPlane, hit)) {
