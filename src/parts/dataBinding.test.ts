@@ -10,8 +10,17 @@ const data = [
 	{ key: "word", label: "Word", value: "null", unit: "" },
 ];
 
-const bind = (key: string, options: { above?: number; full?: number } = {}) =>
-	DataBindingSchema.parse({ key, ...options });
+const bind = (
+	key: string,
+	options: {
+		above?: number;
+		full?: number;
+		low?: number;
+		high?: number;
+		lowColor?: string;
+		highColor?: string;
+	} = {},
+) => DataBindingSchema.parse({ key, ...options });
 
 describe("data bindings (ADR-0058)", () => {
 	it("switches on above a threshold (0 by default), and off without the value", () => {
@@ -32,6 +41,18 @@ describe("data bindings (ADR-0058)", () => {
 		expect(readColor(bind("status"), data)).toBe("#008000");
 		expect(readColor(bind("word"), data)).toBeUndefined();
 		expect(readColor(undefined, data)).toBeUndefined();
+	});
+
+	it("places a number on the colour scale: lowColor at low, highColor at high, mixed in between", () => {
+		const scale = { lowColor: "#000000", highColor: "#ffffff" };
+		expect(readColor(bind("queue", { ...scale, low: 0, high: 50 }), data)).toBe("#ffffff");
+		expect(readColor(bind("queue", { ...scale, low: 60, high: 100 }), data)).toBe("#000000");
+		expect(readColor(bind("queue", { ...scale, low: 70, high: 100 }), data)).toBe("#000000");
+		const halfway = readColor(bind("queue", { ...scale, low: 20, high: 100 }), data);
+		expect(halfway).not.toBe("#000000");
+		expect(halfway).not.toBe("#ffffff");
+		// Defaults: green at 0, red at 100.
+		expect(readColor(bind("queue", { high: 60 }), data)).toBe("#e0483b");
 	});
 });
 

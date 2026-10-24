@@ -42,14 +42,14 @@ export const yacht01 = definePart({
 		{ key: "length", label: "Length", type: "number", min: 1.5, max: 12, step: 0.1 },
 		{ key: "decks", label: "Decks", type: "number", min: 1, max: 4, step: 1 },
 	],
-	defaultColor: "#f7f7f4",
-	defaultAccent: "#1f2a6b",
-	colorLabel: "Hull",
-	accentLabel: "Stripe",
+	colors: [
+		{ id: "hull", name: "Hull", default: "#f7f7f4", legacy: "color" },
+		{ id: "stripe", name: "Stripe", default: "#1f2a6b", legacy: "accent" },
+	],
 	canFollowPath: true,
 	footprint: (p) => [p.length, p.length * 0.32],
 	height: (p) => HULL_HEIGHT + p.decks * DECK_HEIGHT + 0.25,
-	Component: ({ props: p, color, accent, palette, lights }) => {
+	Component: ({ props: p, colors, palette, lights }) => {
 		const width = p.length * 0.32;
 		const hull = useMemo(() => hullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
 		const stripe = useMemo(
@@ -67,11 +67,11 @@ export const yacht01 = definePart({
 		return (
 			<group>
 				<mesh geometry={hull} castShadow receiveShadow>
-					<Mat color={color} />
+					<Mat color={colors.hull} />
 				</mesh>
 
 				<mesh geometry={stripe} position={[0, HULL_HEIGHT - 0.14, 0]}>
-					<Mat color={accent} />
+					<Mat color={colors.stripe} />
 				</mesh>
 
 				{Array.from({ length: p.decks }, (_, d) => {

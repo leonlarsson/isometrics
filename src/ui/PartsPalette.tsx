@@ -12,7 +12,8 @@ import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { usePalette, useResolvedTheme } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
-import { partName, partsByCategory, resolveColors } from "#/parts/registry";
+import { resolvePartColors, swatchColors } from "#/parts/colorModel";
+import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { usePartThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
@@ -208,14 +209,14 @@ export const PartsPalette = () => {
 		})),
 		...partsByCategory().flatMap(([category, parts]) =>
 			parts.map((part) => {
-				const { color, accent } = resolveColors(part, { color: null, accent: null }, palette);
+				const { first, second } = swatchColors(resolvePartColors(part, palette), part);
 				return {
 					key: `part:${part.kind}`,
 					group: CATEGORY_LABELS[category],
 					name: partName(part),
 					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
-					swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,
+					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
 					thumbnail: thumbnails[part.kind],
 					kind: part.kind,
 					onSelect: () => {

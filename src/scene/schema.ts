@@ -50,10 +50,50 @@ export const DataBindingSchema = z
 			.nullable()
 			.default(null)
 			.describe("For numbers: the value that gives 100% (strength 1). null = 1."),
+		low: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For colours, when the value is a number: the value that gives lowColor. null = 0.",
+			),
+		high: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For colours, when the value is a number: the value that gives highColor; numbers in between mix the two. null = 100.",
+			),
+		lowColor: HexColorSchema.nullable()
+			.default(null)
+			.describe("For colours: the colour at low and below, as #rrggbb. null = green (#2bb58c)."),
+		highColor: HexColorSchema.nullable()
+			.default(null)
+			.describe("For colours: the colour at high and above, as #rrggbb. null = red (#e0483b)."),
 	})
 	.describe("A setting driven by a data value.");
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
+
+/**
+ * An object's setting for one of its part's colours (ADR-0060): null while
+ * it's as the part has it (ADR-0027).
+ */
+export const EntityColorSchema = z
+	.object({
+		color: HexColorSchema.nullable()
+			.default(null)
+			.describe("The colour as #rrggbb; null = the part's default for the theme."),
+		data: z
+			.record(z.string(), DataBindingSchema)
+			.default({})
+			.describe(
+				'A data value that sets it: { "color": { key, low, high, lowColor, highColor } }. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number mixes lowColor (at low) and highColor (at high), like a heatmap. A value that is neither leaves the colour as set.',
+			),
+	})
+	.describe("An object's setting for one of its part's colours.");
+
+export type TEntityColor = z.output<typeof EntityColorSchema>;
 
 /** When a light is on: auto = as its part has it (after dark; some only while driving), on = always, off = never. */
 export const LightModeSchema = z.enum(["auto", "on", "off"]);
@@ -178,12 +218,22 @@ export const EntitySchema = z
 				"Nose up (positive) or down, in degrees, e.g. a vehicle parked on a sloped road (set when it's dropped on one). Ignored while it follows a road, which tilts it itself.",
 			),
 		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
+		colors: z
+			.record(z.string(), EntityColorSchema)
+			.default({})
+			.describe(
+				'Its part\'s colours (see each kind\'s colours in the catalogue), keyed by the colour\'s id, holding only what differs from the part, e.g. { "roof": { "color": "#c0392b" } }.',
+			),
 		color: HexColorSchema.nullable()
 			.default(null)
-			.describe("Main colour as #rrggbb; null = the part's default for the theme."),
+			.describe(
+				"Older worlds: its first colour as #rrggbb, read when colors doesn't set it. Write colors instead.",
+			),
 		accent: HexColorSchema.nullable()
 			.default(null)
-			.describe("Second colour as #rrggbb; null = the part's default for the theme."),
+			.describe(
+				"Older worlds: its second colour as #rrggbb, read when colors doesn't set it. Write colors instead.",
+			),
 		props: z
 			.record(z.string(), z.unknown())
 			.default({})

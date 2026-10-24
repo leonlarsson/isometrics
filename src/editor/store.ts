@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
+import { bindingMapsOf } from "#/scene/dataBindings";
 import {
 	joinedPoints,
 	pointWidth,
@@ -14,6 +15,7 @@ import {
 } from "#/scene/roads";
 import {
 	AreaSchema,
+	EntityColorSchema,
 	EntityLightSchema,
 	EntitySchema,
 	FollowSchema,
@@ -24,6 +26,7 @@ import {
 	type TDataBinding,
 	type TDataEntry,
 	type TEntity,
+	type TEntityColor,
 	type TEntityInput,
 	type TEntityLight,
 	type TRoad,
@@ -49,6 +52,11 @@ export type TEditorMode = "edit" | "view";
  * stop that setting following data).
  */
 export type TEntityLightChange = Partial<Omit<TEntityLight, "data">> & {
+	data?: Partial<Record<string, TDataBinding | null>>;
+};
+
+/** A change to an object's setting for one colour, like a light's (ADR-0060). */
+export type TEntityColorChange = Partial<Omit<TEntityColor, "data">> & {
 	data?: Partial<Record<string, TDataBinding | null>>;
 };
 /** The properties editor's tabs about the whole world (ADR-0054). */
@@ -309,6 +317,17 @@ export interface IEditorState {
 		change: TEntityLightChange,
 		options?: ICommitOptions,
 	) => void;
+	/**
+	 * Change an object's setting for one of its part's colours (ADR-0060); null
+	 * goes back to the part's. What an older world kept in `color` or `accent`
+	 * for it is cleared, so Reset really goes back to the part's.
+	 */
+	setEntityColor: (
+		id: string,
+		colorId: string,
+		change: TEntityColorChange,
+		options?: ICommitOptions,
+	) => void;
 	moveEntity: (id: string, position: TVec2, options?: ICommitOptions) => void;
 	rotateEntity: (id: string, deltaDegrees: number) => void;
 	removeEntity: (id: string) => void;
@@ -451,9 +470,28 @@ const NOTHING_SELECTED = {
 	selectedPointIndex: null,
 } as const;
 
-/** A light setting that's entirely as the part has it: no fields set, nothing following data. */
-const isUnsetLight = ({ data, ...fields }: TEntityLight) =>
+/** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
+const isUnset = ({ data, ...fields }: TEntityLight | TEntityColor) =>
 	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
+
+/** A setting with a change applied: fields set, data bindings set or (null) removed. */
+const applySettingChange = <T extends TEntityLight | TEntityColor>(
+	current: T,
+	{
+		data: dataChange,
+		...fields
+	}: Partial<Omit<T, "data">> & { data?: Partial<Record<string, TDataBinding | null>> },
+): T => {
+	const next = { ...current, ...fields, data: { ...current.data } };
+	for (const [setting, binding] of Object.entries(dataChange ?? {})) {
+		if (binding) {
+			next.data[setting] = binding;
+		} else {
+			delete next.data[setting];
+		}
+	}
+	return next;
+};
 
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
@@ -468,22 +506,30 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 				entity.props[field.key] = to ?? "";
 			}
 		}
-		// Settings that follow the value (ADR-0058): renamed with it, or no longer following data.
+		// Settings that follow the value (lights, colours): renamed with it, or no longer following data.
+		for (const bindings of bindingMapsOf(entity)) {
+			for (const [setting, binding] of Object.entries(bindings)) {
+				if (binding.key !== from) {
+					continue;
+				}
+				if (to) {
+					binding.key = to;
+				} else {
+					delete bindings[setting];
+				}
+			}
+		}
+		// Nothing left that differs from the part: no entry at all.
 		if (typeof entity.lights === "object") {
 			for (const [id, light] of Object.entries(entity.lights)) {
-				for (const [setting, binding] of Object.entries(light.data)) {
-					if (binding.key !== from) {
-						continue;
-					}
-					if (to) {
-						binding.key = to;
-					} else {
-						delete light.data[setting];
-					}
-				}
-				if (isUnsetLight(light)) {
+				if (isUnset(light)) {
 					delete entity.lights[id];
 				}
+			}
+		}
+		for (const [id, color] of Object.entries(entity.colors)) {
+			if (isUnset(color)) {
+				delete entity.colors[id];
 			}
 		}
 	}
@@ -896,21 +942,39 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							}
 						}
 					}
-					const { data: dataChange, ...fields } = change;
-					const current = entity.lights[lightId] ?? EntityLightSchema.parse({});
-					const next = { ...current, ...fields, data: { ...current.data } };
-					for (const [setting, binding] of Object.entries(dataChange ?? {})) {
-						if (binding) {
-							next.data[setting] = binding;
-						} else {
-							delete next.data[setting];
-						}
-					}
+					const next = applySettingChange(
+						entity.lights[lightId] ?? EntityLightSchema.parse({}),
+						change,
+					);
 					// Nothing left that differs from the part: no entry at all.
-					if (isUnsetLight(next)) {
+					if (isUnset(next)) {
 						delete entity.lights[lightId];
 					} else {
 						entity.lights[lightId] = next;
+					}
+				},
+				options,
+			),
+
+		setEntityColor: (id, colorId, change, options) =>
+			get().updateEntity(
+				id,
+				(entity) => {
+					const spec = getPart(entity.kind)?.colors.find((color) => color.id === colorId);
+					const current = entity.colors[colorId] ?? EntityColorSchema.parse({});
+					// An older world's colour for it becomes its setting here, then the old field goes.
+					const legacy = spec?.legacy ? entity[spec.legacy] : null;
+					const next = applySettingChange(
+						current.color === null && legacy ? { ...current, color: legacy } : current,
+						change,
+					);
+					if (spec?.legacy) {
+						entity[spec.legacy] = null;
+					}
+					if (isUnset(next)) {
+						delete entity.colors[colorId];
+					} else {
+						entity.colors[colorId] = next;
 					}
 				},
 				options,

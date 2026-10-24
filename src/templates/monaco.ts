@@ -8,6 +8,8 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
+import { paint } from "./paint";
+
 /**
  * Everything here is traced from the official Monaco Grand Prix map (2000 × 1414 px),
  * in map pixels. `fromMap` turns them into world units: 22 px per unit, with the
@@ -326,8 +328,7 @@ const cars: TEntityInput[] = LIVERIES.map(([color, accent], i) => ({
 	id: `car_${i + 1}`,
 	kind: "race_car_01",
 	name: `Car ${[16, 1, 4, 63, 14, 23, 10, 77][i]}`,
-	color,
-	accent,
+	colors: paint({ livery: color, details: accent }),
 	scale: CAR_SIZE,
 	// The pack runs nose to tail at one speed, so nobody drives through anybody.
 	follow: { roadId: TRACK_ID, speed: 5, offset: 40 - i * 2.5 },
@@ -362,8 +363,7 @@ const paddock: TEntityInput[] = (
 	name: `Team hospitality ${i + 1}`,
 	position: fromMap(spot),
 	rotation: -38.8,
-	color: LIVERIES[i][0],
-	accent: LIVERIES[i][1],
+	colors: paint({ walls: LIVERIES[i][0], roof: LIVERIES[i][1] }),
 	props: { width: 1.4, depth: 1.1, height: 0.9, garageDoor: false },
 }));
 
@@ -394,8 +394,7 @@ const city: TEntityInput[] = (
 	kind: "office_tower_01",
 	position: fromMap([x, y]),
 	elevation: HILLSIDE,
-	color: ["#e9d8b8", "#d9c3a5", "#f1e4cf", "#c9d6e0"][i % 4],
-	accent: "#fbf7ef",
+	colors: paint({ facade: ["#e9d8b8", "#d9c3a5", "#f1e4cf", "#c9d6e0"][i % 4], grid: "#fbf7ef" }),
 	props: { width: 2.4, depth: 2.4, floors },
 }));
 
@@ -417,8 +416,7 @@ const lowCity: TEntityInput[] = (
 	kind: "office_tower_01",
 	position: fromMap([x, y]),
 	elevation,
-	color: ["#f1e4cf", "#e9d8b8", "#efd9c0", "#d9c3a5"][i % 4],
-	accent: "#fbf7ef",
+	colors: paint({ facade: ["#f1e4cf", "#e9d8b8", "#efd9c0", "#d9c3a5"][i % 4], grid: "#fbf7ef" }),
 	props: { width: 2.2, depth: 2.2, floors },
 }));
 
@@ -434,7 +432,7 @@ const yachts: TEntityInput[] = [
 					kind: "yacht_01",
 					position: fromMap(spot),
 					rotation: ALONG_PIERS + (side === 1 ? 0 : 180),
-					accent: (p + k) % 3 === 0 ? "#1f1f24" : null,
+					colors: paint({ stripe: (p + k) % 3 === 0 ? "#1f1f24" : null }),
 					props: { length: 1.8 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.6, decks: 1 + k },
 				};
 			}),
@@ -451,7 +449,7 @@ const yachts: TEntityInput[] = [
 		id: `superyacht_${i}`,
 		kind: "yacht_01",
 		position: fromMap([x, y]),
-		accent: i % 2 === 0 ? "#1f1f24" : null,
+		colors: paint({ stripe: i % 2 === 0 ? "#1f1f24" : null }),
 		props: { length, decks },
 	})),
 ];
@@ -529,7 +527,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Stade Nautique Rainier III (swimming pool)",
 				position: fromMap([850, 480]),
 				rotation: 38.5,
-				color: "#5fd0ea",
+				colors: paint({ fill: "#5fd0ea" }),
 				props: { width: 1.3, depth: 0.9, shape: "rect" },
 			},
 			{
@@ -538,8 +536,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Tunnel (under the Fairmont)",
 				position: fromMap([1610, 588]),
 				rotation: 1.5,
-				color: "#d9d4c7",
-				accent: "#e9d5c4",
+				colors: paint({ walls: "#d9d4c7", roof: "#e9d5c4" }),
 				props: { length: 12, width: 2.4, height: 1.2, building: 2.2 },
 				label: { title: "Top speed", dataKeys: ["top_speed"], offset: [0, 1, 3] },
 			},
@@ -550,8 +547,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([1665, 495]),
 				elevation: CASINO_PLATEAU,
 				rotation: 180,
-				color: "#f3e7cf",
-				accent: "#c9a15a",
+				colors: paint({ walls: "#f3e7cf", roof: "#c9a15a" }),
 				props: { width: 3.4, depth: 2, height: 2.4, garageDoor: false },
 				label: { title: "Track temp", dataKeys: ["track_temp"], offset: [0, 1.4, 0] },
 			},
@@ -561,8 +557,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Hôtel de Paris",
 				position: fromMap([1533, 470]),
 				elevation: HILLSIDE,
-				color: "#efe2c8",
-				accent: "#9c8b6f",
+				colors: paint({ walls: "#efe2c8", roof: "#9c8b6f" }),
 				props: { width: 2, depth: 1.4, height: 2.2, garageDoor: false },
 			},
 			{
@@ -572,8 +567,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([480, 680]),
 				elevation: ROCK,
 				rotation: -20,
-				color: "#f0e3cc",
-				accent: "#c96a4a",
+				colors: paint({ walls: "#f0e3cc", roof: "#c96a4a" }),
 				props: { width: 4, depth: 2.4, height: 1.6, garageDoor: false },
 			},
 			{
@@ -603,7 +597,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Grandstand (La Condamine)",
 				position: fromMap([845, 391]),
 				rotation: 33.5,
-				color: "#e2603b",
+				colors: paint({ seats: "#e2603b" }),
 				props: { length: 4, rows: 3 },
 			},
 			{
@@ -612,7 +606,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Grandstand (La Rascasse)",
 				position: fromMap([713, 699]),
 				rotation: 153.4,
-				color: "#2bb58c",
+				colors: paint({ seats: "#2bb58c" }),
 				props: { length: 3, rows: 2, roof: false },
 			},
 			...paddock,

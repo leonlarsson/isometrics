@@ -49,7 +49,12 @@ const estimatedWidth = (p: TTextProps) =>
 	Math.max(1, (p.text.trim().length + (p.dataKey ? 4 : 0)) * GLYPH_WIDTH) * p.size +
 	platePadding(p) * 2;
 
-const TextModel = ({ props: p, color, accent, data, onReady }: IPartRenderProps<TTextProps>) => {
+const TextModel = ({
+	props: p,
+	colors,
+	data,
+	onReady,
+}: IPartRenderProps<TTextProps, "letters" | "plate">) => {
 	// The laid-out text's width and height, for sizing the plate.
 	const [bounds, setBounds] = useState<[number, number]>([p.size, p.size]);
 	const shown = shownText(p, data) || " ";
@@ -77,7 +82,7 @@ const TextModel = ({ props: p, color, accent, data, onReady }: IPartRenderProps<
 		>
 			{shown}
 
-			<meshStandardMaterial color={color} roughness={0.8} />
+			<meshStandardMaterial color={colors.letters} roughness={0.8} />
 		</Text>
 	);
 
@@ -90,7 +95,7 @@ const TextModel = ({ props: p, color, accent, data, onReady }: IPartRenderProps<
 					<Box
 						size={[width + pad * 2, height + pad * 2, PLATE_THICKNESS]}
 						position={[0, (height + pad * 2) / 2, 0]}
-						color={accent}
+						color={colors.plate}
 					/>
 				)}
 
@@ -111,7 +116,7 @@ const TextModel = ({ props: p, color, accent, data, onReady }: IPartRenderProps<
 				<Box
 					size={[width + pad * 2, PLATE_THICKNESS, height + pad * 2]}
 					position={[0, LIFT + PLATE_THICKNESS / 2, 0]}
-					color={accent}
+					color={colors.plate}
 					castShadow={false}
 				/>
 			)}
@@ -146,10 +151,10 @@ export const text01 = definePart({
 		},
 		{ key: "plate", label: "Show a plate", type: "boolean" },
 	],
-	defaultColor: (p) => p.text,
-	defaultAccent: (p) => p.wall,
-	colorLabel: "Letters",
-	accentLabel: "Plate",
+	colors: [
+		{ id: "letters", name: "Letters", default: (p) => p.text, legacy: "color" },
+		{ id: "plate", name: "Plate", default: (p) => p.wall, legacy: "accent" },
+	],
 	footprint: (p) =>
 		p.layout === "standing"
 			? [estimatedWidth(p), p.plate ? PLATE_THICKNESS + 0.1 : 0.3]

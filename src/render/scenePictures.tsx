@@ -4,8 +4,9 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import { toRadians } from "#/lib/math";
+import { resolveColors } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
-import { getPart, resolveColors, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
 import { resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -104,7 +105,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 		return null;
 	}
 	const { position, rotation } = startPose(entity, scene);
-	const { color, accent } = resolveColors(part, entity, palette);
+	const colors = resolveColors(part, entity, palette, scene.data);
 	const lights = resolveLights(part, entity, {
 		palette,
 		driving: entity.follow !== null,
@@ -116,8 +117,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 			<group rotation={rotation} scale={entity.scale}>
 				<Component
 					props={resolveProps(part, entity.props)}
-					color={color}
-					accent={accent}
+					colors={colors}
 					palette={palette}
 					playing={false}
 					lights={lights}

@@ -3,12 +3,14 @@ import { LIGHT_DATA, MAX_STRENGTH, type TLightDataTarget } from "#/parts/lightMo
 import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import {
 	DataBindingSchema,
+	type TDataBinding,
 	type TDataEntry,
 	type TEntityLight,
 	type TLightMode,
 } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
+import { DataDrivenField } from "./DataDrivenField";
 import { ColorField, FieldGroup, Section, SelectField, SliderField } from "./fields";
 
 interface ILightSettingsProps {
@@ -33,9 +35,6 @@ interface ILightSettingsProps {
 /** How it turns on: by itself, or by a data value. */
 type TTurnsOn = TLightMode | "data";
 
-/** Where a setting's value comes from. */
-type TSource = "hand" | "data";
-
 const percent = (strength: number) => `${Math.round(strength * 100)}%`;
 
 /** What a shape's reach is called, and what it does. */
@@ -48,8 +47,8 @@ const REACH: Record<string, { label: string; hint: string }> = {
  * One light's settings, as a card in the Lights tab (ADR-0058), in three
  * groups: how it turns on, how bright it is and how it looks. One question per
  * setting, so they can't contradict each other. Settings that can follow data
- * (the light model's LIGHT_DATA) choose "from data" and then show the shared
- * DataBindingFields, which say what the data does right now. Each shows the
+ * (the light model's LIGHT_DATA) use the shared DataDrivenField, whose data
+ * fields say what the data does right now. Each shows the
  * part's value as "Default" until it's set (ADR-0027).
  */
 export const LightSettings = ({
@@ -65,39 +64,12 @@ export const LightSettings = ({
 	/** Start following data: the first value, with no options set. */
 	const follow = (target: TLightDataTarget) =>
 		onChange({ data: { [target]: DataBindingSchema.parse({ key: data[0]?.key ?? "" }) } });
-	const stopFollowing = (target: TLightDataTarget) => onChange({ data: { [target]: null } });
-	/** The shared fields for a setting that follows data. */
-	const bindingFields = (
-		target: TLightDataTarget,
-		extra?: { formatScale?: (reading: number) => string; max?: number },
-	) => {
-		const binding = bound[target];
-		return binding ? (
-			<DataBindingFields
-				kind={LIGHT_DATA[target]}
-				binding={binding}
-				data={data}
-				onChange={(next, coalesce) =>
-					onChange({ data: { [target]: next } }, coalesce && `${target}.${coalesce}`)
-				}
-				{...extra}
-			/>
-		) : null;
-	};
+	/** A binding changed (null: stops following data). */
+	const onBindingChange =
+		(target: TLightDataTarget) => (binding: TDataBinding | null, coalesce?: string) =>
+			onChange({ data: { [target]: binding } }, coalesce && `${target}.${coalesce}`);
 	/** Data options are always offered; without data values they're greyed out (the tab says why). */
 	const needsData = hasData ? "" : " (no values yet)";
-	/** "By hand" or "From data", for a setting that can follow data. */
-	const sourceField = (target: TLightDataTarget) => (
-		<SelectField<TSource>
-			label="Source"
-			value={bound[target] ? "data" : "hand"}
-			options={[
-				{ value: "hand", label: "By hand" },
-				{ value: "data", label: `From data${needsData}`, disabled: !hasData },
-			]}
-			onChange={(source) => (source === "data" ? follow(target) : stopFollowing(target))}
-		/>
-	);
 
 	const turnsOnLabels: Record<TTurnsOn, string> = {
 		auto: "After dark",
@@ -144,15 +116,25 @@ export const LightSettings = ({
 					}
 				/>
 
-				{bindingFields("on")}
+				{bound.on && (
+					<DataBindingFields
+						kind={LIGHT_DATA.on}
+						binding={bound.on}
+						data={data}
+						onChange={onBindingChange("on")}
+					/>
+				)}
 			</FieldGroup>
 
 			<FieldGroup title="Brightness">
-				{sourceField("strength")}
-
-				{bound.strength ? (
-					bindingFields("strength", { formatScale: percent, max: MAX_STRENGTH })
-				) : (
+				<DataDrivenField
+					kind={LIGHT_DATA.strength}
+					binding={bound.strength}
+					data={data}
+					onBindingChange={onBindingChange("strength")}
+					formatScale={percent}
+					max={MAX_STRENGTH}
+				>
 					<SliderField
 						label="Level"
 						value={Math.round((setting?.strength ?? defaults.strength) * 100)}
@@ -169,15 +151,16 @@ export const LightSettings = ({
 						}}
 						hint="100% is normal; up to 300%."
 					/>
-				)}
+				</DataDrivenField>
 			</FieldGroup>
 
 			<FieldGroup title="Look">
-				{sourceField("color")}
-
-				{bound.color ? (
-					bindingFields("color")
-				) : (
+				<DataDrivenField
+					kind={LIGHT_DATA.color}
+					binding={bound.color}
+					data={data}
+					onBindingChange={onBindingChange("color")}
+				>
 					<ColorField
 						label="Colour"
 						value={setting?.color ?? defaults.color}
@@ -188,7 +171,7 @@ export const LightSettings = ({
 							onReset: () => onChange({ color: null }),
 						}}
 					/>
-				)}
+				</DataDrivenField>
 
 				{reach && LIGHT_SHAPES_WITH_REACH.includes(spec.shape) && (
 					<SliderField

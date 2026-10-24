@@ -2,8 +2,9 @@ import { createRoot, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { resolvePartColors } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
-import { PARTS, resolveColors, resolveProps, type TAnyPart } from "#/parts/registry";
+import { PARTS, resolveProps, type TAnyPart } from "#/parts/registry";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { VIEW_DIRECTION } from "./CameraRig";
@@ -139,7 +140,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 	}, []);
 
 	const props = resolveProps(part, {});
-	const { color, accent } = resolveColors(part, { color: null, accent: null }, palette);
+	const colors = resolvePartColors(part, palette);
 	const Component = part.Component;
 	return (
 		<>
@@ -148,8 +149,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 			<group ref={group}>
 				<Component
 					props={props}
-					color={color}
-					accent={accent}
+					colors={colors}
 					palette={palette}
 					lights={resolvePartLights(part, palette)}
 					playing={false}

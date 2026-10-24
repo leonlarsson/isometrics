@@ -62,4 +62,14 @@ describe("worldJsonSchema", () => {
 		expect(schema.description).toContain('"data": { "on": { "key": "alert" }');
 		expect(schema.description).toContain("key is the key of an entry in the world's data");
 	});
+
+	it("lists each kind's colours with their ids and defaults, and shows how to set and bind them", () => {
+		const schema = worldJsonSchema() as { description: string };
+		const text = JSON.stringify(schema);
+		expect(text).toContain(
+			"Colours (settings in colors, by id): roof (Roof, default #f07b4f); door (Door, default #6b4a3a)",
+		);
+		expect(schema.description).toContain('"colors": { "roof": { "color": "#c0392b" } }');
+		expect(schema.description).toContain('"lowColor": "#2bb58c"');
+	});
 });

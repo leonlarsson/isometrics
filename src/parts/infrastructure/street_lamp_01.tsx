@@ -37,19 +37,16 @@ export const streetLamp01 = definePart({
 	keywords: ["light", "street light", "lantern"],
 	schema: LampSchema,
 	fields: [{ key: "height", label: "Height", type: "number", min: 0.5, max: 6, step: 0.1 }],
-	defaultColor: "#9a9a96",
-	defaultAccent: LAMPLIGHT,
-	colorLabel: "Post",
-	// Its light colour is the lamp light's, in the Lights tab.
-	accentLabel: "Unused",
+	// The lamp's light colour is its light's, in the Lights tab (older worlds kept it in accent).
+	colors: [{ id: "post", name: "Post", default: "#9a9a96", legacy: "color" }],
 	footprint: () => [0.4, 0.4],
 	height: (p) => p.height + 0.1,
-	Component: ({ props: p, color, lights }) => (
+	Component: ({ props: p, colors, lights }) => (
 		<group>
 			<mesh position={[0, p.height / 2, 0]} castShadow>
 				<cylinderGeometry args={[0.04, 0.05, p.height, 8]} />
 
-				<Mat color={color} />
+				<Mat color={colors.post} />
 			</mesh>
 
 			<mesh position={[0, p.height + 0.04, 0]}>

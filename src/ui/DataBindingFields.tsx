@@ -1,6 +1,10 @@
 import {
 	boundEntry,
+	colorOnScale,
+	colorScaleOf,
+	colorScalePosition,
 	cssColor,
+	dataNumber,
 	readScale,
 	switchesOn,
 	type TBindingKind,
@@ -8,7 +12,7 @@ import {
 import { formatEntry } from "#/scene/format";
 import type { TDataBinding, TDataEntry } from "#/scene/schema";
 
-import { NumberField, SelectField } from "./fields";
+import { ColorField, NumberField, SelectField } from "./fields";
 
 interface IDataBindingFieldsProps {
 	/** How the setting reads its value: switched on and off, a number, or a colour. */
@@ -34,8 +38,9 @@ const shownValue = (entry: TDataEntry) =>
 /**
  * The fields of a setting that follows a data value (ADR-0058), for any
  * setting and any kind: which value, the kind's option (on above a threshold,
- * the value at 100%), and a hint saying what the data does right now. Making
- * another setting follow data reuses this as it is.
+ * the value at 100%), and a hint saying what the data does right now. Colours
+ * also have a colour scale for numbers. Making another setting follow data
+ * reuses this as it is (usually through DataDrivenField).
  */
 export const DataBindingFields = ({
 	kind,
@@ -51,6 +56,8 @@ export const DataBindingFields = ({
 	const full = binding.full ?? 1;
 	const reading = readScale(binding, data, { max });
 	const color = entry ? cssColor(entry.value) : null;
+	const scale = colorScaleOf(binding);
+	const number = dataNumber(entry?.value);
 
 	const now = !entry
 		? `There's no data value called “${binding.key}” any more.`
@@ -61,8 +68,10 @@ export const DataBindingFields = ({
 					? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
 					: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
 				: color
-					? `${name} is ${shownValue(entry)}, so it's ${color} now.`
-					: `${name} is ${shownValue(entry)}, which isn't a colour, so it keeps its own. Any CSS colour works: red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%).`;
+					? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
+					: Number.isFinite(number)
+						? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
+						: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
 
 	return (
 		<>
@@ -75,7 +84,11 @@ export const DataBindingFields = ({
 					...data.map((item) => ({ value: item.key, label: item.label || item.key })),
 				]}
 				onChange={(key) => onChange({ ...binding, key })}
-				hint={kind === "color" ? now : undefined}
+				hint={
+					kind === "color"
+						? `A value holding a colour (red, #ff0000, rgb(), hsl()) is used as it is; a number mixes the low and high colours below. ${now}`
+						: undefined
+				}
 			/>
 
 			{kind === "switch" && (
@@ -91,6 +104,56 @@ export const DataBindingFields = ({
 					}}
 					hint={now}
 				/>
+			)}
+
+			{kind === "color" && (
+				<>
+					<NumberField
+						label="Low value"
+						value={scale.low}
+						onChange={(value) => onChange({ ...binding, low: value }, "low")}
+						inherit={{
+							from: "default",
+							inherited: binding.low === null,
+							onReset: () => onChange({ ...binding, low: null }),
+							value: "0",
+						}}
+					/>
+
+					<ColorField
+						label="Low colour"
+						value={scale.lowColor}
+						onChange={(value) => onChange({ ...binding, lowColor: value }, "lowColor")}
+						inherit={{
+							from: "default",
+							inherited: binding.lowColor === null,
+							onReset: () => onChange({ ...binding, lowColor: null }),
+						}}
+					/>
+
+					<NumberField
+						label="High value"
+						value={scale.high}
+						onChange={(value) => onChange({ ...binding, high: value }, "high")}
+						inherit={{
+							from: "default",
+							inherited: binding.high === null,
+							onReset: () => onChange({ ...binding, high: null }),
+							value: "100",
+						}}
+					/>
+
+					<ColorField
+						label="High colour"
+						value={scale.highColor}
+						onChange={(value) => onChange({ ...binding, highColor: value }, "highColor")}
+						inherit={{
+							from: "default",
+							inherited: binding.highColor === null,
+							onReset: () => onChange({ ...binding, highColor: null }),
+						}}
+					/>
+				</>
 			)}
 
 			{kind === "scale" && (

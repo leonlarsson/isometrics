@@ -27,13 +27,13 @@ export const house01 = definePart({
 		{ key: "roofHeight", label: "Roof height", type: "number", min: 0.2, max: 4, step: 0.1 },
 		{ key: "chimney", label: "Chimney", type: "boolean" },
 	],
-	defaultColor: "#f07b4f",
-	defaultAccent: "#6b4a3a",
-	colorLabel: "Roof",
-	accentLabel: "Door",
+	colors: [
+		{ id: "roof", name: "Roof", default: "#f07b4f", legacy: "color" },
+		{ id: "door", name: "Door", default: "#6b4a3a", legacy: "accent" },
+	],
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + p.roofHeight,
-	Component: ({ props: p, color, accent, palette, lights }) => (
+	Component: ({ props: p, colors, palette, lights }) => (
 		<group>
 			<Box
 				size={[p.width, p.height, p.depth]}
@@ -46,13 +46,13 @@ export const house01 = definePart({
 				depth={p.depth + 0.4}
 				height={p.roofHeight}
 				position={[0, p.height, 0]}
-				color={color}
+				color={colors.roof}
 			/>
 
 			<Box
 				size={[0.42, Math.min(0.8, p.height * 0.7), 0.05]}
 				position={[p.width * 0.22, Math.min(0.8, p.height * 0.7) / 2, p.depth / 2 + 0.025]}
-				color={accent}
+				color={colors.door}
 				castShadow={false}
 			/>
 

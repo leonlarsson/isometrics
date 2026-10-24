@@ -8,6 +8,8 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
+import { paint } from "./paint";
+
 /*
  * Brightwater: a small harbour city that shows off most of the editor.
  *
@@ -310,7 +312,7 @@ const towers: TEntityInput[] = [
 		kind: "office_tower_01",
 		name: "Northgate offices",
 		position: [-3.6, -8.4],
-		color: "#4a64e0",
+		colors: paint({ facade: "#4a64e0" }),
 		props: { width: 3, depth: 3, floors: 8 },
 	},
 	{
@@ -318,7 +320,7 @@ const towers: TEntityInput[] = [
 		kind: "office_tower_01",
 		name: "Square apartments",
 		position: [-3.6, -3.8],
-		color: "#8a5cf0",
+		colors: paint({ facade: "#8a5cf0" }),
 		props: { width: 2.8, depth: 2.8, floors: 9 },
 	},
 	{
@@ -326,7 +328,7 @@ const towers: TEntityInput[] = [
 		kind: "office_tower_01",
 		name: "Parkside residences",
 		position: [-4.2, 2.6],
-		color: "#e8b83a",
+		colors: paint({ facade: "#e8b83a" }),
 		props: { width: 3.2, depth: 3.2, floors: 11 },
 	},
 	{
@@ -334,7 +336,7 @@ const towers: TEntityInput[] = [
 		kind: "office_tower_01",
 		name: "Library",
 		position: [-7.6, 6.8],
-		color: "#f07b4f",
+		colors: paint({ facade: "#f07b4f" }),
 		props: { width: 3.6, depth: 2.6, floors: 4 },
 	},
 ];
@@ -346,7 +348,7 @@ const hillHouses: TEntityInput[] = ["#f07b4f", "#4a64e0", "#3cbf9a", "#e8b83a", 
 		name: `Hill house ${i + 1}`,
 		position: [-24 + i * 4, -21] as TVec2,
 		elevation: HILL,
-		color,
+		colors: paint({ roof: color }),
 		props: { chimney: i % 2 === 0 },
 	}),
 );
@@ -361,7 +363,7 @@ const beachHouses: TEntityInput[] = [
 	name: `Beach house ${i + 1}`,
 	position: [x, z] as TVec2,
 	rotation: 90,
-	color: ["#4a64e0", "#3cbf9a", "#f07b4f"][i],
+	colors: paint({ roof: ["#4a64e0", "#3cbf9a", "#f07b4f"][i] }),
 }));
 
 const stadium: TEntityInput[] = [
@@ -498,8 +500,7 @@ const harbour: TEntityInput[] = [
 		id: "ferry",
 		kind: "yacht_01",
 		name: "Bay ferry",
-		color: "#ffffff",
-		accent: "#4a64e0",
+		colors: paint({ hull: "#ffffff", stripe: "#4a64e0" }),
 		props: { length: 4, decks: 2 },
 		follow: { roadId: FERRY_ID, speed: 1.4, offset: 13 },
 		// Its cabins glow brighter the more passengers it carries: 60 is 100% (ADR-0058).
@@ -520,7 +521,7 @@ const harbour: TEntityInput[] = [
 		name: "Beach café",
 		position: [2, 17],
 		rotation: -12,
-		color: "#e8b83a",
+		colors: paint({ walls: "#e8b83a" }),
 		props: { width: 2.4, depth: 1.8, height: 1.2, garageDoor: false },
 	},
 ];
@@ -530,7 +531,7 @@ const traffic: TEntityInput[] = [
 		id: "ring_car_1",
 		kind: "car_01",
 		name: "City car",
-		color: "#e05a4a",
+		colors: paint({ body: "#e05a4a" }),
 		follow: { roadId: RING_ID, speed: 3.2, offset: 6 },
 		label: {
 			title: "Ring road",
@@ -546,7 +547,7 @@ const traffic: TEntityInput[] = [
 		id: "ring_car_2",
 		kind: "car_01",
 		name: "Taxi",
-		color: "#e8b83a",
+		colors: paint({ body: "#e8b83a" }),
 		follow: { roadId: RING_ID, speed: 3, offset: 34 },
 	},
 	{
@@ -565,14 +566,14 @@ const traffic: TEntityInput[] = [
 		id: "harbour_van",
 		kind: "delivery_van_01",
 		name: "Parcel van",
-		accent: "#3cbf9a",
+		colors: paint({ stripe: "#3cbf9a" }),
 		follow: { roadId: BRIDGE_ID, speed: 2.8, offset: 23 },
 	},
 	{
 		id: "hill_car",
 		kind: "car_01",
 		name: "Hill car",
-		color: "#4a64e0",
+		colors: paint({ body: "#4a64e0" }),
 		follow: { roadId: HILL_ROAD_ID, speed: 2.6, offset: 24 },
 	},
 	{ id: "beach_car", kind: "car_01", name: "Parked car", position: [3, 11.2], rotation: 170 },
@@ -586,7 +587,7 @@ const civic: TEntityInput[] = [
 		position: [-14.4, -6.8],
 		// Turned so its long side runs north–south, leaving room for Meridian Tower.
 		rotation: 90,
-		color: "#e2cfa8",
+		colors: paint({ facade: "#e2cfa8" }),
 		props: { width: 5, depth: 3.4, floors: 4 },
 		label: {
 			title: "Brightwater",

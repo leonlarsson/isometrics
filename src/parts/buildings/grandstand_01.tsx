@@ -70,13 +70,13 @@ export const grandstand01 = definePart({
 		{ key: "crowd", label: "Spectators", type: "boolean" },
 		{ key: "roof", label: "Roof", type: "boolean" },
 	],
-	defaultColor: "#3d4fd6",
-	defaultAccent: "#e4e1da",
-	colorLabel: "Seats",
-	accentLabel: "Structure",
+	colors: [
+		{ id: "seats", name: "Seats", default: "#3d4fd6", legacy: "color" },
+		{ id: "structure", name: "Structure", default: "#e4e1da", legacy: "accent" },
+	],
 	footprint: (p) => [p.length, p.rows * ROW_DEPTH],
 	height: (p) => p.rows * ROW_RISE + (p.roof ? 1.3 : 0.3),
-	Component: ({ props: p, color, accent }) => {
+	Component: ({ props: p, colors }) => {
 		const depth = p.rows * ROW_DEPTH;
 		// Row 0 is the front (+Z), lowest; each row behind it is one step higher.
 		const rows = Array.from({ length: p.rows }, (_, i) => ({
@@ -111,13 +111,13 @@ export const grandstand01 = definePart({
 						<Box
 							size={[p.length, row.top, ROW_DEPTH]}
 							position={[0, row.top / 2, row.z]}
-							color={accent}
+							color={colors.structure}
 						/>
 
 						<Box
 							size={[p.length - 0.1, 0.05, ROW_DEPTH * 0.55]}
 							position={[0, row.top + 0.025, row.z - 0.05]}
-							color={color}
+							color={colors.seats}
 							castShadow={false}
 						/>
 					</group>
@@ -132,7 +132,7 @@ export const grandstand01 = definePart({
 								key={x}
 								size={[0.12, roofY, 0.12]}
 								position={[x, roofY / 2, -depth / 2 + 0.1]}
-								color={accent}
+								color={colors.structure}
 							/>
 						))}
 
@@ -140,7 +140,7 @@ export const grandstand01 = definePart({
 							size={[p.length + 0.3, 0.12, depth + 0.6]}
 							position={[0, roofY, 0.1]}
 							rotation={[0.08, 0, 0]}
-							color={accent}
+							color={colors.structure}
 						/>
 					</>
 				)}

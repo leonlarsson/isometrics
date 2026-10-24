@@ -6,7 +6,8 @@ import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { getPart, partName, partsByCategory, resolveColors } from "#/parts/registry";
+import { resolveColors, swatchColors } from "#/parts/colorModel";
+import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { formatEntry } from "#/scene/format";
@@ -55,15 +56,15 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 	return [
 		...scene.entities.map((entity): IOutlinerRow => {
 			const part = getPart(entity.kind);
-			const { color, accent } = part
-				? resolveColors(part, entity, palette)
-				: { color: palette.selection, accent: palette.selection };
+			const { first, second } = part
+				? swatchColors(resolveColors(part, entity, palette, scene.data), part)
+				: { first: palette.selection, second: palette.selection };
 			return {
 				item: { kind: "entity", id: entity.id },
 				group: part ? CATEGORY_LABELS[part.category] : OTHER,
 				name: entity.name,
 				fallback: part ? partName(part) : entity.kind,
-				swatch: `linear-gradient(135deg, ${color} 55%, ${accent} 55%)`,
+				swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
 				hidden: entity.hidden,
 				locked: entity.locked,
 				value: firstValue(entity.label?.dataKeys ?? entity.details.dataKeys),

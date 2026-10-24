@@ -52,26 +52,26 @@ export const beacon01 = definePart({
 		{ key: "radius", label: "Radius", type: "number", min: 0.2, max: 10, step: 0.1 },
 		{ key: "pulse", label: "Pulse", type: "boolean" },
 	],
-	defaultColor: (p) => p.signal,
-	defaultAccent: "#ffffff",
-	colorLabel: "Ring",
-	accentLabel: "Centre",
+	colors: [
+		{ id: "ring", name: "Ring", default: (p) => p.signal, legacy: "color" },
+		{ id: "centre", name: "Centre", default: "#ffffff", legacy: "accent" },
+	],
 	footprint: (p) => [p.radius * 2, p.radius * 2],
 	height: () => 0.3,
-	Component: ({ props: p, color, accent, playing }) => (
+	Component: ({ props: p, colors, playing }) => (
 		<group>
-			<BeaconRing radius={p.radius} color={color} pulse={p.pulse} playing={playing} />
+			<BeaconRing radius={p.radius} color={colors.ring} pulse={p.pulse} playing={playing} />
 
 			<mesh position={[0, 0.12, 0]} castShadow>
 				<sphereGeometry args={[0.14, 16, 16]} />
 
-				<Mat color={color} />
+				<Mat color={colors.ring} />
 			</mesh>
 
 			<mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
 				<circleGeometry args={[0.28, 24]} />
 
-				<meshBasicMaterial color={accent} />
+				<meshBasicMaterial color={colors.centre} />
 			</mesh>
 		</group>
 	),

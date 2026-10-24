@@ -11,18 +11,18 @@ export const pineTree01 = definePart({
 	keywords: ["fir", "spruce", "forest", "plant", "nature"],
 	schema: TreeSizeSchema,
 	fields: treeSizeFields,
-	defaultColor: (p) => p.foliage,
-	defaultAccent: (p) => p.trunk,
-	colorLabel: "Needles",
-	accentLabel: "Trunk",
+	colors: [
+		{ id: "needles", name: "Needles", default: (p) => p.foliage, legacy: "color" },
+		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
+	],
 	footprint: (p) => [p.size, p.size],
 	height: (p) => 1.7 * p.size,
-	Component: ({ props: { size: s }, color, accent }) => (
+	Component: ({ props: { size: s }, colors }) => (
 		<group scale={s}>
 			<mesh position={[0, 0.2, 0]} castShadow>
 				<cylinderGeometry args={[0.06, 0.08, 0.4, 8]} />
 
-				<Mat color={accent} />
+				<Mat color={colors.trunk} />
 			</mesh>
 
 			{[
@@ -33,7 +33,7 @@ export const pineTree01 = definePart({
 				<mesh key={y} position={[0, y, 0]} castShadow receiveShadow>
 					<coneGeometry args={[radius, height, 8]} />
 
-					<Mat color={color} flat />
+					<Mat color={colors.needles} flat />
 				</mesh>
 			))}
 		</group>

@@ -6,8 +6,9 @@ import { rememberUsed } from "#/editor/paletteMemory";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { toRadians } from "#/lib/math";
+import { resolvePartColors } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
-import { getPart, resolveColors, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
 import type { TVec2 } from "#/scene/schema";
 
 import { SelectionFrame } from "./EntityNode";
@@ -71,7 +72,7 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 		return null;
 	}
 	const props = resolveProps(part, {});
-	const { color, accent } = resolveColors(part, { color: null, accent: null }, palette);
+	const colors = resolvePartColors(part, palette);
 	const Component = part.Component;
 
 	return (
@@ -82,8 +83,7 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 			<group ref={group}>
 				<Component
 					props={props}
-					color={color}
-					accent={accent}
+					colors={colors}
 					palette={palette}
 					lights={resolvePartLights(part, palette)}
 					playing={false}

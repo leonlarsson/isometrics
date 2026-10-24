@@ -1,5 +1,3 @@
-import type { TEntity } from "#/scene/schema";
-import type { IScenePalette } from "#/scene/theme";
 import { variantName } from "#/scene/variants";
 
 import { depot01 } from "./buildings/depot_01";
@@ -16,7 +14,7 @@ import { beacon01 } from "./markers/beacon_01";
 import { text01 } from "./markers/text_01";
 import { pineTree01 } from "./nature/pine_tree_01";
 import { roundTree01 } from "./nature/round_tree_01";
-import type { IPartDefinition, TColorDefault, TPartCategory } from "./types";
+import type { IPartDefinition, TPartCategory } from "./types";
 import { car01 } from "./vehicles/car_01";
 import { deliveryVan01 } from "./vehicles/delivery_van_01";
 import { raceCar01 } from "./vehicles/race_car_01";
@@ -111,37 +109,4 @@ export const resolveProps = (part: TAnyPart, stored: Record<string, unknown>) =>
 		}
 	}
 	return merged;
-};
-
-const resolveColorDefault = (value: TColorDefault, palette: IScenePalette) =>
-	typeof value === "function" ? value(palette) : value;
-
-export const resolveColors = (
-	part: TAnyPart,
-	entity: Pick<TEntity, "color" | "accent">,
-	palette: IScenePalette,
-) => {
-	return {
-		color: entity.color ?? resolveColorDefault(part.defaultColor, palette),
-		accent: entity.accent ?? resolveColorDefault(part.defaultAccent, palette),
-	};
-};
-
-/** Relative luminance check so pins and dots on white parts use the accent instead. */
-const isVeryLight = (hex: string) => {
-	const n = Number.parseInt(hex.slice(1), 16);
-	const r = (n >> 16) & 255;
-	const g = (n >> 8) & 255;
-	const b = n & 255;
-	return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.82;
-};
-
-/** Colour used for an entity's label pin, leader line and card dot. */
-export const resolveLabelColor = (
-	part: TAnyPart,
-	entity: Pick<TEntity, "color" | "accent">,
-	palette: IScenePalette,
-) => {
-	const { color, accent } = resolveColors(part, entity, palette);
-	return isVeryLight(color) ? accent : color;
 };

@@ -27,22 +27,22 @@ export const warehouse01 = definePart({
 		{ key: "doors", label: "Doors", type: "number", min: 0, max: 8, step: 1 },
 		{ key: "solar", label: "Solar panels", type: "boolean" },
 	],
-	defaultColor: "#3d4fd6",
-	defaultAccent: "#e3e6f7",
-	colorLabel: "Walls",
-	accentLabel: "Roof",
+	colors: [
+		{ id: "walls", name: "Walls", default: "#3d4fd6", legacy: "color" },
+		{ id: "roof", name: "Roof", default: "#e3e6f7", legacy: "accent" },
+	],
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + 0.4,
-	Component: ({ props: p, color, accent, palette, lights }) => {
+	Component: ({ props: p, colors, palette, lights }) => {
 		const { width: w, depth: d, height: h } = p;
 		const cols = Math.max(1, Math.floor((w - 1) / 1.5));
 		const rows = Math.max(1, Math.floor((d - 1) / 1.5));
 		const doorWidth = p.doors > 0 ? Math.min(1.3, ((w - 1) / p.doors) * 0.7) : 0;
 		return (
 			<group>
-				<RBox size={[w, h, d]} position={[0, h / 2, 0]} color={color} radius={0.1} />
+				<RBox size={[w, h, d]} position={[0, h / 2, 0]} color={colors.walls} radius={0.1} />
 
-				<Box size={[w + 0.2, 0.22, d + 0.2]} position={[0, h + 0.11, 0]} color={accent} />
+				<Box size={[w + 0.2, 0.22, d + 0.2]} position={[0, h + 0.11, 0]} color={colors.roof} />
 
 				{p.solar &&
 					spread(cols, w - 0.8).flatMap((x) =>

@@ -29,23 +29,28 @@ export const officeTower01 = definePart({
 		{ key: "depth", label: "Depth", type: "number", min: 1, max: 12, step: 0.25 },
 		{ key: "floors", label: "Floors", type: "number", min: 1, max: 40, step: 1 },
 	],
-	defaultColor: "#2bb58c",
-	defaultAccent: "#e8f6f0",
-	colorLabel: "Facade",
-	accentLabel: "Window grid",
+	colors: [
+		{ id: "facade", name: "Facade", default: "#2bb58c", legacy: "color" },
+		{ id: "grid", name: "Window grid", default: "#e8f6f0", legacy: "accent" },
+	],
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.floors * FLOOR_HEIGHT + ROOF_CAP + 0.5,
-	Component: ({ props: p, color, accent, lights }) => {
+	Component: ({ props: p, colors, lights }) => {
 		const h = p.floors * FLOOR_HEIGHT;
 		const columnsX = Math.max(2, Math.round(p.width / 0.7));
 		const columnsZ = Math.max(2, Math.round(p.depth / 0.7));
 		return (
 			<group>
-				<RBox size={[p.width, h, p.depth]} position={[0, h / 2, 0]} color={color} radius={0.08} />
+				<RBox
+					size={[p.width, h, p.depth]}
+					position={[0, h / 2, 0]}
+					color={colors.facade}
+					radius={0.08}
+				/>
 
 				<LitWindows
 					light={lights.windows}
-					color={color}
+					color={colors.facade}
 					width={p.width}
 					depth={p.depth}
 					height={h}
@@ -63,7 +68,7 @@ export const officeTower01 = definePart({
 						key={i}
 						size={[p.width + 0.05, 0.1, p.depth + 0.05]}
 						position={[0, (i + 1) * FLOOR_HEIGHT - 0.05, 0]}
-						color={accent}
+						color={colors.grid}
 						castShadow={false}
 					/>
 				))}
@@ -75,7 +80,7 @@ export const officeTower01 = definePart({
 							key={`x${x}`}
 							size={[0.07, h, p.depth + 0.05]}
 							position={[x + p.width / columnsX / 2, h / 2, 0]}
-							color={accent}
+							color={colors.grid}
 							castShadow={false}
 						/>
 					))}
@@ -87,7 +92,7 @@ export const officeTower01 = definePart({
 							key={`z${z}`}
 							size={[p.width + 0.05, h, 0.07]}
 							position={[0, h / 2, z + p.depth / columnsZ / 2]}
-							color={accent}
+							color={colors.grid}
 							castShadow={false}
 						/>
 					))}
@@ -95,13 +100,13 @@ export const officeTower01 = definePart({
 				<Box
 					size={[p.width + ROOF_OVERHANG, ROOF_CAP, p.depth + ROOF_OVERHANG]}
 					position={[0, h + ROOF_CAP / 2, 0]}
-					color={accent}
+					color={colors.grid}
 				/>
 
 				<Box
 					size={[p.width * 0.45, 0.45, p.depth * 0.35]}
 					position={[0, h + ROOF_CAP + 0.22, 0]}
-					color={accent}
+					color={colors.grid}
 				/>
 			</group>
 		);

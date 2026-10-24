@@ -44,10 +44,10 @@ export const raceCar01 = definePart({
 	keywords: ["f1", "formula", "racing", "vehicle", "modern", "halo"],
 	schema: z.object({}),
 	fields: [],
-	defaultColor: "#d5232f",
-	defaultAccent: "#1f1f24",
-	colorLabel: "Livery",
-	accentLabel: "Wings & details",
+	colors: [
+		{ id: "livery", name: "Livery", default: "#d5232f", legacy: "color" },
+		{ id: "details", name: "Wings & details", default: "#1f1f24", legacy: "accent" },
+	],
 	canFollowPath: true,
 	// No headlights, like a real F1 car: a red rain light at the back, on while it races after dark,
 	// with a glow on the road behind it.
@@ -69,7 +69,7 @@ export const raceCar01 = definePart({
 	footprint: () => [2 * CAR_SCALE, 0.95 * CROSS_SECTION * CAR_SCALE],
 	// The top of the airbox and the rear wing; a real car is about 1.3 wheels tall.
 	height: () => 0.45 * CROSS_SECTION * CAR_SCALE,
-	Component: ({ color, accent, palette, lights }) => {
+	Component: ({ colors, palette, lights }) => {
 		const carbon = palette.tire;
 		return (
 			<group>
@@ -90,7 +90,7 @@ export const raceCar01 = definePart({
 							back={[0.22, 0.34]}
 							front={[0.2, 0.27]}
 							position={[0.07, 0.16, 0]}
-							color={color}
+							color={colors.livery}
 						/>
 
 						<Taper
@@ -99,7 +99,7 @@ export const raceCar01 = definePart({
 							front={[0.05, 0.1]}
 							lift={-0.06}
 							position={[0.67, 0.17, 0]}
-							color={color}
+							color={colors.livery}
 						/>
 
 						{/* Sidepods: tall at their mouths with an undercut below, narrowing and dropping towards the back. */}
@@ -111,7 +111,7 @@ export const raceCar01 = definePart({
 									front={[0.18, 0.19]}
 									lift={0.05}
 									position={[-0.21, 0.125, side * 0.245]}
-									color={color}
+									color={colors.livery}
 								/>
 
 								<Box
@@ -131,7 +131,7 @@ export const raceCar01 = definePart({
 								<Box
 									size={[0.035, 0.035, 0.07]}
 									position={[0.13, 0.31, side * 0.27]}
-									color={color}
+									color={colors.livery}
 								/>
 							</group>
 						))}
@@ -143,10 +143,10 @@ export const raceCar01 = definePart({
 							front={[0.22, 0.24]}
 							lift={0.1}
 							position={[-0.45, 0.2, 0]}
-							color={color}
+							color={colors.livery}
 						/>
 
-						<Box size={[0.12, 0.06, 0.12]} position={[-0.1, 0.405, 0]} color={color} />
+						<Box size={[0.12, 0.06, 0.12]} position={[-0.1, 0.405, 0]} color={colors.livery} />
 
 						<Box
 							size={[0.012, 0.045, 0.08]}
@@ -174,16 +174,21 @@ export const raceCar01 = definePart({
 							castShadow={false}
 						/>
 
-						<Helmet position={[0.1, 0.345, 0]} color={accent} visor={carbon} />
+						<Helmet position={[0.1, 0.345, 0]} color={colors.details} visor={carbon} />
 
 						<mesh position={[0.1, 0.38, 0]} rotation={[Math.PI / 2, 0, -Math.PI / 2]} castShadow>
 							<torusGeometry args={[0.14, 0.018, 6, 12, Math.PI]} />
 
-							<meshStandardMaterial color={accent} roughness={0.6} />
+							<meshStandardMaterial color={colors.details} roughness={0.6} />
 						</mesh>
 
 						{/* The halo's centre pillar and legs reach into the bodywork. */}
-						<Strut from={[0.24, 0.38, 0]} to={[0.37, 0.22, 0]} thickness={0.032} color={accent} />
+						<Strut
+							from={[0.24, 0.38, 0]}
+							to={[0.37, 0.22, 0]}
+							thickness={0.032}
+							color={colors.details}
+						/>
 
 						{[1, -1].map((side) => (
 							<Strut
@@ -191,7 +196,7 @@ export const raceCar01 = definePart({
 								from={[0.1, 0.38, side * 0.14]}
 								to={[0.06, 0.24, side * 0.14]}
 								thickness={0.028}
-								color={accent}
+								color={colors.details}
 							/>
 						))}
 
@@ -202,7 +207,7 @@ export const raceCar01 = definePart({
 							chord={0.14}
 							endplateHeight={0.09}
 							flapTilt={0.35}
-							color={accent}
+							color={colors.details}
 						/>
 
 						{/* Rear wing at about the airbox's height, on its pylon from the gearbox, with the beam wing below. */}
@@ -211,7 +216,7 @@ export const raceCar01 = definePart({
 							span={0.6}
 							chord={0.15}
 							endplateHeight={0.08}
-							color={accent}
+							color={colors.details}
 						/>
 
 						{[1, -1].map((side) => (
@@ -219,13 +224,13 @@ export const raceCar01 = definePart({
 								key={side}
 								size={[0.26, 0.24, 0.022]}
 								position={[-0.88, 0.32, side * 0.31]}
-								color={accent}
+								color={colors.details}
 							/>
 						))}
 
-						<Box size={[0.05, 0.2, 0.03]} position={[-0.84, 0.27, 0]} color={accent} />
+						<Box size={[0.05, 0.2, 0.03]} position={[-0.84, 0.27, 0]} color={colors.details} />
 
-						<Box size={[0.08, 0.02, 0.44]} position={[-0.86, 0.22, 0]} color={accent} />
+						<Box size={[0.08, 0.02, 0.44]} position={[-0.86, 0.22, 0]} color={colors.details} />
 
 						{/* Suspension arms from the nose and the gearbox into the wheels, and the wheels with their covers. */}
 						{[1, -1].map((side) => (
@@ -267,7 +272,7 @@ export const raceCar01 = definePart({
 								width={width * CROSS_SECTION}
 								side={side}
 								tire={palette.tire}
-								rim={accent}
+								rim={colors.details}
 							/>
 						)),
 					)}

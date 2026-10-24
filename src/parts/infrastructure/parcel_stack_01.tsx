@@ -15,15 +15,15 @@ export const parcelStack01 = definePart({
 	keywords: ["boxes", "packages", "cargo", "pallet"],
 	schema: ParcelsSchema,
 	fields: [{ key: "count", label: "Boxes", type: "number", min: 1, max: 24, step: 1 }],
-	defaultColor: (p) => p.cardboard,
-	defaultAccent: "#c9b48f",
-	colorLabel: "Boxes",
-	accentLabel: "Pallet",
+	colors: [
+		{ id: "boxes", name: "Boxes", default: (p) => p.cardboard, legacy: "color" },
+		{ id: "pallet", name: "Pallet", default: "#c9b48f", legacy: "accent" },
+	],
 	footprint: () => [1.4, 1.4],
 	height: (p) => 0.15 + Math.ceil(p.count / 4) * 0.42,
-	Component: ({ props: p, color, accent }) => (
+	Component: ({ props: p, colors }) => (
 		<group>
-			<Box size={[1.4, 0.12, 1.4]} position={[0, 0.06, 0]} color={accent} />
+			<Box size={[1.4, 0.12, 1.4]} position={[0, 0.06, 0]} color={colors.pallet} />
 
 			{Array.from({ length: p.count }, (_, i) => {
 				const layer = Math.floor(i / 4);
@@ -38,7 +38,7 @@ export const parcelStack01 = definePart({
 						size={[s, 0.38, s]}
 						position={[x, 0.31 + layer * 0.42, z]}
 						rotation={[0, (jitter(i + 7) - 0.5) * 0.3, 0]}
-						color={color}
+						color={colors.boxes}
 					/>
 				);
 			})}

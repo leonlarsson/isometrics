@@ -32,10 +32,6 @@ describe("every part", () => {
 						field.options.map((option) => option.value),
 						`field "${field.key}"`,
 					).toContain(value);
-				} else if (field.type === "color") {
-					// Null until set: it shows the field's default colour (ADR-0027).
-					expect(value, `field "${field.key}"`).toBeNull();
-					expect(field.default, `field "${field.key}"`).toMatch(/^#[0-9a-fA-F]{6}$/);
 				} else if (field.type === "boolean") {
 					expect(typeof value, `field "${field.key}"`).toBe("boolean");
 				} else {
@@ -88,6 +84,27 @@ describe("every part's lights (ADR-0058)", () => {
 	);
 });
 
+describe("every part's colours (ADR-0060)", () => {
+	it.each(PARTS.map((part) => [part.kind, part] as const))(
+		"%s has at least one colour, with unique ids and names, and older worlds' color and accent each read by one",
+		(_, part) => {
+			const ids = part.colors.map((color) => color.id);
+			expect(ids.length).toBeGreaterThan(0);
+			expect(new Set(ids).size).toBe(ids.length);
+			for (const color of part.colors) {
+				expect(color.id, `colour ${color.id}`).toMatch(/^[a-z][a-zA-Z0-9]*$/);
+				expect(color.name.length, `colour ${color.id}`).toBeGreaterThan(0);
+			}
+			// Older worlds (and AIs writing the old form) put a colour in color, a second in accent.
+			const legacy = part.colors.map((color) => color.legacy);
+			expect(legacy.filter((field) => field === "color")).toHaveLength(1);
+			expect(legacy.filter((field) => field === "accent")).toHaveLength(
+				part.colors.length > 1 ? 1 : 0,
+			);
+		},
+	);
+});
+
 /** A stand-in part with a few kinds of props, one of them renamed. */
 const tower = definePart({
 	kind: "test_tower_01",
@@ -101,8 +118,7 @@ const tower = definePart({
 	}),
 	renamedProps: { storeys: "floors" },
 	fields: [],
-	defaultColor: "#ffffff",
-	defaultAccent: "#000000",
+	colors: [{ id: "walls", name: "Walls", default: "#ffffff", legacy: "color" }],
 	footprint: () => [1, 1],
 	height: () => 1,
 	Component: () => null,

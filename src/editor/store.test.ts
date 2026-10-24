@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
+import { DataBindingSchema, SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
 
 import { createEditorStore, unknownPartKinds } from "./store";
 
@@ -226,18 +226,39 @@ describe("editor store", () => {
 		const store = makeStore();
 		const s = () => store.getState();
 		const lamp = s().addEntity({ kind: "street_lamp_01" });
-		const binding = { key: "orders", above: null, full: null };
+		const binding = DataBindingSchema.parse({ key: "orders" });
 		s().setEntityLight(lamp, "lamp", { data: { on: binding, strength: { ...binding, full: 10 } } });
+		s().setEntityColor(lamp, "post", { data: { color: binding } });
 		s().upsertData({ key: "sales", label: "Orders", value: 3, unit: "" }, "orders");
-		const lights = () =>
-			s().scene.entities.find((e) => e.id === lamp)?.lights as Record<string, TEntityLight>;
+		const entity = () => s().scene.entities.find((e) => e.id === lamp);
+		const lights = () => entity()?.lights as Record<string, TEntityLight>;
 		expect(lights().lamp.data).toEqual({
-			on: { key: "sales", above: null, full: null },
-			strength: { key: "sales", above: null, full: 10 },
+			on: { ...binding, key: "sales" },
+			strength: { ...binding, key: "sales", full: 10 },
 		});
+		expect(entity()?.colors.post.data).toEqual({ color: { ...binding, key: "sales" } });
 		// Deleting the value: those settings no longer follow data, and nothing else is left.
 		s().removeData("sales");
 		expect(lights()).toEqual({});
+		expect(entity()?.colors).toEqual({});
+	});
+
+	it("sets an object's colours by id, taking over an older world's colour so Reset goes back to the part's", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const house = s().addEntity({ kind: "house_01", color: "#123456", accent: "#654321" });
+		const entity = () => s().scene.entities.find((e) => e.id === house);
+		s().setEntityColor(house, "roof", {
+			data: { color: DataBindingSchema.parse({ key: "heat" }) },
+		});
+		// The old main colour is now the roof's setting; the accent (the door) is untouched.
+		expect(entity()?.colors.roof.color).toBe("#123456");
+		expect(entity()?.color).toBeNull();
+		expect(entity()?.accent).toBe("#654321");
+		s().setEntityColor(house, "roof", { color: null, data: { color: null } });
+		expect(entity()?.colors).toEqual({});
+		s().setEntityColor(house, "door", { color: null });
+		expect(entity()?.accent).toBeNull();
 	});
 
 	it("opens the selection's tabs: the one you were on, Object from a world tab, Shape for a point", () => {

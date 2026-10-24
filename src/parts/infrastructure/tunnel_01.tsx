@@ -32,13 +32,13 @@ export const tunnel01 = definePart({
 		{ key: "height", label: "Inside height", type: "number", min: 0.8, max: 5, step: 0.1 },
 		{ key: "building", label: "Building on top", type: "number", min: 0, max: 10, step: 0.5 },
 	],
-	defaultColor: "#d9d4c7",
-	defaultAccent: "#f1e8d8",
-	colorLabel: "Walls",
-	accentLabel: "Roof & building",
+	colors: [
+		{ id: "walls", name: "Walls", default: "#d9d4c7", legacy: "color" },
+		{ id: "roof", name: "Roof & building", default: "#f1e8d8", legacy: "accent" },
+	],
 	footprint: (p) => [p.length, p.width + WALL * 2],
 	height: (p) => p.height + WALL + p.building,
-	Component: ({ props: p, color, accent, palette }) => {
+	Component: ({ props: p, colors, palette }) => {
 		const outer = p.width + WALL * 2;
 		return (
 			<group>
@@ -47,11 +47,15 @@ export const tunnel01 = definePart({
 						key={side}
 						size={[p.length, p.height, WALL]}
 						position={[0, p.height / 2, side * (p.width / 2 + WALL / 2)]}
-						color={color}
+						color={colors.walls}
 					/>
 				))}
 
-				<Box size={[p.length, WALL, outer]} position={[0, p.height + WALL / 2, 0]} color={color} />
+				<Box
+					size={[p.length, WALL, outer]}
+					position={[0, p.height + WALL / 2, 0]}
+					color={colors.walls}
+				/>
 
 				{/* Darker portal bands at each opening, standing just proud of the roof's end faces */}
 				{[1, -1].map((end) => (
@@ -68,7 +72,7 @@ export const tunnel01 = definePart({
 					<RBox
 						size={[p.length * 0.9, p.building, outer + 1.2]}
 						position={[0, p.height + WALL + p.building / 2, 0]}
-						color={accent}
+						color={colors.roof}
 						radius={0.1}
 					/>
 				)}

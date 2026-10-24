@@ -42,6 +42,25 @@ export interface ILightSpec {
 	};
 }
 
+/**
+ * One of a part's colours (ADR-0060), e.g. a house's roof. Objects store
+ * their setting for it under its id and can let data set it; the Look tab
+ * shows one per colour, in this order.
+ */
+export interface IColorSpec<C extends string = string> {
+	/** Stable key objects store their setting under, e.g. "roof". Never change it. */
+	id: C;
+	/** What the Look tab calls it, e.g. "Roof". */
+	name: string;
+	/** Its colour until it's set: a hex colour, or one from the theme. */
+	default: TColorDefault;
+	/**
+	 * Which of the old per-object fields older worlds kept it in: the first
+	 * colour was `color`, the second `accent`. Read while it isn't set in `colors`.
+	 */
+	legacy?: "color" | "accent";
+}
+
 /** One of a part's lights as it is right now (`resolveLights`). */
 export interface IResolvedLight {
 	/** Lit at all (`level` above 0). */
@@ -85,21 +104,15 @@ export type TFieldSpec<K extends string = string> =
 			label: string;
 			type: "select";
 			options: { value: string; label: string }[];
-	  }
-	/**
-	 * A colour of its own besides color and accent (a rain light): stored as null
-	 * until it's set, showing `default` meanwhile (ADR-0027). Shown in the Look tab
-	 * with the other colours; its prop is `HexColorSchema.nullable().default(null)`.
-	 */
-	| { key: K; label: string; type: "color"; default: string };
+	  };
 
 /** A fixed hex colour, or one derived from the active theme palette. */
 export type TColorDefault = string | ((palette: IScenePalette) => string);
 
-export interface IPartRenderProps<P> {
+export interface IPartRenderProps<P, C extends string = string> {
 	props: P;
-	color: string;
-	accent: string;
+	/** Each of its colours (its `colors`, by id) as it is right now: set, from data, or the default. */
+	colors: Record<C, string>;
 	palette: IScenePalette;
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;
@@ -123,7 +136,7 @@ export interface IPartRenderProps<P> {
  * Conventions: origin at the centre of the footprint on the ground (y = 0),
  * "front" faces +Z, vehicles drive towards +X.
  */
-export interface IPartDefinition<P extends object> {
+export interface IPartDefinition<P extends object, C extends string = string> {
 	kind: string;
 	name: string;
 	category: TPartCategory;
@@ -144,10 +157,11 @@ export interface IPartDefinition<P extends object> {
 	 */
 	removedProps?: readonly string[];
 	fields: TFieldSpec<Extract<keyof P, string>>[];
-	defaultColor: TColorDefault;
-	defaultAccent: TColorDefault;
-	colorLabel?: string;
-	accentLabel?: string;
+	/**
+	 * Its colours (ADR-0060), in the order the Look tab shows them; the first is
+	 * its main colour (label pins, swatches). Leave out what it doesn't have.
+	 */
+	colors: readonly IColorSpec<C>[];
 	/** Width (x) and depth (z) at scale 1, used for selection and placement. */
 	footprint: (props: P) => [number, number];
 	/** Height at scale 1, used to anchor labels. */
@@ -170,7 +184,10 @@ export interface IPartDefinition<P extends object> {
 	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
 	rendersAsync?: boolean;
-	Component: FC<IPartRenderProps<P>>;
+	Component: FC<IPartRenderProps<P, C>>;
 }
 
-export const definePart = <P extends object>(definition: IPartDefinition<P>) => definition;
+/** Define a part; its colour ids type `colors` in its render props. */
+export const definePart = <P extends object, const C extends string>(
+	definition: IPartDefinition<P, C>,
+) => definition;

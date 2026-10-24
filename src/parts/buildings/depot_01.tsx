@@ -23,25 +23,25 @@ export const depot01 = definePart({
 		{ key: "height", label: "Height", type: "number", min: 0.5, max: 6, step: 0.1 },
 		{ key: "garageDoor", label: "Garage door", type: "boolean" },
 	],
-	defaultColor: "#8a5cf0",
-	defaultAccent: "#ece6fb",
-	colorLabel: "Walls",
-	accentLabel: "Roof",
+	colors: [
+		{ id: "walls", name: "Walls", default: "#8a5cf0", legacy: "color" },
+		{ id: "roof", name: "Roof", default: "#ece6fb", legacy: "accent" },
+	],
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + 0.2,
-	Component: ({ props: p, color, accent, palette }) => (
+	Component: ({ props: p, colors, palette }) => (
 		<group>
 			<RBox
 				size={[p.width, p.height, p.depth]}
 				position={[0, p.height / 2, 0]}
-				color={color}
+				color={colors.walls}
 				radius={0.08}
 			/>
 
 			<Box
 				size={[p.width + 0.15, 0.16, p.depth + 0.15]}
 				position={[0, p.height + 0.08, 0]}
-				color={accent}
+				color={colors.roof}
 			/>
 
 			{p.garageDoor && (

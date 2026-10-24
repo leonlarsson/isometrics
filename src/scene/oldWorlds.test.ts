@@ -1,11 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { resolveColors } from "#/parts/colorModel";
 import { getPart, resolveProps } from "#/parts/registry";
 
 import { AREA_TYPE_LABELS } from "./areas";
 import { parseOrRepairScene } from "./repair";
 import { ROAD_STYLE_LABELS } from "./roads";
+import { scenePalettes } from "./theme";
 
 /**
  * Worlds saved by earlier versions of the app (ADR-0056): each file is a
@@ -16,7 +18,13 @@ import { ROAD_STYLE_LABELS } from "./roads";
 const FOLDER = new URL("./fixtures/old-worlds/", import.meta.url);
 
 interface IRawWorld {
-	entities?: { kind: string; props?: Record<string, unknown> }[];
+	entities?: {
+		kind: string;
+		props?: Record<string, unknown>;
+		color?: string | null;
+		accent?: string | null;
+		colors?: Record<string, { color?: string | null }>;
+	}[];
 	roads?: { points: unknown[] }[];
 	areas?: { points: unknown[] }[];
 	data?: unknown[];
@@ -78,6 +86,28 @@ describe("worlds saved by earlier versions", () => {
 					`${part.kind} no longer has the prop "${key}": if it was renamed, add it to the part's renamedProps; if it was removed on purpose, to removedProps`,
 				).toHaveProperty(current);
 				expect(resolved[current], `object ${entity.id}, prop "${key}"`).toEqual(value);
+			}
+		});
+	});
+
+	it.each(worlds)("%s keeps every object's colours", (_, text) => {
+		const raw = JSON.parse(text) as IRawWorld;
+		const { scene } = parseOrRepairScene(JSON.parse(text));
+		const palette = scenePalettes.light;
+
+		scene.entities.forEach((entity, i) => {
+			const part = getPart(entity.kind);
+			const before = raw.entities?.[i];
+			if (!part || !before) {
+				return;
+			}
+			const colors = resolveColors(part, entity, palette);
+			for (const spec of part.colors) {
+				const stored =
+					before.colors?.[spec.id]?.color ?? (spec.legacy ? before[spec.legacy] : null);
+				if (stored) {
+					expect(colors[spec.id], `object ${entity.id}, colour ${spec.id}`).toBe(stored);
+				}
 			}
 		});
 	});

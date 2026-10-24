@@ -1,9 +1,10 @@
 import type { Draft } from "immer";
 
-import { type ICommitOptions, useEditor } from "#/editor/store";
+import { type ICommitOptions, type TEntityColorChange, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
 import { lightDefaults, lightSettingsOf } from "#/parts/lightModel";
-import { getPart, partName, resolveColors, resolveProps, type TAnyPart } from "#/parts/registry";
+import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
@@ -17,9 +18,12 @@ import type { TEntity, TTurns } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
+import { DataDrivenField } from "./DataDrivenField";
+import { FollowDataNote } from "./FollowDataNote";
 import {
 	CheckboxGroupField,
 	ColorField,
+	FieldGroup,
 	Hint,
 	Section,
 	SelectField,
@@ -122,14 +126,8 @@ const PropField = ({
 					onChange={onChange}
 				/>
 			);
-		case "color":
-			// With the other colours, in the Look tab (LookTab).
-			return null;
 	}
 };
-
-/** A part's own settings for the Shape tab: all but its colours, which are in the Look tab. */
-const shapeFields = (part: TAnyPart) => part.fields.filter((spec) => spec.type !== "color");
 
 /** Every edit coalesces per entity+field so typing or sliding is one undo step. */
 const useEntityEdit = (entity: TEntity) => {
@@ -265,7 +263,7 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 	return (
 		<Section id="shape.part" icon="spline" title={`${partName(part)} shape`} keywords="shape size">
-			{shapeFields(part).map((spec) => (
+			{part.fields.map((spec) => (
 				<PropField
 					key={spec.key}
 					spec={spec}
@@ -279,76 +277,65 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	);
 };
 
-/** The Look tab: colours, and lights after dark. */
+/**
+ * The Look tab: a group per colour of its part (ADR-0060), in the part's
+ * order, each set by hand or from data.
+ */
 const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
-	const edit = useEntityEdit(entity);
-	const setEntityProp = useEditor((s) => s.setEntityProp);
-	const colors = resolveColors(part, entity, palette);
-	const props = resolveProps(part, entity.props) as Record<string, unknown>;
+	const data = useEditor((s) => s.scene.data);
+	const setEntityColor = useEditor((s) => s.setEntityColor);
 
 	return (
 		<>
-			<Section id="look.colours" icon="palette" title="Colours" keywords="colors paint">
-				<ColorField
-					label={part.colorLabel ?? "Main colour"}
-					value={colors.color}
-					onChange={(v) =>
-						edit("color", (e) => {
-							e.color = v;
-						})
-					}
-					inherit={{
-						from: "default",
-						inherited: entity.color === null,
-						onReset: () =>
-							edit("color", (e) => {
-								e.color = null;
-							}),
-					}}
-				/>
+			<FollowDataNote title="Colours can follow data">
+				A colour can come from a value in the Data tab: a value holding a colour (red, #ff0000), or
+				a number on a colour scale, like a building that turns from green to red as it fills up.
+			</FollowDataNote>
 
-				{part.accentLabel !== "Unused" && (
-					<ColorField
-						label={part.accentLabel ?? "Accent"}
-						value={colors.accent}
-						onChange={(v) =>
-							edit("accent", (e) => {
-								e.accent = v;
-							})
-						}
-						inherit={{
-							from: "default",
-							inherited: entity.accent === null,
-							onReset: () =>
-								edit("accent", (e) => {
-									e.accent = null;
-								}),
-						}}
-					/>
-				)}
-
-				{/* The part's own colours, e.g. a race car's rain light. Null follows its default. */}
-				{part.fields.map(
-					(spec) =>
-						spec.type === "color" && (
-							<ColorField
-								key={spec.key}
-								label={spec.label}
-								value={typeof props[spec.key] === "string" ? String(props[spec.key]) : spec.default}
-								onChange={(v) =>
-									setEntityProp(entity.id, spec.key, v, {
-										coalesce: `${entity.id}:prop:${spec.key}`,
-									})
+			<Section
+				id="look.colours"
+				icon="palette"
+				title="Colours"
+				keywords="colors paint data scale heatmap"
+			>
+				{part.colors.map((spec) => {
+					const setting = colorSettingOf(entity, spec.id);
+					const change = (colorChange: TEntityColorChange, field?: string) =>
+						setEntityColor(
+							entity.id,
+							spec.id,
+							colorChange,
+							field ? { coalesce: `${entity.id}:color:${spec.id}:${field}` } : undefined,
+						);
+					// An older world's colour counts as set here, so Reset goes back to the part's.
+					const fromOlderWorld = spec.legacy ? entity[spec.legacy] : null;
+					return (
+						<FieldGroup key={spec.id} title={spec.name}>
+							<DataDrivenField
+								kind={COLOR_DATA.color}
+								binding={setting?.data.color}
+								data={data}
+								onBindingChange={(binding, field) =>
+									change({ data: { color: binding } }, field && `data.${field}`)
 								}
-								inherit={{
-									from: "default",
-									inherited: props[spec.key] === null,
-									onReset: () => setEntityProp(entity.id, spec.key, null),
-								}}
-							/>
-						),
-				)}
+							>
+								<ColorField
+									label="Colour"
+									value={setting?.color ?? colorDefault(spec, entity, palette)}
+									onChange={(color) => change({ color }, "color")}
+									inherit={{
+										from: "default",
+										inherited: (setting?.color ?? fromOlderWorld) === null,
+										onReset: () => change({ color: null }),
+									}}
+								/>
+							</DataDrivenField>
+						</FieldGroup>
+					);
+				})}
+
+				{part.colors.length === 0 && <Hint>It has no colours to change.</Hint>}
 			</Section>
 		</>
 	);
@@ -360,7 +347,6 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const data = useEditor((s) => s.scene.data);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const setEntityLight = useEditor((s) => s.setEntityLight);
-	const setTab = useEditor((s) => s.setTab);
 	// Without a time of day it never gets dark, so lights that come on after dark stay off.
 	const noNight =
 		lighting.time === null && lighting.timeSource === "fixed" && lighting.lights === "auto";
@@ -376,19 +362,10 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				</Section>
 			)}
 
-			{data.length === 0 && (
-				<Section icon="chart" title="Lights can follow data">
-					<Hint>
-						A light can turn on, get brighter or change colour with a value from the Data tab, like
-						a lamp that turns on while an alert is above 0. This world has no values yet, so those
-						options are greyed out: add one, then pick From data.
-					</Hint>
-
-					<Button size="sm" icon="chart" onClick={() => setTab("data")}>
-						Open the Data tab
-					</Button>
-				</Section>
-			)}
+			<FollowDataNote title="Lights can follow data">
+				A light can turn on, get brighter or change colour with a value from the Data tab, like a
+				lamp that turns on while an alert is above 0.
+			</FollowDataNote>
 
 			{(part.lights ?? []).map((spec) => {
 				const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
@@ -680,7 +657,7 @@ export const entityTabs = (entity: TEntity): IInspectorTab[] => {
 			icon: "cube",
 			content: <ObjectTab key={entity.id} {...props} />,
 		},
-		...(shapeFields(part).length > 0
+		...(part.fields.length > 0
 			? [
 					{
 						value: "shape",

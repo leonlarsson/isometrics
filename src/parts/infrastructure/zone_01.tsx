@@ -30,24 +30,21 @@ export const zone01 = definePart({
 			],
 		},
 	],
-	defaultColor: "#cfe3f2",
-	defaultAccent: "#ffffff",
-	colorLabel: "Fill",
-	accentLabel: "Unused",
+	colors: [{ id: "fill", name: "Fill", default: "#cfe3f2", legacy: "color" }],
 	footprint: (p) => [p.width, p.depth],
 	height: () => 0.05,
-	Component: ({ props: p, color }) =>
+	Component: ({ props: p, colors }) =>
 		p.shape === "circle" ? (
 			<mesh position={[0, 0.015, 0]} scale={[p.width / 2, 1, p.depth / 2]} receiveShadow>
 				<cylinderGeometry args={[1, 1, 0.03, 48]} />
 
-				<Mat color={color} />
+				<Mat color={colors.fill} />
 			</mesh>
 		) : (
 			<Box
 				size={[p.width, 0.03, p.depth]}
 				position={[0, 0.015, 0]}
-				color={color}
+				color={colors.fill}
 				castShadow={false}
 			/>
 		),

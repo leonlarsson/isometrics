@@ -13,18 +13,23 @@ export const car01 = definePart({
 	keywords: ["taxi", "vehicle", "automobile"],
 	schema: z.object({}),
 	fields: [],
-	defaultColor: "#f2c230",
-	defaultAccent: "#2f3a56",
-	colorLabel: "Body",
-	accentLabel: "Windows",
+	colors: [
+		{ id: "body", name: "Body", default: "#f2c230", legacy: "color" },
+		{ id: "windows", name: "Windows", default: "#2f3a56", legacy: "accent" },
+	],
 	canFollowPath: true,
 	footprint: () => [1.25, 0.66],
 	height: () => 0.8,
-	Component: ({ color, accent, palette, lights }) => (
+	Component: ({ colors, palette, lights }) => (
 		<group>
-			<RBox size={[1.25, 0.34, 0.66]} position={[0, 0.3, 0]} color={color} radius={0.1} />
+			<RBox size={[1.25, 0.34, 0.66]} position={[0, 0.3, 0]} color={colors.body} radius={0.1} />
 
-			<RBox size={[0.66, 0.28, 0.58]} position={[-0.06, 0.6, 0]} color={accent} radius={0.08} />
+			<RBox
+				size={[0.66, 0.28, 0.58]}
+				position={[-0.06, 0.6, 0]}
+				color={colors.windows}
+				radius={0.08}
+			/>
 
 			{[0.38, -0.38].flatMap((x) =>
 				[0.3, -0.3].map((z) => (

@@ -35,20 +35,17 @@ export const light01 = definePart({
 		},
 	],
 	lights: [{ id: "light", name: "Light", shape: "pool", reach: 3 }],
-	defaultColor: "#4a4d55",
-	defaultAccent: "#4a4d55",
-	colorLabel: "Fixture",
-	accentLabel: "Unused",
+	colors: [{ id: "fixture", name: "Fixture", default: "#4a4d55", legacy: "color" }],
 	footprint: () => [0.4, 0.4],
 	height: (p) => (p.fixture === "spot" ? 0.3 : 0.05),
-	Component: ({ props: p, color, lights }) => (
+	Component: ({ props: p, colors, lights }) => (
 		<group>
 			{p.fixture === "spot" && (
 				<group>
 					<mesh position={[0, 0.1, 0]} castShadow>
 						<cylinderGeometry args={[0.12, 0.15, 0.2, 10]} />
 
-						<Mat color={color} />
+						<Mat color={colors.fixture} />
 					</mesh>
 
 					{/* The lens on top, glowing while the light is on. */}

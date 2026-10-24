@@ -7,8 +7,10 @@ import { SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
+import { resolveColors, resolveLabelColor } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
-import { getPart, resolveColors, resolveLabelColor, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
+import { usesDataBindings } from "#/scene/dataBindings";
 import { laneOffset, resolveTurns, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
@@ -106,12 +108,10 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const listHovered = useEditor((s) => s.hovered?.kind === "entity" && s.hovered.id === entity.id);
 
 	const props = useMemo(() => (part ? resolveProps(part, entity.props) : {}), [part, entity.props]);
-	// Only parts that show values, and objects with lights switched or dimmed by one (ADR-0058),
+	// Only parts that show values, and objects with settings that follow one (lights, colours),
 	// follow the data, so editing a value doesn't redraw everything.
 	const usesData =
-		(part?.fields.some((field) => field.type === "dataKey") ?? false) ||
-		(typeof entity.lights === "object" &&
-			Object.values(entity.lights).some((light) => Object.keys(light.data).length > 0));
+		(part?.fields.some((field) => field.type === "dataKey") ?? false) || usesDataBindings(entity);
 	const data = useEditor((s) => (usesData ? s.scene.data : undefined));
 	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
 	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
@@ -331,7 +331,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		);
 	}
 
-	const { color, accent } = resolveColors(part, entity, palette);
+	// Each of its colours as it is now: from data, as set, or the part's (ADR-0060).
+	const colors = resolveColors(part, entity, palette, data);
 	// Each of its lights as it is now: its settings, the dark, whether it drives, the data (ADR-0058).
 	const lights = resolveLights(part, entity, { palette, driving: following, data });
 	const footprint = part.footprint(props);
@@ -352,8 +353,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			>
 				<Component
 					props={props}
-					color={color}
-					accent={accent}
+					colors={colors}
 					palette={palette}
 					playing={playing}
 					lights={lights}
@@ -371,7 +371,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				<EntityLabel
 					entity={entity}
 					anchorY={anchorY}
-					color={resolveLabelColor(part, entity, palette)}
+					color={resolveLabelColor(part, entity, palette, data)}
 				/>
 			)}
 		</group>

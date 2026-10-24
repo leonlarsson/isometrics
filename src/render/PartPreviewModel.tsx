@@ -3,8 +3,9 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { usePalette } from "#/editor/useTheme";
+import { resolvePartColors } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
-import { getPart, resolveColors, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
 
 import { frameBoxIn, PartLights } from "./thumbnails";
 
@@ -61,7 +62,7 @@ const Turntable = ({ kind }: { kind: string }) => {
 		return null;
 	}
 	const props = resolveProps(part, {});
-	const { color, accent } = resolveColors(part, { color: null, accent: null }, palette);
+	const colors = resolvePartColors(part, palette);
 	const Component = part.Component;
 	return (
 		<>
@@ -71,8 +72,7 @@ const Turntable = ({ kind }: { kind: string }) => {
 			<group ref={turning} rotation={[0, -0.4, 0]}>
 				<Component
 					props={props}
-					color={color}
-					accent={accent}
+					colors={colors}
 					palette={palette}
 					lights={resolvePartLights(part, palette)}
 					playing

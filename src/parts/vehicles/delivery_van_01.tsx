@@ -13,20 +13,20 @@ export const deliveryVan01 = definePart({
 	keywords: ["delivery", "vehicle"],
 	schema: z.object({}),
 	fields: [],
-	defaultColor: "#f7f7f4",
-	defaultAccent: "#3d4fd6",
-	colorLabel: "Body",
-	accentLabel: "Stripe & roof",
+	colors: [
+		{ id: "body", name: "Body", default: "#f7f7f4", legacy: "color" },
+		{ id: "stripe", name: "Stripe & roof", default: "#3d4fd6", legacy: "accent" },
+	],
 	canFollowPath: true,
 	footprint: () => [1.7, 0.85],
 	height: () => 1.05,
-	Component: ({ color, accent, palette, lights }) => {
+	Component: ({ colors, palette, lights }) => {
 		const L = 1.7;
 		const W = 0.85;
 		const H = 0.8;
 		return (
 			<group>
-				<RBox size={[L, H, W]} position={[0, H / 2 + 0.15, 0]} color={color} radius={0.12} />
+				<RBox size={[L, H, W]} position={[0, H / 2 + 0.15, 0]} color={colors.body} radius={0.12} />
 
 				<Box
 					size={[0.05, H * 0.36, W * 0.84]}
@@ -38,11 +38,15 @@ export const deliveryVan01 = definePart({
 				<Box
 					size={[L * 0.72, 0.11, W + 0.02]}
 					position={[-0.12, 0.42, 0]}
-					color={accent}
+					color={colors.stripe}
 					castShadow={false}
 				/>
 
-				<Box size={[L * 0.6, 0.05, W * 0.86]} position={[-0.2, H + 0.17, 0]} color={accent} />
+				<Box
+					size={[L * 0.6, 0.05, W * 0.86]}
+					position={[-0.2, H + 0.17, 0]}
+					color={colors.stripe}
+				/>
 
 				{[L * 0.3, -L * 0.3].flatMap((x) =>
 					[W / 2 - 0.04, -W / 2 + 0.04].map((z) => (

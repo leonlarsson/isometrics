@@ -9,7 +9,9 @@ import type { TDataBinding, TDataEntry } from "#/scene/schema";
  * - `switch`: on or off: a number above `above` (0 by default), or the text
  *   on, yes or true; anything else is off.
  * - `scale`: a number: the value ÷ `full` (1 by default), so `full` gives 100%.
- * - `color`: any CSS colour: a name, #rgb or #rrggbb, rgb() or hsl().
+ * - `color`: any CSS colour (a name, #rgb or #rrggbb, rgb() or hsl()) as it
+ *   is, or a number placed on a colour scale: `lowColor` at `low`, `highColor`
+ *   at `high`, mixed in between (a heatmap).
  *
  * Each returns undefined when the value is missing or doesn't read as that
  * kind, so the setting keeps its own value. Making another setting follow data
@@ -94,8 +96,46 @@ export const readScale = (
 		: undefined;
 };
 
-/** A colour binding's reading: #rrggbb, or undefined if the value isn't a colour. */
+/** A colour scale's options as they are in effect: the binding's, else the defaults. */
+export const colorScaleOf = (binding: TDataBinding) => ({
+	low: binding.low ?? 0,
+	high: binding.high ?? 100,
+	lowColor: binding.lowColor ?? "#2bb58c",
+	highColor: binding.highColor ?? "#e0483b",
+});
+
+/** Where a number sits on a binding's colour scale: 0 at low, 1 at high, clamped. */
+export const colorScalePosition = (binding: TDataBinding, value: number) => {
+	const { low, high } = colorScaleOf(binding);
+	if (high === low) {
+		return value >= high ? 1 : 0;
+	}
+	return Math.min(1, Math.max(0, (value - low) / (high - low)));
+};
+
+/** A number's colour on a binding's colour scale, as #rrggbb. */
+export const colorOnScale = (binding: TDataBinding, value: number) => {
+	const { lowColor, highColor } = colorScaleOf(binding);
+	const mixed = new THREE.Color(lowColor).lerp(
+		new THREE.Color(highColor),
+		colorScalePosition(binding, value),
+	);
+	return `#${mixed.getHexString()}`;
+};
+
+/**
+ * A colour binding's reading, as #rrggbb: a value holding a CSS colour as it
+ * is, a number on the colour scale; undefined for anything else.
+ */
 export const readColor = (
 	binding: TDataBinding | undefined,
 	data: readonly TDataEntry[] | undefined,
-) => cssColor(boundEntry(binding, data)?.value) ?? undefined;
+) => {
+	const value = boundEntry(binding, data)?.value;
+	const asColor = cssColor(value);
+	if (asColor || !binding) {
+		return asColor ?? undefined;
+	}
+	const asNumber = dataNumber(value);
+	return Number.isFinite(asNumber) ? colorOnScale(binding, asNumber) : undefined;
+};

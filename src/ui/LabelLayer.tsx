@@ -3,7 +3,8 @@ import { memo } from "react";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
-import { getPart, partNameOf, resolveLabelColor } from "#/parts/registry";
+import { resolveLabelColor } from "#/parts/colorModel";
+import { getPart, partNameOf } from "#/parts/registry";
 import { openContextMenuUnlessDragged } from "#/render/contextMenu";
 import {
 	cardEventHandover,
@@ -81,8 +82,9 @@ const measured = (id: string, part: TLabelPart) => (element: HTMLElement | null)
 
 const useLabelColor = (entity: TEntity) => {
 	const palette = usePalette();
+	const data = useEditor((s) => s.scene.data);
 	const part = getPart(entity.kind);
-	return part ? resolveLabelColor(part, entity, palette) : palette.selection;
+	return part ? resolveLabelColor(part, entity, palette, data) : palette.selection;
 };
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {

@@ -6,7 +6,7 @@ import { isHiddenRoute, ROAD_STYLES } from "#/scene/roads";
 import type { TRoadStyle } from "#/scene/schema";
 
 import { PARTS, partName, type TAnyPart } from "./registry";
-import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "./types";
+import { type IColorSpec, type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "./types";
 
 type TJsonSchema = Record<string, unknown> & { properties?: Record<string, TJsonSchema> };
 
@@ -23,7 +23,11 @@ const GUIDE = `A world (scene document) for ${APP_NAME}: a low-poly 3D miniature
 
 Coordinates: the ground is a flat slab centred on the origin, ground.width along x and ground.depth along z, in grid units (keep positions within ±width/2 and ±depth/2). Positions are [x, z]; heights (elevation, road point heights) go up. rotation is in degrees around the vertical axis, counter-clockwise seen from above. At rotation 0 a part's front faces +z and vehicles face +x.
 
-Entities: kind picks the part; each kind's description says what it is and how big it is, and props takes that kind's parameters. Leave color and accent null to use the theme's colours. scale resizes the whole part.
+Entities: kind picks the part; each kind's description says what it is and how big it is, and props takes that kind's parameters. scale resizes the whole part.
+
+Colours: each kind lists its colours by id in the catalogue (a house has roof and door, a car body and windows). An entity's colors holds settings only for the ones that differ from the kind's defaults, by id: color (#rrggbb), and data: { "color": { key, low, high, lowColor, highColor } } to take it from a data value, where key is the key of an entry in the world's data. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number is placed on a colour scale, lowColor at low (0 by default) and highColor at high (100 by default), mixed in between, like a heatmap. A value that's neither leaves the colour as set. Older worlds have color and accent on the entity for its first two colours; write colors instead. Examples: a red roof; a tower that turns from green to red as an occupancy value goes from 50 to 100:
+"colors": { "roof": { "color": "#c0392b" } }
+"colors": { "facade": { "data": { "color": { "key": "occupancy", "low": 50, "high": 100, "lowColor": "#2bb58c", "highColor": "#e0483b" } } } }
 
 Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. closed: true makes a loop. Styles ${HIDDEN_STYLES} are invisible routes, e.g. a ferry line across water. A vehicle part drives along a road with follow: { roadId, speed, offset, reverse }; offset is the distance from the road's first point where it starts, and reverse drives it the other way (in the other lane).
 
@@ -31,7 +35,7 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
-Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true, day and night, instead of mode; "strength" is the value divided by "full" (up to 3); "color" takes any CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
+Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true, day and night, instead of mode; "strength" is the value divided by "full" (up to 3); "color" reads its value like a colour's data (above). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
 "lights": { "lamp": { "color": "#ff3b3b", "data": { "on": { "key": "alert" }, "strength": { "key": "queue", "full": 50 } } } }
 "lights": { "headlights": { "color": "#ffffff", "reach": 5 } }
 
@@ -70,14 +74,20 @@ const describeLight = (light: ILightSpec) =>
 		.filter(Boolean)
 		.join(", ")})`;
 
-/** One line per part: what it is, how big it is by default, what its colours paint. */
+/** One colour for the catalogue: its id, name and default, e.g. "roof (Roof, default #f07b4f)". */
+const describeColor = (color: IColorSpec) =>
+	`${color.id} (${color.name}, default ${typeof color.default === "string" ? color.default : "from the theme"})`;
+
+/** One line per part: what it is, how big it is by default, its colours and lights. */
 const describePart = (part: TAnyPart) => {
 	const props = part.schema.parse({});
 	const [width, depth] = part.footprint(props);
 	return [
 		`${partName(part)}: ${part.description}.`,
 		`About ${round(width)} × ${round(depth)} grid units (x × z) and ${round(part.height(props))} tall at scale 1 with default props.`,
-		`color paints the ${(part.colorLabel ?? "body").toLowerCase()}, accent the ${(part.accentLabel ?? "details").toLowerCase()}.`,
+		part.colors.length
+			? `Colours (settings in colors, by id): ${part.colors.map(describeColor).join("; ")}.`
+			: "",
 		part.canFollowPath ? "Can drive along a road (follow)." : "",
 		part.lights?.length
 			? `Lights (settings in lights, by id): ${part.lights.map(describeLight).join("; ")}.`
