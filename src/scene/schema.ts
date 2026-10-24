@@ -12,7 +12,10 @@ import { z } from "zod";
  */
 export const SCENE_VERSION = 1;
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Expected a hex colour like #3d4fd6");
+/** A colour as #rrggbb. Also for parts' colour props. */
+export const HexColorSchema = z
+	.string()
+	.regex(/^#[0-9a-fA-F]{6}$/, "Expected a hex colour like #3d4fd6");
 
 /** [x, z] on the ground plane, in grid units. */
 export const Vec2Schema = z.tuple([z.number(), z.number()]);
@@ -103,12 +106,10 @@ export const EntitySchema = z
 				"Nose up (positive) or down, in degrees, e.g. a vehicle parked on a sloped road (set when it's dropped on one). Ignored while it follows a road, which tilts it itself.",
 			),
 		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
-		color: hexColor
-			.nullable()
+		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Main colour as #rrggbb; null = the part's default for the theme."),
-		accent: hexColor
-			.nullable()
+		accent: HexColorSchema.nullable()
 			.default(null)
 			.describe("Second colour as #rrggbb; null = the part's default for the theme."),
 		props: z
@@ -224,8 +225,7 @@ export const RoadSchema = z
 			.describe(
 				"Width of the embankment's top as a share of the road's width: 1 = as wide as the road, less = a narrower bank or wall under the middle of the road.",
 			),
-		embankmentColor: hexColor
-			.nullable()
+		embankmentColor: HexColorSchema.nullable()
 			.default(null)
 			.describe("Embankment colour as #rrggbb; null = the theme's default."),
 		railings: z
@@ -236,8 +236,7 @@ export const RoadSchema = z
 		turns: TurnsSchema.nullable()
 			.default(null)
 			.describe("How vehicles on this road take corners; null = the world's setting."),
-		color: hexColor
-			.nullable()
+		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Surface colour as #rrggbb; null = the style's default for the theme."),
 		locked: z.boolean().default(false).describe("Its points can't be moved in the editor."),
@@ -296,8 +295,7 @@ export const AreaSchema = z
 			.max(30)
 			.default(0)
 			.describe("0 = flat on the ground; above 0 = raised with cliff sides."),
-		color: hexColor
-			.nullable()
+		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Colour as #rrggbb; null = the type's default for the theme."),
 		locked: z.boolean().default(false).describe("Its corners can't be moved in the editor."),
@@ -312,8 +310,7 @@ export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
-		color: hexColor
-			.nullable()
+		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Colour as #rrggbb; null = the theme's ground colour."),
 	})
@@ -407,8 +404,7 @@ export const LightingSchema = z
 			.nullable()
 			.default(null)
 			.describe("Height of the sun above the horizon, in degrees. null = from the time of day."),
-		sunColor: hexColor
-			.nullable()
+		sunColor: HexColorSchema.nullable()
 			.default(null)
 			.describe("Colour of the sunlight as #rrggbb. null = from the time of day."),
 		sunStrength: z

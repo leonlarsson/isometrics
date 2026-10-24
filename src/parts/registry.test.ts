@@ -32,6 +32,10 @@ describe("every part", () => {
 						field.options.map((option) => option.value),
 						`field "${field.key}"`,
 					).toContain(value);
+				} else if (field.type === "color") {
+					// Null until set: it shows the field's default colour (ADR-0027).
+					expect(value, `field "${field.key}"`).toBeNull();
+					expect(field.default, `field "${field.key}"`).toMatch(/^#[0-9a-fA-F]{6}$/);
 				} else if (field.type === "boolean") {
 					expect(typeof value, `field "${field.key}"`).toBe("boolean");
 				} else {

@@ -120,8 +120,14 @@ const PropField = ({
 					onChange={onChange}
 				/>
 			);
+		case "color":
+			// With the other colours, in the Look tab (LookTab).
+			return null;
 	}
 };
+
+/** A part's own settings for the Shape tab: all but its colours, which are in the Look tab. */
+const shapeFields = (part: TAnyPart) => part.fields.filter((spec) => spec.type !== "color");
 
 /** Every edit coalesces per entity+field so typing or sliding is one undo step. */
 const useEntityEdit = (entity: TEntity) => {
@@ -257,7 +263,7 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 	return (
 		<Section id="shape.part" icon="spline" title={`${partName(part)} shape`} keywords="shape size">
-			{part.fields.map((spec) => (
+			{shapeFields(part).map((spec) => (
 				<PropField
 					key={spec.key}
 					spec={spec}
@@ -275,7 +281,9 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
 	const edit = useEntityEdit(entity);
+	const setEntityProp = useEditor((s) => s.setEntityProp);
 	const colors = resolveColors(part, entity, palette);
+	const props = resolveProps(part, entity.props) as Record<string, unknown>;
 
 	return (
 		<>
@@ -317,12 +325,34 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						}}
 					/>
 				)}
+
+				{/* The part's own colours, e.g. a race car's rain light. Null follows its default. */}
+				{part.fields.map(
+					(spec) =>
+						spec.type === "color" && (
+							<ColorField
+								key={spec.key}
+								label={spec.label}
+								value={typeof props[spec.key] === "string" ? String(props[spec.key]) : spec.default}
+								onChange={(v) =>
+									setEntityProp(entity.id, spec.key, v, {
+										coalesce: `${entity.id}:prop:${spec.key}`,
+									})
+								}
+								inherit={{
+									from: "default",
+									inherited: props[spec.key] === null,
+									onReset: () => setEntityProp(entity.id, spec.key, null),
+								}}
+							/>
+						),
+				)}
 			</Section>
 
 			{part.lights && (
 				<Section id="look.lights" icon="bulb" title="Lights" keywords="night headlights lamps">
 					<SelectField<TEntity["lights"]>
-						label={part.lights.whileDriving ? "Headlights" : "Lights on"}
+						label={part.lights.label ?? (part.lights.whileDriving ? "Headlights" : "Lights on")}
 						value={entity.lights}
 						options={[
 							{
@@ -614,7 +644,7 @@ export const entityTabs = (entity: TEntity): IInspectorTab[] => {
 			icon: "cube",
 			content: <ObjectTab key={entity.id} {...props} />,
 		},
-		...(part.fields.length > 0
+		...(shapeFields(part).length > 0
 			? [
 					{
 						value: "shape",

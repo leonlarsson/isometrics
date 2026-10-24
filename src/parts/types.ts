@@ -36,7 +36,13 @@ export type TFieldSpec<K extends string = string> =
 			label: string;
 			type: "select";
 			options: { value: string; label: string }[];
-	  };
+	  }
+	/**
+	 * A colour of its own besides color and accent (a rain light): stored as null
+	 * until it's set, showing `default` meanwhile (ADR-0027). Shown in the Look tab
+	 * with the other colours; its prop is `HexColorSchema.nullable().default(null)`.
+	 */
+	| { key: K; label: string; type: "color"; default: string };
 
 /** A fixed hex colour, or one derived from the active theme palette. */
 export type TColorDefault = string | ((palette: IScenePalette) => string);
@@ -104,7 +110,11 @@ export interface IPartDefinition<P extends object> {
 	 * setting in the inspector; absent = it has none. `whileDriving`: by default
 	 * they're on only while it drives along a road (a vehicle's headlights).
 	 */
-	lights?: { whileDriving?: boolean };
+	lights?: {
+		whileDriving?: boolean;
+		/** What its Lights setting is called, e.g. "Rain light on"; "Headlights" or "Lights on" otherwise. */
+		label?: string;
+	};
 	/** It lies flat on the ground (a marked zone): other parts can be placed on top of it. */
 	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
