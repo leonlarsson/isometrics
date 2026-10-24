@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { usePalette } from "#/editor/useTheme";
+import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveColors, resolveProps } from "#/parts/registry";
 
 import { frameBoxIn, PartLights } from "./thumbnails";
@@ -73,6 +74,7 @@ const Turntable = ({ kind }: { kind: string }) => {
 					color={color}
 					accent={accent}
 					palette={palette}
+					lights={resolvePartLights(part, palette)}
 					playing
 					onReady={part.rendersAsync ? frame : undefined}
 				/>

@@ -30,6 +30,8 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
+Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true; "strength" is the value divided by "full" (up to 3); "color" takes any CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)). The light_01 kind is a light on its own.
+
 Data: data holds named values (key, label, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it) or details.dataKeys (tiles when it's opened in view mode).
 
 Viewpoints: prepared camera views (target, azimuth, elevation, span), stepped through in View mode like slides; give each a name and a description of what the data there shows.
@@ -61,6 +63,14 @@ const describePart = (part: TAnyPart) => {
 		`About ${round(width)} × ${round(depth)} grid units (x × z) and ${round(part.height(props))} tall at scale 1 with default props.`,
 		`color paints the ${(part.colorLabel ?? "body").toLowerCase()}, accent the ${(part.accentLabel ?? "details").toLowerCase()}.`,
 		part.canFollowPath ? "Can drive along a road (follow)." : "",
+		part.lights?.length
+			? `Lights (settings in lights, by id): ${part.lights
+					.map(
+						(light) =>
+							`${light.id} (${light.name}, ${light.shape}${light.when === "driving" ? ", after dark while driving" : ""})`,
+					)
+					.join(", ")}.`
+			: "",
 	]
 		.filter(Boolean)
 		.join(" ");

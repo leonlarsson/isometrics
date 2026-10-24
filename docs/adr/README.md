@@ -61,3 +61,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0055](0055-collapsible-side-panes.md) | The side panes fold to thin strips, one at a time or both at once | accepted |
 | [0056](0056-safe-schema-and-part-changes.md) | Changes to the world format and to parts are checked against old worlds | accepted |
 | [0057](0057-save-status.md) | A save status next to the File menu says whether the world is saved | accepted |
+| [0058](0058-lights.md) | Lights are a shared system: parts declare them, objects set each one, data can switch them | accepted |

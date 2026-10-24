@@ -1,14 +1,16 @@
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import type { IScenePalette } from "#/scene/theme";
-
-import { jitter } from "./primitives";
+import { jitter, Mat } from "./primitives";
+import type { IResolvedLight } from "./types";
 
 /**
- * What parts light up after dark (ADR-0052): headlights, pools of lamplight
- * and lit windows. Each draws nothing by day (`palette.night` is 0) and grows
- * brighter as the night deepens.
+ * Drawing parts' lights (ADR-0052, ADR-0058): a part declares its lights,
+ * `resolveLights` (lightModel.ts) works out each one's state, and these
+ * helpers draw a resolved light where the part puts it: a glowing surface,
+ * a lens, headlight beams, a pool on the ground, lit windows. Each draws its
+ * light only while it's on, as bright as its `level`. All cheap: emissive or
+ * unlit materials and additive discs, no real light sources.
  */
 
 type TV3 = [number, number, number];
@@ -73,28 +75,47 @@ const GroundGlow = ({
 );
 
 /**
- * What an object lights, from its Lights setting: `palette`, whose `night`
- * says how lit its windows, lamps and cabins are, and `lightsOn`, whether its
- * lights are switched on. auto = after dark (a vehicle's only while it drives
- * along a road); on = always, day or night, parked or not, whatever the
- * scene's setting; off = never.
+ * For a part's own glowing surfaces (cabins, doorways, a lamp's bulb): Box or
+ * Mat props that make it glow in the light's colour while it's on, `intensity`
+ * times as bright as its level.
  */
-export const lightsFor = (
-	lights: "auto" | "on" | "off",
-	palette: IScenePalette,
-	{ vehicle, driving }: { vehicle: boolean; driving: boolean },
-): { palette: IScenePalette; lightsOn: boolean } => {
-	if (lights === "off") {
-		return { palette: palette.night === 0 ? palette : { ...palette, night: 0 }, lightsOn: false };
-	}
-	if (lights === "on") {
-		return { palette: palette.night === 1 ? palette : { ...palette, night: 1 }, lightsOn: true };
-	}
-	return { palette, lightsOn: !vehicle || driving };
+export const lightEmission = (light: IResolvedLight, intensity = 1) =>
+	light.on
+		? { emissive: light.color, emissiveIntensity: intensity * light.level }
+		: { emissive: undefined, emissiveIntensity: 0 };
+
+/**
+ * A small light's lens (a rain light, a tail light): glowing in the light's
+ * colour while it's on, unshaded and past tone mapping like headlights so it
+ * keeps its colour; a dark lens in a shade of it while it's off.
+ */
+export const LightLens = ({
+	light,
+	size,
+	position,
+}: {
+	light: IResolvedLight;
+	size: TV3;
+	position: TV3;
+}) => {
+	const lens = useMemo(
+		() => `#${new THREE.Color(light.color).multiplyScalar(0.3).getHexString()}`,
+		[light.color],
+	);
+	return (
+		<mesh position={position}>
+			<boxGeometry args={size} />
+
+			{light.on ? (
+				<meshBasicMaterial color={light.color} toneMapped={false} />
+			) : (
+				<Mat color={lens} roughness={0.4} />
+			)}
+		</mesh>
+	);
 };
 
-/** How far a headlight beam reaches along the road, and how wide it gets there (ground units). */
-const BEAM_LENGTH = 2.4;
+/** How wide a headlight beam gets at its far end (ground units). Its length is the light's reach. */
 const BEAM_WIDTH = 1.5;
 
 /**
@@ -137,19 +158,20 @@ const getBeam = () => {
 	return beam;
 };
 
-/** Two headlights at a vehicle's front (+x), `spread` apart sideways, when they're on. */
+/**
+ * Two headlights at a vehicle's front (+x), `spread` apart sideways, and their
+ * beams on the road ahead, as far as the light's reach, while they're on.
+ */
 export const Headlights = ({
-	palette,
-	on,
+	light,
 	position: [x, y, z],
 	spread,
 }: {
-	palette: IScenePalette;
-	on: boolean | undefined;
+	light: IResolvedLight;
 	position: TV3;
 	spread: number;
 }) => {
-	if (palette.night === 0 || !on) {
+	if (!light.on) {
 		return null;
 	}
 	return (
@@ -158,19 +180,19 @@ export const Headlights = ({
 				<mesh key={side} position={[0, 0, side]}>
 					<boxGeometry args={[0.04, 0.07, 0.12]} />
 
-					<meshBasicMaterial color={palette.lamplight} toneMapped={false} />
+					<meshBasicMaterial color={light.color} toneMapped={false} />
 				</mesh>
 			))}
 
 			{/* The beams on the road ahead, opening out from the lights. */}
-			<mesh position={[BEAM_LENGTH / 2, -y + GLOW_HEIGHT, -z]} rotation={[-Math.PI / 2, 0, 0]}>
-				<planeGeometry args={[BEAM_LENGTH, Math.max(BEAM_WIDTH, spread * 2)]} />
+			<mesh position={[light.reach / 2, -y + GLOW_HEIGHT, -z]} rotation={[-Math.PI / 2, 0, 0]}>
+				<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
 
 				<meshBasicMaterial
-					color={palette.lamplight}
+					color={light.color}
 					alphaMap={getBeam()}
 					transparent
-					opacity={0.6 * palette.night}
+					opacity={0.6 * Math.min(light.level, 1.5)}
 					blending={THREE.AdditiveBlending}
 					depthWrite={false}
 					toneMapped={false}
@@ -180,30 +202,29 @@ export const Headlights = ({
 	);
 };
 
-/** A soft pool of light on the ground around a lamp. */
+/**
+ * A light's pool on the ground, as wide as its reach, around a spot: a lamp's
+ * light under it, a rain light's glow on the road behind a car. `at` is the
+ * spot, [x, z] in the part's own units (the part's origin by default), outside
+ * any scaling inside the part so it lies at the usual height above roads.
+ */
 export const LightPool = ({
-	palette,
-	radius,
-	color = palette.lamplight,
-	strength = 1,
+	light,
+	at: [x, z] = [0, 0],
 }: {
-	palette: IScenePalette;
-	radius: number;
-	/** The light's colour; the theme's lamplight by default. */
-	color?: string;
-	/** 1 = a normal street lamp, 0 = no light, up to 3. */
-	strength?: number;
+	light: IResolvedLight;
+	at?: [x: number, z: number];
 }) => {
-	if (palette.night === 0 || strength === 0) {
+	if (!light.on) {
 		return null;
 	}
 	return (
 		<GroundGlow
-			color={color}
-			radius={radius}
-			// Eases off as it gets stronger, so a bright lamp glows wider rather than blowing out to white.
-			strength={palette.night * (1 - Math.exp(-1.1 * strength))}
-			position={[0, GLOW_HEIGHT, 0]}
+			color={light.color}
+			radius={light.reach}
+			// Eases off as it gets stronger, so a bright light glows wider rather than blowing out to white.
+			strength={1 - Math.exp(-1.1 * light.level)}
+			position={[x, GLOW_HEIGHT, z]}
 		/>
 	);
 };
@@ -253,7 +274,8 @@ const getWindowPattern = () => {
 };
 
 interface ILitWindowsProps {
-	palette: IScenePalette;
+	/** The windows' light: lit panes glow in its colour (white leaves the pattern's own warm and cool tones). */
+	light: IResolvedLight;
 	/** The building's own colour: dark windows look like the wall, lit ones glow out of it. */
 	color: string;
 	/** The building's body: the windows sit on its four faces. */
@@ -273,7 +295,7 @@ interface ILitWindowsProps {
  * cells, one per window, just outside its walls (under its window grid).
  */
 export const LitWindows = ({
-	palette,
+	light,
 	color,
 	width,
 	depth,
@@ -311,7 +333,7 @@ export const LitWindows = ({
 		[faces],
 	);
 
-	if (palette.night === 0 || !pattern) {
+	if (!light.on || !pattern) {
 		return null;
 	}
 	const sides: { position: TV3; rotation: number; size: number }[] = [
@@ -328,9 +350,9 @@ export const LitWindows = ({
 
 					<meshStandardMaterial
 						color={color}
-						emissive="#ffffff"
+						emissive={light.color}
 						emissiveMap={faces[i]}
-						emissiveIntensity={palette.night}
+						emissiveIntensity={light.level}
 						roughness={0.6}
 					/>
 				</mesh>

@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { lightDefaults, lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partName, resolveColors, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import {
@@ -28,6 +29,7 @@ import {
 	VectorField,
 } from "./fields";
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
+import { LightSettings } from "./LightSettings";
 
 const KeyPicker = ({
 	label,
@@ -348,33 +350,52 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						),
 				)}
 			</Section>
+		</>
+	);
+};
 
-			{part.lights && (
-				<Section id="look.lights" icon="bulb" title="Lights" keywords="night headlights lamps">
-					<SelectField<TEntity["lights"]>
-						label={part.lights.label ?? (part.lights.whileDriving ? "Headlights" : "Lights on")}
-						value={entity.lights}
-						options={[
-							{
-								value: "auto",
-								label: part.lights.whileDriving ? "After dark, while driving" : "After dark",
-							},
-							{ value: "on", label: "Always" },
-							{ value: "off", label: "Never" },
-						]}
-						onChange={(lights) =>
-							edit("lights", (e) => {
-								e.lights = lights;
-							})
-						}
-						hint={
-							part.lights.whileDriving
-								? "Always: day and night, even parked."
-								: "Always: lit day and night too."
-						}
-					/>
+/** The Lights tab (ADR-0058): a card for each of the part's lights, in the order the part lists them. */
+const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const palette = usePalette();
+	const data = useEditor((s) => s.scene.data);
+	const lighting = useEditor((s) => s.scene.lighting);
+	const setEntityLight = useEditor((s) => s.setEntityLight);
+	// Without a time of day it never gets dark, so lights that come on after dark stay off.
+	const noNight =
+		lighting.time === null && lighting.timeSource === "fixed" && lighting.lights === "auto";
+
+	return (
+		<>
+			{noNight && (
+				<Section icon="clock" title="It never gets dark here">
+					<Hint>
+						This world has no time of day, so lights that turn on after dark stay off. Pick a time
+						in Sun &amp; sky (the sun icon above), or set a light to turn on Always.
+					</Hint>
 				</Section>
 			)}
+
+			{(part.lights ?? []).map((spec) => {
+				const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
+				return (
+					<LightSettings
+						key={spec.id}
+						spec={spec}
+						defaults={lightDefaults(spec, entity, palette)}
+						setting={setting}
+						inheritedMode={objectMode}
+						data={data}
+						onChange={(change, field) =>
+							setEntityLight(
+								entity.id,
+								spec.id,
+								change,
+								field ? { coalesce: `${entity.id}:light:${spec.id}:${field}` } : undefined,
+							)
+						}
+					/>
+				);
+			})}
 		</>
 	);
 };
@@ -660,6 +681,16 @@ export const entityTabs = (entity: TEntity): IInspectorTab[] => {
 			icon: "palette",
 			content: <LookTab key={entity.id} {...props} />,
 		},
+		...(part.lights?.length
+			? [
+					{
+						value: "lights",
+						label: "Lights",
+						icon: "bulb",
+						content: <LightsTab key={entity.id} {...props} />,
+					} as const,
+				]
+			: []),
 		{
 			value: "label",
 			label: "Label",

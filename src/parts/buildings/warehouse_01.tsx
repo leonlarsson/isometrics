@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { lightEmission } from "../lights";
 import { Box, RBox, spread } from "../primitives";
 import { definePart } from "../types";
 
@@ -15,7 +16,7 @@ export const warehouse01 = definePart({
 	kind: "warehouse_01",
 	name: "Warehouse",
 	category: "buildings",
-	lights: {},
+	lights: [{ id: "doorways", name: "Doorways", shape: "glow" }],
 	description: "Large hall with loading doors and solar roof",
 	keywords: ["factory", "hall", "storage", "logistics", "industrial"],
 	schema: WarehouseSchema,
@@ -32,7 +33,7 @@ export const warehouse01 = definePart({
 	accentLabel: "Roof",
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + 0.4,
-	Component: ({ props: p, color, accent, palette }) => {
+	Component: ({ props: p, color, accent, palette, lights }) => {
 		const { width: w, depth: d, height: h } = p;
 		const cols = Math.max(1, Math.floor((w - 1) / 1.5));
 		const rows = Math.max(1, Math.floor((d - 1) / 1.5));
@@ -64,8 +65,7 @@ export const warehouse01 = definePart({
 						position={[x, Math.min(1.8, h * 0.6) / 2, d / 2 + 0.03]}
 						color={palette.glass}
 						castShadow={false}
-						emissive={palette.night > 0 ? palette.lamplight : undefined}
-						emissiveIntensity={0.9 * palette.night}
+						{...lightEmission(lights.doorways, 0.9)}
 					/>
 				))}
 

@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { z } from "zod";
 
+import { lightEmission } from "../lights";
 import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
 
@@ -33,7 +34,7 @@ export const yacht01 = definePart({
 	kind: "yacht_01",
 	name: "Yacht",
 	category: "vehicles",
-	lights: {},
+	lights: [{ id: "cabins", name: "Cabin lights", shape: "glow" }],
 	description: "Motor yacht for harbours and the sea; can cruise along a route",
 	keywords: ["boat", "ship", "ferry", "vessel"],
 	schema: YachtSchema,
@@ -48,7 +49,7 @@ export const yacht01 = definePart({
 	canFollowPath: true,
 	footprint: (p) => [p.length, p.length * 0.32],
 	height: (p) => HULL_HEIGHT + p.decks * DECK_HEIGHT + 0.25,
-	Component: ({ props: p, color, accent, palette }) => {
+	Component: ({ props: p, color, accent, palette, lights }) => {
 		const width = p.length * 0.32;
 		const hull = useMemo(() => hullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
 		const stripe = useMemo(
@@ -92,8 +93,7 @@ export const yacht01 = definePart({
 								color={palette.glass}
 								castShadow={false}
 								// Cabin lights after dark, the lower decks a little brighter.
-								emissive={palette.night > 0 ? palette.lamplight : undefined}
-								emissiveIntensity={(1.1 - d * 0.15) * palette.night}
+								{...lightEmission(lights.cabins, 1.1 - d * 0.15)}
 							/>
 						</group>
 					);

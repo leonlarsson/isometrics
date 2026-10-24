@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SceneSchema, type TScene } from "#/scene/schema";
+import { SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
 
 import { createEditorStore, unknownPartKinds } from "./store";
 
@@ -207,6 +207,37 @@ describe("editor store", () => {
 		});
 		s().undo();
 		expect(s().scene.entities.find((e) => e.id === id)?.props.floors).toBe(9);
+	});
+
+	it("sets one light's settings, turning an older world's single setting into each light's", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const lamp = s().addEntity({ kind: "street_lamp_01", lights: "off" });
+		s().setEntityLight(lamp, "lamp", { color: "#ff0000" });
+		expect(s().scene.entities.find((e) => e.id === lamp)?.lights).toEqual({
+			lamp: expect.objectContaining({ mode: "off", color: "#ff0000", strength: null }),
+		});
+		// Back to the part's for everything: no entry left.
+		s().setEntityLight(lamp, "lamp", { mode: null, color: null });
+		expect(s().scene.entities.find((e) => e.id === lamp)?.lights).toEqual({});
+	});
+
+	it("renames or drops a data key in lights switched or dimmed by it", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const lamp = s().addEntity({ kind: "street_lamp_01" });
+		const binding = { key: "orders", above: null, full: null };
+		s().setEntityLight(lamp, "lamp", { data: { on: binding, strength: { ...binding, full: 10 } } });
+		s().upsertData({ key: "sales", label: "Orders", value: 3, unit: "" }, "orders");
+		const lights = () =>
+			s().scene.entities.find((e) => e.id === lamp)?.lights as Record<string, TEntityLight>;
+		expect(lights().lamp.data).toEqual({
+			on: { key: "sales", above: null, full: null },
+			strength: { key: "sales", above: null, full: 10 },
+		});
+		// Deleting the value: those settings no longer follow data, and nothing else is left.
+		s().removeData("sales");
+		expect(lights()).toEqual({});
 	});
 
 	it("opens the selection's tabs: the one you were on, Object from a world tab, Shape for a point", () => {

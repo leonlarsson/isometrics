@@ -19,7 +19,8 @@ export const officeTower01 = definePart({
 	kind: "office_tower_01",
 	name: "Office tower",
 	category: "buildings",
-	lights: {},
+	// White leaves the window pattern's own warm and cool panes as they are.
+	lights: [{ id: "windows", name: "Windows", shape: "windows", color: "#ffffff" }],
 	description: "Multi-storey building with a window grid",
 	keywords: ["office", "skyscraper", "high-rise", "apartments", "building", "block"],
 	schema: TowerSchema,
@@ -34,7 +35,7 @@ export const officeTower01 = definePart({
 	accentLabel: "Window grid",
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.floors * FLOOR_HEIGHT + ROOF_CAP + 0.5,
-	Component: ({ props: p, color, accent, palette }) => {
+	Component: ({ props: p, color, accent, lights }) => {
 		const h = p.floors * FLOOR_HEIGHT;
 		const columnsX = Math.max(2, Math.round(p.width / 0.7));
 		const columnsZ = Math.max(2, Math.round(p.depth / 0.7));
@@ -43,7 +44,7 @@ export const officeTower01 = definePart({
 				<RBox size={[p.width, h, p.depth]} position={[0, h / 2, 0]} color={color} radius={0.08} />
 
 				<LitWindows
-					palette={palette}
+					light={lights.windows}
 					color={color}
 					width={p.width}
 					depth={p.depth}

@@ -2,6 +2,7 @@ import { createRoot, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { resolvePartLights } from "#/parts/lightModel";
 import { PARTS, resolveColors, resolveProps, type TAnyPart } from "#/parts/registry";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
@@ -150,6 +151,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 					color={color}
 					accent={accent}
 					palette={palette}
+					lights={resolvePartLights(part, palette)}
 					playing={false}
 					onReady={part.rendersAsync ? shoot : undefined}
 				/>

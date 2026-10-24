@@ -28,6 +28,78 @@ export const TurnsSchema = z
 		"How vehicles take corners: smooth turns gradually over about half the vehicle's length, sharp snaps to each new direction.",
 	);
 
+/**
+ * A setting driven by a data value (ADR-0058): which value, and how it reads.
+ * What the value does depends on the setting it drives: switching something
+ * on and off, scaling a number, or setting a colour. Options a binding doesn't
+ * use are ignored. New options get defaults, so saved bindings stay valid.
+ */
+export const DataBindingSchema = z
+	.object({
+		key: z.string().describe("The data value's key."),
+		above: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For switching: on while the value is above this. null = 0. The text on, yes or true is always on; other text is off.",
+			),
+		full: z
+			.number()
+			.positive()
+			.nullable()
+			.default(null)
+			.describe("For numbers: the value that gives 100% (strength 1). null = 1."),
+	})
+	.describe("A setting driven by a data value.");
+
+export type TDataBinding = z.output<typeof DataBindingSchema>;
+
+/** When a light is on: auto = as its part has it (after dark; some only while driving), on = always, off = never. */
+export const LightModeSchema = z.enum(["auto", "on", "off"]);
+
+/**
+ * An object's settings for one of its part's lights (ADR-0058). Every field is
+ * null while it's as the part has it (ADR-0027).
+ */
+export const EntityLightSchema = z
+	.object({
+		mode: LightModeSchema.nullable()
+			.default(null)
+			.describe(
+				"When it's on: auto = after dark (some lights, like headlights, only while driving), on = always, day and night, off = never. null = auto.",
+			),
+		color: HexColorSchema.nullable()
+			.default(null)
+			.describe("Its colour as #rrggbb; null = the part's colour for this light."),
+		strength: z
+			.number()
+			.min(0)
+			.max(3)
+			.nullable()
+			.default(null)
+			.describe("How bright it is: 1 = normal, 0 = not at all, up to 3. null = the part's."),
+		reach: z
+			.number()
+			.min(0.2)
+			.max(12)
+			.nullable()
+			.default(null)
+			.describe(
+				"How far its light reaches on the ground, in grid units, for beams and pools. null = the part's.",
+			),
+		data: z
+			.record(z.string(), DataBindingSchema)
+			.default({})
+			.describe(
+				'Data values that drive its settings, by setting: "on" (switches it on and off instead of mode, day and night), "strength" (value ÷ full, up to 3) and "color" (any CSS colour). Only the settings that follow data.',
+			),
+	})
+	.describe("An object's settings for one of its lights.");
+
+export type TLightMode = z.output<typeof LightModeSchema>;
+export type TEntityLight = z.output<typeof EntityLightSchema>;
+
 export const LabelSchema = z
 	.object({
 		enabled: z.boolean().default(true).describe("Show the card."),
@@ -124,10 +196,10 @@ export const EntitySchema = z
 			.describe("The road it drives along (vehicles); null = parked where it stands."),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
 		lights: z
-			.enum(["auto", "on", "off"])
-			.default("auto")
+			.union([LightModeSchema, z.record(z.string(), EntityLightSchema)])
+			.default({})
 			.describe(
-				"Its lights (lit windows, lamps, cabins, headlights), for parts that have them: auto = after dark (headlights only while driving); on = always, day and night, even parked; off = never lit.",
+				'Settings for its part\'s lights (see each kind\'s lights in the catalogue), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }. Worlds from before per-light settings have one value for all its lights instead: auto, on or off.',
 			),
 		locked: z.boolean().default(false).describe("Can't be moved in the editor."),
 		hidden: z

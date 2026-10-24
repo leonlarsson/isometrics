@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 
+import { LightLens } from "../lights";
 import { Box, Mat } from "../primitives";
+import type { IResolvedLight } from "../types";
 
 /**
  * Building blocks shared by the race cars, one part per era of open-wheel
@@ -162,36 +164,10 @@ export const Helmet = ({
 
 /**
  * The rain light at the back, under the rear wing (race cars have no
- * headlights). Switched on, after dark, it glows in its colour (red on real
- * cars), drawn unshaded and past tone mapping like the headlights so it stays
- * that colour instead of washing out; switched off, or by day, it's a dark
- * lens, so the two are easy to tell apart.
+ * headlights): a lens that glows in the light's colour while it's on (red on
+ * real cars) and is dark while it's off. Pair it with a LightPool behind the
+ * car for its glow on the road.
  */
-export const RainLight = ({
-	position,
-	color,
-	on,
-	night,
-}: {
-	position: TV3;
-	color: string;
-	on: boolean | undefined;
-	night: number;
-}) => {
-	const lit = Boolean(on) && night > 0;
-	const lens = useMemo(
-		() => `#${new THREE.Color(color).multiplyScalar(0.3).getHexString()}`,
-		[color],
-	);
-	return (
-		<mesh position={position}>
-			<boxGeometry args={[0.04, 0.07, 0.12]} />
-
-			{lit ? (
-				<meshBasicMaterial color={color} toneMapped={false} />
-			) : (
-				<Mat color={lens} roughness={0.4} />
-			)}
-		</mesh>
-	);
+export const RainLight = ({ light, position }: { light: IResolvedLight; position: TV3 }) => {
+	return <LightLens light={light} size={[0.04, 0.07, 0.12]} position={position} />;
 };

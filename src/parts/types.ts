@@ -4,6 +4,55 @@ import type { z } from "zod";
 import type { TDataEntry } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+/**
+ * What a light looks like, which also says which settings it has: a `lens`
+ * (a small glowing surface, e.g. a rain light), a `beam` (a fan of light on
+ * the road ahead, e.g. headlights), a `pool` (a round glow on the ground, e.g.
+ * a lamp), `windows` (a building's lit windows) or a `glow` (a glowing surface,
+ * e.g. a cabin or doorway). Beams and pools have a reach.
+ */
+export type TLightShape = "lens" | "beam" | "pool" | "windows" | "glow";
+
+/** Light shapes that light the ground, and so have a reach. */
+export const LIGHT_SHAPES_WITH_REACH: readonly TLightShape[] = ["beam", "pool"];
+
+/** One of a part's lights (ADR-0058). Its look and place are the part's; objects can change the rest. */
+export interface ILightSpec {
+	/** Stable key objects store their settings under, e.g. "headlights". Rename with renamedLights. */
+	id: string;
+	/** What the Lights tab calls it, e.g. "Headlights". */
+	name: string;
+	shape: TLightShape;
+	/** Its colour; the theme's lamplight if left out. */
+	color?: TColorDefault;
+	/** How bright: 1 = normal (the default), up to 3. */
+	strength?: number;
+	/** How far it lights the ground, in grid units at scale 1 (beams and pools). */
+	reach?: number;
+	/** When it's on by itself: "dark" (the default) after dark; "driving" after dark while it drives along a road. */
+	when?: "dark" | "driving";
+	/**
+	 * Settings older worlds kept elsewhere (props, the accent colour) before this
+	 * light had its own, used while the object's setting for it is unset.
+	 */
+	legacy?: (stored: { props: Record<string, unknown>; accent: string | null }) => {
+		color?: string | null;
+		strength?: number | null;
+		reach?: number | null;
+	};
+}
+
+/** One of a part's lights as it is right now (`resolveLights`). */
+export interface IResolvedLight {
+	/** Lit at all (`level` above 0). */
+	on: boolean;
+	/** How bright it is now: 0 when off, up to its strength (dimmer at dusk). */
+	level: number;
+	color: string;
+	/** How far it lights the ground, in grid units at scale 1. */
+	reach: number;
+}
+
 export type TPartCategory = "buildings" | "vehicles" | "nature" | "infrastructure" | "markers";
 
 export const CATEGORY_LABELS: Record<TPartCategory, string> = {
@@ -55,11 +104,11 @@ export interface IPartRenderProps<P> {
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;
 	/**
-	 * Its lights are switched on (its Lights setting, `lightsFor`): after dark
-	 * by default (a vehicle's only while it drives), always, or never. Lights
-	 * that are on shine as much as `palette.night` says.
+	 * Each of its lights (its `lights`, by id) as it is right now: whether it's
+	 * on, its colour, how bright and how far it reaches (`resolveLights`,
+	 * ADR-0058). Draw them with the helpers in lights.tsx.
 	 */
-	lightsOn?: boolean;
+	lights: Record<string, IResolvedLight>;
 	/** The world's data, for parts that show values (absent in previews and thumbnails). */
 	data?: TDataEntry[];
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */
@@ -106,15 +155,17 @@ export interface IPartDefinition<P extends object> {
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
 	/**
-	 * Its lights (windows, lamps, cabins, headlights), switched by its Lights
-	 * setting in the inspector; absent = it has none. `whileDriving`: by default
-	 * they're on only while it drives along a road (a vehicle's headlights).
+	 * Its lights (ADR-0058): windows, lamps, cabins, headlights, a rain light…
+	 * Each gets a card in the Lights tab, and objects store their settings for
+	 * it by its id. The part draws them where they are, from `lights` in its
+	 * render props.
 	 */
-	lights?: {
-		whileDriving?: boolean;
-		/** What its Lights setting is called, e.g. "Rain light on"; "Headlights" or "Lights on" otherwise. */
-		label?: string;
-	};
+	lights?: ILightSpec[];
+	/**
+	 * Lights whose id changed: old id → new id, so objects keep their settings
+	 * for them (like renamedProps). Never remove an entry.
+	 */
+	renamedLights?: Readonly<Record<string, string>>;
 	/** It lies flat on the ground (a marked zone): other parts can be placed on top of it. */
 	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */

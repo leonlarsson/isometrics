@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { PARTS, resolveProps, type TAnyPart } from "./registry";
-import { definePart } from "./types";
+import { definePart, LIGHT_SHAPES_WITH_REACH } from "./types";
 
 /**
  * Guards for adding or changing a part prop (ADR-0056): worlds saved before a
@@ -55,6 +55,34 @@ describe("every part", () => {
 			}
 			for (const removed of part.removedProps ?? []) {
 				expect(defaults, `removed "${removed}"`).not.toHaveProperty(removed);
+			}
+		},
+	);
+});
+
+describe("every part's lights (ADR-0058)", () => {
+	it.each(PARTS.filter((part) => part.lights).map((part) => [part.kind, part] as const))(
+		"%s's lights have unique ids, names, known shapes and a reach where they light the ground",
+		(_, part) => {
+			const lights = part.lights ?? [];
+			expect(new Set(lights.map((light) => light.id)).size).toBe(lights.length);
+			for (const light of lights) {
+				expect(light.id, `light ${light.id}`).toMatch(/^[a-z][a-zA-Z0-9]*$/);
+				expect(light.name.length, `light ${light.id}`).toBeGreaterThan(0);
+				expect(["lens", "beam", "pool", "windows", "glow"]).toContain(light.shape);
+				if (LIGHT_SHAPES_WITH_REACH.includes(light.shape)) {
+					expect(light.reach, `light ${light.id}`).toBeGreaterThan(0);
+				}
+			}
+			for (const [from, to] of Object.entries(part.renamedLights ?? {})) {
+				expect(
+					lights.map((light) => light.id),
+					`renamed light ${from}`,
+				).toContain(to);
+				expect(
+					lights.map((light) => light.id),
+					`renamed light ${from}`,
+				).not.toContain(from);
 			}
 		},
 	);

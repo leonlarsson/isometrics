@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { lightEmission } from "../lights";
 import { Box, GableRoof } from "../primitives";
 import { definePart } from "../types";
 
@@ -15,7 +16,7 @@ export const house01 = definePart({
 	kind: "house_01",
 	name: "House",
 	category: "buildings",
-	lights: {},
+	lights: [{ id: "windows", name: "Windows", shape: "glow" }],
 	description: "Small house with a pitched roof",
 	keywords: ["home", "cottage", "villa", "residential"],
 	schema: HouseSchema,
@@ -32,7 +33,7 @@ export const house01 = definePart({
 	accentLabel: "Door",
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + p.roofHeight,
-	Component: ({ props: p, color, accent, palette }) => (
+	Component: ({ props: p, color, accent, palette, lights }) => (
 		<group>
 			<Box
 				size={[p.width, p.height, p.depth]}
@@ -60,8 +61,7 @@ export const house01 = definePart({
 				position={[-p.width * 0.22, p.height * 0.58, p.depth / 2 + 0.025]}
 				color={palette.glass}
 				castShadow={false}
-				emissive={palette.night > 0 ? palette.lamplight : undefined}
-				emissiveIntensity={1.4 * palette.night}
+				{...lightEmission(lights.windows, 1.4)}
 			/>
 
 			{p.chimney && (

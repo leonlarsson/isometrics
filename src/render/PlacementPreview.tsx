@@ -6,6 +6,7 @@ import { rememberUsed } from "#/editor/paletteMemory";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { toRadians } from "#/lib/math";
+import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveColors, resolveProps } from "#/parts/registry";
 import type { TVec2 } from "#/scene/schema";
 
@@ -79,7 +80,14 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 			rotation={[0, toRadians(placement.rotation), toRadians(placement.pitch)]}
 		>
 			<group ref={group}>
-				<Component props={props} color={color} accent={accent} palette={palette} playing={false} />
+				<Component
+					props={props}
+					color={color}
+					accent={accent}
+					palette={palette}
+					lights={resolvePartLights(part, palette)}
+					playing={false}
+				/>
 			</group>
 
 			<SelectionFrame size={part.footprint(props)} color={palette.selection} dashed />

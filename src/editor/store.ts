@@ -14,15 +14,18 @@ import {
 } from "#/scene/roads";
 import {
 	AreaSchema,
+	EntityLightSchema,
 	EntitySchema,
 	FollowSchema,
 	RoadSchema,
 	type TArea,
 	type TAreaInput,
 	type TAreaType,
+	type TDataBinding,
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
+	type TEntityLight,
 	type TRoad,
 	type TRoadInput,
 	type TRoadPoint,
@@ -39,17 +42,33 @@ import { boundsOf, type IFrameBox, type ISceneItem } from "./framing";
 import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
+
+/**
+ * A change to an object's settings for one light: fields to set (null = back
+ * to the part's), and data bindings by setting (a binding to set, or null to
+ * stop that setting following data).
+ */
+export type TEntityLightChange = Partial<Omit<TEntityLight, "data">> & {
+	data?: Partial<Record<string, TDataBinding | null>>;
+};
 /** The properties editor's tabs about the whole world (ADR-0054). */
 export type TWorldTab = "world" | "sky" | "views" | "traffic" | "data";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
-export type TSelectionTab = "object" | "shape" | "look" | "label" | "motion";
+export type TSelectionTab = "object" | "shape" | "look" | "lights" | "label" | "motion";
 /**
  * Properties tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
  * layout; the wide layout has them in the left column and above the properties.
  */
 export type TInspectorTab = "add" | "outliner" | TWorldTab | TSelectionTab;
 
-const SELECTION_TABS: readonly TInspectorTab[] = ["object", "shape", "look", "label", "motion"];
+const SELECTION_TABS: readonly TInspectorTab[] = [
+	"object",
+	"shape",
+	"look",
+	"lights",
+	"label",
+	"motion",
+];
 
 /** Selecting something shows its settings: the selection tab you were on, else Object. */
 const tabForSelection = (tab: TInspectorTab): TInspectorTab =>
@@ -279,6 +298,17 @@ export interface IEditorState {
 	 * so editing never drops them (ADR-0056).
 	 */
 	setEntityProp: (id: string, key: string, value: unknown, options?: ICommitOptions) => void;
+	/**
+	 * Change an object's settings for one of its lights (ADR-0058); a setting
+	 * set to null goes back to the part's. A world from before per-light
+	 * settings had one mode for all its lights: it becomes each light's first.
+	 */
+	setEntityLight: (
+		id: string,
+		lightId: string,
+		change: TEntityLightChange,
+		options?: ICommitOptions,
+	) => void;
 	moveEntity: (id: string, position: TVec2, options?: ICommitOptions) => void;
 	rotateEntity: (id: string, deltaDegrees: number) => void;
 	removeEntity: (id: string) => void;
@@ -421,6 +451,10 @@ const NOTHING_SELECTED = {
 	selectedPointIndex: null,
 } as const;
 
+/** A light setting that's entirely as the part has it: no fields set, nothing following data. */
+const isUnsetLight = ({ data, ...fields }: TEntityLight) =>
+	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
+
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
@@ -432,6 +466,24 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 		for (const field of getPart(entity.kind)?.fields ?? []) {
 			if (field.type === "dataKey" && entity.props[field.key] === from) {
 				entity.props[field.key] = to ?? "";
+			}
+		}
+		// Settings that follow the value (ADR-0058): renamed with it, or no longer following data.
+		if (typeof entity.lights === "object") {
+			for (const [id, light] of Object.entries(entity.lights)) {
+				for (const [setting, binding] of Object.entries(light.data)) {
+					if (binding.key !== from) {
+						continue;
+					}
+					if (to) {
+						binding.key = to;
+					} else {
+						delete light.data[setting];
+					}
+				}
+				if (isUnsetLight(light)) {
+					delete entity.lights[id];
+				}
 			}
 		}
 	}
@@ -827,6 +879,39 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				id,
 				(entity) => {
 					entity.props[key] = value;
+				},
+				options,
+			),
+
+		setEntityLight: (id, lightId, change, options) =>
+			get().updateEntity(
+				id,
+				(entity) => {
+					if (typeof entity.lights === "string") {
+						const mode = entity.lights;
+						entity.lights = {};
+						if (mode !== "auto") {
+							for (const spec of getPart(entity.kind)?.lights ?? []) {
+								entity.lights[spec.id] = EntityLightSchema.parse({ mode });
+							}
+						}
+					}
+					const { data: dataChange, ...fields } = change;
+					const current = entity.lights[lightId] ?? EntityLightSchema.parse({});
+					const next = { ...current, ...fields, data: { ...current.data } };
+					for (const [setting, binding] of Object.entries(dataChange ?? {})) {
+						if (binding) {
+							next.data[setting] = binding;
+						} else {
+							delete next.data[setting];
+						}
+					}
+					// Nothing left that differs from the part: no entry at all.
+					if (isUnsetLight(next)) {
+						delete entity.lights[lightId];
+					} else {
+						entity.lights[lightId] = next;
+					}
 				},
 				options,
 			),
