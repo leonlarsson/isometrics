@@ -38,7 +38,7 @@ export const MAX_STRENGTH = 3;
  * Which of a light's settings can follow data, and how each reads its value
  * (dataBinding.ts): switched on and off, a number, or a colour. To make another
  * setting follow data, add it here, read it in `resolveLight` and give it a
- * row in the Lights tab (DataBindingFields); saved worlds need nothing, since
+ * row in the Lights tab (DataDrivenField); saved worlds need nothing, since
  * a light's `data` is a map by setting.
  */
 export const LIGHT_DATA = {

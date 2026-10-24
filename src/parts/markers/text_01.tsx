@@ -24,7 +24,7 @@ const TextSchema = z.object({
 		.string()
 		.default("")
 		.describe("A data key whose value is shown after the text; empty = none."),
-	plate: z.boolean().default(false).describe("A plate behind the text, in the accent colour."),
+	plate: z.boolean().default(false).describe("A plate behind the text, in the plate colour."),
 });
 
 type TTextProps = z.output<typeof TextSchema>;
