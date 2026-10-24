@@ -6,6 +6,7 @@ import { isHiddenRoute, ROAD_STYLES } from "#/scene/roads";
 import type { TRoadStyle } from "#/scene/schema";
 
 import { PARTS, partName, type TAnyPart } from "./registry";
+import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "./types";
 
 type TJsonSchema = Record<string, unknown> & { properties?: Record<string, TJsonSchema> };
 
@@ -30,7 +31,9 @@ Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land wit
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
-Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true; "strength" is the value divided by "full" (up to 3); "color" takes any CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)). The light_01 kind is a light on its own.
+Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: mode (auto = after dark, on = always, off = never), color, strength, reach, and data: settings that follow a data value, by setting, each { key, above, full }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above "above" (0 by default) or the text on, yes or true, day and night, instead of mode; "strength" is the value divided by "full" (up to 3); "color" takes any CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
+"lights": { "lamp": { "color": "#ff3b3b", "data": { "on": { "key": "alert" }, "strength": { "key": "queue", "full": 50 } } } }
+"lights": { "headlights": { "color": "#ffffff", "reach": 5 } }
 
 Data: data holds named values (key, label, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it) or details.dataKeys (tiles when it's opened in view mode).
 
@@ -54,6 +57,19 @@ const propsSchema = (part: TAnyPart): TJsonSchema => {
 
 const round = (value: number) => Math.round(value * 10) / 10;
 
+/** One light for the catalogue: its id, name, shape and defaults, e.g. "lamp (Lamp, pool, colour #ffe8a3, strength 1, reach 2.3)". */
+const describeLight = (light: ILightSpec) =>
+	`${light.id} (${[
+		light.name,
+		light.shape,
+		`colour ${typeof light.color === "string" ? light.color : "the theme's lamplight"}`,
+		`strength ${light.strength ?? 1}`,
+		LIGHT_SHAPES_WITH_REACH.includes(light.shape) ? `reach ${light.reach ?? 1}` : "",
+		light.when === "driving" ? "on after dark only while driving" : "on after dark",
+	]
+		.filter(Boolean)
+		.join(", ")})`;
+
 /** One line per part: what it is, how big it is by default, what its colours paint. */
 const describePart = (part: TAnyPart) => {
 	const props = part.schema.parse({});
@@ -64,12 +80,7 @@ const describePart = (part: TAnyPart) => {
 		`color paints the ${(part.colorLabel ?? "body").toLowerCase()}, accent the ${(part.accentLabel ?? "details").toLowerCase()}.`,
 		part.canFollowPath ? "Can drive along a road (follow)." : "",
 		part.lights?.length
-			? `Lights (settings in lights, by id): ${part.lights
-					.map(
-						(light) =>
-							`${light.id} (${light.name}, ${light.shape}${light.when === "driving" ? ", after dark while driving" : ""})`,
-					)
-					.join(", ")}.`
+			? `Lights (settings in lights, by id): ${part.lights.map(describeLight).join("; ")}.`
 			: "",
 	]
 		.filter(Boolean)

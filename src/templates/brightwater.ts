@@ -502,6 +502,8 @@ const harbour: TEntityInput[] = [
 		accent: "#4a64e0",
 		props: { length: 4, decks: 2 },
 		follow: { roadId: FERRY_ID, speed: 1.4, offset: 13 },
+		// Its cabins glow brighter the more passengers it carries: 60 is 100% (ADR-0058).
+		lights: { cabins: { data: { strength: { key: "ferry_passengers", full: 60 } } } },
 		label: {
 			title: "Bay ferry",
 			dataKeys: ["ferry_next", "ferry_passengers"],

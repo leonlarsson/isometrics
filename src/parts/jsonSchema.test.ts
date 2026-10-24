@@ -46,4 +46,20 @@ describe("worldJsonSchema", () => {
 		);
 		expect(schema.properties.roads.items.properties.points.description).toMatch(/drawing order/);
 	});
+
+	it("lists each kind's lights with their ids and defaults, and shows how to set and bind them", () => {
+		const schema = worldJsonSchema() as {
+			description: string;
+			properties: Record<string, unknown>;
+		};
+		const text = JSON.stringify(schema);
+		expect(text).toContain(
+			"headlights (Headlights, beam, colour the theme's lamplight, strength 1, reach 2.4, on after dark only while driving)",
+		);
+		expect(text).toContain(
+			"lamp (Lamp, pool, colour #ffe8a3, strength 1, reach 2.3, on after dark)",
+		);
+		expect(schema.description).toContain('"data": { "on": { "key": "alert" }');
+		expect(schema.description).toContain("key is the key of an entry in the world's data");
+	});
 });

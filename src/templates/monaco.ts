@@ -331,6 +331,8 @@ const cars: TEntityInput[] = LIVERIES.map(([color, accent], i) => ({
 	scale: CAR_SIZE,
 	// The pack runs nose to tail at one speed, so nobody drives through anybody.
 	follow: { roadId: TRACK_ID, speed: 5, offset: 40 - i * 2.5 },
+	// Rain lights on while it rains (the Rain value), day or night (ADR-0058).
+	lights: { rain: { data: { on: { key: "rain" } } } },
 	...(i === 0
 		? {
 				label: {
@@ -492,6 +494,8 @@ export const createMonacoScene = (): TScene => {
 			{ key: "spectators", label: "Spectators", value: 37800 },
 			{ key: "track_temp", label: "Track temp", value: 41, unit: "°C" },
 			{ key: "pit_stops", label: "Pit stops", value: 11 },
+			// Set to "yes" and every car's rain light comes on, like in a real wet race.
+			{ key: "rain", label: "Rain", value: "no" },
 		],
 		areas: AREAS,
 		roads: [
