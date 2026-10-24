@@ -62,7 +62,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Common tasks
 
-**Add a part:** create it with `definePart({...})` in its own file, `src/parts/<category>/<kind>.tsx`, where the folder is its palette category (ADR-0043). Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically.
+**Add a part:** create it with `definePart({...})` in its own file, `src/parts/<category>/<kind>.tsx`, where the folder is its palette category (ADR-0043). Give the Zod schema a default for every prop, describe the inspector controls in `fields`, follow the axis conventions (origin at the footprint centre on the ground, front +Z, vehicles drive +X), then add it to `PARTS` in `registry.ts`. The palette and inspector pick it up automatically. A new look for an existing part is a variant with the next number (`race_car_02`, ADR-0050), in its own file; pieces shared by a family's variants go in a kit next to them (e.g. `vehicles/raceCarKit.tsx`, one race car per era of F1), and general shapes in `primitives.tsx` (`Taper` for noses, wedges and fuselages).
 
 **Add or change a part prop** (e.g. balconies on the office tower; ADR-0056): saved worlds have no value for a new prop and keep their old values for changed ones, so:
 1. Before changing the format, save today's world as an old world if no fixture covers the current format: `pnpm fixture:old-world HEAD brightwater` (or the template that uses the part).

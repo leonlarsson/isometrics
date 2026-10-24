@@ -120,6 +120,87 @@ export const GableRoof = ({
 	);
 };
 
+/**
+ * A box that narrows (or widens) along X: `back` and `front` are its
+ * [height, width] at x = −length/2 and x = +length/2. `lift` raises the front
+ * face's centre (a nose that drops, an engine cover that rises). Flat-shaded:
+ * noses, sidepods, wedges, fuselages.
+ */
+export const Taper = ({
+	length,
+	back,
+	front,
+	lift = 0,
+	position,
+	rotation,
+	color,
+	castShadow = true,
+}: {
+	length: number;
+	back: [height: number, width: number];
+	front: [height: number, width: number];
+	lift?: number;
+	position?: TV3;
+	rotation?: TV3;
+	color: string;
+	castShadow?: boolean;
+}) => {
+	const [backHeight, backWidth] = back;
+	const [frontHeight, frontWidth] = front;
+	const geometry = useMemo(() => {
+		const x0 = -length / 2;
+		const x1 = length / 2;
+		const corners: TV3[] = [
+			[x0, -backHeight / 2, -backWidth / 2],
+			[x0, backHeight / 2, -backWidth / 2],
+			[x0, backHeight / 2, backWidth / 2],
+			[x0, -backHeight / 2, backWidth / 2],
+			[x1, lift - frontHeight / 2, -frontWidth / 2],
+			[x1, lift + frontHeight / 2, -frontWidth / 2],
+			[x1, lift + frontHeight / 2, frontWidth / 2],
+			[x1, lift - frontHeight / 2, frontWidth / 2],
+		];
+		const faces = [
+			[0, 1, 2, 3],
+			[4, 5, 6, 7],
+			[0, 3, 7, 4],
+			[1, 5, 6, 2],
+			[0, 4, 5, 1],
+			[3, 2, 6, 7],
+		];
+		const centre = new THREE.Vector3(0, lift / 2, 0);
+		const positions: number[] = [];
+		for (const face of faces) {
+			const [a, b, c, d] = face.map((i) => new THREE.Vector3(...corners[i]));
+			// Wind each face so it points away from the middle, whichever order it was listed in.
+			const normal = b.clone().sub(a).cross(c.clone().sub(a));
+			const middle = a.clone().add(b).add(c).add(d).divideScalar(4);
+			const quad = normal.dot(middle.sub(centre)) < 0 ? [a, d, c, b] : [a, b, c, d];
+			for (const index of [0, 1, 2, 0, 2, 3]) {
+				positions.push(quad[index].x, quad[index].y, quad[index].z);
+			}
+		}
+		const geo = new THREE.BufferGeometry();
+		geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+		geo.computeVertexNormals();
+		return geo;
+	}, [length, backHeight, backWidth, frontHeight, frontWidth, lift]);
+
+	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+
+	return (
+		<mesh
+			geometry={geometry}
+			position={position}
+			rotation={rotation}
+			castShadow={castShadow}
+			receiveShadow
+		>
+			<Mat color={color} flat />
+		</mesh>
+	);
+};
+
 /** Wheel with its axle along Z (vehicles drive along X). */
 export const Wheel = ({
 	position,
