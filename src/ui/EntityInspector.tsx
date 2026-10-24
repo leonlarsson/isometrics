@@ -252,7 +252,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 /** The Shape tab: the part's own settings (floors, width, text…). */
 const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
-	const edit = useEntityEdit(entity);
+	const setEntityProp = useEditor((s) => s.setEntityProp);
 	const props = resolveProps(part, entity.props);
 
 	return (
@@ -263,9 +263,7 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					spec={spec}
 					value={props[spec.key]}
 					onChange={(v) =>
-						edit(`prop:${spec.key}`, (e) => {
-							e.props = { ...props, [spec.key]: v };
-						})
+						setEntityProp(entity.id, spec.key, v, { coalesce: `${entity.id}:prop:${spec.key}` })
 					}
 				/>
 			))}

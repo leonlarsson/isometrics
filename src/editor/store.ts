@@ -273,6 +273,12 @@ export interface IEditorState {
 		recipe: (entity: Draft<TEntity>) => void,
 		options?: ICommitOptions,
 	) => void;
+	/**
+	 * Set one of an object's part props. Every other stored prop stays as it is,
+	 * including ones this version doesn't know (from a newer version, or renamed),
+	 * so editing never drops them (ADR-0056).
+	 */
+	setEntityProp: (id: string, key: string, value: unknown, options?: ICommitOptions) => void;
 	moveEntity: (id: string, position: TVec2, options?: ICommitOptions) => void;
 	rotateEntity: (id: string, deltaDegrees: number) => void;
 	removeEntity: (id: string) => void;
@@ -815,6 +821,15 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					recipe(entity);
 				}
 			}, options),
+
+		setEntityProp: (id, key, value, options) =>
+			get().updateEntity(
+				id,
+				(entity) => {
+					entity.props[key] = value;
+				},
+				options,
+			),
 
 		moveEntity: (id, position, options) =>
 			get().updateEntity(

@@ -192,6 +192,23 @@ describe("editor store", () => {
 		expect(s().scene.roads.find((r) => r.id === id)?.closed).toBe(false);
 	});
 
+	it("sets one part prop and keeps every other stored prop, even unknown ones (ADR-0056)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addEntity({
+			kind: "office_tower_01",
+			props: { floors: 9, fromNewerVersion: "keep me", storeys: 4 },
+		});
+		s().setEntityProp(id, "floors", 12);
+		expect(s().scene.entities.find((e) => e.id === id)?.props).toEqual({
+			floors: 12,
+			fromNewerVersion: "keep me",
+			storeys: 4,
+		});
+		s().undo();
+		expect(s().scene.entities.find((e) => e.id === id)?.props.floors).toBe(9);
+	});
+
 	it("opens the selection's tabs: the one you were on, Object from a world tab, Shape for a point", () => {
 		const store = makeStore();
 		const s = () => store.getState();
