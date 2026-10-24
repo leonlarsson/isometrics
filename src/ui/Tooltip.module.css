@@ -6,9 +6,11 @@
 	box-sizing: border-box;
 	max-width: 260px;
 	padding: 5px 8px;
+	border: 1px solid var(--tooltip-border);
 	border-radius: 6px;
-	background: var(--text);
-	color: var(--bg);
+	background: var(--tooltip-bg);
+	color: var(--tooltip-text);
+	box-shadow: var(--shadow-card);
 	font-size: 12px;
 	font-weight: 500;
 	line-height: 1.35;

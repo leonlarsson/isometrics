@@ -12,6 +12,10 @@
 	--surface-sunken: #e8e6e0;
 	/* The header band of a properties panel (ADR-0054). */
 	--panel-header: #f5f3ee;
+	/* Tooltips: dark on the light theme, a raised dark grey (not inverted) on the dark one. */
+	--tooltip-bg: #1d1d1b;
+	--tooltip-text: #f8f7f3;
+	--tooltip-border: transparent;
 	--border: rgb(0 0 0 / 0.08);
 	--border-strong: rgb(0 0 0 / 0.16);
 	--text: #1d1d1b;
@@ -49,6 +53,9 @@
 	--surface-raised: #2d2e2a;
 	--surface-sunken: #1f201d;
 	--panel-header: #33342f;
+	--tooltip-bg: #3a3b36;
+	--tooltip-text: #ecebe6;
+	--tooltip-border: rgb(255 255 255 / 0.12);
 	--border: rgb(255 255 255 / 0.08);
 	--border-strong: rgb(255 255 255 / 0.16);
 	--text: #ecebe6;
