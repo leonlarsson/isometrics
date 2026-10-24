@@ -21,6 +21,15 @@
 	outline: 2px solid var(--accent);
 }
 
+.trigger[data-tone="danger"] {
+	color: var(--danger);
+}
+
+.trigger[data-tone="danger"]:hover,
+.trigger[data-tone="danger"][data-popup-open] {
+	background: color-mix(in oklab, var(--danger) 12%, transparent);
+}
+
 .positioner {
 	outline: 0;
 	z-index: var(--z-popup);
@@ -149,4 +158,13 @@
 	height: 1px;
 	margin: 4px 6px;
 	background: var(--border);
+}
+
+.note {
+	max-width: 280px;
+	margin: 0;
+	padding: 8px 10px;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.45;
 }

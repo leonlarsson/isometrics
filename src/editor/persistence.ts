@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { useSyncExternalStore } from "react";
 
 import { APP_NAME } from "#/lib/app";
 import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
@@ -310,7 +311,11 @@ export const loadStoredScene = (): TStoredSceneResult => {
 		return { status: "empty" };
 	}
 	setOpenWorldId(id);
-	return readWorld(raw);
+	const result = readWorld(raw);
+	if (result.status === "ok") {
+		openedSaved(id);
+	}
+	return result;
 };
 
 /** Read a stored world without opening it (e.g. to copy it). */
@@ -332,6 +337,9 @@ export const openStoredWorld = (id: string): TStoredSceneResult => {
 	if (result.status === "ok" || result.status === "repaired") {
 		setOpenWorldId(id);
 	}
+	if (result.status === "ok") {
+		openedSaved(id);
+	}
 	return result;
 };
 
@@ -339,22 +347,81 @@ let warnedFull = false;
 /** Set by `wipeEverything`: nothing is saved any more, until the page reloads. */
 let wiped = false;
 
-/** Write a world into its slot and the index; says so once if storage is full. */
+/**
+ * Whether the open world is saved, for the toolbar's save status (ADR-0057).
+ * `new`: nothing to save yet (a first visit's starter world, before any change);
+ * `saving`: a change is waiting for the autosave; `saved`: written, `at` when
+ * (0 if unknown); `failed`: the browser refused, because its storage for the
+ * site is full, it doesn't allow storage at all, or everything was just wiped.
+ */
+export type TSaveStatus =
+	| { state: "new" }
+	| { state: "saving" }
+	| { state: "saved"; at: number }
+	| { state: "failed"; reason: "full" | "unavailable" | "wiped" };
+
+let saveStatus: TSaveStatus = { state: "new" };
+const saveStatusListeners = new Set<() => void>();
+
+const setSaveStatus = (next: TSaveStatus) => {
+	saveStatus = next;
+	for (const listener of saveStatusListeners) {
+		listener();
+	}
+};
+
+export const readSaveStatus = () => saveStatus;
+
+/** Call `listener` whenever the save status changes. */
+export const subscribeSaveStatus = (listener: () => void) => {
+	saveStatusListeners.add(listener);
+	return () => {
+		saveStatusListeners.delete(listener);
+	};
+};
+
+const NEW: TSaveStatus = { state: "new" };
+
+/** The open world's save status, updating as it changes. */
+export const useSaveStatus = () =>
+	useSyncExternalStore(subscribeSaveStatus, readSaveStatus, () => NEW);
+
+/** A world that was just opened from storage is saved as of its last save. */
+const openedSaved = (id: string) =>
+	setSaveStatus({
+		state: "saved",
+		at: listWorlds().find((world) => world.id === id)?.updatedAt ?? 0,
+	});
+
+/** Full storage, or none at all (private browsing, blocked site data)? */
+const failureReason = (error: unknown): "full" | "unavailable" =>
+	error instanceof DOMException &&
+	(error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+		? "full"
+		: "unavailable";
+
+/** Write a world into its slot and the index; says so once if it can't. */
 const writeWorld = (id: string, scene: TScene) => {
 	if (wiped) {
+		setSaveStatus({ state: "failed", reason: "wiped" });
 		return;
 	}
 	try {
 		localStorage.setItem(worldKey(id), JSON.stringify(scene));
 		touchWorld(id, scene.meta.title);
 		warnedFull = false;
+		setSaveStatus({ state: "saved", at: Date.now() });
 	} catch (error) {
 		console.warn("Could not save scene", error);
+		const reason = failureReason(error);
+		setSaveStatus({ state: "failed", reason });
 		if (!warnedFull) {
 			warnedFull = true;
 			notify(
 				"Couldn’t save your world",
-				"The browser’s storage for this site may be full. Save it to a file, or delete worlds you no longer need.",
+				reason === "full"
+					? "The browser’s storage for this site is full. Save it to a file, or delete worlds you no longer need."
+					: "This browser doesn’t let the site store anything (private browsing or blocked site data). Save it to a file to keep it.",
 				"error",
 			);
 		}
@@ -364,6 +431,7 @@ const writeWorld = (id: string, scene: TScene) => {
 /** Save `scene` into the open world (creating one if none is open yet). */
 export const saveScene = (scene: TScene) => {
 	if (wiped) {
+		setSaveStatus({ state: "failed", reason: "wiped" });
 		return;
 	}
 	let id = storedOpenWorldId();
@@ -454,6 +522,7 @@ export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
 		if (state.scene === previous.scene) {
 			return;
 		}
+		setSaveStatus(wiped ? { state: "failed", reason: "wiped" } : { state: "saving" });
 		clearTimeout(timer);
 		timer = setTimeout(() => saveScene(state.scene), delayMs);
 	});

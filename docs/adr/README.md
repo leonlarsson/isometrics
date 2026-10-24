@@ -60,3 +60,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0054](0054-properties-editor.md) | A Blender-style properties editor: icon tabs on a rail, foldable card panels, label-left fields and a settings search | accepted |
 | [0055](0055-collapsible-side-panes.md) | The side panes fold to thin strips, one at a time or both at once | accepted |
 | [0056](0056-safe-schema-and-part-changes.md) | Changes to the world format and to parts are checked against old worlds | accepted |
+| [0057](0057-save-status.md) | A save status next to the File menu says whether the world is saved | accepted |

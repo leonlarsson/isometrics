@@ -259,6 +259,8 @@ export const KitPage = () => {
 												<Menu.Trigger>Menu</Menu.Trigger>
 
 												<Menu.Popup>
+													<Menu.Note>A note: a short paragraph that isn’t an item.</Menu.Note>
+
 													<Menu.Item
 														icon="file"
 														label="Item"

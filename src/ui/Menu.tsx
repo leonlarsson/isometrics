@@ -16,11 +16,13 @@ interface IMenuTriggerProps {
 	label?: string;
 	/** False leaves out the down arrow, e.g. for a "More" button that is just an icon. */
 	chevron?: boolean;
+	/** "danger" for a trigger that warns, e.g. the save status when saving failed. */
+	tone?: "danger";
 }
 
-const MenuTrigger = ({ children, label, chevron = true }: IMenuTriggerProps) => {
+const MenuTrigger = ({ children, label, chevron = true, tone }: IMenuTriggerProps) => {
 	return (
-		<BaseMenu.Trigger className={styles.trigger} aria-label={label}>
+		<BaseMenu.Trigger className={styles.trigger} aria-label={label} data-tone={tone}>
 			{children}
 
 			{chevron && <Icon name="chevronDown" size={14} />}
@@ -215,6 +217,11 @@ const MenuGroup = ({ label, children }: IMenuGroupProps) => {
 	);
 };
 
+/** A short paragraph in a menu that isn't an item, e.g. what a status means. */
+const MenuNote = ({ children }: { children: ReactNode }) => {
+	return <p className={styles.note}>{children}</p>;
+};
+
 const MenuSeparator = () => {
 	return <BaseMenu.Separator className={styles.separator} />;
 };
@@ -227,5 +234,6 @@ export const Menu = {
 	CheckboxItem: MenuCheckboxItem,
 	Submenu: MenuSubmenu,
 	Group: MenuGroup,
+	Note: MenuNote,
 	Separator: MenuSeparator,
 };

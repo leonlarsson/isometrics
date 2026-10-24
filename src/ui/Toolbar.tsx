@@ -7,6 +7,7 @@ import { IconButton, IconButtonGroup } from "./Button";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
+import { SaveStatus } from "./SaveStatus";
 import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
@@ -58,6 +59,8 @@ export const Toolbar = () => {
 				<span className={styles.title}>{APP_NAME}</span>
 
 				<FileMenu />
+
+				<SaveStatus />
 			</div>
 
 			<fieldset className={styles.modes} aria-label="Mode">
