@@ -8,6 +8,7 @@
 }
 
 .body {
+	position: relative;
 	flex: 1;
 	min-height: 0;
 	display: grid;
@@ -27,7 +28,26 @@
 	background: var(--surface);
 }
 
-/* Holds the resize handle outside the scrolling panel so it doesn't scroll away. */
+/*
+ * Where a side pane's resize handle sits: on the pane's inner edge, open or folded. It's not
+ * inside the pane, so it stays put while a drag folds the pane and opens it again (ADR-0055).
+ */
+.paneEdge {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 4;
+	width: 0;
+}
+
+.paneEdge[data-side="left"] {
+	left: var(--palette-width);
+}
+
+.paneEdge[data-side="right"] {
+	right: var(--inspector-width);
+}
+
 .rightColumn {
 	position: relative;
 	display: flex;
@@ -36,10 +56,7 @@
 	min-height: 0;
 }
 
-/*
- * Its list scrolls, not the column: no scrollbar strip of its own, and nothing to clip, so
- * the resize handle can straddle the border instead of covering the list's scrollbar.
- */
+/* Its list scrolls, not the column: no scrollbar strip of its own. */
 .left {
 	position: relative;
 	overflow: visible;
@@ -138,10 +155,6 @@
 	.right {
 		border-left: none;
 		background: none;
-	}
-
-	.rightColumn > [role="separator"] {
-		display: none;
 	}
 
 	.sceneTitle {

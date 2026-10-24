@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
 	selectSelectedArea,
@@ -88,6 +88,46 @@ interface ISearchGroup {
 	tabs: IInspectorTab[];
 }
 
+/** The tab to show: the one picked if it's there, else the selection's first, else World. */
+const shownTab = (tab: TInspectorTab, available: IInspectorTab[], selectionTabs: IInspectorTab[]) =>
+	available.find((candidate) => candidate.value === tab) ?? selectionTabs[0] ?? WORLD_TABS[0];
+
+/**
+ * The folded right pane's shortcuts (ADR-0055): the rail's icons, the open
+ * tab highlighted. Clicking one opens the pane at that tab.
+ */
+export const RailShortcuts = ({ onOpen }: { onOpen: () => void }) => {
+	const tab = useEditor((s) => s.tab);
+	const setTab = useEditor((s) => s.setTab);
+	const selectionTabs = useSelection()?.tabs ?? [];
+	const shown = shownTab(tab, [...selectionTabs, ...WORLD_TABS], selectionTabs);
+	const groups = [WORLD_TABS, selectionTabs].filter((group) => group.length > 0);
+
+	return (
+		<nav className={styles.shortcuts} aria-label="Properties">
+			{groups.map((group, index) => (
+				<Fragment key={group[0].value}>
+					{index > 0 && <span className={styles.shortcutDivider} aria-hidden="true" />}
+
+					{group.map((candidate) => (
+						<IconButton
+							key={candidate.value}
+							icon={candidate.icon}
+							label={candidate.label}
+							tooltipSide="left"
+							pressed={candidate === shown}
+							onClick={() => {
+								setTab(candidate.value);
+								onOpen();
+							}}
+						/>
+					))}
+				</Fragment>
+			))}
+		</nav>
+	);
+};
+
 /**
  * Every tab's settings at once, filtered by the search (ADR-0054): panels and
  * fields that don't match hide themselves, and so does a tab with nothing left.
@@ -157,8 +197,7 @@ export const Inspector = ({
 	const selectionTabs = selection?.tabs ?? [];
 	const available = [...(narrow ? NARROW_TABS : []), ...selectionTabs, ...WORLD_TABS];
 	// A tab the selection doesn't have shows its first one (or the world's, with nothing selected).
-	const shown =
-		available.find((candidate) => candidate.value === tab) ?? selectionTabs[0] ?? WORLD_TABS[0];
+	const shown = shownTab(tab, available, selectionTabs);
 	const searching = searchOpen && query.trim() !== "";
 	const isWorldTab = WORLD_TABS.includes(shown);
 	const hasHeader = !NARROW_TABS.includes(shown);

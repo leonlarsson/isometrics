@@ -1,3 +1,4 @@
+import { toggleSidePanes, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
@@ -41,6 +42,8 @@ export const Toolbar = () => {
 	const theme = useEditor((s) => s.scene.theme);
 	const commit = useEditor((s) => s.commit);
 
+	const panes = useSidePanes();
+	const panesHidden = !panes.left && !panes.right;
 	const themeInfo = THEME_CYCLE[theme];
 	const cycleTheme = () =>
 		commit((s) => {
@@ -100,7 +103,7 @@ export const Toolbar = () => {
 
 				{mode === "edit" && (
 					<span className={styles.wideOnly}>
-						<IconButtonGroup cluster="Snapping">
+						<IconButtonGroup cluster="Editing">
 							<IconButton
 								size="md"
 								tooltipSide="bottom"
@@ -108,6 +111,19 @@ export const Toolbar = () => {
 								label={snapping ? "Snap to grid: on" : "Snap to grid: off"}
 								pressed={snapping}
 								onClick={toggleSnapping}
+							/>
+
+							<IconButton
+								size="md"
+								tooltipSide="bottom"
+								icon="sidebars"
+								label={
+									panesHidden
+										? "Show the side panels (Ctrl+Space)"
+										: "Hide the side panels (Ctrl+Space)"
+								}
+								pressed={panesHidden}
+								onClick={toggleSidePanes}
 							/>
 						</IconButtonGroup>
 					</span>

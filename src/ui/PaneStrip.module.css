@@ -1,0 +1,30 @@
+/*
+ * The open button sits where the pane's fold button was (PaneHeader.module.css): 4px from the
+ * outer edge, centred on the 44px header row (its 1px bottom border included).
+ */
+.strip {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 7.5px;
+	background: var(--surface);
+}
+
+.strip[data-side="left"] {
+	border-right: 1px solid var(--border);
+}
+
+.strip[data-side="right"] {
+	border-left: 1px solid var(--border);
+}
+
+.strip > :first-child {
+	align-self: flex-start;
+	margin-left: 4px;
+}
+
+.strip[data-side="right"] > :first-child {
+	align-self: flex-end;
+	margin-right: 4px;
+	margin-left: 0;
+}

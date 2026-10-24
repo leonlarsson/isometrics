@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
 import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
+import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { getPart, partName, partsByCategory, resolveColors } from "#/parts/registry";
@@ -21,6 +22,7 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { List, ListItem } from "./List";
 import { PaneHeader } from "./PaneHeader";
 import { areaSwatch, roadSwatch } from "./swatches";
+import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./Outliner.module.css";
 
@@ -148,6 +150,7 @@ export const Outliner = () => {
 	const listRef = useRef<HTMLDivElement>(null);
 	// Folded groups are remembered per browser, with the properties' panels.
 	const panels = usePanelMemory();
+	const narrow = useNarrowLayout();
 
 	const store = () => useEditor.getState();
 	const select = (item: ISceneItem) => {
@@ -192,6 +195,16 @@ export const Outliner = () => {
 						pressed={onlyData}
 						onClick={() => setOnlyData(!onlyData)}
 					/>
+				}
+				// Phones have the sheet, which hides on its own.
+				fold={
+					narrow
+						? undefined
+						: {
+								side: "right",
+								label: "Hide the outliner and properties",
+								onFold: () => setSidePaneOpen("right", false),
+							}
 				}
 			/>
 

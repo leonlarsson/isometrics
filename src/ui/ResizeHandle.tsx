@@ -17,8 +17,16 @@ export const INSPECTOR_WIDTH: ISizeLimits = { min: 280, max: 640, initial: 360 }
 export const OUTLINER_HEIGHT: ISizeLimits = { min: 140, max: 900, initial: 360 };
 /** No narrower than the default: below it, names like "Warehouse" no longer fit two tiles a row. */
 export const PALETTE_WIDTH: ISizeLimits = { min: 248, max: 480, initial: 248 };
+/** A folded side pane's width: a strip with the button that opens it (ADR-0055). */
+export const PANE_STRIP = 36;
 const KEY_STEP = 16;
 const KEY_STEP_LARGE = 64;
+/**
+ * A collapsible panel folds once its edge is dragged in past half its minimum
+ * width, and opens again (in the same drag) once dragged back out past it,
+ * like VS Code's side bars. The margin keeps it from flickering at the line.
+ */
+const FOLD_MARGIN = 8;
 
 /** A panel size in pixels, persisted per browser. A UI preference, not part of the scene. */
 const useStoredSize = (name: string, limits: ISizeLimits) => {
@@ -64,11 +72,32 @@ interface IResizeHandleProps {
 	edge: TEdge;
 	/** Accessible name, e.g. "Resize the inspector". */
 	label: string;
+	/**
+	 * A panel that folds to a strip (ADR-0055): whether it's folded now, and
+	 * what to do when a drag (or a double-click on the strip) folds or opens it.
+	 */
+	collapse?: {
+		collapsed: boolean;
+		onChange: (collapsed: boolean) => void;
+		/** The folded strip's width, where a drag starts from when folded. */
+		stripSize: number;
+	};
 }
 
-/** A drag handle that resizes a panel; arrow keys while focused, double-click resets. */
-export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHandleProps) => {
-	const drag = useRef<{ start: number; startSize: number } | null>(null);
+/**
+ * A drag handle that resizes a panel; arrow keys while focused, double-click
+ * resets. A collapsible panel folds and opens again within one drag; it has to
+ * stay mounted while that happens, so it isn't inside the panel it resizes.
+ */
+export const ResizeHandle = ({
+	size,
+	onResize,
+	limits,
+	edge,
+	label,
+	collapse,
+}: IResizeHandleProps) => {
+	const drag = useRef<{ start: number; startSize: number; collapsed: boolean } | null>(null);
 	const handle = useRef<HTMLDivElement>(null);
 	const horizontal = edge === "bottom";
 	const [grow, shrink] = KEYS[edge];
@@ -91,6 +120,11 @@ export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHan
 		{ target: handle },
 	);
 
+	const endDrag = () => {
+		drag.current = null;
+		delete document.body.dataset.resizing;
+	};
+
 	const position = (event: PointerEvent) => (horizontal ? event.clientY : event.clientX);
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -99,7 +133,12 @@ export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHan
 		}
 		event.preventDefault();
 		event.currentTarget.setPointerCapture(event.pointerId);
-		drag.current = { start: position(event), startSize: size };
+		const collapsed = collapse?.collapsed ?? false;
+		drag.current = {
+			start: position(event),
+			startSize: collapsed && collapse ? collapse.stripSize : size,
+			collapsed,
+		};
 		document.body.dataset.resizing = horizontal ? "horizontal" : "vertical";
 	};
 
@@ -109,12 +148,21 @@ export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHan
 		}
 		const moved = position(event) - drag.current.start;
 		// A panel's left edge grows it when dragged left; its right and bottom edges, right and down.
-		onResize(drag.current.startSize + (edge === "left" ? -moved : moved));
-	};
-
-	const endDrag = () => {
-		drag.current = null;
-		delete document.body.dataset.resizing;
+		const wanted = drag.current.startSize + (edge === "left" ? -moved : moved);
+		if (collapse) {
+			const foldAt = limits.min / 2;
+			if (!drag.current.collapsed && wanted < foldAt - FOLD_MARGIN) {
+				drag.current.collapsed = true;
+				collapse.onChange(true);
+			} else if (drag.current.collapsed && wanted > foldAt + FOLD_MARGIN) {
+				drag.current.collapsed = false;
+				collapse.onChange(false);
+			}
+			if (drag.current.collapsed) {
+				return;
+			}
+		}
+		onResize(wanted);
 	};
 
 	return (
@@ -131,11 +179,14 @@ export const ResizeHandle = ({ size, onResize, limits, edge, label }: IResizeHan
 			title="Drag to resize · double-click to reset"
 			className={styles.handle}
 			data-edge={edge}
+			data-collapsed={collapse?.collapsed || undefined}
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={endDrag}
 			onLostPointerCapture={endDrag}
-			onDoubleClick={() => onResize(limits.initial)}
+			onDoubleClick={() =>
+				collapse?.collapsed ? collapse.onChange(false) : onResize(limits.initial)
+			}
 		/>
 	);
 };

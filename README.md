@@ -36,7 +36,7 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
 | Open / save a world file | Ctrl+O / Ctrl+S, or the **File** menu |
 | Pause / play motion | Space |
-| Resize the right panel | Drag its left edge (double-click to reset) |
+| Resize or hide the side panels | Drag a panel's inner edge to resize it (double-click to reset), or in past half its width to fold it to a thin strip, and back out to open it, all in one drag. The arrow in a panel's header folds it too; the strip's arrow, or dragging its edge out, opens it. The folded right panel shows the settings tabs' icons: click one to open the panel at that tab. **Ctrl**+**Space** (or the panels button in the top bar) hides or shows both |
 | Present | Switch to **View** in the top bar and click objects for details |
 | On a phone | One finger pans, two pinch and twist. The panels are a sheet at the bottom with the icon tabs along its top (Add to scene, the Outliner, then the settings tabs): tap something to edit it, the arrow button hides the sheet |
 

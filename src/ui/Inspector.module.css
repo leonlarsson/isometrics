@@ -102,3 +102,22 @@
 .results:has([data-search-match], [data-title-match]) .noResults {
 	display: none;
 }
+
+/* ------------------------------------------- folded pane's shortcuts */
+
+.shortcuts {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border);
+}
+
+.shortcutDivider {
+	width: 18px;
+	height: 1px;
+	margin: 4px 0;
+	background: var(--border-strong);
+}

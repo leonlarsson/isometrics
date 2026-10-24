@@ -4,6 +4,7 @@ import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
+import { toggleSidePanes } from "./sidePanes";
 import {
 	FINE_NUDGE_STEP,
 	SNAP_STEP,
@@ -29,6 +30,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
  *   P perspective / diorama view · 1–9 go to viewpoint 1–9
+ *   Ctrl+Space hide or show both side panels (Edit mode, like Blender's maximise)
  *
  * The library skips single keys while typing in text fields and prevents the
  * browser default for matched keys. Mod chords stay enabled and return early,
@@ -139,6 +141,16 @@ export const useShortcuts = () => {
 			hotkey: "Mod+S",
 			callback: () => saveWorldFile(),
 			options: { meta: { name: "Save to file" } },
+		},
+		{
+			// Ctrl on every system: Cmd+Space is the Mac's Spotlight.
+			hotkey: "Control+Space",
+			callback: () => {
+				if (useEditor.getState().mode === "edit") {
+					toggleSidePanes();
+				}
+			},
+			options: { meta: { name: "Hide or show the side panels" } },
 		},
 		{
 			hotkey: "Mod+Z",

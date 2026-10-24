@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { loadStoredScene, saveScene, startAutosave } from "#/editor/persistence";
+import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
@@ -14,17 +15,19 @@ import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { GroundContextMenu } from "./GroundContextMenu";
-import { Inspector } from "./Inspector";
+import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
 import { Outliner } from "./Outliner";
+import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
 import {
 	INSPECTOR_WIDTH,
 	OUTLINER_HEIGHT,
 	PALETTE_WIDTH,
+	PANE_STRIP,
 	ResizeHandle,
 	useInspectorWidth,
 	useOutlinerHeight,
@@ -86,6 +89,10 @@ export const AppShell = () => {
 	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 	const narrow = useNarrowLayout();
+	// Wide layout: each side pane can fold to a thin strip (ADR-0055). Phones have the sheet instead.
+	const panes = useSidePanes();
+	const leftOpen = narrow || panes.left;
+	const rightOpen = narrow || panes.right;
 	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
 	// selected or a tab is picked, and folds down to its tab bar when the selection is cleared.
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -140,8 +147,9 @@ export const AppShell = () => {
 					data-mode={mode}
 					style={
 						{
-							"--inspector-width": `${inspectorWidth}px`,
-							"--palette-width": `${paletteWidth}px`,
+							"--pane-strip": `${PANE_STRIP}px`,
+							"--inspector-width": rightOpen ? `${inspectorWidth}px` : "var(--pane-strip)",
+							"--palette-width": leftOpen ? `${paletteWidth}px` : "var(--pane-strip)",
 						} as CSSProperties
 					}
 				>
@@ -150,17 +158,17 @@ export const AppShell = () => {
 					<Toolbar />
 
 					<div className={styles.body}>
-						{mode === "edit" && (
+						{mode === "edit" && !leftOpen && (
+							<PaneStrip
+								side="left"
+								label="Show Add to scene"
+								onOpen={() => setSidePaneOpen("left", true)}
+							/>
+						)}
+
+						{mode === "edit" && leftOpen && (
 							<aside className={styles.left}>
 								<PartsPalette />
-
-								<ResizeHandle
-									edge="right"
-									size={paletteWidth}
-									onResize={setPaletteWidth}
-									limits={PALETTE_WIDTH}
-									label="Resize Add to scene"
-								/>
 							</aside>
 						)}
 
@@ -192,7 +200,17 @@ export const AppShell = () => {
 							<GroundContextMenu />
 						</main>
 
-						{mode === "edit" && (
+						{mode === "edit" && !rightOpen && (
+							<PaneStrip
+								side="right"
+								label="Show the outliner and properties"
+								onOpen={() => setSidePaneOpen("right", true)}
+							>
+								<RailShortcuts onOpen={() => setSidePaneOpen("right", true)} />
+							</PaneStrip>
+						)}
+
+						{mode === "edit" && rightOpen && (
 							<div
 								ref={sheet}
 								className={styles.rightColumn}
@@ -200,14 +218,6 @@ export const AppShell = () => {
 								// The narrow layout's sheet floats over the scene: label cards keep clear of it.
 								data-label-obstacle={narrow ? "" : undefined}
 							>
-								<ResizeHandle
-									edge="left"
-									size={inspectorWidth}
-									onResize={setInspectorWidth}
-									limits={INSPECTOR_WIDTH}
-									label="Resize the inspector"
-								/>
-
 								{/* Like Blender: the outliner on top, the selection's settings below. */}
 								{!narrow && (
 									<>
@@ -245,6 +255,44 @@ export const AppShell = () => {
 										}
 									/>
 								</aside>
+							</div>
+						)}
+
+						{/*
+						 * The side panes' edges, outside the panes so a drag can fold a pane and open it
+						 * again without letting go (ADR-0055). Phones have the sheet instead.
+						 */}
+						{mode === "edit" && !narrow && (
+							<div className={styles.paneEdge} data-side="left">
+								<ResizeHandle
+									edge="right"
+									size={paletteWidth}
+									onResize={setPaletteWidth}
+									limits={PALETTE_WIDTH}
+									label="Resize Add to scene"
+									collapse={{
+										collapsed: !panes.left,
+										onChange: (collapsed) => setSidePaneOpen("left", !collapsed),
+										stripSize: PANE_STRIP,
+									}}
+								/>
+							</div>
+						)}
+
+						{mode === "edit" && !narrow && (
+							<div className={styles.paneEdge} data-side="right">
+								<ResizeHandle
+									edge="left"
+									size={inspectorWidth}
+									onResize={setInspectorWidth}
+									limits={INSPECTOR_WIDTH}
+									label="Resize the inspector"
+									collapse={{
+										collapsed: !panes.right,
+										onChange: (collapsed) => setSidePaneOpen("right", !collapsed),
+										stripSize: PANE_STRIP,
+									}}
+								/>
 							</div>
 						)}
 					</div>

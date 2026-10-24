@@ -31,3 +31,15 @@
 	align-items: center;
 	gap: 2px;
 }
+
+/*
+ * A fold button sits 4px from the pane's outer edge, exactly where the folded strip shows its
+ * open button (PaneStrip.module.css).
+ */
+.header[data-fold="left"] {
+	padding-left: 4px;
+}
+
+.header[data-fold="right"] {
+	padding-right: 4px;
+}

@@ -8,6 +8,7 @@ import {
 	usePaletteMemory,
 } from "#/editor/paletteMemory";
 import { findFreeSpot } from "#/editor/placement";
+import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { usePalette, useResolvedTheme } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
@@ -29,6 +30,7 @@ import { ContextMenu, Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
 import { Tooltip } from "./Tooltip";
+import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./PartsPalette.module.css";
 
@@ -148,6 +150,7 @@ export const PartsPalette = () => {
 	const [preview, setPreview] = useState<{ kind: string; anchor: IPreviewAnchor } | null>(null);
 	const previewTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 	const placing = useEditor((s) => s.placingKind !== null);
+	const narrow = useNarrowLayout();
 	const memory = usePaletteMemory();
 	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
 
@@ -351,7 +354,20 @@ export const PartsPalette = () => {
 
 	return (
 		<nav className={styles.palette} aria-label="Parts">
-			<PaneHeader icon="plusSquare" title="Add to scene" />
+			<PaneHeader
+				icon="plusSquare"
+				title="Add to scene"
+				// Phones have the sheet, which hides on its own.
+				fold={
+					narrow
+						? undefined
+						: {
+								side: "left",
+								label: "Hide Add to scene",
+								onFold: () => setSidePaneOpen("left", false),
+							}
+				}
+			/>
 
 			<div className={styles.top}>
 				<div className={styles.search}>

@@ -58,3 +58,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0052](0052-time-of-day.md) | Time of day: a sun that moves, a sky that changes, and lights after dark | accepted |
 | [0053](0053-legacy-ids.md) | Worlds saved before the numbered ids get the new ids on load | accepted |
 | [0054](0054-properties-editor.md) | A Blender-style properties editor: icon tabs on a rail, foldable card panels, label-left fields and a settings search | accepted |
+| [0055](0055-collapsible-side-panes.md) | The side panes fold to thin strips, one at a time or both at once | accepted |
