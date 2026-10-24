@@ -24,6 +24,11 @@ interface IRailTabsProps<TValue extends string> {
 	orientation?: "vertical" | "horizontal";
 	/** At the end of a horizontal bar, e.g. the sheet's hide button. */
 	barEnd?: ReactNode;
+	/**
+	 * Any tab pressed, the open one included (picking another also calls
+	 * onChange), e.g. so a folded sheet opens even when its tab is already open.
+	 */
+	onTabPress?: (value: TValue) => void;
 	/** Beside or under the strip: a header and the tab's RailTabPanel. */
 	children: ReactNode;
 }
@@ -40,6 +45,7 @@ export const RailTabs = <TValue extends string>({
 	label,
 	orientation = "vertical",
 	barEnd,
+	onTabPress,
 	children,
 }: IRailTabsProps<TValue>) => {
 	const shown = groups.filter((group) => group.length > 0);
@@ -63,7 +69,12 @@ export const RailTabs = <TValue extends string>({
 									label={tab.label}
 									side={orientation === "vertical" ? "left" : "top"}
 								>
-									<BaseTabs.Tab value={tab.value} className={styles.tab} aria-label={tab.label}>
+									<BaseTabs.Tab
+										value={tab.value}
+										className={styles.tab}
+										aria-label={tab.label}
+										onClick={() => onTabPress?.(tab.value)}
+									>
 										<Icon name={tab.icon} size={18} />
 									</BaseTabs.Tab>
 								</Tooltip>

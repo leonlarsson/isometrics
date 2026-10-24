@@ -226,6 +226,8 @@ export const Inspector = ({
 				}}
 				groups={narrow ? [NARROW_TABS, selectionTabs, WORLD_TABS] : [WORLD_TABS, selectionTabs]}
 				barEnd={tabBarEnd}
+				// The phone sheet opens on any tab, even the one that's already open.
+				onTabPress={() => onTabSelect?.()}
 			>
 				{open && hasHeader && (
 					<header className={styles.header}>
