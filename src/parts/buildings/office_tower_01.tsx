@@ -30,6 +30,7 @@ export const officeTower01 = definePart({
 			color: "#e3a14c",
 			litPanes: 0.28,
 			weight: 9,
+			comesOn: "oneByOne",
 		},
 		{
 			id: "screens",
@@ -39,6 +40,7 @@ export const officeTower01 = definePart({
 			color: "#8fb4e0",
 			litPanes: 0.2,
 			weight: 1,
+			comesOn: "oneByOne",
 		},
 	],
 	description: "Multi-storey building with a window grid",

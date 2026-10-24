@@ -1,8 +1,15 @@
 import type { TEntityLightChange } from "#/editor/store";
-import { LIGHT_DATA, MAX_STRENGTH, type TLightDataTarget } from "#/parts/lightModel";
+import {
+	comesOnOf,
+	inPeriod,
+	LIGHT_DATA,
+	MAX_STRENGTH,
+	type TLightDataTarget,
+} from "#/parts/lightModel";
 import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import {
 	DataBindingSchema,
+	type TComesOn,
 	type TDataBinding,
 	type TDataEntry,
 	type TEntityLight,
@@ -11,7 +18,16 @@ import {
 
 import { DataBindingFields } from "./DataBindingFields";
 import { DataDrivenField } from "./DataDrivenField";
-import { ColorField, FieldGroup, Hint, Section, SelectField, SliderField } from "./fields";
+import {
+	ColorField,
+	FieldGroup,
+	formatClock,
+	Hint,
+	PeriodsField,
+	Section,
+	SelectField,
+	SliderField,
+} from "./fields";
 
 interface ILightSettingsProps {
 	/** The light, as its part declares it. */
@@ -26,6 +42,8 @@ interface ILightSettingsProps {
 	data: readonly TDataEntry[];
 	/** Window lights: its part of the part's windows (its weight against the others'), 0–1. */
 	windowShare?: number;
+	/** The world's hour now, for schedules; null without a time of day. */
+	hour: number | null;
 	/**
 	 * A change to its settings (null = back to the part's; a data binding of
 	 * null stops that setting following data). `coalesce` names the setting
@@ -36,6 +54,41 @@ interface ILightSettingsProps {
 
 /** How it turns on: by itself, or by a data value. */
 type TTurnsOn = TLightMode | "data";
+
+/** What each way of coming on is called, and what it does. */
+const COMES_ON: Record<
+	TComesOn,
+	{
+		label: string;
+		afterDark: string;
+		windowsAfterDark?: string;
+		onSchedule: string;
+	}
+> = {
+	atOnce: {
+		label: "At once",
+		afterDark:
+			"Switches on fully once it's dark enough, like a lamp with a light sensor. To switch some lights at other times, give them a schedule.",
+		windowsAfterDark: "All its lit windows switch on together once it's dark enough.",
+		onSchedule:
+			"Fully on for each whole period, exactly at its times: lights with the same schedule switch together, like lamps on one timer.",
+	},
+	oneByOne: {
+		label: "One by one",
+		afterDark:
+			"Its windows light up one after another as it gets dark, each at full brightness, like people coming home.",
+		onSchedule:
+			"Its windows light up one after another over the first hour of each period and go dark one by one over the last, like people arriving and going home.",
+	},
+	gradually: {
+		label: "Gradually",
+		afterDark: "Fades in from dusk until it's fully dark, and out again at dawn.",
+		onSchedule: "Fades in over the first hour of each period and out over the last.",
+	},
+};
+
+/** The first period of a new schedule, and what Add period adds: an evening. */
+const NEW_PERIOD = { from: 18, until: 23 };
 
 const percent = (strength: number) => `${Math.round(strength * 100)}%`;
 
@@ -60,6 +113,7 @@ export const LightSettings = ({
 	inheritedMode,
 	data,
 	windowShare,
+	hour,
 	onChange,
 }: ILightSettingsProps) => {
 	const bound = setting?.data ?? {};
@@ -78,8 +132,16 @@ export const LightSettings = ({
 		auto: "After dark",
 		on: "Always",
 		off: "Never",
+		schedule: "On a schedule",
 		data: "From data",
 	};
+	/** Options that need something the world doesn't have yet are greyed out, saying what. */
+	const unavailable: Partial<Record<TTurnsOn, string>> = {
+		...(hasData ? {} : { data: needsData }),
+	};
+	const comesOn = comesOnOf(spec, setting);
+	const schedule = setting?.schedule ?? [];
+	const scheduledOn = hour !== null && schedule.some((period) => inPeriod(hour, period));
 	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.mode ?? inheritedMode);
 	const reach = REACH[spec.shape];
 
@@ -96,13 +158,21 @@ export const LightSettings = ({
 				<SelectField<TTurnsOn>
 					label="When"
 					value={turnsOn}
-					options={(["auto", "on", "off", "data"] as const).map((option) =>
-						option === "data"
-							? { value: option, label: `${turnsOnLabels.data}${needsData}`, disabled: !hasData }
-							: { value: option, label: turnsOnLabels[option] },
-					)}
+					options={(["auto", "on", "off", "schedule", "data"] as const).map((option) => ({
+						value: option,
+						label: `${turnsOnLabels[option]}${unavailable[option] ?? ""}`,
+						disabled: unavailable[option] !== undefined,
+					}))}
 					onChange={(next) =>
-						next === "data" ? follow("on") : onChange({ mode: next, data: { on: null } })
+						next === "data"
+							? follow("on")
+							: next === "schedule"
+								? onChange({
+										mode: next,
+										schedule: setting?.schedule ?? [NEW_PERIOD],
+										data: { on: null },
+									})
+								: onChange({ mode: next, data: { on: null } })
 					}
 					inherit={{
 						from: "default",
@@ -120,6 +190,47 @@ export const LightSettings = ({
 								: undefined
 					}
 				/>
+
+				{(turnsOn === "auto" || turnsOn === "schedule") && (
+					<SelectField<TComesOn>
+						label="Comes on"
+						value={comesOn}
+						options={(spec.shape === "windows"
+							? (["atOnce", "oneByOne", "gradually"] as const)
+							: (["atOnce", "gradually"] as const)
+						).map((option) => ({ value: option, label: COMES_ON[option].label }))}
+						onChange={(next) => onChange({ comesOn: next })}
+						inherit={{
+							from: "default",
+							inherited: setting?.comesOn == null,
+							onReset: () => onChange({ comesOn: null }),
+							value: COMES_ON[comesOnOf(spec, undefined)].label.toLowerCase(),
+						}}
+						hint={
+							turnsOn === "schedule"
+								? COMES_ON[comesOn].onSchedule
+								: spec.shape === "windows"
+									? (COMES_ON[comesOn].windowsAfterDark ?? COMES_ON[comesOn].afterDark)
+									: COMES_ON[comesOn].afterDark
+						}
+					/>
+				)}
+
+				{turnsOn === "schedule" && (
+					<PeriodsField
+						label="On between"
+						periods={schedule}
+						newPeriod={NEW_PERIOD}
+						onChange={(periods) => onChange({ schedule: periods }, "schedule")}
+						hint={
+							schedule.length === 0
+								? "With no periods it's never on. Add the times it should be on, like a timer."
+								: hour === null
+									? "This world shows classic daylight, with no clock, so it stays off until you pick a time in Sun & sky."
+									: `It's ${formatClock(hour)} in the world, so it's ${scheduledOn ? "on" : "off"} now.`
+						}
+					/>
+				)}
 
 				{bound.on && (
 					<DataBindingFields

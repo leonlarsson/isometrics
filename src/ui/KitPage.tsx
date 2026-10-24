@@ -13,8 +13,10 @@ import {
 	FieldGroup,
 	GroupLabel,
 	Hint,
+	type ITimePeriod,
 	Kbd,
 	NumberField,
+	PeriodsField,
 	RadioGroupField,
 	Section,
 	SelectField,
@@ -46,6 +48,10 @@ export const KitPage = () => {
 	const [startFrom, setStartFrom] = useState("blank");
 	const [size, setSize] = useState("blocks");
 	const [sectionOpen, setSectionOpen] = useState(true);
+	const [periods, setPeriods] = useState<ITimePeriod[]>([
+		{ from: 5, until: 8 },
+		{ from: 19, until: 24 },
+	]);
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [on, setOn] = useState(true);
@@ -199,6 +205,13 @@ export const KitPage = () => {
 
 												<SwitchField label="Inside a group" checked={on} onChange={setOn} />
 											</FieldGroup>
+
+											<PeriodsField
+												label="On between"
+												periods={periods}
+												onChange={setPeriods}
+												hint="Like a timer; a period may run past midnight."
+											/>
 										</Section>
 									</RailTabPanel>
 								</RailTabs>
@@ -230,6 +243,10 @@ export const KitPage = () => {
 											<Button>Secondary</Button>
 
 											<Button variant="ghost">Ghost</Button>
+
+											<Button variant="text" icon="clock">
+												Text
+											</Button>
 
 											<Button variant="danger">Danger</Button>
 

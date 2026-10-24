@@ -16,7 +16,8 @@ import styles from "./Button.module.css";
  * delete. Sizes: `md` in bars and dialogs, `sm` inside inspector sections.
  */
 
-export type TButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+/** `text` looks like the text around it and takes its colour (a clickable line, e.g. the world's time). */
+export type TButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "text";
 
 interface IButtonProps {
 	children: ReactNode;

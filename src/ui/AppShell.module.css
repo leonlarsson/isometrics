@@ -114,6 +114,24 @@
 	color: var(--text-muted);
 }
 
+/* The world's time under its title, in equal-width digits so it doesn't jitter as it runs. */
+.sceneTitle .sceneTime {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* In edit mode the time is a button that opens Sun & sky; the title itself lets clicks through. */
+.sceneTimeOpen {
+	pointer-events: auto;
+}
+
+/* Where the time comes from, in edit mode: quieter than the time itself. */
+.sceneTimeSource {
+	opacity: 0.75;
+}
+
 /* On a night sky (the time of day, ADR-0052) the light theme's dark title turns light. */
 :global(:root[data-theme="light"]) .stage[data-sky-dark] .sceneTitle h1 {
 	color: var(--surface-raised);

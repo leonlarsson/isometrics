@@ -64,3 +64,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0058](0058-lights.md) | Lights are a shared system: parts declare them, objects set each one, data can switch them | accepted |
 | [0059](0059-fresh-start-offer.md) | After a big update, the app offers once to start fresh | accepted |
 | [0060](0060-colours.md) | Colours are a shared system like lights, and can follow data | accepted |
+| [0061](0061-when-lights-come-on.md) | Lights switch on at once or gradually, or on a schedule | accepted |

@@ -1,5 +1,6 @@
-import { useSceneHours } from "#/editor/dayClock";
+import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import type { TLighting } from "#/scene/schema";
 import { formatHour, skyLightAt } from "#/scene/sun";
 
@@ -17,8 +18,8 @@ const PRESETS: { label: string; hour: number }[] = [
 ];
 
 const SOURCES: { value: TLighting["timeSource"]; label: string }[] = [
-	{ value: "fixed", label: "The time set here" },
-	{ value: "cycle", label: "A day cycle (while motion plays)" },
+	{ value: "fixed", label: "A fixed time" },
+	{ value: "cycle", label: "A day cycle" },
 	{ value: "clock", label: "The viewer's clock" },
 	{ value: "data", label: "A data value" },
 ];
@@ -53,6 +54,15 @@ export const SkyTab = () => {
 			coalesce ? { coalesce: `lighting.${coalesce}` } : undefined,
 		);
 	const classic = lighting.time === null && lighting.timeSource === "fixed";
+	// While a day runs, the slider shows the time it is now; picking a time jumps there and the day
+	// goes on from it.
+	const cycling = lighting.timeSource === "cycle";
+	const setTime = (time: number, coalesce?: string) => {
+		set("time", time, coalesce);
+		if (cycling) {
+			restartDayCycle();
+		}
+	};
 	// Each sun setting follows the time of day, or the classic daylight ("Default") without one.
 	const following = (
 		key: "sunAzimuth" | "sunElevation" | "sunColor" | "sunStrength",
@@ -67,42 +77,46 @@ export const SkyTab = () => {
 	return (
 		<>
 			<Section id="sky.time" icon="clock" title="Time of day" keywords="day night cycle clock">
-				<SliderField
-					label="Time of day"
-					value={lighting.time ?? 12.75}
-					min={0}
-					max={24}
-					step={0.25}
-					onChange={(time) => set("time", time, "time")}
-					inherit={{
-						from: "default",
-						inherited: lighting.time === null,
-						onReset: () => set("time", null),
-						value: "classic daylight",
-					}}
-					hint={
-						classic
-							? "Classic daylight: the sun stays where it is. Pick a time to light the world by it, with lit windows and lamps at night."
-							: hours === null
-								? undefined
-								: `It's ${formatHour(hours)} in the world.`
-					}
-				/>
-
-				<ButtonGroup>
-					{PRESETS.map((preset) => (
-						<Button key={preset.label} size="sm" onClick={() => set("time", preset.hour)}>
-							{preset.label}
-						</Button>
-					))}
-				</ButtonGroup>
-
+				{/* First: it decides what the rest of the panel means. */}
 				<SelectField<TLighting["timeSource"]>
 					label="Time follows"
 					value={lighting.timeSource}
 					options={SOURCES}
 					onChange={(timeSource) => set("timeSource", timeSource)}
+					hint={hours === null ? undefined : `It's ${formatHour(hours)} in the world.`}
 				/>
+
+				{(lighting.timeSource === "fixed" || lighting.timeSource === "cycle") && (
+					<>
+						<SliderField
+							label="Time of day"
+							value={cycling && hours !== null ? hours : (lighting.time ?? 12.75)}
+							min={0}
+							max={24}
+							step={0.25}
+							onChange={(time) => setTime(time, "time")}
+							inherit={{
+								from: "default",
+								inherited: lighting.time === null,
+								onReset: () => set("time", null),
+								value: "classic daylight",
+							}}
+							hint={
+								classic
+									? "Classic daylight: the sun stays where it is. Pick a time to light the world by it, with lit windows and lamps at night."
+									: undefined
+							}
+						/>
+
+						<ButtonGroup>
+							{PRESETS.map((preset) => (
+								<Button key={preset.label} size="sm" onClick={() => setTime(preset.hour)}>
+									{preset.label}
+								</Button>
+							))}
+						</ButtonGroup>
+					</>
+				)}
 
 				{lighting.timeSource === "cycle" && (
 					<SliderField
@@ -113,21 +127,39 @@ export const SkyTab = () => {
 						step={5}
 						suffix="s"
 						onChange={(dayLength) => set("dayLength", dayLength, "dayLength")}
-						hint="Days pass while motion plays (Space), starting from the time above."
+						hint="Days pass while motion plays (Space). Pick a time above to jump there."
 					/>
 				)}
 
 				{lighting.timeSource === "data" && (
-					<SelectField
-						label="Time from"
-						value={lighting.timeKey ?? ""}
-						options={[
-							{ value: "", label: "Choose a data value…" },
-							...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
-						]}
-						onChange={(key) => set("timeKey", key || null)}
-						hint="Its value is the hour, 0–24 (e.g. 18.5 = 18:30). Without one, the time above is used."
-					/>
+					<>
+						<SelectField
+							label="Time from"
+							value={lighting.timeKey ?? ""}
+							options={[
+								{ value: "", label: "Choose a data value…" },
+								...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
+							]}
+							onChange={(key) => set("timeKey", key || null)}
+							hint="Its value is the hour, 0–24 (e.g. 18.5 = 18:30)."
+						/>
+
+						<SliderField
+							label="Without a value"
+							value={lighting.time ?? 12.75}
+							min={0}
+							max={24}
+							step={0.25}
+							onChange={(time) => set("time", time, "time")}
+							inherit={{
+								from: "default",
+								inherited: lighting.time === null,
+								onReset: () => set("time", null),
+								value: "classic daylight",
+							}}
+							hint="The time while the data value is missing or isn't an hour."
+						/>
+					</>
 				)}
 			</Section>
 
@@ -181,7 +213,9 @@ export const SkyTab = () => {
 					onChange={(lights) => set("lights", lights)}
 				/>
 
-				{fromTime.night > 0 && lighting.lights === "auto" && <Hint>It's dark: lights are on.</Hint>}
+				{fromTime.night >= SWITCH_ON_DARKNESS && lighting.lights === "auto" && (
+					<Hint>It's dark: lights that turn on after dark are on.</Hint>
+				)}
 			</Section>
 		</>
 	);

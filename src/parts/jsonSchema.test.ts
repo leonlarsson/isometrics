@@ -54,10 +54,10 @@ describe("worldJsonSchema", () => {
 		};
 		const text = JSON.stringify(schema);
 		expect(text).toContain(
-			"headlights (Headlights, beam, colour the theme's lamplight, strength 1, reach 2.4, on after dark only while driving)",
+			"headlights (Headlights, beam, colour the theme's lamplight, strength 1, reach 2.4, on after dark only while driving, comes on at once)",
 		);
 		expect(text).toContain(
-			"lamp (Lamp, pool, colour #ffe8a3, strength 1, reach 2.3, on after dark)",
+			"lamp (Lamp, pool, colour #ffe8a3, strength 1, reach 2.3, on after dark, comes on at once)",
 		);
 		expect(schema.description).toContain('"data": { "on": { "key": "alert" }');
 		expect(schema.description).toContain("key is the key of an entry in the world's data");

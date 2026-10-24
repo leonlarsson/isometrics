@@ -110,6 +110,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 		palette,
 		driving: entity.follow !== null,
 		data: scene.data,
+		hour: scene.lighting.time,
 	});
 	const Component = part.Component;
 	return (

@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import type { z } from "zod";
 
-import type { TDataEntry } from "#/scene/schema";
+import type { TComesOn, TDataEntry } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 /**
@@ -39,6 +39,11 @@ export interface ILightSpec {
 	 * left out. Changing it moves which panes are whose.
 	 */
 	weight?: number;
+	/**
+	 * How it comes on after dark: "atOnce" (the default), "oneByOne" (window
+	 * lights: pane after pane as it gets darker) or "gradually" (fading in).
+	 */
+	comesOn?: TComesOn;
 	/** When it's on by itself: "dark" (the default) after dark; "driving" after dark while it drives along a road. */
 	when?: "dark" | "driving";
 	/**

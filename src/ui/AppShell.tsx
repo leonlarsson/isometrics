@@ -7,15 +7,16 @@ import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
-import { skyLightAt } from "#/scene/sun";
+import { formatHour, skyLightAt } from "#/scene/sun";
 
-import { IconButton } from "./Button";
+import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { FreshStartOffer } from "./FreshStartOffer";
 import { GroundContextMenu } from "./GroundContextMenu";
+import { Icon } from "./Icon";
 import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
@@ -37,7 +38,7 @@ import {
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
-import { TooltipProvider } from "./Tooltip";
+import { Tooltip, TooltipProvider } from "./Tooltip";
 import { TransformBar } from "./TransformBar";
 import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewpointBar } from "./ViewpointBar";
@@ -65,14 +66,59 @@ const useSky = (): { style: CSSProperties; dark: boolean } => {
 	};
 };
 
-const SceneTitle = () => {
+/**
+ * The world's title and subtitle, and under them its time when it has one
+ * (classic daylight has no clock). In edit mode the time also says where it
+ * comes from, in the words of Sun & sky's Time follows, and opens that tab.
+ */
+const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 	const meta = useEditor((s) => s.scene.meta);
+	const hour = useSceneHours();
+	const editing = useEditor((s) => s.mode === "edit");
+	const lighting = useEditor((s) => s.scene.lighting);
+	const timeEntry = useEditor((s) =>
+		s.scene.data.find((entry) => entry.key === s.scene.lighting.timeKey),
+	);
+	const source =
+		lighting.timeSource === "cycle"
+			? `Day cycle, ${lighting.dayLength} s`
+			: lighting.timeSource === "clock"
+				? "Viewer's clock"
+				: lighting.timeSource === "data"
+					? `From data: ${timeEntry ? timeEntry.label || timeEntry.key : "no value"}`
+					: "Fixed time";
 	return (
 		// Label cards step aside for it (data-label-obstacle), like for the bars.
 		<div className={styles.sceneTitle} data-label-obstacle="">
 			<h1>{meta.title}</h1>
 
 			{meta.subtitle && <p>{meta.subtitle}</p>}
+
+			{editing ? (
+				<p className={styles.sceneTime}>
+					<span className={styles.sceneTimeOpen}>
+						<Tooltip label="Open Sun & sky">
+							<Button variant="text" size="sm" icon="clock" onClick={onOpenSky}>
+								{hour === null ? (
+									"Classic daylight"
+								) : (
+									<>
+										{formatHour(hour)} <span className={styles.sceneTimeSource}>({source})</span>
+									</>
+								)}
+							</Button>
+						</Tooltip>
+					</span>
+				</p>
+			) : (
+				hour !== null && (
+					<p className={styles.sceneTime}>
+						<Icon name="clock" size={13} />
+
+						{formatHour(hour)}
+					</p>
+				)
+			)}
 		</div>
 	);
 };
@@ -90,6 +136,7 @@ export const AppShell = () => {
 	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 	const narrow = useNarrowLayout();
+	const setTab = useEditor((s) => s.setTab);
 	// Wide layout: each side pane can fold to a thin strip (ADR-0055). Phones have the sheet instead.
 	const panes = useSidePanes();
 	const leftOpen = narrow || panes.left;
@@ -174,7 +221,13 @@ export const AppShell = () => {
 						)}
 
 						<main className={styles.stage} style={sky.style} data-sky-dark={sky.dark || undefined}>
-							<SceneTitle />
+							<SceneTitle
+								onOpenSky={() => {
+									setTab("sky");
+									setSidePaneOpen("right", true);
+									setSheetOpen(true);
+								}}
+							/>
 
 							{ready && <Viewport />}
 

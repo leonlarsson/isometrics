@@ -48,10 +48,10 @@ const entity = (lights: Record<string, TEntityLight> | "auto" | "on" | "off" = {
 });
 
 describe("resolveLights (ADR-0058)", () => {
-	it("lights after dark, dimmer at dusk, and headlights only while driving", () => {
+	it("lights after dark, at once by default, and headlights only while driving", () => {
 		expect(resolveLights(car, entity(), { palette: day, driving: true }).rain.on).toBe(false);
 		expect(resolveLights(car, entity(), { palette: dusk, driving: false })).toMatchObject({
-			rain: { on: true, level: 0.4, color: "#ff2a2a" },
+			rain: { on: true, level: 0.8, color: "#ff2a2a" },
 			headlights: { on: false, level: 0 },
 		});
 		expect(resolveLights(car, entity(), { palette: night, driving: true }).headlights).toEqual({
@@ -217,5 +217,104 @@ describe("lit panes", () => {
 		expect(
 			lit({ windows: setting({ data: { litPanes: bind("occupancy", { full: 10 }) } }) })[0],
 		).toBe(1);
+	});
+});
+
+describe("when lights come on", () => {
+	const at = (night: number) => ({ ...scenePalettes.light, night });
+
+	it("fades in with the dusk when set to, else switches on at once when it's dark enough", () => {
+		const fading = entity({ rain: setting({ comesOn: "gradually" }) });
+		expect(resolveLights(car, fading, { palette: at(0.5), driving: false }).rain.level).toBe(0.4);
+		expect(resolveLights(car, entity(), { palette: at(0.2), driving: false }).rain.level).toBe(0);
+		expect(resolveLights(car, entity(), { palette: at(0.3), driving: false }).rain.level).toBe(0.8);
+	});
+
+	it("lights windows one by one as it gets darker, or all together at once", () => {
+		const tower: IPartLights = {
+			lights: [
+				{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.4, comesOn: "oneByOne" },
+			],
+		};
+		const windows = (night: number, lights = {}) =>
+			resolveLights(tower, entity(lights), { palette: at(night), driving: false }).windows;
+		expect(windows(0.1)).toMatchObject({ on: false, litPanes: 0 });
+		expect(windows(0.35).level).toBe(1);
+		expect(windows(0.35).litPanes).toBeCloseTo(0.2);
+		expect(windows(1)).toMatchObject({ level: 1, litPanes: 0.4 });
+		// At once: all its lit panes together, once it's dark enough.
+		const atOnce = { windows: setting({ comesOn: "atOnce" }) };
+		expect(windows(0.1, atOnce).on).toBe(false);
+		expect(windows(0.4, atOnce)).toMatchObject({ level: 1, litPanes: 0.4 });
+	});
+
+	it("treats one by one as at once for lights that aren't windows", () => {
+		const oneByOne = entity({ rain: setting({ comesOn: "oneByOne" }) });
+		expect(resolveLights(car, oneByOne, { palette: at(0.4), driving: false }).rain.level).toBe(0.8);
+	});
+
+	it("follows a schedule like a timer, with periods past midnight, and stays off without a time of day", () => {
+		const timer = entity({
+			rain: setting({
+				mode: "schedule",
+				schedule: [
+					{ from: 5, until: 8 },
+					{ from: 22, until: 2 },
+				],
+			}),
+		});
+		const onAt = (hour: number | null) =>
+			resolveLights(car, timer, { palette: day, driving: false, hour }).rain.on;
+		expect([4.5, 5.5, 7.5, 8.5, 12, 22.5, 23.9, 0, 1.5, 2.5].map(onAt)).toEqual([
+			false,
+			true,
+			true,
+			false,
+			false,
+			true,
+			true,
+			true,
+			true,
+			false,
+		]);
+		expect(onAt(null)).toBe(false);
+		// No periods: never on.
+		const empty = entity({ rain: setting({ mode: "schedule" }) });
+		expect(resolveLights(car, empty, { palette: night, driving: false, hour: 6 }).rain.on).toBe(
+			false,
+		);
+	});
+
+	it("on a schedule at once, switches exactly at its times", () => {
+		const evening = entity({
+			rain: setting({ mode: "schedule", schedule: [{ from: 18, until: 23 }] }),
+		});
+		const onAt = (hour: number) =>
+			resolveLights(car, evening, { palette: day, driving: false, hour }).rain.on;
+		expect([17.9, 18, 22.9, 23].map(onAt)).toEqual([false, true, true, false]);
+	});
+
+	it("on a schedule gradually or one by one, comes on over the first hour and goes over the last", () => {
+		const evening = { mode: "schedule" as const, schedule: [{ from: 18, until: 23 }] };
+		const fading = entity({ rain: setting({ ...evening, comesOn: "gradually" }) });
+		const level = (hour: number) =>
+			resolveLights(car, fading, { palette: day, driving: false, hour }).rain.level;
+		expect(level(18.5)).toBeCloseTo(0.4);
+		expect(level(20)).toBeCloseTo(0.8);
+		expect(level(22.75)).toBeCloseTo(0.2);
+		const tower: IPartLights = {
+			lights: [{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.4 }],
+		};
+		const windows = (hour: number) =>
+			resolveLights(tower, entity({ windows: setting({ ...evening, comesOn: "oneByOne" }) }), {
+				palette: day,
+				driving: false,
+				hour,
+			}).windows;
+		expect(windows(18.5)).toMatchObject({ level: 1 });
+		expect(windows(18.5).litPanes).toBeCloseTo(0.2);
+		expect(windows(21).litPanes).toBeCloseTo(0.4);
+		expect(windows(22.5).litPanes).toBeCloseTo(0.2);
+		expect(windows(23).on).toBe(false);
 	});
 });

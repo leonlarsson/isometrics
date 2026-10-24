@@ -3,6 +3,7 @@ import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { useSceneHours } from "#/editor/dayClock";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
@@ -81,6 +82,8 @@ const UnknownPart = () => {
 export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const part = getPart(entity.kind);
 	const palette = usePalette();
+	// The world's hour, for lights on a schedule (usePalette already re-renders on each step).
+	const hour = useSceneHours();
 	const mode = useEditor((s) => s.mode);
 	const selected = useEditor((s) => s.selectedId === entity.id);
 	const playing = useEditor((s) => s.playing);
@@ -334,7 +337,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	// Each of its colours as it is now: from data, as set, or the part's (ADR-0060).
 	const colors = resolveColors(part, entity, palette, data);
 	// Each of its lights as it is now: its settings, the dark, whether it drives, the data (ADR-0058).
-	const lights = resolveLights(part, entity, { palette, driving: following, data });
+	const lights = resolveLights(part, entity, { palette, driving: following, data, hour });
 	const footprint = part.footprint(props);
 	const anchorY = part.height(props) * entity.scale;
 	const Component = part.Component;

@@ -1,9 +1,10 @@
 import type { Draft } from "immer";
 
+import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, type TEntityColorChange, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
-import { lightDefaults, lightSettingsOf } from "#/parts/lightModel";
+import { lightDefaults, lightSettingsOf, SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import {
@@ -24,6 +25,7 @@ import {
 	CheckboxGroupField,
 	ColorField,
 	FieldGroup,
+	formatClock,
 	Hint,
 	Section,
 	SelectField,
@@ -347,18 +349,38 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const data = useEditor((s) => s.scene.data);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const setEntityLight = useEditor((s) => s.setEntityLight);
-	// Without a time of day it never gets dark, so lights that come on after dark stay off.
-	const noNight =
-		lighting.time === null && lighting.timeSource === "fixed" && lighting.lights === "auto";
+	const hour = useSceneHours();
+	const setTab = useEditor((s) => s.setTab);
+	// Why lights set to come on after dark can't right now, if they can't (null: they can).
+	const notDark: { title: string; text: string } | null =
+		lighting.lights === "off"
+			? {
+					title: "Lights are off everywhere",
+					text: "Sun & sky → Lights is set to Never, so no light in this world turns on after dark. Set it to After dark there.",
+				}
+			: lighting.lights === "on" || lighting.timeSource !== "fixed"
+				? null
+				: hour === null
+					? {
+							title: "It's always day here",
+							text: "This world shows classic daylight: the sun stays where it is and there's no clock, so lights that turn on after dark or on a schedule stay off. Pick a time in Sun & sky, or set a light to turn on Always.",
+						}
+					: palette.night < SWITCH_ON_DARKNESS
+						? {
+								title: "It's daytime here",
+								text: `It's ${formatClock(hour)} here and the time doesn't move, so lights that turn on after dark stay off. Pick a later time, or a day cycle, in Sun & sky.`,
+							}
+						: null;
 
 	return (
 		<>
-			{noNight && (
-				<Section icon="clock" title="It never gets dark here">
-					<Hint>
-						This world has no time of day, so lights that turn on after dark stay off. Pick a time
-						in Sun &amp; sky (the sun icon above), or set a light to turn on Always.
-					</Hint>
+			{notDark && (
+				<Section icon="clock" title={notDark.title}>
+					<Hint>{notDark.text}</Hint>
+
+					<Button size="sm" icon="sun" onClick={() => setTab("sky")}>
+						Open Sun &amp; sky
+					</Button>
 				</Section>
 			)}
 
@@ -381,6 +403,7 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						setting={setting}
 						inheritedMode={objectMode}
 						data={data}
+						hour={hour}
 						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
 						onChange={(change, field) =>
 							setEntityLight(

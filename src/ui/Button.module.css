@@ -75,6 +75,21 @@
 	color: var(--text);
 }
 
+/* Looks like the text around it and takes its colour, e.g. a clickable line in the world's title. */
+.button[data-variant="text"] {
+	height: auto;
+	margin: 0 -6px;
+	padding: 2px 6px;
+	background: transparent;
+	color: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+}
+
+.button[data-variant="text"]:hover:not([data-disabled]) {
+	background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
 .button[data-variant="danger"] {
 	background: var(--danger);
 	color: white;

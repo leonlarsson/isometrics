@@ -95,8 +95,39 @@ export const EntityColorSchema = z
 
 export type TEntityColor = z.output<typeof EntityColorSchema>;
 
-/** When a light is on: auto = as its part has it (after dark; some only while driving), on = always, off = never. */
-export const LightModeSchema = z.enum(["auto", "on", "off"]);
+/**
+ * When a light is on: auto = as its part has it (after dark; some only while
+ * driving), on = always, off = never, schedule = during its schedule's periods.
+ */
+export const LightModeSchema = z.enum(["auto", "on", "off", "schedule"]);
+
+/** The one setting worlds from before per-light settings had for all an object's lights. */
+const OlderLightModeSchema = z.enum(["auto", "on", "off"]);
+
+/**
+ * How a light comes on after dark (ADR-0061): atOnce = fully, once it's dark
+ * enough; oneByOne = window lights only, their panes one after another as it
+ * gets darker; gradually = fading in with the dusk.
+ */
+export const ComesOnSchema = z.enum(["atOnce", "oneByOne", "gradually"]);
+
+export type TComesOn = z.output<typeof ComesOnSchema>;
+
+/** A stretch of the day, in hours (0–24, 19.5 = 19:30), like one on-period of a timer. */
+export const TimePeriodSchema = z
+	.object({
+		from: z.number().min(0).max(24).describe("When it starts, in hours: 19.5 = 19:30."),
+		until: z
+			.number()
+			.min(0)
+			.max(24)
+			.describe(
+				"When it ends, in hours. Earlier than from runs past midnight (22 to 2); 0 or 24 = midnight.",
+			),
+	})
+	.describe("A period of the day, from–until, in hours.");
+
+export type TTimePeriod = z.output<typeof TimePeriodSchema>;
 
 /**
  * An object's settings for one of its part's lights (ADR-0058). Every field is
@@ -107,7 +138,19 @@ export const EntityLightSchema = z
 		mode: LightModeSchema.nullable()
 			.default(null)
 			.describe(
-				"When it's on: auto = after dark (some lights, like headlights, only while driving), on = always, day and night, off = never. null = auto.",
+				"When it's on: auto = after dark (some lights, like headlights, only while driving), on = always, day and night, off = never, schedule = during the periods in schedule (needs a time of day). null = auto.",
+			),
+		comesOn: ComesOnSchema.nullable()
+			.default(null)
+			.describe(
+				"How it comes on, after dark or on a schedule: atOnce = fully, once it's dark enough (all such lights at the same moment) or exactly for each period (lights with the same schedule switch together); oneByOne = window lights only, their panes one after another as it gets darker, or over the first hour of a period and going dark over the last; gradually = fading in with the dusk, or over a period's first hour and out over its last. null = the part's.",
+			),
+		schedule: z
+			.array(TimePeriodSchema)
+			.nullable()
+			.default(null)
+			.describe(
+				'With mode schedule: the periods it\'s on, like a timer, e.g. [{ "from": 5, "until": 8 }, { "from": 19, "until": 24 }]. null or [] = never.',
 			),
 		color: HexColorSchema.nullable()
 			.default(null)
@@ -141,7 +184,7 @@ export const EntityLightSchema = z
 			.record(z.string(), DataBindingSchema)
 			.default({})
 			.describe(
-				'Data values that drive its settings, by setting: "on" (switches it on and off instead of mode, day and night), "strength" (value ÷ full, up to 3) and "color" (any CSS colour). Only the settings that follow data.',
+				'Data values that drive its settings, by setting: "on" (switches it on and off instead of mode, day and night), "strength" (value ÷ full, up to 3), "litPanes" (window lights: value ÷ full, up to 1) and "color" (a CSS colour, or a number on a colour scale). Only the settings that follow data.',
 			),
 	})
 	.describe("An object's settings for one of its lights.");
@@ -255,7 +298,7 @@ export const EntitySchema = z
 			.describe("The road it drives along (vehicles); null = parked where it stands."),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
 		lights: z
-			.union([LightModeSchema, z.record(z.string(), EntityLightSchema)])
+			.union([OlderLightModeSchema, z.record(z.string(), EntityLightSchema)])
 			.default({})
 			.describe(
 				'Settings for its part\'s lights (see each kind\'s lights in the catalogue), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }. Worlds from before per-light settings have one value for all its lights instead: auto, on or off.',

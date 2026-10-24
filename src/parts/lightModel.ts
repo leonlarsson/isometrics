@@ -1,4 +1,11 @@
-import type { TDataEntry, TEntity, TEntityLight, TLightMode } from "#/scene/schema";
+import type {
+	TComesOn,
+	TDataEntry,
+	TEntity,
+	TEntityLight,
+	TLightMode,
+	TTimePeriod,
+} from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { readColor, readScale, readSwitch, type TBindingKind } from "./dataBinding";
@@ -26,7 +33,48 @@ export interface ILightContext {
 	driving: boolean;
 	/** The world's data, for lights switched or dimmed by a value. */
 	data?: readonly TDataEntry[];
+	/** The world's hour (null without a time of day), for lights on a schedule. */
+	hour?: number | null;
 }
+
+/**
+ * How dark it must be (`night`) for lights that switch on at once after dark:
+ * all of them at the same moment. Lights meant to switch at other times get a
+ * schedule; grouping is the user's, not the app's.
+ */
+export const SWITCH_ON_DARKNESS = 0.3;
+
+/** On a schedule, one by one or gradually: how long it takes to come fully on, and to go off, in hours. */
+const SCHEDULE_RAMP_HOURS = 1;
+
+/**
+ * How far on a light is in a period, 0–1: rising over its first hour,
+ * falling over its last (one by one: people arriving and going home).
+ */
+const periodRamp = (hour: number, period: TTimePeriod) => {
+	if (!inPeriod(hour, period)) {
+		return 0;
+	}
+	const since = (hour - period.from + 24) % 24;
+	const left = ((period.until % 24) - hour + 24) % 24 || 24;
+	return Math.min(1, since / SCHEDULE_RAMP_HOURS, left / SCHEDULE_RAMP_HOURS);
+};
+
+/**
+ * Window lights that come on one by one after dark: none lit until `night`
+ * passes 0.1, all of their lit panes by 0.6.
+ */
+const panesLitByDark = (night: number) => Math.min(1, Math.max(0, (night - 0.1) / 0.5));
+
+/** How a light comes on after dark, as set or as its part has it; one by one only for window lights. */
+export const comesOnOf = (spec: ILightSpec, setting: TEntityLight | undefined): TComesOn => {
+	const comesOn = setting?.comesOn ?? spec.comesOn ?? "atOnce";
+	return comesOn === "oneByOne" && spec.shape !== "windows" ? "atOnce" : comesOn;
+};
+
+/** Whether an hour falls in a period; one that ends before it starts runs past midnight. */
+export const inPeriod = (hour: number, { from, until }: TTimePeriod) =>
+	from < until ? hour >= from && hour < until : from > until ? hour >= from || hour < until : false;
 
 const resolveColor = (value: TColorDefault, palette: IScenePalette) =>
 	typeof value === "function" ? value(palette) : value;
@@ -91,7 +139,7 @@ export const resolveLight = (
 	spec: ILightSpec,
 	part: IPartLights,
 	entity: Pick<TEntity, "props" | "accent" | "lights">,
-	{ palette, driving, data }: ILightContext,
+	{ palette, driving, data, hour = null }: ILightContext,
 ): IResolvedLight => {
 	const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
 	const defaults = lightDefaults(spec, entity, palette);
@@ -99,7 +147,7 @@ export const resolveLight = (
 	const bound = setting?.data ?? {};
 	const color = readColor(bound.color, data) ?? setting?.color ?? defaults.color;
 	const reach = setting?.reach ?? defaults.reach;
-	const litPanes =
+	let litPanes =
 		readScale(bound.litPanes, data, { max: 1 }) ?? setting?.litPanes ?? defaults.litPanes;
 	const strength =
 		readScale(bound.strength, data, { max: MAX_STRENGTH }) ??
@@ -112,14 +160,41 @@ export const resolveLight = (
 		level = readSwitch(bound.on, data) ? strength : 0;
 	} else {
 		const mode = setting?.mode ?? objectMode;
-		level =
-			mode === "off"
-				? 0
-				: mode === "on"
-					? strength
-					: spec.when === "driving" && !driving
-						? 0
-						: palette.night * strength;
+		if (mode === "off") {
+			level = 0;
+		} else if (mode === "on") {
+			level = strength;
+		} else if (mode === "schedule") {
+			// Like a timer: on during its periods (off without a time of day), coming on as set.
+			const comesOn = comesOnOf(spec, setting);
+			const periods = setting?.schedule ?? [];
+			if (hour === null) {
+				level = 0;
+			} else if (comesOn === "atOnce") {
+				// Fully on for the whole period, exactly: lights with the same schedule switch together.
+				level = periods.some((period) => inPeriod(hour, period)) ? strength : 0;
+			} else {
+				const ramp = Math.max(0, ...periods.map((period) => periodRamp(hour, period)));
+				if (comesOn === "gradually") {
+					level = strength * ramp;
+				} else {
+					litPanes *= ramp;
+					level = litPanes > 0 ? strength : 0;
+				}
+			}
+		} else if (spec.when === "driving" && !driving) {
+			level = 0;
+		} else if (comesOnOf(spec, setting) === "gradually") {
+			// Fades in with the dusk.
+			level = palette.night * strength;
+		} else if (comesOnOf(spec, setting) === "oneByOne") {
+			// Pane after pane: more of its panes light up as it gets darker, each fully.
+			litPanes *= panesLitByDark(palette.night);
+			level = litPanes > 0 ? strength : 0;
+		} else {
+			// At once when it's dark enough.
+			level = palette.night >= SWITCH_ON_DARKNESS ? strength : 0;
+		}
 	}
 	return { on: level > 0, level, color, reach, litPanes, weight: defaults.weight };
 };

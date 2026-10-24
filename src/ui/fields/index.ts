@@ -17,6 +17,8 @@ export type { IInherit } from "./InheritAction";
 export { Input } from "./Input";
 export { Kbd } from "./Kbd";
 export { NumberField } from "./NumberField";
+export { PeriodsField } from "./PeriodsField";
+export { formatClock, type ITimePeriod } from "./periods";
 export { RadioGroupField } from "./RadioGroupField";
 export { SearchField } from "./SearchField";
 export { Section } from "./Section";
