@@ -31,8 +31,10 @@ export const InheritAction = ({ inherit }: { inherit: IInherit }) => {
 	const target = from === "default" ? "the default" : `the ${from}’s setting`;
 	return (
 		<Tooltip label={`Back to ${target}${value ? ` (${value})` : ""}`}>
-			<button type="button" className={styles.reset} onClick={onReset}>
-				<Icon name="reset" size={13} /> Reset
+			<button type="button" className={styles.reset} aria-label="Reset" onClick={onReset}>
+				<Icon name="reset" size={13} />
+
+				<span className={styles.resetText}>Reset</span>
 			</button>
 		</Tooltip>
 	);

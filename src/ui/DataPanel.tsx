@@ -79,7 +79,10 @@ export const DataPanel = () => {
 
 	return (
 		<Section
+			id="data.values"
+			icon="chart"
 			title="Values"
+			keywords="data numbers"
 			actions={
 				<Button size="sm" icon="plus" onClick={addValue}>
 					Add

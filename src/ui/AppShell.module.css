@@ -11,7 +11,7 @@
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: var(--palette-width, 248px) 1fr var(--inspector-width, 320px);
+	grid-template-columns: var(--palette-width, 248px) 1fr var(--inspector-width, 360px);
 }
 
 .shell[data-mode="view"] .body {
@@ -47,8 +47,11 @@
 	border-right: 1px solid var(--border);
 }
 
+/* The properties scroll their own panels, under a rail and header that stay put. */
 .right {
 	flex: 1;
+	overflow: hidden;
+	scrollbar-gutter: auto;
 	border-left: 1px solid var(--border);
 }
 

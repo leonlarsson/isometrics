@@ -10,6 +10,8 @@
 	--surface: #f8f7f3;
 	--surface-raised: #ffffff;
 	--surface-sunken: #e8e6e0;
+	/* The header band of a properties panel (ADR-0054). */
+	--panel-header: #f5f3ee;
 	--border: rgb(0 0 0 / 0.08);
 	--border-strong: rgb(0 0 0 / 0.16);
 	--text: #1d1d1b;
@@ -46,6 +48,7 @@
 	--surface: #242521;
 	--surface-raised: #2d2e2a;
 	--surface-sunken: #1f201d;
+	--panel-header: #33342f;
 	--border: rgb(255 255 255 / 0.08);
 	--border-strong: rgb(255 255 255 / 0.16);
 	--text: #ecebe6;

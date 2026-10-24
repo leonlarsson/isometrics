@@ -17,7 +17,7 @@ export const saveCurrentView = () => {
 
 /**
  * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), and in
- * Edit mode save the current view or open the list in the Scene tab.
+ * Edit mode save the current view or open the list in the Viewpoints tab.
  */
 export const ViewpointsMenu = () => {
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
@@ -57,8 +57,8 @@ export const ViewpointsMenu = () => {
 					<Menu.Item
 						icon="edit"
 						label="Manage viewpoints…"
-						description="Rename, describe or re-save them in the Scene tab"
-						onClick={() => store().setTab("scene")}
+						description="Rename, describe or re-save them in the Viewpoints tab"
+						onClick={() => store().setTab("views")}
 					/>
 				)}
 			</Menu.Popup>

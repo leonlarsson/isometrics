@@ -4,6 +4,7 @@ import { type ReactNode, useId } from "react";
 
 import { Hint } from "./Hint";
 import { LabelRow } from "./LabelRow";
+import { useSearchMatch } from "./settingsSearch";
 
 import styles from "./Fields.module.css";
 
@@ -26,7 +27,7 @@ export const RadioGroupField = <TValue extends string>({
 }: IRadioGroupFieldProps<TValue>) => {
 	const id = useId();
 	return (
-		<div className={styles.field}>
+		<div className={styles.field} data-search-match={useSearchMatch(label)}>
 			<LabelRow label={label} id={id} />
 
 			<RadioGroup

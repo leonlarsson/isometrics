@@ -5,6 +5,7 @@ import { useId } from "react";
 import { Icon } from "../Icon";
 
 import { LabelRow } from "./LabelRow";
+import { useSearchMatch } from "./settingsSearch";
 
 import styles from "./Fields.module.css";
 
@@ -24,7 +25,8 @@ export const CheckboxGroupField = ({
 }: ICheckboxGroupFieldProps) => {
 	const id = useId();
 	return (
-		<div className={styles.field}>
+		// Stacked: the checkboxes need the panel's width, not just the control column.
+		<div className={styles.field} data-stacked="" data-search-match={useSearchMatch(label)}>
 			<LabelRow label={label} id={id} />
 
 			<CheckboxGroup

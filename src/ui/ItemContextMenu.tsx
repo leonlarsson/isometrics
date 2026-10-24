@@ -98,8 +98,8 @@ const EntityActions = ({ id }: { id: string }) => {
 			<Menu.Item
 				icon="edit"
 				label="Edit its data…"
-				description="Values on its card and details, in the Object tab"
-				onClick={() => store().setTab("object")}
+				description="Values on its card and details, in the Label tab"
+				onClick={() => store().setTab("label")}
 			/>
 
 			<Menu.Item
@@ -198,7 +198,7 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 			<Menu.Item
 				icon="camera"
 				label="Save this view"
-				description="As a viewpoint, listed in the Scene tab"
+				description="As a viewpoint, listed in the Viewpoints tab"
 				onClick={saveCurrentView}
 			/>
 

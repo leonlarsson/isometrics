@@ -2,7 +2,7 @@ import type { Draft } from "immer";
 
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { getPart, partName, resolveColors, resolveProps } from "#/parts/registry";
+import { getPart, partName, resolveColors, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
@@ -27,6 +27,7 @@ import {
 	TextField,
 	VectorField,
 } from "./fields";
+import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 
 const KeyPicker = ({
 	label,
@@ -122,46 +123,26 @@ const PropField = ({
 	}
 };
 
-export const EntityInspector = ({ entity }: { entity: TEntity }) => {
+/** Every edit coalesces per entity+field so typing or sliding is one undo step. */
+const useEntityEdit = (entity: TEntity) => {
 	const updateEntity = useEditor((s) => s.updateEntity);
-	const removeEntity = useEditor((s) => s.removeEntity);
-	const duplicateEntity = useEditor((s) => s.duplicateEntity);
-	const roads = useEditor((s) => s.scene.roads);
-	const sceneTurns = useEditor((s) => s.scene.turns);
-	const palette = usePalette();
-	const part = getPart(entity.kind);
-
-	/** Every edit coalesces per entity+field so typing or sliding is one undo step. */
-	const edit = (field: string, recipe: (e: Draft<TEntity>) => void) => {
+	return (field: string, recipe: (e: Draft<TEntity>) => void) => {
 		const options: ICommitOptions = { coalesce: `${entity.id}:${field}` };
 		updateEntity(entity.id, recipe, options);
 	};
+};
 
-	if (!part) {
-		return (
-			<Section title="Unknown part">
-				<Hint>This object uses a part type (“{entity.kind}”) that isn’t available.</Hint>
-
-				<Button variant="danger" size="sm" icon="trash" onClick={() => removeEntity(entity.id)}>
-					Delete
-				</Button>
-			</Section>
-		);
-	}
-
-	const props = resolveProps(part, entity.props);
-	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
-	const followedRoadLength = followedRoad
-		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.closed)))
-		: 1;
-	const colors = resolveColors(part, entity, palette);
+/** The Object tab: what it is, its name, and where it stands. */
+const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const removeEntity = useEditor((s) => s.removeEntity);
+	const duplicateEntity = useEditor((s) => s.duplicateEntity);
+	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
-	/** What this vehicle inherits: its road's setting, else the scene's. */
-	const roadTurns = resolveTurns(sceneTurns, followedRoad?.turns, null);
 
 	return (
 		<>
 			<Section
+				icon={CATEGORY_ICONS[part.category]}
 				title={partName(part)}
 				actions={
 					<IconButtonGroup>
@@ -198,7 +179,12 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				/>
 			</Section>
 
-			<Section title="Position">
+			<Section
+				id="object.transform"
+				icon="move"
+				title="Transform"
+				keywords="position location rotation size scale"
+			>
 				{!following && (
 					<VectorField
 						label="Location"
@@ -260,8 +246,42 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 					</Hint>
 				)}
 			</Section>
+		</>
+	);
+};
 
-			<Section title="Colours">
+/** The Shape tab: the part's own settings (floors, width, text…). */
+const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const edit = useEntityEdit(entity);
+	const props = resolveProps(part, entity.props);
+
+	return (
+		<Section id="shape.part" icon="spline" title={`${partName(part)} shape`} keywords="shape size">
+			{part.fields.map((spec) => (
+				<PropField
+					key={spec.key}
+					spec={spec}
+					value={props[spec.key]}
+					onChange={(v) =>
+						edit(`prop:${spec.key}`, (e) => {
+							e.props = { ...props, [spec.key]: v };
+						})
+					}
+				/>
+			))}
+		</Section>
+	);
+};
+
+/** The Look tab: colours, and lights after dark. */
+const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const palette = usePalette();
+	const edit = useEntityEdit(entity);
+	const colors = resolveColors(part, entity, palette);
+
+	return (
+		<>
+			<Section id="look.colours" icon="palette" title="Colours" keywords="colors paint">
 				<ColorField
 					label={part.colorLabel ?? "Main colour"}
 					value={colors.color}
@@ -299,15 +319,17 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 						}}
 					/>
 				)}
+			</Section>
 
-				{part.lights && (
+			{part.lights && (
+				<Section id="look.lights" icon="bulb" title="Lights" keywords="night headlights lamps">
 					<SelectField<TEntity["lights"]>
-						label="Lights"
+						label={part.lights.whileDriving ? "Headlights" : "Lights on"}
 						value={entity.lights}
 						options={[
 							{
 								value: "auto",
-								label: part.lights?.whileDriving ? "After dark, while driving" : "After dark",
+								label: part.lights.whileDriving ? "After dark, while driving" : "After dark",
 							},
 							{ value: "on", label: "Always" },
 							{ value: "off", label: "Never" },
@@ -318,33 +340,28 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 							})
 						}
 						hint={
-							part.lights?.whileDriving
-								? "Headlights. Always: day and night, even parked."
+							part.lights.whileDriving
+								? "Always: day and night, even parked."
 								: "Always: lit day and night too."
 						}
 					/>
-				)}
-			</Section>
-
-			{part.fields.length > 0 && (
-				<Section title="Shape">
-					{part.fields.map((spec) => (
-						<PropField
-							key={spec.key}
-							spec={spec}
-							value={props[spec.key]}
-							onChange={(v) =>
-								edit(`prop:${spec.key}`, (e) => {
-									e.props = { ...props, [spec.key]: v };
-								})
-							}
-						/>
-					))}
 				</Section>
 			)}
+		</>
+	);
+};
 
+/** The Label tab: the floating card with values, and the details shown in View mode. */
+const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const edit = useEntityEdit(entity);
+
+	return (
+		<>
 			<Section
-				title="Label"
+				id="label.card"
+				icon="tag"
+				title="Label card"
+				keywords="data values card"
 				actions={
 					<SwitchField
 						label="Show"
@@ -411,116 +428,12 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 				)}
 			</Section>
 
-			{part.canFollowPath && (
-				<Section title="Motion">
-					<SelectField
-						label="Drive along"
-						value={entity.follow?.roadId ?? ""}
-						options={[
-							{ value: "", label: "Nothing (parked)" },
-							...roads.map((r) => ({ value: r.id, label: r.name || ROAD_STYLE_LABELS[r.style] })),
-						]}
-						onChange={(roadId) =>
-							edit("follow", (e) => {
-								e.follow = roadId
-									? {
-											roadId,
-											speed: e.follow?.speed ?? 2,
-											offset: e.follow?.offset ?? 0,
-											reverse: e.follow?.reverse ?? false,
-											turns: e.follow?.turns ?? null,
-										}
-									: null;
-							})
-						}
-					/>
-
-					{entity.follow && (
-						<>
-							<SliderField
-								label="Speed"
-								value={entity.follow.speed}
-								min={0}
-								max={15}
-								step={0.1}
-								onChange={(v) =>
-									edit("follow.speed", (e) => {
-										if (e.follow) {
-											e.follow.speed = v;
-										}
-									})
-								}
-							/>
-
-							<SliderField
-								label="Start point"
-								value={entity.follow.offset}
-								min={0}
-								max={followedRoadLength}
-								step={0.5}
-								onChange={(v) =>
-									edit("follow.offset", (e) => {
-										if (e.follow) {
-											e.follow.offset = v;
-										}
-									})
-								}
-							/>
-
-							<SwitchField
-								label="Drive the other way"
-								checked={entity.follow.reverse}
-								onChange={(v) =>
-									edit("follow.reverse", (e) => {
-										if (e.follow) {
-											e.follow.reverse = v;
-										}
-									})
-								}
-							/>
-
-							<SelectField<TTurns>
-								label="Turns"
-								value={entity.follow.turns ?? roadTurns}
-								options={TURNS_OPTIONS}
-								onChange={(v) =>
-									edit("follow.turns", (e) => {
-										if (e.follow) {
-											e.follow.turns = v;
-										}
-									})
-								}
-								inherit={{
-									// The road's own setting, or the scene's when the road has none.
-									from: followedRoad?.turns ? "road" : "scene",
-									inherited: entity.follow.turns === null,
-									onReset: () =>
-										edit("follow.turns", (e) => {
-											if (e.follow) {
-												e.follow.turns = null;
-											}
-										}),
-									value: TURNS_LABELS[roadTurns].toLowerCase(),
-								}}
-							/>
-						</>
-					)}
-
-					{entity.follow && (
-						<ButtonGroup>
-							<CameraFollowButtons entityId={entity.id} />
-						</ButtonGroup>
-					)}
-
-					{roads.length === 0 && (
-						<Hint>
-							Draw a road first: Add to scene → Roads. Vehicles drive along roads and hidden routes.
-						</Hint>
-					)}
-				</Section>
-			)}
-
-			<Section title="Details (view mode)">
+			<Section
+				id="label.details"
+				icon="info"
+				title="Details in View mode"
+				keywords="description stat tiles"
+			>
 				<TextField
 					label="Description"
 					multiline
@@ -544,4 +457,196 @@ export const EntityInspector = ({ entity }: { entity: TEntity }) => {
 			</Section>
 		</>
 	);
+};
+
+/** The Motion tab: the road it drives along, how fast, and where it starts. */
+const MotionTab = ({ entity }: { entity: TEntity }) => {
+	const roads = useEditor((s) => s.scene.roads);
+	const sceneTurns = useEditor((s) => s.scene.turns);
+	const edit = useEntityEdit(entity);
+	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
+	const followedRoadLength = followedRoad
+		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.closed)))
+		: 1;
+	/** What this vehicle inherits: its road's setting, else the scene's. */
+	const roadTurns = resolveTurns(sceneTurns, followedRoad?.turns, null);
+
+	return (
+		<Section id="motion.route" icon="route" title="Motion" keywords="drive road speed follow">
+			<SelectField
+				label="Drive along"
+				value={entity.follow?.roadId ?? ""}
+				options={[
+					{ value: "", label: "Nothing (parked)" },
+					...roads.map((r) => ({ value: r.id, label: r.name || ROAD_STYLE_LABELS[r.style] })),
+				]}
+				onChange={(roadId) =>
+					edit("follow", (e) => {
+						e.follow = roadId
+							? {
+									roadId,
+									speed: e.follow?.speed ?? 2,
+									offset: e.follow?.offset ?? 0,
+									reverse: e.follow?.reverse ?? false,
+									turns: e.follow?.turns ?? null,
+								}
+							: null;
+					})
+				}
+			/>
+
+			{entity.follow && (
+				<>
+					<SliderField
+						label="Speed"
+						value={entity.follow.speed}
+						min={0}
+						max={15}
+						step={0.1}
+						onChange={(v) =>
+							edit("follow.speed", (e) => {
+								if (e.follow) {
+									e.follow.speed = v;
+								}
+							})
+						}
+					/>
+
+					<SliderField
+						label="Start point"
+						value={entity.follow.offset}
+						min={0}
+						max={followedRoadLength}
+						step={0.5}
+						onChange={(v) =>
+							edit("follow.offset", (e) => {
+								if (e.follow) {
+									e.follow.offset = v;
+								}
+							})
+						}
+					/>
+
+					<SwitchField
+						label="Drive the other way"
+						checked={entity.follow.reverse}
+						onChange={(v) =>
+							edit("follow.reverse", (e) => {
+								if (e.follow) {
+									e.follow.reverse = v;
+								}
+							})
+						}
+					/>
+
+					<SelectField<TTurns>
+						label="Turns"
+						value={entity.follow.turns ?? roadTurns}
+						options={TURNS_OPTIONS}
+						onChange={(v) =>
+							edit("follow.turns", (e) => {
+								if (e.follow) {
+									e.follow.turns = v;
+								}
+							})
+						}
+						inherit={{
+							// The road's own setting, or the scene's when the road has none.
+							from: followedRoad?.turns ? "road" : "scene",
+							inherited: entity.follow.turns === null,
+							onReset: () =>
+								edit("follow.turns", (e) => {
+									if (e.follow) {
+										e.follow.turns = null;
+									}
+								}),
+							value: TURNS_LABELS[roadTurns].toLowerCase(),
+						}}
+					/>
+				</>
+			)}
+
+			{entity.follow && (
+				<ButtonGroup>
+					<CameraFollowButtons entityId={entity.id} />
+				</ButtonGroup>
+			)}
+
+			{roads.length === 0 && (
+				<Hint>
+					Draw a road first: Add to scene → Roads. Vehicles drive along roads and hidden routes.
+				</Hint>
+			)}
+		</Section>
+	);
+};
+
+/** An object whose part type this version doesn't have: it can only be deleted. */
+const UnknownPart = ({ entity }: { entity: TEntity }) => {
+	const removeEntity = useEditor((s) => s.removeEntity);
+	return (
+		<Section icon="info" title="Unknown part">
+			<Hint>This object uses a part type (“{entity.kind}”) that isn’t available.</Hint>
+
+			<Button variant="danger" size="sm" icon="trash" onClick={() => removeEntity(entity.id)}>
+				Delete
+			</Button>
+		</Section>
+	);
+};
+
+/** The properties tabs for a selected object (ADR-0054); which ones depend on its part. */
+export const entityTabs = (entity: TEntity): IInspectorTab[] => {
+	const part = getPart(entity.kind);
+	if (!part) {
+		return [
+			{
+				value: "object",
+				label: "Object",
+				icon: "cube",
+				content: <UnknownPart key={entity.id} entity={entity} />,
+			},
+		];
+	}
+	const props = { entity, part };
+	return [
+		{
+			value: "object",
+			label: "Object",
+			icon: "cube",
+			content: <ObjectTab key={entity.id} {...props} />,
+		},
+		...(part.fields.length > 0
+			? [
+					{
+						value: "shape",
+						label: "Shape",
+						icon: "spline",
+						content: <ShapeTab key={entity.id} {...props} />,
+					} as const,
+				]
+			: []),
+		{
+			value: "look",
+			label: "Look",
+			icon: "palette",
+			content: <LookTab key={entity.id} {...props} />,
+		},
+		{
+			value: "label",
+			label: "Label",
+			icon: "tag",
+			content: <LabelTab key={entity.id} {...props} />,
+		},
+		...(part.canFollowPath
+			? [
+					{
+						value: "motion",
+						label: "Motion",
+						icon: "route",
+						content: <MotionTab key={entity.id} entity={entity} />,
+					} as const,
+				]
+			: []),
+	];
 };

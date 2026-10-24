@@ -22,5 +22,6 @@ export { Section } from "./Section";
 export { SelectField } from "./SelectField";
 export { SliderField } from "./SliderField";
 export { SwitchField } from "./SwitchField";
+export { SettingsSearchContext } from "./settingsSearch";
 export { TextField } from "./TextField";
 export { VectorField } from "./VectorField";

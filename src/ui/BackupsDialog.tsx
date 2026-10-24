@@ -39,7 +39,7 @@ interface IBackupsDialogProps {
  * deleted worlds, saves that had to be repaired or couldn't be opened, and
  * worlds left behind by Start fresh. Restore one as a new world, download it,
  * or delete it. They belong to the browser, not to the open world, so they
- * live in the File menu rather than the Scene tab.
+ * live in the File menu rather than the properties.
  */
 export const BackupsDialog = ({ open, onOpenChange }: IBackupsDialogProps) => {
 	// Read from localStorage when the dialog opens and after each change.

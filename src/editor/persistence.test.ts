@@ -16,21 +16,7 @@ import {
 	storageUsage,
 	wipeEverything,
 } from "./persistence";
-
-/** Minimal in-memory Storage, since tests run in Node. */
-const memoryStorage = () => {
-	const data = new Map<string, string>();
-	return {
-		get length() {
-			return data.size;
-		},
-		key: (i: number) => [...data.keys()][i] ?? null,
-		getItem: (key: string) => data.get(key) ?? null,
-		setItem: (key: string, value: string) => void data.set(key, value),
-		removeItem: (key: string) => void data.delete(key),
-		clear: () => data.clear(),
-	};
-};
+import { memoryStorage } from "./testStorage";
 
 /** The single save from before there were several worlds. */
 const SINGLE_SAVE_KEY = "isometrics:scene";

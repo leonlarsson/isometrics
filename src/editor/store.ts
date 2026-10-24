@@ -39,11 +39,25 @@ import { boundsOf, type IFrameBox, type ISceneItem } from "./framing";
 import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
+/** The properties editor's tabs about the whole world (ADR-0054). */
+export type TWorldTab = "world" | "sky" | "views" | "traffic" | "data";
+/** Its tabs about the selection. Which of them show depends on what's selected. */
+export type TSelectionTab = "object" | "shape" | "look" | "label" | "motion";
 /**
- * Inspector tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
- * layout; the wide layout has them in the left column.
+ * Properties tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
+ * layout; the wide layout has them in the left column and above the properties.
  */
-export type TInspectorTab = "add" | "outliner" | "object" | "data" | "scene";
+export type TInspectorTab = "add" | "outliner" | TWorldTab | TSelectionTab;
+
+const SELECTION_TABS: readonly TInspectorTab[] = ["object", "shape", "look", "label", "motion"];
+
+/** Selecting something shows its settings: the selection tab you were on, else Object. */
+const tabForSelection = (tab: TInspectorTab): TInspectorTab =>
+	SELECTION_TABS.includes(tab) ? tab : "object";
+
+/** Selecting a road point or an area corner shows it, in the Shape tab. */
+const pointTab = (tab: TInspectorTab, index: number | null): TInspectorTab =>
+	index === null ? tabForSelection(tab) : "shape";
 
 /** Road widths a point may have (the schema's limits). */
 const clampRoadWidth = (width: number) => round(Math.min(20, Math.max(0.4, width)));
@@ -434,7 +448,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		rerouting: false,
 		followOffer: null,
 		mode: "edit",
-		tab: "object",
+		tab: "world",
 		dragging: false,
 		snapping: true,
 		playing: true,
@@ -551,7 +565,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					? {
 							...NOTHING_SELECTED,
 							selectedId: id,
-							tab: state.mode === "edit" ? "object" : state.tab,
+							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
 							followOffer: state.followOffer?.entityId === id ? state.followOffer : null,
 						}
 					: { selectedId: null, followOffer: null },
@@ -563,7 +577,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							...NOTHING_SELECTED,
 							selectedRoadId: id,
 							selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
-							tab: state.mode === "edit" ? "object" : state.tab,
+							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
 						}
 					: { selectedRoadId: null, selectedPointIndex: null },
 			),
@@ -572,7 +586,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				...NOTHING_SELECTED,
 				selectedRoadId: roadId,
 				selectedPointIndex: index,
-				tab: state.mode === "edit" ? "object" : state.tab,
+				tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
 			})),
 		selectArea: (id) =>
 			set((state) =>
@@ -581,7 +595,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							...NOTHING_SELECTED,
 							selectedAreaId: id,
 							selectedPointIndex: id === state.selectedAreaId ? state.selectedPointIndex : null,
-							tab: state.mode === "edit" ? "object" : state.tab,
+							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
 						}
 					: { selectedAreaId: null, selectedPointIndex: null },
 			),
@@ -590,7 +604,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				...NOTHING_SELECTED,
 				selectedAreaId: areaId,
 				selectedPointIndex: index,
-				tab: state.mode === "edit" ? "object" : state.tab,
+				tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
 			})),
 		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null }),
 		setMode: (mode) =>

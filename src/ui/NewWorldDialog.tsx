@@ -15,7 +15,7 @@ import styles from "./NewWorldDialog.module.css";
 const BLANK = "blank";
 const BLANK_TITLE = "Untitled world";
 
-/** Ground sizes to start a blank world from; any exact size can be set later in the Scene tab. */
+/** Ground sizes to start a blank world from; any exact size can be set later in the World tab. */
 const GROUND_PRESETS = {
 	corner: { name: "Corner", width: 24, depth: 18, fits: "a street corner" },
 	blocks: { name: "Blocks", width: 40, depth: 30, fits: "a few blocks" },
@@ -225,7 +225,7 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 							/>
 
 							<Hint>
-								All of these, and an exact ground size, can be changed later in the Scene tab.
+								All of these, and an exact ground size, can be changed later in the World tab.
 							</Hint>
 						</div>
 

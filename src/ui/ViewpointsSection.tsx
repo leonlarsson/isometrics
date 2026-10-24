@@ -12,7 +12,7 @@ export const viewpointName = (viewpoint: { name: string }, index: number) =>
 	viewpoint.name || `Viewpoint ${index + 1}`;
 
 /**
- * The Scene tab's saved viewpoints: save the current view, glide back to one,
+ * The Viewpoints tab's saved viewpoints: save the current view, glide back to one,
  * rename, re-save, describe or delete it. See docs/adr/0039-saved-viewpoints.md.
  */
 export const ViewpointsSection = () => {
@@ -31,7 +31,7 @@ export const ViewpointsSection = () => {
 	const active = viewpoints[activeIndex];
 
 	return (
-		<Section title="Viewpoints">
+		<Section id="views.list" icon="camera" title="Viewpoints" keywords="camera views slides">
 			{viewpoints.length === 0 ? (
 				<Hint>
 					Save views of the world to come back to them, or to step through them in View mode like

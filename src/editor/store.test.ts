@@ -192,6 +192,30 @@ describe("editor store", () => {
 		expect(s().scene.roads.find((r) => r.id === id)?.closed).toBe(false);
 	});
 
+	it("opens the selection's tabs: the one you were on, Object from a world tab, Shape for a point", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const road = s().addRoad({
+			points: [
+				[0, 0],
+				[10, 0],
+			],
+		});
+		s().clearSelection();
+		expect(s().tab).toBe("object");
+
+		s().setTab("sky");
+		s().select("w");
+		expect(s().tab).toBe("object");
+
+		s().setTab("look");
+		s().selectRoad(road);
+		expect(s().tab).toBe("look");
+
+		s().selectRoadPoint(road, 1);
+		expect(s().tab).toBe("shape");
+	});
+
 	it("edits road points and parks vehicles when their road is deleted", () => {
 		const store = makeStore();
 		const s = () => store.getState();

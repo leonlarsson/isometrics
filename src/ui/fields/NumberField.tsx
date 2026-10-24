@@ -5,6 +5,7 @@ import { Hint } from "./Hint";
 import { type IInherit, InheritAction } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { type INumberRangeProps, NUMBER_FORMAT, NUMBER_LOCALE, NumberBox } from "./NumberBox";
+import { useSearchMatch } from "./settingsSearch";
 
 import styles from "./Fields.module.css";
 
@@ -32,6 +33,7 @@ export const NumberField = ({
 		<BaseNumberField.Root
 			id={id}
 			className={styles.field}
+			data-search-match={useSearchMatch(label)}
 			value={value}
 			min={min}
 			max={max}

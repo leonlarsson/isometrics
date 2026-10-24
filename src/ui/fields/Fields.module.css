@@ -1,29 +1,109 @@
 /* -------------------------------------------------------------- sections */
 
+/*
+ * A panel is a card with a header band, like Blender's panels (ADR-0054).
+ * Panels stack with a small gap on the properties' sunken background.
+ */
 .section {
-	padding: 14px 16px;
-	border-bottom: 1px solid var(--border);
+	margin: 6px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+	overflow: hidden;
+}
+
+.section + .section {
+	margin-top: 0;
 }
 
 .sectionHeader {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	min-height: 28px;
-	margin-bottom: 10px;
+	gap: 6px;
+	min-height: 34px;
+	padding: 0 6px 0 2px;
+	background: var(--panel-header);
 }
 
-.sectionHeader h3 {
+.sectionTrigger {
+	all: unset;
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	align-self: stretch;
+	padding-left: 6px;
+	border-radius: var(--radius-sm);
+}
+
+button.sectionTrigger {
+	cursor: pointer;
+}
+
+button.sectionTrigger:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.sectionTrigger h3 {
 	margin: 0;
+	overflow: hidden;
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: 650;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sectionChevron {
+	display: grid;
+	color: var(--text-muted);
+	transition: rotate 120ms ease;
+}
+
+.sectionTrigger[data-panel-open] .sectionChevron {
+	rotate: 90deg;
+}
+
+.sectionIcon {
+	display: grid;
+	color: var(--text-muted);
+}
+
+button.sectionTrigger:hover .sectionChevron,
+button.sectionTrigger:hover .sectionIcon {
+	color: var(--text);
+}
+
+.sectionActions {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .sectionBody {
+	/* Fields lay out by the panel's width: label left and control right when there's room. */
+	container: fields / inline-size;
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
+	gap: 8px;
+	padding: 10px 10px 12px;
+	border-top: 1px solid var(--border);
+}
+
+/*
+ * The settings search (ADR-0054): a panel whose title doesn't match shows only the fields
+ * that do, and hides altogether when none of them match.
+ */
+.section[data-searching]:not([data-title-match]) .sectionBody > :not([data-search-match]) {
+	display: none;
+}
+
+.section[data-searching]:not([data-title-match]):not(:has([data-search-match])) {
+	display: none;
 }
 
 .hint {
@@ -336,23 +416,31 @@ textarea.input {
 
 .vector {
 	display: flex;
-	gap: 8px;
+	gap: 6px;
 }
 
+/* The axis letter sits inside the start of its box, like Blender's. */
 .axis {
+	position: relative;
 	flex: 1;
 	display: flex;
 	align-items: center;
-	gap: 4px;
 	min-width: 0;
 }
 
+.axis .number {
+	padding-left: 24px;
+}
+
 .axisName {
-	flex: none;
+	position: absolute;
+	z-index: 1;
+	top: 0;
+	bottom: 0;
+	left: 1px;
 	display: grid;
 	place-items: center;
-	width: 16px;
-	height: 32px;
+	width: 22px;
 	font-size: 11px;
 	font-weight: 700;
 	color: var(--text-muted);
@@ -596,10 +684,75 @@ textarea.input {
 
 /* ------------------------------------------------------------------ colour */
 
-.color {
+.hex {
+	font-family: var(--font-mono);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.colorTrigger {
+	all: unset;
+	box-sizing: border-box;
 	display: flex;
-	flex-direction: column;
+	align-items: center;
 	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	height: 32px;
+	padding: 0 9px 0 5px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-strong);
+	background: var(--surface-raised);
+	cursor: pointer;
+	transition: border-color 120ms ease;
+}
+
+.colorTrigger:hover {
+	border-color: var(--text-muted);
+}
+
+.colorTrigger:focus-visible,
+.colorTrigger[data-popup-open] {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.colorTrigger .hex {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.colorChip {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	border-radius: 5px;
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.colorPopup {
+	box-sizing: border-box;
+	width: 252px;
+	padding: 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-panel);
+	outline: 0;
+	transform-origin: var(--transform-origin);
+	transition:
+		transform 100ms ease-out,
+		opacity 100ms ease-out;
+}
+
+.colorPopup[data-starting-style],
+.colorPopup[data-ending-style] {
+	opacity: 0;
+	transform: scale(0.97);
 }
 
 .swatches {
@@ -630,6 +783,15 @@ textarea.input {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid var(--border);
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.colorRow .hex {
+	margin-left: auto;
 }
 
 .colorInput {
@@ -642,8 +804,100 @@ textarea.input {
 	cursor: pointer;
 }
 
-.hex {
-	font-family: var(--font-mono);
-	font-size: 12px;
-	color: var(--text-muted);
+/* ------------------------------------------------------- wide panels */
+
+/*
+ * Wide panels (last, so it overrides the rules above): one row per setting, the label on the left and the control on the right, like
+ * Blender. Hints sit under the control; "Default" / Reset stay with the label (ADR-0027).
+ */
+@container fields (min-width: 200px) {
+	.field {
+		/* Narrow enough that short labels sit close to their controls (switches line up with it). */
+		--label-column: minmax(0, 34%);
+	}
+
+	.field:not([data-stacked]) {
+		display: grid;
+		grid-template-columns: var(--label-column) minmax(0, 1fr);
+		align-items: start;
+		column-gap: 10px;
+		row-gap: 4px;
+	}
+
+	/* Right-aligned against the control, like Blender, so the eye doesn't cross a gap. */
+	.field:not([data-stacked]) > .labelRow {
+		grid-column: 1;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		align-content: center;
+		row-gap: 0;
+		column-gap: 6px;
+		min-height: 30px;
+		text-align: right;
+	}
+
+	.field:not([data-stacked]) > :not(.labelRow) {
+		grid-column: 2;
+	}
+
+	/* Hints can run long: they get the whole row, under the label and the control. */
+	.field:not([data-stacked]) > .hint {
+		grid-column: 1 / -1;
+	}
+
+	.field:not([data-stacked]) .inheritTag,
+	.field:not([data-stacked]) .reset {
+		margin-left: 0;
+	}
+
+	/* A quiet note under the label rather than a pill. */
+	.field:not([data-stacked]) .inheritTag {
+		flex-basis: 100%;
+		padding: 0;
+		background: none;
+		font-size: 11px;
+		font-weight: 500;
+		line-height: 1.2;
+		opacity: 0.8;
+	}
+
+	.field:not([data-stacked]) .resetText {
+		display: none;
+	}
+
+	.input,
+	.number,
+	.selectTrigger,
+	.colorTrigger {
+		height: 30px;
+	}
+
+	.sliderRow {
+		grid-template-columns: 1fr 60px;
+		gap: 8px;
+		min-height: 30px;
+	}
+
+	.slider {
+		margin-inline-end: 2px;
+	}
+
+	.vector[data-axes="3"] {
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	/* A list of checkboxes takes the whole width, in as many columns as fit. */
+	.field[data-stacked] .checklist {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		gap: 6px 10px;
+	}
+
+	/* A switch and its label sit where the controls are, like Blender's checkboxes. */
+	.switchField {
+		display: flex;
+		min-height: 26px;
+		padding-inline-start: calc(34% + 10px);
+	}
 }

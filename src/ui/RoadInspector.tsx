@@ -26,6 +26,7 @@ import {
 	SwitchField,
 	TextField,
 } from "./fields";
+import type { IInspectorTab } from "./inspectorTabs";
 import { RoadPointPanel } from "./RoadPointPanel";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[]).map((value) => ({
@@ -33,31 +34,28 @@ const STYLE_OPTIONS = (Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[]).map((valu
 	label: ROAD_STYLE_LABELS[value],
 }));
 
-export const RoadInspector = ({ road }: { road: TRoad }) => {
+/** Every edit coalesces per road+field so typing or sliding is one undo step. */
+const useRoadEdit = (road: TRoad) => {
 	const updateRoad = useEditor((s) => s.updateRoad);
+	return (field: string, recipe: (r: Draft<TRoad>) => void) =>
+		updateRoad(road.id, recipe, { coalesce: `${road.id}:${field}` });
+};
+
+/** The Road tab: its name and style, and how vehicles drive on it. */
+const RoadTab = ({ road }: { road: TRoad }) => {
 	const removeRoad = useEditor((s) => s.removeRoad);
 	const followers = useEditor(
 		(s) => s.scene.entities.filter((e) => e.follow?.roadId === road.id).length,
 	);
-	const palette = usePalette();
-	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const sceneTurns = useEditor((s) => s.scene.turns);
 	const driving = useEditor((s) => s.scene.driving);
-
-	/** Every edit coalesces per road+field so typing or sliding is one undo step. */
-	const edit = (field: string, recipe: (r: Draft<TRoad>) => void) =>
-		updateRoad(road.id, recipe, { coalesce: `${road.id}:${field}` });
-
+	const edit = useRoadEdit(road);
 	const length = polylineLength(roadCenterlineOf(road), road.closed);
-	const elevated = road.points.some((p) => p[2] > 0);
-
-	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
 
 	return (
 		<>
-			{selectedPoint !== null && <RoadPointPanel road={road} index={selectedPoint} />}
-
 			<Section
+				icon="road"
 				title={ROAD_STYLE_LABELS[road.style]}
 				actions={
 					<IconButtonGroup>
@@ -102,7 +100,9 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 						})
 					}
 				/>
+			</Section>
 
+			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
 				{!isHiddenRoute(road.style) && (
 					<SelectField<TRoadLane>
 						label="Vehicles drive"
@@ -144,8 +144,23 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					{followers > 0 && ` · ${followers} vehicle${followers === 1 ? "" : "s"} driving here`}
 				</Hint>
 			</Section>
+		</>
+	);
+};
 
-			<Section title="Shape">
+/** The Shape tab: the selected point, the road's width and curves, and its bridges. */
+const RoadShapeTab = ({ road }: { road: TRoad }) => {
+	const palette = usePalette();
+	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const edit = useRoadEdit(road);
+	const elevated = road.points.some((p) => p[2] > 0);
+	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
+
+	return (
+		<>
+			{selectedPoint !== null && <RoadPointPanel road={road} index={selectedPoint} />}
+
+			<Section id="road.shape" icon="spline" title="Shape" keywords="width curves loop points">
 				<SliderField
 					label="Width"
 					value={road.width}
@@ -198,7 +213,12 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 			</Section>
 
 			{!isHiddenRoute(road.style) && (
-				<Section title="Elevated sections">
+				<Section
+					id="road.supports"
+					icon="bridge"
+					title="Elevated sections"
+					keywords="bridge flyover pillars embankment"
+				>
 					{elevated ? (
 						<>
 							<SelectField<TRoadSupports>
@@ -301,40 +321,67 @@ export const RoadInspector = ({ road }: { road: TRoad }) => {
 					)}
 				</Section>
 			)}
-
-			{!isHiddenRoute(road.style) && (
-				<Section title="Look">
-					<ColorField
-						label="Surface"
-						value={roadColor(road, palette)}
-						onChange={(v) =>
-							edit("color", (r) => {
-								r.color = v;
-							})
-						}
-						inherit={{
-							from: "default",
-							inherited: road.color === null,
-							onReset: () =>
-								edit("color", (r) => {
-									r.color = null;
-								}),
-						}}
-					/>
-
-					{ROAD_STYLES[road.style].centreLine && (
-						<SwitchField
-							label="Centre line"
-							checked={road.markings}
-							onChange={(v) =>
-								edit("markings", (r) => {
-									r.markings = v;
-								})
-							}
-						/>
-					)}
-				</Section>
-			)}
 		</>
 	);
 };
+
+/** The Look tab: the road's surface colour and markings. */
+const RoadLookTab = ({ road }: { road: TRoad }) => {
+	const palette = usePalette();
+	const edit = useRoadEdit(road);
+
+	return (
+		<Section id="road.look" icon="palette" title="Look" keywords="colour color surface markings">
+			<ColorField
+				label="Surface"
+				value={roadColor(road, palette)}
+				onChange={(v) =>
+					edit("color", (r) => {
+						r.color = v;
+					})
+				}
+				inherit={{
+					from: "default",
+					inherited: road.color === null,
+					onReset: () =>
+						edit("color", (r) => {
+							r.color = null;
+						}),
+				}}
+			/>
+
+			{ROAD_STYLES[road.style].centreLine && (
+				<SwitchField
+					label="Centre line"
+					checked={road.markings}
+					onChange={(v) =>
+						edit("markings", (r) => {
+							r.markings = v;
+						})
+					}
+				/>
+			)}
+		</Section>
+	);
+};
+
+/** The properties tabs for a selected road (ADR-0054). A hidden route has no look. */
+export const roadTabs = (road: TRoad): IInspectorTab[] => [
+	{ value: "object", label: "Road", icon: "road", content: <RoadTab key={road.id} road={road} /> },
+	{
+		value: "shape",
+		label: "Shape",
+		icon: "spline",
+		content: <RoadShapeTab key={road.id} road={road} />,
+	},
+	...(isHiddenRoute(road.style)
+		? []
+		: [
+				{
+					value: "look",
+					label: "Look",
+					icon: "palette",
+					content: <RoadLookTab key={road.id} road={road} />,
+				} as const,
+			]),
+];

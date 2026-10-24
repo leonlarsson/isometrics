@@ -100,7 +100,7 @@ export const GroundContextMenu = () => {
 			<Menu.Item
 				icon="camera"
 				label="Save this view"
-				description="As a viewpoint, listed in the Scene tab"
+				description="As a viewpoint, listed in the Viewpoints tab"
 				onClick={saveCurrentView}
 			/>
 		</ContextMenu>

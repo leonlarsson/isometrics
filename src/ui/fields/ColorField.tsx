@@ -1,4 +1,8 @@
+import { Popover } from "@base-ui/react/popover";
+
 import { SWATCHES } from "#/scene/theme";
+
+import { Icon } from "../Icon";
 
 import { Field } from "./Field";
 import type { IInherit } from "./InheritAction";
@@ -13,38 +17,63 @@ interface IColorFieldProps {
 	inherit?: IInherit;
 }
 
-/** Colour picker with friendly preset swatches and an optional reset to default. */
+/**
+ * A colour as one compact button (its swatch and hex code) that opens the
+ * friendly preset swatches and a free colour picker in a popover.
+ */
 export const ColorField = ({ label, value, onChange, inherit }: IColorFieldProps) => {
 	return (
 		<Field label={label} inherit={inherit}>
 			{(id) => (
-				<div className={styles.color}>
-					<div className={styles.swatches}>
-						{SWATCHES.map((swatch) => (
-							<button
-								key={swatch}
-								type="button"
-								className={styles.swatch}
-								style={{ background: swatch }}
-								aria-label={`Use ${swatch}`}
-								data-active={swatch.toLowerCase() === value.toLowerCase() || undefined}
-								onClick={() => onChange(swatch)}
-							/>
-						))}
-					</div>
-
-					<div className={styles.colorRow}>
-						<input
-							id={id}
-							type="color"
-							className={styles.colorInput}
-							value={value}
-							onChange={(e) => onChange(e.target.value)}
-						/>
+				<Popover.Root>
+					<Popover.Trigger id={id} className={styles.colorTrigger}>
+						<span className={styles.colorChip} style={{ background: value }} />
 
 						<code className={styles.hex}>{value}</code>
-					</div>
-				</div>
+
+						<span className={styles.selectIcon}>
+							<Icon name="chevronDown" size={14} />
+						</span>
+					</Popover.Trigger>
+
+					<Popover.Portal>
+						<Popover.Positioner
+							className={styles.selectPositioner}
+							side="bottom"
+							align="end"
+							sideOffset={4}
+						>
+							<Popover.Popup className={styles.colorPopup} aria-label={label}>
+								<div className={styles.swatches}>
+									{SWATCHES.map((swatch) => (
+										<button
+											key={swatch}
+											type="button"
+											className={styles.swatch}
+											style={{ background: swatch }}
+											aria-label={`Use ${swatch}`}
+											data-active={swatch.toLowerCase() === value.toLowerCase() || undefined}
+											onClick={() => onChange(swatch)}
+										/>
+									))}
+								</div>
+
+								<label className={styles.colorRow}>
+									<input
+										type="color"
+										className={styles.colorInput}
+										value={value}
+										onChange={(e) => onChange(e.target.value)}
+									/>
+
+									<span>Any colour…</span>
+
+									<code className={styles.hex}>{value}</code>
+								</label>
+							</Popover.Popup>
+						</Popover.Positioner>
+					</Popover.Portal>
+				</Popover.Root>
 			)}
 		</Field>
 	);

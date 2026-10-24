@@ -1,5 +1,7 @@
 import { Switch } from "@base-ui/react/switch";
 
+import { useSearchMatch } from "./settingsSearch";
+
 import styles from "./Fields.module.css";
 
 interface ISwitchFieldProps {
@@ -12,7 +14,7 @@ interface ISwitchFieldProps {
 export const SwitchField = ({ label, checked, onChange }: ISwitchFieldProps) => {
 	return (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the switch inside is the labelled control
-		<label className={styles.switchField}>
+		<label className={styles.switchField} data-search-match={useSearchMatch(label)}>
 			<Switch.Root className={styles.switch} checked={checked} onCheckedChange={onChange}>
 				<Switch.Thumb className={styles.switchThumb} />
 			</Switch.Root>

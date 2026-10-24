@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 
 import styles from "./List.module.css";
 
-/** A vertical list of rows, e.g. the roads in the Scene tab or saved backups. */
+/** A vertical list of rows, e.g. the outliner's rows or saved backups. */
 export const List = ({ children }: { children: ReactNode }) => {
 	return <ul className={styles.list}>{children}</ul>;
 };

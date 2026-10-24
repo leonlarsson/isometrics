@@ -50,6 +50,7 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 
 	return (
 		<Section
+			icon="pin"
 			title={`Point ${index + 1} of ${road.points.length}`}
 			actions={
 				<IconButton

@@ -54,7 +54,7 @@ export const VectorField = ({ label, axes, values, onChange, step = 0.5 }: IVect
 	return (
 		<Field label={label}>
 			{(id) => (
-				<div className={styles.vector}>
+				<div className={styles.vector} data-axes={axes.length}>
 					{axes.map((axis, i) => (
 						<Axis
 							key={axis}

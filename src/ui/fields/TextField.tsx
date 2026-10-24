@@ -23,7 +23,7 @@ export const TextField = ({
 	hint,
 }: ITextFieldProps) => {
 	return (
-		<Field label={label} hint={hint}>
+		<Field label={label} hint={hint} stacked={multiline}>
 			{(id) =>
 				multiline ? (
 					<textarea

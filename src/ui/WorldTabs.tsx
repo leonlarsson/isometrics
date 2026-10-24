@@ -1,0 +1,198 @@
+import { useEditor } from "#/editor/store";
+import { usePalette } from "#/editor/useTheme";
+import { TURNS_OPTIONS } from "#/scene/roads";
+import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
+
+import { Button, ButtonGroup } from "./Button";
+import {
+	ColorField,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+} from "./fields";
+
+/** The World tab (ADR-0054): the world's title and theme, and its ground. */
+export const WorldTab = () => {
+	const scene = useEditor((s) => s.scene);
+	const commit = useEditor((s) => s.commit);
+	const resetView = useEditor((s) => s.resetView);
+	const palette = usePalette();
+
+	return (
+		<>
+			<Section id="world.world" icon="globe" title="World" keywords="name heading">
+				<TextField
+					label="Title"
+					value={scene.meta.title}
+					onChange={(v) =>
+						commit(
+							(s) => {
+								s.meta.title = v;
+							},
+							{ coalesce: "meta.title" },
+						)
+					}
+				/>
+
+				<TextField
+					label="Subtitle"
+					value={scene.meta.subtitle}
+					onChange={(v) =>
+						commit(
+							(s) => {
+								s.meta.subtitle = v;
+							},
+							{ coalesce: "meta.subtitle" },
+						)
+					}
+				/>
+
+				<SelectField<TThemePreference>
+					label="Theme"
+					value={scene.theme}
+					options={[
+						{ value: "system", label: "Match device" },
+						{ value: "light", label: "Light" },
+						{ value: "dark", label: "Dark" },
+					]}
+					onChange={(v) =>
+						commit((s) => {
+							s.theme = v;
+						})
+					}
+				/>
+			</Section>
+
+			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
+				<SliderField
+					label="Width"
+					value={scene.ground.width}
+					min={8}
+					max={500}
+					step={1}
+					onChange={(v) =>
+						commit(
+							(s) => {
+								s.ground.width = v;
+							},
+							{ coalesce: "ground.width" },
+						)
+					}
+				/>
+
+				<SliderField
+					label="Depth"
+					value={scene.ground.depth}
+					min={8}
+					max={500}
+					step={1}
+					onChange={(v) =>
+						commit(
+							(s) => {
+								s.ground.depth = v;
+							},
+							{ coalesce: "ground.depth" },
+						)
+					}
+				/>
+
+				<ColorField
+					label="Colour"
+					value={scene.ground.color ?? palette.ground}
+					onChange={(v) =>
+						commit(
+							(s) => {
+								s.ground.color = v;
+							},
+							{ coalesce: "ground.color" },
+						)
+					}
+					inherit={{
+						from: "default",
+						inherited: scene.ground.color === null,
+						onReset: () =>
+							commit((s) => {
+								s.ground.color = null;
+							}),
+					}}
+				/>
+
+				<ButtonGroup>
+					<Button size="sm" icon="focus" onClick={resetView}>
+						Re-centre camera
+					</Button>
+				</ButtonGroup>
+			</Section>
+		</>
+	);
+};
+
+/** The Traffic tab: how vehicles drive, everywhere in the world. Roads and vehicles can override it. */
+export const TrafficTab = () => {
+	const scene = useEditor((s) => s.scene);
+	const commit = useEditor((s) => s.commit);
+
+	return (
+		<Section
+			id="traffic.rules"
+			icon="traffic"
+			title="Traffic rules"
+			keywords="vehicles cars driving roads"
+		>
+			<SelectField<TDrivingSide>
+				label="Vehicles drive on the"
+				value={scene.driving}
+				options={[
+					{ value: "right", label: "Right" },
+					{ value: "left", label: "Left" },
+				]}
+				onChange={(v) =>
+					commit((s) => {
+						s.driving = v;
+					})
+				}
+			/>
+
+			<SelectField<TTurns>
+				label="Vehicles turn"
+				value={scene.turns}
+				options={TURNS_OPTIONS}
+				onChange={(v) =>
+					commit((s) => {
+						s.turns = v;
+					})
+				}
+				hint="Smoothly eases through corners; sharply snaps to each new direction. Roads and vehicles can override this."
+			/>
+
+			<SwitchField
+				label="Keep distance"
+				checked={scene.traffic.spacing}
+				onChange={(v) =>
+					commit((s) => {
+						s.traffic.spacing = v;
+					})
+				}
+			/>
+
+			{scene.traffic.spacing ? (
+				<SwitchField
+					label="Overtake slower vehicles"
+					checked={scene.traffic.overtaking}
+					onChange={(v) =>
+						commit((s) => {
+							s.traffic.overtaking = v;
+						})
+					}
+				/>
+			) : (
+				<Hint>Every vehicle drives at its own speed, through slower ones.</Hint>
+			)}
+
+			{scene.roads.length === 0 && <Hint>No roads yet. Draw one from Add to scene → Roads.</Hint>}
+		</Section>
+	);
+};

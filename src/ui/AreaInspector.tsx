@@ -15,6 +15,7 @@ import {
 	TextField,
 	VectorField,
 } from "./fields";
+import type { IInspectorTab } from "./inspectorTabs";
 
 const TYPE_OPTIONS = (Object.keys(AREA_TYPE_LABELS) as TAreaType[]).map((value) => ({
 	value,
@@ -30,6 +31,7 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 	const store = () => useEditor.getState();
 	return (
 		<Section
+			icon="pin"
 			title={`Corner ${index + 1} of ${area.points.length}`}
 			actions={
 				<IconButton
@@ -56,67 +58,79 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 	);
 };
 
-export const AreaInspector = ({ area }: { area: TArea }) => {
+/** Every edit coalesces per area+field so typing or sliding is one undo step. */
+const useAreaEdit = (area: TArea) => {
 	const updateArea = useEditor((s) => s.updateArea);
-	const removeArea = useEditor((s) => s.removeArea);
-	const selectedPoint = useEditor((s) => s.selectedPointIndex);
-	const palette = usePalette();
-
-	/** Every edit coalesces per area+field so typing or sliding is one undo step. */
-	const edit = (field: string, recipe: (a: Draft<TArea>) => void) =>
+	return (field: string, recipe: (a: Draft<TArea>) => void) =>
 		updateArea(area.id, recipe, { coalesce: `${area.id}:${field}` });
+};
 
+/** The Area tab: its name and type. */
+const AreaTab = ({ area }: { area: TArea }) => {
+	const removeArea = useEditor((s) => s.removeArea);
+	const edit = useAreaEdit(area);
 	const size = Math.abs(polygonArea(area.points));
+
+	return (
+		<Section
+			icon="area"
+			title={`${AREA_TYPE_LABELS[area.type]} area`}
+			actions={
+				<IconButtonGroup>
+					<IconButton
+						icon={area.locked ? "lock" : "unlock"}
+						label={area.locked ? "Unlock" : "Lock its shape"}
+						pressed={area.locked}
+						onClick={() =>
+							edit("locked", (a) => {
+								a.locked = !a.locked;
+							})
+						}
+					/>
+
+					<IconButton icon="trash" label="Delete area (Del)" onClick={() => removeArea(area.id)} />
+				</IconButtonGroup>
+			}
+		>
+			<TextField
+				label="Name"
+				value={area.name}
+				placeholder={AREA_TYPE_LABELS[area.type]}
+				onChange={(v) =>
+					edit("name", (a) => {
+						a.name = v;
+					})
+				}
+			/>
+
+			<SelectField<TAreaType>
+				label="Type"
+				value={area.type}
+				options={TYPE_OPTIONS}
+				onChange={(v) =>
+					edit("type", (a) => {
+						a.type = v;
+					})
+				}
+			/>
+
+			<Hint>
+				{Math.round(size)} square units · {area.points.length} corners
+			</Hint>
+		</Section>
+	);
+};
+
+/** The Shape tab: the selected corner, and how high the area is raised. */
+const AreaShapeTab = ({ area }: { area: TArea }) => {
+	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const edit = useAreaEdit(area);
 
 	return (
 		<>
 			{selectedPoint !== null && <CornerPanel area={area} index={selectedPoint} />}
 
-			<Section
-				title={`${AREA_TYPE_LABELS[area.type]} area`}
-				actions={
-					<IconButtonGroup>
-						<IconButton
-							icon={area.locked ? "lock" : "unlock"}
-							label={area.locked ? "Unlock" : "Lock its shape"}
-							pressed={area.locked}
-							onClick={() =>
-								edit("locked", (a) => {
-									a.locked = !a.locked;
-								})
-							}
-						/>
-
-						<IconButton
-							icon="trash"
-							label="Delete area (Del)"
-							onClick={() => removeArea(area.id)}
-						/>
-					</IconButtonGroup>
-				}
-			>
-				<TextField
-					label="Name"
-					value={area.name}
-					placeholder={AREA_TYPE_LABELS[area.type]}
-					onChange={(v) =>
-						edit("name", (a) => {
-							a.name = v;
-						})
-					}
-				/>
-
-				<SelectField<TAreaType>
-					label="Type"
-					value={area.type}
-					options={TYPE_OPTIONS}
-					onChange={(v) =>
-						edit("type", (a) => {
-							a.type = v;
-						})
-					}
-				/>
-
+			<Section id="area.shape" icon="spline" title="Shape" keywords="corners raised height cliff">
 				<SliderField
 					label="Raised by"
 					value={area.height}
@@ -131,32 +145,56 @@ export const AreaInspector = ({ area }: { area: TArea }) => {
 				/>
 
 				<Hint>
-					{Math.round(size)} square units · {area.points.length} corners. Drag corners to reshape
-					(or select one and nudge it with the arrow keys, Alt for small steps), drag a small dot
-					between two corners to add one, double-click a corner to remove it. Above 0, the area
-					becomes raised ground with cliff sides.
+					Drag corners to reshape (or select one and nudge it with the arrow keys, Alt for small
+					steps), drag a small dot between two corners to add one, double-click a corner to remove
+					it. Above 0, the area becomes raised ground with cliff sides.
 				</Hint>
-			</Section>
-
-			<Section title="Look">
-				<ColorField
-					label="Colour"
-					value={areaColor(area, palette)}
-					onChange={(v) =>
-						edit("color", (a) => {
-							a.color = v;
-						})
-					}
-					inherit={{
-						from: "default",
-						inherited: area.color === null,
-						onReset: () =>
-							edit("color", (a) => {
-								a.color = null;
-							}),
-					}}
-				/>
 			</Section>
 		</>
 	);
 };
+
+/** The Look tab: the area's colour. */
+const AreaLookTab = ({ area }: { area: TArea }) => {
+	const palette = usePalette();
+	const edit = useAreaEdit(area);
+
+	return (
+		<Section id="area.look" icon="palette" title="Look" keywords="colour color">
+			<ColorField
+				label="Colour"
+				value={areaColor(area, palette)}
+				onChange={(v) =>
+					edit("color", (a) => {
+						a.color = v;
+					})
+				}
+				inherit={{
+					from: "default",
+					inherited: area.color === null,
+					onReset: () =>
+						edit("color", (a) => {
+							a.color = null;
+						}),
+				}}
+			/>
+		</Section>
+	);
+};
+
+/** The properties tabs for a selected area (ADR-0054). */
+export const areaTabs = (area: TArea): IInspectorTab[] => [
+	{ value: "object", label: "Area", icon: "area", content: <AreaTab key={area.id} area={area} /> },
+	{
+		value: "shape",
+		label: "Shape",
+		icon: "spline",
+		content: <AreaShapeTab key={area.id} area={area} />,
+	},
+	{
+		value: "look",
+		label: "Look",
+		icon: "palette",
+		content: <AreaLookTab key={area.id} area={area} />,
+	},
+];
