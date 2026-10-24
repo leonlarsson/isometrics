@@ -56,3 +56,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0050](0050-numbered-variants.md) | Parts, road styles and area types have numbered ids, so each can have variants | accepted |
 | [0051](0051-add-to-scene.md) | Add to scene remembers favourites, recently used items and folded sections per browser | accepted |
 | [0052](0052-time-of-day.md) | Time of day: a sun that moves, a sky that changes, and lights after dark | accepted |
+| [0053](0053-legacy-ids.md) | Worlds saved before the numbered ids get the new ids on load | accepted |

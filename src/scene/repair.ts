@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { upgradeLegacyIds } from "./legacy";
 import { parseScene } from "./migrate";
 import {
 	AreaSchema,
@@ -120,7 +121,8 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 	if (typeof input !== "object" || input === null || Array.isArray(input)) {
 		throw new Error("A world must be a JSON object");
 	}
-	const raw = input as Record<string, unknown>;
+	// Old ids aren't broken, just renamed: upgrade them rather than reset them.
+	const raw = upgradeLegacyIds(input) as Record<string, unknown>;
 	const hasVersion = typeof raw.version === "number";
 	if (!hasVersion && !LISTS.some(({ key }) => Array.isArray(raw[key]))) {
 		throw new Error("This doesn’t look like a world: it has no version, objects, roads or areas");

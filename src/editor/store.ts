@@ -339,8 +339,8 @@ const validRoadSelection = (
 
 /**
  * Part kinds in a world that no part has: objects from an older version
- * (before the numbered ids of ADR-0050, say), or from a newer one. Most
- * common first.
+ * whose part was removed (renamed ones are upgraded on load, ADR-0053), or
+ * from a newer one. Most common first.
  */
 export const unknownPartKinds = (scene: Pick<TScene, "entities">) => {
 	const counts = new Map<string, number>();

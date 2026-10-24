@@ -1,3 +1,4 @@
+import { upgradeLegacyIds } from "./legacy";
 import { SCENE_VERSION, SceneSchema, type TScene } from "./schema";
 
 /**
@@ -8,6 +9,7 @@ import { SCENE_VERSION, SceneSchema, type TScene } from "./schema";
  * SCENE_VERSION stays 1; worlds that no longer validate are repaired instead
  * (see repair.ts, ADR-0026). Once worlds need a compatibility promise, bump the
  * version on breaking changes and migrate older documents here before validating.
+ * Ids renamed in place (ADR-0050) are upgraded first, see legacy.ts.
  */
 export const parseScene = (input: unknown): TScene => {
 	if (typeof input !== "object" || input === null) {
@@ -20,5 +22,5 @@ export const parseScene = (input: unknown): TScene => {
 	if (version > SCENE_VERSION) {
 		throw new Error(`Scene version ${version} is newer than this app supports (${SCENE_VERSION})`);
 	}
-	return SceneSchema.parse(input);
+	return SceneSchema.parse(upgradeLegacyIds(input));
 };
