@@ -159,8 +159,9 @@ const getBeam = () => {
 };
 
 /**
- * Two headlights at a vehicle's front (+x), `spread` apart sideways, and their
- * beams on the road ahead, as far as the light's reach, while they're on.
+ * Two headlights at a vehicle's front (+x), `spread` apart sideways: lenses
+ * that are always there (dark while off, glowing while on), and while they're
+ * on, their beams on the road ahead, as far as the light's reach.
  */
 export const Headlights = ({
 	light,
@@ -171,33 +172,29 @@ export const Headlights = ({
 	position: TV3;
 	spread: number;
 }) => {
-	if (!light.on) {
-		return null;
-	}
 	return (
 		<group position={[x, y, z]}>
+			{/* The lamps are part of the vehicle: only their glow comes and goes, never the lamps. */}
 			{[spread / 2, -spread / 2].map((side) => (
-				<mesh key={side} position={[0, 0, side]}>
-					<boxGeometry args={[0.04, 0.07, 0.12]} />
-
-					<meshBasicMaterial color={light.color} toneMapped={false} />
-				</mesh>
+				<LightLens key={side} light={light} size={[0.04, 0.07, 0.12]} position={[0, 0, side]} />
 			))}
 
-			{/* The beams on the road ahead, opening out from the lights. */}
-			<mesh position={[light.reach / 2, -y + GLOW_HEIGHT, -z]} rotation={[-Math.PI / 2, 0, 0]}>
-				<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
+			{/* The beams on the road ahead, opening out from the lights, while they're on. */}
+			{light.on && (
+				<mesh position={[light.reach / 2, -y + GLOW_HEIGHT, -z]} rotation={[-Math.PI / 2, 0, 0]}>
+					<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
 
-				<meshBasicMaterial
-					color={light.color}
-					alphaMap={getBeam()}
-					transparent
-					opacity={0.6 * Math.min(light.level, 1.5)}
-					blending={THREE.AdditiveBlending}
-					depthWrite={false}
-					toneMapped={false}
-				/>
-			</mesh>
+					<meshBasicMaterial
+						color={light.color}
+						alphaMap={getBeam()}
+						transparent
+						opacity={0.6 * Math.min(light.level, 1.5)}
+						blending={THREE.AdditiveBlending}
+						depthWrite={false}
+						toneMapped={false}
+					/>
+				</mesh>
+			)}
 		</group>
 	);
 };
