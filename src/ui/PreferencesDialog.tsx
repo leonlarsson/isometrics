@@ -30,6 +30,7 @@ const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"viewpointsInWorld",
 	"compositionGrid",
 ];
+const EDITING_PAGE: (keyof TPreferences)[] = ["copyNames"];
 
 /** A page's reset: back to the defaults, offered once any of them changed. */
 const pageReset = (preferences: TPreferences, keys: (keyof TPreferences)[]) => ({
@@ -281,6 +282,41 @@ export const PreferencesDialog = () => {
 							),
 						},
 					],
+				},
+			],
+		},
+		{
+			id: "editing",
+			reset: pageReset(preferences, EDITING_PAGE),
+			label: "Editing",
+			icon: "edit",
+			groups: [
+				{
+					title: "Copies",
+					rows: [
+						{
+							id: "copyNames",
+							keywords: "copy duplicate paste name names number numbered",
+							field: (
+								<SelectField<TPreferences["copyNames"]>
+									label="Names of copies"
+									value={preferences.copyNames}
+									options={[
+										{ value: "copy", label: "Add “copy”" },
+										{ value: "numbered", label: "Number them" },
+									]}
+									onChange={(v) => setPreference("copyNames", v)}
+									inherit={preferenceDefault(preferences, "copyNames", "add “copy”")}
+									hint={
+										preferences.copyNames === "copy"
+											? "A copy of “Tower” is called “Tower copy”."
+											: "A copy of “Tower” is called “Tower 2”, the next “Tower 3”; a copy of “Gate 5” is “Gate 6”."
+									}
+								/>
+							),
+						},
+					],
+					note: "For duplicates and pastes of things with a name of their own. Unnamed things stay unnamed, and a pasted thing keeps its name in a world that doesn't have it yet.",
 				},
 			],
 		},

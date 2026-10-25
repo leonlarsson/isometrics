@@ -1,3 +1,4 @@
+import { pasteFromClipboard } from "#/editor/clipboard";
 import { rememberUsed } from "#/editor/paletteMemory";
 import { spotOnGrid, useEditor } from "#/editor/store";
 import { round } from "#/lib/math";
@@ -92,6 +93,14 @@ export const GroundContextMenu = () => {
 					/>
 				))}
 			</Menu.Submenu>
+
+			<Menu.Item
+				icon="paste"
+				label="Paste here"
+				shortcut="Ctrl+V"
+				description="Objects, roads or areas copied here or in another world"
+				onClick={() => pasteFromClipboard({ at: spot() })}
+			/>
 
 			<Menu.Separator />
 

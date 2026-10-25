@@ -1,6 +1,7 @@
 import type { Draft } from "immer";
 import type { ReactNode } from "react";
 
+import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
 import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
 import {
@@ -20,8 +21,9 @@ import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TEntity, TScene } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
+import { CopyPasteMenu } from "./CopyPasteMenu";
 import { DataDrivenField } from "./DataDrivenField";
-import { PropField } from "./EntityInspector";
+import { LightCopyPasteMenu, PropField } from "./EntityInspector";
 import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, FieldGroup, Hint, Kbd, Section, SliderField } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
@@ -258,7 +260,19 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 	const props = members.map((member) => resolveProps(part, member.entity.props));
 
 	return (
-		<Section id="shape.part" icon="spline" title={`${partName(part)} shape`} keywords="shape size">
+		<Section
+			id="shape.part"
+			icon="spline"
+			title={`${partName(part)} shape`}
+			keywords="shape size"
+			actions={
+				<CopyPasteMenu
+					what={`${partName(part)} shape`}
+					onCopy={() => copySettings(settingsOf(members[members.length - 1].entity, "shape"))}
+					onPaste={() => pasteFromClipboard()}
+				/>
+			}
+		>
 			{members.length < total && <Hint>{appliesTo(members, total)}</Hint>}
 
 			{part.fields.map((spec) => (
@@ -327,6 +341,16 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 				icon="palette"
 				title="Colours"
 				keywords="colors paint data scale heatmap"
+				actions={
+					<CopyPasteMenu
+						what="Colours"
+						onCopy={() => {
+							const last = members.at(-1);
+							copySettings(last ? settingsOf(last.entity, "colors") : null);
+						}}
+						onPaste={() => pasteFromClipboard()}
+					/>
+				}
 			>
 				{colorsOf(members).map(({ spec, holders }) => {
 					const entities = holders.map((holder) => holder.entity);
@@ -436,6 +460,7 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
 						mixed={mixed}
 						appliesTo={appliesTo(holders, total)}
+						menu={<LightCopyPasteMenu entity={active} spec={spec} />}
 						onChange={(change, field) =>
 							writeAll(
 								(id, options) => useEditor.getState().setEntityLight(id, spec.id, change, options),

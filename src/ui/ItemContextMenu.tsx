@@ -1,5 +1,13 @@
 import { type ReactNode, useState } from "react";
 
+import {
+	copySettings,
+	copyToClipboard,
+	describeThings,
+	pasteFromClipboard,
+	selectedThingsText,
+	settingsOf,
+} from "#/editor/clipboard";
 import type { ISceneItem } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
 import { getPart, partNameOf } from "#/parts/registry";
@@ -11,6 +19,20 @@ import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
 import { useLastNonNull } from "./useLastNonNull";
 import { saveCurrentView } from "./ViewpointsMenu";
+
+/** Copy the selected things to the clipboard (Ctrl+C's menu item). */
+const copySelection = () => {
+	const { selectedItems } = useEditor.getState();
+	const text = selectedThingsText();
+	const count = (kind: string) => selectedItems.filter((item) => item.kind === kind).length;
+	if (text) {
+		void copyToClipboard(
+			text,
+			describeThings({ entities: count("entity"), roads: count("road"), areas: count("area") }),
+			"Paste with Ctrl+V where the mouse points, here or in another world.",
+		);
+	}
+};
 
 /** What to call a road in a menu: its name, or its style. */
 const roadName = (road: { name: string; style: keyof typeof ROAD_STYLE_LABELS }) =>
@@ -104,6 +126,22 @@ const EntityActions = ({ id }: { id: string }) => {
 
 			<Menu.Item
 				icon="copy"
+				label="Copy settings"
+				description="Colours, lights, shape and label card, to paste onto others"
+				onClick={() => copySettings(settingsOf(entity, "object"))}
+			/>
+
+			<Menu.Item
+				icon="paste"
+				label="Paste settings"
+				description="From the clipboard, onto it"
+				onClick={() => pasteFromClipboard()}
+			/>
+
+			<Menu.Separator />
+
+			<Menu.Item
+				icon="copy"
 				label="Duplicate"
 				shortcut="Ctrl+D"
 				onClick={() => store().duplicateEntity(entity.id)}
@@ -193,6 +231,8 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 		<>
 			{kindActions}
 
+			<Menu.Item icon="copy" label="Copy" shortcut="Ctrl+C" onClick={copySelection} />
+
 			<Menu.Item icon="edit" label="Rename" shortcut="F2" onClick={onRename} />
 
 			<Menu.Item
@@ -275,6 +315,15 @@ const GroupMenu = () => {
 				label="Save this view"
 				description="As a viewpoint, listed in the Viewpoints tab"
 				onClick={saveCurrentView}
+			/>
+
+			<Menu.Item icon="copy" label="Copy" shortcut="Ctrl+C" onClick={copySelection} />
+
+			<Menu.Item
+				icon="paste"
+				label="Paste settings"
+				description="From the clipboard, onto the ones that have them"
+				onClick={() => pasteFromClipboard()}
 			/>
 
 			<Menu.Item

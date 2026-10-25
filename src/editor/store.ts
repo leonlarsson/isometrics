@@ -6,6 +6,7 @@ import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
+import { copyName, copyNamer } from "#/scene/naming";
 import {
 	joinedPoints,
 	pointWidth,
@@ -44,6 +45,7 @@ import {
 import { createBrightwaterScene } from "#/templates/brightwater";
 
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
+import { readPreferences } from "./preferences";
 import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
@@ -675,6 +677,14 @@ const withSelectedItems = (
 	return { ...points, selectedItems: active ? [active] : [] };
 };
 
+/** Give an object a new name; a label card titled with its old name follows (ADR-0068). */
+export const renameEntity = (entity: Pick<TEntity, "name" | "label">, name: string) => {
+	if (entity.label && entity.label.title === entity.name) {
+		entity.label.title = name;
+	}
+	entity.name = name;
+};
+
 /** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
 const isUnset = ({ data, ...fields }: TEntityLight | TEntityColor) =>
 	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
@@ -1020,12 +1030,30 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const { scene: current, selectedItems } = get();
 				const picked = <T extends { id: string }>(list: T[], kind: ISceneItem["kind"]) =>
 					list.filter((thing) => selectedItems.some(sameItem({ kind, id: thing.id })));
-				const copyName = (name: string) => (leaveBehind ? name : name ? `${name} copy` : "");
+				// Copies are named as the preference says: "Tower copy", or "Tower 2" (scene/naming). Left
+				// behind, the copies keep the names and the originals, which move, take the new ones.
+				const style = readPreferences().copyNames;
+				const namers = {
+					entity: copyNamer(
+						current.entities.map((e) => e.name),
+						style,
+					),
+					road: copyNamer(
+						current.roads.map((r) => r.name),
+						style,
+					),
+					area: copyNamer(
+						current.areas.map((a) => a.name),
+						style,
+					),
+				};
+				const copyName = (kind: ISceneItem["kind"], name: string) =>
+					leaveBehind ? name : namers[kind](name);
 				const roadIds = new Map<string, string>();
 				const roads = picked(current.roads, "road").map((source): TRoad => {
 					const copy = structuredClone(source);
 					copy.id = newId("road");
-					copy.name = copyName(source.name);
+					copy.name = copyName("road", source.name);
 					copy.points = source.points.map((point) =>
 						withPoint(point, { x: point[0] + step, z: point[1] + step }),
 					);
@@ -1035,14 +1063,14 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const areas = picked(current.areas, "area").map((source): TArea => {
 					const copy = structuredClone(source);
 					copy.id = newId("area");
-					copy.name = copyName(source.name);
+					copy.name = copyName("area", source.name);
 					copy.points = source.points.map(([x, z]): TVec2 => [round(x + step), round(z + step)]);
 					return copy;
 				});
 				const entities = picked(current.entities, "entity").map((source): TEntity => {
 					const copy = structuredClone(source);
 					copy.id = newId(source.kind);
-					copy.name = copyName(source.name);
+					renameEntity(copy, copyName("entity", source.name));
 					copy.position = [source.position[0] + step, source.position[1] + step];
 					const copiedRoad = copy.follow && roadIds.get(copy.follow.roadId);
 					if (copy.follow && copiedRoad) {
@@ -1066,8 +1094,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						if (leaveBehind) {
 							for (const item of selectedItems) {
 								const original = listOf(scene, item.kind).find((thing) => thing.id === item.id);
-								if (original?.name) {
-									original.name = `${original.name} copy`;
+								if (original && item.kind === "entity") {
+									renameEntity(original as Draft<TEntity>, namers.entity(original.name));
+								} else if (original) {
+									original.name = namers[item.kind](original.name);
 								}
 							}
 						}
@@ -1479,7 +1509,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				}
 				const copy: TEntity = structuredClone(source);
 				copy.id = newId(source.kind);
-				copy.name = source.name ? `${source.name} copy` : "";
+				const names = new Set(get().scene.entities.map((e) => e.name));
+				renameEntity(copy, copyName(source.name, names, readPreferences().copyNames));
 				copy.position = [source.position[0] + 1, source.position[1] + 1];
 				if (copy.follow) {
 					copy.follow.offset += 3;

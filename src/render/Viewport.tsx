@@ -22,6 +22,7 @@ import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { PlacementPreview } from "./PlacementPreview";
+import { PointerSpot } from "./PointerSpot";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
@@ -99,6 +100,8 @@ export const Viewport = () => {
 			<KeyboardTransform />
 
 			<BoxSelect />
+
+			<PointerSpot />
 
 			<CameraRig />
 

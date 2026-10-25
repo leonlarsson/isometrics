@@ -15,6 +15,7 @@ const PATHS = {
 	upload: "M12 21V9M7 14l5-5 5 5M4 3h16",
 	trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
 	copy: "M8 8h12v12H8zM4 16V4h12",
+	paste: "M9 3h6v3H9zM8 4.5H5V21h14V4.5h-3",
 	lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
 	unlock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2",
 	rotateLeft: "M4 4v6h6M4.5 10A8 8 0 1 1 6 16",

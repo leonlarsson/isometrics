@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DataBindingSchema, SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
 
+import { resetPreferences, setPreference } from "./preferences";
 import { createEditorStore, selectMovesAsGroup, unknownPartKinds } from "./store";
 
 const makeStore = () =>
@@ -1041,5 +1042,49 @@ describe("copying from a single object's gizmo (ADR-0067)", () => {
 		expect(original.name).toBe("Depot copy");
 		expect(copy.name).toBe("Depot");
 		expect(copy.position).toEqual(original.position);
+	});
+});
+
+describe("names of copies (ADR-0068)", () => {
+	afterEach(() => resetPreferences());
+
+	const named = () => {
+		const store = makeStore();
+		store.getState().updateEntity("w", (e) => {
+			e.name = "Depot";
+			if (e.label) {
+				e.label.title = "Depot";
+			}
+		});
+		return store;
+	};
+
+	it("adds “copy” by default, and a card titled with the name follows", () => {
+		const store = named();
+		const first = store.getState().duplicateEntity("w");
+		const copy = store.getState().scene.entities.find((e) => e.id === first);
+		expect(copy?.name).toBe("Depot copy");
+		expect(copy?.label?.title).toBe("Depot copy");
+	});
+
+	it("numbers them when the preference says so", () => {
+		setPreference("copyNames", "numbered");
+		const store = named();
+		store.getState().duplicateEntity("w");
+		store.getState().select("w");
+		store.getState().duplicateSelected();
+		expect(store.getState().scene.entities.map((e) => e.name)).toEqual([
+			"Depot",
+			"Depot 2",
+			"Depot 3",
+		]);
+	});
+
+	it("keeps a card's own title, and unnamed copies unnamed", () => {
+		const store = makeStore();
+		store.getState().duplicateEntity("w");
+		const [original, copy] = store.getState().scene.entities;
+		expect(copy.name).toBe("");
+		expect(copy.label?.title).toBe(original.label?.title);
 	});
 });

@@ -5,8 +5,8 @@ import { APP_NAME } from "#/lib/app";
 
 /**
  * Preferences, per browser: what's in the Preferences dialog. How the camera
- * moves for you (camera control, speeds, inverted zoom, smoothing, glides)
- * and where the overlays show. Personal, like the panel sizes, so they apply
+ * moves for you (camera control, speeds, inverted zoom, smoothing, glides),
+ * where the overlays show, and how copies are named. Personal, like the panel sizes, so they apply
  * to every world here and are never saved with one.
  * See docs/adr/0062-camera-settings.md.
  *
@@ -47,6 +47,11 @@ export const PreferencesSchema = z.object({
 	viewLabel: OverlayPlaceSchema.catch("edit"),
 	/** Saved viewpoints drawn in the world, as small cameras with what they see. */
 	viewpointsInWorld: OverlayPlaceSchema.catch("off"),
+	/**
+	 * What a copy of a named thing is called (ADR-0068): "Tower copy", or numbered, "Tower 2",
+	 * "Tower 3"…
+	 */
+	copyNames: z.enum(["copy", "numbered"]).catch("copy"),
 });
 
 export type TPreferences = z.output<typeof PreferencesSchema>;

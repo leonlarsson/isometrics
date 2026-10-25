@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { TEntityLightChange } from "#/editor/store";
 import {
 	comesOnOf,
@@ -57,6 +59,8 @@ interface ILightSettingsProps {
 	mixed?: (setting: TLightSettingKey) => boolean;
 	/** Several objects are selected: which of them have this light ("On 2 of 6 selected…"). */
 	appliesTo?: string;
+	/** The card's Copy / Paste menu (ADR-0068). */
+	menu?: ReactNode;
 }
 
 /** A light setting, or what one of its settings follows in the data, for `mixed`. */
@@ -129,6 +133,7 @@ export const LightSettings = ({
 	onChange,
 	mixed = NOTHING_MIXED,
 	appliesTo,
+	menu,
 }: ILightSettingsProps) => {
 	const bound = setting?.data ?? {};
 	const hasData = data.length > 0;
@@ -165,6 +170,7 @@ export const LightSettings = ({
 			icon="bulb"
 			title={spec.name}
 			keywords="light lights night glow colour brightness turns on data windows lit panes"
+			actions={menu}
 		>
 			{appliesTo && <Hint>{appliesTo}</Hint>}
 

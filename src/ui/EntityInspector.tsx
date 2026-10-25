@@ -1,12 +1,13 @@
 import type { Draft } from "immer";
 
+import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, type TEntityColorChange, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
 import { lightDefaults, lightSettingsOf, SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
-import type { TFieldSpec } from "#/parts/types";
+import type { ILightSpec, TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
 	ROAD_STYLE_LABELS,
@@ -19,6 +20,7 @@ import type { TEntity, TTurns } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
+import { CopyPasteMenu } from "./CopyPasteMenu";
 import { DataDrivenField } from "./DataDrivenField";
 import { FollowDataNote } from "./FollowDataNote";
 import {
@@ -36,6 +38,7 @@ import {
 } from "./fields";
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 import { LightSettings } from "./LightSettings";
+import { Menu } from "./Menu";
 
 const KeyPicker = ({
 	label,
@@ -288,7 +291,19 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const props = resolveProps(part, entity.props);
 
 	return (
-		<Section id="shape.part" icon="spline" title={`${partName(part)} shape`} keywords="shape size">
+		<Section
+			id="shape.part"
+			icon="spline"
+			title={`${partName(part)} shape`}
+			keywords="shape size"
+			actions={
+				<CopyPasteMenu
+					what={`${partName(part)} shape`}
+					onCopy={() => copySettings(settingsOf(entity, "shape"))}
+					onPaste={() => pasteFromClipboard()}
+				/>
+			}
+		>
 			{part.fields.map((spec) => (
 				<PropField
 					key={spec.key}
@@ -324,6 +339,13 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				icon="palette"
 				title="Colours"
 				keywords="colors paint data scale heatmap"
+				actions={
+					<CopyPasteMenu
+						what="Colours"
+						onCopy={() => copySettings(settingsOf(entity, "colors"))}
+						onPaste={() => pasteFromClipboard()}
+					/>
+				}
 			>
 				{part.colors.map((spec) => {
 					const setting = colorSettingOf(entity, spec.id);
@@ -364,6 +386,27 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				{part.colors.length === 0 && <Hint>It has no colours to change.</Hint>}
 			</Section>
 		</>
+	);
+};
+
+/**
+ * A light card's Copy / Paste menu (ADR-0068): Paste goes onto this light of
+ * the selected objects; Paste schedule only takes just when it's on.
+ */
+export const LightCopyPasteMenu = ({ entity, spec }: { entity: TEntity; spec: ILightSpec }) => {
+	return (
+		<CopyPasteMenu
+			what={`${spec.name} light`}
+			onCopy={() => copySettings(settingsOf(entity, "light", spec.id))}
+			onPaste={() => pasteFromClipboard({ lightId: spec.id })}
+		>
+			<Menu.Item
+				icon="clock"
+				label="Paste schedule only"
+				description="Just when it's on, from a light copied with a schedule"
+				onClick={() => pasteFromClipboard({ lightId: spec.id, scheduleOnly: true })}
+			/>
+		</CopyPasteMenu>
 	);
 };
 
@@ -429,6 +472,7 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						data={data}
 						hour={hour}
 						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
+						menu={<LightCopyPasteMenu entity={entity} spec={spec} />}
 						onChange={(change, field) =>
 							setEntityLight(
 								entity.id,
@@ -456,24 +500,32 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				title="Label card"
 				keywords="data values card"
 				actions={
-					<SwitchField
-						label="Show"
-						checked={entity.label?.enabled ?? false}
-						onChange={(on) =>
-							edit("label", (e) => {
-								if (e.label) {
-									e.label.enabled = on;
-								} else {
-									e.label = {
-										enabled: true,
-										title: e.name,
-										dataKeys: [],
-										offset: [0, 2, 0],
-									};
-								}
-							})
-						}
-					/>
+					<>
+						<CopyPasteMenu
+							what="Label card"
+							onCopy={() => copySettings(settingsOf(entity, "label"))}
+							onPaste={() => pasteFromClipboard()}
+						/>
+
+						<SwitchField
+							label="Show"
+							checked={entity.label?.enabled ?? false}
+							onChange={(on) =>
+								edit("label", (e) => {
+									if (e.label) {
+										e.label.enabled = on;
+									} else {
+										e.label = {
+											enabled: true,
+											title: e.name,
+											dataKeys: [],
+											offset: [0, 2, 0],
+										};
+									}
+								})
+							}
+						/>
+					</>
 				}
 			>
 				{entity.label?.enabled ? (
@@ -565,7 +617,19 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const roadTurns = resolveTurns(sceneTurns, followedRoad?.turns, null);
 
 	return (
-		<Section id="motion.route" icon="route" title="Motion" keywords="drive road speed follow">
+		<Section
+			id="motion.route"
+			icon="route"
+			title="Motion"
+			keywords="drive road speed follow"
+			actions={
+				<CopyPasteMenu
+					what="Motion"
+					onCopy={() => copySettings(settingsOf(entity, "motion"))}
+					onPaste={() => pasteFromClipboard()}
+				/>
+			}
+		>
 			<SelectField
 				label="Drive along"
 				value={entity.follow?.roadId ?? ""}

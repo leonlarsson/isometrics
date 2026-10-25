@@ -6,6 +6,7 @@ import { setPanelOpen } from "#/editor/panelMemory";
 import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
+import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
@@ -250,6 +251,7 @@ export const AppShell = () => {
 
 	useThemeAttribute();
 	useShortcuts();
+	useClipboard();
 
 	return (
 		<TooltipProvider>
