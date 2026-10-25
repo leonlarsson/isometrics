@@ -72,14 +72,16 @@ export const CameraMenu = () => {
 					checked={!perspective}
 					onCheckedChange={() => showPerspective(false)}
 					keepOpen
+					shortcut="P"
 				/>
 
 				<Menu.CheckboxItem
 					icon="perspective"
-					label="Perspective view (P)"
+					label="Perspective view"
 					checked={perspective}
 					onCheckedChange={() => showPerspective(true)}
 					keepOpen
+					shortcut="P"
 				/>
 
 				<Menu.Submenu

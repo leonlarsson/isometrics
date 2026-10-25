@@ -104,6 +104,8 @@ interface IMenuCheckboxItemProps {
 	onCheckedChange: (checked: boolean) => void;
 	/** Leave the menu open after picking it, for menus of several switches to flip in a row. */
 	keepOpen?: boolean;
+	/** Keyboard shortcut shown at the right edge, after the tick, e.g. "P". */
+	shortcut?: string;
 }
 
 /** A setting that is on or off, ticked on the right while on. Picking it closes the menu. */
@@ -113,6 +115,7 @@ const MenuCheckboxItem = ({
 	checked,
 	onCheckedChange,
 	keepOpen = false,
+	shortcut,
 }: IMenuCheckboxItemProps) => {
 	return (
 		<BaseMenu.CheckboxItem
@@ -132,6 +135,9 @@ const MenuCheckboxItem = ({
 			<BaseMenu.CheckboxItemIndicator className={styles.check}>
 				<Icon name="check" size={16} />
 			</BaseMenu.CheckboxItemIndicator>
+
+			{/* Last, so it lines up with the other items' shortcuts whether ticked or not. */}
+			{shortcut && <kbd className={styles.shortcut}>{shortcut}</kbd>}
 		</BaseMenu.CheckboxItem>
 	);
 };
