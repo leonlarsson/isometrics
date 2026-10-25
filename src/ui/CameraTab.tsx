@@ -80,18 +80,6 @@ const CameraFeelSection = () => {
 				hint="Scrolling, pinching, the middle button, and + and −."
 			/>
 
-			<SelectField<TCameraFeel["lensUnit"]>
-				label="Lens unit"
-				value={feel.lensUnit}
-				options={[
-					{ value: "millimetres", label: "Millimetres (focal length)" },
-					{ value: "degrees", label: "Degrees (field of view)" },
-				]}
-				onChange={(v) => setCameraFeel("lensUnit", v)}
-				inherit={feelDefault(feel, "lensUnit", "millimetres")}
-				hint="How the perspective lens is shown: as a full-frame camera's focal length (33 mm ≈ 40°), or as the angle the view covers from top to bottom."
-			/>
-
 			<SwitchField
 				label="Invert zoom"
 				checked={feel.invertZoom}
@@ -275,7 +263,7 @@ export const CameraTab = () => {
 						onReset: () => set("fieldOfView", CAMERA_DEFAULTS.fieldOfView),
 						degrees: CAMERA_DEFAULTS.fieldOfView,
 					}}
-					hint="For the perspective view (P): a long lens looks flat, a wide-angle one exaggerates depth. A viewpoint can have its own. Millimetres or degrees: Lens unit, in Your camera."
+					hint="For the perspective view (P). Short lenses (18 mm) are wide, with strong depth; long ones (200 mm) are narrow and flat. A viewpoint can have its own."
 				/>
 
 				<SelectField
