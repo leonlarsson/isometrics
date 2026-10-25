@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 
 import { rememberedView, UNSAVED_WORLD } from "#/editor/cameraMemory";
 import { useSceneHours } from "#/editor/dayClock";
+import { setPanelOpen } from "#/editor/panelMemory";
 import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
@@ -91,7 +92,13 @@ const Stage = ({ children }: { children: ReactNode }) => {
  * (classic daylight has no clock). In edit mode the time also says where it
  * comes from, in the words of Sun & sky's Time follows, and opens that tab.
  */
-const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
+interface ISceneTitleProps {
+	onOpenSky: () => void;
+	/** Open the World tab's Shown in View mode panel. */
+	onOpenOnScreen: () => void;
+}
+
+const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	const meta = useEditor((s) => s.scene.meta);
 	const onScreen = useEditor((s) => s.scene.onScreen);
 	const hour = useSceneHours();
@@ -112,6 +119,9 @@ const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 	// them all, faded when viewers won't see them.
 	const shown = (inView: boolean) => inView || editing;
 	const faded = (inView: boolean) => (editing && !inView) || undefined;
+	// Says why lines are struck through, in Edit mode, when any line shown here is.
+	const anyFaded =
+		editing && (!onScreen.title || (!onScreen.subtitle && meta.subtitle) || !onScreen.timeOfDay);
 	if (
 		!shown(onScreen.title) &&
 		!(shown(onScreen.subtitle) && meta.subtitle) &&
@@ -152,6 +162,16 @@ const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 						{formatHour(hour)}
 					</p>
 				)
+			)}
+
+			{anyFaded && (
+				<p className={styles.sceneHiddenNote}>
+					<Tooltip label="Open Shown in View mode">
+						<Button variant="text" size="sm" icon="eyeOff" onClick={onOpenOnScreen}>
+							Struck through: hidden in View mode
+						</Button>
+					</Tooltip>
+				</p>
 			)}
 		</div>
 	);
@@ -267,6 +287,12 @@ export const AppShell = () => {
 							<SceneTitle
 								onOpenSky={() => {
 									setTab("sky");
+									setSidePaneOpen("right", true);
+									setSheetOpen(true);
+								}}
+								onOpenOnScreen={() => {
+									setPanelOpen("world.onScreen", true);
+									setTab("world");
 									setSidePaneOpen("right", true);
 									setSheetOpen(true);
 								}}

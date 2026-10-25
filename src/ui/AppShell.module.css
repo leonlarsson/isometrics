@@ -121,6 +121,13 @@
 	text-decoration-color: color-mix(in oklab, currentColor 50%, transparent);
 }
 
+/* In Edit mode, under the title: why some lines are struck through, and the way to the panel. */
+.sceneTitle .sceneHiddenNote {
+	margin-top: 2px;
+	pointer-events: auto;
+	opacity: 0.75;
+}
+
 /* The world's time under its title, in equal-width digits so it doesn't jitter as it runs. */
 .sceneTitle .sceneTime {
 	display: flex;
