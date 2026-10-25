@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useCameraFeel } from "#/editor/cameraFeel";
+import { flyingSpeed } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
 import { liveCamera } from "#/render/liveCamera";
@@ -15,7 +16,7 @@ const CHECK_MS = 250;
 
 /** What the camera shows, in a few words: its kind, field of view, and the viewpoint it's at. */
 const describeView = () => {
-	const { scene, cameraFollow } = useEditor.getState();
+	const { scene, cameraFollow, holdingRightButton } = useEditor.getState();
 	const parts = [
 		liveCamera.fieldOfView === null
 			? "Diorama view"
@@ -33,6 +34,10 @@ const describeView = () => {
 		if (index >= 0) {
 			parts.push(viewpointName(scene.viewpoints[index], index));
 		}
+	}
+	// Flying: how fast, which scrolling changes.
+	if (holdingRightButton) {
+		parts.push(`flying at ${Math.round(flyingSpeed.factor * 100) / 100}× (scroll to change)`);
 	}
 	return parts.join(" · ");
 };

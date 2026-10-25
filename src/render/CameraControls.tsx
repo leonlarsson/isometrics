@@ -4,11 +4,11 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { dampingFactorOf, readCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
-import { rightButtonPress } from "#/editor/keyboardCamera";
+import { changeFlyingSpeed, rightButtonPress } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
-import { orthographicDistance, zoomLimits } from "./cameraMath";
+import { orthographicDistance, pixelsPerUnitAt, zoomLimits } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
 import { cameraCommands } from "./liveCamera";
 import { FREE_TILT, orbitAround, polarLimits, settleTarget } from "./orbit";
@@ -180,12 +180,14 @@ const useOrbitAroundCursor = () => {
 			// which the keys have moved away from.
 			const speed = readCameraFeel().orbitSpeed;
 			const looking = rightButtonPress.movedByKeys;
+			// Mouse look turns half as fast: a drag across the view turns your head half round.
+			const turnsPerHeight = looking ? Math.PI : 2 * Math.PI;
 			orbitAround(
 				camera.position,
 				controls.target,
 				looking ? eye.copy(camera.position) : pivot,
-				(-2 * Math.PI * dx * speed) / height,
-				(-2 * Math.PI * dy * speed) / height,
+				(-turnsPerHeight * dx * speed) / height,
+				(-turnsPerHeight * dy * speed) / height,
 				// Looking around while flying has no limits: you can look anywhere, up at the sky too.
 				looking
 					? FREE_TILT
@@ -194,7 +196,11 @@ const useOrbitAroundCursor = () => {
 							readCameraFeel().cameraControl === "free",
 						),
 			);
-			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
+			// Orbiting, the target slides back over the ground (the picture stays the same). Looking,
+			// it stays put in front of the camera, at the same distance, so nothing else moves.
+			if (!looking) {
+				settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
+			}
 			controls.update();
 		};
 
@@ -232,12 +238,19 @@ const useKeepTargetOnGround = () => {
 		}
 		const onChange = () => {
 			// The camera following a vehicle keeps up with it; the vehicle is on the ground anyway.
-			const { cameraFollow, scene } = useEditor.getState();
+			// Not while flying with the right button held either: the point the camera looks at is
+			// wherever you look then, and pulling it back would shove the camera about. It settles
+			// when you let go (useRightButtonHold).
+			const { cameraFollow, scene, holdingRightButton } = useEditor.getState();
 			const free = readCameraFeel().cameraControl === "free";
-			if (cameraFollow || free || !scene.camera.keepOverGround) {
+			if (cameraFollow || free || holdingRightButton || !scene.camera.keepOverGround) {
 				return;
 			}
 			const { target } = controls;
+			// A view looking up (left by flying) has its target in the air, over nothing: leave it.
+			if (Math.abs(target.y) > 0.01) {
+				return;
+			}
 			const x = clamp(target.x, -ground.width / 2, ground.width / 2);
 			const z = clamp(target.z, -ground.depth / 2, ground.depth / 2);
 			if (x === target.x && z === target.z) {
@@ -513,7 +526,14 @@ const useWheelDirection = () => {
 		if (!controls) {
 			return;
 		}
-		const onWheel = () => {
+		const onWheel = (event: WheelEvent) => {
+			// Flying (the right button held): scrolling sets how fast, as in Unreal, and doesn't zoom.
+			if (useEditor.getState().holdingRightButton) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				changeFlyingSpeed(event.deltaY);
+				return;
+			}
 			const { zoomSpeed, invertZoom } = readCameraFeel();
 			controls.zoomSpeed = invertZoom ? -zoomSpeed : zoomSpeed;
 		};
@@ -521,7 +541,7 @@ const useWheelDirection = () => {
 			controls.zoomSpeed = readCameraFeel().zoomSpeed;
 		};
 		// Capturing on the canvas element itself runs before OrbitControls' own listeners there.
-		element.addEventListener("wheel", onWheel, { capture: true, passive: true });
+		element.addEventListener("wheel", onWheel, { capture: true, passive: false });
 		element.addEventListener("pointerdown", onDown, { capture: true });
 		return () => {
 			element.removeEventListener("wheel", onWheel, { capture: true });
@@ -539,17 +559,32 @@ const useRightButtonHold = () => {
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
 
 	useEffect(() => {
 		const onDown = (event: PointerEvent) => {
 			if (event.button === 2) {
 				rightButtonPress.movedByKeys = false;
+				// Flying goes at a speed set by how much the view showed when the button went down.
+				if (controls) {
+					const height = element.clientHeight || 1;
+					rightButtonPress.span = height / pixelsPerUnitAt(camera, controls.target, height);
+				}
 				useEditor.getState().setHoldingRightButton(true);
 			}
 		};
 		const onUp = (event: PointerEvent) => {
-			if (event.button === 2 || event.type !== "pointerup") {
-				useEditor.getState().setHoldingRightButton(false);
+			if (event.button !== 2 && event.type === "pointerup") {
+				return;
+			}
+			const { holdingRightButton, scene, setHoldingRightButton } = useEditor.getState();
+			setHoldingRightButton(false);
+			// After flying, the point the camera looks at slides back along the line of sight onto
+			// the ground (the picture stays the same), so orbiting and zooming work from there.
+			if (holdingRightButton && rightButtonPress.movedByKeys && controls) {
+				settleTarget(camera.position, controls.target, scene.ground);
+				controls.update();
 			}
 		};
 		element.addEventListener("pointerdown", onDown);
@@ -562,7 +597,7 @@ const useRightButtonHold = () => {
 			window.removeEventListener("pointercancel", onUp);
 			window.removeEventListener("blur", onUp as unknown as () => void);
 		};
-	}, [element]);
+	}, [element, camera, controls]);
 };
 
 /** Lets the overlays turn and tilt the view around its centre (liveCamera's cameraCommands). */

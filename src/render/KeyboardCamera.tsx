@@ -4,7 +4,12 @@ import { useEffect } from "react";
 import * as THREE from "three";
 
 import { readCameraFeel } from "#/editor/cameraFeel";
-import { runningCameraMoves, type TCameraMove } from "#/editor/keyboardCamera";
+import {
+	flyingSpeed,
+	rightButtonPress,
+	runningCameraMoves,
+	type TCameraMove,
+} from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -13,6 +18,20 @@ import { FREE_TILT, orbitAround, polarLimits } from "./orbit";
 
 /** At the usual keyboard speed: how much of the view's height a pan crosses per second. */
 const PAN_PER_SECOND = 0.5;
+/**
+ * A move along one axis from `at` by `by`, cut short at ±`half`. From beyond
+ * the edge (left there another way), moving back in is fine, further out isn't.
+ */
+const keepWithin = (at: number, by: number, half: number) => {
+	if (at > half) {
+		return Math.min(by, 0);
+	}
+	if (at < -half) {
+		return Math.max(by, 0);
+	}
+	return clamp(at + by, -half, half) - at;
+};
+
 /** With simple camera control, how high above the ground moving with the keys stops the camera. */
 const GROUND_CLEARANCE = 0.5;
 /** Degrees per second for turning and tilting. */
@@ -74,23 +93,34 @@ export const KeyboardCamera = () => {
 		}
 		const orbit = controls as unknown as IControls;
 		const { target } = orbit;
-		// Panning goes at the keyboard's speed, turning and tilting at the orbit speed and zooming at
-		// the zoom speed, like dragging and scrolling (Your camera, editor/cameraFeel).
+		const { scene, holdingRightButton: flying } = useEditor.getState();
+		// Panning goes at the keyboard's speed (and, flying, the speed set by scrolling), turning and
+		// tilting at the orbit speed and zooming at the zoom speed, like dragging and scrolling
+		// (Preferences, editor/cameraFeel).
 		const feel = readCameraFeel();
 		const seconds = Math.min(delta, 0.1);
-		const step = seconds * feel.keyboardSpeed;
-		const { scene } = useEditor.getState();
-		const span = size.height / pixelsPerUnitAt(camera, target, size.height);
+		const step = seconds * feel.keyboardSpeed * (flying ? flyingSpeed.factor : 1);
+		// How far a move goes: by how much the view shows, or, flying, by how much it showed when the
+		// right button went down, so speed doesn't change with where you happen to look.
+		const span = flying
+			? rightButtonPress.span
+			: size.height / pixelsPerUnitAt(camera, target, size.height);
 
-		const flying = useEditor.getState().holdingRightButton;
 		const simple = feel.cameraControl === "simple";
 		/**
 		 * Move the camera and what it looks at together. With simple camera control the camera
-		 * stops at the ground instead of going under it: the move is cut short, so nothing drifts.
+		 * stays above the world: it stops at the ground and at the world's edges, the move cut
+		 * short, so nothing drifts.
 		 */
 		const moveBy = (by: THREE.Vector3) => {
-			if (simple && camera.position.y + by.y < GROUND_CLEARANCE) {
-				by.y = Math.min(0, GROUND_CLEARANCE - camera.position.y);
+			if (simple) {
+				const { width, depth } = scene.ground;
+				const at = camera.position;
+				if (at.y + by.y < GROUND_CLEARANCE) {
+					by.y = Math.min(0, GROUND_CLEARANCE - at.y);
+				}
+				by.x = keepWithin(at.x, by.x, width / 2);
+				by.z = keepWithin(at.z, by.z, depth / 2);
 			}
 			camera.position.add(by);
 			target.add(by);
