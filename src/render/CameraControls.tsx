@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { dampingFactorOf, readCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
+import { rightButtonPress } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -487,6 +488,41 @@ const useWheelDirection = () => {
 	}, [element, controls]);
 };
 
+/**
+ * Tells the editor while the right mouse button is held on the view, so W A S D
+ * and Q E move the camera in any mode (editor/useShortcuts), and starts each
+ * press afresh for the right-click menu (keyboardCamera's rightButtonPress).
+ */
+const useRightButtonHold = () => {
+	const element = useThree(
+		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
+	);
+
+	useEffect(() => {
+		const onDown = (event: PointerEvent) => {
+			if (event.button === 2) {
+				rightButtonPress.movedByKeys = false;
+				useEditor.getState().setHoldingRightButton(true);
+			}
+		};
+		const onUp = (event: PointerEvent) => {
+			if (event.button === 2 || event.type !== "pointerup") {
+				useEditor.getState().setHoldingRightButton(false);
+			}
+		};
+		element.addEventListener("pointerdown", onDown);
+		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onUp);
+		window.addEventListener("blur", onUp as unknown as () => void);
+		return () => {
+			element.removeEventListener("pointerdown", onDown);
+			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onUp);
+			window.removeEventListener("blur", onUp as unknown as () => void);
+		};
+	}, [element]);
+};
+
 /** Lets the overlays turn and tilt the view around its centre (liveCamera's cameraCommands). */
 const useOrbitCommand = () => {
 	const camera = useThree((s) => s.camera);
@@ -527,6 +563,7 @@ const CameraBehaviours = () => {
 	useCardEventHandover();
 	useWheelDirection();
 	useOrbitCommand();
+	useRightButtonHold();
 	return null;
 };
 

@@ -209,6 +209,11 @@ export interface IEditorState {
 	perspective: boolean;
 	/** Show the world's tilt-shift in Edit mode too, while setting it up (it's View mode's). */
 	previewTiltShift: boolean;
+	/**
+	 * The right mouse button is held on the view: W A S D and Q E move the camera in any mode, as
+	 * in a game, and the keys that edit stand aside. Runtime UI state.
+	 */
+	holdingRightButton: boolean;
 	/** The Preferences dialog is open (ui/PreferencesDialog). Runtime UI state. */
 	preferencesOpen: boolean;
 	/** Incremented to ask the viewport to re-frame the camera. */
@@ -270,6 +275,7 @@ export interface IEditorState {
 	togglePerspective: () => void;
 	setPreviewTiltShift: (preview: boolean) => void;
 	setPreferencesOpen: (open: boolean) => void;
+	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
 	 * back to their defaults (one undo step), except the turntable's and tilt-shift's.
@@ -594,6 +600,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		perspective: false,
 		previewTiltShift: false,
 		preferencesOpen: false,
+		holdingRightButton: false,
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
@@ -777,6 +784,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
 		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 		setPreferencesOpen: (open) => set({ preferencesOpen: open }),
+		setHoldingRightButton: (holding) =>
+			set((s) => (s.holdingRightButton === holding ? s : { holdingRightButton: holding })),
 		resetCamera: () => {
 			const defaults = CameraSettingsSchema.parse({});
 			get().commit((scene) => {

@@ -16,7 +16,9 @@ export type TCameraMove =
 	| "tiltUp"
 	| "tiltDown"
 	| "zoomIn"
-	| "zoomOut";
+	| "zoomOut"
+	| "moveUp"
+	| "moveDown";
 
 /** A tap moves the camera this long, so it does something even if it's let go before a frame. */
 const TAP_MS = 150;
@@ -34,7 +36,14 @@ export const runningCameraMoves = keepOnHotReload(
 	() => new Map<TCameraMove, IRunningMove>(),
 );
 
+/**
+ * The right mouse button held on the view: whether the keys moved the camera
+ * during that press, so letting go doesn't open the right-click menu.
+ */
+export const rightButtonPress = keepOnHotReload("rightButtonPress", () => ({ movedByKeys: false }));
+
 /** Start a move; it runs until `key` is let go, and for at least a tap's time. */
 export const startCameraMove = (move: TCameraMove, key: string) => {
 	runningCameraMoves.set(move, { key, until: performance.now() + TAP_MS });
+	rightButtonPress.movedByKeys = true;
 };

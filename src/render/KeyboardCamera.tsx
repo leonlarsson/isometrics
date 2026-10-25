@@ -93,6 +93,11 @@ export const KeyboardCamera = () => {
 					.multiplyScalar(span * PAN_PER_SECOND * step);
 				camera.position.add(shift);
 				target.add(shift);
+			} else if (move === "moveUp" || move === "moveDown") {
+				// Straight up or down, like flying in a game (Q and E).
+				shift.set(0, (move === "moveUp" ? 1 : -1) * span * PAN_PER_SECOND * step, 0);
+				camera.position.add(shift);
+				target.add(shift);
 			} else if (move === "turnLeft" || move === "turnRight") {
 				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * feel.orbitSpeed);
 				pivot.copy(target);

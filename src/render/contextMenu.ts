@@ -1,6 +1,7 @@
 import type { ThreeEvent } from "@react-three/fiber";
 
 import type { ISceneItem } from "#/editor/framing";
+import { rightButtonPress } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import type { TVec2 } from "#/scene/schema";
@@ -23,8 +24,10 @@ const onRightClick = (
 	if (mode !== "edit" || drawing || placingKind) {
 		return;
 	}
+	// Flying with W A S D while holding the button isn't a right-click.
+	const flew = () => rightButtonPress.movedByKeys;
 	if ((native.buttons & 2) === 0) {
-		if (!dragged) {
+		if (!dragged && !flew()) {
 			open(native.clientX, native.clientY);
 		}
 		return;
@@ -35,7 +38,7 @@ const onRightClick = (
 			return;
 		}
 		window.removeEventListener("pointerup", onUp);
-		if (!pastDragThreshold(from, up)) {
+		if (!pastDragThreshold(from, up) && !flew()) {
 			open(up.clientX, up.clientY);
 		}
 	};

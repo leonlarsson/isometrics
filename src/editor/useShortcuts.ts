@@ -37,7 +37,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
  *   P perspective / diorama view · 1–9 go to viewpoint 1–9 · Home back to the opening view
  *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
- *   View mode: W A S D move the camera, Q / E turn it (no letter keys edit anything there)
+ *   View mode, or holding the right mouse button: W A S D move the camera, Q / E down and up
  *   Ctrl+Space hide or show both side panels (Edit mode, like Blender's maximise)
  *
  * The library skips single keys while typing in text fields and prevents the
@@ -54,7 +54,9 @@ export const useShortcuts = () => {
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
 	const canDelete =
 		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
-	const canTransform = canEdit && !selected.locked;
+	// Holding the right mouse button, W A S D and Q E move the camera instead (see below).
+	const holdingRightButton = useEditor((s) => s.holdingRightButton);
+	const canTransform = canEdit && !selected.locked && !holdingRightButton;
 	const canNudge = canTransform && !selected.follow;
 	const selectedPoint = useEditor(
 		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
@@ -75,6 +77,7 @@ export const useShortcuts = () => {
 		(s) => s.mode === "view" && s.scene.viewpoints.length > 0 && s.cameraFollow === null,
 	);
 	const canPanCamera = !canNudgeAny && !transforming;
+	const flying = (mode === "view" || holdingRightButton) && !transforming;
 	const cameraMove = (move: TCameraMove) => (event: KeyboardEvent) => {
 		// Panning hands the camera back from following a vehicle, as dragging does; riding along,
 		// any camera key does.
@@ -96,7 +99,7 @@ export const useShortcuts = () => {
 	});
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
 	// G on a vehicle following a road lifts it off to drop on another road or park it.
-	const canGrab = canTransform || selectedPoint;
+	const canGrab = canTransform || (selectedPoint && !holdingRightButton);
 	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
@@ -287,13 +290,14 @@ export const useShortcuts = () => {
 		cameraKey("Shift+ArrowRight", "turnRight", "Turn the view right", canPanCamera),
 		cameraKey("Shift+ArrowUp", "tiltUp", "Look down more steeply", canPanCamera),
 		cameraKey("Shift+ArrowDown", "tiltDown", "Look across more", canPanCamera),
-		// View mode edits nothing, so W A S D and Q E are free for moving around, as in games.
-		cameraKey("W", "panForward", "Move forward", mode === "view"),
-		cameraKey("S", "panBack", "Move back", mode === "view"),
-		cameraKey("A", "panLeft", "Move left", mode === "view"),
-		cameraKey("D", "panRight", "Move right", mode === "view"),
-		cameraKey("Q", "turnLeft", "Turn left", mode === "view"),
-		cameraKey("E", "turnRight", "Turn right", mode === "view"),
+		// As in games: W A S D move, Q and E go down and up. In View mode, which edits nothing,
+		// always; in Edit mode while the right mouse button is held, when the keys that edit stand aside.
+		cameraKey("W", "panForward", "Move forward", flying),
+		cameraKey("S", "panBack", "Move back", flying),
+		cameraKey("A", "panLeft", "Move left", flying),
+		cameraKey("D", "panRight", "Move right", flying),
+		cameraKey("Q", "moveDown", "Move down", flying),
+		cameraKey("E", "moveUp", "Move up", flying),
 		cameraKey("=", "zoomIn", "Zoom in", !transforming),
 		cameraKey("+", "zoomIn", "Zoom in", !transforming),
 		cameraKey("Shift+=", "zoomIn", "Zoom in", !transforming),

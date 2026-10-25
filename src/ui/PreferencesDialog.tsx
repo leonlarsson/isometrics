@@ -118,7 +118,7 @@ export const PreferencesDialog = () => {
 					suffix="×"
 					onChange={(v) => setCameraFeel("keyboardSpeed", v)}
 					inherit={feelDefault(feel, "keyboardSpeed", "1×")}
-					hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. In View mode W A S D move and Q E go down and up. + and − zoom, and Home goes back to the opening view."
+					hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. W A S D move and Q E go down and up in View mode, or in any mode while you hold the right mouse button. + and − zoom, and Home goes back to the opening view."
 				/>
 			</FieldGroup>
 
