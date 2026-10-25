@@ -108,6 +108,13 @@ const EntityActions = ({ id }: { id: string }) => {
 				shortcut="Ctrl+D"
 				onClick={() => store().duplicateEntity(entity.id)}
 			/>
+
+			<Menu.Item
+				icon="move"
+				label="Duplicate and move"
+				shortcut="Shift+D"
+				onClick={() => store().duplicateAndGrab()}
+			/>
 		</>
 	);
 };
@@ -275,6 +282,13 @@ const GroupMenu = () => {
 				label="Duplicate"
 				shortcut="Ctrl+D"
 				onClick={() => store().duplicateSelected()}
+			/>
+
+			<Menu.Item
+				icon="move"
+				label="Duplicate and move"
+				shortcut="Shift+D"
+				onClick={() => store().duplicateAndGrab()}
 			/>
 
 			<Menu.Separator />

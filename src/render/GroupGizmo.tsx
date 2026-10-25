@@ -34,7 +34,11 @@ export const GroupGizmo = () => {
 		<group position={movable.center}>
 			<TransformGizmo
 				handles={movable.entities.length + movable.roads.length === 0 ? AREA_HANDLES : HANDLES}
-				onStart={() => {
+				onStart={(token, _handle, keys) => {
+					// Ctrl: copy them in place (the same undo step), then move, turn or resize the copies.
+					if (keys.copy) {
+						useEditor.getState().duplicateSelected({ step: 0, coalesce: token });
+					}
 					start.current = groupStart();
 				}}
 				onDrag={(drag) => {

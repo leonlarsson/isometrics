@@ -38,7 +38,7 @@ interface ITransformGizmoProps {
 	 * Called once when a drag really starts (past the drag threshold): snapshot the start values.
 	 * Gets the drag's coalesce key, for changes that belong to the same undo step, and the handle.
 	 */
-	onStart: (token: string, handle: TGizmoHandle) => void;
+	onStart: (token: string, handle: TGizmoHandle, keys: IGizmoStartKeys) => void;
 	onDrag: (drag: IGizmoDrag) => void;
 	/** Called when a started drag ends: `completed` false when it was cancelled. */
 	onEnd?: (completed: boolean, token: string) => void;
@@ -94,9 +94,16 @@ export const GizmoFirst = () => {
 	return null;
 };
 
+/** Keys held when a gizmo drag was pressed. */
+export interface IGizmoStartKeys {
+	/** Ctrl or Cmd: the drag works on a copy and leaves the selection where it was (ADR-0067). */
+	copy: boolean;
+}
+
 interface IDragSession {
 	handle: TGizmoHandle;
 	token: string;
+	keys: IGizmoStartKeys;
 	from: { clientX: number; clientY: number };
 	started: boolean;
 	center: THREE.Vector3;
@@ -306,6 +313,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 		session.current = {
 			handle,
 			token: `gizmo:${handle}:${performance.now()}`,
+			keys: { copy: e.nativeEvent.ctrlKey || e.nativeEvent.metaKey },
 			from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 			started: false,
 			center,
@@ -349,7 +357,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			if (MOVE_HANDLES.has(current.handle)) {
 				setCursorHidden(true);
 			}
-			onStart(current.token, current.handle);
+			onStart(current.token, current.handle, current.keys);
 			return;
 		}
 		const point = groundHit(e, current.center.y);

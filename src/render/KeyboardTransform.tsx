@@ -189,8 +189,10 @@ export const KeyboardTransform = () => {
 			return;
 		}
 		const state = useEditor.getState();
-		const token = `transform:${mode}:${performance.now()}`;
-		const before = state.scene;
+		// Shift+D's move shares the copy's undo step, and cancelling it takes the copy away (ADR-0067).
+		const token = state.transform?.token ?? `transform:${mode}:${performance.now()}`;
+		const undo = state.transform?.undo ?? null;
+		const before = undo?.scene ?? state.scene;
 		let target: TTarget | null = null;
 		let center: THREE.Vector3 | null = null;
 		let route: IVehicleRouteDrag | null = null;
@@ -280,6 +282,9 @@ export const KeyboardTransform = () => {
 		const cancel = () => {
 			if (context.current) {
 				useEditor.getState().revertTo(context.current.before);
+			}
+			if (undo) {
+				useEditor.getState().selectItems(undo.items);
 			}
 			route?.end(false, { coalesce: token, gesture: true });
 			route = null;

@@ -274,7 +274,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				{!following && (
 					<Hint>
 						Drag it or use the arrows in the scene · G move, R turn, S resize · Q/E to rotate · hold
-						Alt to place freely
+						Alt to place freely · Ctrl+drag or Shift+D moves a copy
 					</Hint>
 				)}
 			</Section>

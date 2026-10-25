@@ -154,6 +154,13 @@ export interface ITransformSession {
 	axis: TTransformAxis | null;
 	/** Number typed for an exact value, as typed (e.g. "-2.5"). Empty: follow the mouse. */
 	typed: string;
+	/** The undo step's key, when the transform finishes something already begun (Shift+D's copy). */
+	token?: string;
+	/**
+	 * What cancelling goes back to, when it should undo more than the move: the world and
+	 * selection before Shift+D copied it (ADR-0067).
+	 */
+	undo?: { scene: TScene; items: ISceneItem[] };
 }
 
 /** Two road ends that touch after a drag; the UI offers to join them. */
@@ -309,10 +316,20 @@ export interface IEditorState {
 	/** Delete everything selected (one undo step). */
 	removeSelected: () => void;
 	/**
-	 * Copy everything selected, a step over, and select the copies (one undo step). Copied vehicles
-	 * drive along the copied road when their road is copied too.
+	 * Copy everything selected, a step over (`step` grid units, 0: in place), and select the copies,
+	 * as one undo step (with `coalesce`, the one a move that follows shares, ADR-0067). Copied
+	 * vehicles drive along the copied road when their road is copied too. `leaveBehind` keeps the
+	 * selection on the originals instead (about to be moved) and leaves the copies where they were,
+	 * under the originals' names, so the one that moves is the one called "… copy": for a single
+	 * object's gizmo, which belongs to the object being dragged.
 	 */
-	duplicateSelected: () => void;
+	duplicateSelected: (options?: {
+		step?: number;
+		coalesce?: string;
+		leaveBehind?: boolean;
+	}) => void;
+	/** Shift+D: copy the selection in place and pick the copies up to move, as G does (ADR-0067). */
+	duplicateAndGrab: () => void;
 	/** Hide or lock everything selected, or show or unlock it (one undo step). */
 	setSelectedFlag: (flag: "hidden" | "locked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
@@ -320,7 +337,10 @@ export interface IEditorState {
 	setDragging: (dragging: boolean) => void;
 	startPlacing: (kind: string) => void;
 	stopPlacing: () => void;
-	startTransform: (mode: TTransformMode) => void;
+	startTransform: (
+		mode: TTransformMode,
+		session?: Pick<ITransformSession, "token" | "undo">,
+	) => void;
 	updateTransform: (patch: Partial<ITransformSession>) => void;
 	/** End a keyboard transform, keeping what it did (cancelling goes through cancelGesture). */
 	endTransform: () => void;
@@ -996,18 +1016,18 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				});
 				set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null });
 			},
-			duplicateSelected: () => {
+			duplicateSelected: ({ step = 1, coalesce, leaveBehind = false } = {}) => {
 				const { scene: current, selectedItems } = get();
 				const picked = <T extends { id: string }>(list: T[], kind: ISceneItem["kind"]) =>
 					list.filter((thing) => selectedItems.some(sameItem({ kind, id: thing.id })));
-				const copyName = (name: string) => (name ? `${name} copy` : "");
+				const copyName = (name: string) => (leaveBehind ? name : name ? `${name} copy` : "");
 				const roadIds = new Map<string, string>();
 				const roads = picked(current.roads, "road").map((source): TRoad => {
 					const copy = structuredClone(source);
 					copy.id = newId("road");
 					copy.name = copyName(source.name);
 					copy.points = source.points.map((point) =>
-						withPoint(point, { x: point[0] + 1, z: point[1] + 1 }),
+						withPoint(point, { x: point[0] + step, z: point[1] + step }),
 					);
 					roadIds.set(source.id, copy.id);
 					return copy;
@@ -1016,19 +1036,19 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					const copy = structuredClone(source);
 					copy.id = newId("area");
 					copy.name = copyName(source.name);
-					copy.points = source.points.map(([x, z]): TVec2 => [round(x + 1), round(z + 1)]);
+					copy.points = source.points.map(([x, z]): TVec2 => [round(x + step), round(z + step)]);
 					return copy;
 				});
 				const entities = picked(current.entities, "entity").map((source): TEntity => {
 					const copy = structuredClone(source);
 					copy.id = newId(source.kind);
 					copy.name = copyName(source.name);
-					copy.position = [source.position[0] + 1, source.position[1] + 1];
+					copy.position = [source.position[0] + step, source.position[1] + step];
 					const copiedRoad = copy.follow && roadIds.get(copy.follow.roadId);
 					if (copy.follow && copiedRoad) {
 						// Along the copied road, where it was on the original.
 						copy.follow.roadId = copiedRoad;
-					} else if (copy.follow) {
+					} else if (copy.follow && !leaveBehind) {
 						// A little further along the same road, like a single copy.
 						copy.follow.offset += 3;
 					}
@@ -1037,11 +1057,26 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (entities.length + roads.length + areas.length === 0) {
 					return;
 				}
-				get().commit((scene) => {
-					scene.entities.push(...entities);
-					scene.roads.push(...roads);
-					scene.areas.push(...areas);
-				});
+				get().commit(
+					(scene) => {
+						scene.entities.push(...entities);
+						scene.roads.push(...roads);
+						scene.areas.push(...areas);
+						// Left behind, the copies keep the names: the originals that move are the copies now.
+						if (leaveBehind) {
+							for (const item of selectedItems) {
+								const original = listOf(scene, item.kind).find((thing) => thing.id === item.id);
+								if (original?.name) {
+									original.name = `${original.name} copy`;
+								}
+							}
+						}
+					},
+					coalesce ? { coalesce, gesture: true } : undefined,
+				);
+				if (leaveBehind) {
+					return;
+				}
 				get().selectItems([
 					...areas.map((area): ISceneItem => ({ kind: "area", id: area.id })),
 					...roads.map((road): ISceneItem => ({ kind: "road", id: road.id })),
@@ -1078,7 +1113,16 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			setDragging: (dragging) => set({ dragging }),
 			startPlacing: (kind) => set({ placingKind: kind, drawing: null, followOffer: null }),
 			stopPlacing: () => set({ placingKind: null }),
-			startTransform: (mode) => set({ transform: { mode, axis: null, typed: "" } }),
+			startTransform: (mode, session) =>
+				set({ transform: { mode, axis: null, typed: "", ...session } }),
+			duplicateAndGrab: () => {
+				const { scene: before, selectedItems: items } = get();
+				const token = `duplicate:${performance.now()}`;
+				get().duplicateSelected({ step: 0, coalesce: token });
+				if (get().scene !== before) {
+					get().startTransform("grab", { token, undo: { scene: before, items } });
+				}
+			},
 			updateTransform: (patch) =>
 				set((s) => (s.transform ? { transform: { ...s.transform, ...patch } } : s)),
 			endTransform: () => set({ transform: null }),

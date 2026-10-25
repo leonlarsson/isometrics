@@ -70,3 +70,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0064](0064-multi-select.md) | Selecting several things at once: an active item, the rest, a box, group transforms and Mixed fields | accepted |
 | [0065](0065-several-points.md) | Several points of a road, or corners of an area, at once; Shift no longer lifts a point | accepted |
 | [0066](0066-whole-road-and-area-gizmo.md) | A selected road or area moves, turns and resizes as a whole | accepted |
+| [0067](0067-duplicate-and-move.md) | Duplicating while moving: Ctrl+drag and Shift+D | accepted |

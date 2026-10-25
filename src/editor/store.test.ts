@@ -997,3 +997,49 @@ describe("what moves as a group (ADR-0066)", () => {
 		expect(selectMovesAsGroup(store.getState())).toBe(true);
 	});
 });
+
+describe("duplicating and moving (ADR-0067)", () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => vi.useRealTimers());
+
+	it("Shift+D copies in place and picks the copy up; cancelling goes back to before it", () => {
+		const store = makeStore();
+		store.getState().select("w");
+		const before = store.getState().scene;
+		store.getState().duplicateAndGrab();
+		const { scene, transform, selectedItems } = store.getState();
+		expect(scene.entities).toHaveLength(2);
+		expect(scene.entities[1].position).toEqual(scene.entities[0].position);
+		expect(selectedItems).toEqual([{ kind: "entity", id: scene.entities[1].id }]);
+		expect(transform?.mode).toBe("grab");
+		expect(transform?.undo?.scene).toBe(before);
+		expect(transform?.undo?.items).toEqual([{ kind: "entity", id: "w" }]);
+
+		// The move shares the copy's undo step.
+		vi.advanceTimersByTime(5000);
+		store.getState().moveEntity(scene.entities[1].id, [5, 5], {
+			coalesce: transform?.token,
+			gesture: true,
+		});
+		expect(store.getState().past).toHaveLength(1);
+		store.getState().revertTo(before);
+		expect(store.getState().scene.entities).toHaveLength(1);
+		expect(store.getState().past).toHaveLength(0);
+	});
+});
+
+describe("copying from a single object's gizmo (ADR-0067)", () => {
+	it("leaves an identical copy behind under the name, and the moving one is the copy", () => {
+		const store = makeStore();
+		store.getState().updateEntity("w", (e) => {
+			e.name = "Depot";
+		});
+		store.getState().select("w");
+		store.getState().duplicateSelected({ step: 0, leaveBehind: true });
+		const [original, copy] = store.getState().scene.entities;
+		expect(store.getState().selectedId).toBe("w");
+		expect(original.name).toBe("Depot copy");
+		expect(copy.name).toBe("Depot");
+		expect(copy.position).toEqual(original.position);
+	});
+});

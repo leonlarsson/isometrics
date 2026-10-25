@@ -1,5 +1,6 @@
 import { useRef } from "react";
 
+import { useEditor } from "#/editor/store";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
 import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
@@ -21,7 +22,11 @@ export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 	return (
 		<TransformGizmo
 			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
-			onStart={(token, handle) => {
+			onStart={(token, handle, keys) => {
+				// Ctrl: an identical copy stays where it is, and this one moves (ADR-0067).
+				if (keys.copy) {
+					useEditor.getState().duplicateSelected({ step: 0, coalesce: token, leaveBehind: true });
+				}
 				// Only the move square snaps onto roads (and lifts a driving vehicle off its route).
 				route.current = handle === "xz" ? createVehicleRouteDrag(entity.id) : null;
 				route.current?.start({ coalesce: token, gesture: true });

@@ -35,7 +35,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°)
  *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×, Alt: 0.1)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
- *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
+ *   Mod+D duplicate · Shift+D duplicate and move (ADR-0067) · Delete/Backspace remove (selected road point, else object or road)
  *   B / Shift+B: the next drag draws a box that adds to the selection, or takes from it (ADR-0064)
  *   Several selected: the keys that edit work on all of them, around their middle
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
@@ -85,6 +85,10 @@ export const useShortcuts = () => {
 	);
 	const canPanCamera = !canNudgeAny && !transforming;
 	const canBox = useEditor((s) => s.mode === "edit" && s.drawing === null) && !transforming;
+	const canDuplicate =
+		useEditor((s) => s.mode === "edit" && s.drawing === null && s.selectedItems.length > 0) &&
+		!transforming &&
+		!holdingRightButton;
 	const flying = (mode === "view" || holdingRightButton) && !transforming;
 	const cameraMove = (move: TCameraMove) => (event: KeyboardEvent) => {
 		// Panning hands the camera back from following a vehicle, as dragging does; riding along,
@@ -280,6 +284,11 @@ export const useShortcuts = () => {
 				}
 			},
 			options: { meta: { name: "Duplicate" } },
+		},
+		{
+			hotkey: "Shift+D",
+			callback: () => useEditor.getState().duplicateAndGrab(),
+			options: { enabled: canDuplicate, meta: { name: "Duplicate and move" } },
 		},
 		{
 			hotkey: "B",

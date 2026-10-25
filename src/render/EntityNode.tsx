@@ -38,6 +38,8 @@ interface IDragState {
 	route: IVehicleRouteDrag | null;
 	/** One of several selected things: the drag moves them all, from where they were (ADR-0064). */
 	group: { start: IGroupStart; from: TVec2 } | null;
+	/** Ctrl/Cmd held: the drag moves copies of the selection and leaves it where it was (ADR-0067). */
+	copying: boolean;
 }
 
 export const SelectionFrame = ({
@@ -246,10 +248,11 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		onPointerDown: (e: ThreeEvent<PointerEvent>) => {
 			// Only a selected object can be dragged. Pressing anything else leaves the press to the
 			// camera (so panning across the scene never grabs a building); a click selects it.
-			// While drawing a road, presses pass through to the ground too, and with Ctrl, Cmd or
-			// Shift held the press orbits the camera, as it does anywhere else.
+			// While drawing a road, presses pass through to the ground too, and with Shift held the
+			// press orbits the camera, as it does anywhere else. Ctrl or Cmd on a selected object
+			// drags a copy (ADR-0067); a Ctrl-click without moving still takes it out (onClick).
 			const { button, ctrlKey, metaKey, shiftKey } = e.nativeEvent;
-			if (drawing || !selected || !editable || button !== 0 || ctrlKey || metaKey || shiftKey) {
+			if (drawing || !selected || !editable || button !== 0 || shiftKey) {
 				return;
 			}
 			if (!e.ray.intersectPlane(groundPlane, hit)) {
@@ -264,6 +267,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				moving: false,
 				route: null,
 				group: null,
+				copying: ctrlKey || metaKey,
 			};
 			(e.target as unknown as Element).setPointerCapture(e.pointerId);
 			if (controls) {
@@ -285,9 +289,13 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				return;
 			}
 			const options = { coalesce: `drag:${state.token}`, gesture: true };
-			if (!alone) {
-				// One of several selected things: they all move together, by the distance dragged.
+			if (!alone || state.copying) {
+				// One of several selected things: they all move together, by the distance dragged. A
+				// copying drag first copies them in place (the same undo step), then moves the copies.
 				if (!state.moving) {
+					if (state.copying) {
+						useEditor.getState().duplicateSelected({ step: 0, coalesce: options.coalesce });
+					}
 					const start = groupStart();
 					state.moving = true;
 					state.group = start && { start, from: [hit.x, hit.z] };

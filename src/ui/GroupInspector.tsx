@@ -244,8 +244,8 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 
 			<Hint>
 				{entities.length > 0
-					? "These set each one in place. To move, turn or resize them as a group, around their middle, drag the arrows in the scene · G move, R turn, S resize · Q/E to rotate."
-					: "Drag the arrows in the scene to move, turn or resize them as a group, around their middle · G move, R turn, S resize · Q/E to rotate."}
+					? "These set each one in place. To move, turn or resize them as a group, around their middle, drag the arrows in the scene · G move, R turn, S resize · Q/E to rotate · Ctrl+drag or Shift+D moves copies."
+					: "Drag the arrows in the scene to move, turn or resize them as a group, around their middle · G move, R turn, S resize · Q/E to rotate · Ctrl+drag or Shift+D moves copies."}
 			</Hint>
 		</Section>
 	);
