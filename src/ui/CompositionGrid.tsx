@@ -1,4 +1,4 @@
-import { useCameraFeel } from "#/editor/cameraFeel";
+import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 
 import styles from "./CompositionGrid.module.css";
@@ -10,10 +10,10 @@ import styles from "./CompositionGrid.module.css";
  * narrow layout's sheet.
  */
 export const CompositionGrid = () => {
-	const shown = useCameraFeel().compositionGrid;
-	const editing = useEditor((s) => s.mode === "edit");
+	const place = useCameraFeel().compositionGrid;
+	const mode = useEditor((s) => s.mode);
 	const inset = useEditor((s) => s.viewInset);
-	if (!shown || !editing) {
+	if (!overlayShownIn(place, mode)) {
 		return null;
 	}
 	return (

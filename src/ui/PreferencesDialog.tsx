@@ -1,7 +1,10 @@
 import {
 	DEFAULT_CAMERA_FEEL,
+	OVERLAY_PLACES,
 	setCameraFeel,
 	type TCameraFeel,
+	type TOverlay,
+	type TOverlayPlace,
 	useCameraFeel,
 } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
@@ -37,18 +40,22 @@ const speedField = (
 	/>
 );
 
-/** An overlay drawn over the view in Edit mode, on or off. */
-const overlayField = (
-	feel: TCameraFeel,
-	key: "navigationGizmo" | "viewLabel" | "viewpointsInWorld" | "compositionGrid",
-	label: string,
-	hint: string,
-) => (
-	<SwitchField
+/** Where an overlay can show, in words. */
+const OVERLAY_PLACE_LABELS: Record<TOverlayPlace, string> = {
+	off: "Off",
+	edit: "Edit mode",
+	view: "View mode",
+	both: "Both modes",
+};
+
+/** Where an overlay shows over the view: nowhere, in Edit mode, in View mode, or in both. */
+const overlayField = (feel: TCameraFeel, key: TOverlay, label: string, hint: string) => (
+	<SelectField<TOverlayPlace>
 		label={label}
-		checked={feel[key]}
+		value={feel[key]}
+		options={OVERLAY_PLACES.map((place) => ({ value: place, label: OVERLAY_PLACE_LABELS[place] }))}
 		onChange={(v) => setCameraFeel(key, v)}
-		inherit={feelDefault(feel, key, DEFAULT_CAMERA_FEEL[key] ? "on" : "off")}
+		inherit={feelDefault(feel, key, OVERLAY_PLACE_LABELS[DEFAULT_CAMERA_FEEL[key]])}
 		hint={hint}
 	/>
 );
@@ -200,7 +207,7 @@ export const PreferencesDialog = () => {
 			icon: "eye",
 			groups: [
 				{
-					title: "Over the view in Edit mode",
+					title: "Over the view",
 					rows: [
 						{
 							id: "navigationGizmo",
@@ -218,7 +225,7 @@ export const PreferencesDialog = () => {
 								feel,
 								"viewLabel",
 								"View label",
-								"What the camera shows, in the bottom-left corner. In View mode only while you move with the keys or fly, to see how fast.",
+								"What the camera shows, in the bottom-left corner. Where it isn't shown, it still appears while you move with the keys or fly, to see how fast.",
 							),
 						},
 						{

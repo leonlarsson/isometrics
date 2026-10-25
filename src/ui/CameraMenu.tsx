@@ -1,4 +1,10 @@
-import { setCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
+import {
+	overlayPlaceWith,
+	overlayShownIn,
+	setCameraFeel,
+	type TOverlay,
+	useCameraFeel,
+} from "#/editor/cameraFeel";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { fieldOfViewOf, focalLengthOf } from "#/render/cameraMath";
@@ -25,8 +31,6 @@ const LENSES = [
 	{ millimetres: 135, description: "Telephoto" },
 	{ millimetres: 200, description: "Long telephoto, flat" },
 ];
-
-type TOverlay = "navigationGizmo" | "viewLabel" | "compositionGrid" | "viewpointsInWorld";
 
 const OVERLAYS: { key: TOverlay; label: string }[] = [
 	{ key: "navigationGizmo", label: "Navigation gizmo" },
@@ -111,14 +115,17 @@ export const CameraMenu = () => {
 
 				<Menu.Separator />
 
-				<Menu.Group label="Overlays in Edit mode">
+				{/* Ticked: shown in the mode you're in; the other mode is set in Preferences. */}
+				<Menu.Group label={editing ? "Overlays in Edit mode" : "Overlays in View mode"}>
 					{OVERLAYS.map(({ key, label }) => (
 						<Menu.CheckboxItem
 							key={key}
 							icon="eye"
 							label={label}
-							checked={feel[key]}
-							onCheckedChange={(on) => setCameraFeel(key, on)}
+							checked={overlayShownIn(feel[key], editing ? "edit" : "view")}
+							onCheckedChange={(on) =>
+								setCameraFeel(key, overlayPlaceWith(feel[key], editing ? "edit" : "view", on))
+							}
 							keepOpen
 						/>
 					))}

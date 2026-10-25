@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useCameraFeel } from "#/editor/cameraFeel";
+import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
 import { flyingSpeed, runningCameraMoves } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
@@ -54,8 +54,9 @@ const describeView = () => {
 const VIEW_MODE_LINGER_MS = 2000;
 
 export const ViewLabel = () => {
-	const shown = useCameraFeel().viewLabel;
-	const editing = useEditor((s) => s.mode === "edit");
+	const place = useCameraFeel().viewLabel;
+	const shown = place !== "off";
+	const mode = useEditor((s) => s.mode);
 	const inset = useEditor((s) => s.viewInset);
 	const [text, setText] = useState("");
 	// In View mode only while moving with the keys or flying, and a moment after.
@@ -79,7 +80,8 @@ export const ViewLabel = () => {
 		return () => clearInterval(timer);
 	}, [shown]);
 
-	const visible = editing || moving;
+	// Where it's set to show, always; elsewhere (but not when off) while you move with the keys.
+	const visible = overlayShownIn(place, mode) || moving;
 	if (!shown || !text) {
 		return null;
 	}

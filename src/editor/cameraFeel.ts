@@ -13,6 +13,16 @@ import { APP_NAME } from "#/lib/app";
  */
 const KEY = `${APP_NAME.toLowerCase()}:camera-feel`;
 
+/** Where an overlay shows: nowhere, in one mode, or in both. */
+export const OVERLAY_PLACES = ["off", "edit", "view", "both"] as const;
+export type TOverlayPlace = (typeof OVERLAY_PLACES)[number];
+
+/** Overlays used to be on or off: on meant Edit mode. */
+const OverlayPlaceSchema = z.preprocess(
+	(value) => (value === true ? "edit" : value === false ? "off" : value),
+	z.enum(OVERLAY_PLACES),
+);
+
 export const CameraFeelSchema = z.object({
 	/**
 	 * simple: the camera stays above the world, within the world's zoom and tilt limits;
@@ -31,14 +41,14 @@ export const CameraFeelSchema = z.object({
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
 	/** Panning with the arrow keys (and W A S D in View mode), × the usual speed. */
 	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
-	/** A rule-of-thirds grid over the view in Edit mode, for lining up viewpoints. */
-	compositionGrid: z.boolean().catch(false),
-	/** The compass in the view's corner in Edit mode: shows which way it looks, click or drag to turn. */
-	navigationGizmo: z.boolean().catch(true),
-	/** A line in the view's corner in Edit mode saying what the camera shows. */
-	viewLabel: z.boolean().catch(true),
-	/** Saved viewpoints drawn in the world in Edit mode, as small cameras with what they see. */
-	viewpointsInWorld: z.boolean().catch(false),
+	/** A rule-of-thirds grid over the view, for lining up viewpoints. */
+	compositionGrid: OverlayPlaceSchema.catch("off"),
+	/** The compass in the view's corner: shows which way it looks, click or drag to turn. */
+	navigationGizmo: OverlayPlaceSchema.catch("edit"),
+	/** A line in the view's corner saying what the camera shows. */
+	viewLabel: OverlayPlaceSchema.catch("edit"),
+	/** Saved viewpoints drawn in the world, as small cameras with what they see. */
+	viewpointsInWorld: OverlayPlaceSchema.catch("off"),
 });
 
 export type TCameraFeel = z.output<typeof CameraFeelSchema>;
@@ -128,6 +138,27 @@ export const subscribeCameraFeel = (listener: () => void) => {
 			window.removeEventListener("storage", onStorage);
 		}
 	};
+};
+
+/** The overlays drawn over the view, each shown where its setting says. */
+export type TOverlay = "navigationGizmo" | "viewLabel" | "compositionGrid" | "viewpointsInWorld";
+
+/** Whether an overlay set to `place` shows in `mode`. */
+export const overlayShownIn = (place: TOverlayPlace, mode: "edit" | "view") =>
+	place === "both" || place === mode;
+
+/** `place` with the overlay shown or not in `mode`, the other mode kept as it was. */
+export const overlayPlaceWith = (
+	place: TOverlayPlace,
+	mode: "edit" | "view",
+	shown: boolean,
+): TOverlayPlace => {
+	const other = mode === "edit" ? "view" : "edit";
+	const inOther = overlayShownIn(place, other);
+	if (shown) {
+		return inOther ? "both" : mode;
+	}
+	return inOther ? other : "off";
 };
 
 /** The camera settings of this browser, updating when one changes. */

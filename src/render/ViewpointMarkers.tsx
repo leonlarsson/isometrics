@@ -4,7 +4,7 @@ import { useThree } from "@react-three/fiber";
 import { Suspense, useMemo, useState } from "react";
 import * as THREE from "three";
 
-import { useCameraFeel } from "#/editor/cameraFeel";
+import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { DEG2RAD } from "#/lib/math";
@@ -203,11 +203,11 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
  * it, double-click to go there, right-click for its menu. Off unless turned on.
  */
 export const ViewpointMarkers = () => {
-	const shown = useCameraFeel().viewpointsInWorld;
-	const editing = useEditor((s) => s.mode === "edit");
+	const place = useCameraFeel().viewpointsInWorld;
+	const mode = useEditor((s) => s.mode);
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const aspect = useThree((s) => (s.size.height > 0 ? s.size.width / s.size.height : 1.5));
-	if (!shown || !editing) {
+	if (!overlayShownIn(place, mode)) {
 		return null;
 	}
 	return (

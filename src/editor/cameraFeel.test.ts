@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_CAMERA_FEEL, dampingFactorOf, parseCameraFeel } from "./cameraFeel";
+import {
+	DEFAULT_CAMERA_FEEL,
+	dampingFactorOf,
+	overlayPlaceWith,
+	overlayShownIn,
+	parseCameraFeel,
+} from "./cameraFeel";
 import { memoryStorage } from "./testStorage";
 
 /** A fresh copy of the module, so nothing read by an earlier test is cached. */
@@ -40,5 +46,22 @@ describe("cameraFeel", () => {
 		expect(dampingFactorOf(DEFAULT_CAMERA_FEEL.smoothing)).toBeCloseTo(0.12, 5);
 		expect(dampingFactorOf(1)).toBeLessThan(0.12);
 		expect(dampingFactorOf(0.1)).toBeGreaterThan(0.12);
+	});
+
+	it("reads overlays saved as on or off: on was Edit mode", () => {
+		const feel = parseCameraFeel(JSON.stringify({ navigationGizmo: false, compositionGrid: true }));
+		expect(feel.navigationGizmo).toBe("off");
+		expect(feel.compositionGrid).toBe("edit");
+		expect(parseCameraFeel(JSON.stringify({ viewLabel: "both" })).viewLabel).toBe("both");
+		expect(parseCameraFeel(JSON.stringify({ viewLabel: "sometimes" })).viewLabel).toBe("edit");
+	});
+
+	it("turns an overlay on or off in one mode, keeping the other", () => {
+		expect(overlayPlaceWith("edit", "view", true)).toBe("both");
+		expect(overlayPlaceWith("both", "edit", false)).toBe("view");
+		expect(overlayPlaceWith("view", "view", false)).toBe("off");
+		expect(overlayPlaceWith("off", "edit", true)).toBe("edit");
+		expect(overlayShownIn("both", "view")).toBe(true);
+		expect(overlayShownIn("edit", "view")).toBe(false);
 	});
 });
