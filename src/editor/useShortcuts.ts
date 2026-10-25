@@ -35,7 +35,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
- *   P perspective / diorama view · 1–9 go to viewpoint 1–9 · Home back to the opening view
+ *   P perspective / diorama view · I isometric angle · 1–9 go to viewpoint 1–9 · Home back to the opening view
  *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
  *   View mode, or holding the right mouse button: W A S D move the camera, Q / E down and up
  *   Ctrl+Space hide or show both side panels (Edit mode, like Blender's maximise)
@@ -277,6 +277,11 @@ export const useShortcuts = () => {
 			},
 			options: { enabled: viewpointCount > index, meta: { name: `Viewpoint ${digit}` } },
 		})),
+		{
+			hotkey: "I",
+			callback: () => useEditor.getState().lookIsometric(),
+			options: { enabled: !transforming, meta: { name: "Isometric angle" } },
+		},
 		{
 			hotkey: "Home",
 			callback: () => useEditor.getState().resetView(),

@@ -102,6 +102,14 @@ export const CameraMenu = () => {
 				</Menu.Submenu>
 
 				<Menu.Item
+					icon="video"
+					label="Isometric angle"
+					description="A true isometric view from the nearest diagonal"
+					shortcut="I"
+					onClick={() => store().lookIsometric()}
+				/>
+
+				<Menu.Item
 					icon="focus"
 					label="Re-centre camera"
 					shortcut="Home"

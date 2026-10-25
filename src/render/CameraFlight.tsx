@@ -10,6 +10,7 @@ import type { TViewPose } from "#/scene/schema";
 import {
 	blendPoses,
 	currentView,
+	isometricPoseOf,
 	placeCamera,
 	poseOf,
 	projectionSwitch,
@@ -54,6 +55,15 @@ export const CameraFlight = () => {
 			currentView.read = null;
 		};
 	}, []);
+
+	// The camera menu's (or I's) isometric angle: from the view as it is now.
+	const isometricNonce = useEditor((s) => s.isometricNonce);
+	useEffect(() => {
+		const pose = isometricNonce > 0 ? currentView.read?.() : null;
+		if (pose) {
+			useEditor.getState().glideTo(isometricPoseOf(pose));
+		}
+	}, [isometricNonce]);
 
 	useEffect(() => {
 		if (request) {

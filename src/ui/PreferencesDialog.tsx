@@ -228,7 +228,7 @@ export const PreferencesDialog = () => {
 							),
 						},
 					],
-					note: "With nothing selected, the arrow keys pan, and with Shift they turn and tilt. W A S D move and Q E go down and up in View mode, or in any mode while you hold the right mouse button. + and − zoom, Home goes back to the opening view, P switches to perspective.",
+					note: "With nothing selected, the arrow keys pan, and with Shift they turn and tilt. W A S D move and Q E go down and up in View mode, or in any mode while you hold the right mouse button. + and − zoom, Home goes back to the opening view, P switches to perspective, I turns to a true isometric angle.",
 				},
 			],
 		},

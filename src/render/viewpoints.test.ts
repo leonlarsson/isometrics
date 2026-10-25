@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import type { TViewPose } from "#/scene/schema";
 
-import { blendPoses, directionOf, placeCamera, poseOf, sameView } from "./viewpoints";
+import {
+	blendPoses,
+	directionOf,
+	ISOMETRIC_ELEVATION,
+	isometricPoseOf,
+	placeCamera,
+	poseOf,
+	sameView,
+} from "./viewpoints";
 
 const pose: TViewPose = {
 	target: [4, -3],
@@ -81,6 +89,26 @@ describe("viewpoints", () => {
 		expect(back.elevation).toBeCloseTo(-30, 1);
 		expect(back.targetHeight).toBeCloseTo(12, 1);
 		expect(back.target).toEqual(pose.target);
+	});
+
+	it("finds the nearest true isometric angle", () => {
+		expect(ISOMETRIC_ELEVATION).toBeCloseTo(35.264, 3);
+		const iso = isometricPoseOf({
+			...pose,
+			azimuth: 300,
+			elevation: 60,
+			projection: "perspective",
+			fieldOfView: 70,
+		});
+		expect(iso).toMatchObject({
+			azimuth: 315,
+			projection: "orthographic",
+			fieldOfView: null,
+			target: pose.target,
+		});
+		expect(isometricPoseOf({ ...pose, azimuth: 10 }).azimuth).toBe(45);
+		expect(isometricPoseOf({ ...pose, azimuth: 350 }).azimuth).toBe(315);
+		expect(isometricPoseOf({ ...pose, azimuth: 200 }).azimuth).toBe(225);
 	});
 
 	it("tells when two views show the same thing", () => {

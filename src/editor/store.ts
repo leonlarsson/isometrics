@@ -319,6 +319,9 @@ export interface IEditorState {
 	goToViewpoint: (id: string) => void;
 	/** Select a viewpoint (its camera in the world was clicked): its settings, in the Viewpoints tab. */
 	selectViewpoint: (id: string) => void;
+	/** Asks the camera (render/CameraFlight) to glide to the nearest true isometric angle. */
+	isometricNonce: number;
+	lookIsometric: () => void;
 	/** Glide the camera to a view (the navigation gizmo's turns). */
 	glideTo: (pose: TViewPose) => void;
 	/** Save a view as a new viewpoint at the end of the list. Returns its id. */
@@ -970,6 +973,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		},
 
 		selectViewpoint: (id) => set({ ...NOTHING_SELECTED, activeViewpointId: id, tab: "views" }),
+
+		isometricNonce: 0,
+		lookIsometric: () => set((s) => ({ isometricNonce: s.isometricNonce + 1, cameraFollow: null })),
 
 		glideTo: (pose) =>
 			set((s) => ({

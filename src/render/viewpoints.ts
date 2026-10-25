@@ -117,6 +117,25 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 	};
 };
 
+/** Degrees a true isometric view looks down: the cube's diagonal points at the camera. */
+export const ISOMETRIC_ELEVATION = Math.atan(1 / Math.SQRT2) / DEG2RAD;
+
+/**
+ * The same view at a true isometric angle: the nearest diagonal (45°, 135°,
+ * 225° or 315°), looking down ISOMETRIC_ELEVATION, in the orthographic
+ * projection (the isometric diorama), where isometric means anything.
+ */
+export const isometricPoseOf = (pose: TViewPose): TViewPose => {
+	const diagonal = Math.round((pose.azimuth - 45) / 90) * 90 + 45;
+	return {
+		...pose,
+		azimuth: normalizeDegrees(diagonal),
+		elevation: ISOMETRIC_ELEVATION,
+		projection: "orthographic",
+		fieldOfView: null,
+	};
+};
+
 /**
  * Whether two views show the same thing, near enough that nobody could tell:
  * the view the camera has and a saved viewpoint, say. A view whose field of
