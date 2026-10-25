@@ -161,6 +161,7 @@ export const RoadBody = ({
 		],
 	);
 	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y), [sides, y]));
+	const underside = useDisposable(useMemo(() => wallGeometry(sides.underside, y), [sides, y]));
 	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y), [sides, y]));
 	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
 	const pillars = useMemo(
@@ -197,6 +198,13 @@ export const RoadBody = ({
 			{ROAD_STYLES[road.style].centreLine && road.markings && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
+				</mesh>
+			)}
+
+			{/* Closes the deck from below: a bridge looks solid and casts a shadow. */}
+			{!hidden && sides.underside.quads.length > 0 && (
+				<mesh geometry={underside} castShadow receiveShadow {...handlers}>
+					<meshStandardMaterial color={palette.deck} roughness={0.9} side={THREE.DoubleSide} />
 				</mesh>
 			)}
 

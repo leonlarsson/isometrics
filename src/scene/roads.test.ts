@@ -271,7 +271,17 @@ describe("road heights", () => {
 			expect(bottom[1]).toBeCloseTo(Math.max(0, top[1] - DECK_THICKNESS));
 		}
 
+		// Closed from below at the deck's thickness, where that's above the ground.
+		expect(sides.underside.quads.length).toBeGreaterThan(0);
+		for (const quad of sides.underside.quads) {
+			for (const corner of quad) {
+				expect(corner[1]).toBeGreaterThanOrEqual(0);
+			}
+		}
+		expect(sides.underside.quads.some((quad) => quad[0][1] === 3 - DECK_THICKNESS)).toBe(true);
+
 		const bank = buildElevatedSides(bridge, false, 1, { railings: false, embankment: true });
+		expect(bank.underside.quads).toHaveLength(0); // the bank fills the space below
 		expect(bank.railings.quads).toHaveLength(0);
 		expect(bank.deck.quads).toHaveLength(0); // the bank covers the deck's edge
 		for (const quad of bank.embankment.quads) {

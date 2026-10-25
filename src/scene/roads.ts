@@ -509,8 +509,9 @@ const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number, widt
 };
 
 /**
- * Side faces for the elevated parts of a road: the deck's edge (thickness
- * below the surface), railings above it, and embankment slopes below when
+ * Side faces for the elevated parts of a road: the deck's edges and underside
+ * (thickness below the surface; closed, so a bridge looks solid and casts a
+ * shadow), railings above it, and embankment slopes below when
  * `embankment` is on (a full-width bank replaces the deck's edge, which it
  * would cover or z-fight with). Only segments above `ELEVATED_MIN`. Each is a continuous
  * strip along the road (see `vertexEdges`).
@@ -538,6 +539,7 @@ export const buildElevatedSides = (
 				]
 			: p;
 	const deck: IWall = { quads: [] };
+	const underside: IWall = { quads: [] };
 	const railings: IWall = { quads: [] };
 	const embankment: IWall = { quads: [] };
 	const run = embankmentRun(options.embankmentAngle ?? 45);
@@ -555,6 +557,18 @@ export const buildElevatedSides = (
 		const [ha, hb] = [a.point[2], b.point[2]];
 		if (ha <= ELEVATED_MIN && hb <= ELEVATED_MIN) {
 			continue;
+		}
+		// The deck's underside, closing it: without it a bridge looks hollow from the side, and the
+		// one-sided road surface casts no shadow. Not where an embankment fills the space below, nor
+		// where both ends are too low for an underside above the ground.
+		const [ua, ub] = [ha - DECK_THICKNESS, hb - DECK_THICKNESS];
+		if (!options.embankment && (ua > 0 || ub > 0)) {
+			underside.quads.push([
+				[a.left[0], Math.max(0, ua), a.left[1]],
+				[b.left[0], Math.max(0, ub), b.left[1]],
+				[a.right[0], Math.max(0, ua), a.right[1]],
+				[b.right[0], Math.max(0, ub), b.right[1]],
+			]);
 		}
 		for (const sign of [-1, 1] as const) {
 			const pa = sign < 0 ? a.left : a.right;
@@ -590,7 +604,7 @@ export const buildElevatedSides = (
 			}
 		}
 	}
-	return { deck, railings, embankment };
+	return { deck, underside, railings, embankment };
 };
 
 /** Pillar positions [x, z, height] every `spacing` along the road where it's high enough. */
