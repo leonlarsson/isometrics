@@ -6,11 +6,14 @@ import {
 } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
-import type { TCameraSettings } from "#/scene/schema";
+import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
 
 import { Button } from "./Button";
 import { Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
 import { viewpointName } from "./ViewpointsSection";
+
+/** Every world camera setting as a new world has it, for Default / Reset. */
+const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
 
 /** A personal camera setting's Default / Reset (ADR-0027): its default is the app's. */
 const feelDefault = <K extends keyof TCameraFeel>(feel: TCameraFeel, key: K, value: string) => ({
@@ -63,6 +66,7 @@ const CameraFeelSection = () => {
 				label="Scroll up to zoom out"
 				checked={feel.invertZoom}
 				onChange={(v) => setCameraFeel("invertZoom", v)}
+				inherit={feelDefault(feel, "invertZoom", "off")}
 			/>
 
 			<SliderField
@@ -122,9 +126,20 @@ export const CameraTab = () => {
 			},
 			{ coalesce: `camera.${key}` },
 		);
+	const perspective = useEditor((s) => s.perspective);
 	const opening = viewpoints.some((v) => v.id === camera.openingViewpointId)
 		? (camera.openingViewpointId ?? "")
 		: "";
+	/** A setting's Default / Reset: Default while it's as a new world has it. */
+	const byDefault = <K extends keyof TCameraSettings>(key: K, value: string) => ({
+		from: "default",
+		inherited: camera[key] === CAMERA_DEFAULTS[key],
+		onReset: () =>
+			commit((s) => {
+				s.camera[key] = CAMERA_DEFAULTS[key];
+			}),
+		value,
+	});
 
 	return (
 		<>
@@ -132,8 +147,42 @@ export const CameraTab = () => {
 				id="camera.view"
 				icon="video"
 				title="View"
-				keywords="opening view start field of view fov lens perspective wide angle ground"
+				keywords="diorama perspective iso isometric camera type opening view start field of view fov lens wide angle ground"
 			>
+				{/* First: it decides what the field of view below means. */}
+				<SelectField<"diorama" | "perspective">
+					label="Camera"
+					value={perspective ? "perspective" : "diorama"}
+					options={[
+						{ value: "diorama", label: "Diorama view" },
+						{ value: "perspective", label: "Perspective view" },
+					]}
+					onChange={(next) => {
+						if ((next === "perspective") !== perspective) {
+							useEditor.getState().togglePerspective();
+						}
+					}}
+					inherit={{
+						from: "default",
+						inherited: !perspective,
+						onReset: () => useEditor.getState().togglePerspective(),
+						value: "diorama view",
+					}}
+					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."
+				/>
+
+				<SliderField
+					label="Field of view"
+					value={camera.fieldOfView}
+					min={10}
+					max={100}
+					step={1}
+					suffix="°"
+					onChange={(v) => set("fieldOfView", v)}
+					inherit={byDefault("fieldOfView", `${CAMERA_DEFAULTS.fieldOfView}°`)}
+					hint="For the perspective view (P): small looks flat, like a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own."
+				/>
+
 				<SelectField
 					label="Opening view"
 					value={opening}
@@ -147,6 +196,12 @@ export const CameraTab = () => {
 							: [{ value: "none", label: "A viewpoint (no viewpoints yet)", disabled: true }]),
 					]}
 					onChange={(id) => useEditor.getState().setOpeningViewpoint(id || null)}
+					inherit={{
+						from: "default",
+						inherited: opening === "",
+						onReset: () => useEditor.getState().setOpeningViewpoint(null),
+						value: "the whole world",
+					}}
 					hint="Where the world opens for anyone who hasn’t looked around it in their browser yet (a shared file, another browser), and where re-centring the camera goes."
 				/>
 
@@ -160,21 +215,11 @@ export const CameraTab = () => {
 					</>
 				)}
 
-				<SliderField
-					label="Field of view"
-					value={camera.fieldOfView}
-					min={10}
-					max={100}
-					step={1}
-					suffix="°"
-					onChange={(v) => set("fieldOfView", v)}
-					hint="For the perspective view (P): small looks flat, like a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own."
-				/>
-
 				<SwitchField
 					label="Keep the camera over the ground"
 					checked={camera.keepOverGround}
 					onChange={(v) => set("keepOverGround", v)}
+					inherit={byDefault("keepOverGround", "on")}
 				/>
 			</Section>
 
@@ -190,8 +235,8 @@ export const CameraTab = () => {
 					min={1}
 					max={100}
 					step={1}
-					suffix="units"
 					onChange={(v) => set("closestSpan", v)}
+					inherit={byDefault("closestSpan", `${CAMERA_DEFAULTS.closestSpan} units`)}
 					hint="How many grid units still fit from the top of the view to the bottom when zoomed in all the way."
 				/>
 
@@ -201,14 +246,12 @@ export const CameraTab = () => {
 					min={10}
 					max={2000}
 					step={10}
-					suffix="units"
 					onChange={(v) => set("farthestSpan", v)}
-					inherit={{
-						from: "default",
-						inherited: camera.farthestSpan === null,
-						onReset: () => set("farthestSpan", null),
-						value: `${farthestSpanOf({ farthestSpan: null }, ground)}, from the ground’s size`,
-					}}
+					hint="Grid units from the top of the view to the bottom when zoomed out all the way. By default it fits the whole ground with room around it."
+					inherit={byDefault(
+						"farthestSpan",
+						`${farthestSpanOf({ farthestSpan: null }, ground)}, from the ground’s size`,
+					)}
 				/>
 
 				<SliderField
@@ -219,6 +262,7 @@ export const CameraTab = () => {
 					step={1}
 					suffix="°"
 					onChange={(v) => set("lowestElevation", v)}
+					inherit={byDefault("lowestElevation", `${CAMERA_DEFAULTS.lowestElevation}°`)}
 					hint="Degrees above the ground: low looks across the world, like standing in it."
 				/>
 
@@ -230,6 +274,7 @@ export const CameraTab = () => {
 					step={1}
 					suffix="°"
 					onChange={(v) => set("steepestElevation", v)}
+					inherit={byDefault("steepestElevation", `${CAMERA_DEFAULTS.steepestElevation}°`)}
 					hint="89° looks almost straight down, like a map."
 				/>
 			</Section>

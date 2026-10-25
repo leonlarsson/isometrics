@@ -591,6 +591,13 @@ textarea.input {
 	user-select: none;
 }
 
+/* A switch with Default / Reset at the end of its row. */
+.switchRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .switch {
 	all: unset;
 	position: relative;
@@ -901,12 +908,15 @@ textarea.input {
 	}
 
 	.field:not([data-stacked]) .inheritTag,
-	.field:not([data-stacked]) .reset {
+	.field:not([data-stacked]) .reset,
+	.switchRow .inheritTag,
+	.switchRow .reset {
 		margin-left: 0;
 	}
 
 	/* A quiet note under the label rather than a pill. */
-	.field:not([data-stacked]) .inheritTag {
+	.field:not([data-stacked]) .inheritTag,
+	.switchRow .inheritTag {
 		flex-basis: 100%;
 		padding: 0;
 		background: none;
@@ -916,7 +926,8 @@ textarea.input {
 		opacity: 0.8;
 	}
 
-	.field:not([data-stacked]) .resetText {
+	.field:not([data-stacked]) .resetText,
+	.switchRow .resetText {
 		display: none;
 	}
 
@@ -954,6 +965,25 @@ textarea.input {
 		display: flex;
 		min-height: 26px;
 		padding-inline-start: calc(34% + 10px);
+	}
+
+	/* Its Default / Reset sits in the label column, where every other field has it. */
+	.switchRow {
+		display: grid;
+		grid-template-columns: 34% minmax(0, 1fr);
+		column-gap: 10px;
+	}
+
+	.switchRow > .switchField {
+		grid-column: 2;
+		grid-row: 1;
+		padding-inline-start: 0;
+	}
+
+	.switchRow > :last-child {
+		grid-column: 1;
+		grid-row: 1;
+		justify-self: end;
 	}
 }
 

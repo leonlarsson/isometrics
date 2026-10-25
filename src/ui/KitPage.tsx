@@ -138,6 +138,18 @@ export const KitPage = () => {
 
 								<SwitchField label="Switch" checked={on} onChange={setOn} />
 
+								<SwitchField
+									label="Switch with a default"
+									checked={on}
+									onChange={setOn}
+									inherit={{
+										from: "default",
+										inherited: !on,
+										onReset: () => setOn(false),
+										value: "off",
+									}}
+								/>
+
 								<CheckboxGroupField
 									label="Checkbox group"
 									options={[
@@ -186,6 +198,18 @@ export const KitPage = () => {
 											<ColorField label="Colour" value={color} onChange={setColor} />
 
 											<SwitchField label="A switch" checked={on} onChange={setOn} />
+
+											<SwitchField
+												label="A switch with a default"
+												checked={on}
+												onChange={setOn}
+												inherit={{
+													from: "default",
+													inherited: !on,
+													onReset: () => setOn(false),
+													value: "off",
+												}}
+											/>
 										</Section>
 
 										<Section id="kit.folded" icon="info" title="Folded at first" defaultClosed>
