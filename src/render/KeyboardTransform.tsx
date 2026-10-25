@@ -2,16 +2,24 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-import { groupStart, type IGroupStart } from "#/editor/groupTransform";
+import {
+	groupStart,
+	type IGroupStart,
+	type IPointsStart,
+	pointsStart,
+} from "#/editor/groupTransform";
 import { type ITransformSession, useEditor } from "#/editor/store";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
+import { areaBaseY } from "./AreaMesh";
 import { pixelsPerUnitAt } from "./cameraMath";
+import { roadBaseY } from "./RoadMesh";
 import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import type { IGizmoDrag, TGizmoHandle } from "./TransformGizmo";
 import {
 	applyEntityDrag,
 	applyGroupDrag,
+	applyPointsDrag,
 	applyRoadPointDrag,
 	entityStart,
 	type IEntityStart,
@@ -22,7 +30,8 @@ import {
 type TTarget =
 	| { kind: "entity"; id: string; from: IEntityStart }
 	| { kind: "point"; roadId: string; index: number; from: TRoadPoint }
-	| { kind: "group"; from: IGroupStart };
+	| { kind: "group"; from: IGroupStart }
+	| { kind: "points"; from: IPointsStart };
 
 interface IContext {
 	target: TTarget;
@@ -149,6 +158,13 @@ export const KeyboardTransform = () => {
 			steps.push(drag("scale", { ratio }));
 		}
 
+		if (target.kind === "points") {
+			// Points only move: along the ground, or up (road points).
+			if (session.mode === "grab") {
+				applyPointsDrag(target.from, session.axis === "y" ? steps[1] : steps[0]);
+			}
+			return;
+		}
 		if (target.kind === "group") {
 			// Each step of a group sets everything from where it started, so a move is one step: along
 			// the ground, or up.
@@ -195,6 +211,27 @@ export const KeyboardTransform = () => {
 			if (from) {
 				target = { kind: "entity", id: state.selectedId, from };
 				center = new THREE.Vector3(from.position[0], from.elevation, from.position[1]);
+			}
+		} else if (
+			state.selectedPointIndex !== null &&
+			(state.selectedPointIndices.length > 1 || state.selectedAreaId)
+		) {
+			// Several points, or an area's corners: they move together (ADR-0065).
+			const from = pointsStart();
+			if (from) {
+				target = { kind: "points", from };
+				const { roads, areas } = state.scene;
+				const areaLayer = areas.findIndex((a) => a.id === state.selectedAreaId);
+				const baseY =
+					areaLayer >= 0
+						? areaBaseY(areaLayer) + areas[areaLayer].height
+						: roadBaseY(
+								Math.max(
+									0,
+									roads.findIndex((r) => r.id === state.selectedRoadId),
+								),
+							);
+				center = new THREE.Vector3(from.center[0], baseY + from.center[1], from.center[2]);
 			}
 		} else if (state.selectedRoadId && state.selectedPointIndex !== null) {
 			const from = roadPointStart(state.selectedRoadId, state.selectedPointIndex);

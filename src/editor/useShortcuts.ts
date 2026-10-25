@@ -9,7 +9,7 @@ import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
-import { transformSelected } from "./groupTransform";
+import { transformSelected, transformSelectedPoints } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
 import {
@@ -64,9 +64,8 @@ export const useShortcuts = () => {
 	const canGroup = several && !holdingRightButton;
 	const canTransform = canGroup || (!several && canEdit && !selected.locked && !holdingRightButton);
 	const canNudge = canGroup || (canTransform && !selected?.follow);
-	const selectedPoint = useEditor(
-		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
-	);
+	// A point of a road or a corner of an area (several move together, ADR-0065).
+	const selectedPoint = useEditor((s) => s.mode === "edit" && s.selectedPointIndex !== null);
 	// A point of a road or area that can be edited (visible, not locked): the arrows nudge it.
 	const nudgePoint = useEditor((s) => {
 		if (s.mode !== "edit" || s.selectedPointIndex === null || s.selectedItems.length > 1) {
@@ -137,6 +136,10 @@ export const useShortcuts = () => {
 			);
 			return;
 		}
+		if (state.selectedPointIndices.length > 1) {
+			transformSelectedPoints({ offset: [dx * step, dz * step] }, { coalesce: "nudge:points" });
+			return;
+		}
 		const index = state.selectedPointIndex;
 		const road = selectSelectedRoad(state);
 		const shape = road ?? selectSelectedArea(state);
@@ -164,6 +167,8 @@ export const useShortcuts = () => {
 		const point = state.selectedPointIndex;
 		if (state.selectedItems.length > 1) {
 			state.removeSelected();
+		} else if (state.selectedPointIndices.length > 1) {
+			state.removeSelectedPoints();
 		} else if (state.selectedId) {
 			state.removeEntity(state.selectedId);
 		} else if (state.selectedRoadId) {

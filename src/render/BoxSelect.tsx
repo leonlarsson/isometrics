@@ -73,6 +73,34 @@ const itemsInBox = (
 };
 
 /**
+ * The points of the selected road, or corners of the selected area, inside a
+ * box on screen (ADR-0065), while one of them is selected.
+ */
+const pointsInBox = (
+	scene: TScene,
+	roadId: string | null,
+	areaId: string | null,
+	box: IScreenBox,
+	camera: THREE.Camera,
+	canvas: DOMRect,
+): number[] => {
+	const layer = scene.roads.findIndex((r) => r.id === roadId);
+	const road = scene.roads[layer];
+	const area = scene.areas.find((a) => a.id === areaId);
+	const spots = road
+		? road.points.map(([x, z, height = 0]) => [x, roadBaseY(layer) + height, z])
+		: (area?.points.map(([x, z]) => [x, area.height, z]) ?? []);
+	return spots.flatMap(([x, y, z], index) => {
+		projected.set(x, y, z).project(camera);
+		const left = canvas.left + ((projected.x + 1) / 2) * canvas.width;
+		const top = canvas.top + ((1 - projected.y) / 2) * canvas.height;
+		return left >= box.left && left <= box.right && top >= box.top && top <= box.bottom
+			? [index]
+			: [];
+	});
+};
+
+/**
  * B / Shift+B (or the toolbar's Select box): the next drag on the view draws
  * a box that adds what's inside to the selection, or takes it out; holding
  * Ctrl or Cmd when letting go takes it out too (ADR-0064). The drag is taken
@@ -132,15 +160,30 @@ export const BoxSelect = () => {
 				from = { x: event.clientX, y: event.clientY };
 			}
 		};
-		/** What letting go now would add, or take out (only what's selected). */
-		const pick = (box: IScreenBox, event: PointerEvent) => {
+		/**
+		 * What letting go now would add, or take out (only what's selected): points of the selected
+		 * road or area while one of them is selected (ADR-0065), else objects, roads and areas.
+		 */
+		const pick = (
+			box: IScreenBox,
+			event: PointerEvent,
+		): { items: ISceneItem[]; points: number[]; removing: boolean } => {
 			const state = store();
 			const removing = state.boxSelect === "remove" || event.ctrlKey || event.metaKey;
-			const picked = itemsInBox(state.scene, box, camera, element.getBoundingClientRect());
+			const canvas = element.getBoundingClientRect();
+			if (state.selectedPointIndex !== null) {
+				const { scene, selectedRoadId, selectedAreaId } = state;
+				const inside = pointsInBox(scene, selectedRoadId, selectedAreaId, box, camera, canvas);
+				const points = removing
+					? inside.filter((index) => state.selectedPointIndices.includes(index))
+					: inside;
+				return { items: [], points, removing };
+			}
+			const picked = itemsInBox(state.scene, box, camera, canvas);
 			const items = removing
 				? picked.filter((item) => isItemSelected(state, item.kind, item.id))
 				: picked;
-			return { items, removing };
+			return { items, points: [], removing };
 		};
 		const onMove = (event: PointerEvent) => {
 			const box = boxTo(event);
@@ -166,7 +209,17 @@ export const BoxSelect = () => {
 			swallow(event);
 			swallowNextClick();
 			const state = store();
-			const { items: picked, removing } = pick(box, event);
+			const { items: picked, points, removing } = pick(box, event);
+			if (state.selectedPointIndex !== null) {
+				const kept = state.selectedPointIndices.filter((index) => !points.includes(index));
+				if (removing) {
+					state.selectPoints(kept);
+				} else if (points.length > 0) {
+					state.selectPoints([...kept, ...points]);
+				}
+				finish();
+				return;
+			}
 			const isPicked = (item: ISceneItem) =>
 				picked.some((other) => other.kind === item.kind && other.id === item.id);
 			if (removing) {

@@ -2,10 +2,12 @@ import * as THREE from "three";
 
 import {
 	type IGroupStart,
+	type IPointsStart,
 	MAX_POINT_HEIGHT,
 	MAX_SIZE,
 	MIN_SIZE,
 	transformGroup,
+	transformPoints,
 } from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap } from "#/lib/math";
@@ -168,5 +170,24 @@ export const applyGroupDrag = (from: IGroupStart, drag: IGizmoDrag) => {
 		case "scale":
 			transformGroup(from, { ratio: step(drag.ratio, SIZE_STEP) }, options);
 			return;
+	}
+};
+
+/**
+ * Apply one step of a gizmo or keyboard move to several selected points or
+ * corners (ADR-0065), measured from `from`: along the ground, the distance
+ * snapped to the grid, or up (road points), in height steps.
+ */
+export const applyPointsDrag = (from: IPointsStart, drag: IGizmoDrag) => {
+	const step = stepper(drag);
+	const options = { coalesce: drag.token, gesture: true };
+	if (drag.handle === "y") {
+		transformPoints(from, { lift: step(drag.lift, POINT_HEIGHT_STEP) }, options);
+	} else if (drag.handle === "x" || drag.handle === "z" || drag.handle === "xz") {
+		transformPoints(
+			from,
+			{ offset: [step(drag.offset[0], SNAP_STEP), step(drag.offset[1], SNAP_STEP)] },
+			options,
+		);
 	}
 };

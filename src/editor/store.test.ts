@@ -894,3 +894,87 @@ describe("selecting several things (ADR-0064)", () => {
 		expect(store.getState().selectedItems).toEqual([{ kind: "road", id: "r" }]);
 	});
 });
+
+describe("selecting several points (ADR-0065)", () => {
+	const pointStore = () =>
+		createEditorStore(
+			SceneSchema.parse({
+				version: 1,
+				roads: [
+					{
+						id: "r",
+						points: [
+							[0, 0],
+							[2, 0],
+							[4, 0],
+							[6, 0],
+						],
+					},
+				],
+				areas: [
+					{
+						id: "lake",
+						type: "water_01",
+						points: [
+							[0, 0],
+							[2, 0],
+							[2, 2],
+							[0, 2],
+						],
+					},
+				],
+			}),
+		);
+
+	it("toggles points of the selected road, the last one active", () => {
+		const store = pointStore();
+		store.getState().selectRoadPoint("r", 1);
+		store.getState().togglePoint(3);
+		expect(store.getState().selectedPointIndices).toEqual([1, 3]);
+		expect(store.getState().selectedPointIndex).toBe(3);
+		store.getState().togglePoint(3);
+		expect(store.getState().selectedPointIndices).toEqual([1]);
+		expect(store.getState().selectedPointIndex).toBe(1);
+		// Selecting one point on its own collapses the list.
+		store.getState().togglePoint(2);
+		store.getState().selectRoadPoint("r", 0);
+		expect(store.getState().selectedPointIndices).toEqual([0]);
+		store.getState().selectRoad(null);
+		expect(store.getState().selectedPointIndices).toEqual([]);
+	});
+
+	it("deletes the selected points in one step, keeping a road at two points", () => {
+		const store = pointStore();
+		store.getState().selectRoadPoint("r", 0);
+		store.getState().selectPoints([0, 2]);
+		store.getState().removeSelectedPoints();
+		expect(store.getState().scene.roads[0].points.map((p) => p[0])).toEqual([2, 6]);
+		expect(store.getState().selectedPointIndices).toEqual([]);
+		expect(store.getState().past).toHaveLength(1);
+
+		store.getState().selectRoadPoint("r", 0);
+		store.getState().selectPoints([0, 1]);
+		store.getState().removeSelectedPoints();
+		expect(store.getState().scene.roads[0].points).toHaveLength(2);
+	});
+
+	it("deletes corners, keeping an area at three", () => {
+		const store = pointStore();
+		store.getState().selectAreaPoint("lake", 0);
+		store.getState().selectPoints([0, 1]);
+		store.getState().removeSelectedPoints();
+		expect(store.getState().scene.areas[0].points).toHaveLength(4);
+		store.getState().selectPoints([1]);
+		store.getState().removeSelectedPoints();
+		expect(store.getState().scene.areas[0].points).toHaveLength(3);
+	});
+
+	it("keeps the selected points that still exist after undo", () => {
+		const store = pointStore();
+		store.getState().selectRoadPoint("r", 1);
+		store.getState().selectPoints([1, 3]);
+		store.getState().insertRoadPoint("r", 4, [8, 0, 0]);
+		store.getState().undo();
+		expect(store.getState().selectedPointIndices).toEqual([1, 3]);
+	});
+});

@@ -41,8 +41,11 @@ export const groundPointFrom = (
 interface IGroundDragOptions {
 	/** Height of the plane to drag on (default: the ground). */
 	planeY?: number;
-	/** Called on pointer-down; return false to cancel the drag. Receives the drag's coalesce key. */
-	onStart?: (token: string) => boolean | undefined;
+	/**
+	 * Called on pointer-down; return false to leave the press alone (no drag; it goes on to the
+	 * camera, e.g. Shift/Ctrl to orbit). Receives the drag's coalesce key and the press.
+	 */
+	onStart?: (token: string, event: ThreeEvent<PointerEvent>) => boolean | undefined;
 	/** Called with each new snapped ground point while dragging. */
 	onMove: (point: TVec2, token: string) => void;
 }
@@ -80,11 +83,11 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 			if (event.nativeEvent.button !== 0) {
 				return;
 			}
-			event.stopPropagation();
 			const next = `ground-drag:${performance.now()}`;
-			if (onStart?.(next) === false) {
+			if (onStart?.(next, event) === false) {
 				return;
 			}
+			event.stopPropagation();
 			token.current = next;
 			from.current = { clientX: event.nativeEvent.clientX, clientY: event.nativeEvent.clientY };
 			(event.target as unknown as Element).setPointerCapture(event.pointerId);

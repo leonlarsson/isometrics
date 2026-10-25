@@ -1,9 +1,11 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type * as THREE from "three";
 
-import { selectSelectedArea, selectSeveral, useEditor } from "#/editor/store";
+import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
+import { isToggleClick, selectSelectedArea, selectSeveral, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { isClick } from "#/lib/pointer";
 import { segmentMidpoints } from "#/scene/roads";
 import type { TVec2 } from "#/scene/schema";
 
@@ -21,21 +23,54 @@ interface ICornerHandleProps {
 	point: TVec2;
 	y: number;
 	selected: boolean;
+	/** Inside a selection box being drawn (ADR-0065): shown as it would be after letting go. */
+	boxed: boolean;
 }
 
-/** A corner: click to select, drag to move, double-click to remove (an area keeps three). */
-const CornerHandle = ({ areaId, index, point, y, selected }: ICornerHandleProps) => {
+/**
+ * A corner: click to select, drag to move (all the selected corners when it's
+ * one of them), double-click to remove (an area keeps three). Shift- or
+ * Ctrl-click adds it to the selected corners or takes it out (ADR-0065).
+ */
+const CornerHandle = ({ areaId, index, point, y, selected, boxed }: ICornerHandleProps) => {
 	const palette = usePalette();
 	const [hovered, setHovered] = useState(false);
-	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected || boxed ? 1.2 : 1);
+	// Pressed on one of several selected corners: they move together, and a click selects just this one.
+	const group = useRef<{ start: IPointsStart | null; keepsOthers: boolean } | null>(null);
 	const drag = useGroundDrag({
 		planeY: y,
-		onStart: () => {
-			useEditor.getState().selectAreaPoint(areaId, index);
+		onStart: (_token, event) => {
+			// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the corner, below).
+			if (isToggleClick(event.nativeEvent)) {
+				return false;
+			}
+			const store = useEditor.getState();
+			const several =
+				store.selectedPointIndices.length > 1 && store.selectedPointIndices.includes(index);
+			if (!several) {
+				store.selectAreaPoint(areaId, index);
+			}
+			group.current = { start: null, keepsOthers: several };
 			return true;
 		},
-		onMove: (next, token) =>
-			useEditor.getState().moveAreaPoint(areaId, index, next, { coalesce: token }),
+		onMove: (next, token) => {
+			const state = group.current;
+			if (state?.keepsOthers) {
+				// This corner lands on the grid; the others move by as much.
+				state.start ??= pointsStart();
+				const start = state.start?.points.find((p) => p.index === index)?.point ?? point;
+				if (state.start) {
+					transformPoints(
+						state.start,
+						{ offset: [next[0] - start[0], next[1] - start[1]] },
+						{ coalesce: token },
+					);
+				}
+				return;
+			}
+			useEditor.getState().moveAreaPoint(areaId, index, next, { coalesce: token });
+		},
 	});
 
 	return (
@@ -47,7 +82,20 @@ const CornerHandle = ({ areaId, index, point, y, selected }: ICornerHandleProps)
 				e.stopPropagation();
 				useEditor.getState().removeAreaPoint(areaId, index);
 			}}
-			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
+			onClick={(e: ThreeEvent<MouseEvent>) => {
+				e.stopPropagation();
+				const state = group.current;
+				group.current = null;
+				if (!isClick(e)) {
+					return;
+				}
+				const store = useEditor.getState();
+				if (isToggleClick(e.nativeEvent)) {
+					store.togglePoint(index);
+				} else if (state?.keepsOthers && !state.start) {
+					store.selectAreaPoint(areaId, index);
+				}
+			}}
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
@@ -132,7 +180,9 @@ export const AreaHandles = () => {
 	// Its points are edited on their own, not while it's one of several selected things.
 	const several = useEditor(selectSeveral);
 	const layer = useEditor((s) => s.scene.areas.findIndex((a) => a.id === s.selectedAreaId));
-	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const selectedPoints = useEditor((s) => s.selectedPointIndices);
+	// A selection box being drawn over its corners (ADR-0065): what letting go would select.
+	const boxDrag = useEditor((s) => s.boxDrag);
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
@@ -163,7 +213,10 @@ export const AreaHandles = () => {
 					index={index}
 					point={point}
 					y={y}
-					selected={selectedPoint === index}
+					selected={
+						selectedPoints.includes(index) && !(boxDrag?.removing && boxDrag.points.includes(index))
+					}
+					boxed={!boxDrag?.removing && (boxDrag?.points.includes(index) ?? false)}
 				/>
 			))}
 		</group>

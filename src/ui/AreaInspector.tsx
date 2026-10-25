@@ -9,6 +9,7 @@ import { IconButton, IconButtonGroup } from "./Button";
 import {
 	ColorField,
 	Hint,
+	Kbd,
 	Section,
 	SelectField,
 	SliderField,
@@ -54,6 +55,29 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 					});
 				}}
 			/>
+		</Section>
+	);
+};
+
+/** Several selected corners (ADR-0065): deleting them together, and how to move them. */
+const CornersPanel = ({ area, indices }: { area: TArea; indices: readonly number[] }) => {
+	return (
+		<Section
+			icon="pin"
+			title={`${indices.length} corners selected`}
+			actions={
+				<IconButton
+					icon="trash"
+					label="Delete them (Del)"
+					disabled={area.points.length - indices.length < 3}
+					onClick={() => useEditor.getState().removeSelectedPoints()}
+				/>
+			}
+		>
+			<Hint>
+				Drag one of them to move them together, or press <Kbd>G</Kbd>. A <Kbd>Shift</Kbd>- or
+				<Kbd>Ctrl</Kbd>-click adds a corner or takes it out, and <Kbd>B</Kbd> boxes more.
+			</Hint>
 		</Section>
 	);
 };
@@ -124,13 +148,23 @@ const AreaTab = ({ area }: { area: TArea }) => {
 /** The Shape tab: the selected corner, and how high the area is raised. */
 const AreaShapeTab = ({ area }: { area: TArea }) => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	const edit = useAreaEdit(area);
 
 	return (
 		<>
-			{selectedPoint !== null && <CornerPanel area={area} index={selectedPoint} />}
+			{selectedPoints.length > 1 ? (
+				<CornersPanel area={area} indices={selectedPoints} />
+			) : (
+				selectedPoint !== null && <CornerPanel area={area} index={selectedPoint} />
+			)}
 
-			<Section id="area.shape" icon="spline" title="Shape" keywords="corners raised height cliff">
+			<Section
+				id="area.shape"
+				icon="spline"
+				title="Whole area"
+				keywords="shape corners raised height cliff"
+			>
 				<SliderField
 					label="Raised by"
 					value={area.height}

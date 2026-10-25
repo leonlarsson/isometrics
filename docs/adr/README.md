@@ -68,3 +68,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0062](0062-camera-settings.md) | The camera remembers where it was per world, worlds have an opening view, and a Camera tab holds its settings | accepted |
 | [0063](0063-on-screen.md) | A world says what viewers see over it in View mode: title, subtitle, time of day, label cards, details, viewpoint bar | accepted |
 | [0064](0064-multi-select.md) | Selecting several things at once: an active item, the rest, a box, group transforms and Mixed fields | accepted |
+| [0065](0065-several-points.md) | Several points of a road, or corners of an area, at once; Shift no longer lifts a point | accepted |

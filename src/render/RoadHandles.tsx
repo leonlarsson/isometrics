@@ -1,19 +1,24 @@
 import { Line } from "@react-three/drei";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-import { type IJoinOffer, selectSelectedRoad, selectSeveral, useEditor } from "#/editor/store";
+import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
+import {
+	type IJoinOffer,
+	isToggleClick,
+	selectSelectedRoad,
+	selectSeveral,
+	useEditor,
+} from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { snap } from "#/lib/math";
-import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
+import { isClick, pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
-import { pixelsPerUnitAt } from "./cameraMath";
 import { roadBaseY } from "./RoadMesh";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
-import { applyRoadPointDrag, roadPointStart } from "./transforms";
+import { applyPointsDrag, applyRoadPointDrag, roadPointStart } from "./transforms";
 import { groundPointFrom, useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
 
@@ -22,10 +27,6 @@ const HANDLE_LIFT = 0.12;
 const HANDLE_PX = 24;
 /** Dragged road ends snap onto another road end within this distance. */
 const JOIN_SNAP = 0.8;
-const HEIGHT_STEP = 0.25;
-const MAX_HEIGHT = 50;
-
-const up = new THREE.Vector3();
 
 /** Open road ends a dragged end could join, excluding the dragged end itself. */
 const joinTargets = (roads: TRoad[], road: TRoad, end: TRoadEnd) =>
@@ -46,31 +47,37 @@ interface IPointHandleProps {
 	point: TRoadPoint;
 	baseY: number;
 	selected: boolean;
+	/** Inside a selection box being drawn (ADR-0065): shown as it would be after letting go. */
+	boxed: boolean;
+}
+
+interface IPointDrag {
+	token: string;
+	join: IJoinOffer | null;
+	/** Where the press started (screen px); the point stays put until it passes the threshold. */
+	from: { clientX: number; clientY: number };
+	moving: boolean;
+	/** Pressed on one of several selected points: they all move, from where they were. */
+	group: IPointsStart | null;
+	/** Pressed on one of several selected points: a click without moving selects just this one. */
+	keepsOthers: boolean;
 }
 
 /**
- * A control point: click to select, drag to move across the ground, Shift+drag
- * to raise or lower it, double-click to remove it. Dragging a road end onto
- * another road end snaps to it and offers to join them.
+ * A control point: click to select, drag to move across the ground (all the
+ * selected points when it's one of them), double-click to remove it. Shift- or
+ * Ctrl-click adds it to the selected points or takes it out; Shift/Ctrl-drag
+ * orbits the camera, as everywhere (ADR-0065). Dragging a road end onto another
+ * road end snaps to it and offers to join them.
  */
-const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps) => {
+const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandleProps) => {
 	const palette = usePalette();
-	const camera = useThree((s) => s.camera);
-	const size = useThree((s) => s.size);
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const [hovered, setHovered] = useState(false);
-	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
-	const drag = useRef<{
-		token: string;
-		vertical: boolean;
-		startY: number;
-		startHeight: number;
-		pixelsPerUnit: number;
-		join: IJoinOffer | null;
-		/** Where the press started (screen px); the point stays put until it passes the threshold. */
-		from: { clientX: number; clientY: number };
-		moving: boolean;
-	} | null>(null);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected || boxed ? 1.2 : 1);
+	const drag = useRef<IPointDrag | null>(null);
+	// Survives the drag ending (pointer up comes before the click).
+	const keepsOthers = useRef(false);
 
 	const end: TRoadEnd | null = road.closed
 		? null
@@ -103,29 +110,26 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 			position={[point[0], baseY + point[2] + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			onPointerDown={(e: ThreeEvent<PointerEvent>) => {
-				if (e.nativeEvent.button !== 0) {
+				// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the point, below).
+				if (e.nativeEvent.button !== 0 || isToggleClick(e.nativeEvent)) {
 					return;
 				}
 				e.stopPropagation();
 				const store = useEditor.getState();
-				store.selectRoadPoint(road.id, index);
+				const several =
+					store.selectedPointIndices.length > 1 && store.selectedPointIndices.includes(index);
+				if (!several) {
+					store.selectRoadPoint(road.id, index);
+				}
 				store.setJoinOffer(null);
-				// Screen pixels per unit of world height, from the camera's current view.
-				up.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
-				const zoom = pixelsPerUnitAt(
-					camera,
-					new THREE.Vector3(point[0], baseY + point[2], point[1]),
-					size.height,
-				);
+				keepsOthers.current = several;
 				drag.current = {
 					token: `point:${performance.now()}`,
-					vertical: e.nativeEvent.shiftKey,
-					startY: e.nativeEvent.clientY,
-					startHeight: point[2],
-					pixelsPerUnit: Math.max(1, up.y * zoom),
 					join: null,
 					from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 					moving: false,
+					group: null,
+					keepsOthers: several,
 				};
 				(e.target as unknown as Element).setPointerCapture(e.pointerId);
 				if (controls) {
@@ -144,28 +148,24 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 						return;
 					}
 					state.moving = true;
+					keepsOthers.current = false;
+					state.group = state.keepsOthers ? pointsStart() : null;
 					// Hide the cursor while dragging, so it doesn't cover the spot.
 					setCursorHidden(true);
 				}
 				const store = useEditor.getState();
-				// Shift can be pressed or released mid-drag: switch modes, starting from where the point is now.
-				const vertical = e.nativeEvent.shiftKey;
-				if (vertical !== state.vertical) {
-					state.vertical = vertical;
-					state.startY = e.nativeEvent.clientY;
-					state.startHeight =
-						store.scene.roads.find((r) => r.id === road.id)?.points[index]?.[2] ?? point[2];
-				}
-				if (state.vertical) {
-					const raw =
-						state.startHeight + (state.startY - e.nativeEvent.clientY) / state.pixelsPerUnit;
-					const free = e.nativeEvent.altKey || !store.snapping;
-					const height = Math.min(MAX_HEIGHT, Math.max(0, free ? raw : snap(raw, HEIGHT_STEP)));
-					store.setRoadPointHeight(road.id, index, height, { coalesce: state.token });
-					return;
-				}
 				let target: TVec2 | null = groundPointFrom(e, baseY + point[2]);
 				if (!target) {
+					return;
+				}
+				if (state.group) {
+					// This point lands on the grid; the others move by as much.
+					const start = state.group.points.find((p) => p.index === index)?.point ?? point;
+					transformPoints(
+						state.group,
+						{ offset: [target[0] - start[0], target[1] - start[1]] },
+						{ coalesce: state.token },
+					);
 					return;
 				}
 				state.join = null;
@@ -188,7 +188,19 @@ const PointHandle = ({ road, index, point, baseY, selected }: IPointHandleProps)
 				e.stopPropagation();
 				useEditor.getState().removeRoadPoint(road.id, index);
 			}}
-			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
+			onClick={(e: ThreeEvent<MouseEvent>) => {
+				e.stopPropagation();
+				if (!isClick(e)) {
+					return;
+				}
+				const store = useEditor.getState();
+				if (isToggleClick(e.nativeEvent)) {
+					store.togglePoint(index);
+				} else if (keepsOthers.current) {
+					store.selectRoadPoint(road.id, index);
+				}
+				keepsOthers.current = false;
+			}}
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
@@ -297,6 +309,33 @@ const RoadPointGizmo = ({
 	);
 };
 
+/** The move gizmo for several selected points (ADR-0065), at their middle: along the ground, and up. */
+const PointsGizmo = ({ baseY }: { baseY: number }) => {
+	const start = useRef<IPointsStart | null>(null);
+	const road = useEditor(selectSelectedRoad);
+	const indices = useEditor((s) => s.selectedPointIndices);
+	const center = useMemo(() => pointsStart()?.center ?? null, [road, indices]);
+	if (!center) {
+		return null;
+	}
+
+	return (
+		<group position={[center[0], baseY + center[1], center[2]]}>
+			<TransformGizmo
+				handles={POINT_HANDLES}
+				onStart={() => {
+					start.current = pointsStart();
+				}}
+				onDrag={(drag) => {
+					if (start.current) {
+						applyPointsDrag(start.current, drag);
+					}
+				}}
+			/>
+		</group>
+	);
+};
+
 /** Point and insert handles for the selected road (edit mode only). */
 export const RoadHandles = () => {
 	const road = useEditor(selectSelectedRoad);
@@ -304,6 +343,9 @@ export const RoadHandles = () => {
 	const several = useEditor(selectSeveral);
 	const layer = useEditor((s) => s.scene.roads.findIndex((r) => r.id === s.selectedRoadId));
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const selectedPoints = useEditor((s) => s.selectedPointIndices);
+	// A selection box being drawn over its points (ADR-0065): what letting go would select.
+	const boxDrag = useEditor((s) => s.boxDrag);
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
@@ -352,12 +394,18 @@ export const RoadHandles = () => {
 						index={index}
 						point={point}
 						baseY={baseY}
-						selected={selectedPoint === index}
+						selected={
+							selectedPoints.includes(index) &&
+							!(boxDrag?.removing && boxDrag.points.includes(index))
+						}
+						boxed={!boxDrag?.removing && (boxDrag?.points.includes(index) ?? false)}
 					/>
 				</group>
 			))}
 
-			{selectedPoint !== null && road.points[selectedPoint] && (
+			{selectedPoints.length > 1 && <PointsGizmo baseY={baseY} />}
+
+			{selectedPoints.length === 1 && selectedPoint !== null && road.points[selectedPoint] && (
 				<RoadPointGizmo
 					roadId={road.id}
 					index={selectedPoint}

@@ -13,6 +13,10 @@ import boxStyles from "./SelectionBox.module.css";
 export const BoxSelectBar = () => {
 	const mode = useEditor((s) => s.boxSelect);
 	const drag = useEditor((s) => s.boxDrag);
+	// While a point or corner is selected, the box selects its road's points or area's corners.
+	const what = useEditor((s) =>
+		s.selectedPointIndex === null ? null : s.selectedRoadId ? "points" : "corners",
+	);
 	if (!mode) {
 		return null;
 	}
@@ -22,12 +26,10 @@ export const BoxSelectBar = () => {
 		<>
 			<div className={styles.bar} data-label-obstacle="" role="status">
 				<div className={styles.text}>
-					<strong>{adding ? "Select with a box" : "Deselect with a box"}</strong>
+					<strong>{`${adding ? "Select" : "Deselect"} ${what ? `${what} ` : ""}with a box`}</strong>
 
 					<span>
-						{adding
-							? "Drag over what to add to the selection."
-							: "Drag over what to take out of the selection."}
+						{`Drag over the ${what ?? "things"} to ${adding ? "add to" : "take out of"} the selection.`}
 					</span>
 
 					{adding && (

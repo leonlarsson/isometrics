@@ -27,7 +27,7 @@ import {
 	TextField,
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
-import { RoadPointPanel } from "./RoadPointPanel";
+import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[]).map((value) => ({
 	value,
@@ -152,15 +152,25 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 const RoadShapeTab = ({ road }: { road: TRoad }) => {
 	const palette = usePalette();
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
+	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	const edit = useRoadEdit(road);
 	const elevated = road.points.some((p) => p[2] > 0);
 	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
 
 	return (
 		<>
-			{selectedPoint !== null && <RoadPointPanel road={road} index={selectedPoint} />}
+			{selectedPoints.length > 1 ? (
+				<RoadPointsPanel road={road} indices={selectedPoints} />
+			) : (
+				selectedPoint !== null && <RoadPointPanel road={road} index={selectedPoint} />
+			)}
 
-			<Section id="road.shape" icon="spline" title="Shape" keywords="width curves loop points">
+			<Section
+				id="road.shape"
+				icon="spline"
+				title="Whole road"
+				keywords="shape width curves loop points"
+			>
 				<SliderField
 					label="Width"
 					value={road.width}
@@ -206,9 +216,10 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				/>
 
 				<Hint>
-					Click a point to select it. Drag points to reshape (or nudge a selected one with the arrow
-					keys, Alt for small steps), Shift+drag to raise them. Drag a small dot between two points
-					to add one; double-click a point to remove it.
+					These are the whole road's. Click a point to select it, Shift- or Ctrl-click to select
+					several; drag them to reshape (or nudge with the arrow keys, Alt for small steps) and lift
+					them with the green arrow. Drag a small dot between two points to add one; double-click a
+					point to remove it.
 				</Hint>
 			</Section>
 
@@ -315,8 +326,8 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 						</>
 					) : (
 						<Hint>
-							Raise a point (select it and set its Height, or Shift+drag it) to build a bridge or
-							flyover.
+							Raise points (select them and drag the green arrow up, or set their Height) to build a
+							bridge or flyover.
 						</Hint>
 					)}
 				</Section>

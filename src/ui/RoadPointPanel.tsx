@@ -3,7 +3,7 @@ import { pointWidth, ROAD_STYLE_LABELS, roadEnds, type TRoadEnd } from "#/scene/
 import type { TRoad } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton } from "./Button";
-import { GroupLabel, Hint, Section, SliderField, VectorField } from "./fields";
+import { GroupLabel, Hint, Kbd, Section, SliderField, VectorField } from "./fields";
 
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
@@ -96,7 +96,10 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 				}}
 			/>
 
-			<Hint>Tip: hold Shift while dragging a point to raise or lower it.</Hint>
+			<Hint>
+				Lift it with the green arrow, or press <Kbd>G</Kbd> then <Kbd>Y</Kbd>. To select several,
+				<Kbd>Shift</Kbd>- or <Kbd>Ctrl</Kbd>-click other points, or box them with <Kbd>B</Kbd>.
+			</Hint>
 
 			<ButtonGroup>
 				{canSplit && (
@@ -132,6 +135,90 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 					))}
 				</ButtonGroup>
 			)}
+		</Section>
+	);
+};
+
+/** Whether values differ (compared as JSON). */
+const differ = (values: readonly unknown[]) =>
+	new Set(values.map((value) => JSON.stringify(value ?? null))).size > 1;
+
+/**
+ * Several selected points of a road (ADR-0065): their height and width, Mixed
+ * where they differ, and deleting them together.
+ */
+export const RoadPointsPanel = ({ road, indices }: { road: TRoad; indices: readonly number[] }) => {
+	const points = indices.flatMap((index) => {
+		const point = road.points[index];
+		return point ? [point] : [];
+	});
+	const last = points.at(-1);
+	if (!last) {
+		return null;
+	}
+	const store = () => useEditor.getState();
+	const coalesce = (field: string) => ({
+		coalesce: `${road.id}:points:${indices.join(",")}:${field}`,
+	});
+	const widths = points.map((point) => pointWidth(point) ?? road.width);
+
+	return (
+		<Section
+			icon="pin"
+			title={`${points.length} points selected`}
+			actions={
+				<IconButton
+					icon="trash"
+					label="Delete them (Del)"
+					disabled={road.points.length - points.length < 2}
+					onClick={() => store().removeSelectedPoints()}
+				/>
+			}
+		>
+			<SliderField
+				label="Height"
+				value={last[2]}
+				mixed={differ(points.map((point) => point[2]))}
+				min={0}
+				max={15}
+				step={0.25}
+				onChange={(value) => {
+					for (const index of indices) {
+						store().setRoadPointHeight(road.id, index, value, coalesce("height"));
+					}
+				}}
+			/>
+
+			<SliderField
+				label="Width here"
+				value={widths.at(-1) ?? road.width}
+				mixed={differ(widths)}
+				min={0.4}
+				max={8}
+				step={0.1}
+				onChange={(value) => {
+					for (const index of indices) {
+						store().setRoadPointWidth(road.id, index, value, coalesce("width"));
+					}
+				}}
+				inherit={{
+					from: "road",
+					inherited: points.every((point) => pointWidth(point) === undefined),
+					onReset: () => {
+						const options = coalesce(`reset:${performance.now()}`);
+						for (const index of indices) {
+							store().setRoadPointWidth(road.id, index, null, options);
+						}
+					},
+					value: String(road.width),
+				}}
+			/>
+
+			<Hint>
+				Drag one of them, or the arrows at their middle, to move them all. The green arrow lifts
+				them, and so does <Kbd>G</Kbd> then <Kbd>Y</Kbd>. <Kbd>Shift</Kbd>- or <Kbd>Ctrl</Kbd>-click
+				adds a point or takes it out, and <Kbd>B</Kbd> boxes more.
+			</Hint>
 		</Section>
 	);
 };

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { SceneSchema } from "#/scene/schema";
 
-import { groupStart, transformSelected } from "./groupTransform";
+import { groupStart, transformSelected, transformSelectedPoints } from "./groupTransform";
 import { useEditor } from "./store";
 
 const load = () => {
@@ -98,5 +98,45 @@ describe("group transforms (ADR-0064)", () => {
 		transformSelected({ lift: -10 });
 		expect(entity("a")?.elevation).toBe(0);
 		expect(road().points[1][2]).toBe(0);
+	});
+});
+
+describe("moving several points (ADR-0065)", () => {
+	beforeEach(() => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				ground: { width: 20, depth: 20 },
+				roads: [
+					{
+						id: "r",
+						points: [
+							[0, 0, 1],
+							[2, 0, 0, 3],
+							[4, 0],
+						],
+					},
+				],
+			}),
+		);
+		useEditor.getState().selectRoadPoint("r", 0);
+		useEditor.getState().selectPoints([0, 1]);
+	});
+
+	it("moves and lifts only the selected points, keeping widths, as one step", () => {
+		const before = useEditor.getState().past.length;
+		transformSelectedPoints({ offset: [1, 2], lift: 1 });
+		expect(road().points).toEqual([
+			[1, 2, 2],
+			[3, 2, 1, 3],
+			[4, 0, 0],
+		]);
+		expect(useEditor.getState().past.length).toBe(before + 1);
+	});
+
+	it("keeps them on the ground together", () => {
+		transformSelectedPoints({ offset: [50, 0] });
+		expect(road().points[1][0]).toBe(10);
+		expect(road().points[0][0]).toBe(8);
 	});
 });

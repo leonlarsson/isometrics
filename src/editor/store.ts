@@ -206,10 +206,17 @@ export interface IEditorState {
 	boxDrag: {
 		rect: { left: number; top: number; width: number; height: number };
 		items: ISceneItem[];
+		/** Boxing points of the selected road or corners of the selected area instead (ADR-0065). */
+		points: number[];
 		removing: boolean;
 	} | null;
 	/** Selected control point of the selected road or area. */
 	selectedPointIndex: number | null;
+	/**
+	 * Every selected point of the selected road, or corner of the selected area (ADR-0065), the
+	 * active one (`selectedPointIndex`) last. Setting the active point without it selects just that.
+	 */
+	selectedPointIndices: number[];
 	drawing: IRoadDrawing | null;
 	/** Part kind being dragged from the palette onto the scene. Runtime UI state. */
 	placingKind: string | null;
@@ -279,6 +286,18 @@ export interface IEditorState {
 	selectArea: (id: string | null) => void;
 	/** Select a corner of an area (also selects the area), or clear the point selection. */
 	selectAreaPoint: (areaId: string, index: number | null) => void;
+	/**
+	 * Shift/Ctrl-click a point of the selected road or a corner of the selected area: add it to the
+	 * selected points (it becomes the active one), or take it out (ADR-0065).
+	 */
+	togglePoint: (index: number) => void;
+	/** Select exactly these points of the selected road or area; the last is the active one. */
+	selectPoints: (indices: number[]) => void;
+	/**
+	 * Delete the selected points or corners (one undo step), unless that would leave a road fewer
+	 * than two points or an area fewer than three corners.
+	 */
+	removeSelectedPoints: () => void;
 	/** Deselect any entity, road or point. */
 	clearSelection: () => void;
 	/** Shift/Ctrl-click: add an item to the selection (it becomes the active one), or take it out. */
@@ -469,7 +488,10 @@ export const newId = (prefix: string) => `${prefix}_${nanoid(8)}`;
 /** Keep road/area/point selection only if it still exists in `scene` (after undo/redo). */
 const validRoadSelection = (
 	scene: TScene,
-	state: Pick<IEditorState, "selectedRoadId" | "selectedAreaId" | "selectedPointIndex">,
+	state: Pick<
+		IEditorState,
+		"selectedRoadId" | "selectedAreaId" | "selectedPointIndex" | "selectedPointIndices"
+	>,
 ) => {
 	const road = scene.roads.find((r) => r.id === state.selectedRoadId);
 	const area = scene.areas.find((a) => a.id === state.selectedAreaId);
@@ -481,6 +503,10 @@ const validRoadSelection = (
 			points && state.selectedPointIndex !== null && state.selectedPointIndex < points.length
 				? state.selectedPointIndex
 				: null,
+		selectedPointIndices:
+			points && state.selectedPointIndex !== null && state.selectedPointIndex < points.length
+				? state.selectedPointIndices.filter((index) => index < points.length)
+				: [],
 	};
 };
 
@@ -605,14 +631,28 @@ const withSelectedItems = (
 	state: IEditorState,
 	patch: IEditorState | Partial<IEditorState>,
 ): IEditorState | Partial<IEditorState> => {
-	if (patch === state || "selectedItems" in patch) {
+	if (patch === state) {
 		return patch;
 	}
-	if (!("selectedId" in patch || "selectedRoadId" in patch || "selectedAreaId" in patch)) {
-		return patch;
+	// The same for points (ADR-0065): setting the active point alone selects just that one.
+	const points =
+		"selectedPointIndex" in patch && !("selectedPointIndices" in patch)
+			? {
+					...patch,
+					selectedPointIndices:
+						patch.selectedPointIndex === null || patch.selectedPointIndex === undefined
+							? []
+							: [patch.selectedPointIndex],
+				}
+			: patch;
+	if ("selectedItems" in points) {
+		return points;
 	}
-	const active = selectedItem({ ...state, ...patch });
-	return { ...patch, selectedItems: active ? [active] : [] };
+	if (!("selectedId" in points || "selectedRoadId" in points || "selectedAreaId" in points)) {
+		return points;
+	}
+	const active = selectedItem({ ...state, ...points });
+	return { ...points, selectedItems: active ? [active] : [] };
 };
 
 /** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
@@ -699,6 +739,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			lastCommit: null,
 
 			...NOTHING_SELECTED,
+			selectedPointIndices: [],
 			selectedItems: [],
 			boxSelect: null,
 			boxDrag: null,
@@ -867,6 +908,56 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					selectedPointIndex: index,
 					tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
 				})),
+			togglePoint: (index) =>
+				set((state) => {
+					const has = state.selectedPointIndices.includes(index);
+					const indices = has
+						? state.selectedPointIndices.filter((other) => other !== index)
+						: [...state.selectedPointIndices, index];
+					return {
+						selectedPointIndex: indices.at(-1) ?? null,
+						selectedPointIndices: indices,
+						tab: state.mode === "edit" && indices.length > 0 ? "shape" : state.tab,
+					};
+				}),
+			selectPoints: (indices) =>
+				set((state) => {
+					const unique = indices.filter((index, at) => indices.indexOf(index) === at);
+					return {
+						selectedPointIndex: unique.at(-1) ?? null,
+						selectedPointIndices: unique,
+						tab: state.mode === "edit" && unique.length > 0 ? "shape" : state.tab,
+					};
+				}),
+			removeSelectedPoints: () => {
+				const { selectedRoadId, selectedAreaId, selectedPointIndices, scene } = get();
+				const road = scene.roads.find((r) => r.id === selectedRoadId);
+				const area = scene.areas.find((a) => a.id === selectedAreaId);
+				const points = road?.points ?? area?.points;
+				const fewest = road ? 2 : 3;
+				if (!points || selectedPointIndices.length === 0) {
+					return;
+				}
+				if (points.length - selectedPointIndices.length < fewest) {
+					notify(
+						road ? "A road needs at least two points" : "An area needs at least three corners",
+						"Select fewer to delete, or delete the whole thing.",
+					);
+					return;
+				}
+				const doomed = new Set(selectedPointIndices);
+				get().commit((draft) => {
+					const shape = road
+						? draft.roads.find((r) => r.id === road.id)
+						: draft.areas.find((a) => a.id === area?.id);
+					if (shape) {
+						shape.points = shape.points.filter(
+							(_, index) => !doomed.has(index),
+						) as typeof shape.points;
+					}
+				});
+				set({ selectedPointIndex: null });
+			},
 			clearSelection: () =>
 				set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null, boxSelect: null }),
 			toggleSelected: (item) =>

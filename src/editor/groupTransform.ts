@@ -169,3 +169,97 @@ export const transformSelected = (change: IGroupChange, options?: ICommitOptions
 		transformGroup(from, change, options);
 	}
 };
+
+/** The selected points of a road, or corners of an area, when a move started (ADR-0065). */
+export interface IPointsStart {
+	kind: "road" | "area";
+	id: string;
+	/** Each selected point by its index, as it was. */
+	points: { index: number; point: readonly number[] }[];
+	/** Their middle on the ground, and their average height (road points). */
+	center: [number, number, number];
+	bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+}
+
+/** The selected points or corners as they are now, or null when there are none (or it's locked). */
+export const pointsStart = (): IPointsStart | null => {
+	const { scene, selectedRoadId, selectedAreaId, selectedPointIndices } = useEditor.getState();
+	const road = scene.roads.find((r) => r.id === selectedRoadId);
+	const area = scene.areas.find((a) => a.id === selectedAreaId);
+	const shape = road ?? area;
+	if (!shape || shape.locked || selectedPointIndices.length === 0) {
+		return null;
+	}
+	const points = selectedPointIndices.flatMap((index) => {
+		const point = shape.points[index];
+		return point ? [{ index, point }] : [];
+	});
+	if (points.length === 0) {
+		return null;
+	}
+	const xs = points.map(({ point }) => point[0]);
+	const zs = points.map(({ point }) => point[1]);
+	const bounds = {
+		minX: Math.min(...xs),
+		maxX: Math.max(...xs),
+		minZ: Math.min(...zs),
+		maxZ: Math.max(...zs),
+	};
+	const height = points.reduce((sum, { point }) => sum + (point[2] ?? 0), 0) / points.length;
+	return {
+		kind: road ? "road" : "area",
+		id: shape.id,
+		points,
+		center: [(bounds.minX + bounds.maxX) / 2, height, (bounds.minZ + bounds.maxZ) / 2],
+		bounds,
+	};
+};
+
+/**
+ * Move the selected points or corners from where they started, as one commit
+ * (ADR-0065): all by the same distance, staying on the ground together; road
+ * points can also be lifted (never below the ground).
+ */
+export const transformPoints = (
+	from: IPointsStart,
+	{ offset = [0, 0], lift = 0 }: Pick<IGroupChange, "offset" | "lift">,
+	options?: ICommitOptions,
+) => {
+	const store = useEditor.getState();
+	const { ground } = store.scene;
+	const { minX, maxX, minZ, maxZ } = from.bounds;
+	const dx = keepOn(offset[0], minX, maxX, ground.width / 2);
+	const dz = keepOn(offset[1], minZ, maxZ, ground.depth / 2);
+	store.commit((scene) => {
+		if (from.kind === "road") {
+			const road = scene.roads.find((r) => r.id === from.id);
+			for (const { index, point } of road ? from.points : []) {
+				const height = round(clamp((point[2] ?? 0) + lift, 0, MAX_POINT_HEIGHT));
+				const width = point[3];
+				const x = round(point[0] + dx);
+				const z = round(point[1] + dz);
+				if (road?.points[index]) {
+					road.points[index] = width === undefined ? [x, z, height] : [x, z, height, width];
+				}
+			}
+			return;
+		}
+		const area = scene.areas.find((a) => a.id === from.id);
+		for (const { index, point } of area ? from.points : []) {
+			if (area?.points[index]) {
+				area.points[index] = [round(point[0] + dx), round(point[1] + dz)];
+			}
+		}
+	}, options);
+};
+
+/** Move the selected points or corners by an exact amount, e.g. from the arrow keys (ADR-0065). */
+export const transformSelectedPoints = (
+	change: Pick<IGroupChange, "offset" | "lift">,
+	options?: ICommitOptions,
+) => {
+	const from = pointsStart();
+	if (from) {
+		transformPoints(from, change, options);
+	}
+};
