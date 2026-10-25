@@ -586,6 +586,26 @@ export const CameraSettingsSchema = z
 			.describe(
 				"Keep the middle of the view over the ground, so panning and zooming can't lose the world.",
 			),
+		turntable: z
+			.boolean()
+			.default(false)
+			.describe(
+				"In View mode, slowly circle the view after a while without input, like a model on a turntable; any input stops it.",
+			),
+		turntableSpeed: z
+			.number()
+			.min(-30)
+			.max(30)
+			.default(4)
+			.describe(
+				"With turntable: degrees per second the view circles; positive turns the world anticlockwise seen from above, negative clockwise.",
+			),
+		turntableDelay: z
+			.number()
+			.min(1)
+			.max(300)
+			.default(10)
+			.describe("With turntable: seconds without input in View mode before it starts."),
 	})
 	.describe("How the camera behaves in this world.");
 
@@ -704,6 +724,9 @@ export const SceneSchema = z
 			lowestElevation: 15,
 			steepestElevation: 87,
 			keepOverGround: true,
+			turntable: false,
+			turntableSpeed: 4,
+			turntableDelay: 10,
 		}),
 	})
 	.superRefine((scene, ctx) => {

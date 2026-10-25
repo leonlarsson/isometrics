@@ -25,6 +25,7 @@ import { RoadMesh } from "./RoadMesh";
 import { RouteHighlight } from "./RouteHighlight";
 import { SceneLights } from "./SceneLights";
 import { GizmoFirst } from "./TransformGizmo";
+import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 
 const Lights = () => {
@@ -100,6 +101,8 @@ export const Viewport = () => {
 			<CameraMemory />
 
 			<KeyboardCamera />
+
+			<Turntable />
 
 			<TrafficStep />
 

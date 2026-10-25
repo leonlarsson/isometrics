@@ -279,6 +279,44 @@ export const CameraTab = () => {
 				/>
 			</Section>
 
+			<Section
+				id="camera.turntable"
+				icon="rotateLeft"
+				title="Turntable"
+				keywords="turntable auto rotate spin circle orbit idle kiosk wall screen view mode"
+			>
+				<SwitchField
+					label="Circle the view in View mode"
+					checked={camera.turntable}
+					onChange={(v) => set("turntable", v)}
+					inherit={byDefault("turntable", "off")}
+				/>
+
+				<SliderField
+					label="Speed"
+					value={camera.turntableSpeed}
+					min={-30}
+					max={30}
+					step={1}
+					suffix="°/s"
+					onChange={(v) => set("turntableSpeed", v)}
+					inherit={byDefault("turntableSpeed", `${CAMERA_DEFAULTS.turntableSpeed}°/s`)}
+					hint="Degrees a second; below 0 it turns the other way."
+				/>
+
+				<SliderField
+					label="Starts after"
+					value={camera.turntableDelay}
+					min={1}
+					max={120}
+					step={1}
+					suffix="s"
+					onChange={(v) => set("turntableDelay", v)}
+					inherit={byDefault("turntableDelay", `${CAMERA_DEFAULTS.turntableDelay} s`)}
+					hint="Seconds without input in View mode. Any press, scroll or key stops it, like a model on a turntable in a shop window: good for a world left on a wall screen."
+				/>
+			</Section>
+
 			<CameraFeelSection />
 		</>
 	);
