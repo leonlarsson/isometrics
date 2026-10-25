@@ -21,6 +21,13 @@ const pointer = new THREE.Vector2();
 const anchor = new THREE.Vector3();
 const hit = new THREE.Vector3();
 const shift = new THREE.Vector3();
+const facing = new THREE.Vector3();
+/**
+ * Panning grabs the ground under the pointer, and orbiting turns around what's under it, up to this
+ * many times the camera's distance to what it looks at; further off (towards the horizon in
+ * perspective) panning grabs a plane facing the camera, and orbiting turns around what it looks at.
+ */
+const PAN_REACH = 4;
 const pivot = new THREE.Vector3();
 const eye = new THREE.Vector3();
 
@@ -53,15 +60,29 @@ const useGroundPan = () => {
 		}
 		let panning: number | null = null;
 		const pointers = new Set<number>();
+		// What the drag holds on to: the ground, or (see onDown) a plane facing the camera.
+		const dragPlane = new THREE.Plane();
 
-		const groundHit = (event: PointerEvent, out: THREE.Vector3) => {
+		/** How far away a grabbed point may be: further, a small move would shift the view hugely. */
+		const farthestGrab = () => camera.position.distanceTo(controls.target) * PAN_REACH;
+
+		const rayAt = (event: PointerEvent) => {
 			const rect = element.getBoundingClientRect();
 			pointer.set(
 				((event.clientX - rect.left) / rect.width) * 2 - 1,
 				-((event.clientY - rect.top) / rect.height) * 2 + 1,
 			);
 			raycaster.setFromCamera(pointer, camera);
-			return raycaster.ray.intersectPlane(groundPlane, out) !== null;
+			return raycaster.ray;
+		};
+
+		/** Where the pointer meets the drag's plane, if it does and not too far off. */
+		const dragHit = (event: PointerEvent, out: THREE.Vector3) => {
+			const ray = rayAt(event);
+			return (
+				ray.intersectPlane(dragPlane, out) !== null &&
+				out.distanceTo(camera.position) <= farthestGrab() * 2
+			);
 		};
 
 		const onDown = (event: PointerEvent) => {
@@ -75,13 +96,27 @@ const useGroundPan = () => {
 			if (event.button !== 0 || !plain || !controls.enabled || useEditor.getState().placingKind) {
 				return;
 			}
-			if (groundHit(event, anchor)) {
-				panning = event.pointerId;
+			// The ground under the pointer, unless it's beyond the horizon or far off in perspective (near
+			// the horizon a pixel covers a lot of ground): then a plane through what the camera looks at,
+			// facing it, so the view slides at a sensible speed.
+			const ray = rayAt(event);
+			const onGround =
+				ray.intersectPlane(groundPlane, anchor) !== null &&
+				anchor.distanceTo(camera.position) <= farthestGrab();
+			if (onGround) {
+				dragPlane.copy(groundPlane);
+			} else {
+				camera.getWorldDirection(facing);
+				dragPlane.setFromNormalAndCoplanarPoint(facing, controls.target);
+				if (ray.intersectPlane(dragPlane, anchor) === null) {
+					return;
+				}
 			}
+			panning = event.pointerId;
 		};
 
 		const onMove = (event: PointerEvent) => {
-			if (event.pointerId !== panning || !groundHit(event, hit)) {
+			if (event.pointerId !== panning || !dragHit(event, hit)) {
 				return;
 			}
 			shift.subVectors(anchor, hit);
@@ -133,7 +168,10 @@ const useOrbitAroundCursor = () => {
 		}
 		let orbiting: { id: number; x: number; y: number } | null = null;
 
-		/** What's under the pointer: the nearest visible mesh, else the ground. */
+		/**
+		 * What's under the pointer: the nearest visible mesh, else the world's ground; what the camera
+		 * looks at when that's the sky, empty space past the world's edge, or far off.
+		 */
 		const pivotAt = (event: PointerEvent) => {
 			const rect = element.getBoundingClientRect();
 			pointer.set(
@@ -148,11 +186,25 @@ const useOrbitAroundCursor = () => {
 					// Not the gizmo's invisible grab areas.
 					(item.object.material as THREE.Material).visible !== false,
 			);
+			const { width, depth } = useEditor.getState().scene.ground;
 			if (found) {
 				pivot.copy(found.point);
-				return true;
+			} else if (
+				raycaster.ray.intersectPlane(groundPlane, pivot) === null ||
+				Math.abs(pivot.x) > width / 2 ||
+				Math.abs(pivot.z) > depth / 2
+			) {
+				// Nothing there: the sky, or empty space past the world's edge (the ground plane runs on
+				// for ever there): around what the camera looks at, not a point far off in the void.
+				pivot.copy(controls.target);
 			}
-			return raycaster.ray.intersectPlane(groundPlane, pivot) !== null;
+			// Far off (towards the horizon in perspective) the camera would swing round a distant point:
+			// around what it looks at instead, as panning does.
+			const reach = camera.position.distanceTo(controls.target) * PAN_REACH;
+			if (pivot.distanceTo(camera.position) > reach) {
+				pivot.copy(controls.target);
+			}
+			return true;
 		};
 
 		const onDown = (event: PointerEvent) => {
