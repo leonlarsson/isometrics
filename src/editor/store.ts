@@ -216,8 +216,11 @@ export interface IEditorState {
 	contextMenu: { item: ISceneItem; x: number; y: number } | null;
 	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
 	groundMenu: { point: TVec2; x: number; y: number } | null;
-	/** Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. */
-	flight: { pose: TViewPose; nonce: number } | null;
+	/**
+	 * Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. An instant
+	 * one jumps there (opening a world where its camera was).
+	 */
+	flight: { pose: TViewPose; nonce: number; instant: boolean } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
@@ -258,7 +261,13 @@ export interface IEditorState {
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
 	togglePerspective: () => void;
+	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle. */
 	resetView: () => void;
+	/**
+	 * Show a world that was just opened: where its camera was in this browser (`remembered`), else
+	 * at its opening view. No glide.
+	 */
+	showOpeningView: (remembered: TViewPose | null) => void;
 	/** Move the camera to the selected object, road or area. */
 	frameSelection: () => void;
 	setHovered: (item: ISceneItem | null) => void;
@@ -291,6 +300,8 @@ export interface IEditorState {
 		options?: ICommitOptions,
 	) => void;
 	removeViewpoint: (id: string) => void;
+	/** The viewpoint the world opens at (and re-centring goes back to), or null for the whole world. */
+	setOpeningViewpoint: (id: string | null) => void;
 	/** Move a viewpoint to another place in the list (`to` = its new index). */
 	moveViewpoint: (id: string, to: number) => void;
 
@@ -461,6 +472,10 @@ const selectedItem = (
 			: state.selectedAreaId
 				? { kind: "area", id: state.selectedAreaId }
 				: null;
+
+/** The viewpoint the world opens at, if it has one (an id no viewpoint has counts as none). */
+const openingViewpointOf = (scene: TScene) =>
+	scene.viewpoints.find((v) => v.id === scene.camera.openingViewpointId) ?? null;
 
 /** Selection fields cleared together whenever something else gets selected. */
 const NOTHING_SELECTED = {
@@ -736,8 +751,29 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
-		resetView: () =>
-			set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null, cameraFollow: null })),
+		resetView: () => {
+			const opening = openingViewpointOf(get().scene);
+			if (opening) {
+				get().goToViewpoint(opening.id);
+				return;
+			}
+			set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null, cameraFollow: null }));
+		},
+
+		showOpeningView: (remembered) => {
+			const opening = openingViewpointOf(get().scene);
+			const pose = remembered ?? opening;
+			if (!pose) {
+				get().resetView();
+				return;
+			}
+			set((s) => ({
+				cameraFollow: null,
+				perspective: pose.perspective,
+				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
+				activeViewpointId: remembered ? null : (opening?.id ?? null),
+			}));
+		},
 
 		frameSelection: () => {
 			const item = selectedItem(get());
@@ -857,7 +893,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			set((s) => ({
 				cameraFollow: null,
 				perspective: viewpoint.perspective,
-				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1 },
+				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
 				activeViewpointId: id,
 			}));
 		},
@@ -897,11 +933,19 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		removeViewpoint: (id) => {
 			get().commit((scene) => {
 				scene.viewpoints = scene.viewpoints.filter((v) => v.id !== id);
+				if (scene.camera.openingViewpointId === id) {
+					scene.camera.openingViewpointId = null;
+				}
 			});
 			if (get().activeViewpointId === id) {
 				set({ activeViewpointId: null });
 			}
 		},
+
+		setOpeningViewpoint: (id) =>
+			get().commit((scene) => {
+				scene.camera.openingViewpointId = id;
+			}),
 
 		addEntity: (input) => {
 			const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });

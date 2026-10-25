@@ -529,6 +529,19 @@ export const ViewpointSchema = z
 	})
 	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
 
+// See docs/adr/0062-camera-settings.md.
+export const CameraSettingsSchema = z
+	.object({
+		openingViewpointId: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe(
+				"The viewpoint the world opens at for anyone who hasn't looked around it yet (a shared file, another browser), and that re-centring goes back to. null (or an id no viewpoint has) = the whole world from the default angle.",
+			),
+	})
+	.describe("How the camera behaves in this world.");
+
 export const ThemeSchema = z
 	.enum(["system", "light", "dark"])
 	.describe("Light or dark look; system follows the viewer's device.");
@@ -636,6 +649,7 @@ export const SceneSchema = z
 			.array(ViewpointSchema)
 			.default([])
 			.describe("Saved camera views, in the order View mode steps through them."),
+		camera: CameraSettingsSchema.default({ openingViewpointId: null }),
 	})
 	.superRefine((scene, ctx) => {
 		const checkUnique = (values: string[], path: (string | number)[], what: string) => {
@@ -699,6 +713,7 @@ export type TTurns = z.output<typeof TurnsSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TLighting = z.output<typeof LightingSchema>;
+export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<

@@ -1,11 +1,11 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
-import type * as THREE from "three";
+import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
-import { blendPoses, currentView, placeCamera, poseOf } from "./viewpoints";
+import { blendPoses, currentView, placeCamera, poseOf, projectionSwitch } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
 /** How long gliding to a viewpoint takes. */
@@ -18,6 +18,8 @@ interface IFlight {
 	from: TViewPose | null;
 	to: TViewPose;
 	progress: number;
+	/** A jump, not a glide: it goes straight there. */
+	instant: boolean;
 }
 
 /**
@@ -47,7 +49,7 @@ export const CameraFlight = () => {
 	useEffect(() => {
 		if (request) {
 			resetViewShift();
-			flight.current = { from: null, to: request.pose, progress: 0 };
+			flight.current = { from: null, to: request.pose, progress: 0, instant: request.instant };
 		}
 	}, [request?.nonce]);
 
@@ -67,18 +69,27 @@ export const CameraFlight = () => {
 		const current = flight.current;
 		const { camera, size } = get();
 		const controls = get().controls as unknown as {
+			object: THREE.Camera;
 			target: THREE.Vector3;
 			update: () => void;
 		} | null;
-		if (!current || !controls) {
+		// Not before the canvas has a size: there's nothing to fit the view to yet.
+		if (!current || !controls || size.height === 0) {
 			return;
 		}
 		current.from ??= poseOf(camera, controls.target, size.height, current.to.perspective);
-		current.progress = Math.min(1, current.progress + Math.min(delta, 0.1) / FLIGHT_SECONDS);
+		current.progress = current.instant
+			? 1
+			: Math.min(1, current.progress + Math.min(delta, 0.1) / FLIGHT_SECONDS);
 		const pose = blendPoses(current.from, current.to, easeInOut(current.progress));
 		controls.target.copy(placeCamera(camera, pose, size.height));
 		controls.update();
-		if (current.progress >= 1) {
+		// Done once it's there on the camera it asked for, with that camera's controls settled in.
+		const settled =
+			!projectionSwitch.pending &&
+			camera instanceof THREE.PerspectiveCamera === current.to.perspective &&
+			controls.object === camera;
+		if (current.progress >= 1 && settled) {
 			flight.current = null;
 		}
 	});

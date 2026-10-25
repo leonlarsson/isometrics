@@ -654,6 +654,44 @@ describe("editor store", () => {
 		store.getState().removeViewpoint(b);
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
 	});
+
+	it("opens at the remembered camera, else the opening viewpoint, else the whole world", () => {
+		const store = makeStore();
+		const pose = {
+			target: [4, 2] as [number, number],
+			azimuth: 200,
+			elevation: 50,
+			span: 12,
+			perspective: true,
+		};
+		const nonce = store.getState().viewNonce;
+		store.getState().showOpeningView(null);
+		expect(store.getState().viewNonce).toBe(nonce + 1);
+		expect(store.getState().flight).toBeNull();
+
+		const opening = store.getState().addViewpoint(pose);
+		store.getState().setOpeningViewpoint(opening);
+		store.getState().showOpeningView(null);
+		expect(store.getState().flight).toMatchObject({ pose: { span: 12 }, instant: true });
+		expect(store.getState().perspective).toBe(true);
+		expect(store.getState().activeViewpointId).toBe(opening);
+
+		store.getState().showOpeningView({ ...pose, span: 30, perspective: false });
+		expect(store.getState().flight).toMatchObject({ pose: { span: 30 }, instant: true });
+		expect(store.getState().perspective).toBe(false);
+		expect(store.getState().activeViewpointId).toBeNull();
+
+		// Re-centring glides back to the opening viewpoint.
+		store.getState().resetView();
+		expect(store.getState().flight).toMatchObject({ pose: { span: 12 }, instant: false });
+
+		// Deleting it makes the world open whole again.
+		store.getState().removeViewpoint(opening);
+		expect(store.getState().scene.camera.openingViewpointId).toBeNull();
+		const before = store.getState().viewNonce;
+		store.getState().resetView();
+		expect(store.getState().viewNonce).toBe(before + 1);
+	});
 });
 
 describe("unknownPartKinds", () => {

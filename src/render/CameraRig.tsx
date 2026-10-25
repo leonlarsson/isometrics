@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 
 import { PERSPECTIVE_FOV, pixelsPerUnitAt } from "./cameraMath";
+import { projectionSwitch } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
 /** Isometric-ish viewing direction (from target towards camera). */
@@ -170,6 +171,7 @@ export const ProjectionSwitch = () => {
 		fitToCanvas(next, width, height);
 		next.updateMatrixWorld();
 		pending.current = target;
+		projectionSwitch.pending = true;
 		set({ camera: next as THREE.OrthographicCamera });
 	}, [perspective]);
 
@@ -179,6 +181,7 @@ export const ProjectionSwitch = () => {
 			controls.target.copy(pending.current);
 			controls.update();
 			pending.current = null;
+			projectionSwitch.pending = false;
 		}
 	}, [controls, camera]);
 

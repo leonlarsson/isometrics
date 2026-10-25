@@ -1,7 +1,8 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
+import { rememberedView } from "#/editor/cameraMemory";
 import { useSceneHours } from "#/editor/dayClock";
-import { loadStoredScene, saveScene, startAutosave } from "#/editor/persistence";
+import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useShortcuts } from "#/editor/useShortcuts";
@@ -183,6 +184,7 @@ export const AppShell = () => {
 		const stored = loadStoredScene();
 		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
+			useEditor.getState().showOpeningView(rememberedView(openWorldId()));
 		}
 		if (stored.status === "repaired" || stored.status === "unreadable") {
 			// The original save is already backed up, so autosaving over it is safe.

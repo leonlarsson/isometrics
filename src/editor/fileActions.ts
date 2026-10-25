@@ -1,6 +1,7 @@
 import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
+import { rememberedView, rememberView, saveCameraNow } from "./cameraMemory";
 import {
 	createWorld,
 	deleteWorld,
@@ -32,11 +33,14 @@ const pickFile = (accept: string) =>
 		input.click();
 	});
 
-/** Show a world in the editor and frame it. */
+/**
+ * Show the open world in the editor, with the camera where it was in this
+ * browser, else at the world's opening view.
+ */
 const showWorld = (scene: TScene) => {
-	const { loadScene, resetView } = useEditor.getState();
+	const { loadScene, showOpeningView } = useEditor.getState();
 	loadScene(scene);
-	resetView();
+	showOpeningView(rememberedView(openWorldId()));
 };
 
 /**
@@ -45,6 +49,7 @@ const showWorld = (scene: TScene) => {
  * world that was never saved isn't added to the list.
  */
 const saveBeforeSwitching = () => {
+	saveCameraNow();
 	const { scene, past } = useEditor.getState();
 	if (openWorldId() || past.length > 0) {
 		saveScene(scene);
@@ -63,12 +68,17 @@ const uniqueTitle = (title: string) => {
 
 /**
  * Open `scene` as a new world, next to the others (ADR-0044). It gets a title
- * no other saved world has, so the list of worlds can tell them apart.
+ * no other saved world has, so the list of worlds can tell them apart. A copy
+ * passes the world it copies, so its camera starts where that one's was.
  */
-export const startNewWorld = (scene: TScene) => {
+export const startNewWorld = (scene: TScene, copiedFrom: string | null = null) => {
 	saveBeforeSwitching();
+	const view = rememberedView(copiedFrom);
 	const world = { ...scene, meta: { ...scene.meta, title: uniqueTitle(scene.meta.title) } };
-	createWorld(world);
+	const id = createWorld(world);
+	if (view) {
+		rememberView(id, view);
+	}
 	showWorld(world);
 };
 
@@ -103,7 +113,8 @@ const copyOf = (scene: TScene): TScene => ({
 });
 
 /** Copy the open world into a new one, named "… (copy)", and switch to it. */
-export const duplicateWorld = () => startNewWorld(copyOf(useEditor.getState().scene));
+export const duplicateWorld = () =>
+	startNewWorld(copyOf(useEditor.getState().scene), openWorldId());
 
 /** Copy any saved world into a new one, named "… (copy)", and switch to it. */
 export const duplicateSavedWorld = (id: string) => {
@@ -113,7 +124,7 @@ export const duplicateSavedWorld = (id: string) => {
 	}
 	const result = readStoredWorld(id);
 	if (result.status === "ok" || result.status === "repaired") {
-		startNewWorld(copyOf(result.scene));
+		startNewWorld(copyOf(result.scene), id);
 	} else {
 		notify("That world can’t be copied", "It couldn’t be read.", "error");
 	}

@@ -65,3 +65,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0059](0059-fresh-start-offer.md) | After a big update, the app offers once to start fresh | accepted |
 | [0060](0060-colours.md) | Colours are a shared system like lights, and can follow data | accepted |
 | [0061](0061-when-lights-come-on.md) | Lights switch on at once or gradually, or on a schedule | accepted |
+| [0062](0062-camera-settings.md) | The camera remembers where it was per world, worlds have an opening view, and a Camera tab holds its settings | accepted |

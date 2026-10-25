@@ -89,3 +89,10 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
  * so the UI can save the view it's looking at. Null until the viewport exists.
  */
 export const currentView: { read: (() => TViewPose | null) | null } = { read: null };
+
+/**
+ * Set while the camera switches between orthographic and perspective (render/ProjectionSwitch),
+ * until the controls on the new camera have their target back. A jump waits for it, so the
+ * switch doesn't put the old target back over it.
+ */
+export const projectionSwitch = { pending: false };

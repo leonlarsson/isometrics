@@ -5,6 +5,7 @@ import { APP_NAME } from "#/lib/app";
 import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
+import { forgetView } from "./cameraMemory";
 import type { useEditor } from "./store";
 import { notify } from "./toasts";
 
@@ -465,6 +466,7 @@ export const deleteWorld = (id: string): boolean => {
 		return false;
 	}
 	writeIndex(listWorlds().filter((world) => world.id !== id));
+	forgetView(id);
 	if (getItem(OPEN_WORLD_ID_KEY) === id) {
 		setOpenWorldId(null);
 	}
