@@ -635,6 +635,29 @@ export const CameraSettingsSchema = z
 	})
 	.describe("How the camera behaves in this world.");
 
+export const OnScreenSchema = z
+	.object({
+		title: z.boolean().default(true).describe("The world's title, in the top-left corner."),
+		subtitle: z.boolean().default(true).describe("The subtitle under the title."),
+		timeOfDay: z
+			.boolean()
+			.default(true)
+			.describe("The time of day under the title (in Edit mode, also the way to Sun & sky)."),
+		labelCards: z
+			.boolean()
+			.default(true)
+			.describe("Objects' label cards. false hides every card, whatever each object says."),
+		details: z
+			.boolean()
+			.default(true)
+			.describe("In View mode, the panel with an object's values that opens when it's clicked."),
+		viewpointBar: z
+			.boolean()
+			.default(true)
+			.describe("In View mode, the bar that steps through the viewpoints."),
+	})
+	.describe("What shows on screen over the world, in Edit and View mode alike.");
+
 export const ThemeSchema = z
 	.enum(["system", "light", "dark"])
 	.describe("Light or dark look; system follows the viewer's device.");
@@ -742,6 +765,14 @@ export const SceneSchema = z
 			.array(ViewpointSchema)
 			.default([])
 			.describe("Saved camera views, in the order View mode steps through them."),
+		onScreen: OnScreenSchema.default({
+			title: true,
+			subtitle: true,
+			timeOfDay: true,
+			labelCards: true,
+			details: true,
+			viewpointBar: true,
+		}),
 		camera: CameraSettingsSchema.default({
 			openingViewpointId: null,
 			fieldOfView: 40,
@@ -822,6 +853,7 @@ export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TLighting = z.output<typeof LightingSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
+export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<

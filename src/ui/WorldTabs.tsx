@@ -1,7 +1,13 @@
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
 import { TURNS_OPTIONS } from "#/scene/roads";
-import type { TDrivingSide, TThemePreference, TTurns } from "#/scene/schema";
+import {
+	OnScreenSchema,
+	type TDrivingSide,
+	type TOnScreen,
+	type TThemePreference,
+	type TTurns,
+} from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import {
@@ -14,7 +20,67 @@ import {
 	TextField,
 } from "./fields";
 
-/** The World tab (ADR-0054): the world's title and theme, and its ground. */
+/** The World tab (ADR-0054): the world's title and theme, its ground, and what shows on screen. */
+/** Each On screen switch as a new world has it, for Default / Reset. */
+const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
+
+const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
+	{ key: "title", label: "Title" },
+	{ key: "subtitle", label: "Subtitle" },
+	{ key: "timeOfDay", label: "Time of day", hint: "In Edit mode it's also the way to Sun & sky." },
+	{
+		key: "labelCards",
+		label: "Label cards",
+		hint: "Every object's card. One object's card is switched in its Label tab.",
+	},
+	{
+		key: "details",
+		label: "Details on click",
+		hint: "In View mode, an object's values when it's clicked.",
+	},
+	{
+		key: "viewpointBar",
+		label: "Viewpoint bar",
+		hint: "In View mode. ← and → still step through the viewpoints without it.",
+	},
+];
+
+/** What shows on screen over the world, in Edit and View mode alike (scene.onScreen). */
+const OnScreenSection = () => {
+	const onScreen = useEditor((s) => s.scene.onScreen);
+	const commit = useEditor((s) => s.commit);
+	const set = (key: keyof TOnScreen, value: boolean) =>
+		commit((s) => {
+			s.onScreen[key] = value;
+		});
+	return (
+		<Section
+			id="world.onScreen"
+			icon="eye"
+			title="On screen"
+			keywords="show hide title subtitle time of day label cards details viewpoint bar overlay clean presentation"
+		>
+			<Hint>What shows over the world, in Edit and View mode alike.</Hint>
+
+			{ON_SCREEN_SWITCHES.map(({ key, label, hint }) => (
+				<SwitchField
+					key={key}
+					label={label}
+					checked={onScreen[key]}
+					onChange={(v) => set(key, v)}
+					inherit={{
+						from: "default",
+						inherited: onScreen[key] === ON_SCREEN_DEFAULTS[key],
+						onReset: () => set(key, ON_SCREEN_DEFAULTS[key]),
+						value: "shown",
+					}}
+					hint={hint}
+				/>
+			))}
+		</Section>
+	);
+};
+
 export const WorldTab = () => {
 	const scene = useEditor((s) => s.scene);
 	const commit = useEditor((s) => s.commit);
@@ -126,6 +192,8 @@ export const WorldTab = () => {
 					</Button>
 				</ButtonGroup>
 			</Section>
+
+			<OnScreenSection />
 		</>
 	);
 };

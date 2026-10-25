@@ -192,7 +192,11 @@ export const LabelLayer = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const selectedId = useEditor((s) => s.selectedId);
 	const drawing = useEditor((s) => s.drawing !== null);
-	const labelled = entities.filter((entity) => entity.label?.enabled && !entity.hidden);
+	// The world can switch every card off (World tab → On screen).
+	const cardsShown = useEditor((s) => s.scene.onScreen.labelCards);
+	const labelled = cardsShown
+		? entities.filter((entity) => entity.label?.enabled && !entity.hidden)
+		: [];
 
 	return (
 		// While drawing a road, cards let clicks through to the ground.

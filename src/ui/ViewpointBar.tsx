@@ -17,7 +17,9 @@ export const ViewpointBar = () => {
 	const activeId = useEditor((s) => s.activeViewpointId);
 	// The follow bar takes the same spot while the camera follows a vehicle.
 	const following = useEditor((s) => s.cameraFollow !== null);
-	const shown = mode === "view" && viewpoints.length > 0 && !following;
+	// ← and → step through the viewpoints even when the world hides the bar (World tab → On screen).
+	const stepping = mode === "view" && viewpoints.length > 0 && !following;
+	const barShown = useEditor((s) => s.scene.onScreen.viewpointBar);
 	const index = viewpoints.findIndex((v) => v.id === activeId);
 
 	const step = (by: number) => {
@@ -33,18 +35,18 @@ export const ViewpointBar = () => {
 			{
 				hotkey: "ArrowRight",
 				callback: () => step(1),
-				options: { enabled: shown, meta: { name: "Next viewpoint" } },
+				options: { enabled: stepping, meta: { name: "Next viewpoint" } },
 			},
 			{
 				hotkey: "ArrowLeft",
 				callback: () => step(-1),
-				options: { enabled: shown, meta: { name: "Previous viewpoint" } },
+				options: { enabled: stepping, meta: { name: "Previous viewpoint" } },
 			},
 		],
 		{ conflictBehavior: "allow" },
 	);
 
-	if (!shown) {
+	if (!stepping || !barShown) {
 		return null;
 	}
 	const current = viewpoints[index];

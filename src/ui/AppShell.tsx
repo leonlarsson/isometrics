@@ -92,6 +92,7 @@ const Stage = ({ children }: { children: ReactNode }) => {
  */
 const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 	const meta = useEditor((s) => s.scene.meta);
+	const onScreen = useEditor((s) => s.scene.onScreen);
 	const hour = useSceneHours();
 	const editing = useEditor((s) => s.mode === "edit");
 	const lighting = useEditor((s) => s.scene.lighting);
@@ -106,14 +107,18 @@ const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 				: lighting.timeSource === "data"
 					? `From data: ${timeEntry ? timeEntry.label || timeEntry.key : "no value"}`
 					: "Fixed time";
+	// Each line can be switched off for the world (World tab → On screen).
+	if (!onScreen.title && !(onScreen.subtitle && meta.subtitle) && !onScreen.timeOfDay) {
+		return null;
+	}
 	return (
 		// Label cards step aside for it (data-label-obstacle), like for the bars.
 		<div className={styles.sceneTitle} data-label-obstacle="">
-			<h1>{meta.title}</h1>
+			{onScreen.title && <h1>{meta.title}</h1>}
 
-			{meta.subtitle && <p>{meta.subtitle}</p>}
+			{onScreen.subtitle && meta.subtitle && <p>{meta.subtitle}</p>}
 
-			{editing ? (
+			{!onScreen.timeOfDay ? null : editing ? (
 				<p className={styles.sceneTime}>
 					<span className={styles.sceneTimeOpen}>
 						<Tooltip label="Open Sun & sky">

@@ -13,8 +13,9 @@ export const DetailSheet = () => {
 	const entity = useEditor(selectSelectedEntity);
 	const data = useEditor((s) => s.scene.data);
 	const select = useEditor((s) => s.select);
+	const shown = useEditor((s) => s.scene.onScreen.details);
 
-	if (mode !== "view" || !entity) {
+	if (mode !== "view" || !entity || !shown) {
 		return null;
 	}
 
