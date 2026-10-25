@@ -81,9 +81,11 @@ export const CameraFlight = () => {
 		runningFlight.stop = () => {
 			flight.current = null;
 		};
+		runningFlight.gliding = () => flight.current !== null;
 		return () => {
 			runningFlight.retarget = null;
 			runningFlight.stop = null;
+			runningFlight.gliding = () => false;
 		};
 	}, []);
 

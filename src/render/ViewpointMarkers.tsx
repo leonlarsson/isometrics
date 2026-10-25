@@ -1,7 +1,7 @@
 import interUrl from "@fontsource/inter/files/inter-latin-600-normal.woff?url";
 import { Billboard, Line, Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useCameraFeel } from "#/editor/cameraFeel";
@@ -11,7 +11,7 @@ import { DEG2RAD } from "#/lib/math";
 import type { TViewpoint } from "#/scene/schema";
 
 import { openViewpointMenuOnClick } from "./contextMenu";
-import { currentView, directionOf, sameView } from "./viewpoints";
+import { currentView, directionOf, runningFlight, sameView } from "./viewpoints";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -119,11 +119,18 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 	const color = strong ? palette.selection : palette.text;
 	const name = viewpoint.name || `Viewpoint ${index + 1}`;
 
-	// Not the one the camera is at: it would sit right on the camera.
+	// Not the one the camera is at: it would sit right on the camera. Nor, in the diorama view,
+	// the one it's gliding to: that camera stands far back (how far makes no difference to what it
+	// sees), so the glide would end well behind the marker instead of in it, as in perspective.
 	useFrame(() => {
 		const pose = currentView.read?.();
+		const here = Boolean(pose && sameView(pose, viewpoint, worldFieldOfView));
+		const arriving =
+			!viewpoint.perspective &&
+			runningFlight.gliding() &&
+			useEditor.getState().activeViewpointId === viewpoint.id;
 		if (group.current) {
-			group.current.visible = !(pose && sameView(pose, viewpoint, worldFieldOfView));
+			group.current.visible = !here && !arriving;
 		}
 	});
 
@@ -185,19 +192,22 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 				</mesh>
 			</group>
 
-			{/* Its name above it, always facing the view. */}
-			<Billboard position={[shape.camera.x, shape.camera.y + shape.size * 1.3, shape.camera.z]}>
-				<Text
-					font={interUrl}
-					fontSize={shape.size * 0.7}
-					color={color}
-					anchorY="bottom"
-					outlineWidth={shape.size * 0.06}
-					outlineColor={palette.ground}
-				>
-					{name}
-				</Text>
-			</Billboard>
+			{/* Its name above it, always facing the view. The font loads on first use: until then
+			only the name waits, not the whole canvas. */}
+			<Suspense fallback={null}>
+				<Billboard position={[shape.camera.x, shape.camera.y + shape.size * 1.3, shape.camera.z]}>
+					<Text
+						font={interUrl}
+						fontSize={shape.size * 0.7}
+						color={color}
+						anchorY="bottom"
+						outlineWidth={shape.size * 0.06}
+						outlineColor={palette.ground}
+					>
+						{name}
+					</Text>
+				</Billboard>
+			</Suspense>
 		</group>
 	);
 };

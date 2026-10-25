@@ -41,6 +41,11 @@ export const InstantResize = () => {
 		let insets: { left: number; right: number } | null = null;
 		const observer = new ResizeObserver(() => {
 			const box = container.getBoundingClientRect();
+			// Hidden for a moment (React hides the canvas while something in it loads): that's no
+			// panel moving, so remember the edges from before and wait for it to show again.
+			if (box.width === 0 || box.height === 0) {
+				return;
+			}
 			const left = box.left;
 			const right = window.innerWidth - box.right;
 			const last = insets;
