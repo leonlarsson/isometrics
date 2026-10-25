@@ -14,10 +14,14 @@ import { pixelsPerUnitAt } from "./cameraMath";
 /** How far the orthographic camera stands back (as in CameraRig): far enough for every label. */
 const ORTHOGRAPHIC_DISTANCE = 150;
 
-/** Unit vector from the target towards the camera for a compass angle and height (degrees). */
+/**
+ * Unit vector from the target towards the camera for a compass angle and
+ * height (degrees). Straight down stops a hair short of 90°, so the compass
+ * angle still says which way the view is turned.
+ */
 export const directionOf = (azimuth: number, elevation: number) => {
 	const a = azimuth * DEG2RAD;
-	const e = elevation * DEG2RAD;
+	const e = Math.min(elevation, 89.99) * DEG2RAD;
 	return new THREE.Vector3(Math.cos(e) * Math.cos(a), Math.sin(e), -Math.cos(e) * Math.sin(a));
 };
 
@@ -45,7 +49,7 @@ export const poseOf = (
 		target: [round(onGround.x, 2), round(onGround.z, 2)],
 		// Hundredths of a degree: coarser rounding shows as a shift when zoomed in close.
 		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 2),
-		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 2, 89), 2),
+		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 0, 90), 2),
 		span: round(clamp(height / pixelsPerUnitAt(camera, onGround, height), 1, 5000), 2),
 		perspective,
 		fieldOfView:

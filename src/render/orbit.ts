@@ -14,6 +14,13 @@ export interface IPolarLimits {
 }
 
 /**
+ * Looking exactly straight down leaves no compass direction to turn around
+ * (the camera's up and its view line up), so "straight down" stops this far
+ * short of it (radians): a hundredth of a degree, which doesn't show.
+ */
+const STRAIGHT_DOWN_MARGIN = 0.0002;
+
+/**
  * The tilt limits for the world's lowest and steepest camera elevations
  * (degrees above the ground; scene.camera), whichever way round they're given.
  */
@@ -23,7 +30,8 @@ export const polarLimits = (camera: {
 }): IPolarLimits => {
 	const low = Math.min(camera.lowestElevation, camera.steepestElevation);
 	const steep = Math.max(camera.lowestElevation, camera.steepestElevation);
-	return { min: (90 - steep) * DEG2RAD, max: (90 - low) * DEG2RAD };
+	const min = Math.max(STRAIGHT_DOWN_MARGIN, (90 - steep) * DEG2RAD);
+	return { min, max: Math.max(min, (90 - low) * DEG2RAD) };
 };
 
 const UP = new THREE.Vector3(0, 1, 0);

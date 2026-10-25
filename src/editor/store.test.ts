@@ -656,6 +656,28 @@ describe("editor store", () => {
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
 	});
 
+	it("resets the camera and its settings, but not the turntable or tilt-shift", () => {
+		const store = makeStore();
+		store.getState().commit((scene) => {
+			scene.camera.fieldOfView = 90;
+			scene.camera.steepestElevation = 60;
+			scene.camera.keepOverGround = false;
+			scene.camera.turntable = true;
+			scene.camera.tiltShift = true;
+			scene.camera.tiltShiftBlur = 0.9;
+		});
+		store.getState().togglePerspective();
+		const nonce = store.getState().viewNonce;
+		store.getState().resetCamera();
+		const { camera } = store.getState().scene;
+		expect(camera).toMatchObject({ fieldOfView: 40, steepestElevation: 87, keepOverGround: true });
+		expect(camera).toMatchObject({ turntable: true, tiltShift: true, tiltShiftBlur: 0.9 });
+		expect(store.getState().perspective).toBe(false);
+		expect(store.getState().viewNonce).toBe(nonce + 1);
+		store.getState().undo();
+		expect(store.getState().scene.camera.fieldOfView).toBe(90);
+	});
+
 	it("opens at the remembered camera, else the opening viewpoint, else the whole world", () => {
 		const store = makeStore();
 		const pose = {

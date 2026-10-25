@@ -86,6 +86,17 @@ export const setCameraFeel = <K extends keyof TCameraFeel>(key: K, value: TCamer
 	notify();
 };
 
+/** Every setting back to its default. */
+export const resetCameraFeel = () => {
+	feel = DEFAULT_CAMERA_FEEL;
+	try {
+		localStorage.removeItem(KEY);
+	} catch {
+		// Storage unavailable: the defaults hold until the page closes.
+	}
+	notify();
+};
+
 /** Another tab of the app changed them (or the storage was wiped): follow it. */
 const onStorage = (event: StorageEvent) => {
 	if (event.key === KEY || event.key === null) {

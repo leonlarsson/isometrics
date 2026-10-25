@@ -512,11 +512,11 @@ export const ViewpointSchema = z
 			),
 		elevation: z
 			.number()
-			.min(2)
-			.max(89)
+			.min(0)
+			.max(90)
 			.default(32.5)
 			.describe(
-				"Degrees above the ground: 87 is nearly straight down, 15 looks low across the world. The default view is 32.5.",
+				"Degrees above the ground: 90 looks straight down, 0 looks level across the world. The default view is 32.5.",
 			),
 		span: z
 			.number()
@@ -568,17 +568,17 @@ export const CameraSettingsSchema = z
 			),
 		lowestElevation: z
 			.number()
-			.min(2)
-			.max(80)
+			.min(0)
+			.max(90)
 			.default(15)
-			.describe("How low the camera can tilt, in degrees above the ground."),
+			.describe("How low the camera can tilt, in degrees above the ground (0 = level with it)."),
 		steepestElevation: z
 			.number()
-			.min(20)
-			.max(89)
+			.min(0)
+			.max(90)
 			.default(87)
 			.describe(
-				"How steeply the camera can look down, in degrees above the ground (90 would be straight down).",
+				"How steeply the camera can look down, in degrees above the ground (90 = straight down).",
 			),
 		keepOverGround: z
 			.boolean()

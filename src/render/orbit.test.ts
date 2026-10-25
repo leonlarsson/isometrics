@@ -39,6 +39,19 @@ describe("orbitAround", () => {
 		expect(90 - (limits.max * 180) / Math.PI).toBeCloseTo(15, 5);
 	});
 
+	it("tilts all the way to straight down and level, without losing which way it faces", () => {
+		const full = polarLimits({ lowestElevation: 0, steepestElevation: 90 });
+		const position = new THREE.Vector3(80, 70, 80);
+		const target = new THREE.Vector3(0, 0, 0);
+		orbitAround(position, target, new THREE.Vector3(), 0, -5, full);
+		expect(position.x / position.z).toBeCloseTo(1, 5);
+		expect(Number.isFinite(position.x)).toBe(true);
+		orbitAround(position, target, new THREE.Vector3(), 0.5, 0, full);
+		expect(Number.isFinite(position.x)).toBe(true);
+		orbitAround(position, target, new THREE.Vector3(), 0, 5, full);
+		expect(position.y).toBeCloseTo(0, 5);
+	});
+
 	it("reads the limits either way round", () => {
 		expect(polarLimits({ lowestElevation: 80, steepestElevation: 30 })).toEqual(
 			polarLimits({ lowestElevation: 30, steepestElevation: 80 }),

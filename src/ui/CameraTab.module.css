@@ -1,0 +1,4 @@
+/* The tab's own actions above its panels, with the panels' margin. */
+.tabActions {
+	padding: 6px 6px 0;
+}

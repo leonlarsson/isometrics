@@ -1,5 +1,8 @@
+import { useState } from "react";
+
 import {
 	DEFAULT_CAMERA_FEEL,
+	resetCameraFeel,
 	setCameraFeel,
 	type TCameraFeel,
 	useCameraFeel,
@@ -8,9 +11,12 @@ import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
 import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, ButtonGroup } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
 import { viewpointName } from "./ViewpointsSection";
+
+import styles from "./CameraTab.module.css";
 
 /** Every world camera setting as a new world has it, for Default / Reset. */
 const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
@@ -139,6 +145,7 @@ export const CameraTab = () => {
 		);
 	const perspective = useEditor((s) => s.perspective);
 	const previewTiltShift = useEditor((s) => s.previewTiltShift);
+	const [confirmingReset, setConfirmingReset] = useState(false);
 	const opening = viewpoints.some((v) => v.id === camera.openingViewpointId)
 		? (camera.openingViewpointId ?? "")
 		: "";
@@ -155,6 +162,26 @@ export const CameraTab = () => {
 
 	return (
 		<>
+			<div className={styles.tabActions}>
+				<ButtonGroup>
+					<Button size="sm" icon="reset" onClick={() => setConfirmingReset(true)}>
+						Reset the camera
+					</Button>
+				</ButtonGroup>
+			</div>
+
+			<ConfirmDialog
+				open={confirmingReset}
+				onOpenChange={setConfirmingReset}
+				title="Reset the camera?"
+				description="The camera goes back to the whole world in the diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and Your camera in this browser. The turntable and tilt-shift keep their settings."
+				confirmLabel="Reset the camera"
+				onConfirm={() => {
+					useEditor.getState().resetCamera();
+					resetCameraFeel();
+				}}
+			/>
+
 			<Section
 				id="camera.view"
 				icon="video"
@@ -269,25 +296,25 @@ export const CameraTab = () => {
 				<SliderField
 					label="Lowest tilt"
 					value={camera.lowestElevation}
-					min={2}
-					max={80}
+					min={0}
+					max={90}
 					step={1}
 					suffix="°"
 					onChange={(v) => set("lowestElevation", v)}
 					inherit={byDefault("lowestElevation", `${CAMERA_DEFAULTS.lowestElevation}°`)}
-					hint="Degrees above the ground: low looks across the world, like standing in it."
+					hint="Degrees above the ground: 0 looks level across the world, like standing in it."
 				/>
 
 				<SliderField
 					label="Steepest tilt"
 					value={camera.steepestElevation}
-					min={20}
-					max={89}
+					min={0}
+					max={90}
 					step={1}
 					suffix="°"
 					onChange={(v) => set("steepestElevation", v)}
 					inherit={byDefault("steepestElevation", `${CAMERA_DEFAULTS.steepestElevation}°`)}
-					hint="89° looks almost straight down, like a map."
+					hint="90° looks straight down, like a map."
 				/>
 			</Section>
 

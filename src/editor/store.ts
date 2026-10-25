@@ -15,6 +15,7 @@ import {
 } from "#/scene/roads";
 import {
 	AreaSchema,
+	CameraSettingsSchema,
 	EntityColorSchema,
 	EntityLightSchema,
 	EntitySchema,
@@ -264,6 +265,11 @@ export interface IEditorState {
 	togglePlaying: () => void;
 	togglePerspective: () => void;
 	setPreviewTiltShift: (preview: boolean) => void;
+	/**
+	 * The whole world from the default angle in the diorama view, with the world's camera settings
+	 * back to their defaults (one undo step), except the turntable's and tilt-shift's.
+	 */
+	resetCamera: () => void;
 	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle. */
 	resetView: () => void;
 	/**
@@ -756,6 +762,30 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
 		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
+		resetCamera: () => {
+			const defaults = CameraSettingsSchema.parse({});
+			get().commit((scene) => {
+				const { turntable, turntableSpeed, turntableDelay } = scene.camera;
+				const { tiltShift, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
+				scene.camera = {
+					...defaults,
+					turntable,
+					turntableSpeed,
+					turntableDelay,
+					tiltShift,
+					tiltShiftBlur,
+					tiltShiftFocus,
+					tiltShiftPosition,
+				};
+			});
+			set((s) => ({
+				perspective: false,
+				cameraFollow: null,
+				activeViewpointId: null,
+				viewNonce: s.viewNonce + 1,
+				frameBox: null,
+			}));
+		},
 		resetView: () => {
 			const opening = openingViewpointOf(get().scene);
 			if (opening) {
