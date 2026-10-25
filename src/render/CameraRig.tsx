@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 
-import { PERSPECTIVE_FOV, pixelsPerUnitAt } from "./cameraMath";
+import { pixelsPerUnitAt } from "./cameraMath";
 import { projectionSwitch } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
@@ -20,6 +20,7 @@ const FOCUS_FILL = 0.6;
 const FOCUS_MIN_SIZE = 16;
 
 const corner = new THREE.Vector3();
+const offset = new THREE.Vector3();
 
 /** Fit the camera's frustum to the canvas (R3F does this for its own camera on resize). */
 const fitToCanvas = (camera: THREE.Camera, width: number, height: number) => {
@@ -108,6 +109,10 @@ export const CameraRig = () => {
 		if (camera instanceof THREE.OrthographicCamera) {
 			camera.zoom = scale;
 		} else if (camera instanceof THREE.PerspectiveCamera) {
+			// Re-centring also goes back to the world's field of view (a viewpoint may have its own).
+			if (!box) {
+				camera.fov = useEditor.getState().scene.camera.fieldOfView;
+			}
 			// The distance at which the target shows at that scale (plus room for the box's depth).
 			const halfHeight = height / scale / 2;
 			const distance =
@@ -141,7 +146,12 @@ export const ProjectionSwitch = () => {
 	const cameras = useMemo(
 		() => ({
 			orthographic: camera,
-			perspective: new THREE.PerspectiveCamera(PERSPECTIVE_FOV, 1, 0.1, 2000),
+			perspective: new THREE.PerspectiveCamera(
+				useEditor.getState().scene.camera.fieldOfView,
+				1,
+				0.1,
+				2000,
+			),
 		}),
 		[],
 	);
@@ -160,6 +170,8 @@ export const ProjectionSwitch = () => {
 		const direction = current.position.clone().sub(target).normalize();
 		const scale = pixelsPerUnitAt(current, target, height);
 		if (next instanceof THREE.PerspectiveCamera) {
+			// The world's field of view; a glide to a viewpoint with its own blends to that.
+			next.fov = useEditor.getState().scene.camera.fieldOfView;
 			const visible = height / scale;
 			const distance = visible / 2 / Math.tan(THREE.MathUtils.degToRad(next.fov) / 2);
 			next.position.copy(direction).multiplyScalar(distance).add(target);
@@ -184,6 +196,49 @@ export const ProjectionSwitch = () => {
 			projectionSwitch.pending = false;
 		}
 	}, [controls, camera]);
+
+	return null;
+};
+
+/**
+ * Changing the field of view (the world's, or that of the viewpoint the camera
+ * went to last) shows on the perspective camera at once, keeping the target
+ * the same size on screen: the camera moves in or out as the lens widens or
+ * narrows, so only how strong the perspective looks changes. Going to another
+ * viewpoint doesn't count: its glide blends the field of view itself.
+ */
+export const FieldOfViewFollow = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as {
+		target: THREE.Vector3;
+		update: () => void;
+	} | null;
+	const activeId = useEditor((s) => s.activeViewpointId);
+	const fieldOfView = useEditor((s) => {
+		const viewpoint = s.scene.viewpoints.find((v) => v.id === s.activeViewpointId);
+		return (viewpoint?.perspective && viewpoint.fieldOfView) || s.scene.camera.fieldOfView;
+	});
+	const last = useRef({ activeId, fieldOfView });
+
+	useEffect(() => {
+		const before = last.current;
+		last.current = { activeId, fieldOfView };
+		if (
+			before.activeId !== activeId ||
+			before.fieldOfView === fieldOfView ||
+			!(camera instanceof THREE.PerspectiveCamera) ||
+			!controls
+		) {
+			return;
+		}
+		const half = (degrees: number) => Math.tan(THREE.MathUtils.degToRad(degrees) / 2);
+		const scale = half(camera.fov) / half(fieldOfView);
+		offset.subVectors(camera.position, controls.target).multiplyScalar(scale);
+		camera.position.copy(controls.target).add(offset);
+		camera.fov = fieldOfView;
+		camera.updateProjectionMatrix();
+		controls.update();
+	}, [activeId, fieldOfView]);
 
 	return null;
 };

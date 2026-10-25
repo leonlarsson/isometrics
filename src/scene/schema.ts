@@ -490,6 +490,8 @@ export const GroundSchema = z
 	})
 	.describe("The slab everything stands on, centred on the origin.");
 
+const FieldOfViewSchema = z.number().min(10).max(100);
+
 // See docs/adr/0039-saved-viewpoints.md.
 export const ViewpointSchema = z
 	.object({
@@ -510,8 +512,8 @@ export const ViewpointSchema = z
 			),
 		elevation: z
 			.number()
-			.min(15)
-			.max(87)
+			.min(2)
+			.max(89)
 			.default(32.5)
 			.describe(
 				"Degrees above the ground: 87 is nearly straight down, 15 looks low across the world. The default view is 32.5.",
@@ -526,6 +528,11 @@ export const ViewpointSchema = z
 			.boolean()
 			.default(false)
 			.describe("A perspective view instead of the flat diorama view."),
+		fieldOfView: FieldOfViewSchema.nullable()
+			.default(null)
+			.describe(
+				"With perspective: this view's own field of view, in degrees. null = the world's (camera.fieldOfView).",
+			),
 	})
 	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
 
@@ -538,6 +545,46 @@ export const CameraSettingsSchema = z
 			.default(null)
 			.describe(
 				"The viewpoint the world opens at for anyone who hasn't looked around it yet (a shared file, another browser), and that re-centring goes back to. null (or an id no viewpoint has) = the whole world from the default angle.",
+			),
+		fieldOfView: FieldOfViewSchema.default(40).describe(
+			"The perspective camera's field of view, in degrees from the top of the view to the bottom: small looks flat, like the diorama view through a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own.",
+		),
+		closestSpan: z
+			.number()
+			.min(1)
+			.max(400)
+			.default(2)
+			.describe(
+				"How close the camera can zoom in: how many grid units still fit from the top to the bottom of the view.",
+			),
+		farthestSpan: z
+			.number()
+			.min(10)
+			.max(2000)
+			.nullable()
+			.default(null)
+			.describe(
+				"How far the camera can zoom out: how many grid units fit from the top to the bottom of the view. null = automatic, from the ground's size.",
+			),
+		lowestElevation: z
+			.number()
+			.min(2)
+			.max(80)
+			.default(15)
+			.describe("How low the camera can tilt, in degrees above the ground."),
+		steepestElevation: z
+			.number()
+			.min(20)
+			.max(89)
+			.default(87)
+			.describe(
+				"How steeply the camera can look down, in degrees above the ground (90 would be straight down).",
+			),
+		keepOverGround: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Keep the middle of the view over the ground, so panning and zooming can't lose the world.",
 			),
 	})
 	.describe("How the camera behaves in this world.");
@@ -649,7 +696,15 @@ export const SceneSchema = z
 			.array(ViewpointSchema)
 			.default([])
 			.describe("Saved camera views, in the order View mode steps through them."),
-		camera: CameraSettingsSchema.default({ openingViewpointId: null }),
+		camera: CameraSettingsSchema.default({
+			openingViewpointId: null,
+			fieldOfView: 40,
+			closestSpan: 2,
+			farthestSpan: null,
+			lowestElevation: 15,
+			steepestElevation: 87,
+			keepOverGround: true,
+		}),
 	})
 	.superRefine((scene, ctx) => {
 		const checkUnique = (values: string[], path: (string | number)[], what: string) => {
@@ -718,7 +773,7 @@ export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<
 	TViewpoint,
-	"target" | "azimuth" | "elevation" | "span" | "perspective"
+	"target" | "azimuth" | "elevation" | "span" | "perspective" | "fieldOfView"
 >;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

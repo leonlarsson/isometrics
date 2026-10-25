@@ -9,7 +9,7 @@ import { CameraControls } from "./CameraControls";
 import { CameraFlight } from "./CameraFlight";
 import { CameraFollow } from "./CameraFollow";
 import { CameraMemory } from "./CameraMemory";
-import { CameraRig, ProjectionSwitch } from "./CameraRig";
+import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
@@ -91,6 +91,8 @@ export const Viewport = () => {
 			<CameraRig />
 
 			<ProjectionSwitch />
+
+			<FieldOfViewFollow />
 
 			<CameraFlight />
 

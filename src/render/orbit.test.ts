@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import { MAX_POLAR, orbitAround, settleTarget } from "./orbit";
+import { orbitAround, polarLimits, settleTarget } from "./orbit";
+
+const limits = polarLimits({ lowestElevation: 15, steepestElevation: 87 });
 
 /** An orthographic camera looking from `position` at `target`, like the editor's. */
 const cameraAt = (position: THREE.Vector3, target: THREE.Vector3) => {
@@ -21,7 +23,7 @@ describe("orbitAround", () => {
 		const pivot = new THREE.Vector3(6, 0, -3);
 		const before = onScreen(cameraAt(position, target), pivot);
 
-		orbitAround(position, target, pivot, 0.7, 0.2);
+		orbitAround(position, target, pivot, 0.7, 0.2, limits);
 		const after = onScreen(cameraAt(position, target), pivot);
 		expect(after.x).toBeCloseTo(before.x, 5);
 		expect(after.y).toBeCloseTo(before.y, 5);
@@ -30,9 +32,17 @@ describe("orbitAround", () => {
 	it("stops tilting at the limit", () => {
 		const position = new THREE.Vector3(80, 70, 80);
 		const target = new THREE.Vector3(0, 0, 0);
-		orbitAround(position, target, new THREE.Vector3(), 0, 5);
+		orbitAround(position, target, new THREE.Vector3(), 0, 5, limits);
 		const offset = position.clone().sub(target);
-		expect(Math.acos(offset.y / offset.length())).toBeCloseTo(MAX_POLAR, 5);
+		expect(Math.acos(offset.y / offset.length())).toBeCloseTo(limits.max, 5);
+		// 15° above the ground.
+		expect(90 - (limits.max * 180) / Math.PI).toBeCloseTo(15, 5);
+	});
+
+	it("reads the limits either way round", () => {
+		expect(polarLimits({ lowestElevation: 80, steepestElevation: 30 })).toEqual(
+			polarLimits({ lowestElevation: 30, steepestElevation: 80 }),
+		);
 	});
 });
 

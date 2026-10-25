@@ -60,7 +60,7 @@ export type TEntityColorChange = Partial<Omit<TEntityColor, "data">> & {
 	data?: Partial<Record<string, TDataBinding | null>>;
 };
 /** The properties editor's tabs about the whole world (ADR-0054). */
-export type TWorldTab = "world" | "sky" | "views" | "traffic" | "data";
+export type TWorldTab = "world" | "sky" | "camera" | "views" | "traffic" | "data";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
 export type TSelectionTab = "object" | "shape" | "look" | "lights" | "label" | "motion";
 /**

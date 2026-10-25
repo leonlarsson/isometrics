@@ -1,15 +1,30 @@
 import * as THREE from "three";
 
-import { clamp } from "#/lib/math";
+import { clamp, DEG2RAD } from "#/lib/math";
 
 /**
  * Orbiting around a point under the cursor (render/CameraControls), as plain
  * vector maths so it can be unit-tested. See docs/adr/0037-camera.md.
  */
 
-/** How far the camera may tilt: from nearly straight down to fairly low over the ground. */
-export const MIN_POLAR = 0.05;
-export const MAX_POLAR = 1.3;
+/** How far the camera may tilt, as angles from straight down (radians). */
+export interface IPolarLimits {
+	min: number;
+	max: number;
+}
+
+/**
+ * The tilt limits for the world's lowest and steepest camera elevations
+ * (degrees above the ground; scene.camera), whichever way round they're given.
+ */
+export const polarLimits = (camera: {
+	lowestElevation: number;
+	steepestElevation: number;
+}): IPolarLimits => {
+	const low = Math.min(camera.lowestElevation, camera.steepestElevation);
+	const steep = Math.max(camera.lowestElevation, camera.steepestElevation);
+	return { min: (90 - steep) * DEG2RAD, max: (90 - low) * DEG2RAD };
+};
 
 const UP = new THREE.Vector3(0, 1, 0);
 const offset = new THREE.Vector3();
@@ -26,8 +41,8 @@ const rotateAround = (
 /**
  * Turn the camera and its target together around `pivot`: `turn` around the
  * vertical (radians), then `tilt` towards or away from straight down, kept
- * within MIN_POLAR…MAX_POLAR. The pivot keeps its place on screen. Mutates
- * `position` and `target`.
+ * within `limits`. The pivot keeps its place on screen. Mutates `position`
+ * and `target`.
  */
 export const orbitAround = (
 	position: THREE.Vector3,
@@ -35,13 +50,14 @@ export const orbitAround = (
 	pivot: THREE.Vector3,
 	turn: number,
 	tilt: number,
+	limits: IPolarLimits,
 ) => {
 	rotateAround(position, pivot, UP, turn);
 	rotateAround(target, pivot, UP, turn);
 
 	offset.subVectors(position, target);
 	const polar = Math.acos(clamp(offset.y / offset.length(), -1, 1));
-	const change = clamp(polar + tilt, MIN_POLAR, MAX_POLAR) - polar;
+	const change = clamp(polar + tilt, limits.min, limits.max) - polar;
 	if (Math.abs(change) > 1e-9) {
 		// Positive angles around up × offset tip the camera down towards the horizon.
 		axis.crossVectors(UP, offset).normalize();

@@ -11,6 +11,7 @@ const pose = {
 	elevation: 40,
 	span: 18,
 	perspective: false,
+	fieldOfView: null,
 };
 
 describe("cameraMemory", () => {

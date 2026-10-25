@@ -26,13 +26,15 @@ export const directionOf = (azimuth: number, elevation: number) => {
  * (CSS px). A pose's target is on the ground, but the controls' target can be
  * above or below it (zooming to the cursor moves it sideways in 3D), so it's
  * slid along the line of sight down to the ground first: the same view, with
- * a target that placeCamera puts back in the same place.
+ * a target that placeCamera puts back in the same place. Its field of view is
+ * null while it's the world's (`worldFieldOfView`), so it follows the world's.
  */
 export const poseOf = (
 	camera: THREE.Camera,
 	target: THREE.Vector3,
 	height: number,
 	perspective: boolean,
+	worldFieldOfView: number,
 ): TViewPose => {
 	const direction = camera.position.clone().sub(target).normalize();
 	const onGround =
@@ -43,17 +45,34 @@ export const poseOf = (
 		target: [round(onGround.x, 2), round(onGround.z, 2)],
 		// Hundredths of a degree: coarser rounding shows as a shift when zoomed in close.
 		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 2),
-		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 15, 87), 2),
-		span: round(clamp(height / pixelsPerUnitAt(camera, onGround, height), 2, 400), 2),
+		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, 2, 89), 2),
+		span: round(clamp(height / pixelsPerUnitAt(camera, onGround, height), 1, 5000), 2),
 		perspective,
+		fieldOfView:
+			camera instanceof THREE.PerspectiveCamera && Math.abs(camera.fov - worldFieldOfView) >= 0.05
+				? round(camera.fov, 1)
+				: null,
 	};
 };
 
-/** Put the camera at a pose (looking at its target, which the caller gives the controls). */
-export const placeCamera = (camera: THREE.Camera, pose: TViewPose, height: number) => {
+/**
+ * Put the camera at a pose (looking at its target, which the caller gives the
+ * controls), with the pose's field of view, or else the world's.
+ */
+export const placeCamera = (
+	camera: THREE.Camera,
+	pose: TViewPose,
+	height: number,
+	worldFieldOfView: number,
+) => {
 	const target = new THREE.Vector3(pose.target[0], 0, pose.target[1]);
 	const direction = directionOf(pose.azimuth, pose.elevation);
 	if (camera instanceof THREE.PerspectiveCamera) {
+		const fieldOfView = pose.fieldOfView ?? worldFieldOfView;
+		if (camera.fov !== fieldOfView) {
+			camera.fov = fieldOfView;
+			camera.updateProjectionMatrix();
+		}
 		const distance = pose.span / 2 / Math.tan((camera.fov * DEG2RAD) / 2);
 		camera.position.copy(direction).multiplyScalar(distance).add(target);
 	} else {
@@ -74,6 +93,9 @@ const turnBetween = (from: number, to: number) => ((((to - from) % 360) + 540) %
 /** The pose `t` (0…1) of the way from `a` to `b`, turning the short way round. */
 export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => {
 	const mix = (x: number, y: number) => x + (y - x) * t;
+	// One that follows the world's field of view blends as if it had the other's.
+	const fieldOfViewA = a.fieldOfView ?? b.fieldOfView;
+	const fieldOfViewB = b.fieldOfView ?? a.fieldOfView;
 	return {
 		target: [mix(a.target[0], b.target[0]), mix(a.target[1], b.target[1])],
 		azimuth: a.azimuth + turnBetween(a.azimuth, b.azimuth) * t,
@@ -81,6 +103,8 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 		// Spans scale, so blend them evenly in proportion rather than in units.
 		span: a.span * (b.span / a.span) ** t,
 		perspective: b.perspective,
+		fieldOfView:
+			fieldOfViewA === null || fieldOfViewB === null ? null : mix(fieldOfViewA, fieldOfViewB),
 	};
 };
 

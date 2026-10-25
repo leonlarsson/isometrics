@@ -6,9 +6,9 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
-import { groundSpan, orthographicDistance } from "./cameraMath";
+import { orthographicDistance, zoomLimits } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
-import { MAX_POLAR, MIN_POLAR, orbitAround, settleTarget } from "./orbit";
+import { orbitAround, polarLimits, settleTarget } from "./orbit";
 import { viewShift } from "./viewShift";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -174,6 +174,7 @@ const useOrbitAroundCursor = () => {
 				pivot,
 				(-2 * Math.PI * dx) / height,
 				(-2 * Math.PI * dy) / height,
+				polarLimits(useEditor.getState().scene.camera),
 			);
 			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
 			controls.update();
@@ -198,7 +199,10 @@ const useOrbitAroundCursor = () => {
 	}, [camera, scene, element, controls]);
 };
 
-/** Keep the view's centre over the ground, so panning or zooming can't lose the world. */
+/**
+ * Keep the view's centre over the ground, so panning or zooming can't lose the
+ * world, unless the world turns that off (scene.camera.keepOverGround).
+ */
 const useKeepTargetOnGround = () => {
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
@@ -210,7 +214,8 @@ const useKeepTargetOnGround = () => {
 		}
 		const onChange = () => {
 			// The camera following a vehicle keeps up with it; the vehicle is on the ground anyway.
-			if (useEditor.getState().cameraFollow) {
+			const { cameraFollow, scene } = useEditor.getState();
+			if (cameraFollow || !scene.camera.keepOverGround) {
 				return;
 			}
 			const { target } = controls;
@@ -463,21 +468,20 @@ const CameraBehaviours = () => {
  * and twist to orbit. See docs/adr/0028 and 0037.
  */
 export const CameraControls = () => {
-	const span = useEditor((s) => groundSpan(s.scene.ground));
+	const settings = useEditor((s) => s.scene.camera);
+	const ground = useEditor((s) => s.scene.ground);
+	const height = useThree((s) => s.size.height);
+	const tilt = polarLimits(settings);
 	return (
 		<>
 			<OrbitControls
 				makeDefault
 				enableDamping
 				dampingFactor={0.12}
-				minPolarAngle={MIN_POLAR}
-				maxPolarAngle={MAX_POLAR}
-				// Zoom limits: orthographic zoom for the diorama view, distance for perspective. How far
-				// out depends on the ground, so the whole of a big one fits on screen.
-				minZoom={Math.min(2, 300 / span)}
-				maxZoom={160}
-				minDistance={2}
-				maxDistance={Math.max(400, span * 1.5)}
+				minPolarAngle={tilt.min}
+				maxPolarAngle={tilt.max}
+				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.
+				{...zoomLimits(settings, ground, height || 1)}
 				zoomToCursor
 				// Left-drag panning is useGroundPan's and orbiting is useOrbitAroundCursor's, so the mouse
 				// only zooms here (wheel or middle button). Touch keeps OrbitControls' pan, pinch and twist.

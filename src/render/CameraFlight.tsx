@@ -39,7 +39,10 @@ export const CameraFlight = () => {
 		currentView.read = () => {
 			const { camera, controls, size } = get();
 			const target = (controls as unknown as { target?: THREE.Vector3 } | null)?.target;
-			return target ? poseOf(camera, target, size.height, useEditor.getState().perspective) : null;
+			const { perspective, scene } = useEditor.getState();
+			return target
+				? poseOf(camera, target, size.height, perspective, scene.camera.fieldOfView)
+				: null;
 		};
 		return () => {
 			currentView.read = null;
@@ -49,7 +52,13 @@ export const CameraFlight = () => {
 	useEffect(() => {
 		if (request) {
 			resetViewShift();
-			flight.current = { from: null, to: request.pose, progress: 0, instant: request.instant };
+			const { fieldOfView } = useEditor.getState().scene.camera;
+			flight.current = {
+				from: null,
+				to: { ...request.pose, fieldOfView: request.pose.fieldOfView ?? fieldOfView },
+				progress: 0,
+				instant: request.instant,
+			};
 		}
 	}, [request?.nonce]);
 
@@ -77,12 +86,17 @@ export const CameraFlight = () => {
 		if (!current || !controls || size.height === 0) {
 			return;
 		}
-		current.from ??= poseOf(camera, controls.target, size.height, current.to.perspective);
+		const worldFieldOfView = useEditor.getState().scene.camera.fieldOfView;
+		// From the field of view the camera has to the one the view asks for, the world's or its own.
+		current.from ??= {
+			...poseOf(camera, controls.target, size.height, current.to.perspective, worldFieldOfView),
+			fieldOfView: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
+		};
 		current.progress = current.instant
 			? 1
 			: Math.min(1, current.progress + Math.min(delta, 0.1) / FLIGHT_SECONDS);
 		const pose = blendPoses(current.from, current.to, easeInOut(current.progress));
-		controls.target.copy(placeCamera(camera, pose, size.height));
+		controls.target.copy(placeCamera(camera, pose, size.height, worldFieldOfView));
 		controls.update();
 		// Done once it's there on the camera it asked for, with that camera's controls settled in.
 		const settled =

@@ -1,12 +1,12 @@
 import * as THREE from "three";
 
+import { DEG2RAD } from "#/lib/math";
+import type { TCameraSettings } from "#/scene/schema";
+
 /**
  * Camera measurements that work for both the orthographic (diorama) and the
  * perspective camera. See docs/adr/0038-perspective-camera.md.
  */
-
-/** Field of view of the perspective camera (degrees, vertical). */
-export const PERSPECTIVE_FOV = 40;
 
 const local = new THREE.Vector3();
 
@@ -41,3 +41,30 @@ export const groundSpan = (ground: { width: number; depth: number }) =>
  */
 export const orthographicDistance = (ground: { width: number; depth: number }) =>
 	Math.max(150, groundSpan(ground) + 50);
+
+/** How far out the camera can zoom (grid units from the top of the view to the bottom). */
+export const farthestSpanOf = (
+	camera: Pick<TCameraSettings, "farthestSpan">,
+	ground: { width: number; depth: number },
+) => camera.farthestSpan ?? Math.round(Math.max(120, groundSpan(ground) * 2.5));
+
+/**
+ * The controls' zoom limits for the world's closest and farthest zoom:
+ * orthographic zoom (pixels per unit, for a canvas `height` px high) and the
+ * perspective camera's distance from its target (for its field of view).
+ */
+export const zoomLimits = (
+	camera: Pick<TCameraSettings, "closestSpan" | "farthestSpan" | "fieldOfView">,
+	ground: { width: number; depth: number },
+	height: number,
+) => {
+	const closest = camera.closestSpan;
+	const farthest = Math.max(closest, farthestSpanOf(camera, ground));
+	const distanceFor = (span: number) => span / 2 / Math.tan((camera.fieldOfView * DEG2RAD) / 2);
+	return {
+		minZoom: height / farthest,
+		maxZoom: height / closest,
+		minDistance: distanceFor(closest),
+		maxDistance: distanceFor(farthest),
+	};
+};

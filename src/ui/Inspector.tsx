@@ -13,6 +13,7 @@ import { ROAD_STYLE_LABELS } from "#/scene/roads";
 
 import { areaTabs } from "./AreaInspector";
 import { IconButton } from "./Button";
+import { CameraTab } from "./CameraTab";
 import { DataPanel } from "./DataPanel";
 import { entityTabs } from "./EntityInspector";
 import { SearchField, SettingsSearchContext } from "./fields";
@@ -32,6 +33,7 @@ import styles from "./Inspector.module.css";
 const WORLD_TABS: IInspectorTab[] = [
 	{ value: "world", label: "World", icon: "globe", content: <WorldTab /> },
 	{ value: "sky", label: "Sun & sky", icon: "sun", content: <SkyTab /> },
+	{ value: "camera", label: "Camera", icon: "video", content: <CameraTab /> },
 	{ value: "views", label: "Viewpoints", icon: "camera", content: <ViewpointsSection /> },
 	{ value: "traffic", label: "Traffic", icon: "traffic", content: <TrafficTab /> },
 	{ value: "data", label: "Data", icon: "chart", content: <DataPanel /> },

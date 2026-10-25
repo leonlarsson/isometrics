@@ -11,6 +11,7 @@ const pose: TViewPose = {
 	elevation: 40,
 	span: 24,
 	perspective: false,
+	fieldOfView: null,
 };
 
 describe("viewpoints", () => {
@@ -28,8 +29,8 @@ describe("viewpoints", () => {
 			new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000),
 		];
 		for (const camera of cameras) {
-			const target = placeCamera(camera, pose, 600);
-			const back = poseOf(camera, target, 600, pose.perspective);
+			const target = placeCamera(camera, pose, 600, 40);
+			const back = poseOf(camera, target, 600, pose.perspective, 40);
 			expect(back.target).toEqual(pose.target);
 			expect(back.azimuth).toBeCloseTo(pose.azimuth, 1);
 			expect(back.elevation).toBeCloseTo(pose.elevation, 1);
@@ -44,7 +45,7 @@ describe("viewpoints", () => {
 			new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000),
 		];
 		for (const camera of cameras) {
-			placeCamera(camera, pose, 600);
+			placeCamera(camera, pose, 600, 40);
 			// Slide the camera and its target sideways together, lifting the target off the ground.
 			const lift = new THREE.Vector3(1.2, 2.5, -0.7);
 			const raised = new THREE.Vector3(pose.target[0], 0, pose.target[1]).add(lift);
@@ -52,8 +53,8 @@ describe("viewpoints", () => {
 			camera.updateMatrixWorld();
 			const seen = point.clone().project(camera);
 
-			const saved = poseOf(camera, raised, 600, pose.perspective);
-			placeCamera(camera, saved, 600);
+			const saved = poseOf(camera, raised, 600, pose.perspective, 40);
+			placeCamera(camera, saved, 600, 40);
 			const again = point.clone().project(camera);
 			// Within a hundredth of the view (a few px): only the pose's rounding differs.
 			expect(Math.abs(again.x - seen.x)).toBeLessThan(0.01);
@@ -67,5 +68,21 @@ describe("viewpoints", () => {
 		const half = blendPoses(a, b, 0.5);
 		expect(((half.azimuth % 360) + 360) % 360).toBeCloseTo(0, 5);
 		expect(half.span).toBeCloseTo(48, 5);
+	});
+
+	it("keeps a view's own field of view, and none while it's the world's", () => {
+		const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000);
+		const own = { ...pose, perspective: true, fieldOfView: 70 };
+		const target = placeCamera(camera, own, 600, 40);
+		expect(camera.fov).toBe(70);
+		const back = poseOf(camera, target, 600, true, 40);
+		expect(back.fieldOfView).toBe(70);
+		expect(back.span).toBeCloseTo(24, 1);
+		placeCamera(camera, { ...own, fieldOfView: null }, 600, 55);
+		expect(camera.fov).toBe(55);
+		expect(poseOf(camera, target, 600, true, 55).fieldOfView).toBeNull();
+		// Blending from the world's field of view to a view's own goes evenly.
+		expect(blendPoses({ ...own, fieldOfView: 30 }, own, 0.5).fieldOfView).toBe(50);
+		expect(blendPoses(pose, pose, 0.5).fieldOfView).toBeNull();
 	});
 });

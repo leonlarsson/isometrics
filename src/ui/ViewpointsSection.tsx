@@ -4,7 +4,7 @@ import { useEditor } from "#/editor/store";
 import { currentView } from "#/render/viewpoints";
 
 import { Button, IconButton, IconButtonGroup } from "./Button";
-import { Hint, Section, SelectField, TextField } from "./fields";
+import { Hint, Section, SliderField, TextField } from "./fields";
 import { List, ListItem } from "./List";
 
 /** A viewpoint's name, or its place in the list when it has none. */
@@ -18,7 +18,7 @@ export const viewpointName = (viewpoint: { name: string }, index: number) =>
 export const ViewpointsSection = () => {
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const activeId = useEditor((s) => s.activeViewpointId);
-	const openingId = useEditor((s) => s.scene.camera.openingViewpointId);
+	const worldFieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
 	const [renaming, setRenaming] = useState<string | null>(null);
 	const store = () => useEditor.getState();
 
@@ -32,16 +32,11 @@ export const ViewpointsSection = () => {
 	const active = viewpoints[activeIndex];
 
 	return (
-		<Section
-			id="views.list"
-			icon="camera"
-			title="Viewpoints"
-			keywords="camera views slides opening start"
-		>
+		<Section id="views.list" icon="camera" title="Viewpoints" keywords="camera views slides">
 			{viewpoints.length === 0 ? (
 				<Hint>
 					Save views of the world to come back to them, to step through them in View mode like
-					slides, or to make the world open at one.
+					slides, or to pick one as the world’s opening view in the Camera tab.
 				</Hint>
 			) : (
 				<List>
@@ -115,19 +110,33 @@ export const ViewpointsSection = () => {
 				/>
 			)}
 
-			{viewpoints.length > 0 && (
-				<SelectField
-					label="Opening view"
-					value={viewpoints.some((v) => v.id === openingId) ? (openingId ?? "") : ""}
-					options={[
-						{ value: "", label: "The whole world" },
-						...viewpoints.map((viewpoint, index) => ({
-							value: viewpoint.id,
-							label: viewpointName(viewpoint, index),
-						})),
-					]}
-					onChange={(id) => store().setOpeningViewpoint(id || null)}
-					hint="Where the world opens for anyone who hasn’t looked around it in their browser yet (a shared file, another browser), and where re-centring the camera goes."
+			{active?.perspective && (
+				<SliderField
+					label="Field of view"
+					value={active.fieldOfView ?? worldFieldOfView}
+					min={10}
+					max={100}
+					step={1}
+					suffix="°"
+					onChange={(v) =>
+						store().updateViewpoint(
+							active.id,
+							(viewpoint) => {
+								viewpoint.fieldOfView = v;
+							},
+							{ coalesce: `viewpoint:${active.id}:fieldOfView` },
+						)
+					}
+					inherit={{
+						from: "scene",
+						inherited: active.fieldOfView === null,
+						onReset: () =>
+							store().updateViewpoint(active.id, (viewpoint) => {
+								viewpoint.fieldOfView = null;
+							}),
+						value: `${worldFieldOfView}°`,
+					}}
+					hint={`“${viewpointName(active, activeIndex)}” only; the world’s field of view is in the Camera tab.`}
 				/>
 			)}
 

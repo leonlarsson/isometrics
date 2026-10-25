@@ -19,6 +19,7 @@ const PoseSchema = ViewpointSchema.pick({
 	elevation: true,
 	span: true,
 	perspective: true,
+	fieldOfView: true,
 });
 
 /** World id → where the camera was. */
