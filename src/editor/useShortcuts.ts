@@ -37,6 +37,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
  *   P perspective / diorama view · 1–9 go to viewpoint 1–9 · Home back to the opening view
  *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
+ *   View mode: W A S D move the camera, Q / E turn it (no letter keys edit anything there)
  *   Ctrl+Space hide or show both side panels (Edit mode, like Blender's maximise)
  *
  * The library skips single keys while typing in text fields and prevents the
@@ -286,6 +287,13 @@ export const useShortcuts = () => {
 		cameraKey("Shift+ArrowRight", "turnRight", "Turn the view right", canPanCamera),
 		cameraKey("Shift+ArrowUp", "tiltUp", "Look down more steeply", canPanCamera),
 		cameraKey("Shift+ArrowDown", "tiltDown", "Look across more", canPanCamera),
+		// View mode edits nothing, so W A S D and Q E are free for moving around, as in games.
+		cameraKey("W", "panForward", "Move forward", mode === "view"),
+		cameraKey("S", "panBack", "Move back", mode === "view"),
+		cameraKey("A", "panLeft", "Move left", mode === "view"),
+		cameraKey("D", "panRight", "Move right", mode === "view"),
+		cameraKey("Q", "turnLeft", "Turn left", mode === "view"),
+		cameraKey("E", "turnRight", "Turn right", mode === "view"),
 		cameraKey("=", "zoomIn", "Zoom in", !transforming),
 		cameraKey("+", "zoomIn", "Zoom in", !transforming),
 		cameraKey("Shift+=", "zoomIn", "Zoom in", !transforming),
@@ -323,17 +331,17 @@ export const useShortcuts = () => {
 		{
 			hotkey: "S",
 			callback: () => start("scale"),
-			options: { enabled: canNudge, meta: { name: "Resize" } },
+			options: { enabled: canNudge, conflictBehavior: "allow", meta: { name: "Resize" } },
 		},
 		{
 			hotkey: "Q",
 			callback: () => rotate(15),
-			options: { enabled: canTransform, meta: { name: "Rotate left" } },
+			options: { enabled: canTransform, conflictBehavior: "allow", meta: { name: "Rotate left" } },
 		},
 		{
 			hotkey: "E",
 			callback: () => rotate(-15),
-			options: { enabled: canTransform, meta: { name: "Rotate right" } },
+			options: { enabled: canTransform, conflictBehavior: "allow", meta: { name: "Rotate right" } },
 		},
 		{
 			hotkey: "Shift+Q",

@@ -120,7 +120,7 @@ const CameraFeelSection = () => {
 				suffix="×"
 				onChange={(v) => setCameraFeel("keyboardSpeed", v)}
 				inherit={feelDefault(feel, "keyboardSpeed", "1×")}
-				hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. + and − zoom, and Home goes back to the opening view."
+				hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. In View mode W A S D move and Q E turn too. + and − zoom, and Home goes back to the opening view."
 			/>
 
 			<FieldGroup title="Overlays in Edit mode">
