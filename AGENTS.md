@@ -87,7 +87,30 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Verifying visually
 
-Unit tests don't cover rendering. For UI changes, run `pnpm dev` and check the page in a browser. Agents without a browser can use Playwright's headless Chromium. Launch it with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works. On a bare WSL/Ubuntu machine Chromium may be missing `libnspr4`, `libnss3` and `libasound2t64`. Without sudo, `apt-get download` them, `dpkg -x` them into a temp dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`), and the inspector inputs have accessible labels (`Location X`, `Name`, …). Use the full Chromium build (`chromium-*/chrome-linux64/chrome` with `--headless=new`), not the headless shell: the headless shell crashes when a number label is dragged (Pointer Lock). Keep Playwright out of the project's dependencies unless an ADR adds e2e tests.
+Unit tests don't cover rendering. For UI changes, check the page in a real browser. An agent without one drives Playwright's headless Chromium from a script; what follows is what that takes.
+
+**The dev server.** The owner usually has `pnpm dev` running on http://localhost:3000 (check with `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`). Use it; never kill or restart it. Start your own only if nothing answers. After many edits to `editor/store.ts` in one sitting, hot reload can leave modules holding the old store (e.g. every camera key dead): a page reload fixes it, and it never happens to users.
+
+**Setting up (once per session; temp dirs get cleaned).** Work in your scratchpad, never in the project: Playwright stays out of its dependencies unless an ADR adds e2e tests.
+- `npm init -y && npm i playwright-core` in a scratch folder. The browser is usually cached already: use the full build, `~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome`, with `--headless=new`. The headless shell crashes when a number label is dragged (Pointer Lock).
+- Launch with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works, and a viewport like 1280×800.
+- On a bare WSL/Ubuntu machine Chromium may miss `libnspr4`, `libnss3` and `libasound2t64`. Without sudo: `apt-get download` them, `dpkg -x` each into a scratch dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`.
+- A small runner (`run.mjs`) that launches the browser, logs `console` errors and `pageerror`s, and imports a test script given as an argument (`export default async ({ page, context, dir }) => …`) keeps each check short. Write screenshots to the scratchpad and look at them; say in your report what you saw.
+
+**Driving the app.** Each browser context starts with empty storage, so the app opens the starter world (Brightwater) in Edit mode.
+- Wait for `canvas`, then about 3 s for the world to settle, before acting.
+- In development the editor store is on `globalThis.__editorStore` (`editor/store.ts`, set for hot reload). `page.evaluate(() => globalThis.__editorStore.getState()…)` is the reliable way to set things up and to check results: `select(id)`, `selectItems([...])`, `selectRoad(id)`, `setTab("look")`, `setMode("view")`, `frameSelection()`, `setPreferencesOpen(true)`, and reading `scene`, `selectedItems`, `past.length` (undo steps). Prefer asserting on store state over comparing pixels.
+- For a clean test world, clone the current scene, empty or replace `entities` / `roads` / `areas`, and `loadScene()` it; that keeps a valid ground, palette and camera. Scale an object up (`scale: 4`) when you need to hit it with the mouse.
+- Where the camera is: `localStorage["isometrics:camera"]` holds each world's last pose (target, azimuth, elevation, span, projection), written shortly after it moves.
+- Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`); inspector inputs, menu items and tabs have accessible names (`getByLabel("Title")`, `getByRole("menuitem", { name: /Paste/ })`).
+
+**Input gotchas.**
+- `page.mouse.click()` silently ignores a `modifiers` option (only locator clicks take it). For Shift-, Ctrl- or Alt-clicks and drags, wrap them in `page.keyboard.down("Shift")` … `page.keyboard.up("Shift")`.
+- Hover the canvas before pressing editor keys, and move the mouse with `{ steps: n }` so pointer moves actually fire (a move to where the mouse already is fires nothing).
+- The right button: `page.mouse.down({ button: "right" })` / `up`. Holding it is how W A S D fly in Edit mode.
+- The transform gizmo sits over a selected object's middle and catches presses there; press on a part of the object clear of it (a roof), or scale the object up. To find small handles (road points, area corners), move over a grid of screen points and read `document.body.style.cursor`: `"grab"` over point handles and gizmo handles, `"copy"` over insert handles.
+- The clipboard needs `context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://localhost:3000" })`. Ctrl+C / Ctrl+V go through the browser's copy and paste events, which headless Chromium fires for `keyboard.press("Control+c")`.
+- Toasts (bottom right) can cover a menu that just opened; that's only a screenshot problem.
 
 ## Commits and PRs
 
