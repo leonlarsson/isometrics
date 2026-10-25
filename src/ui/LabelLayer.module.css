@@ -6,6 +6,11 @@
 	pointer-events: none;
 }
 
+/* In Edit mode, cards the world hides from View mode (World tab → Shown in View mode). */
+.layer[data-hidden-in-view] {
+	opacity: 0.45;
+}
+
 /* Moved by LabelProjector; hidden until its first frame positions it. */
 .anchor {
 	position: absolute;

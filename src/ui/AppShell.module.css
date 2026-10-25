@@ -114,6 +114,13 @@
 	color: var(--text-muted);
 }
 
+/* In Edit mode, a line the world hides from View mode (World tab → Shown in View mode). */
+.sceneTitle [data-hidden-in-view] {
+	opacity: 0.4;
+	text-decoration: line-through;
+	text-decoration-color: color-mix(in oklab, currentColor 50%, transparent);
+}
+
 /* The world's time under its title, in equal-width digits so it doesn't jitter as it runs. */
 .sceneTitle .sceneTime {
 	display: flex;

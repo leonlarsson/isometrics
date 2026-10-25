@@ -192,17 +192,21 @@ export const LabelLayer = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const selectedId = useEditor((s) => s.selectedId);
 	const drawing = useEditor((s) => s.drawing !== null);
-	// The world can switch every card off (World tab → On screen).
-	const cardsShown = useEditor((s) => s.scene.onScreen.labelCards);
-	const labelled = cardsShown
-		? entities.filter((entity) => entity.label?.enabled && !entity.hidden)
-		: [];
+	// The world can hide every card from View mode (World tab → Shown in View mode); Edit mode still
+	// shows them, faded, so they can be worked on.
+	const cardsInView = useEditor((s) => s.scene.onScreen.labelCards);
+	const editing = useEditor((s) => s.mode === "edit");
+	const labelled =
+		cardsInView || editing
+			? entities.filter((entity) => entity.label?.enabled && !entity.hidden)
+			: [];
 
 	return (
 		// While drawing a road, cards let clicks through to the ground.
 		<div
 			className={styles.layer}
 			data-drawing={drawing || undefined}
+			data-hidden-in-view={(!cardsInView && editing) || undefined}
 			data-label-layer=""
 			ref={(element) => {
 				element?.addEventListener("wheel", onLayerWheel, { passive: false });

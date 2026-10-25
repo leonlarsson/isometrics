@@ -27,7 +27,7 @@ const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
 const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
 	{ key: "title", label: "Title" },
 	{ key: "subtitle", label: "Subtitle" },
-	{ key: "timeOfDay", label: "Time of day", hint: "In Edit mode it's also the way to Sun & sky." },
+	{ key: "timeOfDay", label: "Time of day" },
 	{
 		key: "labelCards",
 		label: "Label cards",
@@ -36,16 +36,19 @@ const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }
 	{
 		key: "details",
 		label: "Details on click",
-		hint: "In View mode, an object's values when it's clicked.",
+		hint: "An object's values when it's clicked.",
 	},
 	{
 		key: "viewpointBar",
 		label: "Viewpoint bar",
-		hint: "In View mode. ← and → still step through the viewpoints without it.",
+		hint: "← and → still step through the viewpoints without it.",
 	},
 ];
 
-/** What shows on screen over the world, in Edit and View mode alike (scene.onScreen). */
+/**
+ * What viewers see over the world in View mode (scene.onScreen, ADR-0063).
+ * Edit mode shows everything, faded where View mode won't.
+ */
 const OnScreenSection = () => {
 	const onScreen = useEditor((s) => s.scene.onScreen);
 	const commit = useEditor((s) => s.commit);
@@ -57,10 +60,13 @@ const OnScreenSection = () => {
 		<Section
 			id="world.onScreen"
 			icon="eye"
-			title="On screen"
-			keywords="show hide title subtitle time of day label cards details viewpoint bar overlay clean presentation"
+			title="Shown in View mode"
+			keywords="on screen show hide title subtitle time of day label cards details viewpoint bar overlay clean presentation viewers"
 		>
-			<Hint>What shows over the world, in Edit and View mode alike.</Hint>
+			<Hint>
+				What viewers see over the world. Edit mode still shows everything, faded where View mode
+				won’t.
+			</Hint>
 
 			{ON_SCREEN_SWITCHES.map(({ key, label, hint }) => (
 				<SwitchField

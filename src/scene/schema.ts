@@ -647,24 +647,22 @@ export const OnScreenSchema = z
 	.object({
 		title: z.boolean().default(true).describe("The world's title, in the top-left corner."),
 		subtitle: z.boolean().default(true).describe("The subtitle under the title."),
-		timeOfDay: z
-			.boolean()
-			.default(true)
-			.describe("The time of day under the title (in Edit mode, also the way to Sun & sky)."),
+		timeOfDay: z.boolean().default(true).describe("The time of day under the title."),
 		labelCards: z
 			.boolean()
 			.default(true)
-			.describe("Objects' label cards. false hides every card, whatever each object says."),
+			.describe(
+				"Objects' label cards. false hides every card in View mode, whatever each object says.",
+			),
 		details: z
 			.boolean()
 			.default(true)
-			.describe("In View mode, the panel with an object's values that opens when it's clicked."),
-		viewpointBar: z
-			.boolean()
-			.default(true)
-			.describe("In View mode, the bar that steps through the viewpoints."),
+			.describe("The panel with an object's values that opens when it's clicked."),
+		viewpointBar: z.boolean().default(true).describe("The bar that steps through the viewpoints."),
 	})
-	.describe("What shows on screen over the world, in Edit and View mode alike.");
+	.describe(
+		"What viewers see over the world in View mode. Edit mode always shows everything, faded where View mode won't.",
+	);
 
 export const ThemeSchema = z
 	.enum(["system", "light", "dark"])

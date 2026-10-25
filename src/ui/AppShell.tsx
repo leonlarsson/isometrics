@@ -108,19 +108,28 @@ const SceneTitle = ({ onOpenSky }: { onOpenSky: () => void }) => {
 				: lighting.timeSource === "data"
 					? `From data: ${timeEntry ? timeEntry.label || timeEntry.key : "no value"}`
 					: "Fixed time";
-	// Each line can be switched off for the world (World tab → On screen).
-	if (!onScreen.title && !(onScreen.subtitle && meta.subtitle) && !onScreen.timeOfDay) {
+	// Each line can be hidden from View mode (World tab → Shown in View mode). Edit mode shows
+	// them all, faded when viewers won't see them.
+	const shown = (inView: boolean) => inView || editing;
+	const faded = (inView: boolean) => (editing && !inView) || undefined;
+	if (
+		!shown(onScreen.title) &&
+		!(shown(onScreen.subtitle) && meta.subtitle) &&
+		!shown(onScreen.timeOfDay)
+	) {
 		return null;
 	}
 	return (
 		// Label cards step aside for it (data-label-obstacle), like for the bars.
 		<div className={styles.sceneTitle} data-label-obstacle="">
-			{onScreen.title && <h1>{meta.title}</h1>}
+			{shown(onScreen.title) && <h1 data-hidden-in-view={faded(onScreen.title)}>{meta.title}</h1>}
 
-			{onScreen.subtitle && meta.subtitle && <p>{meta.subtitle}</p>}
+			{shown(onScreen.subtitle) && meta.subtitle && (
+				<p data-hidden-in-view={faded(onScreen.subtitle)}>{meta.subtitle}</p>
+			)}
 
-			{!onScreen.timeOfDay ? null : editing ? (
-				<p className={styles.sceneTime}>
+			{!shown(onScreen.timeOfDay) ? null : editing ? (
+				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.timeOfDay)}>
 					<span className={styles.sceneTimeOpen}>
 						<Tooltip label="Open Sun & sky">
 							<Button variant="text" size="sm" icon="clock" onClick={onOpenSky}>
