@@ -5,7 +5,7 @@ import { APP_NAME } from "#/lib/app";
 import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
-import { forgetView } from "./cameraMemory";
+import { adoptUnsavedView, forgetView, UNSAVED_WORLD } from "./cameraMemory";
 import type { useEditor } from "./store";
 import { notify } from "./toasts";
 
@@ -439,6 +439,8 @@ export const saveScene = (scene: TScene) => {
 	if (!id) {
 		id = nanoid(10);
 		setOpenWorldId(id);
+		// Where the camera was while it wasn't saved yet goes with it.
+		adoptUnsavedView(id);
 	}
 	writeWorld(id, scene);
 };
@@ -448,6 +450,8 @@ export const createWorld = (scene: TScene): string => {
 	const id = nanoid(10);
 	setOpenWorldId(id);
 	writeWorld(id, scene);
+	// A different world: the camera of the unsaved starter it replaces isn't its own.
+	forgetView(UNSAVED_WORLD);
 	return id;
 };
 

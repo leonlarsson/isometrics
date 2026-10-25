@@ -34,7 +34,6 @@ Ideas from the owner, not designed yet. Each needs a design pass (and usually an
 - [ ] **A sky to look at:** free control and flying can look up now, but above the world there's only the page's plain background. A simple sky (a gradient dome following the time of day, the sun's disc, maybe a few low-poly clouds) would make looking up feel right; pairs with *Weather*. *Data:* clouds or haze from a value.
 - [ ] **Camera, smaller follow-ups:**
   - **Lock to the isometric angle:** the camera menu's Isometric angle (I) is done; maybe a world setting that keeps the camera there, like a classic isometric game (tilt fixed, turning in 90° steps).
-  - **The starter world's camera:** a world that was never saved (the untouched starter, "Not saved yet") has no id, so where you looked isn't remembered across a reload.
   - **Hidden in View mode, said in Edit mode:** lines of the title block that viewers won't see are faded and struck through, but there's no note saying why (the title takes no pointer). A small marker, or a note in the World tab's Shown in View mode panel.
 - [ ] **Camera tours (data):** the camera controls of ADR-0062 are done. Still an idea: a tour that steps through the viewpoints on its own (like the turntable, in View mode), or one that flies to whatever crossed a threshold in the data.
 - [ ] **Take control of a vehicle or person:** riding along (view only) is done (ADR-0040); next, actually drive or walk it yourself (keyboard/gamepad), leaving its road while you steer and rejoining afterwards. Needs people as a part for walking.

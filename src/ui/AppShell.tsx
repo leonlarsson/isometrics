@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
-import { rememberedView } from "#/editor/cameraMemory";
+import { rememberedView, UNSAVED_WORLD } from "#/editor/cameraMemory";
 import { useSceneHours } from "#/editor/dayClock";
 import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
@@ -204,6 +204,10 @@ export const AppShell = () => {
 		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
 			useEditor.getState().showOpeningView(rememberedView(openWorldId()));
+		}
+		// Nothing stored yet (the starter world): where the camera was in it before a reload.
+		if (stored.status === "empty") {
+			useEditor.getState().showOpeningView(rememberedView(UNSAVED_WORLD));
 		}
 		if (stored.status === "repaired" || stored.status === "unreadable") {
 			// The original save is already backed up, so autosaving over it is safe.

@@ -63,6 +63,23 @@ const write = (memory: TCameraMemory) => {
 	}
 };
 
+/**
+ * The world that isn't stored yet (the untouched starter, "Not saved yet")
+ * has no id: its camera is remembered under this one until the world's first
+ * save gives it an id (adoptUnsavedView). Not an id nanoid makes.
+ */
+export const UNSAVED_WORLD = "(not saved yet)";
+
+/** The world just got its first save: its camera so far is now under its own id. */
+export const adoptUnsavedView = (worldId: string) => {
+	const memory = read();
+	const pose = memory[UNSAVED_WORLD];
+	if (pose) {
+		delete memory[UNSAVED_WORLD];
+		write({ ...memory, [worldId]: pose });
+	}
+};
+
 /** Where the camera was in a world, if this browser remembers it. */
 export const rememberedView = (worldId: string | null): TViewPose | null =>
 	worldId ? (read()[worldId] ?? null) : null;

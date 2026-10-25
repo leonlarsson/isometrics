@@ -1,7 +1,7 @@
 import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 
-import { cameraMoved, rememberView, saveCameraNow } from "#/editor/cameraMemory";
+import { cameraMoved, rememberView, saveCameraNow, UNSAVED_WORLD } from "#/editor/cameraMemory";
 import { openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 
@@ -12,9 +12,12 @@ interface IChangingControls {
 	removeEventListener: (type: "change", listener: () => void) => void;
 }
 
-/** Stores where the camera is for the open world in this browser (editor/cameraMemory). */
+/**
+ * Stores where the camera is for the open world in this browser
+ * (editor/cameraMemory); a world that isn't saved yet under UNSAVED_WORLD.
+ */
 const saveView = () => {
-	const id = openWorldId();
+	const id = openWorldId() ?? UNSAVED_WORLD;
 	const pose = currentView.read?.();
 	if (id && pose) {
 		rememberView(id, pose);
