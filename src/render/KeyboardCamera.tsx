@@ -115,9 +115,12 @@ export const KeyboardCamera = () => {
 		const moveBy = (by: THREE.Vector3) => {
 			if (simple) {
 				const { width, depth } = scene.ground;
-				const at = camera.position;
-				if (at.y + by.y < GROUND_CLEARANCE) {
-					by.y = Math.min(0, GROUND_CLEARANCE - at.y);
+				// The isometric diorama's camera always stands far outside the world (its view is the same
+				// from any distance), so there the point it looks at is what stays over the world.
+				const at = camera instanceof THREE.OrthographicCamera ? target : camera.position;
+				const height = camera.position.y;
+				if (height + by.y < GROUND_CLEARANCE) {
+					by.y = Math.min(0, GROUND_CLEARANCE - height);
 				}
 				by.x = keepWithin(at.x, by.x, width / 2);
 				by.z = keepWithin(at.z, by.z, depth / 2);
@@ -130,9 +133,11 @@ export const KeyboardCamera = () => {
 			const pan = PAN[move];
 			if (pan) {
 				// Forwards is where the camera looks: flattened onto the ground, or, flying with the right
-				// mouse button held, straight along the view, as in Blender's fly mode or Unreal.
+				// mouse button held, straight along the view, as in Blender's fly mode or Unreal. Not in
+				// the isometric diorama: its parallel view looks the same from anywhere along the line of
+				// sight, so flying forwards there would change nothing; it crosses the ground instead.
 				forward.subVectors(target, camera.position);
-				if (!flying) {
+				if (!flying || camera instanceof THREE.OrthographicCamera) {
 					forward.setY(0);
 				}
 				forward.normalize();
