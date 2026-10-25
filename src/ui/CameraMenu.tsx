@@ -2,14 +2,23 @@ import { setCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { fieldOfViewOf, focalLengthOf } from "#/render/cameraMath";
+import { CameraSettingsSchema } from "#/scene/schema";
 
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
 
 /** Lenses a click away, as on a camera: focal length (mm, full frame) and what it's like. */
+/** The world camera's settings as a new world has them. */
+const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
+
 const LENSES = [
 	{ millimetres: 18, description: "Very wide" },
 	{ millimetres: 24, description: "Wide" },
+	// The world's default field of view (40°), as a lens.
+	{
+		millimetres: Math.round(focalLengthOf(CAMERA_DEFAULTS.fieldOfView)),
+		description: "Default",
+	},
 	{ millimetres: 35, description: "A little wide" },
 	{ millimetres: 50, description: "Normal, like the eye" },
 	{ millimetres: 85, description: "Short telephoto" },
@@ -58,6 +67,7 @@ export const CameraMenu = () => {
 					label="Diorama view"
 					checked={!perspective}
 					onCheckedChange={() => showPerspective(false)}
+					keepOpen
 				/>
 
 				<Menu.CheckboxItem
@@ -65,9 +75,13 @@ export const CameraMenu = () => {
 					label="Perspective view (P)"
 					checked={perspective}
 					onCheckedChange={() => showPerspective(true)}
+					keepOpen
 				/>
 
-				<Menu.Submenu icon="focus" label={`Focal length · ${lens} mm`}>
+				<Menu.Submenu
+					icon="focus"
+					label={`Focal length · ${lens} mm${fieldOfView === CAMERA_DEFAULTS.fieldOfView ? " (default)" : ""}`}
+				>
 					{LENSES.map(({ millimetres, description }) => (
 						<Menu.Item
 							key={millimetres}
@@ -76,7 +90,11 @@ export const CameraMenu = () => {
 							description={description}
 							onClick={() => {
 								store().commit((scene) => {
-									scene.camera.fieldOfView = Math.round(fieldOfViewOf(millimetres) * 100) / 100;
+									// The default lens is exactly the default field of view.
+									scene.camera.fieldOfView =
+										description === "Default"
+											? CAMERA_DEFAULTS.fieldOfView
+											: Math.round(fieldOfViewOf(millimetres) * 100) / 100;
 								});
 								showPerspective(true);
 							}}
@@ -101,6 +119,7 @@ export const CameraMenu = () => {
 							label={label}
 							checked={feel[key]}
 							onCheckedChange={(on) => setCameraFeel(key, on)}
+							keepOpen
 						/>
 					))}
 				</Menu.Group>
