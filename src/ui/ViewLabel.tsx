@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useCameraFeel } from "#/editor/cameraFeel";
-import { flyingSpeed } from "#/editor/keyboardCamera";
+import { flyingSpeed, runningCameraMoves } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
 import { liveCamera } from "#/render/liveCamera";
@@ -43,32 +43,53 @@ const describeView = () => {
 };
 
 /**
- * A quiet line in the bottom-left corner of the view in Edit mode saying what
- * the camera shows (ADR-0062), like Blender's "User Perspective": "Perspective
- * view · 40° · Downtown". It checks a few times a second rather than every
- * frame, and only re-renders when the words change.
+ * A quiet line in the bottom-left corner of the view saying what the camera
+ * shows (ADR-0062), like Blender's "User Perspective": "Perspective view · 40°
+ * · Downtown", and how fast you fly. Always in Edit mode; in View mode, which
+ * is for looking, only while you move with the keys or fly, fading out a
+ * moment after. It checks a few times a second rather than every frame, and
+ * only re-renders when the words change.
  */
+/** In View mode, how long the label stays after the keys last moved the camera (ms). */
+const VIEW_MODE_LINGER_MS = 2000;
+
 export const ViewLabel = () => {
 	const shown = useCameraFeel().viewLabel;
 	const editing = useEditor((s) => s.mode === "edit");
 	const inset = useEditor((s) => s.viewInset);
 	const [text, setText] = useState("");
+	// In View mode only while moving with the keys or flying, and a moment after.
+	const [moving, setMoving] = useState(false);
 
 	useEffect(() => {
-		if (!shown || !editing) {
+		if (!shown) {
 			return;
 		}
-		const check = () => setText(describeView());
+		let lastMoved = 0;
+		const check = () => {
+			const now = performance.now();
+			if (runningCameraMoves.size > 0 || useEditor.getState().holdingRightButton) {
+				lastMoved = now;
+			}
+			setMoving(now - lastMoved < VIEW_MODE_LINGER_MS);
+			setText(describeView());
+		};
 		check();
 		const timer = setInterval(check, CHECK_MS);
 		return () => clearInterval(timer);
-	}, [shown, editing]);
+	}, [shown]);
 
-	if (!shown || !editing || !text) {
+	const visible = editing || moving;
+	if (!shown || !text) {
 		return null;
 	}
 	return (
-		<div className={styles.label} style={{ bottom: inset + 12 }} aria-live="off">
+		<div
+			className={styles.label}
+			style={{ bottom: inset + 12 }}
+			data-hidden={!visible || undefined}
+			aria-live="off"
+		>
 			{text}
 		</div>
 	);

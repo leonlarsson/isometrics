@@ -218,7 +218,7 @@ export const PreferencesDialog = () => {
 								feel,
 								"viewLabel",
 								"View label",
-								"What the camera shows, in the bottom-left corner.",
+								"What the camera shows, in the bottom-left corner. In View mode only while you move with the keys or fly, to see how fast.",
 							),
 						},
 						{
