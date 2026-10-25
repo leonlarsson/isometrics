@@ -26,6 +26,8 @@ export const CameraFeelSchema = z.object({
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
 	/** Moving the camera with the arrow keys, + and −, × the usual speed. */
 	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
+	/** A rule-of-thirds grid over the view in Edit mode, for lining up viewpoints. */
+	compositionGrid: z.boolean().catch(false),
 });
 
 export type TCameraFeel = z.output<typeof CameraFeelSchema>;

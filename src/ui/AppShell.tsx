@@ -12,6 +12,7 @@ import { formatHour, skyLightAt } from "#/scene/sun";
 
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
+import { CompositionGrid } from "./CompositionGrid";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
@@ -250,6 +251,8 @@ export const AppShell = () => {
 							/>
 
 							{ready && <Viewport />}
+
+							{ready && <CompositionGrid />}
 
 							{ready && <LabelLayer />}
 

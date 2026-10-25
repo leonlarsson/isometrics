@@ -34,7 +34,7 @@ const CameraFeelSection = () => {
 			id="camera.feel"
 			icon="user"
 			title="Your camera"
-			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser keyboard keys arrows"
+			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser keyboard keys arrows composition grid thirds"
 		>
 			<Hint>
 				Yours alone: these apply to every world in this browser and aren’t saved with the world.
@@ -104,6 +104,17 @@ const CameraFeelSection = () => {
 				inherit={feelDefault(feel, "keyboardSpeed", "1×")}
 				hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. + and − zoom, and Home goes back to the opening view."
 			/>
+
+			<SwitchField
+				label="Composition grid"
+				checked={feel.compositionGrid}
+				onChange={(v) => setCameraFeel("compositionGrid", v)}
+				inherit={feelDefault(feel, "compositionGrid", "off")}
+			/>
+
+			<Hint>
+				Thirds over the view in Edit mode, with a mark in the middle, for lining up viewpoints.
+			</Hint>
 		</Section>
 	);
 };

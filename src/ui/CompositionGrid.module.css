@@ -1,0 +1,25 @@
+/* Thirds over the 3D view, for lining up viewpoints (ADR-0062). Never takes a press. */
+.grid {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	--line: color-mix(in oklab, var(--text) 28%, transparent);
+	background:
+		linear-gradient(var(--line), var(--line)) 33.333% 0 / 1px 100% no-repeat,
+		linear-gradient(var(--line), var(--line)) 66.667% 0 / 1px 100% no-repeat,
+		linear-gradient(var(--line), var(--line)) 0 33.333% / 100% 1px no-repeat,
+		linear-gradient(var(--line), var(--line)) 0 66.667% / 100% 1px no-repeat;
+}
+
+/* The middle of the view. */
+.centre {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 14px;
+	height: 14px;
+	translate: -50% -50%;
+	background:
+		linear-gradient(var(--line), var(--line)) 50% 0 / 1px 100% no-repeat,
+		linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat;
+}
