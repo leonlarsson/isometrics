@@ -4,6 +4,7 @@ import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
+import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
@@ -144,14 +145,7 @@ export const Toolbar = () => {
 							onClick={togglePlaying}
 						/>
 
-						<IconButton
-							size="md"
-							tooltipSide="bottom"
-							icon="perspective"
-							label={perspective ? "Back to the diorama view (P)" : "Perspective view (P)"}
-							pressed={perspective}
-							onClick={togglePerspective}
-						/>
+						<CameraMenu />
 
 						<IconButton
 							size="md"
