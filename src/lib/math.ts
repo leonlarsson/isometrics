@@ -15,5 +15,6 @@ export const normalizeDegrees = (degrees: number) => ((degrees % 360) + 360) % 3
 /** Round to a fixed number of decimals, avoiding float noise in saved JSON. */
 export const round = (value: number, digits = 3) => {
 	const factor = 10 ** digits;
-	return Math.round(value * factor) / factor;
+	// "+ 0" turns -0 into 0, so a turned position doesn't come out as -0.
+	return Math.round(value * factor) / factor + 0;
 };

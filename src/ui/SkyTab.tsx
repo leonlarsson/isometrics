@@ -4,6 +4,7 @@ import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import type { TLighting } from "#/scene/schema";
 import { formatHour, skyLightAt } from "#/scene/sun";
 
+import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
@@ -22,7 +23,7 @@ const SOURCES: { value: TLighting["timeSource"]; label: string }[] = [
 	{ value: "fixed", label: "A fixed time" },
 	{ value: "cycle", label: "A day cycle" },
 	{ value: "clock", label: "The viewer's clock" },
-	{ value: "data", label: "A data value" },
+	{ value: "data", label: "From data" },
 ];
 
 const LIGHTS_OPTIONS: { value: TLighting["lights"]; label: string }[] = [
@@ -77,6 +78,10 @@ export const SkyTab = () => {
 
 	return (
 		<>
+			<FollowDataNote title="The time can follow data">
+				The time of day can come from a value in the Data tab, like the hour a sensor reports.
+			</FollowDataNote>
+
 			<Section
 				id="sky.time"
 				icon="clock"
@@ -109,7 +114,12 @@ export const SkyTab = () => {
 				<SelectField<TLighting["timeSource"]>
 					label="Time follows"
 					value={lighting.timeSource}
-					options={SOURCES}
+					// Without data values From data is greyed out, saying why (Time from explains below).
+					options={SOURCES.map((source) =>
+						source.value === "data" && data.length === 0 && lighting.timeSource !== "data"
+							? { ...source, label: "From data (no values yet)", disabled: true }
+							: source,
+					)}
 					onChange={(timeSource) => set("timeSource", timeSource)}
 				/>
 
