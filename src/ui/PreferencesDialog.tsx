@@ -1,21 +1,21 @@
 import {
-	cameraFeelChanged,
-	DEFAULT_CAMERA_FEEL,
+	DEFAULT_PREFERENCES,
 	OVERLAY_PLACES,
-	resetCameraFeel,
-	setCameraFeel,
-	type TCameraFeel,
+	preferencesChanged,
+	resetPreferences,
+	setPreference,
 	type TOverlay,
 	type TOverlayPlace,
-	useCameraFeel,
-} from "#/editor/cameraFeel";
+	type TPreferences,
+	usePreferences,
+} from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 
 import { SelectField, SliderField, SwitchField } from "./fields";
 import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
 
 /** The preferences on each page, for resetting a page. */
-const CAMERA_PAGE: (keyof TCameraFeel)[] = [
+const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"cameraControl",
 	"orbitSpeed",
 	"zoomSpeed",
@@ -23,8 +23,8 @@ const CAMERA_PAGE: (keyof TCameraFeel)[] = [
 	"smoothing",
 	"glideSeconds",
 ];
-const KEYBOARD_PAGE: (keyof TCameraFeel)[] = ["keyboardSpeed"];
-const OVERLAYS_PAGE: (keyof TCameraFeel)[] = [
+const KEYBOARD_PAGE: (keyof TPreferences)[] = ["keyboardSpeed"];
+const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"navigationGizmo",
 	"viewLabel",
 	"viewpointsInWorld",
@@ -32,35 +32,39 @@ const OVERLAYS_PAGE: (keyof TCameraFeel)[] = [
 ];
 
 /** A page's reset: back to the defaults, offered once any of them changed. */
-const pageReset = (feel: TCameraFeel, keys: (keyof TCameraFeel)[]) => ({
-	onReset: () => resetCameraFeel(keys),
-	changed: cameraFeelChanged(feel, keys),
+const pageReset = (preferences: TPreferences, keys: (keyof TPreferences)[]) => ({
+	onReset: () => resetPreferences(keys),
+	changed: preferencesChanged(preferences, keys),
 });
 
 /** A preference's Default / Reset (ADR-0027): its default is the app's. */
-const feelDefault = <K extends keyof TCameraFeel>(feel: TCameraFeel, key: K, value: string) => ({
+const preferenceDefault = <K extends keyof TPreferences>(
+	preferences: TPreferences,
+	key: K,
+	value: string,
+) => ({
 	from: "default",
-	inherited: feel[key] === DEFAULT_CAMERA_FEEL[key],
-	onReset: () => setCameraFeel(key, DEFAULT_CAMERA_FEEL[key]),
+	inherited: preferences[key] === DEFAULT_PREFERENCES[key],
+	onReset: () => setPreference(key, DEFAULT_PREFERENCES[key]),
 	value,
 });
 
 /** A speed, × the usual. */
 const speedField = (
-	feel: TCameraFeel,
+	preferences: TPreferences,
 	key: "orbitSpeed" | "zoomSpeed" | "keyboardSpeed",
 	label: string,
 	hint: string,
 ) => (
 	<SliderField
 		label={label}
-		value={feel[key]}
+		value={preferences[key]}
 		min={0.2}
 		max={3}
 		step={0.1}
 		suffix="×"
-		onChange={(v) => setCameraFeel(key, v)}
-		inherit={feelDefault(feel, key, "1×")}
+		onChange={(v) => setPreference(key, v)}
+		inherit={preferenceDefault(preferences, key, "1×")}
 		hint={hint}
 	/>
 );
@@ -74,13 +78,13 @@ const OVERLAY_PLACE_LABELS: Record<TOverlayPlace, string> = {
 };
 
 /** Where an overlay shows over the view: nowhere, in Edit mode, in View mode, or in both. */
-const overlayField = (feel: TCameraFeel, key: TOverlay, label: string, hint: string) => (
+const overlayField = (preferences: TPreferences, key: TOverlay, label: string, hint: string) => (
 	<SelectField<TOverlayPlace>
 		label={label}
-		value={feel[key]}
+		value={preferences[key]}
 		options={OVERLAY_PLACES.map((place) => ({ value: place, label: OVERLAY_PLACE_LABELS[place] }))}
-		onChange={(v) => setCameraFeel(key, v)}
-		inherit={feelDefault(feel, key, OVERLAY_PLACE_LABELS[DEFAULT_CAMERA_FEEL[key]])}
+		onChange={(v) => setPreference(key, v)}
+		inherit={preferenceDefault(preferences, key, OVERLAY_PLACE_LABELS[DEFAULT_PREFERENCES[key]])}
 		hint={hint}
 	/>
 );
@@ -88,19 +92,19 @@ const overlayField = (feel: TCameraFeel, key: TOverlay, label: string, hint: str
 /**
  * Preferences (File → Preferences…, ADR-0062): how the camera moves for you
  * and what's drawn over the view while editing, kept in this browser for
- * every world and never saved with one (editor/cameraFeel). The world's own
+ * every world and never saved with one (editor/preferences). The world's own
  * camera settings are in its Camera tab, as Blender keeps navigation in its
  * preferences and a camera's lens on the camera.
  */
 export const PreferencesDialog = () => {
 	const open = useEditor((s) => s.preferencesOpen);
 	const setOpen = useEditor((s) => s.setPreferencesOpen);
-	const feel = useCameraFeel();
+	const preferences = usePreferences();
 
 	const pages: ISettingsPage[] = [
 		{
 			id: "camera",
-			reset: pageReset(feel, CAMERA_PAGE),
+			reset: pageReset(preferences, CAMERA_PAGE),
 			label: "Camera",
 			icon: "video",
 			groups: [
@@ -111,17 +115,17 @@ export const PreferencesDialog = () => {
 							id: "cameraControl",
 							keywords: "free simple blender limits under ground sky orbit anywhere",
 							field: (
-								<SelectField<TCameraFeel["cameraControl"]>
+								<SelectField<TPreferences["cameraControl"]>
 									label="Camera control"
-									value={feel.cameraControl}
+									value={preferences.cameraControl}
 									options={[
 										{ value: "simple", label: "Simple" },
 										{ value: "free", label: "Free, like Blender" },
 									]}
-									onChange={(v) => setCameraFeel("cameraControl", v)}
-									inherit={feelDefault(feel, "cameraControl", "simple")}
+									onChange={(v) => setPreference("cameraControl", v)}
+									inherit={preferenceDefault(preferences, "cameraControl", "simple")}
 									hint={
-										feel.cameraControl === "simple"
+										preferences.cameraControl === "simple"
 											? "The camera stays above the world, within the world’s zoom and tilt (Camera tab)."
 											: "Orbit anywhere: under the ground, straight up at the sky, as close or far as you like. The world’s zoom and tilt don’t apply to you."
 									}
@@ -132,7 +136,7 @@ export const PreferencesDialog = () => {
 							id: "orbitSpeed",
 							keywords: "turn rotate drag",
 							field: speedField(
-								feel,
+								preferences,
 								"orbitSpeed",
 								"Orbit speed",
 								"Dragging to turn and tilt, and Shift+arrows.",
@@ -142,7 +146,7 @@ export const PreferencesDialog = () => {
 							id: "zoomSpeed",
 							keywords: "scroll wheel pinch",
 							field: speedField(
-								feel,
+								preferences,
 								"zoomSpeed",
 								"Zoom speed",
 								"Scrolling, pinching, the middle button, and + and −.",
@@ -154,9 +158,9 @@ export const PreferencesDialog = () => {
 							field: (
 								<SwitchField
 									label="Invert zoom"
-									checked={feel.invertZoom}
-									onChange={(v) => setCameraFeel("invertZoom", v)}
-									inherit={feelDefault(feel, "invertZoom", "off")}
+									checked={preferences.invertZoom}
+									onChange={(v) => setPreference("invertZoom", v)}
+									inherit={preferenceDefault(preferences, "invertZoom", "off")}
 									hint="Scrolling up zooms out instead of in. Pinching and + and − stay as they are."
 								/>
 							),
@@ -167,13 +171,13 @@ export const PreferencesDialog = () => {
 							field: (
 								<SliderField
 									label="Smoothing"
-									value={Math.round(feel.smoothing * 100)}
+									value={Math.round(preferences.smoothing * 100)}
 									min={0}
 									max={100}
 									step={5}
 									suffix="%"
-									onChange={(v) => setCameraFeel("smoothing", v / 100)}
-									inherit={feelDefault(feel, "smoothing", "60%")}
+									onChange={(v) => setPreference("smoothing", v / 100)}
+									inherit={preferenceDefault(preferences, "smoothing", "60%")}
 									hint="How long the view keeps gliding after you let go: 0% stops at once."
 								/>
 							),
@@ -189,13 +193,13 @@ export const PreferencesDialog = () => {
 							field: (
 								<SliderField
 									label="Glide to viewpoints"
-									value={feel.glideSeconds}
+									value={preferences.glideSeconds}
 									min={0}
 									max={3}
 									step={0.1}
 									suffix="s"
-									onChange={(v) => setCameraFeel("glideSeconds", v)}
-									inherit={feelDefault(feel, "glideSeconds", "0.8 s")}
+									onChange={(v) => setPreference("glideSeconds", v)}
+									inherit={preferenceDefault(preferences, "glideSeconds", "0.8 s")}
 									hint="How long the camera takes to glide to a viewpoint or back to the opening view: 0 jumps there."
 								/>
 							),
@@ -206,7 +210,7 @@ export const PreferencesDialog = () => {
 		},
 		{
 			id: "keyboard",
-			reset: pageReset(feel, KEYBOARD_PAGE),
+			reset: pageReset(preferences, KEYBOARD_PAGE),
 			label: "Keyboard",
 			icon: "move",
 			groups: [
@@ -217,7 +221,7 @@ export const PreferencesDialog = () => {
 							id: "keyboardSpeed",
 							keywords: "arrows wasd keys pan",
 							field: speedField(
-								feel,
+								preferences,
 								"keyboardSpeed",
 								"Keyboard pan speed",
 								"Panning with the arrow keys, and W A S D.",
@@ -230,7 +234,7 @@ export const PreferencesDialog = () => {
 		},
 		{
 			id: "overlays",
-			reset: pageReset(feel, OVERLAYS_PAGE),
+			reset: pageReset(preferences, OVERLAYS_PAGE),
 			label: "Overlays",
 			icon: "eye",
 			groups: [
@@ -241,7 +245,7 @@ export const PreferencesDialog = () => {
 							id: "navigationGizmo",
 							keywords: "compass north",
 							field: overlayField(
-								feel,
+								preferences,
 								"navigationGizmo",
 								"Navigation gizmo",
 								"A compass in the top-right corner: click a letter to look that way, the middle to look straight down, or drag it to turn.",
@@ -250,7 +254,7 @@ export const PreferencesDialog = () => {
 						{
 							id: "viewLabel",
 							field: overlayField(
-								feel,
+								preferences,
 								"viewLabel",
 								"View label",
 								"What the camera shows, in the bottom-left corner. Where it isn't shown, it still appears while you move with the keys or fly, to see how fast.",
@@ -260,7 +264,7 @@ export const PreferencesDialog = () => {
 							id: "viewpointsInWorld",
 							keywords: "cameras markers",
 							field: overlayField(
-								feel,
+								preferences,
 								"viewpointsInWorld",
 								"Viewpoints in the world",
 								"Each viewpoint as a little camera: click to select it, double-click to go there.",
@@ -270,7 +274,7 @@ export const PreferencesDialog = () => {
 							id: "compositionGrid",
 							keywords: "thirds",
 							field: overlayField(
-								feel,
+								preferences,
 								"compositionGrid",
 								"Composition grid",
 								"The view in thirds, for lining up viewpoints.",
@@ -291,8 +295,8 @@ export const PreferencesDialog = () => {
 			pages={pages}
 			resetAll={{
 				label: "Reset all preferences",
-				onReset: () => resetCameraFeel(),
-				changed: cameraFeelChanged(feel),
+				onReset: () => resetPreferences(),
+				changed: preferencesChanged(preferences),
 			}}
 		/>
 	);

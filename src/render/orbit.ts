@@ -27,7 +27,7 @@ export const FREE_TILT: IPolarLimits = {
 };
 
 /**
- * How far the camera may tilt. Simple camera control (editor/cameraFeel): the
+ * How far the camera may tilt. Simple camera control (editor/preferences): the
  * world's lowest and steepest elevations (degrees above the ground;
  * scene.camera), whichever way round they're given, never below level. Free
  * camera control: anywhere, from straight down to straight up from under the

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { resetCameraFeel } from "#/editor/cameraFeel";
+import { resetPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
 import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
@@ -91,7 +91,7 @@ export const CameraTab = () => {
 				confirmLabel="Reset the camera"
 				onConfirm={() => {
 					useEditor.getState().resetCamera();
-					resetCameraFeel();
+					resetPreferences();
 				}}
 			/>
 

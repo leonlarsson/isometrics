@@ -3,8 +3,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-import { dampingFactorOf, readCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
 import { changeFlyingSpeed, flightPointerLock, rightButtonPress } from "#/editor/keyboardCamera";
+import { dampingFactorOf, readPreferences, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -180,7 +180,7 @@ const useOrbitAroundCursor = () => {
 			// camera during this press, it's mouse look instead, as when flying in Blender or Unreal: the
 			// camera turns in place, around itself, rather than around the point it was pressed on,
 			// which the keys have moved away from.
-			const speed = readCameraFeel().orbitSpeed;
+			const speed = readPreferences().orbitSpeed;
 			const looking = rightButtonPress.movedByKeys;
 			// Mouse look turns half as fast: a drag across the view turns your head half round.
 			const turnsPerHeight = looking ? Math.PI : 2 * Math.PI;
@@ -195,7 +195,7 @@ const useOrbitAroundCursor = () => {
 					? FREE_TILT
 					: polarLimits(
 							useEditor.getState().scene.camera,
-							readCameraFeel().cameraControl === "free",
+							readPreferences().cameraControl === "free",
 						),
 			);
 			// Orbiting, the target slides back over the ground (the picture stays the same). Looking,
@@ -244,7 +244,7 @@ const useKeepTargetOnGround = () => {
 			// wherever you look then, and pulling it back would shove the camera about. It settles
 			// when you let go (useRightButtonHold).
 			const { cameraFollow, scene, holdingRightButton } = useEditor.getState();
-			const free = readCameraFeel().cameraControl === "free";
+			const free = readPreferences().cameraControl === "free";
 			if (cameraFollow || free || holdingRightButton || !scene.camera.keepOverGround) {
 				return;
 			}
@@ -286,7 +286,7 @@ const useTiltLimits = () => {
 		}
 		const { scene, holdingRightButton } = useEditor.getState();
 		const limits =
-			holdingRightButton || readCameraFeel().cameraControl === "free"
+			holdingRightButton || readPreferences().cameraControl === "free"
 				? FREE_TILT
 				: polarLimits(scene.camera, false);
 		offsetFromTarget.subVectors(camera.position, controls.target);
@@ -513,7 +513,7 @@ const useOrthographicDepth = () => {
 };
 
 /**
- * Inverted zoom (a personal setting, editor/cameraFeel) turns the wheel round
+ * Inverted zoom (a personal setting, editor/preferences) turns the wheel round
  * only: OrbitControls zooms the other way with a negative zoom speed, which
  * is set just before it handles a wheel event and put back for a press, so a
  * pinch or a middle-button drag still zooms the usual way.
@@ -529,11 +529,11 @@ const useWheelDirection = () => {
 			return;
 		}
 		const onWheel = () => {
-			const { zoomSpeed, invertZoom } = readCameraFeel();
+			const { zoomSpeed, invertZoom } = readPreferences();
 			controls.zoomSpeed = invertZoom ? -zoomSpeed : zoomSpeed;
 		};
 		const onDown = () => {
-			controls.zoomSpeed = readCameraFeel().zoomSpeed;
+			controls.zoomSpeed = readPreferences().zoomSpeed;
 		};
 		// Capturing on the canvas element itself runs before OrbitControls' own listeners there.
 		element.addEventListener("wheel", onWheel, { capture: true, passive: true });
@@ -634,7 +634,7 @@ const useOrbitCommand = () => {
 				pivot,
 				turn,
 				tilt,
-				polarLimits(useEditor.getState().scene.camera, readCameraFeel().cameraControl === "free"),
+				polarLimits(useEditor.getState().scene.camera, readPreferences().cameraControl === "free"),
 			);
 			camera.updateMatrixWorld();
 			controls.update();
@@ -671,17 +671,17 @@ export const CameraControls = () => {
 	const settings = useEditor((s) => s.scene.camera);
 	const ground = useEditor((s) => s.scene.ground);
 	const height = useThree((s) => s.size.height);
-	const feel = useCameraFeel();
-	const free = feel.cameraControl === "free";
-	const damping = dampingFactorOf(feel.smoothing);
+	const preferences = usePreferences();
+	const free = preferences.cameraControl === "free";
+	const damping = dampingFactorOf(preferences.smoothing);
 	return (
 		<>
 			<OrbitControls
 				makeDefault
 				enableDamping={damping !== null}
 				dampingFactor={damping ?? undefined}
-				rotateSpeed={feel.orbitSpeed}
-				zoomSpeed={feel.zoomSpeed}
+				rotateSpeed={preferences.orbitSpeed}
+				zoomSpeed={preferences.zoomSpeed}
 				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.
 				{...zoomLimits(settings, ground, height || 1, free)}
 				zoomToCursor

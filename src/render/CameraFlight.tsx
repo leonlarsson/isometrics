@@ -2,8 +2,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-import { readCameraFeel } from "#/editor/cameraFeel";
 import { runningCameraMoves } from "#/editor/keyboardCamera";
+import { readPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
@@ -64,7 +64,7 @@ export const CameraFlight = () => {
 				to: { ...request.pose, fieldOfView: request.pose.fieldOfView ?? fieldOfView },
 				progress: 0,
 				// Opening a world jumps; a glide takes as long as this browser's camera settings say.
-				seconds: request.instant ? 0 : readCameraFeel().glideSeconds,
+				seconds: request.instant ? 0 : readPreferences().glideSeconds,
 			};
 		}
 	}, [request?.nonce]);

@@ -66,7 +66,7 @@ const FREE_FARTHEST = 100000;
 
 /**
  * The controls' zoom limits for the world's closest and farthest zoom, or with
- * free camera control (editor/cameraFeel) next to none: orthographic zoom
+ * free camera control (editor/preferences) next to none: orthographic zoom
  * (pixels per unit, for a canvas `height` px high) and the perspective
  * camera's distance from its target (for its field of view).
  */

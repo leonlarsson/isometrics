@@ -4,26 +4,24 @@ import { z } from "zod";
 import { APP_NAME } from "#/lib/app";
 
 /**
- * How the camera feels to move, per browser: speeds, inverted zoom,
- * smoothing, glides. Personal, like the panel sizes, so it applies to every
- * world here and is never saved with one. See docs/adr/0062-camera-settings.md.
+ * Preferences, per browser: what's in the Preferences dialog. How the camera
+ * moves for you (camera control, speeds, inverted zoom, smoothing, glides)
+ * and where the overlays show. Personal, like the panel sizes, so they apply
+ * to every world here and are never saved with one.
+ * See docs/adr/0062-camera-settings.md.
  *
  * When the settings change: nothing is migrated. A setting that can't be read
  * goes back to its default; the others are kept.
  */
-const KEY = `${APP_NAME.toLowerCase()}:camera-feel`;
+const KEY = `${APP_NAME.toLowerCase()}:preferences`;
 
 /** Where an overlay shows: nowhere, in one mode, or in both. */
 export const OVERLAY_PLACES = ["off", "edit", "view", "both"] as const;
 export type TOverlayPlace = (typeof OVERLAY_PLACES)[number];
 
-/** Overlays used to be on or off: on meant Edit mode. */
-const OverlayPlaceSchema = z.preprocess(
-	(value) => (value === true ? "edit" : value === false ? "off" : value),
-	z.enum(OVERLAY_PLACES),
-);
+const OverlayPlaceSchema = z.enum(OVERLAY_PLACES);
 
-export const CameraFeelSchema = z.object({
+export const PreferencesSchema = z.object({
 	/**
 	 * simple: the camera stays above the world, within the world's zoom and tilt limits;
 	 * free: orbit anywhere, as in Blender (under the ground, straight up, any zoom).
@@ -51,18 +49,18 @@ export const CameraFeelSchema = z.object({
 	viewpointsInWorld: OverlayPlaceSchema.catch("off"),
 });
 
-export type TCameraFeel = z.output<typeof CameraFeelSchema>;
+export type TPreferences = z.output<typeof PreferencesSchema>;
 
 /** Every setting at its default. */
-export const DEFAULT_CAMERA_FEEL: TCameraFeel = CameraFeelSchema.parse({});
+export const DEFAULT_PREFERENCES: TPreferences = PreferencesSchema.parse({});
 
 /** Stored settings, each one that can't be read at its default. */
-export const parseCameraFeel = (raw: string | null): TCameraFeel => {
+export const parsePreferences = (raw: string | null): TPreferences => {
 	try {
 		const value: unknown = JSON.parse(raw ?? "{}");
-		return CameraFeelSchema.parse(typeof value === "object" && value !== null ? value : {});
+		return PreferencesSchema.parse(typeof value === "object" && value !== null ? value : {});
 	} catch {
-		return DEFAULT_CAMERA_FEEL;
+		return DEFAULT_PREFERENCES;
 	}
 };
 
@@ -75,19 +73,19 @@ export const dampingFactorOf = (smoothing: number) =>
 
 const read = () => {
 	try {
-		return parseCameraFeel(localStorage.getItem(KEY));
+		return parsePreferences(localStorage.getItem(KEY));
 	} catch {
-		return DEFAULT_CAMERA_FEEL;
+		return DEFAULT_PREFERENCES;
 	}
 };
 
-let feel: TCameraFeel | null = null;
+let preferences: TPreferences | null = null;
 const listeners = new Set<() => void>();
 
 /** The settings, read from storage once, then kept up to date. */
-export const readCameraFeel = () => {
-	feel ??= read();
-	return feel;
+export const readPreferences = () => {
+	preferences ??= read();
+	return preferences;
 };
 
 const notify = () => {
@@ -96,11 +94,11 @@ const notify = () => {
 	}
 };
 
-export const setCameraFeel = <K extends keyof TCameraFeel>(key: K, value: TCameraFeel[K]) => {
+export const setPreference = <K extends keyof TPreferences>(key: K, value: TPreferences[K]) => {
 	// From the stored settings, so a change in another tab of the app since isn't overwritten.
-	feel = { ...read(), [key]: value };
+	preferences = { ...read(), [key]: value };
 	try {
-		localStorage.setItem(KEY, JSON.stringify(feel));
+		localStorage.setItem(KEY, JSON.stringify(preferences));
 	} catch {
 		// Storage unavailable (private mode etc.): it's remembered until the page closes.
 	}
@@ -109,13 +107,13 @@ export const setCameraFeel = <K extends keyof TCameraFeel>(key: K, value: TCamer
 
 /** Every setting back to its default. */
 /** Every setting back to its default, or only `keys`. */
-export const resetCameraFeel = (keys?: readonly (keyof TCameraFeel)[]) => {
+export const resetPreferences = (keys?: readonly (keyof TPreferences)[]) => {
 	if (keys) {
 		const next = { ...read() };
 		for (const key of keys) {
-			Object.assign(next, { [key]: DEFAULT_CAMERA_FEEL[key] });
+			Object.assign(next, { [key]: DEFAULT_PREFERENCES[key] });
 		}
-		feel = next;
+		preferences = next;
 		try {
 			localStorage.setItem(KEY, JSON.stringify(next));
 		} catch {
@@ -124,7 +122,7 @@ export const resetCameraFeel = (keys?: readonly (keyof TCameraFeel)[]) => {
 		notify();
 		return;
 	}
-	feel = DEFAULT_CAMERA_FEEL;
+	preferences = DEFAULT_PREFERENCES;
 	try {
 		localStorage.removeItem(KEY);
 	} catch {
@@ -134,21 +132,21 @@ export const resetCameraFeel = (keys?: readonly (keyof TCameraFeel)[]) => {
 };
 
 /** Whether any of `keys` (all of them without) differs from its default. */
-export const cameraFeelChanged = (current: TCameraFeel, keys?: readonly (keyof TCameraFeel)[]) =>
-	(keys ?? (Object.keys(DEFAULT_CAMERA_FEEL) as (keyof TCameraFeel)[])).some(
-		(key) => current[key] !== DEFAULT_CAMERA_FEEL[key],
+export const preferencesChanged = (current: TPreferences, keys?: readonly (keyof TPreferences)[]) =>
+	(keys ?? (Object.keys(DEFAULT_PREFERENCES) as (keyof TPreferences)[])).some(
+		(key) => current[key] !== DEFAULT_PREFERENCES[key],
 	);
 
 /** Another tab of the app changed them (or the storage was wiped): follow it. */
 const onStorage = (event: StorageEvent) => {
 	if (event.key === KEY || event.key === null) {
-		feel = parseCameraFeel(event.newValue);
+		preferences = parsePreferences(event.newValue);
 		notify();
 	}
 };
 
 /** Call `listener` whenever a setting changes, here or in another tab of the app. */
-export const subscribeCameraFeel = (listener: () => void) => {
+export const subscribePreferences = (listener: () => void) => {
 	if (listeners.size === 0) {
 		window.addEventListener("storage", onStorage);
 	}
@@ -183,5 +181,5 @@ export const overlayPlaceWith = (
 };
 
 /** The camera settings of this browser, updating when one changes. */
-export const useCameraFeel = () =>
-	useSyncExternalStore(subscribeCameraFeel, readCameraFeel, () => DEFAULT_CAMERA_FEEL);
+export const usePreferences = () =>
+	useSyncExternalStore(subscribePreferences, readPreferences, () => DEFAULT_PREFERENCES);

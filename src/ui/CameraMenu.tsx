@@ -1,10 +1,10 @@
 import {
 	overlayPlaceWith,
 	overlayShownIn,
-	setCameraFeel,
+	setPreference,
 	type TOverlay,
-	useCameraFeel,
-} from "#/editor/cameraFeel";
+	usePreferences,
+} from "#/editor/preferences";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { fieldOfViewOf, focalLengthOf } from "#/render/cameraMath";
@@ -55,7 +55,7 @@ export const CameraMenu = () => {
 	const perspective = useEditor((s) => s.perspective);
 	const fieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
 	const editing = useEditor((s) => s.mode === "edit");
-	const feel = useCameraFeel();
+	const preferences = usePreferences();
 	const store = () => useEditor.getState();
 	const lens = Math.round(focalLengthOf(fieldOfView));
 
@@ -124,9 +124,12 @@ export const CameraMenu = () => {
 							key={key}
 							icon="eye"
 							label={label}
-							checked={overlayShownIn(feel[key], editing ? "edit" : "view")}
+							checked={overlayShownIn(preferences[key], editing ? "edit" : "view")}
 							onCheckedChange={(on) =>
-								setCameraFeel(key, overlayPlaceWith(feel[key], editing ? "edit" : "view", on))
+								setPreference(
+									key,
+									overlayPlaceWith(preferences[key], editing ? "edit" : "view", on),
+								)
 							}
 							keepOpen
 						/>

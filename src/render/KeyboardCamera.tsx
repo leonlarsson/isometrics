@@ -3,13 +3,13 @@ import { KeyStateTracker } from "@tanstack/react-hotkeys";
 import { useEffect } from "react";
 import * as THREE from "three";
 
-import { readCameraFeel } from "#/editor/cameraFeel";
 import {
 	flyingSpeed,
 	rightButtonPress,
 	runningCameraMoves,
 	type TCameraMove,
 } from "#/editor/keyboardCamera";
+import { readPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -96,17 +96,17 @@ export const KeyboardCamera = () => {
 		const { scene, holdingRightButton: flying } = useEditor.getState();
 		// Panning goes at the keyboard's speed (and, flying, the speed set by scrolling), turning and
 		// tilting at the orbit speed and zooming at the zoom speed, like dragging and scrolling
-		// (Preferences, editor/cameraFeel).
-		const feel = readCameraFeel();
+		// (Preferences, editor/preferences).
+		const preferences = readPreferences();
 		const seconds = Math.min(delta, 0.1);
-		const step = seconds * feel.keyboardSpeed * (flying ? flyingSpeed.factor : 1);
+		const step = seconds * preferences.keyboardSpeed * (flying ? flyingSpeed.factor : 1);
 		// How far a move goes: by how much the view shows, or, flying, by how much it showed when the
 		// right button went down, so speed doesn't change with where you happen to look.
 		const span = flying
 			? rightButtonPress.span
 			: size.height / pixelsPerUnitAt(camera, target, size.height);
 
-		const simple = feel.cameraControl === "simple";
+		const simple = preferences.cameraControl === "simple";
 		/**
 		 * Move the camera and what it looks at together. With simple camera control the camera
 		 * stays above the world: it stops at the ground and at the world's edges, the move cut
@@ -148,7 +148,7 @@ export const KeyboardCamera = () => {
 				shift.set(0, (move === "moveUp" ? 1 : -1) * span * PAN_PER_SECOND * step, 0);
 				moveBy(shift);
 			} else if (move === "turnLeft" || move === "turnRight") {
-				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * feel.orbitSpeed);
+				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * preferences.orbitSpeed);
 				pivot.copy(target);
 				orbitAround(
 					camera.position,
@@ -156,11 +156,11 @@ export const KeyboardCamera = () => {
 					pivot,
 					move === "turnLeft" ? turn : -turn,
 					0,
-					flying ? FREE_TILT : polarLimits(scene.camera, feel.cameraControl === "free"),
+					flying ? FREE_TILT : polarLimits(scene.camera, preferences.cameraControl === "free"),
 				);
 			} else if (move === "tiltUp" || move === "tiltDown") {
 				// Up looks down more steeply, like a map; down lowers the camera towards the horizon.
-				const tilt = THREE.MathUtils.degToRad(TILT_PER_SECOND * seconds * feel.orbitSpeed);
+				const tilt = THREE.MathUtils.degToRad(TILT_PER_SECOND * seconds * preferences.orbitSpeed);
 				pivot.copy(target);
 				orbitAround(
 					camera.position,
@@ -168,17 +168,17 @@ export const KeyboardCamera = () => {
 					pivot,
 					0,
 					move === "tiltUp" ? -tilt : tilt,
-					flying ? FREE_TILT : polarLimits(scene.camera, feel.cameraControl === "free"),
+					flying ? FREE_TILT : polarLimits(scene.camera, preferences.cameraControl === "free"),
 				);
 			} else if (move === "zoomIn" || move === "zoomOut") {
 				const factor = Math.exp(
-					(move === "zoomIn" ? -1 : 1) * ZOOM_RATE * seconds * feel.zoomSpeed,
+					(move === "zoomIn" ? -1 : 1) * ZOOM_RATE * seconds * preferences.zoomSpeed,
 				);
 				const limits = zoomLimits(
 					scene.camera,
 					scene.ground,
 					size.height,
-					feel.cameraControl === "free",
+					preferences.cameraControl === "free",
 				);
 				if (camera instanceof THREE.OrthographicCamera) {
 					camera.zoom = clamp(camera.zoom / factor, limits.minZoom, limits.maxZoom);

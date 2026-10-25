@@ -1,6 +1,6 @@
 import { type PointerEvent, useEffect, useRef } from "react";
 
-import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
+import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { DEG2RAD } from "#/lib/math";
 import { cameraCommands, liveCamera } from "#/render/liveCamera";
@@ -41,7 +41,7 @@ const glide = (change: { azimuth?: number; elevation?: number }) => {
  * liveCamera.
  */
 export const NavigationGizmo = () => {
-	const place = useCameraFeel().navigationGizmo;
+	const place = usePreferences().navigationGizmo;
 	const mode = useEditor((s) => s.mode);
 	const shown = overlayShownIn(place, mode);
 	const ring = useRef<SVGEllipseElement>(null);

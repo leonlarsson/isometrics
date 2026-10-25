@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
 import { flyingSpeed, runningCameraMoves } from "#/editor/keyboardCamera";
+import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
 import { liveCamera } from "#/render/liveCamera";
@@ -54,7 +54,7 @@ const describeView = () => {
 const VIEW_MODE_LINGER_MS = 2000;
 
 export const ViewLabel = () => {
-	const place = useCameraFeel().viewLabel;
+	const place = usePreferences().viewLabel;
 	const shown = place !== "off";
 	const mode = useEditor((s) => s.mode);
 	const inset = useEditor((s) => s.viewInset);

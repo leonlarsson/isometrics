@@ -4,7 +4,7 @@ import { useThree } from "@react-three/fiber";
 import { Suspense, useMemo, useState } from "react";
 import * as THREE from "three";
 
-import { overlayShownIn, useCameraFeel } from "#/editor/cameraFeel";
+import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { DEG2RAD } from "#/lib/math";
@@ -197,13 +197,13 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 };
 
 /**
- * The saved viewpoints drawn in the world in Edit mode (Your camera →
+ * The saved viewpoints drawn in the world (Preferences → Overlays →
  * Viewpoints in the world, ADR-0062): each a little camera where it looks
  * from, with a short pyramid of what it sees and its name. Click one to select
  * it, double-click to go there, right-click for its menu. Off unless turned on.
  */
 export const ViewpointMarkers = () => {
-	const place = useCameraFeel().viewpointsInWorld;
+	const place = usePreferences().viewpointsInWorld;
 	const mode = useEditor((s) => s.mode);
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const aspect = useThree((s) => (s.size.height > 0 ? s.size.width / s.size.height : 1.5));
