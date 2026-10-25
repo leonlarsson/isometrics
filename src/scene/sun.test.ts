@@ -74,4 +74,19 @@ describe("color", () => {
 		expect(tintColor("#ffffff", "#ff0000", 1)).toBe("#ff0000");
 		expect(tintColor("#808080", "#000000", 0)).toBe("#808080");
 	});
+
+	it("goes round once a day without jumping, at midnight too", () => {
+		// The direction between neighbouring minutes never changes by more than a little.
+		const turn = (a: number, b: number) => Math.abs(((b - a + 540) % 360) - 180);
+		for (let minute = 0; minute < 24 * 60; minute++) {
+			const a = sunPositionAt(minute / 60);
+			const b = sunPositionAt((minute + 1) / 60);
+			expect(turn(a.azimuth, b.azimuth), `at ${minute} min`).toBeLessThan(0.5);
+			expect(Math.abs(b.elevation - a.elevation), `at ${minute} min`).toBeLessThan(0.5);
+		}
+		// North (90°) in the middle of the night, below the horizon.
+		const middle = sunPositionAt((SUNSET + 24 + SUNRISE) / 2);
+		expect(middle.azimuth).toBeCloseTo(90, 5);
+		expect(middle.elevation).toBeLessThan(0);
+	});
 });

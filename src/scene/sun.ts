@@ -177,12 +177,24 @@ const keyAt = (hour: number): Omit<IKey, "hour"> => {
 /** Where the sun is at an hour: elevation below 0 at night. */
 export const sunPositionAt = (hour: number) => {
 	const h = ((hour % 24) + 24) % 24;
-	const day = (h - SUNRISE) / (SUNSET - SUNRISE);
-	// Across the day it climbs and sinks along a sine; at night it's below the horizon.
-	const elevation = MAX_ELEVATION * Math.sin(Math.PI * day);
-	// East (0°/360°) through south (270°) to west (180°); continues round underneath at night.
-	const azimuth = (((360 - 180 * day) % 360) + 360) % 360;
-	return { azimuth, elevation };
+	const dayLength = SUNSET - SUNRISE;
+	if (h >= SUNRISE && h <= SUNSET) {
+		// Across the day it climbs and sinks along a sine, from east (0°/360°) through south (270°)
+		// to west (180°).
+		const day = (h - SUNRISE) / dayLength;
+		return {
+			azimuth: (((360 - 180 * day) % 360) + 360) % 360,
+			elevation: MAX_ELEVATION * Math.sin(Math.PI * day),
+		};
+	}
+	// At night it carries on evenly below the horizon, from west through north (90°) back to east,
+	// as one stretch from sunset to the next sunrise, so nothing jumps at midnight (the moon, which
+	// lights the night, stands opposite it).
+	const night = ((h - SUNSET + 24) % 24) / (24 - dayLength);
+	return {
+		azimuth: 180 - 180 * night,
+		elevation: -MAX_ELEVATION * Math.sin(Math.PI * night),
+	};
 };
 
 export interface ISkyLight {
