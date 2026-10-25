@@ -108,7 +108,22 @@ export const setCameraFeel = <K extends keyof TCameraFeel>(key: K, value: TCamer
 };
 
 /** Every setting back to its default. */
-export const resetCameraFeel = () => {
+/** Every setting back to its default, or only `keys`. */
+export const resetCameraFeel = (keys?: readonly (keyof TCameraFeel)[]) => {
+	if (keys) {
+		const next = { ...read() };
+		for (const key of keys) {
+			Object.assign(next, { [key]: DEFAULT_CAMERA_FEEL[key] });
+		}
+		feel = next;
+		try {
+			localStorage.setItem(KEY, JSON.stringify(next));
+		} catch {
+			// Storage unavailable: the defaults hold until the page closes.
+		}
+		notify();
+		return;
+	}
 	feel = DEFAULT_CAMERA_FEEL;
 	try {
 		localStorage.removeItem(KEY);
@@ -117,6 +132,12 @@ export const resetCameraFeel = () => {
 	}
 	notify();
 };
+
+/** Whether any of `keys` (all of them without) differs from its default. */
+export const cameraFeelChanged = (current: TCameraFeel, keys?: readonly (keyof TCameraFeel)[]) =>
+	(keys ?? (Object.keys(DEFAULT_CAMERA_FEEL) as (keyof TCameraFeel)[])).some(
+		(key) => current[key] !== DEFAULT_CAMERA_FEEL[key],
+	);
 
 /** Another tab of the app changed them (or the storage was wiped): follow it. */
 const onStorage = (event: StorageEvent) => {

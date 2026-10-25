@@ -1,6 +1,8 @@
 import {
+	cameraFeelChanged,
 	DEFAULT_CAMERA_FEEL,
 	OVERLAY_PLACES,
+	resetCameraFeel,
 	setCameraFeel,
 	type TCameraFeel,
 	type TOverlay,
@@ -11,6 +13,29 @@ import { useEditor } from "#/editor/store";
 
 import { SelectField, SliderField, SwitchField } from "./fields";
 import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
+
+/** The preferences on each page, for resetting a page. */
+const CAMERA_PAGE: (keyof TCameraFeel)[] = [
+	"cameraControl",
+	"orbitSpeed",
+	"zoomSpeed",
+	"invertZoom",
+	"smoothing",
+	"glideSeconds",
+];
+const KEYBOARD_PAGE: (keyof TCameraFeel)[] = ["keyboardSpeed"];
+const OVERLAYS_PAGE: (keyof TCameraFeel)[] = [
+	"navigationGizmo",
+	"viewLabel",
+	"viewpointsInWorld",
+	"compositionGrid",
+];
+
+/** A page's reset: back to the defaults, offered once any of them changed. */
+const pageReset = (feel: TCameraFeel, keys: (keyof TCameraFeel)[]) => ({
+	onReset: () => resetCameraFeel(keys),
+	changed: cameraFeelChanged(feel, keys),
+});
 
 /** A preference's Default / Reset (ADR-0027): its default is the app's. */
 const feelDefault = <K extends keyof TCameraFeel>(feel: TCameraFeel, key: K, value: string) => ({
@@ -75,6 +100,7 @@ export const PreferencesDialog = () => {
 	const pages: ISettingsPage[] = [
 		{
 			id: "camera",
+			reset: pageReset(feel, CAMERA_PAGE),
 			label: "Camera",
 			icon: "video",
 			groups: [
@@ -180,6 +206,7 @@ export const PreferencesDialog = () => {
 		},
 		{
 			id: "keyboard",
+			reset: pageReset(feel, KEYBOARD_PAGE),
 			label: "Keyboard",
 			icon: "move",
 			groups: [
@@ -203,6 +230,7 @@ export const PreferencesDialog = () => {
 		},
 		{
 			id: "overlays",
+			reset: pageReset(feel, OVERLAYS_PAGE),
 			label: "Overlays",
 			icon: "eye",
 			groups: [
@@ -261,6 +289,11 @@ export const PreferencesDialog = () => {
 			title="Preferences"
 			note="Yours alone: kept in this browser for every world, never saved with one."
 			pages={pages}
+			resetAll={{
+				label: "Reset all preferences",
+				onReset: () => resetCameraFeel(),
+				changed: cameraFeelChanged(feel),
+			}}
 		/>
 	);
 };

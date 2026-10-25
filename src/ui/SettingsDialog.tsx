@@ -1,7 +1,8 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { type ReactNode, useState } from "react";
 
-import { IconButton } from "./Button";
+import { Button, IconButton } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { SearchField, SettingsSearchContext } from "./fields";
 import { matchesSearch } from "./fields/settingsSearch";
 import { Icon, type TIconName } from "./Icon";
@@ -27,6 +28,8 @@ export interface ISettingsPage {
 	label: string;
 	icon: TIconName;
 	groups: ISettingsGroup[];
+	/** Put this page's settings back to their defaults; `changed` says whether any differs now. */
+	reset?: { onReset: () => void; changed: boolean };
 }
 
 interface ISettingsDialogProps {
@@ -36,6 +39,8 @@ interface ISettingsDialogProps {
 	/** A line under the page list, e.g. where these settings are kept. */
 	note?: ReactNode;
 	pages: ISettingsPage[];
+	/** Put every setting back to its default; `changed` says whether any differs now. */
+	resetAll?: { label: string; onReset: () => void; changed: boolean };
 }
 
 /**
@@ -50,9 +55,13 @@ export const SettingsDialog = ({
 	title,
 	note,
 	pages,
+	resetAll,
 }: ISettingsDialogProps) => {
 	const [pageId, setPageId] = useState(pages[0]?.id ?? "");
 	const [query, setQuery] = useState("");
+	// Which reset is being confirmed: a page's id, "all", or none.
+	const [confirming, setConfirming] = useState<string | null>(null);
+	const confirmingPage = pages.find((page) => page.id === confirming);
 	const searching = query.trim() !== "";
 	const shown = searching ? pages : pages.filter((page) => page.id === pageId);
 
@@ -92,7 +101,20 @@ export const SettingsDialog = ({
 								))}
 							</ul>
 
-							{note && <p className={styles.note}>{note}</p>}
+							<div className={styles.navFoot}>
+								{resetAll && (
+									<Button
+										size="sm"
+										icon="reset"
+										disabled={!resetAll.changed}
+										onClick={() => setConfirming("all")}
+									>
+										{resetAll.label}
+									</Button>
+								)}
+
+								{note && <p className={styles.note}>{note}</p>}
+							</div>
 						</nav>
 
 						<SettingsSearchContext.Provider value={query}>
@@ -100,6 +122,19 @@ export const SettingsDialog = ({
 								{shown.map((page) => (
 									<section key={page.id} className={styles.pageBody}>
 										{searching && <h2 className={styles.pageTitle}>{page.label}</h2>}
+
+										{page.reset && !searching && (
+											<div className={styles.pageActions}>
+												<Button
+													size="sm"
+													icon="reset"
+													disabled={!page.reset.changed}
+													onClick={() => setConfirming(page.id)}
+												>
+													{`Reset ${page.label}`}
+												</Button>
+											</div>
+										)}
 
 										{page.groups.map((group) => (
 											<div key={group.title} className={styles.group}>
@@ -134,6 +169,33 @@ export const SettingsDialog = ({
 					</div>
 				</BaseDialog.Popup>
 			</BaseDialog.Portal>
+
+			<ConfirmDialog
+				open={confirming !== null}
+				onOpenChange={(next) => {
+					if (!next) {
+						setConfirming(null);
+					}
+				}}
+				title={
+					confirming === "all"
+						? `${resetAll?.label ?? "Reset everything"}?`
+						: `Reset ${confirmingPage?.label ?? ""}?`
+				}
+				description={
+					confirming === "all"
+						? "Every setting here goes back to its default. This can’t be undone."
+						: `The settings on ${confirmingPage?.label ?? "this page"} go back to their defaults. This can’t be undone.`
+				}
+				confirmLabel="Reset"
+				onConfirm={() => {
+					if (confirming === "all") {
+						resetAll?.onReset();
+					} else {
+						confirmingPage?.reset?.onReset();
+					}
+				}}
+			/>
 		</BaseDialog.Root>
 	);
 };

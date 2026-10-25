@@ -111,10 +111,26 @@
 	outline-offset: -2px;
 }
 
+/* At the bottom of the page list: reset everything, and the note. */
+.navFoot {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	margin-top: auto;
+}
+
 .note {
-	margin: auto 0 0;
+	margin: 0;
 	font-size: 12px;
 	color: var(--text-muted);
+}
+
+/* A page's own reset, top right of its settings. */
+.pageActions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 10px;
 }
 
 .content {

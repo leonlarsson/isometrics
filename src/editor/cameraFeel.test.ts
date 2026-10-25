@@ -64,4 +64,19 @@ describe("cameraFeel", () => {
 		expect(overlayShownIn("both", "view")).toBe(true);
 		expect(overlayShownIn("edit", "view")).toBe(false);
 	});
+
+	it("resets one page's preferences, or all of them", async () => {
+		const { readCameraFeel, setCameraFeel, resetCameraFeel, cameraFeelChanged } =
+			await freshModule();
+		setCameraFeel("orbitSpeed", 2);
+		setCameraFeel("viewLabel", "both");
+		expect(cameraFeelChanged(readCameraFeel(), ["keyboardSpeed"])).toBe(false);
+		expect(cameraFeelChanged(readCameraFeel(), ["orbitSpeed"])).toBe(true);
+		resetCameraFeel(["orbitSpeed"]);
+		expect(readCameraFeel().orbitSpeed).toBe(1);
+		expect(readCameraFeel().viewLabel).toBe("both");
+		resetCameraFeel();
+		expect(readCameraFeel()).toEqual(DEFAULT_CAMERA_FEEL);
+		expect(cameraFeelChanged(readCameraFeel())).toBe(false);
+	});
 });
