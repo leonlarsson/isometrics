@@ -72,7 +72,11 @@ export const KeyboardCamera = () => {
 		}
 		const orbit = controls as unknown as IControls;
 		const { target } = orbit;
-		const step = Math.min(delta, 0.1) * readCameraFeel().keyboardSpeed;
+		// Panning goes at the keyboard's speed, turning and tilting at the orbit speed and zooming at
+		// the zoom speed, like dragging and scrolling (Your camera, editor/cameraFeel).
+		const feel = readCameraFeel();
+		const seconds = Math.min(delta, 0.1);
+		const step = seconds * feel.keyboardSpeed;
 		const { scene } = useEditor.getState();
 		const span = size.height / pixelsPerUnitAt(camera, target, size.height);
 
@@ -90,7 +94,7 @@ export const KeyboardCamera = () => {
 				camera.position.add(shift);
 				target.add(shift);
 			} else if (move === "turnLeft" || move === "turnRight") {
-				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * step);
+				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * feel.orbitSpeed);
 				pivot.copy(target);
 				orbitAround(
 					camera.position,
@@ -102,7 +106,7 @@ export const KeyboardCamera = () => {
 				);
 			} else if (move === "tiltUp" || move === "tiltDown") {
 				// Up looks down more steeply, like a map; down lowers the camera towards the horizon.
-				const tilt = THREE.MathUtils.degToRad(TILT_PER_SECOND * step);
+				const tilt = THREE.MathUtils.degToRad(TILT_PER_SECOND * seconds * feel.orbitSpeed);
 				pivot.copy(target);
 				orbitAround(
 					camera.position,
@@ -113,7 +117,9 @@ export const KeyboardCamera = () => {
 					polarLimits(scene.camera),
 				);
 			} else if (move === "zoomIn" || move === "zoomOut") {
-				const factor = Math.exp((move === "zoomIn" ? -1 : 1) * ZOOM_RATE * step);
+				const factor = Math.exp(
+					(move === "zoomIn" ? -1 : 1) * ZOOM_RATE * seconds * feel.zoomSpeed,
+				);
 				const limits = zoomLimits(scene.camera, scene.ground, size.height);
 				if (camera instanceof THREE.OrthographicCamera) {
 					camera.zoom = clamp(camera.zoom / factor, limits.minZoom, limits.maxZoom);

@@ -591,6 +591,13 @@ textarea.input {
 	user-select: none;
 }
 
+/* A switch with a hint under it. */
+.switchWithHint {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
 /* A switch with Default / Reset at the end of its row. */
 .switchRow {
 	display: flex;

@@ -148,6 +148,7 @@ export const KitPage = () => {
 										onReset: () => setOn(false),
 										value: "off",
 									}}
+									hint="A switch can have a hint too."
 								/>
 
 								<CheckboxGroupField

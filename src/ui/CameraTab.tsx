@@ -64,6 +64,7 @@ const CameraFeelSection = () => {
 				suffix="×"
 				onChange={(v) => setCameraFeel("orbitSpeed", v)}
 				inherit={feelDefault(feel, "orbitSpeed", "1×")}
+				hint="Dragging to turn and tilt, and Shift+arrows."
 			/>
 
 			<SliderField
@@ -75,13 +76,15 @@ const CameraFeelSection = () => {
 				suffix="×"
 				onChange={(v) => setCameraFeel("zoomSpeed", v)}
 				inherit={feelDefault(feel, "zoomSpeed", "1×")}
+				hint="Scrolling, pinching, the middle button, and + and −."
 			/>
 
 			<SwitchField
-				label="Scroll up to zoom out"
+				label="Invert zoom"
 				checked={feel.invertZoom}
 				onChange={(v) => setCameraFeel("invertZoom", v)}
 				inherit={feelDefault(feel, "invertZoom", "off")}
+				hint="Scrolling up zooms out instead of in. Pinching and + and − stay as they are."
 			/>
 
 			<SliderField
@@ -109,7 +112,7 @@ const CameraFeelSection = () => {
 			/>
 
 			<SliderField
-				label="Keyboard speed"
+				label="Keyboard pan speed"
 				value={feel.keyboardSpeed}
 				min={0.2}
 				max={3}

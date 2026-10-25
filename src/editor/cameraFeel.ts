@@ -14,9 +14,9 @@ import { APP_NAME } from "#/lib/app";
 const KEY = `${APP_NAME.toLowerCase()}:camera-feel`;
 
 export const CameraFeelSchema = z.object({
-	/** Turning and tilting with the mouse or a two-finger twist, × the usual speed. */
+	/** Turning and tilting by dragging, a two-finger twist or Shift+arrows, × the usual speed. */
 	orbitSpeed: z.number().min(0.2).max(3).catch(1),
-	/** Zooming with the wheel, the middle button or a pinch, × the usual speed. */
+	/** Zooming with the wheel, the middle button, a pinch or + and −, × the usual speed. */
 	zoomSpeed: z.number().min(0.2).max(3).catch(1),
 	/** Scrolling up zooms out instead of in. */
 	invertZoom: z.boolean().catch(false),
@@ -24,7 +24,7 @@ export const CameraFeelSchema = z.object({
 	smoothing: z.number().min(0).max(1).catch(0.6),
 	/** Seconds a glide to a viewpoint takes; 0 jumps there. */
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
-	/** Moving the camera with the arrow keys, + and −, × the usual speed. */
+	/** Panning with the arrow keys (and W A S D in View mode), × the usual speed. */
 	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
 	/** A rule-of-thirds grid over the view in Edit mode, for lining up viewpoints. */
 	compositionGrid: z.boolean().catch(false),
