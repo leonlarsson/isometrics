@@ -717,6 +717,14 @@ describe("editor store", () => {
 		const before = store.getState().viewNonce;
 		store.getState().resetView();
 		expect(store.getState().viewNonce).toBe(before + 1);
+
+		// The whole world opens in the projection the world says.
+		store.getState().commit((scene) => {
+			scene.camera.openingProjection = "perspective";
+		});
+		store.getState().setProjection("orthographic");
+		store.getState().resetView();
+		expect(store.getState().projection).toBe("perspective");
 	});
 });
 

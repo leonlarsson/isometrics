@@ -284,7 +284,7 @@ export interface IEditorState {
 	 * back to their defaults (one undo step), except the turntable's and tilt-shift's.
 	 */
 	resetCamera: () => void;
-	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle. */
+	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle, in its opening projection. */
 	resetView: () => void;
 	/**
 	 * Show a world that was just opened: where its camera was in this browser (`remembered`), else
@@ -824,7 +824,13 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().goToViewpoint(opening.id);
 				return;
 			}
-			set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null, cameraFollow: null }));
+			// The whole world, shown as the world says (scene.camera.openingProjection).
+			set((s) => ({
+				viewNonce: s.viewNonce + 1,
+				frameBox: null,
+				cameraFollow: null,
+				projection: s.scene.camera.openingProjection,
+			}));
 		},
 
 		showOpeningView: (remembered) => {

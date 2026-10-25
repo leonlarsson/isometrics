@@ -559,6 +559,9 @@ export const CameraSettingsSchema = z
 			.describe(
 				"The viewpoint the world opens at for anyone who hasn't looked around it yet (a shared file, another browser), and that re-centring goes back to. null (or an id no viewpoint has) = the whole world from the default angle.",
 			),
+		openingProjection: ProjectionSchema.default("orthographic").describe(
+			"Without an opening viewpoint: how the whole world is shown when it opens and when re-centring, orthographic (the isometric diorama) or perspective.",
+		),
 		fieldOfView: FieldOfViewSchema.default(40).describe(
 			"The perspective camera's field of view, in degrees from the top of the view to the bottom: small looks flat, like the isometric diorama view through a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own.",
 		),
@@ -788,6 +791,7 @@ export const SceneSchema = z
 		}),
 		camera: CameraSettingsSchema.default({
 			openingViewpointId: null,
+			openingProjection: "orthographic",
 			fieldOfView: 40,
 			closestSpan: 2,
 			farthestSpan: null,

@@ -49,9 +49,8 @@ export const CameraTab = () => {
 	// The button isn't in a panel, so it hides itself in the settings search unless it matches.
 	const searching = useSettingsSearch() !== "";
 	const resetMatches = useSearchMatch("Reset the camera");
-	const opening = viewpoints.some((v) => v.id === camera.openingViewpointId)
-		? (camera.openingViewpointId ?? "")
-		: "";
+	const openingViewpoint = viewpoints.find((v) => v.id === camera.openingViewpointId);
+	const opening = openingViewpoint?.id ?? "";
 	/** A setting's Default / Reset: Default while it's as a new world has it. */
 	const byDefault = <K extends keyof TCameraSettings>(key: K, value: string) => ({
 		from: "default",
@@ -151,6 +150,36 @@ export const CameraTab = () => {
 						value: "the whole world",
 					}}
 					hint="Where the world opens for anyone who hasn’t looked around it in their browser yet (a shared file, another browser), and where re-centring the camera goes."
+				/>
+
+				{/* For the whole world; an opening viewpoint brings its own (greyed out, the hint says so). */}
+				<SelectField<TProjection>
+					label="Opening projection"
+					value={openingViewpoint ? openingViewpoint.projection : camera.openingProjection}
+					options={[
+						{
+							value: "orthographic",
+							label: "Isometric diorama",
+							disabled: !!openingViewpoint,
+						},
+						{
+							value: "perspective",
+							label: "Perspective",
+							disabled: !!openingViewpoint,
+						},
+					]}
+					onChange={(v) => set("openingProjection", v)}
+					inherit={{
+						from: "default",
+						inherited: camera.openingProjection === "orthographic",
+						onReset: () => set("openingProjection", "orthographic"),
+						value: "Isometric diorama",
+					}}
+					hint={
+						openingViewpoint
+							? "The opening viewpoint shows the world its own way; this is for opening on the whole world."
+							: "How the whole world is shown when it opens and when re-centring."
+					}
 				/>
 
 				{viewpoints.length === 0 && (
