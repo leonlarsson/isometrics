@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { type ICommitOptions, SNAP_STEP, useEditor } from "#/editor/store";
+import { keepOnHotReload } from "#/lib/hot";
 import { DEG2RAD, normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
 import { resolveTurns, turnSmoothing } from "#/scene/roads";
@@ -130,7 +131,10 @@ const standsOnRoad = (position: TVec2, elevation: number, vehicleLength: number)
  * frame, so only the renderer knows; EntityNode registers a getter while a
  * vehicle drives.
  */
-export const livePoses = new Map<string, () => IVehiclePose | undefined>();
+export const livePoses = keepOnHotReload(
+	"livePoses",
+	() => new Map<string, () => IVehiclePose | undefined>(),
+);
 
 export interface IVehicleRouteDrag {
 	/**

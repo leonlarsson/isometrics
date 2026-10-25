@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 
 import { useEditor } from "#/editor/store";
+import { keepOnHotReload } from "#/lib/hot";
 import type { IRouteSampler } from "#/scene/routes";
 import { type ITrafficCar, type ITrafficState, stepRoadTraffic } from "#/scene/traffic";
 
@@ -25,10 +26,16 @@ export interface IDrivingVehicle {
 }
 
 /** Every driving vehicle, by entity id. */
-export const drivingVehicles = new Map<string, IDrivingVehicle>();
+export const drivingVehicles = keepOnHotReload(
+	"drivingVehicles",
+	() => new Map<string, IDrivingVehicle>(),
+);
 
 /** What the traffic remembers per road, by road id. */
-const roadStates = new Map<string, Map<string, ITrafficState>>();
+const roadStates = keepOnHotReload(
+	"roadStates",
+	() => new Map<string, Map<string, ITrafficState>>(),
+);
 
 /** Moves every driving vehicle while motion plays. Mount once in the scene. */
 export const TrafficStep = () => {

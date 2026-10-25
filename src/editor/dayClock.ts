@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { keepOnHotReload } from "#/lib/hot";
 import type { TDataEntry, TLighting } from "#/scene/schema";
 import { skyLightAt } from "#/scene/sun";
 
@@ -14,8 +15,8 @@ import { useEditor } from "./store";
  */
 
 /** Seconds of day cycle played so far (advanced by render/SceneLights while motion plays). */
-let cycleSeconds = 0;
-const listeners = new Set<() => void>();
+const cycle = keepOnHotReload("dayCycle", () => ({ seconds: 0 }));
+const listeners = keepOnHotReload("dayCycleListeners", () => new Set<() => void>());
 
 const local = (now: number) => {
 	const date = new Date(now);
@@ -74,9 +75,9 @@ const stepOf = (lighting: TLighting) => (cycleStepHours(lighting) / 24) * lighti
 /** Play `seconds` more of the day cycle (while motion plays). */
 export const advanceDayCycle = (seconds: number, lighting: TLighting) => {
 	const step = stepOf(lighting);
-	const before = Math.floor(cycleSeconds / step);
-	cycleSeconds += seconds;
-	if (Math.floor(cycleSeconds / step) !== before) {
+	const before = Math.floor(cycle.seconds / step);
+	cycle.seconds += seconds;
+	if (Math.floor(cycle.seconds / step) !== before) {
 		for (const listener of listeners) {
 			listener();
 		}
@@ -89,7 +90,7 @@ export const advanceDayCycle = (seconds: number, lighting: TLighting) => {
  * from there.
  */
 export const restartDayCycle = () => {
-	cycleSeconds = 0;
+	cycle.seconds = 0;
 	for (const listener of listeners) {
 		listener();
 	}
@@ -98,7 +99,7 @@ export const restartDayCycle = () => {
 /** The world's hour right now, exactly (for the lights, every frame). */
 export const sceneHoursNow = () => {
 	const { lighting, data } = useEditor.getState().scene;
-	return sceneHours(lighting, data, Date.now(), cycleSeconds);
+	return sceneHours(lighting, data, Date.now(), cycle.seconds);
 };
 
 const subscribe = (listener: () => void) => {
@@ -140,7 +141,8 @@ const useFromSceneHours = <T extends number | null>(
 	}, [lighting.timeSource]);
 	return useSyncExternalStore(
 		subscribe,
-		() => select(sceneHours(lighting, data, now, Math.floor(cycleSeconds / step) * step), lighting),
+		() =>
+			select(sceneHours(lighting, data, now, Math.floor(cycle.seconds / step) * step), lighting),
 		() => select(sceneHours(lighting, data, now, 0), lighting),
 	);
 };

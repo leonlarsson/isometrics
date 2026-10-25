@@ -1,22 +1,34 @@
 import type * as THREE from "three";
 
+import { keepOnHotReload } from "#/lib/hot";
+
 /**
  * Bridges 3D label anchors (inside the Canvas) and DOM label cards (outside
  * it). Both sides register by entity id; LabelProjector writes each card's
  * screen position every frame without re-rendering React.
  * See docs/adr/0008-dom-label-layer.md.
  */
-export const labelAnchors = new Map<string, THREE.Object3D>();
-export const labelElements = new Map<string, HTMLElement>();
+export const labelAnchors = keepOnHotReload(
+	"labelAnchors",
+	() => new Map<string, THREE.Object3D>(),
+);
+export const labelElements = keepOnHotReload("labelElements", () => new Map<string, HTMLElement>());
 /** The pin on top of each labelled object, where its leader line starts. */
-export const labelPins = new Map<string, THREE.Object3D>();
+export const labelPins = keepOnHotReload("labelPins", () => new Map<string, THREE.Object3D>());
 /** Each card's leader line, drawn in screen space so it follows a card that moved aside. */
-export const labelLeaders = new Map<string, SVGLineElement>();
+export const labelLeaders = keepOnHotReload(
+	"labelLeaders",
+	() => new Map<string, SVGLineElement>(),
+);
 /** Measured sizes (px) of each card and of its chip; kept from the last time each was shown. */
-export const labelSizes = new Map<
-	string,
-	{ card?: { width: number; height: number }; chip?: { width: number; height: number } }
->();
+export const labelSizes = keepOnHotReload(
+	"labelSizes",
+	() =>
+		new Map<
+			string,
+			{ card?: { width: number; height: number }; chip?: { width: number; height: number } }
+		>(),
+);
 
 /** Add `value` under `id`, or remove it when null: the shape every registration here takes. */
 const register =

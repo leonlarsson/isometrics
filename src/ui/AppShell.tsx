@@ -194,8 +194,13 @@ export const AppShell = () => {
 			saveScene(stored.scene);
 		}
 		setReady(true);
-		return startAutosave(useEditor);
 	}, []);
+
+	// Saving follows the store: in development a code change makes a new one (see editor/store.ts),
+	// and autosave has to move over to it.
+	useEffect(() => {
+		return startAutosave(useEditor);
+	}, [useEditor]);
 
 	useThemeAttribute();
 	useShortcuts();
