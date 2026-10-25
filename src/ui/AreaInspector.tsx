@@ -179,8 +179,9 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				/>
 
 				<Hint>
-					Drag corners to reshape (or select one and nudge it with the arrow keys, Alt for small
-					steps), drag a small dot between two corners to add one, double-click a corner to remove
+					With no corner selected, the arrows at its middle (or G, R, S and the arrow keys) move,
+					turn and resize all of it. Drag corners to reshape, Shift- or Ctrl-click to select
+					several, drag a small dot between two corners to add one, double-click a corner to remove
 					it. Above 0, the area becomes raised ground with cliff sides.
 				</Hint>
 			</Section>

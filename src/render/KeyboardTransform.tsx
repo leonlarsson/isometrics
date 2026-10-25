@@ -8,7 +8,7 @@ import {
 	type IPointsStart,
 	pointsStart,
 } from "#/editor/groupTransform";
-import { type ITransformSession, useEditor } from "#/editor/store";
+import { type ITransformSession, selectMovesAsGroup, useEditor } from "#/editor/store";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -194,8 +194,9 @@ export const KeyboardTransform = () => {
 		let target: TTarget | null = null;
 		let center: THREE.Vector3 | null = null;
 		let route: IVehicleRouteDrag | null = null;
-		if (state.selectedItems.length > 1) {
-			// Several things move, turn and resize together, around their middle (ADR-0064).
+		if (selectMovesAsGroup(state)) {
+			// Several things, or a whole road or area, move, turn and resize together, around their
+			// middle (ADR-0064, ADR-0066).
 			const from = groupStart();
 			if (from) {
 				target = { kind: "group", from };

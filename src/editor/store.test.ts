@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DataBindingSchema, SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
 
-import { createEditorStore, unknownPartKinds } from "./store";
+import { createEditorStore, selectMovesAsGroup, unknownPartKinds } from "./store";
 
 const makeStore = () =>
 	createEditorStore(
@@ -976,5 +976,24 @@ describe("selecting several points (ADR-0065)", () => {
 		store.getState().insertRoadPoint("r", 4, [8, 0, 0]);
 		store.getState().undo();
 		expect(store.getState().selectedPointIndices).toEqual([1, 3]);
+	});
+});
+
+describe("what moves as a group (ADR-0066)", () => {
+	it("is several things, or a whole road or area with none of its points selected", () => {
+		const store = makeStore();
+		const roadId = store.getState().addRoad({
+			points: [
+				[0, 0],
+				[4, 0],
+			],
+		});
+		expect(selectMovesAsGroup(store.getState())).toBe(true);
+		store.getState().selectRoadPoint(roadId, 0);
+		expect(selectMovesAsGroup(store.getState())).toBe(false);
+		store.getState().select("w");
+		expect(selectMovesAsGroup(store.getState())).toBe(false);
+		store.getState().toggleSelected({ kind: "road", id: roadId });
+		expect(selectMovesAsGroup(store.getState())).toBe(true);
 	});
 });

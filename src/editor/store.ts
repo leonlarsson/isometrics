@@ -1875,3 +1875,13 @@ export const isToggleClick = (event: { shiftKey: boolean; ctrlKey: boolean; meta
 /** Whether a box being drawn would add an item to the selection or take it out (ADR-0064). */
 export const isItemBoxed = (state: IEditorState, kind: ISceneItem["kind"], id: string) =>
 	state.boxDrag?.items.some((item) => item.kind === kind && item.id === id) ?? false;
+
+/**
+ * The selection moves, turns and resizes as a group (ADR-0064, ADR-0066): several things, or a
+ * whole road or area (selected with none of its points).
+ */
+export const selectMovesAsGroup = (state: IEditorState) =>
+	state.selectedItems.length > 1 ||
+	(state.selectedItems.length === 1 &&
+		state.selectedItems[0].kind !== "entity" &&
+		state.selectedPointIndex === null);

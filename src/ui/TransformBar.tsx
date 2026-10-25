@@ -2,12 +2,15 @@ import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 import { useEffect } from "react";
 
 import {
+	selectSelectedArea,
 	selectSelectedEntity,
+	selectSelectedRoad,
 	type TTransformAxis,
 	type TTransformMode,
 	useEditor,
 } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
+import { AREA_TYPE_LABELS } from "#/scene/areas";
 
 import { Button } from "./Button";
 import { roadName, useRouteHint } from "./FollowOfferBar";
@@ -36,6 +39,10 @@ const TransformControls = () => {
 	const transform = useEditor((s) => s.transform);
 	const entity = useEditor(selectSelectedEntity);
 	const count = useEditor((s) => s.selectedItems.length);
+	// A whole road or area (ADR-0066), or several of its points (ADR-0065).
+	const road = useEditor(selectSelectedRoad);
+	const area = useEditor(selectSelectedArea);
+	const points = useEditor((s) => s.selectedPointIndices.length);
 	const route = useRouteHint();
 
 	const update = useEditor.getState().updateTransform;
@@ -104,12 +111,24 @@ const TransformControls = () => {
 		return null;
 	}
 
+	const shapeName = road
+		? roadName(road)
+		: area
+			? area.name || `${AREA_TYPE_LABELS[area.type].toLowerCase()} area`
+			: "";
+	const pointName = road ? "points" : "corners";
 	const what =
 		count > 1
 			? `${count} things`
 			: entity
 				? entity.name || partNameOf(entity.kind) || "object"
-				: "road point";
+				: points > 1
+					? `${points} ${pointName}`
+					: points === 1
+						? road
+							? "road point"
+							: "corner"
+						: shapeName;
 	const how = transform.axis ? ` ${AXIS_LABELS[transform.axis]}` : "";
 	const value = typed ? `${typed}${UNITS[transform.mode]}` : null;
 	// A vehicle moved over a road snaps onto it (see render/routeDrop).

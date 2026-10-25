@@ -15,6 +15,7 @@ import { toggleSidePanes } from "./sidePanes";
 import {
 	FINE_NUDGE_STEP,
 	SNAP_STEP,
+	selectMovesAsGroup,
 	selectSelectedArea,
 	selectSelectedEntity,
 	selectSelectedRoad,
@@ -55,7 +56,8 @@ export const useShortcuts = () => {
 
 	const canEdit = mode === "edit" && selected !== null;
 	// Several things selected: the keys that move, turn, resize and delete work on all of them.
-	const several = useEditor((s) => s.mode === "edit" && s.selectedItems.length > 1);
+	// Or a whole road or area (ADR-0066).
+	const several = useEditor((s) => s.mode === "edit" && selectMovesAsGroup(s));
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
 	const canDelete =
 		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
@@ -109,8 +111,9 @@ export const useShortcuts = () => {
 	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
-		const { selectedId, selectedItems, rotateEntity } = useEditor.getState();
-		if (selectedItems.length > 1) {
+		const state = useEditor.getState();
+		const { selectedId, rotateEntity } = state;
+		if (selectMovesAsGroup(state)) {
 			transformSelected({ turn: degrees }, { coalesce: "rotate:group" });
 		} else if (selectedId) {
 			rotateEntity(selectedId, degrees);
@@ -123,7 +126,7 @@ export const useShortcuts = () => {
 	 */
 	const nudge = (dx: number, dz: number, step = SNAP_STEP) => {
 		const state = useEditor.getState();
-		if (state.selectedItems.length > 1) {
+		if (selectMovesAsGroup(state)) {
 			transformSelected({ offset: [dx * step, dz * step] }, { coalesce: "nudge:group" });
 			return;
 		}

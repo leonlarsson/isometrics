@@ -1,20 +1,22 @@
 import { useMemo, useRef } from "react";
 
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
-import { selectSeveral, useEditor } from "#/editor/store";
+import { selectMovesAsGroup, useEditor } from "#/editor/store";
 
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyGroupDrag } from "./transforms";
 
 const HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "scale"];
+/** Areas alone have no lift arrow: how high an area is, is its Raised by setting. */
+const AREA_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "rotate", "scale"];
 
 /**
- * The transform gizmo for several selected things (ADR-0064), at the middle of
- * what they move: it moves, lifts, turns and resizes them together, around
- * that middle.
+ * The transform gizmo for several selected things (ADR-0064), or a whole road
+ * or area (ADR-0066), at the middle of what they move: it moves, lifts, turns
+ * and resizes them together, around that middle.
  */
 export const GroupGizmo = () => {
-	const several = useEditor(selectSeveral);
+	const several = useEditor(selectMovesAsGroup);
 	const editing = useEditor((s) => s.mode === "edit" && s.drawing === null);
 	const scene = useEditor((s) => s.scene);
 	const items = useEditor((s) => s.selectedItems);
@@ -31,7 +33,7 @@ export const GroupGizmo = () => {
 	return (
 		<group position={movable.center}>
 			<TransformGizmo
-				handles={HANDLES}
+				handles={movable.entities.length + movable.roads.length === 0 ? AREA_HANDLES : HANDLES}
 				onStart={() => {
 					start.current = groupStart();
 				}}

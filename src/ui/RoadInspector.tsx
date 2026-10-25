@@ -216,10 +216,10 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				/>
 
 				<Hint>
-					These are the whole road's. Click a point to select it, Shift- or Ctrl-click to select
-					several; drag them to reshape (or nudge with the arrow keys, Alt for small steps) and lift
-					them with the green arrow. Drag a small dot between two points to add one; double-click a
-					point to remove it.
+					These are the whole road's. With no point selected, the arrows at its middle (or G, R, S
+					and the arrow keys) move, lift, turn and resize all of it. Click a point to select it,
+					Shift- or Ctrl-click to select several; drag them to reshape and lift them with the green
+					arrow. Drag a small dot between two points to add one; double-click a point to remove it.
 				</Hint>
 			</Section>
 
