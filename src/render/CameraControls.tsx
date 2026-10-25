@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+import { dampingFactorOf, readCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -166,14 +167,15 @@ const useOrbitAroundCursor = () => {
 			const dy = event.clientY - orbiting.y;
 			orbiting.x = event.clientX;
 			orbiting.y = event.clientY;
-			// A drag across the canvas height turns the view once (as OrbitControls does); dragging
-			// down tips it towards straight down.
+			// A drag across the canvas height turns the view once (as OrbitControls does) at the usual
+			// orbit speed; dragging down tips it towards straight down.
+			const speed = readCameraFeel().orbitSpeed;
 			orbitAround(
 				camera.position,
 				controls.target,
 				pivot,
-				(-2 * Math.PI * dx) / height,
-				(-2 * Math.PI * dy) / height,
+				(-2 * Math.PI * dx * speed) / height,
+				(-2 * Math.PI * dy * speed) / height,
 				polarLimits(useEditor.getState().scene.camera),
 			);
 			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
@@ -449,6 +451,39 @@ const useOrthographicDepth = () => {
 	});
 };
 
+/**
+ * Inverted zoom (a personal setting, editor/cameraFeel) turns the wheel round
+ * only: OrbitControls zooms the other way with a negative zoom speed, which
+ * is set just before it handles a wheel event and put back for a press, so a
+ * pinch or a middle-button drag still zooms the usual way.
+ */
+const useWheelDirection = () => {
+	const element = useThree(
+		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
+	);
+	const controls = useThree((s) => s.controls) as unknown as { zoomSpeed: number } | null;
+
+	useEffect(() => {
+		if (!controls) {
+			return;
+		}
+		const onWheel = () => {
+			const { zoomSpeed, invertZoom } = readCameraFeel();
+			controls.zoomSpeed = invertZoom ? -zoomSpeed : zoomSpeed;
+		};
+		const onDown = () => {
+			controls.zoomSpeed = readCameraFeel().zoomSpeed;
+		};
+		// Capturing on the canvas element itself runs before OrbitControls' own listeners there.
+		element.addEventListener("wheel", onWheel, { capture: true, passive: true });
+		element.addEventListener("pointerdown", onDown, { capture: true });
+		return () => {
+			element.removeEventListener("wheel", onWheel, { capture: true });
+			element.removeEventListener("pointerdown", onDown, { capture: true });
+		};
+	}, [element, controls]);
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
@@ -458,6 +493,7 @@ const CameraBehaviours = () => {
 	useViewOffset();
 	useRevealSelection();
 	useCardEventHandover();
+	useWheelDirection();
 	return null;
 };
 
@@ -472,12 +508,16 @@ export const CameraControls = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const height = useThree((s) => s.size.height);
 	const tilt = polarLimits(settings);
+	const feel = useCameraFeel();
+	const damping = dampingFactorOf(feel.smoothing);
 	return (
 		<>
 			<OrbitControls
 				makeDefault
-				enableDamping
-				dampingFactor={0.12}
+				enableDamping={damping !== null}
+				dampingFactor={damping ?? undefined}
+				rotateSpeed={feel.orbitSpeed}
+				zoomSpeed={feel.zoomSpeed}
 				minPolarAngle={tilt.min}
 				maxPolarAngle={tilt.max}
 				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.

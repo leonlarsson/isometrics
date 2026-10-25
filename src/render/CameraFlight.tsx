@@ -2,14 +2,12 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+import { readCameraFeel } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
 import { blendPoses, currentView, placeCamera, poseOf, projectionSwitch } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
-
-/** How long gliding to a viewpoint takes. */
-const FLIGHT_SECONDS = 0.8;
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
@@ -18,8 +16,8 @@ interface IFlight {
 	from: TViewPose | null;
 	to: TViewPose;
 	progress: number;
-	/** A jump, not a glide: it goes straight there. */
-	instant: boolean;
+	/** How long it takes; 0 jumps straight there. */
+	seconds: number;
 }
 
 /**
@@ -57,7 +55,8 @@ export const CameraFlight = () => {
 				from: null,
 				to: { ...request.pose, fieldOfView: request.pose.fieldOfView ?? fieldOfView },
 				progress: 0,
-				instant: request.instant,
+				// Opening a world jumps; a glide takes as long as this browser's camera settings say.
+				seconds: request.instant ? 0 : readCameraFeel().glideSeconds,
 			};
 		}
 	}, [request?.nonce]);
@@ -92,9 +91,10 @@ export const CameraFlight = () => {
 			...poseOf(camera, controls.target, size.height, current.to.perspective, worldFieldOfView),
 			fieldOfView: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
 		};
-		current.progress = current.instant
-			? 1
-			: Math.min(1, current.progress + Math.min(delta, 0.1) / FLIGHT_SECONDS);
+		current.progress =
+			current.seconds <= 0
+				? 1
+				: Math.min(1, current.progress + Math.min(delta, 0.1) / current.seconds);
 		const pose = blendPoses(current.from, current.to, easeInOut(current.progress));
 		controls.target.copy(placeCamera(camera, pose, size.height, worldFieldOfView));
 		controls.update();

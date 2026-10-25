@@ -1,3 +1,9 @@
+import {
+	DEFAULT_CAMERA_FEEL,
+	setCameraFeel,
+	type TCameraFeel,
+	useCameraFeel,
+} from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
 import type { TCameraSettings } from "#/scene/schema";
@@ -6,9 +12,90 @@ import { Button } from "./Button";
 import { Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
 import { viewpointName } from "./ViewpointsSection";
 
+/** A personal camera setting's Default / Reset (ADR-0027): its default is the app's. */
+const feelDefault = <K extends keyof TCameraFeel>(feel: TCameraFeel, key: K, value: string) => ({
+	from: "default",
+	inherited: feel[key] === DEFAULT_CAMERA_FEEL[key],
+	onReset: () => setCameraFeel(key, DEFAULT_CAMERA_FEEL[key]),
+	value,
+});
+
+/**
+ * Your camera: how the camera feels to move, in every world in this browser
+ * (editor/cameraFeel), never saved with the world.
+ */
+const CameraFeelSection = () => {
+	const feel = useCameraFeel();
+	return (
+		<Section
+			id="camera.feel"
+			icon="user"
+			title="Your camera"
+			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser"
+		>
+			<Hint>
+				Yours alone: these apply to every world in this browser and aren’t saved with the world.
+			</Hint>
+
+			<SliderField
+				label="Orbit speed"
+				value={feel.orbitSpeed}
+				min={0.2}
+				max={3}
+				step={0.1}
+				suffix="×"
+				onChange={(v) => setCameraFeel("orbitSpeed", v)}
+				inherit={feelDefault(feel, "orbitSpeed", "1×")}
+			/>
+
+			<SliderField
+				label="Zoom speed"
+				value={feel.zoomSpeed}
+				min={0.2}
+				max={3}
+				step={0.1}
+				suffix="×"
+				onChange={(v) => setCameraFeel("zoomSpeed", v)}
+				inherit={feelDefault(feel, "zoomSpeed", "1×")}
+			/>
+
+			<SwitchField
+				label="Scroll up to zoom out"
+				checked={feel.invertZoom}
+				onChange={(v) => setCameraFeel("invertZoom", v)}
+			/>
+
+			<SliderField
+				label="Smoothing"
+				value={Math.round(feel.smoothing * 100)}
+				min={0}
+				max={100}
+				step={5}
+				suffix="%"
+				onChange={(v) => setCameraFeel("smoothing", v / 100)}
+				inherit={feelDefault(feel, "smoothing", "60%")}
+				hint="How long the view keeps gliding after you let go: 0% stops at once."
+			/>
+
+			<SliderField
+				label="Glide to viewpoints"
+				value={feel.glideSeconds}
+				min={0}
+				max={3}
+				step={0.1}
+				suffix="s"
+				onChange={(v) => setCameraFeel("glideSeconds", v)}
+				inherit={feelDefault(feel, "glideSeconds", "0.8 s")}
+				hint="How long the camera takes to glide to a viewpoint or back to the opening view: 0 jumps there."
+			/>
+		</Section>
+	);
+};
+
 /**
  * The Camera tab (ADR-0062): where the world opens and how its camera is
- * framed, saved with the world.
+ * framed, saved with the world, then how the camera feels to you, saved in
+ * this browser.
  */
 export const CameraTab = () => {
 	const camera = useEditor((s) => s.scene.camera);
@@ -134,6 +221,8 @@ export const CameraTab = () => {
 					hint="89° looks almost straight down, like a map."
 				/>
 			</Section>
+
+			<CameraFeelSection />
 		</>
 	);
 };
