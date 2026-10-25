@@ -13,7 +13,16 @@ import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { FieldGroup, Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
+import {
+	FieldGroup,
+	Hint,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	useSearchMatch,
+	useSettingsSearch,
+} from "./fields";
 import { viewpointName } from "./ViewpointsSection";
 
 import styles from "./CameraTab.module.css";
@@ -172,6 +181,9 @@ export const CameraTab = () => {
 	const perspective = useEditor((s) => s.perspective);
 	const previewTiltShift = useEditor((s) => s.previewTiltShift);
 	const [confirmingReset, setConfirmingReset] = useState(false);
+	// The button isn't in a panel, so it hides itself in the settings search unless it matches.
+	const searching = useSettingsSearch() !== "";
+	const resetMatches = useSearchMatch("Reset the camera");
 	const opening = viewpoints.some((v) => v.id === camera.openingViewpointId)
 		? (camera.openingViewpointId ?? "")
 		: "";
@@ -188,13 +200,15 @@ export const CameraTab = () => {
 
 	return (
 		<>
-			<div className={styles.tabActions}>
-				<ButtonGroup>
-					<Button size="sm" icon="reset" onClick={() => setConfirmingReset(true)}>
-						Reset the camera
-					</Button>
-				</ButtonGroup>
-			</div>
+			{(!searching || resetMatches) && (
+				<div className={styles.tabActions} data-search-match={resetMatches}>
+					<ButtonGroup>
+						<Button size="sm" icon="reset" onClick={() => setConfirmingReset(true)}>
+							Reset the camera
+						</Button>
+					</ButtonGroup>
+				</div>
+			)}
 
 			<ConfirmDialog
 				open={confirmingReset}
