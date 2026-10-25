@@ -512,11 +512,17 @@ export const ViewpointSchema = z
 			),
 		elevation: z
 			.number()
-			.min(0)
+			.min(-90)
 			.max(90)
 			.default(32.5)
 			.describe(
-				"Degrees above the ground: 90 looks straight down, 0 looks level across the world. The default view is 32.5.",
+				"Degrees above the ground: 90 looks straight down, 0 looks level across the world, below 0 (perspective only) looks up from the ground. The default view is 32.5.",
+			),
+		targetHeight: z
+			.number()
+			.default(0)
+			.describe(
+				"Height of the point in the middle of the view; 0 = on the ground. Above 0 for a view that looks up (elevation below 0).",
 			),
 		span: z
 			.number()
@@ -551,16 +557,16 @@ export const CameraSettingsSchema = z
 		),
 		closestSpan: z
 			.number()
-			.min(1)
-			.max(400)
+			.min(0.05)
+			.max(1000)
 			.default(2)
 			.describe(
 				"How close the camera can zoom in: how many grid units still fit from the top to the bottom of the view.",
 			),
 		farthestSpan: z
 			.number()
-			.min(10)
-			.max(2000)
+			.min(1)
+			.max(100000)
 			.nullable()
 			.default(null)
 			.describe(
@@ -568,10 +574,12 @@ export const CameraSettingsSchema = z
 			),
 		lowestElevation: z
 			.number()
-			.min(0)
+			.min(-90)
 			.max(90)
 			.default(15)
-			.describe("How low the camera can tilt, in degrees above the ground (0 = level with it)."),
+			.describe(
+				"How low the camera can tilt, in degrees above the ground: 0 = level with it; below 0 (perspective only) the camera stands on the ground and looks up, −90 straight up at the sky.",
+			),
 		steepestElevation: z
 			.number()
 			.min(0)
@@ -858,7 +866,7 @@ export type TViewpoint = z.output<typeof ViewpointSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<
 	TViewpoint,
-	"target" | "azimuth" | "elevation" | "span" | "perspective" | "fieldOfView"
+	"target" | "targetHeight" | "azimuth" | "elevation" | "span" | "perspective" | "fieldOfView"
 >;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

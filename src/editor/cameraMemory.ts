@@ -15,6 +15,7 @@ const KEY = `${APP_NAME.toLowerCase()}:camera`;
 
 const PoseSchema = ViewpointSchema.pick({
 	target: true,
+	targetHeight: true,
 	azimuth: true,
 	elevation: true,
 	span: true,

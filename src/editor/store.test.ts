@@ -644,6 +644,7 @@ describe("editor store", () => {
 			span: 40,
 			perspective: false,
 			fieldOfView: null,
+			targetHeight: 0,
 		};
 		const a = store.getState().addViewpoint(pose);
 		const b = store.getState().addViewpoint({ ...pose, span: 20 });
@@ -687,6 +688,7 @@ describe("editor store", () => {
 			span: 12,
 			perspective: true,
 			fieldOfView: null,
+			targetHeight: 0,
 		};
 		const nonce = store.getState().viewNonce;
 		store.getState().showOpeningView(null);

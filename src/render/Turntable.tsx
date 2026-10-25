@@ -69,7 +69,14 @@ export const Turntable = () => {
 		// The camera goes round the other way to the world.
 		const turn = -THREE.MathUtils.degToRad(scene.camera.turntableSpeed) * step * ease * ease;
 		pivot.copy(orbit.target);
-		orbitAround(camera.position, orbit.target, pivot, turn, 0, polarLimits(scene.camera));
+		orbitAround(
+			camera.position,
+			orbit.target,
+			pivot,
+			turn,
+			0,
+			polarLimits(scene.camera, camera instanceof THREE.PerspectiveCamera),
+		);
 		camera.updateMatrixWorld();
 		orbit.update();
 	});

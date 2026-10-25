@@ -178,7 +178,7 @@ const useOrbitAroundCursor = () => {
 				pivot,
 				(-2 * Math.PI * dx * speed) / height,
 				(-2 * Math.PI * dy * speed) / height,
-				polarLimits(useEditor.getState().scene.camera),
+				polarLimits(useEditor.getState().scene.camera, camera instanceof THREE.PerspectiveCamera),
 			);
 			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
 			controls.update();
@@ -235,6 +235,51 @@ const useKeepTargetOnGround = () => {
 		controls.addEventListener("change", onChange);
 		return () => controls.removeEventListener("change", onChange);
 	}, [camera, controls, ground.width, ground.depth]);
+};
+
+/** How high above the ground the perspective camera's eye stays when it looks up (grid units). */
+const EYE_HEIGHT = 0.6;
+
+/**
+ * Looking up at the sky (a lowest tilt below 0, perspective only): the camera
+ * orbits its target, so tilting below level would take it under the ground.
+ * Instead it stops at eye height and the point it looks at rises with it, so
+ * the view tips up from the ground. Tilting back down, that point slides back
+ * along the line of sight to the ground, which doesn't change the picture,
+ * once the line meets the ground nearby (far off, near the horizon, it stays
+ * up rather than jump away).
+ */
+const useStandOnGround = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+
+	useEffect(() => {
+		if (!controls) {
+			return;
+		}
+		const onChange = () => {
+			if (!(camera instanceof THREE.PerspectiveCamera) || useEditor.getState().cameraFollow) {
+				return;
+			}
+			const { target } = controls;
+			if (camera.position.y < EYE_HEIGHT) {
+				shift.set(0, EYE_HEIGHT - camera.position.y, 0);
+				camera.position.add(shift);
+				target.add(shift);
+				camera.updateMatrixWorld();
+				return;
+			}
+			if (target.y > 1e-3 && camera.position.y > target.y) {
+				shift.subVectors(target, camera.position);
+				const along = target.y / -shift.y;
+				if (along * shift.length() < 2 * camera.position.distanceTo(target)) {
+					target.addScaledVector(shift, along);
+				}
+			}
+		};
+		controls.addEventListener("change", onChange);
+		return () => controls.removeEventListener("change", onChange);
+	}, [camera, controls]);
 };
 
 /** Keep this much room (px) between a revealed selection and the edges of the visible area. */
@@ -504,7 +549,7 @@ const useOrbitCommand = () => {
 				pivot,
 				turn,
 				tilt,
-				polarLimits(useEditor.getState().scene.camera),
+				polarLimits(useEditor.getState().scene.camera, camera instanceof THREE.PerspectiveCamera),
 			);
 			camera.updateMatrixWorld();
 			controls.update();
@@ -521,6 +566,7 @@ const CameraBehaviours = () => {
 	usePerspectiveDepthRange();
 	useOrthographicDepth();
 	useKeepTargetOnGround();
+	useStandOnGround();
 	useViewOffset();
 	useRevealSelection();
 	useCardEventHandover();
@@ -539,7 +585,8 @@ export const CameraControls = () => {
 	const settings = useEditor((s) => s.scene.camera);
 	const ground = useEditor((s) => s.scene.ground);
 	const height = useThree((s) => s.size.height);
-	const tilt = polarLimits(settings);
+	const camera = useThree((s) => s.camera);
+	const tilt = polarLimits(settings, camera instanceof THREE.PerspectiveCamera);
 	const feel = useCameraFeel();
 	const damping = dampingFactorOf(feel.smoothing);
 	return (

@@ -12,6 +12,7 @@ const pose = {
 	span: 18,
 	perspective: false,
 	fieldOfView: null,
+	targetHeight: 0,
 };
 
 describe("cameraMemory", () => {

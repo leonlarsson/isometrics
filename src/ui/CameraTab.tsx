@@ -327,19 +327,23 @@ export const CameraTab = () => {
 				<SliderField
 					label="Closest zoom"
 					value={camera.closestSpan}
-					min={1}
-					max={100}
+					min={0.05}
+					max={1000}
+					sliderMin={1}
+					sliderMax={100}
 					step={1}
 					onChange={(v) => set("closestSpan", v)}
 					inherit={byDefault("closestSpan", `${CAMERA_DEFAULTS.closestSpan} units`)}
-					hint="How many grid units still fit from the top of the view to the bottom when zoomed in all the way."
+					hint="How many grid units still fit from the top of the view to the bottom when zoomed in all the way. Type any value for closer (down to 0.05) or further."
 				/>
 
 				<SliderField
 					label="Farthest zoom"
 					value={farthestSpanOf(camera, ground)}
-					min={10}
-					max={2000}
+					min={1}
+					max={100000}
+					sliderMin={10}
+					sliderMax={2000}
 					step={10}
 					onChange={(v) => set("farthestSpan", v)}
 					hint="Grid units from the top of the view to the bottom when zoomed out all the way. By default it fits the whole ground with room around it."
@@ -352,13 +356,13 @@ export const CameraTab = () => {
 				<SliderField
 					label="Lowest tilt"
 					value={camera.lowestElevation}
-					min={0}
+					min={-90}
 					max={90}
 					step={1}
 					suffix="°"
 					onChange={(v) => set("lowestElevation", v)}
 					inherit={byDefault("lowestElevation", `${CAMERA_DEFAULTS.lowestElevation}°`)}
-					hint="Degrees above the ground: 0 looks level across the world, like standing in it."
+					hint="Degrees above the ground: 0 looks level across the world. Below 0, in the perspective view, the camera stands on the ground and looks up: −90 is straight up at the sky."
 				/>
 
 				<SliderField

@@ -54,7 +54,8 @@ export const NavigationGizmo = () => {
 		let frame = 0;
 		const place = () => {
 			const { azimuth, elevation } = liveCamera;
-			const squash = Math.max(0.08, Math.sin(elevation * DEG2RAD));
+			// Flat looking level, round looking straight down, or straight up at the sky.
+			const squash = Math.max(0.08, Math.abs(Math.sin(elevation * DEG2RAD)));
 			ring.current?.setAttribute("ry", String(RADIUS * squash));
 			POINTS.forEach((point, index) => {
 				// Counter-clockwise from the top of the gizmo, which is where the camera looks.

@@ -12,6 +12,7 @@ const pose: TViewPose = {
 	span: 24,
 	perspective: false,
 	fieldOfView: null,
+	targetHeight: 0,
 };
 
 describe("viewpoints", () => {
@@ -68,6 +69,18 @@ describe("viewpoints", () => {
 		const half = blendPoses(a, b, 0.5);
 		expect(((half.azimuth % 360) + 360) % 360).toBeCloseTo(0, 5);
 		expect(half.span).toBeCloseTo(48, 5);
+	});
+
+	it("keeps a view that looks up at the sky, with the height of what it looks at", () => {
+		const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000);
+		const up = { ...pose, perspective: true, elevation: -30, targetHeight: 12 };
+		const target = placeCamera(camera, up, 600, 40);
+		expect(target.y).toBe(12);
+		expect(camera.position.y).toBeLessThan(12);
+		const back = poseOf(camera, target, 600, true, 40);
+		expect(back.elevation).toBeCloseTo(-30, 1);
+		expect(back.targetHeight).toBeCloseTo(12, 1);
+		expect(back.target).toEqual(pose.target);
 	});
 
 	it("tells when two views show the same thing", () => {
