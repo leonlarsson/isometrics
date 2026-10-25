@@ -1,0 +1,11 @@
+/* What the camera shows, in the view's bottom-left corner (ADR-0062). Never takes a press. */
+.label {
+	position: absolute;
+	left: 16px;
+	pointer-events: none;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-shadow: 0 0 6px var(--bg);
+	white-space: nowrap;
+}

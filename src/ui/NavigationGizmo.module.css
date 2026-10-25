@@ -1,0 +1,82 @@
+/* The navigation gizmo (ADR-0062): a compass in the view's top-right corner. */
+.gizmo {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 88px;
+	height: 88px;
+	border-radius: 50%;
+	touch-action: none;
+	cursor: grab;
+	user-select: none;
+}
+
+.gizmo:hover {
+	background: color-mix(in oklab, var(--surface) 55%, transparent);
+}
+
+.gizmo:active {
+	cursor: grabbing;
+}
+
+.ring {
+	position: absolute;
+	inset: 0;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.ring ellipse {
+	fill: none;
+	stroke: color-mix(in oklab, var(--text) 30%, transparent);
+	stroke-width: 1.5;
+}
+
+/* A compass point: click it to look from that side. Moved every frame. */
+.point {
+	all: unset;
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	margin: -10px 0 0 -10px;
+	border-radius: 50%;
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+	font-size: 10px;
+	font-weight: 700;
+	color: var(--text-muted);
+	cursor: pointer;
+	will-change: transform;
+}
+
+.point:hover,
+.point:focus-visible {
+	background: var(--accent-soft);
+	color: var(--text);
+}
+
+.point:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.point[data-north] {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+/* Straight down: the middle. */
+.centre {
+	composes: point;
+	top: 50%;
+	left: 50%;
+	width: 12px;
+	height: 12px;
+	margin: -6px 0 0 -6px;
+	background: color-mix(in oklab, var(--text) 30%, transparent);
+	box-shadow: none;
+}

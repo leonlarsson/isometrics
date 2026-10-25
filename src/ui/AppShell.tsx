@@ -23,6 +23,7 @@ import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
+import { NavigationGizmo } from "./NavigationGizmo";
 import { Outliner } from "./Outliner";
 import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
@@ -43,6 +44,7 @@ import { Toolbar } from "./Toolbar";
 import { Tooltip, TooltipProvider } from "./Tooltip";
 import { TransformBar } from "./TransformBar";
 import { useNarrowLayout } from "./useNarrowLayout";
+import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
 
 import styles from "./AppShell.module.css";
@@ -253,6 +255,10 @@ export const AppShell = () => {
 							{ready && <Viewport />}
 
 							{ready && <CompositionGrid />}
+
+							{ready && <ViewLabel />}
+
+							{ready && <NavigationGizmo />}
 
 							{ready && <LabelLayer />}
 

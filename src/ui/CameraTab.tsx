@@ -13,7 +13,7 @@ import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
+import { FieldGroup, Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
 import { viewpointName } from "./ViewpointsSection";
 
 import styles from "./CameraTab.module.css";
@@ -40,7 +40,7 @@ const CameraFeelSection = () => {
 			id="camera.feel"
 			icon="user"
 			title="Your camera"
-			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser keyboard keys arrows composition grid thirds"
+			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser keyboard keys arrows overlays composition grid thirds navigation gizmo compass view label viewpoints in the world"
 		>
 			<Hint>
 				Yours alone: these apply to every world in this browser and aren’t saved with the world.
@@ -111,16 +111,42 @@ const CameraFeelSection = () => {
 				hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. + and − zoom, and Home goes back to the opening view."
 			/>
 
-			<SwitchField
-				label="Composition grid"
-				checked={feel.compositionGrid}
-				onChange={(v) => setCameraFeel("compositionGrid", v)}
-				inherit={feelDefault(feel, "compositionGrid", "off")}
-			/>
+			<FieldGroup title="Overlays in Edit mode">
+				<SwitchField
+					label="Navigation gizmo"
+					checked={feel.navigationGizmo}
+					onChange={(v) => setCameraFeel("navigationGizmo", v)}
+					inherit={feelDefault(feel, "navigationGizmo", "on")}
+				/>
 
-			<Hint>
-				Thirds over the view in Edit mode, with a mark in the middle, for lining up viewpoints.
-			</Hint>
+				<SwitchField
+					label="View label"
+					checked={feel.viewLabel}
+					onChange={(v) => setCameraFeel("viewLabel", v)}
+					inherit={feelDefault(feel, "viewLabel", "on")}
+				/>
+
+				<SwitchField
+					label="Viewpoints in the world"
+					checked={feel.viewpointsInWorld}
+					onChange={(v) => setCameraFeel("viewpointsInWorld", v)}
+					inherit={feelDefault(feel, "viewpointsInWorld", "on")}
+				/>
+
+				<SwitchField
+					label="Composition grid"
+					checked={feel.compositionGrid}
+					onChange={(v) => setCameraFeel("compositionGrid", v)}
+					inherit={feelDefault(feel, "compositionGrid", "off")}
+				/>
+
+				<Hint>
+					The gizmo in the top-right corner shows which way the view looks: click a letter to look
+					from that side, the middle to look straight down, or drag it to turn. The label says what
+					the camera shows; viewpoints show as little cameras you can click; the grid splits the
+					view in thirds for lining up viewpoints.
+				</Hint>
+			</FieldGroup>
 		</Section>
 	);
 };

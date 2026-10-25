@@ -9,7 +9,9 @@ import { clamp } from "#/lib/math";
 
 import { orthographicDistance, zoomLimits } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
+import { cameraCommands } from "./liveCamera";
 import { orbitAround, polarLimits, settleTarget } from "./orbit";
+import { runningFlight } from "./viewpoints";
 import { viewShift } from "./viewShift";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -484,6 +486,35 @@ const useWheelDirection = () => {
 	}, [element, controls]);
 };
 
+/** Lets the overlays turn and tilt the view around its centre (liveCamera's cameraCommands). */
+const useOrbitCommand = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+
+	useEffect(() => {
+		if (!controls) {
+			return;
+		}
+		cameraCommands.orbit = (turn, tilt) => {
+			runningFlight.stop?.();
+			pivot.copy(controls.target);
+			orbitAround(
+				camera.position,
+				controls.target,
+				pivot,
+				turn,
+				tilt,
+				polarLimits(useEditor.getState().scene.camera),
+			);
+			camera.updateMatrixWorld();
+			controls.update();
+		};
+		return () => {
+			cameraCommands.orbit = null;
+		};
+	}, [camera, controls]);
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
@@ -494,6 +525,7 @@ const CameraBehaviours = () => {
 	useRevealSelection();
 	useCardEventHandover();
 	useWheelDirection();
+	useOrbitCommand();
 	return null;
 };
 

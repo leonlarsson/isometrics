@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TViewPose } from "#/scene/schema";
 
-import { blendPoses, directionOf, placeCamera, poseOf } from "./viewpoints";
+import { blendPoses, directionOf, placeCamera, poseOf, sameView } from "./viewpoints";
 
 const pose: TViewPose = {
 	target: [4, -3],
@@ -68,6 +68,18 @@ describe("viewpoints", () => {
 		const half = blendPoses(a, b, 0.5);
 		expect(((half.azimuth % 360) + 360) % 360).toBeCloseTo(0, 5);
 		expect(half.span).toBeCloseTo(48, 5);
+	});
+
+	it("tells when two views show the same thing", () => {
+		expect(sameView(pose, { ...pose, target: [4.1, -3], azimuth: 300.4 }, 40)).toBe(true);
+		expect(sameView(pose, { ...pose, azimuth: 302 }, 40)).toBe(false);
+		expect(sameView(pose, { ...pose, span: 30 }, 40)).toBe(false);
+		expect(sameView(pose, { ...pose, perspective: true }, 40)).toBe(false);
+		// Across 0°, and a field of view that's the world's.
+		expect(sameView({ ...pose, azimuth: 359.8 }, { ...pose, azimuth: 0.1 }, 40)).toBe(true);
+		const own = { ...pose, perspective: true, fieldOfView: 40 };
+		expect(sameView(own, { ...own, fieldOfView: null }, 40)).toBe(true);
+		expect(sameView(own, { ...own, fieldOfView: null }, 60)).toBe(false);
 	});
 
 	it("keeps a view's own field of view, and none while it's the world's", () => {

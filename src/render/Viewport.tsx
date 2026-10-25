@@ -9,6 +9,7 @@ import { CameraControls } from "./CameraControls";
 import { CameraFlight } from "./CameraFlight";
 import { CameraFollow } from "./CameraFollow";
 import { CameraMemory } from "./CameraMemory";
+import { CameraReadout } from "./CameraReadout";
 import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
@@ -28,6 +29,7 @@ import { TiltShift } from "./TiltShift";
 import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
+import { ViewpointMarkers } from "./ViewpointMarkers";
 
 const Lights = () => {
 	const palette = usePalette();
@@ -106,6 +108,10 @@ export const Viewport = () => {
 			<Turntable />
 
 			<TiltShift />
+
+			<CameraReadout />
+
+			<ViewpointMarkers />
 
 			<TrafficStep />
 

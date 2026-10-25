@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 
 import { pixelsPerUnitAt } from "./cameraMath";
-import { flightFieldOfView, projectionSwitch } from "./viewpoints";
+import { projectionSwitch, runningFlight } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
 /** Isometric-ish viewing direction (from target towards camera). */
@@ -232,7 +232,7 @@ export const FieldOfViewFollow = () => {
 				) {
 					next = viewpoint.fieldOfView ?? state.scene.camera.fieldOfView;
 				}
-				if (next === null || flightFieldOfView.retarget?.(next)) {
+				if (next === null || runningFlight.retarget?.(next)) {
 					return;
 				}
 				const { camera } = get();

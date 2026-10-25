@@ -92,7 +92,7 @@ export const placeCamera = (
 };
 
 /** The shortest way round from one angle to another (degrees, -180…180). */
-const turnBetween = (from: number, to: number) => ((((to - from) % 360) + 540) % 360) - 180;
+export const turnBetween = (from: number, to: number) => ((((to - from) % 360) + 540) % 360) - 180;
 
 /** The pose `t` (0…1) of the way from `a` to `b`, turning the short way round. */
 export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => {
@@ -113,6 +113,24 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 };
 
 /**
+ * Whether two views show the same thing, near enough that nobody could tell:
+ * the view the camera has and a saved viewpoint, say. A view whose field of
+ * view is the world's (null) matches one with that field of view.
+ */
+export const sameView = (a: TViewPose, b: TViewPose, worldFieldOfView: number) => {
+	const span = Math.max(a.span, b.span);
+	return (
+		a.perspective === b.perspective &&
+		Math.hypot(a.target[0] - b.target[0], a.target[1] - b.target[1]) < span * 0.02 &&
+		Math.abs(turnBetween(a.azimuth, b.azimuth)) < 1 &&
+		Math.abs(a.elevation - b.elevation) < 1 &&
+		Math.abs(a.span - b.span) < span * 0.02 &&
+		(!a.perspective ||
+			Math.abs((a.fieldOfView ?? worldFieldOfView) - (b.fieldOfView ?? worldFieldOfView)) < 0.5)
+	);
+};
+
+/**
  * Reads the current view as a pose; set by the camera flight in the viewport,
  * so the UI can save the view it's looking at. Null until the viewport exists.
  */
@@ -126,9 +144,12 @@ export const currentView: { read: (() => TViewPose | null) | null } = { read: nu
 export const projectionSwitch = { pending: false };
 
 /**
- * Set by render/CameraFlight: gives a running glide a new field of view to
- * end at (a slider moved during it). False when no glide is running.
+ * Set by render/CameraFlight, for the glide running now: `retarget` gives it a
+ * new field of view to end at (a slider moved during it; false when no glide
+ * is running), `stop` stops it where it is (the view turned from outside the
+ * canvas, like the navigation gizmo).
  */
-export const flightFieldOfView: { retarget: ((fieldOfView: number) => boolean) | null } = {
-	retarget: null,
-};
+export const runningFlight: {
+	retarget: ((fieldOfView: number) => boolean) | null;
+	stop: (() => void) | null;
+} = { retarget: null, stop: null };

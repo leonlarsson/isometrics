@@ -28,6 +28,12 @@ export const CameraFeelSchema = z.object({
 	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
 	/** A rule-of-thirds grid over the view in Edit mode, for lining up viewpoints. */
 	compositionGrid: z.boolean().catch(false),
+	/** The compass in the view's corner in Edit mode: shows which way it looks, click or drag to turn. */
+	navigationGizmo: z.boolean().catch(true),
+	/** A line in the view's corner in Edit mode saying what the camera shows. */
+	viewLabel: z.boolean().catch(true),
+	/** Saved viewpoints drawn in the world in Edit mode, as small cameras with what they see. */
+	viewpointsInWorld: z.boolean().catch(true),
 });
 
 export type TCameraFeel = z.output<typeof CameraFeelSchema>;

@@ -10,10 +10,10 @@ import type { TViewPose } from "#/scene/schema";
 import {
 	blendPoses,
 	currentView,
-	flightFieldOfView,
 	placeCamera,
 	poseOf,
 	projectionSwitch,
+	runningFlight,
 } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
@@ -70,7 +70,7 @@ export const CameraFlight = () => {
 	}, [request?.nonce]);
 
 	useEffect(() => {
-		flightFieldOfView.retarget = (fieldOfView) => {
+		runningFlight.retarget = (fieldOfView) => {
 			const current = flight.current;
 			if (!current) {
 				return false;
@@ -78,8 +78,12 @@ export const CameraFlight = () => {
 			current.to = { ...current.to, fieldOfView };
 			return true;
 		};
+		runningFlight.stop = () => {
+			flight.current = null;
+		};
 		return () => {
-			flightFieldOfView.retarget = null;
+			runningFlight.retarget = null;
+			runningFlight.stop = null;
 		};
 	}, []);
 

@@ -301,6 +301,8 @@ export interface IEditorState {
 	stopFollowing: () => void;
 	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
 	goToViewpoint: (id: string) => void;
+	/** Glide the camera to a view (the navigation gizmo's turns). */
+	glideTo: (pose: TViewPose) => void;
 	/** Save a view as a new viewpoint at the end of the list. Returns its id. */
 	addViewpoint: (pose: TViewPose) => string;
 	updateViewpoint: (
@@ -932,6 +934,13 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				activeViewpointId: id,
 			}));
 		},
+
+		glideTo: (pose) =>
+			set((s) => ({
+				cameraFollow: null,
+				perspective: pose.perspective,
+				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
+			})),
 
 		addViewpoint: (pose) => {
 			const count = get().scene.viewpoints.length;
