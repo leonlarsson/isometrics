@@ -62,8 +62,15 @@ export interface IRouteSampler {
 	 * first point, whichever way it drives) after travelling `travelled`.
 	 */
 	at: (offset: number, travelled?: number) => IPathSample;
-	/** Distance `d` from where travel begins: the road's first point, or its last when reversed. */
+	/**
+	 * Distance `d` from where travel begins: the road's first point, or its last when reversed. Past
+	 * `length` on an open road it carries on round the cycle: U-turn, back, U-turn.
+	 */
 	travel: (d: number) => IPathSample;
+	/** Distance after which travel repeats: the loop, or there, U-turn, back and U-turn. */
+	period: number;
+	/** Length of each U-turn at an open road's ends (0 on loops). */
+	turn: number;
 	/** Where a vehicle (as for `at`) is in the road's traffic. */
 	place: (offset: number, travelled?: number) => ITrafficPlace;
 }
@@ -122,6 +129,8 @@ export const createRouteSampler = (
 
 	return {
 		length,
+		period,
+		turn,
 		at: (offset, travelled = 0) => sampler.at(start(offset) + travelled),
 		travel: (d) => sampler.at(d),
 		place,
