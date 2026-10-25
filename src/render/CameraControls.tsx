@@ -11,7 +11,7 @@ import { clamp } from "#/lib/math";
 import { orthographicDistance, zoomLimits } from "./cameraMath";
 import { cardEventHandover } from "./labelRegistry";
 import { cameraCommands } from "./liveCamera";
-import { orbitAround, polarLimits, settleTarget } from "./orbit";
+import { FREE_TILT, orbitAround, polarLimits, settleTarget } from "./orbit";
 import { runningFlight } from "./viewpoints";
 import { viewShift } from "./viewShift";
 
@@ -22,9 +22,12 @@ const anchor = new THREE.Vector3();
 const hit = new THREE.Vector3();
 const shift = new THREE.Vector3();
 const pivot = new THREE.Vector3();
+const eye = new THREE.Vector3();
 
 interface IOrbitControls {
 	enabled: boolean;
+	minPolarAngle: number;
+	maxPolarAngle: number;
 	target: THREE.Vector3;
 	update: () => void;
 	addEventListener: (type: "change", listener: () => void) => void;
@@ -171,15 +174,25 @@ const useOrbitAroundCursor = () => {
 			orbiting.x = event.clientX;
 			orbiting.y = event.clientY;
 			// A drag across the canvas height turns the view once (as OrbitControls does) at the usual
-			// orbit speed; dragging down tips it towards straight down.
+			// orbit speed; dragging down tips it towards straight down. Once the keys have moved the
+			// camera during this press, it's mouse look instead, as when flying in Blender or Unreal: the
+			// camera turns in place, around itself, rather than around the point it was pressed on,
+			// which the keys have moved away from.
 			const speed = readCameraFeel().orbitSpeed;
+			const looking = rightButtonPress.movedByKeys;
 			orbitAround(
 				camera.position,
 				controls.target,
-				pivot,
+				looking ? eye.copy(camera.position) : pivot,
 				(-2 * Math.PI * dx * speed) / height,
 				(-2 * Math.PI * dy * speed) / height,
-				polarLimits(useEditor.getState().scene.camera, readCameraFeel().cameraControl === "free"),
+				// Looking around while flying has no limits: you can look anywhere, up at the sky too.
+				looking
+					? FREE_TILT
+					: polarLimits(
+							useEditor.getState().scene.camera,
+							readCameraFeel().cameraControl === "free",
+						),
 			);
 			settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
 			controls.update();
@@ -237,6 +250,35 @@ const useKeepTargetOnGround = () => {
 		controls.addEventListener("change", onChange);
 		return () => controls.removeEventListener("change", onChange);
 	}, [camera, controls, ground.width, ground.depth]);
+};
+
+const offsetFromTarget = new THREE.Vector3();
+
+/**
+ * OrbitControls' tilt limits, every frame: the world's (simple camera control)
+ * or none (free control, and while flying with the right mouse button held).
+ * A view that's past them, left there by flying or by limits that changed,
+ * stays where it is: the limits widen to take it in, so the controls don't
+ * snap it back, and orbiting can only bring it back towards them.
+ */
+const useTiltLimits = () => {
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
+
+	useFrame(() => {
+		if (!controls) {
+			return;
+		}
+		const { scene, holdingRightButton } = useEditor.getState();
+		const limits =
+			holdingRightButton || readCameraFeel().cameraControl === "free"
+				? FREE_TILT
+				: polarLimits(scene.camera, false);
+		offsetFromTarget.subVectors(camera.position, controls.target);
+		const polar = Math.acos(clamp(offsetFromTarget.y / (offsetFromTarget.length() || 1), -1, 1));
+		controls.minPolarAngle = Math.min(limits.min, polar);
+		controls.maxPolarAngle = Math.max(limits.max, polar);
+	});
 };
 
 /** Keep this much room (px) between a revealed selection and the edges of the visible area. */
@@ -564,6 +606,7 @@ const CameraBehaviours = () => {
 	useWheelDirection();
 	useOrbitCommand();
 	useRightButtonHold();
+	useTiltLimits();
 	return null;
 };
 
@@ -579,7 +622,6 @@ export const CameraControls = () => {
 	const height = useThree((s) => s.size.height);
 	const feel = useCameraFeel();
 	const free = feel.cameraControl === "free";
-	const tilt = polarLimits(settings, free);
 	const damping = dampingFactorOf(feel.smoothing);
 	return (
 		<>
@@ -589,8 +631,6 @@ export const CameraControls = () => {
 				dampingFactor={damping ?? undefined}
 				rotateSpeed={feel.orbitSpeed}
 				zoomSpeed={feel.zoomSpeed}
-				minPolarAngle={tilt.min}
-				maxPolarAngle={tilt.max}
 				// Zoom limits: orthographic zoom for the diorama view, distance for perspective.
 				{...zoomLimits(settings, ground, height || 1, free)}
 				zoomToCursor

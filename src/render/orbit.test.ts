@@ -60,6 +60,21 @@ describe("orbitAround", () => {
 		expect(polarLimits(sky, true).max).toBeLessThan(Math.PI);
 	});
 
+	it("lets a view that's past a limit (left there by flying) tilt back, never further out", () => {
+		const position = new THREE.Vector3(80, 4, 80);
+		const target = new THREE.Vector3(0, 0, 0);
+		const polar = () => {
+			const offset = position.clone().sub(target);
+			return Math.acos(offset.y / offset.length());
+		};
+		const start = polar();
+		expect(start).toBeGreaterThan(limits.max);
+		orbitAround(position, target, new THREE.Vector3(), 0, 0.1, limits);
+		expect(polar()).toBeCloseTo(start, 5);
+		orbitAround(position, target, new THREE.Vector3(), 0, -0.1, limits);
+		expect(polar()).toBeCloseTo(start - 0.1, 5);
+	});
+
 	it("reads the limits either way round", () => {
 		expect(polarLimits({ lowestElevation: 80, steepestElevation: 30 }, false)).toEqual(
 			polarLimits({ lowestElevation: 30, steepestElevation: 80 }, false),

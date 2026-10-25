@@ -9,10 +9,12 @@ import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
 import { pixelsPerUnitAt, zoomLimits } from "./cameraMath";
-import { orbitAround, polarLimits } from "./orbit";
+import { FREE_TILT, orbitAround, polarLimits } from "./orbit";
 
 /** At the usual keyboard speed: how much of the view's height a pan crosses per second. */
 const PAN_PER_SECOND = 0.5;
+/** With simple camera control, how high above the ground moving with the keys stops the camera. */
+const GROUND_CLEARANCE = 0.5;
 /** Degrees per second for turning and tilting. */
 const TURN_PER_SECOND = 70;
 const TILT_PER_SECOND = 40;
@@ -80,24 +82,41 @@ export const KeyboardCamera = () => {
 		const { scene } = useEditor.getState();
 		const span = size.height / pixelsPerUnitAt(camera, target, size.height);
 
+		const flying = useEditor.getState().holdingRightButton;
+		const simple = feel.cameraControl === "simple";
+		/**
+		 * Move the camera and what it looks at together. With simple camera control the camera
+		 * stops at the ground instead of going under it: the move is cut short, so nothing drifts.
+		 */
+		const moveBy = (by: THREE.Vector3) => {
+			if (simple && camera.position.y + by.y < GROUND_CLEARANCE) {
+				by.y = Math.min(0, GROUND_CLEARANCE - camera.position.y);
+			}
+			camera.position.add(by);
+			target.add(by);
+		};
+
 		for (const move of runningCameraMoves.keys()) {
 			const pan = PAN[move];
 			if (pan) {
-				// Along the ground: forwards is where the camera looks, flattened.
-				forward.subVectors(target, camera.position).setY(0).normalize();
+				// Forwards is where the camera looks: flattened onto the ground, or, flying with the right
+				// mouse button held, straight along the view, as in Blender's fly mode or Unreal.
+				forward.subVectors(target, camera.position);
+				if (!flying) {
+					forward.setY(0);
+				}
+				forward.normalize();
 				right.crossVectors(forward, UP).normalize();
 				shift
 					.copy(right)
 					.multiplyScalar(pan[0])
 					.addScaledVector(forward, pan[1])
 					.multiplyScalar(span * PAN_PER_SECOND * step);
-				camera.position.add(shift);
-				target.add(shift);
+				moveBy(shift);
 			} else if (move === "moveUp" || move === "moveDown") {
 				// Straight up or down, like flying in a game (Q and E).
 				shift.set(0, (move === "moveUp" ? 1 : -1) * span * PAN_PER_SECOND * step, 0);
-				camera.position.add(shift);
-				target.add(shift);
+				moveBy(shift);
 			} else if (move === "turnLeft" || move === "turnRight") {
 				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * feel.orbitSpeed);
 				pivot.copy(target);
@@ -107,7 +126,7 @@ export const KeyboardCamera = () => {
 					pivot,
 					move === "turnLeft" ? turn : -turn,
 					0,
-					polarLimits(scene.camera, feel.cameraControl === "free"),
+					flying ? FREE_TILT : polarLimits(scene.camera, feel.cameraControl === "free"),
 				);
 			} else if (move === "tiltUp" || move === "tiltDown") {
 				// Up looks down more steeply, like a map; down lowers the camera towards the horizon.
@@ -119,7 +138,7 @@ export const KeyboardCamera = () => {
 					pivot,
 					0,
 					move === "tiltUp" ? -tilt : tilt,
-					polarLimits(scene.camera, feel.cameraControl === "free"),
+					flying ? FREE_TILT : polarLimits(scene.camera, feel.cameraControl === "free"),
 				);
 			} else if (move === "zoomIn" || move === "zoomOut") {
 				const factor = Math.exp(

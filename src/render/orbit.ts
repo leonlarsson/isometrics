@@ -20,6 +20,12 @@ export interface IPolarLimits {
  */
 const STRAIGHT_DOWN_MARGIN = 0.0002;
 
+/** No limits: anywhere from straight down to straight up. */
+export const FREE_TILT: IPolarLimits = {
+	min: STRAIGHT_DOWN_MARGIN,
+	max: Math.PI - STRAIGHT_DOWN_MARGIN,
+};
+
 /**
  * How far the camera may tilt. Simple camera control (editor/cameraFeel): the
  * world's lowest and steepest elevations (degrees above the ground;
@@ -32,7 +38,7 @@ export const polarLimits = (
 	free: boolean,
 ): IPolarLimits => {
 	if (free) {
-		return { min: STRAIGHT_DOWN_MARGIN, max: Math.PI - STRAIGHT_DOWN_MARGIN };
+		return FREE_TILT;
 	}
 	const low = Math.max(0, Math.min(camera.lowestElevation, camera.steepestElevation));
 	const steep = Math.max(camera.lowestElevation, camera.steepestElevation, low);
@@ -71,7 +77,10 @@ export const orbitAround = (
 
 	offset.subVectors(position, target);
 	const polar = Math.acos(clamp(offset.y / offset.length(), -1, 1));
-	const change = clamp(polar + tilt, limits.min, limits.max) - polar;
+	// Already past a limit (after flying, or the limits changed): tilting back towards them is
+	// fine, further out isn't.
+	const change =
+		clamp(polar + tilt, Math.min(limits.min, polar), Math.max(limits.max, polar)) - polar;
 	if (Math.abs(change) > 1e-9) {
 		// Positive angles around up × offset tip the camera down towards the horizon.
 		axis.crossVectors(UP, offset).normalize();
