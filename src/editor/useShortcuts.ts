@@ -1,9 +1,15 @@
-import { useHotkeys } from "@tanstack/react-hotkeys";
+import {
+	type Hotkey,
+	normalizeKeyName,
+	type UseHotkeyDefinition,
+	useHotkeys,
+} from "@tanstack/react-hotkeys";
 
 import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
+import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
 import {
 	FINE_NUDGE_STEP,
@@ -29,7 +35,8 @@ const isTextEntry = (target: EventTarget | null) =>
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
- *   P perspective / diorama view · 1–9 go to viewpoint 1–9
+ *   P perspective / diorama view · 1–9 go to viewpoint 1–9 · Home back to the opening view
+ *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
  *   Ctrl+Space hide or show both side panels (Edit mode, like Blender's maximise)
  *
  * The library skips single keys while typing in text fields and prevents the
@@ -60,6 +67,32 @@ export const useShortcuts = () => {
 		return shape !== null && !shape.hidden && !shape.locked;
 	});
 	const canNudgeAny = canNudge || nudgePoint;
+	// The arrows move the camera when they've nothing to nudge (ADR-0062), except ←/→ in View mode
+	// with viewpoints, which step through them (ui/ViewpointBar).
+	const transforming = useEditor((s) => s.transform !== null);
+	const steppingViewpoints = useEditor(
+		(s) => s.mode === "view" && s.scene.viewpoints.length > 0 && s.cameraFollow === null,
+	);
+	const canPanCamera = !canNudgeAny && !transforming;
+	const cameraMove = (move: TCameraMove) => (event: KeyboardEvent) => {
+		// Panning hands the camera back from following a vehicle, as dragging does; riding along,
+		// any camera key does.
+		const { cameraFollow, stopFollowing } = useEditor.getState();
+		if (cameraFollow && (cameraFollow.ride || move.startsWith("pan"))) {
+			stopFollowing();
+		}
+		startCameraMove(move, normalizeKeyName(event.key));
+	};
+	const cameraKey = (
+		hotkey: Hotkey,
+		move: TCameraMove,
+		name: string,
+		enabled: boolean,
+	): UseHotkeyDefinition => ({
+		hotkey,
+		callback: cameraMove(move),
+		options: { enabled, conflictBehavior: "allow", meta: { name } },
+	});
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
 	// G on a vehicle following a road lifts it off to drop on another road or park it.
 	const canGrab = canTransform || selectedPoint;
@@ -241,6 +274,23 @@ export const useShortcuts = () => {
 			options: { enabled: viewpointCount > index, meta: { name: `Viewpoint ${digit}` } },
 		})),
 		{
+			hotkey: "Home",
+			callback: () => useEditor.getState().resetView(),
+			options: { meta: { name: "Back to the opening view" } },
+		},
+		cameraKey("ArrowLeft", "panLeft", "Pan left", canPanCamera && !steppingViewpoints),
+		cameraKey("ArrowRight", "panRight", "Pan right", canPanCamera && !steppingViewpoints),
+		cameraKey("ArrowUp", "panForward", "Pan forward", canPanCamera),
+		cameraKey("ArrowDown", "panBack", "Pan back", canPanCamera),
+		cameraKey("Shift+ArrowLeft", "turnLeft", "Turn the view left", canPanCamera),
+		cameraKey("Shift+ArrowRight", "turnRight", "Turn the view right", canPanCamera),
+		cameraKey("Shift+ArrowUp", "tiltUp", "Look down more steeply", canPanCamera),
+		cameraKey("Shift+ArrowDown", "tiltDown", "Look across more", canPanCamera),
+		cameraKey("=", "zoomIn", "Zoom in", !transforming),
+		cameraKey("+", "zoomIn", "Zoom in", !transforming),
+		cameraKey("Shift+=", "zoomIn", "Zoom in", !transforming),
+		cameraKey("-", "zoomOut", "Zoom out", !transforming),
+		{
 			hotkey: "P",
 			callback: () => useEditor.getState().togglePerspective(),
 			options: { meta: { name: "Perspective / diorama view" } },
@@ -298,7 +348,8 @@ export const useShortcuts = () => {
 		{
 			hotkey: "ArrowLeft",
 			callback: () => nudge(-1, 0),
-			// Shared with stepping through viewpoints in View mode (ViewpointBar); never both enabled.
+			// The arrows are shared with moving the camera (above) and stepping through viewpoints in View
+			// mode (ViewpointBar); never more than one enabled.
 			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge left" } },
 		},
 		{
@@ -309,32 +360,40 @@ export const useShortcuts = () => {
 		{
 			hotkey: "ArrowUp",
 			callback: () => nudge(0, -1),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge back" } },
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge back" } },
 		},
 		{
 			hotkey: "ArrowDown",
 			callback: () => nudge(0, 1),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge forward" } },
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge forward" } },
 		},
 		{
 			hotkey: "Shift+ArrowLeft",
 			callback: () => nudge(-5, 0),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge left ×5" } },
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge left ×5" } },
 		},
 		{
 			hotkey: "Shift+ArrowRight",
 			callback: () => nudge(5, 0),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge right ×5" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge right ×5" },
+			},
 		},
 		{
 			hotkey: "Shift+ArrowUp",
 			callback: () => nudge(0, -5),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge back ×5" } },
+			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge back ×5" } },
 		},
 		{
 			hotkey: "Shift+ArrowDown",
 			callback: () => nudge(0, 5),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge forward ×5" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge forward ×5" },
+			},
 		},
 		{
 			hotkey: "Alt+ArrowLeft",

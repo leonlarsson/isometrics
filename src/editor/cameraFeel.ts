@@ -24,6 +24,8 @@ export const CameraFeelSchema = z.object({
 	smoothing: z.number().min(0).max(1).catch(0.6),
 	/** Seconds a glide to a viewpoint takes; 0 jumps there. */
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
+	/** Moving the camera with the arrow keys, + and −, × the usual speed. */
+	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
 });
 
 export type TCameraFeel = z.output<typeof CameraFeelSchema>;

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { readCameraFeel } from "#/editor/cameraFeel";
+import { runningCameraMoves } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
@@ -83,6 +84,11 @@ export const CameraFlight = () => {
 		} | null;
 		// Not before the canvas has a size: there's nothing to fit the view to yet.
 		if (!current || !controls || size.height === 0) {
+			return;
+		}
+		// Moving the camera with the keyboard stops a glide where it is, like grabbing the scene.
+		if (runningCameraMoves.size > 0 && current.seconds > 0) {
+			flight.current = null;
 			return;
 		}
 		const worldFieldOfView = useEditor.getState().scene.camera.fieldOfView;
