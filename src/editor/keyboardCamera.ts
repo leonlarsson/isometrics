@@ -1,5 +1,7 @@
 import { keepOnHotReload } from "#/lib/hot";
 
+import { useEditor } from "./store";
+
 /**
  * Moving the camera with the keyboard (ADR-0062): a shortcut (editor/useShortcuts)
  * starts a move, and render/KeyboardCamera carries it on every frame for as long
@@ -55,8 +57,21 @@ export const changeFlyingSpeed = (wheelDeltaY: number) => {
 	flyingSpeed.factor = Math.min(20, Math.max(0.05, flyingSpeed.factor * 1.25 ** notches));
 };
 
+/**
+ * Locks the pointer to the view while flying, as games and Blender's fly mode
+ * do: the cursor hides and can't wander onto the panels. Set by
+ * render/CameraControls; it has to be asked from a key or click (a user
+ * gesture), so a camera key asks it.
+ */
+export const flightPointerLock = keepOnHotReload("flightPointerLock", () => ({
+	request: null as (() => void) | null,
+}));
+
 /** Start a move; it runs until `key` is let go, and for at least a tap's time. */
 export const startCameraMove = (move: TCameraMove, key: string) => {
 	runningCameraMoves.set(move, { key, until: performance.now() + TAP_MS });
 	rightButtonPress.movedByKeys = true;
+	if (useEditor.getState().holdingRightButton) {
+		flightPointerLock.request?.();
+	}
 };

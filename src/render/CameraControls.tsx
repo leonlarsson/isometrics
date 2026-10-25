@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { dampingFactorOf, readCameraFeel, useCameraFeel } from "#/editor/cameraFeel";
-import { changeFlyingSpeed, rightButtonPress } from "#/editor/keyboardCamera";
+import { changeFlyingSpeed, flightPointerLock, rightButtonPress } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
@@ -169,8 +169,10 @@ const useOrbitAroundCursor = () => {
 				return;
 			}
 			const height = element.clientHeight || 1;
-			const dx = event.clientX - orbiting.x;
-			const dy = event.clientY - orbiting.y;
+			// With the pointer locked (flying) the cursor stands still: use how far the mouse moved.
+			const locked = document.pointerLockElement === element;
+			const dx = locked ? event.movementX : event.clientX - orbiting.x;
+			const dy = locked ? event.movementY : event.clientY - orbiting.y;
 			orbiting.x = event.clientX;
 			orbiting.y = event.clientY;
 			// A drag across the canvas height turns the view once (as OrbitControls does) at the usual
@@ -526,14 +528,7 @@ const useWheelDirection = () => {
 		if (!controls) {
 			return;
 		}
-		const onWheel = (event: WheelEvent) => {
-			// Flying (the right button held): scrolling sets how fast, as in Unreal, and doesn't zoom.
-			if (useEditor.getState().holdingRightButton) {
-				event.preventDefault();
-				event.stopImmediatePropagation();
-				changeFlyingSpeed(event.deltaY);
-				return;
-			}
+		const onWheel = () => {
 			const { zoomSpeed, invertZoom } = readCameraFeel();
 			controls.zoomSpeed = invertZoom ? -zoomSpeed : zoomSpeed;
 		};
@@ -541,7 +536,7 @@ const useWheelDirection = () => {
 			controls.zoomSpeed = readCameraFeel().zoomSpeed;
 		};
 		// Capturing on the canvas element itself runs before OrbitControls' own listeners there.
-		element.addEventListener("wheel", onWheel, { capture: true, passive: false });
+		element.addEventListener("wheel", onWheel, { capture: true, passive: true });
 		element.addEventListener("pointerdown", onDown, { capture: true });
 		return () => {
 			element.removeEventListener("wheel", onWheel, { capture: true });
@@ -580,6 +575,9 @@ const useRightButtonHold = () => {
 			}
 			const { holdingRightButton, scene, setHoldingRightButton } = useEditor.getState();
 			setHoldingRightButton(false);
+			if (document.pointerLockElement === element) {
+				document.exitPointerLock();
+			}
 			// After flying, the point the camera looks at slides back along the line of sight onto
 			// the ground (the picture stays the same), so orbiting and zooming work from there.
 			if (holdingRightButton && rightButtonPress.movedByKeys && controls) {
@@ -587,15 +585,33 @@ const useRightButtonHold = () => {
 				controls.update();
 			}
 		};
+		// While the button is held, the wheel sets flying speed (as in Unreal) wherever the cursor
+		// is, instead of zooming or scrolling a panel under it.
+		const onWheel = (event: WheelEvent) => {
+			if (useEditor.getState().holdingRightButton) {
+				event.preventDefault();
+				event.stopPropagation();
+				changeFlyingSpeed(event.deltaY);
+			}
+		};
+		flightPointerLock.request = () => {
+			if (document.pointerLockElement !== element) {
+				// Not every browser allows it (or returns a promise): flying works without it.
+				Promise.resolve(element.requestPointerLock()).catch(() => {});
+			}
+		};
 		element.addEventListener("pointerdown", onDown);
 		window.addEventListener("pointerup", onUp);
 		window.addEventListener("pointercancel", onUp);
 		window.addEventListener("blur", onUp as unknown as () => void);
+		window.addEventListener("wheel", onWheel, { capture: true, passive: false });
 		return () => {
+			flightPointerLock.request = null;
 			element.removeEventListener("pointerdown", onDown);
 			window.removeEventListener("pointerup", onUp);
 			window.removeEventListener("pointercancel", onUp);
 			window.removeEventListener("blur", onUp as unknown as () => void);
+			window.removeEventListener("wheel", onWheel, { capture: true });
 		};
 	}, [element, camera, controls]);
 };
