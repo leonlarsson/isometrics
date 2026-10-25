@@ -1,3 +1,5 @@
+import { keepOnHotReload } from "#/lib/hot";
+
 /**
  * Moving the camera with the keyboard (ADR-0062): a shortcut (editor/useShortcuts)
  * starts a move, and render/KeyboardCamera carries it on every frame for as long
@@ -27,7 +29,10 @@ interface IRunningMove {
 }
 
 /** The moves running now. */
-export const runningCameraMoves = new Map<TCameraMove, IRunningMove>();
+export const runningCameraMoves = keepOnHotReload(
+	"runningCameraMoves",
+	() => new Map<TCameraMove, IRunningMove>(),
+);
 
 /** Start a move; it runs until `key` is let go, and for at least a tap's time. */
 export const startCameraMove = (move: TCameraMove, key: string) => {

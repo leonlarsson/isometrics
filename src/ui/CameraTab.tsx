@@ -151,9 +151,9 @@ const CameraFeelSection = () => {
 
 				<Hint>
 					The gizmo in the top-right corner shows which way the view looks: click a letter to look
-					from that side, the middle to look straight down, or drag it to turn. The label says what
-					the camera shows; viewpoints show as little cameras (click to select one, double-click to
-					go there); the grid splits the view in thirds for lining up viewpoints.
+					that way, the middle to look straight down, or drag it to turn. The label says what the
+					camera shows; viewpoints show as little cameras (click to select one, double-click to go
+					there); the grid splits the view in thirds for lining up viewpoints.
 				</Hint>
 			</FieldGroup>
 		</Section>

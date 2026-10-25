@@ -16,7 +16,7 @@ const RADIUS = 31;
 /** Dragging this many px turns the view once, like dragging across a 300 px tall view. */
 const DRAG_TURN_PX = 300;
 
-/** The compass points: the direction each looks from (azimuth, degrees; −z is north). */
+/** The compass points: where each lies (azimuth, degrees counter-clockwise from +x; −z is north). */
 const POINTS = [
 	{ letter: "N", name: "north", azimuth: 90 },
 	{ letter: "E", name: "east", azimuth: 0 },
@@ -35,7 +35,7 @@ const glide = (change: { azimuth?: number; elevation?: number }) => {
 /**
  * The navigation gizmo (ADR-0062): a compass in the top-right corner of the
  * view in Edit mode that turns with the camera and flattens as it looks lower.
- * Click a point to look from that side, the middle to look straight down (as
+ * Click a point to look that way (it moves to the top), the middle to look straight down (as
  * steep as the world lets it), or drag it to turn and tilt the view. It moves
  * every frame without re-rendering: the points are placed straight from
  * liveCamera.
@@ -125,7 +125,7 @@ export const NavigationGizmo = () => {
 			</Tooltip>
 
 			{POINTS.map((point, index) => (
-				<Tooltip key={point.letter} label={`Look from the ${point.name}`} side="left">
+				<Tooltip key={point.letter} label={`Look ${point.name}`} side="left">
 					<button
 						ref={(element) => {
 							points.current[index] = element;
@@ -133,8 +133,9 @@ export const NavigationGizmo = () => {
 						type="button"
 						className={styles.point}
 						data-north={point.letter === "N" || undefined}
-						aria-label={`Look from the ${point.name}`}
-						onClick={() => glide({ azimuth: point.azimuth })}
+						aria-label={`Look ${point.name}`}
+						// Looking north, the camera stands to the south of what it looks at.
+						onClick={() => glide({ azimuth: (point.azimuth + 180) % 360 })}
 					>
 						{point.letter}
 					</button>

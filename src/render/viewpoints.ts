@@ -1,5 +1,6 @@
 import * as THREE from "three";
 
+import { keepOnHotReload } from "#/lib/hot";
 import { clamp, DEG2RAD, normalizeDegrees, round } from "#/lib/math";
 import type { TViewPose } from "#/scene/schema";
 
@@ -134,14 +135,16 @@ export const sameView = (a: TViewPose, b: TViewPose, worldFieldOfView: number) =
  * Reads the current view as a pose; set by the camera flight in the viewport,
  * so the UI can save the view it's looking at. Null until the viewport exists.
  */
-export const currentView: { read: (() => TViewPose | null) | null } = { read: null };
+export const currentView = keepOnHotReload("currentView", () => ({
+	read: null as (() => TViewPose | null) | null,
+}));
 
 /**
  * Set while the camera switches between orthographic and perspective (render/ProjectionSwitch),
  * until the controls on the new camera have their target back. A jump waits for it, so the
  * switch doesn't put the old target back over it.
  */
-export const projectionSwitch = { pending: false };
+export const projectionSwitch = keepOnHotReload("projectionSwitch", () => ({ pending: false }));
 
 /**
  * Set by render/CameraFlight, for the glide running now: `retarget` gives it a
@@ -149,7 +152,7 @@ export const projectionSwitch = { pending: false };
  * is running), `stop` stops it where it is (the view turned from outside the
  * canvas, like the navigation gizmo).
  */
-export const runningFlight: {
-	retarget: ((fieldOfView: number) => boolean) | null;
-	stop: (() => void) | null;
-} = { retarget: null, stop: null };
+export const runningFlight = keepOnHotReload("runningFlight", () => ({
+	retarget: null as ((fieldOfView: number) => boolean) | null,
+	stop: null as (() => void) | null,
+}));
