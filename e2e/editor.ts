@@ -1,0 +1,272 @@
+import { test as base, expect, type Page } from "@playwright/test";
+
+import type { IEditorState, useEditor } from "#/editor/store";
+import type { TArea, TEntity, TRoad, TViewPose } from "#/scene/schema";
+
+/**
+ * Shared helpers for the end-to-end tests (ADR-0069). Each test gets a fresh
+ * browser context, so the app opens the starter world (Brightwater) in Edit
+ * mode. The editor store is reached through `globalThis.__editorStore`, which
+ * the dev server keeps there (editor/store.ts): set things up through it where
+ * the UI isn't what's tested, and check results in it rather than in pixels.
+ */
+
+declare global {
+	var __editorStore: typeof useEditor;
+	/** Development only (render/PointerSpot): where a world point is on screen. */
+	var __editorView: {
+		screenOf: (point: [number, number, number]) => { x: number; y: number };
+		pose: () => TViewPose | null;
+	};
+}
+
+/** A test that fails when the page throws an uncaught error. */
+export const test = base.extend<{ pageErrors: string[] }>({
+	pageErrors: [
+		async ({ page }, use) => {
+			const errors: string[] = [];
+			page.on("pageerror", (error) => errors.push(error.message));
+			await use(errors);
+			expect(errors, "uncaught errors in the page").toEqual([]);
+		},
+		{ auto: true },
+	],
+});
+
+export { expect };
+
+/** Open the editor and wait until the world is drawn and the store is there. */
+export const openEditor = async (page: Page, path = "/") => {
+	await page.goto(path);
+	await page.locator("canvas").waitFor();
+	await page.waitForFunction(() => Boolean(globalThis.__editorStore));
+	// The label cards are placed once the world has been drawn.
+	await page.waitForTimeout(1500);
+};
+
+/** Read something from the editor's state. */
+export const read = <T>(page: Page, pick: (state: IEditorState) => T) =>
+	page.evaluate(`(${pick.toString()})(globalThis.__editorStore.getState())`) as Promise<T>;
+
+/**
+ * Run code with the editor's state (its actions), with an argument passed in.
+ * The function runs in the page, so it can't use anything from the test's scope.
+ */
+export const act = <A>(page: Page, run: (state: IEditorState, arg: A) => void, arg?: A) =>
+	page.evaluate(
+		`(${run.toString()})(globalThis.__editorStore.getState(), ${JSON.stringify(arg) ?? "undefined"})`,
+	);
+
+/** One object, road or area by id. */
+export const entity = (page: Page, id: string) =>
+	page.evaluate(
+		(id) => globalThis.__editorStore.getState().scene.entities.find((e) => e.id === id),
+		id,
+	);
+
+export interface ITestWorld {
+	entities?: Partial<TEntity>[];
+	roads?: Partial<TRoad>[];
+	areas?: Partial<TArea>[];
+}
+
+/**
+ * Replace the world's objects, roads and areas with these (the ground, sky and
+ * camera stay the starter's), as a freshly opened world. Missing fields get
+ * their defaults through the scene schema.
+ */
+export const loadWorld = async (page: Page, world: ITestWorld) => {
+	await page.evaluate((world) => {
+		const state = globalThis.__editorStore.getState();
+		const scene = structuredClone(state.scene);
+		const template = { ...scene.entities[0] };
+		scene.entities = (world.entities ?? []).map((e) => ({
+			...template,
+			name: "",
+			rotation: 0,
+			scale: 1,
+			elevation: 0,
+			pitch: 0,
+			props: {},
+			colors: {},
+			lights: {},
+			label: null,
+			details: { description: "", dataKeys: [] },
+			follow: null,
+			hidden: false,
+			locked: false,
+			color: null,
+			accent: null,
+			...e,
+		})) as typeof scene.entities;
+		const road = scene.roads[0];
+		scene.roads = (world.roads ?? []).map((r) => ({
+			...road,
+			name: "",
+			closed: false,
+			hidden: false,
+			locked: false,
+			turns: null,
+			...r,
+		})) as typeof scene.roads;
+		const area = scene.areas[0];
+		scene.areas = (world.areas ?? []).map((a) => ({
+			...area,
+			name: "",
+			height: 0,
+			hidden: false,
+			locked: false,
+			...a,
+		})) as typeof scene.areas;
+		state.loadScene(scene);
+	}, world);
+	await page.waitForTimeout(300);
+};
+
+/** The view's middle, on screen. */
+export const viewCentre = async (page: Page) => {
+	const box = await page.locator("canvas").boundingBox();
+	if (!box) {
+		throw new Error("no canvas");
+	}
+	return { x: box.x + box.width / 2, y: box.y + box.height / 2, box };
+};
+
+/**
+ * Where the camera is, once it has settled (moves with the keys ease out, glides take a while):
+ * read from the live camera until two reads agree.
+ */
+export const cameraPose = async (page: Page) => {
+	const readPose = () => page.evaluate(() => globalThis.__editorView.pose());
+	let last = await readPose();
+	for (let i = 0; i < 12; i++) {
+		await page.waitForTimeout(400);
+		const now = await readPose();
+		if (now && JSON.stringify(now) === JSON.stringify(last)) {
+			return now;
+		}
+		last = now;
+	}
+	return last;
+};
+
+/** Click with keys held (`page.mouse.click` ignores `modifiers`). */
+export const clickWith = async (page: Page, keys: string[], x: number, y: number) => {
+	for (const key of keys) {
+		await page.keyboard.down(key);
+	}
+	await page.mouse.click(x, y);
+	for (const key of keys.reverse()) {
+		await page.keyboard.up(key);
+	}
+};
+
+/**
+ * Look at a spot from the default angle, `span` grid units seen top to bottom,
+ * at once (like opening a world). Up close, a unit covers more pixels, so a
+ * gizmo (always the same size on screen) doesn't reach the next object.
+ */
+export const showView = async (page: Page, target: [number, number], span: number) => {
+	await page.evaluate(
+		([target, span]) =>
+			globalThis.__editorStore.getState().showOpeningView({
+				target,
+				targetHeight: 0,
+				azimuth: 315,
+				elevation: 32.47,
+				span,
+				projection: "orthographic",
+				fieldOfView: null,
+			}),
+		[target, span] as const,
+	);
+	await page.waitForTimeout(600);
+};
+
+/** Press keys one after another. */
+export const keys = async (page: Page, ...presses: string[]) => {
+	for (const press of presses) {
+		await page.keyboard.press(press);
+	}
+};
+
+/** The ids of the selected things, the active one last. */
+export const selected = (page: Page) => read(page, (s) => s.selectedItems.map((item) => item.id));
+
+/** The outliner pane, and one of its rows (buttons named after their items). */
+export const outliner = (page: Page) => page.locator("[class*='outliner']").first();
+export const outlinerRow = (page: Page, name: string) =>
+	outliner(page).getByRole("button", { name, exact: true });
+
+/** Pick an item from the File menu. */
+export const fileMenu = async (page: Page, item: RegExp) => {
+	await page.getByRole("button", { name: "File" }).click();
+	await menuItem(page, item).click();
+};
+
+/** Wait until autosave has written the open world (the save status says Saved). */
+export const saved = (page: Page) =>
+	expect(page.getByRole("button", { name: /^Saved: more about saving/ })).toBeVisible();
+
+/** Wait for the editor again after the page reloads. */
+export const reopened = async (page: Page) => {
+	await page.locator("canvas").waitFor();
+	await page.waitForFunction(() => Boolean(globalThis.__editorStore));
+};
+
+/**
+ * Where a point in the world ([x, height, z]) is on screen, from the camera as it is now. Use it to
+ * click an object, a road point or an area corner exactly.
+ */
+export const screenOf = (page: Page, point: [number, number, number]) =>
+	page.evaluate((point) => globalThis.__editorView.screenOf(point), point);
+
+/** Where a ground spot ([x, z]) is on screen, a hair above the ground (handles float there). */
+export const groundSpot = (page: Page, [x, z]: readonly number[], height = 0.1) =>
+	screenOf(page, [x, height, z]);
+
+/** A menu item of any kind (plain, with a check, or a radio choice) by its text. */
+export const menuItem = (page: Page, name: string | RegExp) =>
+	page
+		.locator("[role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']")
+		.filter({ hasText: name })
+		.first();
+
+/** Open a menu by its button's name and pick an item. */
+export const pickFromMenu = async (page: Page, button: string, item: string | RegExp) => {
+	await page.getByRole("button", { name: button, exact: true }).click();
+	await menuItem(page, item).click();
+};
+
+/** Unfold a panel (a Section with an id) if it's folded. */
+export const openPanel = async (page: Page, title: string | RegExp) => {
+	const header = page
+		.getByRole("button", { name: title })
+		.and(page.locator("[aria-expanded]"))
+		.first();
+	if ((await header.getAttribute("aria-expanded")) === "false") {
+		await header.click();
+	}
+};
+
+/** Pick an option in a select field, by the field's label. */
+export const choose = async (page: Page, label: string, option: string | RegExp) => {
+	await page.getByRole("combobox", { name: label, exact: true }).click();
+	await page.getByRole("option", { name: option }).click();
+};
+
+/** Hold a key, or a combination like "Shift+ArrowLeft", for a while (camera moves run while held). */
+export const hold = async (page: Page, combo: string, ms = 500) => {
+	const parts = combo.split("+");
+	for (const key of parts) {
+		await page.keyboard.down(key);
+	}
+	await page.waitForTimeout(ms);
+	for (const key of parts.reverse()) {
+		await page.keyboard.up(key);
+	}
+};
+
+/** A label card over the world (a button in the label layer), by its title. */
+export const labelCard = (page: Page, title: string | RegExp) =>
+	page.locator("[data-label-layer]").getByRole("button", { name: title }).first();

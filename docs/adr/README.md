@@ -72,3 +72,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0066](0066-whole-road-and-area-gizmo.md) | A selected road or area moves, turns and resizes as a whole | accepted |
 | [0067](0067-duplicate-and-move.md) | Duplicating while moving: Ctrl+drag and Shift+D | accepted |
 | [0068](0068-copy-and-paste.md) | Copy and paste: things and a panel's settings, as JSON on the system clipboard | accepted |
+| [0069](0069-end-to-end-tests.md) | End-to-end tests in a real browser, driven through dev-only hooks | accepted |

@@ -13,6 +13,8 @@
 			"**/.vscode/**/*",
 			"**/vite.config.ts",
 			"**/vitest.config.ts",
+			"**/e2e/**/*",
+			"**/playwright.config.ts",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/scene/fixtures/old-worlds"
 		]
@@ -151,6 +153,9 @@
 				"noGlobalIsNan": "error",
 				"noDeprecatedImports": "error"
 			}
+		},
+		"domains": {
+			"playwright": "none"
 		}
 	},
 	"javascript": {
@@ -181,6 +186,14 @@
 					"style": {
 						"noDefaultExport": "off"
 					}
+				}
+			}
+		},
+		{
+			"includes": ["**/e2e/**/*"],
+			"linter": {
+				"domains": {
+					"playwright": "recommended"
 				}
 			}
 		}

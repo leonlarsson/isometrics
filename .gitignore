@@ -11,3 +11,6 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+test-results
+playwright-report
+e2e/debug.spec.ts

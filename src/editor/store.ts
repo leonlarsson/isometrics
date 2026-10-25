@@ -1913,7 +1913,8 @@ export const useEditor = createEditorStore();
 // new store takes over the previous one's state (the open world, its history, the selection, mode
 // and playing), but not its functions, so the world doesn't reset and the new code runs. The
 // previous store is found on globalThis (Vite only hands `hot.data` to the module that accepts the
-// update, which this one isn't). AppShell moves autosave over to the new store.
+// update, which this one isn't). AppShell moves autosave over to the new store. The end-to-end
+// tests (e2e/, ADR-0069) reach the store this way too: keep it on globalThis in development.
 if (import.meta.hot) {
 	const holder = globalThis as { __editorStore?: typeof useEditor };
 	const previous = holder.__editorStore?.getState();

@@ -17,11 +17,12 @@ Guide for AI agents (and humans) working in this repo.
 |---|---|
 | `pnpm dev` | Dev server on http://localhost:3000 (Vite + Cloudflare workerd) |
 | `pnpm test` | Vitest unit tests (`src/**/*.test.ts`) |
+| `pnpm e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`) against the dev server; `pnpm e2e e2e/camera.spec.ts` for one file (see *Verifying visually*) |
 | `pnpm typecheck` | Generate routes + `tsc --noEmit` |
 | `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
 | `pnpm build` / `pnpm run deploy` | Production build / deploy to Cloudflare Workers (`pnpm deploy` without `run` is pnpm's own built-in command) |
 
-Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`. CI (`.github/workflows/ci.yml`) runs the same three on every push to `main` and on pull requests.
+Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`, and for UI changes the end-to-end specs for the area you touched (`pnpm e2e e2e/<area>.spec.ts`), adding or updating tests for what changed. CI (`.github/workflows/ci.yml`) runs all of them on every push to `main` and on pull requests, the end-to-end tests split over three machines.
 
 ## Layout
 
@@ -36,6 +37,7 @@ src/
   routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; examples = the templates as example worlds, ADR-0034; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
+e2e/          end-to-end tests (Playwright), one spec per area, and their shared helpers (editor.ts)
 docs/adr/     Architecture Decision Records
 ```
 
@@ -87,30 +89,24 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 ## Verifying visually
 
-Unit tests don't cover rendering. For UI changes, check the page in a real browser. An agent without one drives Playwright's headless Chromium from a script; what follows is what that takes.
+Unit tests don't cover rendering. UI changes are checked in a real browser: the end-to-end suite in `e2e/` (ADR-0069) runs the editor in Playwright's headless Chromium, one spec file per area (selection, transforms, roads, camera, properties, clipboard, worlds, …), and is also how an agent checks a change by hand.
 
-**The dev server.** The owner usually has `pnpm dev` running on http://localhost:3000 (check with `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`). Use it; never kill or restart it. Start your own only if nothing answers. After many edits to `editor/store.ts` in one sitting, hot reload can leave modules holding the old store (e.g. every camera key dead): a page reload fixes it, and it never happens to users.
+**Running it.** `pnpm e2e` (all, about 6 minutes with 3 browsers) or `pnpm e2e e2e/roads.spec.ts -g "points"` (one file, or tests by name). It uses the dev server on http://localhost:3000 if one answers (the owner's usually does: use it, never kill or restart it), else starts one. It uses the full Chromium build in its new headless mode with SwiftShader for WebGL (`playwright.config.ts`); if Playwright says the browser is missing, `pnpm exec playwright install chromium`. On a bare WSL/Ubuntu machine Chromium may miss `libnspr4`, `libnss3` and `libasound2t64`: without sudo, `apt-get download` them, `dpkg -x` each into a scratch dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`. After many edits to `editor/store.ts`, hot reload can leave modules holding the old store (e.g. every camera key dead): reload the page; it never happens to users.
 
-**Setting up (once per session; temp dirs get cleaned).** Work in your scratchpad, never in the project: Playwright stays out of its dependencies unless an ADR adds e2e tests.
-- `npm init -y && npm i playwright-core` in a scratch folder. The browser is usually cached already: use the full build, `~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome`, with `--headless=new`. The headless shell crashes when a number label is dragged (Pointer Lock).
-- Launch with `--use-angle=swiftshader --enable-unsafe-swiftshader` so WebGL works, and a viewport like 1280×800.
-- On a bare WSL/Ubuntu machine Chromium may miss `libnspr4`, `libnss3` and `libasound2t64`. Without sudo: `apt-get download` them, `dpkg -x` each into a scratch dir, and run with `LD_LIBRARY_PATH` pointing at its `usr/lib/x86_64-linux-gnu`.
-- A small runner (`run.mjs`) that launches the browser, logs `console` errors and `pageerror`s, and imports a test script given as an argument (`export default async ({ page, context, dir }) => …`) keeps each check short. Write screenshots to the scratchpad and look at them; say in your report what you saw.
-
-**Driving the app.** Each browser context starts with empty storage, so the app opens the starter world (Brightwater) in Edit mode.
-- Wait for `canvas`, then about 3 s for the world to settle, before acting.
-- In development the editor store is on `globalThis.__editorStore` (`editor/store.ts`, set for hot reload). `page.evaluate(() => globalThis.__editorStore.getState()…)` is the reliable way to set things up and to check results: `select(id)`, `selectItems([...])`, `selectRoad(id)`, `setTab("look")`, `setMode("view")`, `frameSelection()`, `setPreferencesOpen(true)`, and reading `scene`, `selectedItems`, `past.length` (undo steps). Prefer asserting on store state over comparing pixels.
-- For a clean test world, clone the current scene, empty or replace `entities` / `roads` / `areas`, and `loadScene()` it; that keeps a valid ground, palette and camera. Scale an object up (`scale: 4`) when you need to hit it with the mouse.
-- Where the camera is: `localStorage["isometrics:camera"]` holds each world's last pose (target, azimuth, elevation, span, projection), written shortly after it moves.
-- Label cards are real DOM buttons (`getByRole("button", { name: /Parcels today/ })`); inspector inputs, menu items and tabs have accessible names (`getByLabel("Title")`, `getByRole("menuitem", { name: /Paste/ })`).
+**Writing tests.** Import `test`, `expect` and the helpers from `e2e/editor.ts`, and reuse or add helpers there rather than repeating code in a spec. Each test gets a fresh browser context (empty storage), so the app opens the starter world (Brightwater) in Edit mode, and fails on any uncaught page error.
+- `openEditor(page)`, then set up through the store and check results in it rather than in pixels: `act(page, (s) => s.select("a"))` runs code with the editor's state (its actions; the function runs in the page, so pass values as its second argument), `read(page, (s) => s.selectedItems)` reads it. They reach the store through `globalThis.__editorStore`, which the dev server keeps there.
+- `loadWorld(page, { entities, roads, areas })` replaces the starter's things with a small test world (missing fields get defaults); `showView(page, [x, z], span)` sets an exact camera view. Look from close up (a span of about 30): the transform gizmo is always the same size on screen, and from far away it covers neighbouring objects and catches presses meant for them.
+- `screenOf(page, [x, height, z])` / `groundSpot(page, [x, z])` say where a world point is on screen, from the live camera (`globalThis.__editorView`, development only): click objects, road points and area corners there exactly, never at guessed pixels. `cameraPose(page)` reads the live camera once it has settled (glides and key moves ease out).
+- UI lookups: `outlinerRow`, `labelCard` (cards are buttons in the label layer; outliner rows are buttons too, so don't look cards up page-wide), `menuItem` (any kind of menu item, by text, which includes its description: anchor patterns, e.g. `/^Paste(?! schedule)/`), `pickFromMenu`, `fileMenu`, `choose` (a select field's option), `openPanel` (unfold a panel that starts folded), `keys`, `hold`, `clickWith`, `saved`, `reopened`. Inspector inputs, tabs, switches and search boxes have accessible names (`getByRole("textbox", { name: "Rotation", exact: true })`, `getByRole("tab", { name: "Look" })`).
+- Keep it fast: one test per user-facing flow, not per option; logic belongs in unit tests.
 
 **Input gotchas.**
-- `page.mouse.click()` silently ignores a `modifiers` option (only locator clicks take it). For Shift-, Ctrl- or Alt-clicks and drags, wrap them in `page.keyboard.down("Shift")` … `page.keyboard.up("Shift")`.
-- Hover the canvas before pressing editor keys, and move the mouse with `{ steps: n }` so pointer moves actually fire (a move to where the mouse already is fires nothing).
-- The right button: `page.mouse.down({ button: "right" })` / `up`. Holding it is how W A S D fly in Edit mode.
-- The transform gizmo sits over a selected object's middle and catches presses there; press on a part of the object clear of it (a roof), or scale the object up. To find small handles (road points, area corners), move over a grid of screen points and read `document.body.style.cursor`: `"grab"` over point handles and gizmo handles, `"copy"` over insert handles.
-- The clipboard needs `context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://localhost:3000" })`. Ctrl+C / Ctrl+V go through the browser's copy and paste events, which headless Chromium fires for `keyboard.press("Control+c")`.
-- Toasts (bottom right) can cover a menu that just opened; that's only a screenshot problem.
+- `page.mouse.click()` ignores a `modifiers` option (only locator clicks take it): use `clickWith(page, ["Shift"], x, y)`, or `keyboard.down` / `up` around a drag. `keyboard.down` takes one key, so `hold` splits combinations.
+- Hover the view before editor keys, and move with `{ steps: n }` so pointer moves fire (a move to where the mouse already is fires nothing).
+- Things that wait: a menu's Paste reads the clipboard asynchronously (use `expect.poll`), glides take most of a second, and the camera menu stays open while its choices are flipped. The clipboard needs `context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://localhost:3000" })`.
+- The starter world has viewpoints, data values and objects of its own: count relative to what's there, or `loadWorld` first. The world's title covers the view's top-left corner, so start box drags below it.
+
+**A quick look while working.** For a screenshot or a one-off check, write a temporary `e2e/debug.spec.ts` with the same helpers (`page.screenshot({ path })` into your scratchpad, `console.log` to see values), run it with `pnpm e2e e2e/debug.spec.ts`, look at the picture, and delete the file afterwards.
 
 ## Commits and PRs
 
