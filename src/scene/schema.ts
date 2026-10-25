@@ -490,7 +490,7 @@ export const GroundSchema = z
 	})
 	.describe("The slab everything stands on, centred on the origin.");
 
-const FieldOfViewSchema = z.number().min(10).max(100);
+const FieldOfViewSchema = z.number().min(1).max(170);
 
 // See docs/adr/0039-saved-viewpoints.md.
 export const ViewpointSchema = z

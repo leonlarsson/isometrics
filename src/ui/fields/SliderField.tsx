@@ -1,6 +1,6 @@
 import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import { Slider } from "@base-ui/react/slider";
-import { type ReactNode, useId } from "react";
+import { type CSSProperties, type ReactNode, useId } from "react";
 
 import { ClockInput } from "./ClockInput";
 import { Hint } from "./Hint";
@@ -19,6 +19,12 @@ interface ISliderFieldProps extends INumberRangeProps {
 	suffix?: string;
 	/** The value is a time of day in hours (0–24): the box shows and takes it as "19:30". */
 	clock?: boolean;
+	/**
+	 * The slider's own range, when it's narrower than what the box takes (`min`–`max`): the
+	 * slider covers the usual values, and any other can still be typed or scrubbed.
+	 */
+	sliderMin?: number;
+	sliderMax?: number;
 	inherit?: IInherit;
 	hint?: ReactNode;
 }
@@ -33,6 +39,8 @@ export const SliderField = ({
 	step,
 	suffix,
 	clock,
+	sliderMin = min,
+	sliderMax = max,
 	inherit,
 	hint,
 }: ISliderFieldProps) => {
@@ -57,14 +65,18 @@ export const SliderField = ({
 				action={inherit && <InheritAction inherit={inherit} />}
 			/>
 
-			<div className={styles.sliderRow}>
+			<div
+				className={styles.sliderRow}
+				// Room for the unit, however many characters it has ("°", "mm", "°/s").
+				style={suffix ? ({ "--unit-chars": suffix.length } as CSSProperties) : undefined}
+			>
 				<Slider.Root
 					className={styles.slider}
 					// The thumb stops at the track's ends instead of overhanging them by half its width.
 					thumbAlignment="edge"
-					value={value}
-					min={min}
-					max={max}
+					value={Math.min(Math.max(value, sliderMin), sliderMax)}
+					min={sliderMin}
+					max={sliderMax}
 					step={step}
 					onValueChange={(next) => onChange(Array.isArray(next) ? next[0] : next)}
 				>

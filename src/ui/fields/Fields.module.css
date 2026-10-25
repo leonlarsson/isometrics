@@ -379,7 +379,7 @@ textarea.input {
 
 .sliderRow {
 	display: grid;
-	grid-template-columns: 1fr 68px;
+	grid-template-columns: 1fr calc(61px + var(--unit-chars, 1) * 7px);
 	align-items: center;
 	gap: 10px;
 }
@@ -391,7 +391,7 @@ textarea.input {
 }
 
 .sliderNumber[data-unit] input {
-	padding-right: 22px;
+	padding-right: calc(15px + var(--unit-chars, 1) * 7px);
 }
 
 .unit {
@@ -946,7 +946,7 @@ textarea.input {
 	}
 
 	.sliderRow {
-		grid-template-columns: 1fr 60px;
+		grid-template-columns: 1fr calc(53px + var(--unit-chars, 1) * 7px);
 		gap: 8px;
 		min-height: 30px;
 	}

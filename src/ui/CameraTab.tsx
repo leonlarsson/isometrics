@@ -13,6 +13,7 @@ import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FieldOfViewField } from "./FieldOfViewField";
 import {
 	FieldGroup,
 	Hint,
@@ -77,6 +78,18 @@ const CameraFeelSection = () => {
 				onChange={(v) => setCameraFeel("zoomSpeed", v)}
 				inherit={feelDefault(feel, "zoomSpeed", "1×")}
 				hint="Scrolling, pinching, the middle button, and + and −."
+			/>
+
+			<SelectField<TCameraFeel["lensUnit"]>
+				label="Lens unit"
+				value={feel.lensUnit}
+				options={[
+					{ value: "millimetres", label: "Millimetres (focal length)" },
+					{ value: "degrees", label: "Degrees (field of view)" },
+				]}
+				onChange={(v) => setCameraFeel("lensUnit", v)}
+				inherit={feelDefault(feel, "lensUnit", "millimetres")}
+				hint="How the perspective lens is shown: as a full-frame camera's focal length (33 mm ≈ 40°), or as the angle the view covers from top to bottom."
 			/>
 
 			<SwitchField
@@ -253,16 +266,16 @@ export const CameraTab = () => {
 					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."
 				/>
 
-				<SliderField
-					label="Field of view"
+				<FieldOfViewField
 					value={camera.fieldOfView}
-					min={10}
-					max={100}
-					step={1}
-					suffix="°"
 					onChange={(v) => set("fieldOfView", v)}
-					inherit={byDefault("fieldOfView", `${CAMERA_DEFAULTS.fieldOfView}°`)}
-					hint="For the perspective view (P): small looks flat, like a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own."
+					inherit={{
+						from: "default",
+						inherited: camera.fieldOfView === CAMERA_DEFAULTS.fieldOfView,
+						onReset: () => set("fieldOfView", CAMERA_DEFAULTS.fieldOfView),
+						degrees: CAMERA_DEFAULTS.fieldOfView,
+					}}
+					hint="For the perspective view (P): a long lens looks flat, a wide-angle one exaggerates depth. A viewpoint can have its own. Millimetres or degrees: Lens unit, in Your camera."
 				/>
 
 				<SelectField

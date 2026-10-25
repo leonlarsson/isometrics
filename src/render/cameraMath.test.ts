@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { farthestSpanOf, zoomLimits } from "./cameraMath";
+import { farthestSpanOf, fieldOfViewOf, focalLengthOf, zoomLimits } from "./cameraMath";
 
 const ground = { width: 40, depth: 30 };
 
@@ -24,5 +24,16 @@ describe("zoomLimits", () => {
 	it("never zooms out less far than it zooms in", () => {
 		const limits = zoomLimits({ closestSpan: 50, farthestSpan: 20, fieldOfView: 40 }, ground, 800);
 		expect(limits.minZoom).toBe(limits.maxZoom);
+	});
+});
+
+describe("lens", () => {
+	it("turns a full-frame focal length into a field of view and back", () => {
+		expect(focalLengthOf(40)).toBeCloseTo(32.97, 2);
+		// A 50 mm lens on full frame sees about 27° from top to bottom.
+		expect(fieldOfViewOf(50)).toBeCloseTo(26.99, 2);
+		for (const degrees of [1, 10, 40, 100, 170]) {
+			expect(fieldOfViewOf(focalLengthOf(degrees))).toBeCloseTo(degrees, 6);
+		}
 	});
 });

@@ -4,7 +4,8 @@ import { useEditor } from "#/editor/store";
 import { currentView } from "#/render/viewpoints";
 
 import { Button, IconButton, IconButtonGroup } from "./Button";
-import { Hint, Section, SliderField, TextField } from "./fields";
+import { FieldOfViewField } from "./FieldOfViewField";
+import { Hint, Section, TextField } from "./fields";
 import { List, ListItem } from "./List";
 
 /** A viewpoint's name, or its place in the list when it has none. */
@@ -133,13 +134,8 @@ export const ViewpointsSection = () => {
 			)}
 
 			{active?.perspective && (
-				<SliderField
-					label="Field of view"
+				<FieldOfViewField
 					value={active.fieldOfView ?? worldFieldOfView}
-					min={10}
-					max={100}
-					step={1}
-					suffix="°"
 					onChange={(v) =>
 						store().updateViewpoint(
 							active.id,
@@ -156,9 +152,9 @@ export const ViewpointsSection = () => {
 							store().updateViewpoint(active.id, (viewpoint) => {
 								viewpoint.fieldOfView = null;
 							}),
-						value: `${worldFieldOfView}°`,
+						degrees: worldFieldOfView,
 					}}
-					hint={`“${viewpointName(active, activeIndex)}” only; the world’s field of view is in the Camera tab.`}
+					hint={`“${viewpointName(active, activeIndex)}” only; the world’s is in the Camera tab.`}
 				/>
 			)}
 

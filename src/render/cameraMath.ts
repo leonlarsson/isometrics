@@ -30,6 +30,18 @@ export const pixelsPerUnitAt = (
 	return 20;
 };
 
+/**
+ * A lens's focal length (mm) and the field of view it gives (degrees, top to
+ * bottom), as on a full-frame camera: a 36 × 24 mm sensor, so 24 mm high.
+ */
+const SENSOR_HEIGHT = 24;
+
+export const focalLengthOf = (fieldOfView: number) =>
+	SENSOR_HEIGHT / 2 / Math.tan((fieldOfView * DEG2RAD) / 2);
+
+export const fieldOfViewOf = (focalLength: number) =>
+	(2 * Math.atan(SENSOR_HEIGHT / 2 / focalLength)) / DEG2RAD;
+
 /** The longest straight line across the ground: its diagonal. */
 export const groundSpan = (ground: { width: number; depth: number }) =>
 	Math.hypot(ground.width, ground.depth);

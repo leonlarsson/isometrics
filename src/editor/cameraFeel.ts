@@ -24,6 +24,8 @@ export const CameraFeelSchema = z.object({
 	smoothing: z.number().min(0).max(1).catch(0.6),
 	/** Seconds a glide to a viewpoint takes; 0 jumps there. */
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
+	/** Field of view fields show the lens's focal length (mm, full frame) or its angle (degrees). */
+	lensUnit: z.enum(["millimetres", "degrees"]).catch("millimetres"),
 	/** Panning with the arrow keys (and W A S D in View mode), × the usual speed. */
 	keyboardSpeed: z.number().min(0.2).max(3).catch(1),
 	/** A rule-of-thirds grid over the view in Edit mode, for lining up viewpoints. */
