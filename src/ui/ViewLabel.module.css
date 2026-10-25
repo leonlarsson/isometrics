@@ -8,7 +8,6 @@
 	color: var(--text-muted);
 	text-shadow: 0 0 6px var(--bg);
 	white-space: nowrap;
-	transition: opacity 400ms ease;
 }
 
 .label[data-hidden] {

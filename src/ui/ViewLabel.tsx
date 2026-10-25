@@ -46,8 +46,8 @@ const describeView = () => {
  * A quiet line in the bottom-left corner of the view saying what the camera
  * shows (ADR-0062), like Blender's "User Perspective": "Perspective · 40°
  * · Downtown", and how fast you fly. Always in Edit mode; in View mode, which
- * is for looking, only while you move with the keys or fly, fading out a
- * moment after. It checks a few times a second rather than every frame, and
+ * is for looking, only while you move with the keys or fly, and a moment
+ * after. It checks a few times a second rather than every frame, and
  * only re-renders when the words change.
  */
 /** In View mode, how long the label stays after the keys last moved the camera (ms). */
