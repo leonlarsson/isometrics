@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 
 import { pixelsPerUnitAt } from "./cameraMath";
-import { projectionSwitch } from "./viewpoints";
+import { flightFieldOfView, projectionSwitch } from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
 /** Isometric-ish viewing direction (from target towards camera). */
@@ -185,7 +185,8 @@ export const ProjectionSwitch = () => {
 		pending.current = target;
 		projectionSwitch.pending = true;
 		set({ camera: next as THREE.OrthographicCamera });
-	}, [perspective]);
+		// Also once the controls exist: a world opened in perspective asks before they do.
+	}, [perspective, controls]);
 
 	// The controls are rebuilt for the new camera with a default target: put the view back.
 	useEffect(() => {
@@ -201,44 +202,58 @@ export const ProjectionSwitch = () => {
 };
 
 /**
- * Changing the field of view (the world's, or that of the viewpoint the camera
- * went to last) shows on the perspective camera at once, keeping the target
- * the same size on screen: the camera moves in or out as the lens widens or
- * narrows, so only how strong the perspective looks changes. Going to another
- * viewpoint doesn't count: its glide blends the field of view itself.
+ * Moving a field-of-view slider shows on the perspective camera at once,
+ * whichever view it's looking at: the world's slider (Camera tab), or that of
+ * the viewpoint gone to last (Viewpoints tab). The target stays the same size
+ * on screen: the camera moves in or out as the lens widens or narrows, so only
+ * how strong the perspective looks changes. During a glide the glide takes the
+ * new field of view over. Going to another viewpoint doesn't count: its glide
+ * blends the field of view itself.
  */
 export const FieldOfViewFollow = () => {
-	const camera = useThree((s) => s.camera);
-	const controls = useThree((s) => s.controls) as unknown as {
-		target: THREE.Vector3;
-		update: () => void;
-	} | null;
-	const activeId = useEditor((s) => s.activeViewpointId);
-	const fieldOfView = useEditor((s) => {
-		const viewpoint = s.scene.viewpoints.find((v) => v.id === s.activeViewpointId);
-		return (viewpoint?.perspective && viewpoint.fieldOfView) || s.scene.camera.fieldOfView;
-	});
-	const last = useRef({ activeId, fieldOfView });
+	const get = useThree((s) => s.get);
 
-	useEffect(() => {
-		const before = last.current;
-		last.current = { activeId, fieldOfView };
-		if (
-			before.activeId !== activeId ||
-			before.fieldOfView === fieldOfView ||
-			!(camera instanceof THREE.PerspectiveCamera) ||
-			!controls
-		) {
-			return;
-		}
-		const half = (degrees: number) => Math.tan(THREE.MathUtils.degToRad(degrees) / 2);
-		const scale = half(camera.fov) / half(fieldOfView);
-		offset.subVectors(camera.position, controls.target).multiplyScalar(scale);
-		camera.position.copy(controls.target).add(offset);
-		camera.fov = fieldOfView;
-		camera.updateProjectionMatrix();
-		controls.update();
-	}, [activeId, fieldOfView]);
+	useEffect(
+		() =>
+			useEditor.subscribe((state, previous) => {
+				let next: number | null = null;
+				if (state.scene.camera.fieldOfView !== previous.scene.camera.fieldOfView) {
+					next = state.scene.camera.fieldOfView;
+				}
+				// The viewpoint gone to last got its own field of view (or lost it: the world's again).
+				const id = state.activeViewpointId;
+				const viewpoint = state.scene.viewpoints.find((v) => v.id === id);
+				const before = previous.scene.viewpoints.find((v) => v.id === id);
+				if (
+					viewpoint &&
+					before &&
+					id === previous.activeViewpointId &&
+					viewpoint.fieldOfView !== before.fieldOfView
+				) {
+					next = viewpoint.fieldOfView ?? state.scene.camera.fieldOfView;
+				}
+				if (next === null || flightFieldOfView.retarget?.(next)) {
+					return;
+				}
+				const { camera } = get();
+				const controls = get().controls as unknown as {
+					target: THREE.Vector3;
+					update: () => void;
+				} | null;
+				if (!(camera instanceof THREE.PerspectiveCamera) || !controls) {
+					return;
+				}
+				const half = (degrees: number) => Math.tan(THREE.MathUtils.degToRad(degrees) / 2);
+				offset
+					.subVectors(camera.position, controls.target)
+					.multiplyScalar(half(camera.fov) / half(next));
+				camera.position.copy(controls.target).add(offset);
+				camera.fov = next;
+				camera.updateProjectionMatrix();
+				controls.update();
+			}),
+		[get],
+	);
 
 	return null;
 };

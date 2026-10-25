@@ -120,3 +120,11 @@ export const currentView: { read: (() => TViewPose | null) | null } = { read: nu
  * switch doesn't put the old target back over it.
  */
 export const projectionSwitch = { pending: false };
+
+/**
+ * Set by render/CameraFlight: gives a running glide a new field of view to
+ * end at (a slider moved during it). False when no glide is running.
+ */
+export const flightFieldOfView: { retarget: ((fieldOfView: number) => boolean) | null } = {
+	retarget: null,
+};

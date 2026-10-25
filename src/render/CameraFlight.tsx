@@ -7,7 +7,14 @@ import { runningCameraMoves } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 import type { TViewPose } from "#/scene/schema";
 
-import { blendPoses, currentView, placeCamera, poseOf, projectionSwitch } from "./viewpoints";
+import {
+	blendPoses,
+	currentView,
+	flightFieldOfView,
+	placeCamera,
+	poseOf,
+	projectionSwitch,
+} from "./viewpoints";
 import { resetViewShift } from "./viewShift";
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
@@ -61,6 +68,20 @@ export const CameraFlight = () => {
 			};
 		}
 	}, [request?.nonce]);
+
+	useEffect(() => {
+		flightFieldOfView.retarget = (fieldOfView) => {
+			const current = flight.current;
+			if (!current) {
+				return false;
+			}
+			current.to = { ...current.to, fieldOfView };
+			return true;
+		};
+		return () => {
+			flightFieldOfView.retarget = null;
+		};
+	}, []);
 
 	useEffect(() => {
 		const stop = () => {

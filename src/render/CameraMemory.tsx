@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { cameraMoved, rememberView, saveCameraNow } from "#/editor/cameraMemory";
 import { openWorldId } from "#/editor/persistence";
+import { useEditor } from "#/editor/store";
 
 import { currentView } from "./viewpoints";
 
@@ -36,6 +37,17 @@ export const CameraMemory = () => {
 		controls.addEventListener("change", onChange);
 		return () => controls.removeEventListener("change", onChange);
 	}, [controls]);
+
+	// Switching between the diorama and perspective view moves nothing the controls report.
+	useEffect(
+		() =>
+			useEditor.subscribe((state, previous) => {
+				if (state.perspective !== previous.perspective) {
+					cameraMoved(saveView);
+				}
+			}),
+		[],
+	);
 
 	useEffect(() => {
 		window.addEventListener("pagehide", saveCameraNow);
