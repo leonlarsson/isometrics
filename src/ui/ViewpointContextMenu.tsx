@@ -41,7 +41,7 @@ export const ViewpointContextMenu = () => {
 				x={menu?.x ?? 0}
 				y={menu?.y ?? 0}
 				title={name}
-				subtitle={viewpoint?.perspective ? "Viewpoint · Perspective" : "Viewpoint"}
+				subtitle={viewpoint?.projection === "perspective" ? "Viewpoint · Perspective" : "Viewpoint"}
 			>
 				{viewpoint && (
 					<>

@@ -642,7 +642,7 @@ describe("editor store", () => {
 			azimuth: 315,
 			elevation: 32.5,
 			span: 40,
-			perspective: false,
+			projection: "diorama" as const,
 			fieldOfView: null,
 			targetHeight: 0,
 		};
@@ -667,13 +667,13 @@ describe("editor store", () => {
 			scene.camera.tiltShift = true;
 			scene.camera.tiltShiftBlur = 0.9;
 		});
-		store.getState().togglePerspective();
+		store.getState().toggleProjection();
 		const nonce = store.getState().viewNonce;
 		store.getState().resetCamera();
 		const { camera } = store.getState().scene;
 		expect(camera).toMatchObject({ fieldOfView: 40, steepestElevation: 87, keepOverGround: true });
 		expect(camera).toMatchObject({ turntable: true, tiltShift: true, tiltShiftBlur: 0.9 });
-		expect(store.getState().perspective).toBe(false);
+		expect(store.getState().projection).toBe("diorama");
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 		store.getState().undo();
 		expect(store.getState().scene.camera.fieldOfView).toBe(90);
@@ -686,7 +686,7 @@ describe("editor store", () => {
 			azimuth: 200,
 			elevation: 50,
 			span: 12,
-			perspective: true,
+			projection: "perspective" as const,
 			fieldOfView: null,
 			targetHeight: 0,
 		};
@@ -699,12 +699,12 @@ describe("editor store", () => {
 		store.getState().setOpeningViewpoint(opening);
 		store.getState().showOpeningView(null);
 		expect(store.getState().flight).toMatchObject({ pose: { span: 12 }, instant: true });
-		expect(store.getState().perspective).toBe(true);
+		expect(store.getState().projection).toBe("perspective");
 		expect(store.getState().activeViewpointId).toBe(opening);
 
-		store.getState().showOpeningView({ ...pose, span: 30, perspective: false });
+		store.getState().showOpeningView({ ...pose, span: 30, projection: "diorama" as const });
 		expect(store.getState().flight).toMatchObject({ pose: { span: 30 }, instant: true });
-		expect(store.getState().perspective).toBe(false);
+		expect(store.getState().projection).toBe("diorama");
 		expect(store.getState().activeViewpointId).toBeNull();
 
 		// Re-centring glides back to the opening viewpoint.

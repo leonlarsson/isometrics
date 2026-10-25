@@ -134,7 +134,7 @@ export const CameraRig = () => {
  * target shown at the same scale. See docs/adr/0038-perspective-camera.md.
  */
 export const ProjectionSwitch = () => {
-	const perspective = useEditor((s) => s.perspective);
+	const perspective = useEditor((s) => s.projection === "perspective");
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as {
 		target: THREE.Vector3;

@@ -304,7 +304,7 @@ export const useShortcuts = () => {
 		cameraKey("-", "zoomOut", "Zoom out", !transforming),
 		{
 			hotkey: "P",
-			callback: () => useEditor.getState().togglePerspective(),
+			callback: () => useEditor.getState().toggleProjection(),
 			options: { meta: { name: "Perspective / isometric diorama" } },
 		},
 		{

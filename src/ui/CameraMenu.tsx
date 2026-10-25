@@ -39,20 +39,13 @@ const OVERLAYS: { key: TOverlay; label: string }[] = [
 	{ key: "viewpointsInWorld", label: "Viewpoints in the world" },
 ];
 
-/** Switch to the perspective view, or back to the diorama view. */
-const showPerspective = (on: boolean) => {
-	if (on !== useEditor.getState().perspective) {
-		useEditor.getState().togglePerspective();
-	}
-};
-
 /**
  * The toolbar's camera menu (ADR-0062): diorama or perspective view, a lens a
  * click away, re-centring, the overlays, and the way to the Camera tab and
  * Preferences.
  */
 export const CameraMenu = () => {
-	const perspective = useEditor((s) => s.perspective);
+	const perspective = useEditor((s) => s.projection === "perspective");
 	const fieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
 	const editing = useEditor((s) => s.mode === "edit");
 	const preferences = usePreferences();
@@ -70,7 +63,7 @@ export const CameraMenu = () => {
 					icon="video"
 					label="Isometric diorama"
 					checked={!perspective}
-					onCheckedChange={() => showPerspective(false)}
+					onCheckedChange={() => store().setProjection("diorama")}
 					keepOpen
 					shortcut="P"
 				/>
@@ -79,7 +72,7 @@ export const CameraMenu = () => {
 					icon="perspective"
 					label="Perspective"
 					checked={perspective}
-					onCheckedChange={() => showPerspective(true)}
+					onCheckedChange={() => store().setProjection("perspective")}
 					keepOpen
 					shortcut="P"
 				/>
@@ -102,7 +95,7 @@ export const CameraMenu = () => {
 											? CAMERA_DEFAULTS.fieldOfView
 											: Math.round(fieldOfViewOf(millimetres) * 100) / 100;
 								});
-								showPerspective(true);
+								store().setProjection("perspective");
 							}}
 						/>
 					))}

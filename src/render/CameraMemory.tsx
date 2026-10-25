@@ -42,7 +42,7 @@ export const CameraMemory = () => {
 	useEffect(
 		() =>
 			useEditor.subscribe((state, previous) => {
-				if (state.perspective !== previous.perspective) {
+				if (state.projection !== previous.projection) {
 					cameraMoved(saveView);
 				}
 			}),

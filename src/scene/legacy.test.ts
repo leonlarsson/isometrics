@@ -118,3 +118,22 @@ describe("legacy ids", () => {
 		expect(upgradeLegacyIds(world)).toBe(world);
 	});
 });
+
+describe("legacy viewpoints", () => {
+	it("say how the camera shows them as a projection instead of perspective: true or false", () => {
+		const scene = parseScene({
+			version: 1,
+			viewpoints: [
+				{ id: "a", perspective: true },
+				{ id: "b", perspective: false },
+				{ id: "c", projection: "perspective" },
+			],
+		});
+		expect(scene.viewpoints.map((v) => v.projection)).toEqual([
+			"perspective",
+			"diorama",
+			"perspective",
+		]);
+		expect(scene.viewpoints[0]).not.toHaveProperty("perspective");
+	});
+});

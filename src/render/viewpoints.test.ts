@@ -10,7 +10,7 @@ const pose: TViewPose = {
 	azimuth: 300,
 	elevation: 40,
 	span: 24,
-	perspective: false,
+	projection: "diorama" as const,
 	fieldOfView: null,
 	targetHeight: 0,
 };
@@ -31,7 +31,7 @@ describe("viewpoints", () => {
 		];
 		for (const camera of cameras) {
 			const target = placeCamera(camera, pose, 600, 40);
-			const back = poseOf(camera, target, 600, pose.perspective, 40);
+			const back = poseOf(camera, target, 600, pose.projection, 40);
 			expect(back.target).toEqual(pose.target);
 			expect(back.azimuth).toBeCloseTo(pose.azimuth, 1);
 			expect(back.elevation).toBeCloseTo(pose.elevation, 1);
@@ -54,7 +54,7 @@ describe("viewpoints", () => {
 			camera.updateMatrixWorld();
 			const seen = point.clone().project(camera);
 
-			const saved = poseOf(camera, raised, 600, pose.perspective, 40);
+			const saved = poseOf(camera, raised, 600, pose.projection, 40);
 			placeCamera(camera, saved, 600, 40);
 			const again = point.clone().project(camera);
 			// Within a hundredth of the view (a few px): only the pose's rounding differs.
@@ -73,11 +73,11 @@ describe("viewpoints", () => {
 
 	it("keeps a view that looks up at the sky, with the height of what it looks at", () => {
 		const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000);
-		const up = { ...pose, perspective: true, elevation: -30, targetHeight: 12 };
+		const up = { ...pose, projection: "perspective" as const, elevation: -30, targetHeight: 12 };
 		const target = placeCamera(camera, up, 600, 40);
 		expect(target.y).toBe(12);
 		expect(camera.position.y).toBeLessThan(12);
-		const back = poseOf(camera, target, 600, true, 40);
+		const back = poseOf(camera, target, 600, "perspective", 40);
 		expect(back.elevation).toBeCloseTo(-30, 1);
 		expect(back.targetHeight).toBeCloseTo(12, 1);
 		expect(back.target).toEqual(pose.target);
@@ -87,25 +87,25 @@ describe("viewpoints", () => {
 		expect(sameView(pose, { ...pose, target: [4.1, -3], azimuth: 300.4 }, 40)).toBe(true);
 		expect(sameView(pose, { ...pose, azimuth: 302 }, 40)).toBe(false);
 		expect(sameView(pose, { ...pose, span: 30 }, 40)).toBe(false);
-		expect(sameView(pose, { ...pose, perspective: true }, 40)).toBe(false);
+		expect(sameView(pose, { ...pose, projection: "perspective" as const }, 40)).toBe(false);
 		// Across 0°, and a field of view that's the world's.
 		expect(sameView({ ...pose, azimuth: 359.8 }, { ...pose, azimuth: 0.1 }, 40)).toBe(true);
-		const own = { ...pose, perspective: true, fieldOfView: 40 };
+		const own = { ...pose, projection: "perspective" as const, fieldOfView: 40 };
 		expect(sameView(own, { ...own, fieldOfView: null }, 40)).toBe(true);
 		expect(sameView(own, { ...own, fieldOfView: null }, 60)).toBe(false);
 	});
 
 	it("keeps a view's own field of view, and none while it's the world's", () => {
 		const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000);
-		const own = { ...pose, perspective: true, fieldOfView: 70 };
+		const own = { ...pose, projection: "perspective" as const, fieldOfView: 70 };
 		const target = placeCamera(camera, own, 600, 40);
 		expect(camera.fov).toBe(70);
-		const back = poseOf(camera, target, 600, true, 40);
+		const back = poseOf(camera, target, 600, "perspective", 40);
 		expect(back.fieldOfView).toBe(70);
 		expect(back.span).toBeCloseTo(24, 1);
 		placeCamera(camera, { ...own, fieldOfView: null }, 600, 55);
 		expect(camera.fov).toBe(55);
-		expect(poseOf(camera, target, 600, true, 55).fieldOfView).toBeNull();
+		expect(poseOf(camera, target, 600, "perspective", 55).fieldOfView).toBeNull();
 		// Blending from the world's field of view to a view's own goes evenly.
 		expect(blendPoses({ ...own, fieldOfView: 30 }, own, 0.5).fieldOfView).toBe(50);
 		expect(blendPoses(pose, pose, 0.5).fieldOfView).toBeNull();

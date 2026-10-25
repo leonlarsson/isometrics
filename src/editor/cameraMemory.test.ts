@@ -10,7 +10,7 @@ const pose = {
 	azimuth: 120,
 	elevation: 40,
 	span: 18,
-	perspective: false,
+	projection: "diorama" as const,
 	fieldOfView: null,
 	targetHeight: 0,
 };

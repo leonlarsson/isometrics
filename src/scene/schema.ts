@@ -492,6 +492,13 @@ export const GroundSchema = z
 
 const FieldOfViewSchema = z.number().min(1).max(170);
 
+/**
+ * How the camera shows the world: diorama = the flat isometric diorama view
+ * (orthographic: far things as big as near ones), perspective = through a
+ * lens. More may come, so it's a choice, not a yes/no.
+ */
+export const ProjectionSchema = z.enum(["diorama", "perspective"]);
+
 // See docs/adr/0039-saved-viewpoints.md.
 export const ViewpointSchema = z
 	.object({
@@ -516,7 +523,7 @@ export const ViewpointSchema = z
 			.max(90)
 			.default(32.5)
 			.describe(
-				"Degrees above the ground: 90 looks straight down, 0 looks level across the world, below 0 (perspective only) looks up from the ground. The default view is 32.5.",
+				"Degrees above the ground: 90 looks straight down, 0 looks level across the world, below 0 looks up (free camera control). The default view is 32.5.",
 			),
 		targetHeight: z
 			.number()
@@ -530,14 +537,13 @@ export const ViewpointSchema = z
 			.max(400)
 			.default(40)
 			.describe("How many grid units fit from the top to the bottom of the view."),
-		perspective: z
-			.boolean()
-			.default(false)
-			.describe("A perspective view instead of the flat isometric diorama view."),
+		projection: ProjectionSchema.default("diorama").describe(
+			"How the camera shows this view: diorama = the flat isometric diorama view, perspective = through a lens (fieldOfView).",
+		),
 		fieldOfView: FieldOfViewSchema.nullable()
 			.default(null)
 			.describe(
-				"With perspective: this view's own field of view, in degrees. null = the world's (camera.fieldOfView).",
+				"With projection perspective: this view's own field of view, in degrees. null = the world's (camera.fieldOfView).",
 			),
 	})
 	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
@@ -578,7 +584,7 @@ export const CameraSettingsSchema = z
 			.max(90)
 			.default(15)
 			.describe(
-				"How low the camera can tilt, in degrees above the ground: 0 = level with it; below 0 (perspective only) the camera stands on the ground and looks up, −90 straight up at the sky.",
+				"How low the camera can tilt, in degrees above the ground: 0 = level with it. Simple camera control never goes below 0.",
 			),
 		steepestElevation: z
 			.number()
@@ -861,10 +867,11 @@ export type TLighting = z.output<typeof LightingSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
+export type TProjection = z.output<typeof ProjectionSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<
 	TViewpoint,
-	"target" | "targetHeight" | "azimuth" | "elevation" | "span" | "perspective" | "fieldOfView"
+	"target" | "targetHeight" | "azimuth" | "elevation" | "span" | "projection" | "fieldOfView"
 >;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

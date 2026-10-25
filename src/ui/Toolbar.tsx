@@ -39,8 +39,8 @@ export const Toolbar = () => {
 	const playing = useEditor((s) => s.playing);
 	const togglePlaying = useEditor((s) => s.togglePlaying);
 	const resetView = useEditor((s) => s.resetView);
-	const perspective = useEditor((s) => s.perspective);
-	const togglePerspective = useEditor((s) => s.togglePerspective);
+	const perspective = useEditor((s) => s.projection === "perspective");
+	const toggleProjection = useEditor((s) => s.toggleProjection);
 	const theme = useEditor((s) => s.scene.theme);
 	const commit = useEditor((s) => s.commit);
 
@@ -184,7 +184,7 @@ export const Toolbar = () => {
 								icon="perspective"
 								label="Perspective"
 								checked={perspective}
-								onCheckedChange={togglePerspective}
+								onCheckedChange={toggleProjection}
 							/>
 
 							{mode === "edit" && (

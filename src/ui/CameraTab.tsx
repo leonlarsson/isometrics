@@ -3,7 +3,7 @@ import { useState } from "react";
 import { resetPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
-import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
+import { CameraSettingsSchema, type TCameraSettings, type TProjection } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -43,7 +43,7 @@ export const CameraTab = () => {
 			},
 			{ coalesce: `camera.${key}` },
 		);
-	const perspective = useEditor((s) => s.perspective);
+	const projection = useEditor((s) => s.projection);
 	const previewTiltShift = useEditor((s) => s.previewTiltShift);
 	const [confirmingReset, setConfirmingReset] = useState(false);
 	// The button isn't in a panel, so it hides itself in the settings search unless it matches.
@@ -102,22 +102,18 @@ export const CameraTab = () => {
 				keywords="diorama perspective iso isometric camera type opening view start field of view fov lens wide angle ground"
 			>
 				{/* First: it decides what the field of view below means. */}
-				<SelectField<"diorama" | "perspective">
+				<SelectField<TProjection>
 					label="Camera"
-					value={perspective ? "perspective" : "diorama"}
+					value={projection}
 					options={[
 						{ value: "diorama", label: "Isometric diorama" },
 						{ value: "perspective", label: "Perspective" },
 					]}
-					onChange={(next) => {
-						if ((next === "perspective") !== perspective) {
-							useEditor.getState().togglePerspective();
-						}
-					}}
+					onChange={(next) => useEditor.getState().setProjection(next)}
 					inherit={{
 						from: "default",
-						inherited: !perspective,
-						onReset: () => useEditor.getState().togglePerspective(),
+						inherited: projection === "diorama",
+						onReset: () => useEditor.getState().setProjection("diorama"),
 						value: "isometric diorama",
 					}}
 					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."

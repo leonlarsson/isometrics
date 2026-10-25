@@ -19,7 +19,7 @@ const PoseSchema = ViewpointSchema.pick({
 	azimuth: true,
 	elevation: true,
 	span: true,
-	perspective: true,
+	projection: true,
 	fieldOfView: true,
 });
 

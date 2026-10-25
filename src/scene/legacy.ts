@@ -53,10 +53,29 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * untouched (callers keep it as a backup) and returns it as it is when there is
  * nothing to replace. Anything that doesn't look like a world passes through.
  */
-export const upgradeLegacyIds = (input: unknown): unknown => {
-	if (!isRecord(input)) {
+/**
+ * Viewpoints saved before projections were a choice said `perspective: true`
+ * or `false`; they get `projection` instead.
+ */
+const upgradeViewpoints = (input: Record<string, unknown>): Record<string, unknown> => {
+	const viewpoints = input.viewpoints;
+	if (!Array.isArray(viewpoints)) {
 		return input;
 	}
+	let changed = false;
+	const next = viewpoints.map((viewpoint) => {
+		if (!isRecord(viewpoint) || typeof viewpoint.perspective !== "boolean") {
+			return viewpoint;
+		}
+		changed = true;
+		const { perspective, ...rest } = viewpoint;
+		return { projection: perspective ? "perspective" : "diorama", ...rest };
+	});
+	return changed ? { ...input, viewpoints: next } : input;
+};
+
+/** Old part kinds, road styles and area types: their current ids. */
+const upgradeIds = (input: Record<string, unknown>): Record<string, unknown> => {
 	let upgraded: Record<string, unknown> | null = null;
 	for (const { key, field, ids } of LISTS) {
 		const items = input[key];
@@ -79,3 +98,7 @@ export const upgradeLegacyIds = (input: unknown): unknown => {
 	}
 	return upgraded ?? input;
 };
+
+/** A world as saved by an earlier version, with what changed name brought up to date. */
+export const upgradeLegacyIds = (input: unknown): unknown =>
+	isRecord(input) ? upgradeIds(upgradeViewpoints(input)) : input;

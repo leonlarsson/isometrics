@@ -54,7 +54,7 @@ export const ViewpointsSection = () => {
 							<ListItem
 								key={viewpoint.id}
 								label={name}
-								meta={viewpoint.perspective ? "Perspective" : undefined}
+								meta={viewpoint.projection === "perspective" ? "Perspective" : undefined}
 								current={viewpoint.id === activeId}
 								onClick={() => store().goToViewpoint(viewpoint.id)}
 								reorder={{
@@ -133,7 +133,7 @@ export const ViewpointsSection = () => {
 				/>
 			)}
 
-			{active?.perspective && (
+			{active?.projection === "perspective" && (
 				<FieldOfViewField
 					value={active.fieldOfView ?? worldFieldOfView}
 					onChange={(v) =>

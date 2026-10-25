@@ -45,9 +45,9 @@ export const CameraFlight = () => {
 		currentView.read = () => {
 			const { camera, controls, size } = get();
 			const target = (controls as unknown as { target?: THREE.Vector3 } | null)?.target;
-			const { perspective, scene } = useEditor.getState();
+			const { projection, scene } = useEditor.getState();
 			return target
-				? poseOf(camera, target, size.height, perspective, scene.camera.fieldOfView)
+				? poseOf(camera, target, size.height, projection, scene.camera.fieldOfView)
 				: null;
 		};
 		return () => {
@@ -119,7 +119,7 @@ export const CameraFlight = () => {
 		const worldFieldOfView = useEditor.getState().scene.camera.fieldOfView;
 		// From the field of view the camera has to the one the view asks for, the world's or its own.
 		current.from ??= {
-			...poseOf(camera, controls.target, size.height, current.to.perspective, worldFieldOfView),
+			...poseOf(camera, controls.target, size.height, current.to.projection, worldFieldOfView),
 			fieldOfView: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
 		};
 		current.progress =
@@ -132,7 +132,7 @@ export const CameraFlight = () => {
 		// Done once it's there on the camera it asked for, with that camera's controls settled in.
 		const settled =
 			!projectionSwitch.pending &&
-			camera instanceof THREE.PerspectiveCamera === current.to.perspective &&
+			camera instanceof THREE.PerspectiveCamera === (current.to.projection === "perspective") &&
 			controls.object === camera;
 		if (current.progress >= 1 && settled) {
 			flight.current = null;

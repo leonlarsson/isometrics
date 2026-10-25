@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 import { keepOnHotReload } from "#/lib/hot";
 import { clamp, DEG2RAD, normalizeDegrees, round } from "#/lib/math";
-import type { TViewPose } from "#/scene/schema";
+import type { TProjection, TViewPose } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 
@@ -40,7 +40,7 @@ export const poseOf = (
 	camera: THREE.Camera,
 	target: THREE.Vector3,
 	height: number,
-	perspective: boolean,
+	projection: TProjection,
 	worldFieldOfView: number,
 ): TViewPose => {
 	const direction = camera.position.clone().sub(target).normalize();
@@ -55,7 +55,7 @@ export const poseOf = (
 		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 2),
 		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, -90, 90), 2),
 		span: round(clamp(height / pixelsPerUnitAt(camera, onGround, height), 1, 5000), 2),
-		perspective,
+		projection,
 		fieldOfView:
 			camera instanceof THREE.PerspectiveCamera && Math.abs(camera.fov - worldFieldOfView) >= 0.05
 				? round(camera.fov, 1)
@@ -111,7 +111,7 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 		elevation: mix(a.elevation, b.elevation),
 		// Spans scale, so blend them evenly in proportion rather than in units.
 		span: a.span * (b.span / a.span) ** t,
-		perspective: b.perspective,
+		projection: b.projection,
 		fieldOfView:
 			fieldOfViewA === null || fieldOfViewB === null ? null : mix(fieldOfViewA, fieldOfViewB),
 	};
@@ -125,13 +125,13 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 export const sameView = (a: TViewPose, b: TViewPose, worldFieldOfView: number) => {
 	const span = Math.max(a.span, b.span);
 	return (
-		a.perspective === b.perspective &&
+		a.projection === b.projection &&
 		Math.hypot(a.target[0] - b.target[0], a.target[1] - b.target[1]) < span * 0.02 &&
 		Math.abs(a.targetHeight - b.targetHeight) < span * 0.02 &&
 		Math.abs(turnBetween(a.azimuth, b.azimuth)) < 1 &&
 		Math.abs(a.elevation - b.elevation) < 1 &&
 		Math.abs(a.span - b.span) < span * 0.02 &&
-		(!a.perspective ||
+		(a.projection !== "perspective" ||
 			Math.abs((a.fieldOfView ?? worldFieldOfView) - (b.fieldOfView ?? worldFieldOfView)) < 0.5)
 	);
 };

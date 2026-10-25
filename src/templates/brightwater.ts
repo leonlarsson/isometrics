@@ -713,7 +713,7 @@ export const createBrightwaterScene = (): TScene => {
 				azimuth: 300,
 				elevation: 38,
 				span: 32,
-				perspective: true,
+				projection: "perspective",
 			},
 			{
 				id: "view_stadium",
@@ -732,7 +732,7 @@ export const createBrightwaterScene = (): TScene => {
 				azimuth: 290,
 				elevation: 30,
 				span: 22,
-				perspective: true,
+				projection: "perspective",
 			},
 		],
 		data: [

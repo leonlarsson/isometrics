@@ -30,6 +30,7 @@ import {
 	type TEntityColor,
 	type TEntityInput,
 	type TEntityLight,
+	type TProjection,
 	type TRoad,
 	type TRoadInput,
 	type TRoadPoint,
@@ -205,8 +206,8 @@ export interface IEditorState {
 	dragging: boolean;
 	snapping: boolean;
 	playing: boolean;
-	/** Perspective camera instead of the orthographic diorama view. Runtime UI state. */
-	perspective: boolean;
+	/** How the camera shows the world: the isometric diorama or perspective. Runtime UI state. */
+	projection: TProjection;
 	/** Show the world's tilt-shift in Edit mode too, while setting it up (it's View mode's). */
 	previewTiltShift: boolean;
 	/**
@@ -239,7 +240,7 @@ export interface IEditorState {
 	 * The camera follows a vehicle (render/CameraFollow): keeping its angle, or riding along
 	 * behind it in perspective. Runtime UI state.
 	 */
-	cameraFollow: { entityId: string; ride: boolean; perspectiveBefore: boolean } | null;
+	cameraFollow: { entityId: string; ride: boolean; projectionBefore: TProjection } | null;
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
 	loadScene: (scene: TScene) => void;
@@ -272,7 +273,9 @@ export interface IEditorState {
 	setViewInset: (pixels: number) => void;
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
-	togglePerspective: () => void;
+	setProjection: (projection: TProjection) => void;
+	/** P: between the isometric diorama and perspective. */
+	toggleProjection: () => void;
 	setPreviewTiltShift: (preview: boolean) => void;
 	setPreferencesOpen: (open: boolean) => void;
 	setHoldingRightButton: (holding: boolean) => void;
@@ -597,7 +600,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		dragging: false,
 		snapping: true,
 		playing: true,
-		perspective: false,
+		projection: "diorama",
 		previewTiltShift: false,
 		preferencesOpen: false,
 		holdingRightButton: false,
@@ -781,7 +784,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		setViewInset: (pixels) => set({ viewInset: pixels }),
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
-		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
+		setProjection: (projection) => set({ projection }),
+		toggleProjection: () =>
+			set((s) => ({ projection: s.projection === "perspective" ? "diorama" : "perspective" })),
 		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 		setPreferencesOpen: (open) => set({ preferencesOpen: open }),
 		setHoldingRightButton: (holding) =>
@@ -803,7 +808,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				};
 			});
 			set((s) => ({
-				perspective: false,
+				projection: "diorama",
 				cameraFollow: null,
 				activeViewpointId: null,
 				viewNonce: s.viewNonce + 1,
@@ -828,7 +833,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			}
 			set((s) => ({
 				cameraFollow: null,
-				perspective: pose.perspective,
+				projection: pose.projection,
 				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
 				activeViewpointId: remembered ? null : (opening?.id ?? null),
 			}));
@@ -933,10 +938,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 		followWithCamera: (entityId, ride) =>
 			set((s) => {
-				const perspectiveBefore = s.cameraFollow?.perspectiveBefore ?? s.perspective;
+				const projectionBefore = s.cameraFollow?.projectionBefore ?? s.projection;
 				return {
-					cameraFollow: { entityId, ride, perspectiveBefore },
-					perspective: ride ? true : perspectiveBefore,
+					cameraFollow: { entityId, ride, projectionBefore },
+					projection: ride ? "perspective" : projectionBefore,
 					flight: null,
 				};
 			}),
@@ -946,7 +951,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				s.cameraFollow
 					? {
 							cameraFollow: null,
-							perspective: s.cameraFollow.ride ? s.cameraFollow.perspectiveBefore : s.perspective,
+							projection: s.cameraFollow.ride ? s.cameraFollow.projectionBefore : s.projection,
 						}
 					: s,
 			),
@@ -958,7 +963,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			}
 			set((s) => ({
 				cameraFollow: null,
-				perspective: viewpoint.perspective,
+				projection: viewpoint.projection,
 				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
 				activeViewpointId: id,
 			}));
@@ -969,7 +974,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		glideTo: (pose) =>
 			set((s) => ({
 				cameraFollow: null,
-				perspective: pose.perspective,
+				projection: pose.projection,
 				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
 			})),
 

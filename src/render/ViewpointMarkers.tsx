@@ -50,14 +50,16 @@ const markerShape = (
 	const size = Math.max(0.5, viewpoint.span * 0.03);
 	const length = size * PYRAMID_LENGTH;
 	const fieldOfView = viewpoint.fieldOfView ?? worldFieldOfView;
-	const distance = viewpoint.perspective
-		? viewpoint.span / 2 / Math.tan((fieldOfView * DEG2RAD) / 2)
-		: viewpoint.span * DIORAMA_DEPTH;
+	const distance =
+		viewpoint.projection === "perspective"
+			? viewpoint.span / 2 / Math.tan((fieldOfView * DEG2RAD) / 2)
+			: viewpoint.span * DIORAMA_DEPTH;
 	const camera = target.clone().addScaledVector(back, distance);
 	const end = camera.clone().addScaledVector(forward, length);
-	const halfHeight = viewpoint.perspective
-		? length * Math.tan((fieldOfView * DEG2RAD) / 2)
-		: size * 0.8;
+	const halfHeight =
+		viewpoint.projection === "perspective"
+			? length * Math.tan((fieldOfView * DEG2RAD) / 2)
+			: size * 0.8;
 	const halfWidth = halfHeight * aspect;
 	/** A point `x` across and `y` up from `centre`, in the view's own directions. */
 	const at = (centre: THREE.Vector3, x: number, y: number) =>
@@ -74,7 +76,7 @@ const markerShape = (
 	];
 	const far = rectangle(end);
 	const lines = [[...far, far[0]]];
-	if (viewpoint.perspective) {
+	if (viewpoint.projection === "perspective") {
 		const apex = camera.toArray() as [number, number, number];
 		for (const corner of far) {
 			lines.push([apex, corner]);
