@@ -342,6 +342,18 @@ export const CameraTab = () => {
 					inherit={byDefault("tiltShift", "off")}
 				/>
 
+				<SwitchField
+					label="Show it while editing"
+					checked={previewTiltShift}
+					onChange={(v) => useEditor.getState().setPreviewTiltShift(v)}
+					inherit={{
+						from: "default",
+						inherited: !previewTiltShift,
+						onReset: () => useEditor.getState().setPreviewTiltShift(false),
+						value: "off",
+					}}
+				/>
+
 				<SliderField
 					label="Blur"
 					value={Math.round(camera.tiltShiftBlur * 100)}
@@ -378,18 +390,6 @@ export const CameraTab = () => {
 						`${CAMERA_DEFAULTS.tiltShiftPosition * 100}%, the middle`,
 					)}
 					hint="Where the sharp band is, from the bottom of the view (0%) to the top."
-				/>
-
-				<SwitchField
-					label="Show it while editing"
-					checked={previewTiltShift}
-					onChange={(v) => useEditor.getState().setPreviewTiltShift(v)}
-					inherit={{
-						from: "default",
-						inherited: !previewTiltShift,
-						onReset: () => useEditor.getState().setPreviewTiltShift(false),
-						value: "off",
-					}}
 				/>
 
 				<Hint>
