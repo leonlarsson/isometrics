@@ -6,6 +6,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { SearchField, SettingsSearchContext } from "./fields";
 import { matchesSearch } from "./fields/settingsSearch";
 import { Icon, type TIconName } from "./Icon";
+import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./SettingsDialog.module.css";
 
@@ -62,6 +63,20 @@ export const SettingsDialog = ({
 	// Which reset is being confirmed: a page's id, "all", or none.
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const confirmingPage = pages.find((page) => page.id === confirming);
+	// Phones and small tablets: the pages stack above the settings, and the resets turn quiet.
+	const narrow = useNarrowLayout();
+	const resetAllButton = resetAll && (
+		<Button
+			size="sm"
+			icon="reset"
+			variant={narrow ? "ghost" : "danger"}
+			block={!narrow}
+			disabled={!resetAll.changed}
+			onClick={() => setConfirming("all")}
+		>
+			{resetAll.label}
+		</Button>
+	);
 	const searching = query.trim() !== "";
 	const shown = searching ? pages : pages.filter((page) => page.id === pageId);
 
@@ -101,20 +116,14 @@ export const SettingsDialog = ({
 								))}
 							</ul>
 
-							<div className={styles.navFoot}>
-								{resetAll && (
-									<Button
-										size="sm"
-										icon="reset"
-										disabled={!resetAll.changed}
-										onClick={() => setConfirming("all")}
-									>
-										{resetAll.label}
-									</Button>
-								)}
+							{/* On phones these go to the end of the page instead (below), out of the way. */}
+							{!narrow && (
+								<div className={styles.navFoot}>
+									{note && <p className={styles.note}>{note}</p>}
 
-								{note && <p className={styles.note}>{note}</p>}
-							</div>
+									{resetAllButton}
+								</div>
+							)}
 						</nav>
 
 						<SettingsSearchContext.Provider value={query}>
@@ -122,19 +131,6 @@ export const SettingsDialog = ({
 								{shown.map((page) => (
 									<section key={page.id} className={styles.pageBody}>
 										{searching && <h2 className={styles.pageTitle}>{page.label}</h2>}
-
-										{page.reset && !searching && (
-											<div className={styles.pageActions}>
-												<Button
-													size="sm"
-													icon="reset"
-													disabled={!page.reset.changed}
-													onClick={() => setConfirming(page.id)}
-												>
-													{`Reset ${page.label}`}
-												</Button>
-											</div>
-										)}
 
 										{page.groups.map((group) => (
 											<div key={group.title} className={styles.group}>
@@ -158,8 +154,31 @@ export const SettingsDialog = ({
 												)}
 											</div>
 										))}
+
+										{/* Last on the page: it acts on everything above it. */}
+										{page.reset && !searching && (
+											<div className={styles.pageActions}>
+												<Button
+													size="sm"
+													icon="reset"
+													variant={narrow ? "ghost" : "danger"}
+													disabled={!page.reset.changed}
+													onClick={() => setConfirming(page.id)}
+												>
+													{`Reset ${page.label}`}
+												</Button>
+											</div>
+										)}
 									</section>
 								))}
+
+								{narrow && !searching && (resetAll || note) && (
+									<div className={styles.contentFoot}>
+										{resetAllButton}
+
+										{note && <p className={styles.note}>{note}</p>}
+									</div>
+								)}
 
 								{searching && (
 									<p className={styles.noResults}>No preferences match “{query.trim()}”.</p>

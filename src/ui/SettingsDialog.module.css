@@ -111,11 +111,11 @@
 	outline-offset: -2px;
 }
 
-/* At the bottom of the page list: reset everything, and the note. */
+/* At the bottom of the page list: the note, and resetting everything, full width. */
 .navFoot {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	align-items: stretch;
 	gap: 10px;
 	margin-top: auto;
 }
@@ -126,11 +126,21 @@
 	color: var(--text-muted);
 }
 
-/* A page's own reset, top right of its settings. */
+/* A page's own reset, at the bottom of its settings. */
 .pageActions {
 	display: flex;
-	justify-content: flex-end;
-	margin-top: 10px;
+	margin-top: 20px;
+	padding-top: 14px;
+	border-top: 1px solid var(--border);
+}
+
+/* Phones: resetting everything, and the note, at the very end. */
+.contentFoot {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+	margin-top: 18px;
 }
 
 .content {
@@ -194,8 +204,8 @@
 	display: none;
 }
 
-/* Phones: the pages above the settings. */
-@media (max-width: 640px) {
+/* Phones and small tablets (useNarrowLayout): the pages above the settings. */
+@media (max-width: 900px) {
 	.columns {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto minmax(0, 1fr);
