@@ -14,13 +14,15 @@ interface IFieldProps {
 	action?: ReactNode;
 	/** The value is inherited unless overridden (shows Default / From… or Reset). */
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 	hint?: ReactNode;
 	/** The label above the control even in a wide panel, for controls that need the width. */
 	stacked?: boolean;
 }
 
 /** The field anatomy for custom controls: label row, the control (given the label's id), hint. */
-export const Field = ({ label, children, action, inherit, hint, stacked }: IFieldProps) => {
+export const Field = ({ label, children, action, inherit, mixed, hint, stacked }: IFieldProps) => {
 	const id = useId();
 	return (
 		<div
@@ -32,6 +34,7 @@ export const Field = ({ label, children, action, inherit, hint, stacked }: IFiel
 				label={label}
 				htmlFor={id}
 				action={inherit ? <InheritAction inherit={inherit} /> : action}
+				mixed={mixed}
 			/>
 
 			{children(id)}

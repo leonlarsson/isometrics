@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Hint } from "./Hint";
 import { type IInherit, InheritAction } from "./InheritAction";
+import { MixedTag } from "./MixedTag";
 import { useSearchMatch } from "./settingsSearch";
 
 import styles from "./Fields.module.css";
@@ -13,13 +14,22 @@ interface ISwitchFieldProps {
 	onChange: (checked: boolean) => void;
 	/** Default / Reset at the row's end (ADR-0027). */
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 	hint?: ReactNode;
 }
 
 /** An on/off switch with its label on the right. Fits in a section's header too. */
-export const SwitchField = ({ label, checked, onChange, inherit, hint }: ISwitchFieldProps) => {
+export const SwitchField = ({
+	label,
+	checked,
+	onChange,
+	inherit,
+	mixed,
+	hint,
+}: ISwitchFieldProps) => {
 	const match = useSearchMatch(label);
-	const wrapped = Boolean(inherit || hint);
+	const wrapped = Boolean(inherit || mixed || hint);
 	const field = (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the switch inside is the labelled control
 		<label className={styles.switchField} data-search-match={wrapped ? undefined : match}>
@@ -34,15 +44,18 @@ export const SwitchField = ({ label, checked, onChange, inherit, hint }: ISwitch
 		return field;
 	}
 	// Default / Reset next to the label, not inside it, so pressing Reset doesn't flip the switch.
-	const row = inherit ? (
-		<div className={styles.switchRow}>
-			{field}
+	const row =
+		inherit || mixed ? (
+			<div className={styles.switchRow}>
+				{field}
 
-			<InheritAction inherit={inherit} />
-		</div>
-	) : (
-		field
-	);
+				{mixed && <MixedTag />}
+
+				{inherit && <InheritAction inherit={inherit} />}
+			</div>
+		) : (
+			field
+		);
 	if (!hint) {
 		return <div data-search-match={match}>{row}</div>;
 	}

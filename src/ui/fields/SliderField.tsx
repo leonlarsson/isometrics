@@ -26,6 +26,8 @@ interface ISliderFieldProps extends INumberRangeProps {
 	sliderMin?: number;
 	sliderMax?: number;
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 	hint?: ReactNode;
 }
 
@@ -42,6 +44,7 @@ export const SliderField = ({
 	sliderMin = min,
 	sliderMax = max,
 	inherit,
+	mixed,
 	hint,
 }: ISliderFieldProps) => {
 	const id = useId();
@@ -63,6 +66,7 @@ export const SliderField = ({
 				htmlFor={id}
 				scrub
 				action={inherit && <InheritAction inherit={inherit} />}
+				mixed={mixed}
 			/>
 
 			<div

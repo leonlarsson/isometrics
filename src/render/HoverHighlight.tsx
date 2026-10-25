@@ -54,31 +54,34 @@ const areaOutline = (area: TArea, baseY: number): TPoint[][] => {
 
 /**
  * Outlines the road or area hovered in a list (the outliner or the Scene
- * tab), so you can see which one a row is. Objects show their own hover frame
+ * tab), so you can see which one a row is, and the roads and areas inside a
+ * selection box being drawn (ADR-0064). Objects show their own frames
  * (EntityNode).
  */
 export const HoverHighlight = () => {
 	const hovered = useEditor((s) => s.hovered);
-	const road = useEditor((s) =>
-		hovered?.kind === "road" ? (s.scene.roads.find((r) => r.id === hovered.id) ?? null) : null,
-	);
-	const roadLayer = useEditor((s) => s.scene.roads.findIndex((r) => r.id === hovered?.id));
-	const area = useEditor((s) =>
-		hovered?.kind === "area" ? (s.scene.areas.find((a) => a.id === hovered.id) ?? null) : null,
-	);
-	const areaLayer = useEditor((s) => s.scene.areas.findIndex((a) => a.id === hovered?.id));
+	const boxed = useEditor((s) => s.boxDrag?.items);
+	const roads = useEditor((s) => s.scene.roads);
+	const areas = useEditor((s) => s.scene.areas);
 	const mode = useEditor((s) => s.mode);
 	const palette = usePalette();
 
 	const lines = useMemo(() => {
-		if (road && !road.hidden) {
-			return roadOutline(road, roadBaseY(Math.max(0, roadLayer)));
-		}
-		if (area && !area.hidden) {
-			return areaOutline(area, areaBaseY(Math.max(0, areaLayer)));
-		}
-		return [];
-	}, [road, roadLayer, area, areaLayer]);
+		const items = [...(hovered ? [hovered] : []), ...(boxed ?? [])];
+		return items.flatMap((item) => {
+			if (item.kind === "road") {
+				const layer = roads.findIndex((r) => r.id === item.id);
+				const road = roads[layer];
+				return road && !road.hidden ? roadOutline(road, roadBaseY(layer)) : [];
+			}
+			if (item.kind === "area") {
+				const layer = areas.findIndex((a) => a.id === item.id);
+				const area = areas[layer];
+				return area && !area.hidden ? areaOutline(area, areaBaseY(layer)) : [];
+			}
+			return [];
+		});
+	}, [hovered, boxed, roads, areas]);
 
 	if (mode !== "edit" || lines.length === 0) {
 		return null;
@@ -87,7 +90,7 @@ export const HoverHighlight = () => {
 		<group renderOrder={2}>
 			{lines.map((points, index) => (
 				<Line
-					// biome-ignore lint/suspicious/noArrayIndexKey: one or two fixed outlines per item
+					// biome-ignore lint/suspicious/noArrayIndexKey: outlines in a fixed order while it lasts
 					key={index}
 					points={points}
 					color={palette.selection}

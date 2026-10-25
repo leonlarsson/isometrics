@@ -70,3 +70,21 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 		size: [reach, entity.elevation + height, reach],
 	};
 };
+
+/** The box around several items (a multi-selection), or null when none has one. */
+export const boundsOfAll = (scene: TScene, items: readonly ISceneItem[]): IFrameBox | null => {
+	const boxes = items.flatMap((item) => boundsOf(scene, item) ?? []);
+	if (boxes.length === 0) {
+		return null;
+	}
+	const low = [0, 1, 2].map((axis) =>
+		Math.min(...boxes.map((box) => box.center[axis] - box.size[axis] / 2)),
+	);
+	const high = [0, 1, 2].map((axis) =>
+		Math.max(...boxes.map((box) => box.center[axis] + box.size[axis] / 2)),
+	);
+	return {
+		center: [(low[0] + high[0]) / 2, (low[1] + high[1]) / 2, (low[2] + high[2]) / 2],
+		size: [high[0] - low[0], high[1] - low[1], high[2] - low[2]],
+	};
+};

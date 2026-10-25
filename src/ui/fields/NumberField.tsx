@@ -13,6 +13,8 @@ interface INumberFieldProps extends INumberRangeProps {
 	label: string;
 	suffix?: string;
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 	hint?: ReactNode;
 }
 
@@ -26,6 +28,7 @@ export const NumberField = ({
 	step = 0.1,
 	suffix,
 	inherit,
+	mixed,
 	hint,
 }: INumberFieldProps) => {
 	const id = useId();
@@ -47,6 +50,7 @@ export const NumberField = ({
 				htmlFor={id}
 				scrub
 				action={inherit && <InheritAction inherit={inherit} />}
+				mixed={mixed}
 			/>
 
 			<div className={styles.numberRow}>

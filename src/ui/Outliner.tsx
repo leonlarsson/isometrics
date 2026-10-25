@@ -144,9 +144,12 @@ export const Outliner = () => {
 					? `area:${s.selectedAreaId}`
 					: null,
 	);
+	// Every selected row, the active one included (ADR-0064), as one string so it only changes with them.
+	const selectedKeys = useEditor((s) => s.selectedItems.map(keyOf).join(" "));
 	const palette = useThemePalette();
 	const [query, setQuery] = useState("");
 	const [onlyData, setOnlyData] = useState(false);
+	const [onlySelected, setOnlySelected] = useState(false);
 	const [renaming, setRenaming] = useState<string | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	// Folded groups are remembered per browser, with the properties' panels.
@@ -154,8 +157,29 @@ export const Outliner = () => {
 	const narrow = useNarrowLayout();
 
 	const store = () => useEditor.getState();
-	const select = (item: ISceneItem) => {
+	/**
+	 * Select a row's item: Ctrl/Cmd-click adds it or takes it out, Shift-click selects the rows
+	 * from the active one to it, as listed (ADR-0064).
+	 */
+	const select = (
+		item: ISceneItem,
+		{ shiftKey, ctrlKey, metaKey }: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+	) => {
 		const state = store();
+		if (ctrlKey || metaKey) {
+			state.toggleSelected(item);
+			return;
+		}
+		const listed = groups.flatMap((group) =>
+			shown.filter((row) => row.group === group).map((row) => row.item),
+		);
+		const from = listed.findIndex((row) => keyOf(row) === selectedKey);
+		const to = listed.findIndex((row) => keyOf(row) === keyOf(item));
+		if (shiftKey && from >= 0 && to >= 0) {
+			const range = from < to ? listed.slice(from, to + 1) : listed.slice(to, from + 1).reverse();
+			state.selectItems(range);
+			return;
+		}
 		if (item.kind === "entity") {
 			state.select(item.id);
 		} else if (item.kind === "road") {
@@ -168,6 +192,11 @@ export const Outliner = () => {
 	// A row under the pointer when the outliner goes away mustn't stay highlighted.
 	useEffect(() => () => store().setHovered(null), []);
 
+	// A filter switched on or off shows a different list: from its top, not where the old one was.
+	useEffect(() => {
+		listRef.current?.scrollTo({ top: 0 });
+	}, [onlySelected, onlyData]);
+
 	// Keep the selected row in view when something is selected in the scene.
 	useEffect(() => {
 		listRef.current?.querySelector("[aria-current]")?.scrollIntoView({ block: "nearest" });
@@ -179,8 +208,12 @@ export const Outliner = () => {
 	});
 
 	const rows = rowsOf(scene, palette);
+	const selectedRows = selectedKeys.split(" ");
 	const shown = rows.filter(
-		(row) => (!query.trim() || matches(row, query)) && (!onlyData || row.value !== null),
+		(row) =>
+			(!query.trim() || matches(row, query)) &&
+			(!onlyData || row.value !== null) &&
+			(!onlySelected || selectedRows.includes(keyOf(row.item))),
 	);
 	const groups = GROUP_ORDER.filter((group) => shown.some((row) => row.group === group));
 
@@ -190,12 +223,21 @@ export const Outliner = () => {
 				icon="list"
 				title="Outliner"
 				actions={
-					<IconButton
-						icon="chart"
-						label={onlyData ? "Showing only things that show data" : "Only things that show data"}
-						pressed={onlyData}
-						onClick={() => setOnlyData(!onlyData)}
-					/>
+					<IconButtonGroup>
+						<IconButton
+							icon="layers"
+							label={onlySelected ? "Showing only the selection" : "Only the selection"}
+							pressed={onlySelected}
+							onClick={() => setOnlySelected(!onlySelected)}
+						/>
+
+						<IconButton
+							icon="chart"
+							label={onlyData ? "Showing only things that show data" : "Only things that show data"}
+							pressed={onlyData}
+							onClick={() => setOnlyData(!onlyData)}
+						/>
+					</IconButtonGroup>
 				}
 				// Phones have the sheet, which hides on its own.
 				fold={
@@ -218,7 +260,11 @@ export const Outliner = () => {
 					<Hint>Nothing in this world yet. Add something from Add to scene.</Hint>
 				)}
 
-				{rows.length > 0 && groups.length === 0 && <Hint>Nothing matches.</Hint>}
+				{rows.length > 0 && groups.length === 0 && (
+					<Hint>
+						{onlySelected && selectedKeys === "" ? "Nothing is selected." : "Nothing matches."}
+					</Hint>
+				)}
 
 				{groups.map((group) => (
 					<CollapsibleSection
@@ -242,9 +288,9 @@ export const Outliner = () => {
 											label={label}
 											meta={row.value ?? undefined}
 											swatch={row.swatch}
-											current={key === selectedKey}
+											current={selectedRows.includes(key)}
 											muted={row.hidden}
-											onClick={() => select(row.item)}
+											onClick={(keys) => select(row.item, keys)}
 											onHover={(hovering) => store().setHovered(hovering ? row.item : null)}
 											onContextMenu={(at) => store().openContextMenu(row.item, at)}
 											rename={{
@@ -282,6 +328,11 @@ export const Outliner = () => {
 					<>
 						<Hint>
 							Double-click a name or press <Kbd>F2</Kbd> to rename. Right-click for more.
+						</Hint>
+
+						<Hint>
+							<Kbd>Ctrl</Kbd>-click adds to the selection or takes out, <Kbd>Shift</Kbd>-click
+							selects the rows in between.
 						</Hint>
 
 						<Hint>

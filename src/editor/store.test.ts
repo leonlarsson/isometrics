@@ -742,3 +742,155 @@ describe("unknownPartKinds", () => {
 		]);
 	});
 });
+
+describe("selecting several things (ADR-0064)", () => {
+	const groupStore = () =>
+		createEditorStore(
+			SceneSchema.parse({
+				version: 1,
+				entities: [
+					{ id: "a", kind: "house_01", position: [0, 0] },
+					{ id: "b", kind: "house_01", position: [4, 0] },
+					{ id: "car", kind: "car_01", follow: { roadId: "r" } },
+				],
+				roads: [
+					{
+						id: "r",
+						points: [
+							[0, 5],
+							[10, 5],
+						],
+					},
+				],
+				areas: [
+					{
+						id: "lake",
+						type: "water_01",
+						points: [
+							[0, 0],
+							[2, 0],
+							[2, 2],
+						],
+					},
+				],
+			}),
+		);
+
+	it("selecting one thing selects only it, and the list follows", () => {
+		const store = groupStore();
+		store.getState().select("a");
+		expect(store.getState().selectedItems).toEqual([{ kind: "entity", id: "a" }]);
+		store.getState().selectRoad("r");
+		expect(store.getState().selectedItems).toEqual([{ kind: "road", id: "r" }]);
+		store.getState().clearSelection();
+		expect(store.getState().selectedItems).toEqual([]);
+	});
+
+	it("toggling adds things (the last is active) and takes them out", () => {
+		const store = groupStore();
+		store.getState().select("a");
+		store.getState().toggleSelected({ kind: "road", id: "r" });
+		expect(store.getState().selectedItems).toHaveLength(2);
+		expect(store.getState().selectedRoadId).toBe("r");
+		expect(store.getState().selectedId).toBeNull();
+
+		store.getState().toggleSelected({ kind: "road", id: "r" });
+		expect(store.getState().selectedItems).toEqual([{ kind: "entity", id: "a" }]);
+		expect(store.getState().selectedId).toBe("a");
+
+		store.getState().toggleSelected({ kind: "entity", id: "a" });
+		expect(store.getState().selectedItems).toEqual([]);
+		expect(store.getState().selectedId).toBeNull();
+	});
+
+	it("a click on one of several selects only it", () => {
+		const store = groupStore();
+		store.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "entity", id: "b" },
+		]);
+		store.getState().select("a");
+		expect(store.getState().selectedItems).toEqual([{ kind: "entity", id: "a" }]);
+	});
+
+	it("deletes everything selected in one undo step, parking vehicles on a deleted road", () => {
+		const store = groupStore();
+		store.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "road", id: "r" },
+			{ kind: "area", id: "lake" },
+		]);
+		store.getState().removeSelected();
+		const { scene } = store.getState();
+		expect(scene.entities.map((e) => e.id)).toEqual(["b", "car"]);
+		expect(scene.roads).toHaveLength(0);
+		expect(scene.areas).toHaveLength(0);
+		expect(scene.entities.find((e) => e.id === "car")?.follow).toBeNull();
+		expect(store.getState().selectedItems).toEqual([]);
+
+		store.getState().undo();
+		expect(store.getState().scene.entities).toHaveLength(3);
+		expect(store.getState().scene.roads).toHaveLength(1);
+	});
+
+	it("keeps the selected things that still exist after undo", () => {
+		const store = groupStore();
+		const id = store.getState().addEntity({ kind: "house_01", position: [8, 8] });
+		store.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "entity", id },
+		]);
+		store.getState().undo();
+		expect(store.getState().selectedItems).toEqual([{ kind: "entity", id: "a" }]);
+		expect(store.getState().selectedId).toBe("a");
+	});
+
+	it("duplicates a group, and copied vehicles drive the copied road", () => {
+		const store = groupStore();
+		store.getState().selectItems([
+			{ kind: "road", id: "r" },
+			{ kind: "entity", id: "car" },
+			{ kind: "entity", id: "a" },
+		]);
+		store.getState().duplicateSelected();
+		const { scene, selectedItems } = store.getState();
+		expect(scene.entities).toHaveLength(5);
+		expect(scene.roads).toHaveLength(2);
+		const road = scene.roads[1];
+		expect(road.points[0].slice(0, 2)).toEqual([1, 6]);
+		const car = scene.entities.find((e) => e.kind === "car_01" && e.id !== "car");
+		expect(car?.follow?.roadId).toBe(road.id);
+		expect(car?.follow?.offset).toBe(0);
+		expect(selectedItems).toHaveLength(3);
+		expect(selectedItems.some((item) => item.id === "a")).toBe(false);
+		expect(store.getState().past).toHaveLength(1);
+	});
+
+	it("hides and locks everything selected in one step", () => {
+		const store = groupStore();
+		store.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "area", id: "lake" },
+		]);
+		store.getState().toggleSelectedHidden();
+		expect(store.getState().scene.entities[0].hidden).toBe(true);
+		expect(store.getState().scene.areas[0].hidden).toBe(true);
+		expect(store.getState().scene.entities[1].hidden).toBe(false);
+		store.getState().setSelectedFlag("locked", true);
+		expect(store.getState().scene.areas[0].locked).toBe(true);
+		expect(store.getState().past).toHaveLength(2);
+	});
+
+	it("right-clicking one of several keeps the selection", () => {
+		const store = groupStore();
+		const group = [
+			{ kind: "entity", id: "a" },
+			{ kind: "entity", id: "b" },
+		] as const;
+		store.getState().selectItems([...group]);
+		store.getState().openContextMenu({ kind: "entity", id: "a" }, { x: 0, y: 0 });
+		expect(store.getState().selectedItems).toHaveLength(2);
+		store.getState().openContextMenu({ kind: "road", id: "r" }, { x: 0, y: 0 });
+		expect(store.getState().selectedItems).toEqual([{ kind: "road", id: "r" }]);
+	});
+});

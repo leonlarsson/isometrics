@@ -1,5 +1,12 @@
 import * as THREE from "three";
 
+import {
+	type IGroupStart,
+	MAX_POINT_HEIGHT,
+	MAX_SIZE,
+	MIN_SIZE,
+	transformGroup,
+} from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap } from "#/lib/math";
 import type { TRoadPoint, TVec2 } from "#/scene/schema";
@@ -11,10 +18,7 @@ import type { IGizmoDrag } from "./TransformGizmo";
 const TURN_STEP = 15;
 const LIFT_STEP = 0.25;
 const SIZE_STEP = 0.05;
-const MIN_SIZE = 0.1;
-const MAX_SIZE = 10;
 const POINT_HEIGHT_STEP = 0.25;
-const MAX_POINT_HEIGHT = 50;
 
 /** An object's transform when a drag started. */
 export interface IEntityStart {
@@ -134,5 +138,35 @@ export const applyRoadPointDrag = (
 			step(from[1] + drag.offset[1], SNAP_STEP),
 		]);
 		store.moveRoadPoint(roadId, index, position, options);
+	}
+};
+
+/**
+ * Apply one step of a gizmo or keyboard transform to several selected things
+ * (ADR-0064), measured from `from`: moving snaps the distance moved to the
+ * grid, turning to 15° steps, resizing to 0.05, unless the drag is free.
+ */
+export const applyGroupDrag = (from: IGroupStart, drag: IGizmoDrag) => {
+	const step = stepper(drag);
+	const options = { coalesce: drag.token, gesture: true };
+	switch (drag.handle) {
+		case "x":
+		case "z":
+		case "xz":
+			transformGroup(
+				from,
+				{ offset: [step(drag.offset[0], SNAP_STEP), step(drag.offset[1], SNAP_STEP)] },
+				options,
+			);
+			return;
+		case "y":
+			transformGroup(from, { lift: step(drag.lift, LIFT_STEP) }, options);
+			return;
+		case "rotate":
+			transformGroup(from, { turn: step(drag.turn, TURN_STEP) }, options);
+			return;
+		case "scale":
+			transformGroup(from, { ratio: step(drag.ratio, SIZE_STEP) }, options);
+			return;
 	}
 };

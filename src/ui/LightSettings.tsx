@@ -50,7 +50,19 @@ interface ILightSettingsProps {
 	 * being dragged or typed, so it's one undo step.
 	 */
 	onChange: (change: TEntityLightChange, coalesce?: string) => void;
+	/**
+	 * Several objects are selected (ADR-0064): whether a setting (a field of the light's settings,
+	 * or `data.<setting>` for what follows data) differs between them, so its field says Mixed.
+	 */
+	mixed?: (setting: TLightSettingKey) => boolean;
+	/** Several objects are selected: which of them have this light ("On 2 of 6 selected…"). */
+	appliesTo?: string;
 }
+
+/** A light setting, or what one of its settings follows in the data, for `mixed`. */
+export type TLightSettingKey = Exclude<keyof TEntityLight, "data"> | `data.${TLightDataTarget}`;
+
+const NOTHING_MIXED = () => false;
 
 /** How it turns on: by itself, or by a data value. */
 type TTurnsOn = TLightMode | "data";
@@ -115,6 +127,8 @@ export const LightSettings = ({
 	windowShare,
 	hour,
 	onChange,
+	mixed = NOTHING_MIXED,
+	appliesTo,
 }: ILightSettingsProps) => {
 	const bound = setting?.data ?? {};
 	const hasData = data.length > 0;
@@ -152,12 +166,15 @@ export const LightSettings = ({
 			title={spec.name}
 			keywords="light lights night glow colour brightness turns on data windows lit panes"
 		>
+			{appliesTo && <Hint>{appliesTo}</Hint>}
+
 			{spec.description && <Hint>{spec.description}</Hint>}
 
 			<FieldGroup title="Turns on">
 				<SelectField<TTurnsOn>
 					label="When"
 					value={turnsOn}
+					mixed={mixed("mode") || mixed("data.on")}
 					options={(["auto", "on", "off", "schedule", "data"] as const).map((option) => ({
 						value: option,
 						label: `${turnsOnLabels[option]}${unavailable[option] ?? ""}`,
@@ -195,6 +212,7 @@ export const LightSettings = ({
 					<SelectField<TComesOn>
 						label="Comes on"
 						value={comesOn}
+						mixed={mixed("comesOn")}
 						options={(spec.shape === "windows"
 							? (["atOnce", "oneByOne", "gradually"] as const)
 							: (["atOnce", "gradually"] as const)
@@ -220,6 +238,7 @@ export const LightSettings = ({
 					<PeriodsField
 						label="On between"
 						periods={schedule}
+						mixed={mixed("schedule")}
 						newPeriod={NEW_PERIOD}
 						onChange={(periods) => onChange({ schedule: periods }, "schedule")}
 						hint={
@@ -246,6 +265,7 @@ export const LightSettings = ({
 				<DataDrivenField
 					kind={LIGHT_DATA.strength}
 					binding={bound.strength}
+					mixed={mixed("data.strength")}
 					data={data}
 					onBindingChange={onBindingChange("strength")}
 					formatScale={percent}
@@ -254,6 +274,7 @@ export const LightSettings = ({
 					<SliderField
 						label="Level"
 						value={Math.round((setting?.strength ?? defaults.strength) * 100)}
+						mixed={mixed("strength")}
 						min={0}
 						max={MAX_STRENGTH * 100}
 						step={5}
@@ -275,6 +296,7 @@ export const LightSettings = ({
 					<DataDrivenField
 						kind={LIGHT_DATA.litPanes}
 						binding={bound.litPanes}
+						mixed={mixed("data.litPanes")}
 						data={data}
 						onBindingChange={onBindingChange("litPanes")}
 						formatScale={percent}
@@ -283,6 +305,7 @@ export const LightSettings = ({
 						<SliderField
 							label="Lit panes"
 							value={Math.round((setting?.litPanes ?? defaults.litPanes) * 100)}
+							mixed={mixed("litPanes")}
 							min={0}
 							max={100}
 							step={1}
@@ -311,12 +334,14 @@ export const LightSettings = ({
 				<DataDrivenField
 					kind={LIGHT_DATA.color}
 					binding={bound.color}
+					mixed={mixed("data.color")}
 					data={data}
 					onBindingChange={onBindingChange("color")}
 				>
 					<ColorField
 						label="Colour"
 						value={setting?.color ?? defaults.color}
+						mixed={mixed("color")}
 						onChange={(color) => onChange({ color }, "color")}
 						inherit={{
 							from: "default",
@@ -330,6 +355,7 @@ export const LightSettings = ({
 					<SliderField
 						label={reach.label}
 						value={setting?.reach ?? defaults.reach}
+						mixed={mixed("reach")}
 						min={0.2}
 						max={8}
 						step={0.1}

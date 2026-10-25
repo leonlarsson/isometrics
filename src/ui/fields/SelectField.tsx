@@ -15,6 +15,8 @@ interface ISelectFieldProps<TValue extends string> {
 	options: { value: TValue; label: string; disabled?: boolean }[];
 	onChange: (value: TValue) => void;
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 	hint?: ReactNode;
 }
 
@@ -25,10 +27,11 @@ export const SelectField = <TValue extends string>({
 	options,
 	onChange,
 	inherit,
+	mixed,
 	hint,
 }: ISelectFieldProps<TValue>) => {
 	return (
-		<Field label={label} inherit={inherit} hint={hint}>
+		<Field label={label} inherit={inherit} mixed={mixed} hint={hint}>
 			{(id) => (
 				<Select.Root
 					items={options}

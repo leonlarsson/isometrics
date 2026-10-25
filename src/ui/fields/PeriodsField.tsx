@@ -15,6 +15,8 @@ interface IPeriodsFieldProps {
 	/** The period Add period adds. */
 	newPeriod?: ITimePeriod;
 	hint?: ReactNode;
+	/** The periods differ between the selected things (ADR-0064). */
+	mixed?: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export const PeriodsField = ({
 	onChange,
 	newPeriod = { from: 18, until: 23 },
 	hint,
+	mixed,
 }: IPeriodsFieldProps) => {
 	const change = (index: number, next: Partial<ITimePeriod>) =>
 		onChange(periods.map((period, i) => (i === index ? { ...period, ...next } : period)));
@@ -71,7 +74,7 @@ export const PeriodsField = ({
 		onChange(next);
 	};
 	return (
-		<Field label={label} hint={hint} stacked>
+		<Field label={label} hint={hint} mixed={mixed} stacked>
 			{(id) => (
 				<div className={styles.periods} id={id}>
 					{periods.map((period, index) => (

@@ -9,6 +9,7 @@ import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
+import { transformSelected } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
 import {
@@ -34,6 +35,8 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×, Alt: 0.1)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
  *   Mod+D duplicate · Delete/Backspace remove (selected road point, else object or road)
+ *   B / Shift+B: the next drag draws a box that adds to the selection, or takes from it (ADR-0064)
+ *   Several selected: the keys that edit work on all of them, around their middle
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
  *   P perspective / diorama view · I isometric angle · 1–9 go to viewpoint 1–9 · Home back to the opening view
  *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
@@ -51,19 +54,22 @@ export const useShortcuts = () => {
 	const selectedArea = useEditor(selectSelectedArea);
 
 	const canEdit = mode === "edit" && selected !== null;
+	// Several things selected: the keys that move, turn, resize and delete work on all of them.
+	const several = useEditor((s) => s.mode === "edit" && s.selectedItems.length > 1);
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
 	const canDelete =
 		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
 	// Holding the right mouse button, W A S D and Q E move the camera instead (see below).
 	const holdingRightButton = useEditor((s) => s.holdingRightButton);
-	const canTransform = canEdit && !selected.locked && !holdingRightButton;
-	const canNudge = canTransform && !selected.follow;
+	const canGroup = several && !holdingRightButton;
+	const canTransform = canGroup || (!several && canEdit && !selected.locked && !holdingRightButton);
+	const canNudge = canGroup || (canTransform && !selected?.follow);
 	const selectedPoint = useEditor(
 		(s) => s.mode === "edit" && s.selectedRoadId !== null && s.selectedPointIndex !== null,
 	);
 	// A point of a road or area that can be edited (visible, not locked): the arrows nudge it.
 	const nudgePoint = useEditor((s) => {
-		if (s.mode !== "edit" || s.selectedPointIndex === null) {
+		if (s.mode !== "edit" || s.selectedPointIndex === null || s.selectedItems.length > 1) {
 			return false;
 		}
 		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s);
@@ -77,6 +83,7 @@ export const useShortcuts = () => {
 		(s) => s.mode === "view" && s.scene.viewpoints.length > 0 && s.cameraFollow === null,
 	);
 	const canPanCamera = !canNudgeAny && !transforming;
+	const canBox = useEditor((s) => s.mode === "edit" && s.drawing === null) && !transforming;
 	const flying = (mode === "view" || holdingRightButton) && !transforming;
 	const cameraMove = (move: TCameraMove) => (event: KeyboardEvent) => {
 		// Panning hands the camera back from following a vehicle, as dragging does; riding along,
@@ -103,8 +110,10 @@ export const useShortcuts = () => {
 	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
-		const { selectedId, rotateEntity } = useEditor.getState();
-		if (selectedId) {
+		const { selectedId, selectedItems, rotateEntity } = useEditor.getState();
+		if (selectedItems.length > 1) {
+			transformSelected({ turn: degrees }, { coalesce: "rotate:group" });
+		} else if (selectedId) {
 			rotateEntity(selectedId, degrees);
 		}
 	};
@@ -115,6 +124,10 @@ export const useShortcuts = () => {
 	 */
 	const nudge = (dx: number, dz: number, step = SNAP_STEP) => {
 		const state = useEditor.getState();
+		if (state.selectedItems.length > 1) {
+			transformSelected({ offset: [dx * step, dz * step] }, { coalesce: "nudge:group" });
+			return;
+		}
 		const entity = selectSelectedEntity(state);
 		if (entity) {
 			state.moveEntity(
@@ -149,7 +162,9 @@ export const useShortcuts = () => {
 	const remove = () => {
 		const state = useEditor.getState();
 		const point = state.selectedPointIndex;
-		if (state.selectedId) {
+		if (state.selectedItems.length > 1) {
+			state.removeSelected();
+		} else if (state.selectedId) {
 			state.removeEntity(state.selectedId);
 		} else if (state.selectedRoadId) {
 			if (point !== null) {
@@ -212,6 +227,8 @@ export const useShortcuts = () => {
 				const state = useEditor.getState();
 				if (state.cancelGesture) {
 					state.cancelGesture();
+				} else if (state.boxSelect) {
+					state.setBoxSelect(null);
 				} else if (state.cameraFollow) {
 					state.stopFollowing();
 				} else if (state.placingKind) {
@@ -249,12 +266,28 @@ export const useShortcuts = () => {
 		{
 			hotkey: "Mod+D",
 			callback: () => {
-				const { mode: currentMode, selectedId, duplicateEntity } = useEditor.getState();
-				if (currentMode === "edit" && selectedId) {
-					duplicateEntity(selectedId);
+				const { mode: currentMode, selectedItems, duplicateSelected } = useEditor.getState();
+				if (currentMode === "edit" && selectedItems.length > 0) {
+					duplicateSelected();
 				}
 			},
 			options: { meta: { name: "Duplicate" } },
+		},
+		{
+			hotkey: "B",
+			callback: () => {
+				const { boxSelect, setBoxSelect } = useEditor.getState();
+				setBoxSelect(boxSelect === "add" ? null : "add");
+			},
+			options: { enabled: canBox, meta: { name: "Select with a box" } },
+		},
+		{
+			hotkey: "Shift+B",
+			callback: () => {
+				const { boxSelect, setBoxSelect } = useEditor.getState();
+				setBoxSelect(boxSelect === "remove" ? null : "remove");
+			},
+			options: { enabled: canBox, meta: { name: "Deselect with a box" } },
 		},
 		{
 			hotkey: "Delete",

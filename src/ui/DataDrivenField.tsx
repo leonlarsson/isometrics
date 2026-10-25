@@ -23,6 +23,8 @@ interface IDataDrivenFieldProps {
 	max?: number;
 	/** The field that sets it by hand. */
 	children: ReactNode;
+	/** Several things are selected and follow data differently (ADR-0064): Source says Mixed. */
+	mixed?: boolean;
 }
 
 type TSource = "hand" | "data";
@@ -42,6 +44,7 @@ export const DataDrivenField = ({
 	formatScale,
 	max,
 	children,
+	mixed,
 }: IDataDrivenFieldProps) => {
 	const hasData = data.length > 0;
 	return (
@@ -49,6 +52,7 @@ export const DataDrivenField = ({
 			<SelectField<TSource>
 				label="Source"
 				value={binding ? "data" : "hand"}
+				mixed={mixed}
 				options={[
 					{ value: "hand", label: "By hand" },
 					{

@@ -109,4 +109,4 @@ Agreed, planned work lives in [`TODO.md`](TODO.md). Check it before starting rel
 - Live data providers (ADR-0010), sharing links (ADR-0006), AI generation (ADR-0012).
 - Road junctions: crossing roads overlap visually, and a vehicle follows a single road (ADR-0017).
 - Terrain/mountains with roads tunnelling through them: road heights are already modelled for this (ADR-0018).
-- Multi-select. On phones (ADR-0030), dragging parts from the panel and keyboard transforms are desktop-only.
+- On phones (ADR-0030), dragging parts from the panel and keyboard transforms are desktop-only.

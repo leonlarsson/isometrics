@@ -3,7 +3,7 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import { useEditor } from "#/editor/store";
+import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { AREA_TYPES, areaColor } from "#/scene/areas";
@@ -115,7 +115,12 @@ interface IAreaMeshProps {
 export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const palette = usePalette();
 	const mode = useEditor((s) => s.mode);
-	const selected = useEditor((s) => s.selectedAreaId === area.id);
+	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
+	const selected = useEditor(
+		(s) =>
+			isItemSelected(s, "area", area.id) &&
+			!(s.boxDrag?.removing && isItemBoxed(s, "area", area.id)),
+	);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectArea = useEditor((s) => s.selectArea);
 
@@ -125,7 +130,12 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 				onClick: (e: ThreeEvent<MouseEvent>) => {
 					// Stop here so the ground behind doesn't deselect, even after a camera drag.
 					e.stopPropagation();
-					if (isClick(e)) {
+					if (!isClick(e)) {
+						return;
+					}
+					if (isToggleClick(e.nativeEvent)) {
+						useEditor.getState().toggleSelected({ kind: "area", id: area.id });
+					} else {
 						selectArea(area.id);
 					}
 				},

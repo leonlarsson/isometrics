@@ -3,7 +3,7 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import { useEditor } from "#/editor/store";
+import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import {
@@ -266,7 +266,12 @@ interface IRoadMeshProps {
 export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const palette = usePalette();
 	const mode = useEditor((s) => s.mode);
-	const selected = useEditor((s) => s.selectedRoadId === road.id);
+	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
+	const selected = useEditor(
+		(s) =>
+			isItemSelected(s, "road", road.id) &&
+			!(s.boxDrag?.removing && isItemBoxed(s, "road", road.id)),
+	);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
@@ -277,7 +282,12 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 				onClick: (e: ThreeEvent<MouseEvent>) => {
 					// Stop here so the ground behind doesn't deselect, even after a camera drag.
 					e.stopPropagation();
-					if (isClick(e)) {
+					if (!isClick(e)) {
+						return;
+					}
+					if (isToggleClick(e.nativeEvent)) {
+						useEditor.getState().toggleSelected({ kind: "road", id: road.id });
+					} else {
 						selectRoad(road.id);
 					}
 				},

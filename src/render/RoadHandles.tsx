@@ -3,7 +3,7 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import * as THREE from "three";
 
-import { type IJoinOffer, selectSelectedRoad, useEditor } from "#/editor/store";
+import { type IJoinOffer, selectSelectedRoad, selectSeveral, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { snap } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
@@ -300,6 +300,8 @@ const RoadPointGizmo = ({
 /** Point and insert handles for the selected road (edit mode only). */
 export const RoadHandles = () => {
 	const road = useEditor(selectSelectedRoad);
+	// Its points are edited on their own, not while it's one of several selected things.
+	const several = useEditor(selectSeveral);
 	const layer = useEditor((s) => s.scene.roads.findIndex((r) => r.id === s.selectedRoadId));
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const mode = useEditor((s) => s.mode);
@@ -307,7 +309,7 @@ export const RoadHandles = () => {
 	const dragging = useEditor((s) => s.dragging);
 	const palette = usePalette();
 
-	if (!road || mode !== "edit" || drawing || road.hidden || road.locked) {
+	if (!road || several || mode !== "edit" || drawing || road.hidden || road.locked) {
 		return null;
 	}
 	const baseY = roadBaseY(Math.max(0, layer));

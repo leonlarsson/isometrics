@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useState } from "react";
 import * as THREE from "three";
 
-import { useEditor } from "#/editor/store";
+import { isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
@@ -56,7 +56,10 @@ export const Ground = () => {
 						return;
 					}
 					e.stopPropagation();
-					clearSelection();
+					// Shift or Ctrl, which add to the selection, leave it as it is.
+					if (!isToggleClick(e.nativeEvent)) {
+						clearSelection();
+					}
 				}}
 				onContextMenu={openGroundMenuOnClick}
 			>

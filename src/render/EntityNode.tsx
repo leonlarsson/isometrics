@@ -4,7 +4,8 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
-import { SNAP_STEP, useEditor } from "#/editor/store";
+import { groupStart, type IGroupStart } from "#/editor/groupTransform";
+import { isItemBoxed, isItemSelected, isToggleClick, SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
@@ -21,6 +22,7 @@ import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
+import { applyGroupDrag } from "./transforms";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -34,6 +36,8 @@ interface IDragState {
 	moving: boolean;
 	/** Snaps a vehicle onto roads it's dragged over. */
 	route: IVehicleRouteDrag | null;
+	/** One of several selected things: the drag moves them all, from where they were (ADR-0064). */
+	group: { start: IGroupStart; from: TVec2 } | null;
 }
 
 export const SelectionFrame = ({
@@ -88,7 +92,13 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			Object.values(entity.lights).some((light) => light.mode === "schedule"),
 	);
 	const mode = useEditor((s) => s.mode);
-	const selected = useEditor((s) => s.selectedId === entity.id);
+	// Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064).
+	const selected = useEditor((s) => isItemSelected(s, "entity", entity.id));
+	const alone = useEditor((s) => s.selectedId === entity.id && s.selectedItems.length === 1);
+	// Inside a selection box being drawn: what letting go would add (dashed), or take out (dashed
+	// instead of solid).
+	const boxed = useEditor((s) => isItemBoxed(s, "entity", entity.id));
+	const unboxing = useEditor((s) => s.boxDrag?.removing ?? false);
 	const playing = useEditor((s) => s.playing);
 	const ground = useEditor((s) => s.scene.ground);
 	const road = useEditor((s) =>
@@ -253,6 +263,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 				moving: false,
 				route: null,
+				group: null,
 			};
 			(e.target as unknown as Element).setPointerCapture(e.pointerId);
 			if (controls) {
@@ -274,6 +285,28 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 				return;
 			}
 			const options = { coalesce: `drag:${state.token}`, gesture: true };
+			if (!alone) {
+				// One of several selected things: they all move together, by the distance dragged.
+				if (!state.moving) {
+					const start = groupStart();
+					state.moving = true;
+					state.group = start && { start, from: [hit.x, hit.z] };
+					return;
+				}
+				if (state.group) {
+					const { start, from } = state.group;
+					applyGroupDrag(start, {
+						handle: "xz",
+						offset: [hit.x - from[0], hit.z - from[1]],
+						lift: 0,
+						turn: 0,
+						ratio: 1,
+						free: e.nativeEvent.altKey || !useEditor.getState().snapping,
+						token: options.coalesce,
+					});
+				}
+				return;
+			}
 			if (!state.moving) {
 				// Grab from here, not from the press: otherwise the distance already covered
 				// snaps the object a cell over the moment the drag starts. A driving vehicle is
@@ -308,6 +341,10 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 			// Always stop here: otherwise the click reaches the ground behind, which deselects.
 			e.stopPropagation();
 			if (!isClick(e)) {
+				return;
+			}
+			if (mode === "edit" && isToggleClick(e.nativeEvent)) {
+				useEditor.getState().toggleSelected({ kind: "entity", id: entity.id });
 				return;
 			}
 			select(entity.id);
@@ -368,12 +405,16 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					data={data}
 				/>
 
-				{mode === "edit" && (selected || hovered || listHovered) && (
-					<SelectionFrame size={footprint} color={palette.selection} dashed={!selected} />
+				{mode === "edit" && (selected || hovered || listHovered || boxed) && (
+					<SelectionFrame
+						size={footprint}
+						color={palette.selection}
+						dashed={!selected || (boxed && unboxing)}
+					/>
 				)}
 			</group>
 
-			{mode === "edit" && selected && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
+			{mode === "edit" && alone && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
 
 			{entity.label?.enabled && (
 				<EntityLabel

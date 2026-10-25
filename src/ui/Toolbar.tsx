@@ -43,6 +43,8 @@ export const Toolbar = () => {
 	const toggleProjection = useEditor((s) => s.toggleProjection);
 	const theme = useEditor((s) => s.scene.theme);
 	const commit = useEditor((s) => s.commit);
+	const boxSelecting = useEditor((s) => s.boxSelect === "add");
+	const toggleBoxSelect = () => useEditor.getState().setBoxSelect(boxSelecting ? null : "add");
 
 	const panes = useSidePanes();
 	const panesHidden = !panes.left && !panes.right;
@@ -115,6 +117,15 @@ export const Toolbar = () => {
 								label={snapping ? "Snap to grid: on" : "Snap to grid: off"}
 								pressed={snapping}
 								onClick={toggleSnapping}
+							/>
+
+							<IconButton
+								size="md"
+								tooltipSide="bottom"
+								icon="boxSelect"
+								label="Select with a box (B)"
+								pressed={boxSelecting}
+								onClick={toggleBoxSelect}
 							/>
 
 							<IconButton
@@ -193,6 +204,15 @@ export const Toolbar = () => {
 									label="Snap to grid"
 									checked={snapping}
 									onCheckedChange={toggleSnapping}
+								/>
+							)}
+
+							{mode === "edit" && (
+								<Menu.Item
+									icon="boxSelect"
+									label="Select with a box"
+									description="Then drag over what to select"
+									onClick={toggleBoxSelect}
 								/>
 							)}
 

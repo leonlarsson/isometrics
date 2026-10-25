@@ -188,9 +188,12 @@ interface IListItemProps {
 	meta?: ReactNode;
 	/** A small colour chip before the label; any CSS background. */
 	swatch?: string;
-	/** Clicking the row selects it. Without it the row isn't clickable. */
-	onClick?: () => void;
-	/** Highlights the row (the selected item). */
+	/**
+	 * Clicking the row selects it, told which of Shift, Ctrl and Cmd were held (to add to a
+	 * selection). Without it the row isn't clickable.
+	 */
+	onClick?: (keys: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => void;
+	/** Highlights the row (a selected item). */
 	current?: boolean;
 	/** Buttons at the end of the row (outside the clickable area). */
 	actions?: ReactNode;
@@ -267,8 +270,14 @@ export const ListItem = ({
 					className={styles.main}
 					aria-current={current || undefined}
 					onClick={(event) => {
-						onClick();
+						onClick({ shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey });
 						releaseFocusAfterPointerClick(event);
+					}}
+					// Shift-click picks a range of rows; it mustn't select the rows' text as well.
+					onMouseDown={(event) => {
+						if (event.shiftKey) {
+							event.preventDefault();
+						}
 					}}
 					onDoubleClick={rename && (() => rename.onEditingChange(true))}
 				>

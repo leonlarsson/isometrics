@@ -12,6 +12,8 @@ interface ITextFieldProps {
 	placeholder?: string;
 	multiline?: boolean;
 	hint?: ReactNode;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 }
 
 export const TextField = ({
@@ -21,9 +23,10 @@ export const TextField = ({
 	placeholder,
 	multiline = false,
 	hint,
+	mixed,
 }: ITextFieldProps) => {
 	return (
-		<Field label={label} hint={hint} stacked={multiline}>
+		<Field label={label} hint={hint} mixed={mixed} stacked={multiline}>
 			{(id) =>
 				multiline ? (
 					<textarea

@@ -17,7 +17,9 @@ import { CameraTab } from "./CameraTab";
 import { DataPanel } from "./DataPanel";
 import { entityTabs } from "./EntityInspector";
 import { SearchField, SettingsSearchContext } from "./fields";
+import { groupTabs } from "./GroupInspector";
 import { Icon, type TIconName } from "./Icon";
+import { describeItems } from "./ItemContextMenu";
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 import { Outliner } from "./Outliner";
 import { PartsPalette } from "./PartsPalette";
@@ -57,6 +59,20 @@ const useSelection = (): ISelectionContext | null => {
 	const entity = useEditor(selectSelectedEntity);
 	const road = useEditor(selectSelectedRoad);
 	const area = useEditor(selectSelectedArea);
+	const items = useEditor((s) => s.selectedItems);
+	const entities = useEditor((s) => s.scene.entities);
+
+	// Several things: the settings they all have (ADR-0064), the active one's values shown.
+	if (items.length > 1) {
+		const selected = items.flatMap((item) =>
+			item.kind === "entity" ? (entities.find((e) => e.id === item.id) ?? []) : [],
+		);
+		return {
+			name: `${describeItems(items)} selected`,
+			icon: "layers",
+			tabs: groupTabs(items, selected),
+		};
+	}
 
 	if (entity) {
 		const part = getPart(entity.kind);

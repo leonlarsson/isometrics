@@ -1,0 +1,14 @@
+/* The box drawn by B / Shift+B (ADR-0064), over the view in screen coordinates. Never takes a press. */
+.box {
+	position: fixed;
+	z-index: var(--z-dialog);
+	pointer-events: none;
+	border: 1.5px dashed var(--accent);
+	border-radius: 2px;
+	background: var(--accent-soft);
+}
+
+.box[data-removing] {
+	border-color: var(--text-muted);
+	background: var(--border);
+}

@@ -128,6 +128,22 @@ export const KitPage = () => {
 									onChange={(i, v) => setVector((old) => old.map((x, j) => (j === i ? v : x)))}
 								/>
 
+								<SliderField
+									label="Slider, mixed"
+									value={slider}
+									onChange={setSlider}
+									min={0.4}
+									max={8}
+									step={0.1}
+									mixed
+									inherit={{
+										from: "road",
+										inherited: slider === 2.4,
+										onReset: () => setSlider(2.4),
+										value: "2.4",
+									}}
+								/>
+
 								<SelectField
 									label="Select"
 									value={choice}

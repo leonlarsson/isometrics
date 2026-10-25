@@ -35,6 +35,7 @@ const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 const TransformControls = () => {
 	const transform = useEditor((s) => s.transform);
 	const entity = useEditor(selectSelectedEntity);
+	const count = useEditor((s) => s.selectedItems.length);
 	const route = useRouteHint();
 
 	const update = useEditor.getState().updateTransform;
@@ -103,7 +104,12 @@ const TransformControls = () => {
 		return null;
 	}
 
-	const what = entity ? entity.name || partNameOf(entity.kind) || "object" : "road point";
+	const what =
+		count > 1
+			? `${count} things`
+			: entity
+				? entity.name || partNameOf(entity.kind) || "object"
+				: "road point";
 	const how = transform.axis ? ` ${AXIS_LABELS[transform.axis]}` : "";
 	const value = typed ? `${typed}${UNITS[transform.mode]}` : null;
 	// A vehicle moved over a road snaps onto it (see render/routeDrop).

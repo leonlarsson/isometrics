@@ -65,16 +65,19 @@ const DataKeyField = ({
 	label,
 	value,
 	onChange,
+	mixed,
 }: {
 	label: string;
 	value: string;
 	onChange: (key: string) => void;
+	mixed?: boolean;
 }) => {
 	const data = useEditor((s) => s.scene.data);
 	return (
 		<SelectField
 			label={label}
 			value={value}
+			mixed={mixed}
 			options={[
 				{ value: "", label: "None" },
 				...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
@@ -85,14 +88,18 @@ const DataKeyField = ({
 	);
 };
 
-const PropField = ({
+/** One of a part's own settings, as its field spec describes it. */
+export const PropField = ({
 	spec,
 	value,
 	onChange,
+	mixed,
 }: {
 	spec: TFieldSpec;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	/** It differs between the selected objects (ADR-0064). */
+	mixed?: boolean;
 }) => {
 	switch (spec.type) {
 		case "number":
@@ -104,10 +111,18 @@ const PropField = ({
 					max={spec.max}
 					step={spec.step}
 					onChange={onChange}
+					mixed={mixed}
 				/>
 			);
 		case "boolean":
-			return <SwitchField label={spec.label} checked={Boolean(value)} onChange={onChange} />;
+			return (
+				<SwitchField
+					label={spec.label}
+					checked={Boolean(value)}
+					onChange={onChange}
+					mixed={mixed}
+				/>
+			);
 		case "text":
 			return (
 				<TextField
@@ -115,10 +130,18 @@ const PropField = ({
 					value={String(value ?? "")}
 					placeholder={spec.placeholder}
 					onChange={onChange}
+					mixed={mixed}
 				/>
 			);
 		case "dataKey":
-			return <DataKeyField label={spec.label} value={String(value ?? "")} onChange={onChange} />;
+			return (
+				<DataKeyField
+					label={spec.label}
+					value={String(value ?? "")}
+					onChange={onChange}
+					mixed={mixed}
+				/>
+			);
 		case "select":
 			return (
 				<SelectField
@@ -126,6 +149,7 @@ const PropField = ({
 					value={String(value)}
 					options={spec.options}
 					onChange={onChange}
+					mixed={mixed}
 				/>
 			);
 	}

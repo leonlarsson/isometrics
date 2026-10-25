@@ -2,7 +2,7 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { useState } from "react";
 import type * as THREE from "three";
 
-import { selectSelectedArea, useEditor } from "#/editor/store";
+import { selectSelectedArea, selectSeveral, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { segmentMidpoints } from "#/scene/roads";
 import type { TVec2 } from "#/scene/schema";
@@ -129,13 +129,15 @@ const InsertHandle = ({
 /** Corner and insert handles for the selected area (edit mode only). */
 export const AreaHandles = () => {
 	const area = useEditor(selectSelectedArea);
+	// Its points are edited on their own, not while it's one of several selected things.
+	const several = useEditor(selectSeveral);
 	const layer = useEditor((s) => s.scene.areas.findIndex((a) => a.id === s.selectedAreaId));
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const mode = useEditor((s) => s.mode);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
 
-	if (!area || mode !== "edit" || drawing || area.hidden || area.locked) {
+	if (!area || several || mode !== "edit" || drawing || area.hidden || area.locked) {
 		return null;
 	}
 	const y = areaBaseY(Math.max(0, layer)) + area.height;

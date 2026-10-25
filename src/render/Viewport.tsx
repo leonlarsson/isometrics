@@ -1,10 +1,11 @@
 import { Canvas } from "@react-three/fiber";
 
-import { useEditor } from "#/editor/store";
+import { isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
+import { BoxSelect } from "./BoxSelect";
 import { CameraControls } from "./CameraControls";
 import { CameraFlight } from "./CameraFlight";
 import { CameraFollow } from "./CameraFollow";
@@ -14,6 +15,7 @@ import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
+import { GroupGizmo } from "./GroupGizmo";
 import { HoverHighlight } from "./HoverHighlight";
 import { InstantResize } from "./InstantResize";
 import { KeyboardCamera } from "./KeyboardCamera";
@@ -50,8 +52,9 @@ export const Viewport = () => {
 			dpr={[1, 2]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
 			onPointerMissed={(event) => {
-				// Only a left click on nothing deselects; a right-click is the start of an orbit.
-				if (event.button === 0) {
+				// Only a left click on nothing deselects; a right-click is the start of an orbit. Shift or
+				// Ctrl, which add to the selection, leave it as it is.
+				if (event.button === 0 && !isToggleClick(event)) {
 					useEditor.getState().clearSelection();
 				}
 			}}
@@ -77,6 +80,8 @@ export const Viewport = () => {
 
 			<RoadHandles />
 
+			<GroupGizmo />
+
 			<RoadDrawTool />
 
 			<PlacementPreview />
@@ -92,6 +97,8 @@ export const Viewport = () => {
 			<GizmoFirst />
 
 			<KeyboardTransform />
+
+			<BoxSelect />
 
 			<CameraRig />
 

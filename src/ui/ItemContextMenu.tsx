@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
-import { useEditor } from "#/editor/store";
+import { listOf, useEditor } from "#/editor/store";
 import { getPart, partNameOf } from "#/parts/registry";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
@@ -225,6 +225,86 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 	);
 };
 
+/** What a selection of several things is called: "3 objects", "2 objects and a road"… */
+export const describeItems = (items: readonly ISceneItem[]) => {
+	const count = (kind: ISceneItem["kind"]) => items.filter((item) => item.kind === kind).length;
+	const parts = (
+		[
+			["entity", "object", "objects"],
+			["road", "road", "roads"],
+			["area", "area", "areas"],
+		] as const
+	).flatMap(([kind, one, many]) => {
+		const n = count(kind);
+		return n === 0 ? [] : [n === 1 ? `1 ${one}` : `${n} ${many}`];
+	});
+	return parts.length > 1
+		? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`
+		: (parts[0] ?? "");
+};
+
+/** The menu for several selected things (ADR-0064): what acts on all of them. */
+const GroupMenu = () => {
+	const store = () => useEditor.getState();
+	const flags = useEditor((s) => {
+		const things = s.selectedItems.flatMap(
+			(item) => listOf(s.scene, item.kind).find((thing) => thing.id === item.id) ?? [],
+		);
+		return `${things.every((thing) => thing.hidden)} ${things.every((thing) => thing.locked)}`;
+	});
+	const [hidden, locked] = flags.split(" ").map((flag) => flag === "true");
+
+	return (
+		<>
+			<Menu.Item
+				icon="focus"
+				label="Zoom to them"
+				shortcut="F"
+				onClick={() => store().frameSelection()}
+			/>
+
+			<Menu.Item
+				icon="camera"
+				label="Save this view"
+				description="As a viewpoint, listed in the Viewpoints tab"
+				onClick={saveCurrentView}
+			/>
+
+			<Menu.Item
+				icon="copy"
+				label="Duplicate"
+				shortcut="Ctrl+D"
+				onClick={() => store().duplicateSelected()}
+			/>
+
+			<Menu.Separator />
+
+			<Menu.CheckboxItem
+				icon="eyeOff"
+				label="Hidden"
+				checked={hidden}
+				onCheckedChange={(value) => store().setSelectedFlag("hidden", value)}
+			/>
+
+			<Menu.CheckboxItem
+				icon="lock"
+				label="Locked"
+				checked={locked}
+				onCheckedChange={(value) => store().setSelectedFlag("locked", value)}
+			/>
+
+			<Menu.Separator />
+
+			<Menu.Item
+				icon="trash"
+				label="Delete"
+				shortcut="Del"
+				onClick={() => store().removeSelected()}
+			/>
+		</>
+	);
+};
+
 /**
  * The right-click menu for an object, road or area, in the scene or the
  * outliner (Edit mode), headed by its name. Opening it selects the item, so
@@ -244,6 +324,13 @@ export const ItemContextMenu = () => {
 	const thing = useItem(item);
 	const renamed = useItem(renaming?.item);
 	const close = () => useEditor.getState().openContextMenu(null);
+	// Right-clicked one of several selected things: the menu acts on all of them.
+	const groupNow = useEditor((s) =>
+		s.selectedItems.length > 1 ? describeItems(s.selectedItems) : null,
+	);
+	// What the menu showed, kept with it while it animates closed.
+	const group = useLastNonNull(menuNow ? { name: groupNow } : null)?.name ?? null;
+	const showGroup = group !== null;
 
 	return (
 		<>
@@ -256,10 +343,18 @@ export const ItemContextMenu = () => {
 				}}
 				x={menu?.x ?? 0}
 				y={menu?.y ?? 0}
-				title={item && thing ? thing.name || kindName(item, thing) : undefined}
-				subtitle={item && thing?.name ? kindName(item, thing) : undefined}
+				title={
+					showGroup
+						? `${group} selected`
+						: item && thing
+							? thing.name || kindName(item, thing)
+							: undefined
+				}
+				subtitle={!showGroup && item && thing?.name ? kindName(item, thing) : undefined}
 			>
-				{item && (
+				{showGroup && <GroupMenu />}
+
+				{!showGroup && item && (
 					<ItemMenu
 						item={item}
 						onRename={() => menu && setRenaming(menu)}

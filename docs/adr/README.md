@@ -67,3 +67,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0061](0061-when-lights-come-on.md) | Lights switch on at once or gradually, or on a schedule | accepted |
 | [0062](0062-camera-settings.md) | The camera remembers where it was per world, worlds have an opening view, and a Camera tab holds its settings | accepted |
 | [0063](0063-on-screen.md) | A world says what viewers see over it in View mode: title, subtitle, time of day, label cards, details, viewpoint bar | accepted |
+| [0064](0064-multi-select.md) | Selecting several things at once: an active item, the rest, a box, group transforms and Mixed fields | accepted |

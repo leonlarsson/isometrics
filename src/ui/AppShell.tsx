@@ -11,6 +11,7 @@ import { useThemeAttribute } from "#/editor/useTheme";
 import { Viewport } from "#/render/Viewport";
 import { formatHour, skyLightAt } from "#/scene/sun";
 
+import { BoxSelectBar } from "./BoxSelectBar";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
@@ -311,6 +312,8 @@ export const AppShell = () => {
 							<DrawingBar />
 
 							<TransformBar />
+
+							<BoxSelectBar />
 
 							<JoinOfferBar />
 

@@ -2,6 +2,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+import { groupStart, type IGroupStart } from "#/editor/groupTransform";
 import { type ITransformSession, useEditor } from "#/editor/store";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
@@ -10,6 +11,7 @@ import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import type { IGizmoDrag, TGizmoHandle } from "./TransformGizmo";
 import {
 	applyEntityDrag,
+	applyGroupDrag,
 	applyRoadPointDrag,
 	entityStart,
 	type IEntityStart,
@@ -19,7 +21,8 @@ import {
 
 type TTarget =
 	| { kind: "entity"; id: string; from: IEntityStart }
-	| { kind: "point"; roadId: string; index: number; from: TRoadPoint };
+	| { kind: "point"; roadId: string; index: number; from: TRoadPoint }
+	| { kind: "group"; from: IGroupStart };
 
 interface IContext {
 	target: TTarget;
@@ -50,7 +53,7 @@ const wrap = (degrees: number) => ((((degrees + 180) % 360) + 360) % 360) - 180;
 
 /**
  * Blender-style keyboard transforms (G move, R turn, S resize) for the
- * selected object or road point. While `transform` is set in the store, the
+ * selected object or road point, or several selected things together (ADR-0064). While `transform` is set in the store, the
  * mouse drives the change without holding a button; ui/TransformBar handles
  * the keys (axis lock, typed numbers, Enter, Esc). A left click confirms, a
  * right click cancels. The whole transform is one undo step.
@@ -146,6 +149,15 @@ export const KeyboardTransform = () => {
 			steps.push(drag("scale", { ratio }));
 		}
 
+		if (target.kind === "group") {
+			// Each step of a group sets everything from where it started, so a move is one step: along
+			// the ground, or up.
+			applyGroupDrag(
+				target.from,
+				session.mode === "grab" && session.axis === "y" ? steps[1] : steps[0],
+			);
+			return;
+		}
 		for (const step of steps) {
 			if (target.kind === "entity") {
 				applyEntityDrag(target.id, target.from, step);
@@ -166,7 +178,14 @@ export const KeyboardTransform = () => {
 		let target: TTarget | null = null;
 		let center: THREE.Vector3 | null = null;
 		let route: IVehicleRouteDrag | null = null;
-		if (state.selectedId) {
+		if (state.selectedItems.length > 1) {
+			// Several things move, turn and resize together, around their middle (ADR-0064).
+			const from = groupStart();
+			if (from) {
+				target = { kind: "group", from };
+				center = new THREE.Vector3(...from.center);
+			}
+		} else if (state.selectedId) {
 			// Moving a vehicle snaps it onto roads; a driving one is lifted off its route first.
 			if (mode === "grab") {
 				route = createVehicleRouteDrag(state.selectedId);

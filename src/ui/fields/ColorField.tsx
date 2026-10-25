@@ -15,15 +15,17 @@ interface IColorFieldProps {
 	onChange: (value: string) => void;
 	/** Colours usually default to the part's or theme's colour until changed. */
 	inherit?: IInherit;
+	/** The value differs between the selected things (ADR-0064). */
+	mixed?: boolean;
 }
 
 /**
  * A colour as one compact button (its swatch and hex code) that opens the
  * friendly preset swatches and a free colour picker in a popover.
  */
-export const ColorField = ({ label, value, onChange, inherit }: IColorFieldProps) => {
+export const ColorField = ({ label, value, onChange, inherit, mixed }: IColorFieldProps) => {
 	return (
-		<Field label={label} inherit={inherit}>
+		<Field label={label} inherit={inherit} mixed={mixed}>
 			{(id) => (
 				<Popover.Root>
 					<Popover.Trigger id={id} className={styles.colorTrigger}>

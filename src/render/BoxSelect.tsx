@@ -1,0 +1,204 @@
+import { useThree } from "@react-three/fiber";
+import { useEffect } from "react";
+import * as THREE from "three";
+
+import type { ISceneItem } from "#/editor/framing";
+import { isItemSelected, useEditor } from "#/editor/store";
+import { getPart, resolveProps } from "#/parts/registry";
+import type { TScene } from "#/scene/schema";
+
+import { roadBaseY } from "./RoadMesh";
+import { livePoses } from "./routeDrop";
+
+const projected = new THREE.Vector3();
+
+interface IScreenBox {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+}
+
+/**
+ * What a box on screen holds (ADR-0064): objects whose centre is inside it,
+ * and roads and areas whose points all are, so a big area under a district
+ * isn't picked by accident. Hidden and locked things are left out.
+ */
+const itemsInBox = (
+	scene: TScene,
+	box: IScreenBox,
+	camera: THREE.Camera,
+	canvas: DOMRect,
+): ISceneItem[] => {
+	const inside = (x: number, y: number, z: number) => {
+		projected.set(x, y, z).project(camera);
+		if (projected.z < -1 || projected.z > 1) {
+			return false;
+		}
+		const left = canvas.left + ((projected.x + 1) / 2) * canvas.width;
+		const top = canvas.top + ((1 - projected.y) / 2) * canvas.height;
+		return left >= box.left && left <= box.right && top >= box.top && top <= box.bottom;
+	};
+	const items: ISceneItem[] = [];
+	for (const entity of scene.entities) {
+		if (entity.hidden || entity.locked) {
+			continue;
+		}
+		const part = getPart(entity.kind);
+		const height = part ? part.height(resolveProps(part, entity.props)) * entity.scale : 1;
+		// A driving vehicle is where it is on screen now, not where it started.
+		const live = livePoses.get(entity.id)?.();
+		const [x, z] = live?.position ?? entity.position;
+		const y = (live?.elevation ?? entity.elevation) + height / 2;
+		if (inside(x, y, z)) {
+			items.push({ kind: "entity", id: entity.id });
+		}
+	}
+	scene.roads.forEach((road, layer) => {
+		const baseY = roadBaseY(layer);
+		if (
+			!road.hidden &&
+			!road.locked &&
+			road.points.every(([x, z, height = 0]) => inside(x, baseY + height, z))
+		) {
+			items.push({ kind: "road", id: road.id });
+		}
+	});
+	for (const area of scene.areas) {
+		if (!area.hidden && !area.locked && area.points.every(([x, z]) => inside(x, area.height, z))) {
+			items.push({ kind: "area", id: area.id });
+		}
+	}
+	return items;
+};
+
+/**
+ * B / Shift+B (or the toolbar's Select box): the next drag on the view draws
+ * a box that adds what's inside to the selection, or takes it out; holding
+ * Ctrl or Cmd when letting go takes it out too (ADR-0064). The drag is taken
+ * before the camera sees it, so it never pans. Esc or a right click cancels.
+ * ui/SelectionBox draws the box.
+ */
+export const BoxSelect = () => {
+	const mode = useEditor((s) => s.boxSelect);
+	const camera = useThree((s) => s.camera);
+	const element = useThree(
+		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
+	);
+
+	useEffect(() => {
+		if (!mode) {
+			return;
+		}
+		const store = useEditor.getState;
+		let from: { x: number; y: number } | null = null;
+		element.style.cursor = "crosshair";
+
+		const swallow = (event: Event) => {
+			event.preventDefault();
+			event.stopPropagation();
+		};
+		// Label cards float over the canvas in their own DOM layer, but they're part of the scene.
+		const inScene = (target: EventTarget | null) =>
+			target instanceof Element &&
+			(element.contains(target) || target.closest("[data-label-layer]") !== null);
+		const finish = () => {
+			from = null;
+			store().setBoxSelect(null);
+		};
+		const boxTo = (event: PointerEvent): IScreenBox | null =>
+			from && {
+				left: Math.min(from.x, event.clientX),
+				top: Math.min(from.y, event.clientY),
+				right: Math.max(from.x, event.clientX),
+				bottom: Math.max(from.y, event.clientY),
+			};
+		// The click after the box, which would select or deselect what's under the pointer.
+		const swallowNextClick = () => {
+			window.addEventListener("click", swallow, { capture: true, once: true });
+			setTimeout(() => window.removeEventListener("click", swallow, { capture: true }));
+		};
+
+		const onDown = (event: PointerEvent) => {
+			if (!inScene(event.target)) {
+				return;
+			}
+			swallow(event);
+			if (event.button === 2) {
+				finish();
+				return;
+			}
+			if (event.button === 0) {
+				from = { x: event.clientX, y: event.clientY };
+			}
+		};
+		/** What letting go now would add, or take out (only what's selected). */
+		const pick = (box: IScreenBox, event: PointerEvent) => {
+			const state = store();
+			const removing = state.boxSelect === "remove" || event.ctrlKey || event.metaKey;
+			const picked = itemsInBox(state.scene, box, camera, element.getBoundingClientRect());
+			const items = removing
+				? picked.filter((item) => isItemSelected(state, item.kind, item.id))
+				: picked;
+			return { items, removing };
+		};
+		const onMove = (event: PointerEvent) => {
+			const box = boxTo(event);
+			if (!box) {
+				return;
+			}
+			swallow(event);
+			store().setBoxDrag({
+				rect: {
+					left: box.left,
+					top: box.top,
+					width: box.right - box.left,
+					height: box.bottom - box.top,
+				},
+				...pick(box, event),
+			});
+		};
+		const onUp = (event: PointerEvent) => {
+			const box = boxTo(event);
+			if (!box) {
+				return;
+			}
+			swallow(event);
+			swallowNextClick();
+			const state = store();
+			const { items: picked, removing } = pick(box, event);
+			const isPicked = (item: ISceneItem) =>
+				picked.some((other) => other.kind === item.kind && other.id === item.id);
+			if (removing) {
+				state.selectItems(state.selectedItems.filter((item) => !isPicked(item)));
+			} else if (picked.length > 0) {
+				state.selectItems([...state.selectedItems.filter((item) => !isPicked(item)), ...picked]);
+			}
+			finish();
+		};
+		const onContextMenu = (event: MouseEvent) => {
+			if (inScene(event.target)) {
+				event.preventDefault();
+			}
+		};
+
+		store().setCancelGesture(finish);
+		window.addEventListener("pointerdown", onDown, { capture: true });
+		window.addEventListener("pointermove", onMove, { capture: true });
+		window.addEventListener("pointerup", onUp, { capture: true });
+		window.addEventListener("contextmenu", onContextMenu, { capture: true });
+		return () => {
+			element.style.cursor = "";
+			window.removeEventListener("pointerdown", onDown, { capture: true });
+			window.removeEventListener("pointermove", onMove, { capture: true });
+			window.removeEventListener("pointerup", onUp, { capture: true });
+			window.removeEventListener("contextmenu", onContextMenu, { capture: true });
+			if (store().cancelGesture === finish) {
+				store().setCancelGesture(null);
+			}
+			store().setBoxDrag(null);
+		};
+	}, [mode, camera, element]);
+
+	return null;
+};

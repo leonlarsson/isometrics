@@ -43,7 +43,7 @@ import {
 } from "#/scene/schema";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
-import { boundsOf, type IFrameBox, type ISceneItem } from "./framing";
+import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
 import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
@@ -185,9 +185,29 @@ export interface IEditorState {
 	future: TScene[];
 	lastCommit: { key: string; at: number } | null;
 
+	/** The active item (ADR-0064): the one whose settings the properties show. At most one is set. */
 	selectedId: string | null;
 	selectedRoadId: string | null;
 	selectedAreaId: string | null;
+	/**
+	 * Everything selected, the active item last (ADR-0064). Setting the active item without it
+	 * selects just that item.
+	 */
+	selectedItems: ISceneItem[];
+	/**
+	 * B or Shift+B was pressed (or the toolbar's Select box): the next drag on the view draws a box
+	 * that adds what's inside to the selection, or takes it out. Runtime UI state.
+	 */
+	boxSelect: "add" | "remove" | null;
+	/**
+	 * The box being drawn: where on screen (client px, for ui/BoxSelectBar), and what letting go
+	 * now would add to the selection or take out of it (outlined dashed in the world as a preview).
+	 */
+	boxDrag: {
+		rect: { left: number; top: number; width: number; height: number };
+		items: ISceneItem[];
+		removing: boolean;
+	} | null;
 	/** Selected control point of the selected road or area. */
 	selectedPointIndex: number | null;
 	drawing: IRoadDrawing | null;
@@ -261,6 +281,21 @@ export interface IEditorState {
 	selectAreaPoint: (areaId: string, index: number | null) => void;
 	/** Deselect any entity, road or point. */
 	clearSelection: () => void;
+	/** Shift/Ctrl-click: add an item to the selection (it becomes the active one), or take it out. */
+	toggleSelected: (item: ISceneItem) => void;
+	/** Select exactly these items; the last is the active one. */
+	selectItems: (items: ISceneItem[]) => void;
+	setBoxSelect: (mode: "add" | "remove" | null) => void;
+	setBoxDrag: (drag: IEditorState["boxDrag"]) => void;
+	/** Delete everything selected (one undo step). */
+	removeSelected: () => void;
+	/**
+	 * Copy everything selected, a step over, and select the copies (one undo step). Copied vehicles
+	 * drive along the copied road when their road is copied too.
+	 */
+	duplicateSelected: () => void;
+	/** Hide or lock everything selected, or show or unlock it (one undo step). */
+	setSelectedFlag: (flag: "hidden" | "locked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
 	setDragging: (dragging: boolean) => void;
@@ -291,7 +326,7 @@ export interface IEditorState {
 	 * at its opening view. No glide.
 	 */
 	showOpeningView: (remembered: TViewPose | null) => void;
-	/** Move the camera to the selected object, road or area. */
+	/** Move the camera to the selection: every selected object, road and area. */
 	frameSelection: () => void;
 	setHovered: (item: ISceneItem | null) => void;
 	/** Select an item and open its context menu at a screen point, or close the menu (null). */
@@ -306,7 +341,7 @@ export interface IEditorState {
 	renameItem: (item: ISceneItem, name: string) => void;
 	/** Set an item's `hidden` or `locked` flag (one undo step). */
 	setItemFlag: (item: ISceneItem, flag: "hidden" | "locked", value: boolean) => void;
-	/** Hide the selected item, or show it again if it's hidden (H). It stays selected. */
+	/** Hide the selection, or show it again if the active item is hidden (H). It stays selected. */
 	toggleSelectedHidden: () => void;
 	/** Show every hidden item again (Alt+H). */
 	revealAll: () => void;
@@ -517,6 +552,69 @@ const NOTHING_SELECTED = {
 	selectedPointIndex: null,
 } as const;
 
+/** The scene's objects, roads or areas: the list an item of this kind is in. */
+export const listOf = <T extends Pick<TScene, "entities" | "roads" | "areas">>(
+	scene: T,
+	kind: ISceneItem["kind"],
+): T["entities"] | T["roads"] | T["areas"] =>
+	kind === "entity" ? scene.entities : kind === "road" ? scene.roads : scene.areas;
+
+const sameItem = (a: ISceneItem) => (b: ISceneItem) => a.kind === b.kind && a.id === b.id;
+
+/** The selection fields for one active item (or none), with no point selected. */
+const activeFields = (item: ISceneItem | null) => ({
+	...NOTHING_SELECTED,
+	selectedId: item?.kind === "entity" ? item.id : null,
+	selectedRoadId: item?.kind === "road" ? item.id : null,
+	selectedAreaId: item?.kind === "area" ? item.id : null,
+});
+
+/** A selection of several items (ADR-0064): the last is the active one. */
+const selectionOf = (state: IEditorState, items: ISceneItem[]): Partial<IEditorState> => ({
+	...activeFields(items.at(-1) ?? null),
+	selectedItems: items,
+	tab: state.mode === "edit" && items.length > 0 ? tabForSelection(state.tab) : state.tab,
+	followOffer: null,
+	joinOffer: null,
+});
+
+/**
+ * After undo or redo: the selected items that still exist, the active one with its point if it
+ * does, else the last one left.
+ */
+const selectionKeptIn = (scene: TScene, state: IEditorState): Partial<IEditorState> => {
+	const items = state.selectedItems.filter((item) =>
+		listOf(scene, item.kind).some((thing) => thing.id === item.id),
+	);
+	const active = selectedItem(state);
+	if (active && items.some(sameItem(active))) {
+		return {
+			selectedId: state.selectedId,
+			...validRoadSelection(scene, state),
+			selectedItems: items,
+		};
+	}
+	return { ...activeFields(items.at(-1) ?? null), selectedItems: items };
+};
+
+/**
+ * A state change with `selectedItems` kept in step (ADR-0064): a change that sets the active item
+ * without saying what else is selected selects just that item.
+ */
+const withSelectedItems = (
+	state: IEditorState,
+	patch: IEditorState | Partial<IEditorState>,
+): IEditorState | Partial<IEditorState> => {
+	if (patch === state || "selectedItems" in patch) {
+		return patch;
+	}
+	if (!("selectedId" in patch || "selectedRoadId" in patch || "selectedAreaId" in patch)) {
+		return patch;
+	}
+	const active = selectedItem({ ...state, ...patch });
+	return { ...patch, selectedItems: active ? [active] : [] };
+};
+
 /** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
 const isUnset = ({ data, ...fields }: TEntityLight | TEntityColor) =>
 	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
@@ -583,965 +681,1064 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 };
 
 export const createEditorStore = (initialScene: TScene = createBrightwaterScene()) => {
-	return create<IEditorState>()((set, get) => ({
-		scene: initialScene,
-		past: [],
-		future: [],
-		lastCommit: null,
+	return create<IEditorState>()((rawSet, get) => {
+		// Every change goes through here, so the list of selected items follows the active item.
+		const set = (
+			partial:
+				| IEditorState
+				| Partial<IEditorState>
+				| ((state: IEditorState) => IEditorState | Partial<IEditorState>),
+		) =>
+			rawSet((state) =>
+				withSelectedItems(state, typeof partial === "function" ? partial(state) : partial),
+			);
+		return {
+			scene: initialScene,
+			past: [],
+			future: [],
+			lastCommit: null,
 
-		...NOTHING_SELECTED,
-		drawing: null,
-		placingKind: null,
-		transform: null,
-		viewInset: 0,
-		joinOffer: null,
-		routePreview: null,
-		rerouting: false,
-		followOffer: null,
-		mode: "edit",
-		tab: "world",
-		dragging: false,
-		snapping: true,
-		playing: true,
-		projection: "orthographic",
-		previewTiltShift: false,
-		preferencesOpen: false,
-		holdingRightButton: false,
-		viewNonce: 0,
-		frameBox: null,
-		hovered: null,
-		contextMenu: null,
-		groundMenu: null,
-		viewpointMenu: null,
-		flight: null,
-		activeViewpointId: null,
-		cameraFollow: null,
+			...NOTHING_SELECTED,
+			selectedItems: [],
+			boxSelect: null,
+			boxDrag: null,
+			drawing: null,
+			placingKind: null,
+			transform: null,
+			viewInset: 0,
+			joinOffer: null,
+			routePreview: null,
+			rerouting: false,
+			followOffer: null,
+			mode: "edit",
+			tab: "world",
+			dragging: false,
+			snapping: true,
+			playing: true,
+			projection: "orthographic",
+			previewTiltShift: false,
+			preferencesOpen: false,
+			holdingRightButton: false,
+			viewNonce: 0,
+			frameBox: null,
+			hovered: null,
+			contextMenu: null,
+			groundMenu: null,
+			viewpointMenu: null,
+			flight: null,
+			activeViewpointId: null,
+			cameraFollow: null,
 
-		commit: (recipe, options = {}) =>
-			set((state) => {
-				const next = produce(state.scene, recipe);
-				if (next === state.scene) {
-					return state;
-				}
-				if (options.record === false) {
-					return { scene: next };
-				}
+			commit: (recipe, options = {}) =>
+				set((state) => {
+					const next = produce(state.scene, recipe);
+					if (next === state.scene) {
+						return state;
+					}
+					if (options.record === false) {
+						return { scene: next };
+					}
 
-				const now = Date.now();
-				const { coalesce } = options;
-				const last = state.lastCommit;
-				const recent = options.gesture || (last !== null && now - last.at < COALESCE_MS);
-				if (coalesce && last && last.key === coalesce && recent) {
-					return { scene: next, future: [], lastCommit: { key: coalesce, at: now } };
-				}
-				return {
-					scene: next,
-					past: [...state.past, state.scene].slice(-HISTORY_LIMIT),
+					const now = Date.now();
+					const { coalesce } = options;
+					const last = state.lastCommit;
+					const recent = options.gesture || (last !== null && now - last.at < COALESCE_MS);
+					if (coalesce && last && last.key === coalesce && recent) {
+						return { scene: next, future: [], lastCommit: { key: coalesce, at: now } };
+					}
+					return {
+						scene: next,
+						past: [...state.past, state.scene].slice(-HISTORY_LIMIT),
+						future: [],
+						lastCommit: coalesce ? { key: coalesce, at: now } : null,
+					};
+				}),
+
+			revertTo: (before) =>
+				set((state) => {
+					if (state.scene === before) {
+						return state;
+					}
+					const index = state.past.lastIndexOf(before);
+					return {
+						scene: before,
+						past: index >= 0 ? state.past.slice(0, index) : state.past,
+						lastCommit: null,
+					};
+				}),
+			cancelGesture: null,
+			setCancelGesture: (cancel) => set({ cancelGesture: cancel }),
+
+			loadScene: (scene) => {
+				warnAboutUnknownParts(scene);
+				set({
+					scene,
+					past: [],
 					future: [],
-					lastCommit: coalesce ? { key: coalesce, at: now } : null,
-				};
-			}),
-
-		revertTo: (before) =>
-			set((state) => {
-				if (state.scene === before) {
-					return state;
-				}
-				const index = state.past.lastIndexOf(before);
-				return {
-					scene: before,
-					past: index >= 0 ? state.past.slice(0, index) : state.past,
 					lastCommit: null,
-				};
-			}),
-		cancelGesture: null,
-		setCancelGesture: (cancel) => set({ cancelGesture: cancel }),
-
-		loadScene: (scene) => {
-			warnAboutUnknownParts(scene);
-			set({
-				scene,
-				past: [],
-				future: [],
-				lastCommit: null,
-				...NOTHING_SELECTED,
-				drawing: null,
-				joinOffer: null,
-				followOffer: null,
-				activeViewpointId: null,
-				flight: null,
-				cameraFollow: null,
-			});
-		},
-
-		undo: () =>
-			set((state) => {
-				const previous = state.past.at(-1);
-				if (!previous) {
-					return state;
-				}
-				return {
-					scene: previous,
-					past: state.past.slice(0, -1),
-					future: [state.scene, ...state.future],
-					lastCommit: null,
-					selectedId: previous.entities.some((e) => e.id === state.selectedId)
-						? state.selectedId
-						: null,
-					...validRoadSelection(previous, state),
+					...NOTHING_SELECTED,
+					drawing: null,
 					joinOffer: null,
 					followOffer: null,
-				};
-			}),
-
-		redo: () =>
-			set((state) => {
-				const [next, ...rest] = state.future;
-				if (!next) {
-					return state;
-				}
-				return {
-					scene: next,
-					past: [...state.past, state.scene],
-					future: rest,
-					lastCommit: null,
-					selectedId: next.entities.some((e) => e.id === state.selectedId)
-						? state.selectedId
-						: null,
-					...validRoadSelection(next, state),
-					joinOffer: null,
-					followOffer: null,
-				};
-			}),
-
-		select: (id) =>
-			set((state) =>
-				id
-					? {
-							...NOTHING_SELECTED,
-							selectedId: id,
-							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
-							followOffer: state.followOffer?.entityId === id ? state.followOffer : null,
-						}
-					: { selectedId: null, followOffer: null },
-			),
-		selectRoad: (id) =>
-			set((state) =>
-				id
-					? {
-							...NOTHING_SELECTED,
-							selectedRoadId: id,
-							selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
-							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
-						}
-					: { selectedRoadId: null, selectedPointIndex: null },
-			),
-		selectRoadPoint: (roadId, index) =>
-			set((state) => ({
-				...NOTHING_SELECTED,
-				selectedRoadId: roadId,
-				selectedPointIndex: index,
-				tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
-			})),
-		selectArea: (id) =>
-			set((state) =>
-				id
-					? {
-							...NOTHING_SELECTED,
-							selectedAreaId: id,
-							selectedPointIndex: id === state.selectedAreaId ? state.selectedPointIndex : null,
-							tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
-						}
-					: { selectedAreaId: null, selectedPointIndex: null },
-			),
-		selectAreaPoint: (areaId, index) =>
-			set((state) => ({
-				...NOTHING_SELECTED,
-				selectedAreaId: areaId,
-				selectedPointIndex: index,
-				tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
-			})),
-		clearSelection: () => set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null }),
-		setMode: (mode) =>
-			set({
-				mode,
-				...NOTHING_SELECTED,
-				drawing: null,
-				placingKind: null,
-				transform: null,
-				joinOffer: null,
-				routePreview: null,
-				followOffer: null,
-				contextMenu: null,
-				groundMenu: null,
-				viewpointMenu: null,
-			}),
-		setTab: (tab) => set({ tab }),
-		setDragging: (dragging) => set({ dragging }),
-		startPlacing: (kind) => set({ placingKind: kind, drawing: null, followOffer: null }),
-		stopPlacing: () => set({ placingKind: null }),
-		startTransform: (mode) => set({ transform: { mode, axis: null, typed: "" } }),
-		updateTransform: (patch) =>
-			set((s) => (s.transform ? { transform: { ...s.transform, ...patch } } : s)),
-		endTransform: () => set({ transform: null }),
-		setViewInset: (pixels) => set({ viewInset: pixels }),
-		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
-		togglePlaying: () => set((s) => ({ playing: !s.playing })),
-		setProjection: (projection) => set({ projection }),
-		toggleProjection: () =>
-			set((s) => ({ projection: s.projection === "perspective" ? "orthographic" : "perspective" })),
-		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
-		setPreferencesOpen: (open) => set({ preferencesOpen: open }),
-		setHoldingRightButton: (holding) =>
-			set((s) => (s.holdingRightButton === holding ? s : { holdingRightButton: holding })),
-		resetCamera: () => {
-			const defaults = CameraSettingsSchema.parse({});
-			get().commit((scene) => {
-				const { turntable, turntableSpeed, turntableDelay } = scene.camera;
-				const { tiltShift, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
-				scene.camera = {
-					...defaults,
-					turntable,
-					turntableSpeed,
-					turntableDelay,
-					tiltShift,
-					tiltShiftBlur,
-					tiltShiftFocus,
-					tiltShiftPosition,
-				};
-			});
-			set((s) => ({
-				projection: "orthographic",
-				cameraFollow: null,
-				activeViewpointId: null,
-				viewNonce: s.viewNonce + 1,
-				frameBox: null,
-			}));
-		},
-		resetView: () => {
-			const opening = openingViewpointOf(get().scene);
-			if (opening) {
-				get().goToViewpoint(opening.id);
-				return;
-			}
-			// The whole world, shown as the world says (scene.camera.openingProjection).
-			set((s) => ({
-				viewNonce: s.viewNonce + 1,
-				frameBox: null,
-				cameraFollow: null,
-				projection: s.scene.camera.openingProjection,
-			}));
-		},
-
-		showOpeningView: (remembered) => {
-			const opening = openingViewpointOf(get().scene);
-			const pose = remembered ?? opening;
-			if (!pose) {
-				get().resetView();
-				return;
-			}
-			set((s) => ({
-				cameraFollow: null,
-				projection: pose.projection,
-				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
-				activeViewpointId: remembered ? null : (opening?.id ?? null),
-			}));
-		},
-
-		frameSelection: () => {
-			const item = selectedItem(get());
-			const box = item ? boundsOf(get().scene, item) : null;
-			if (box) {
-				set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: box, cameraFollow: null }));
-			}
-		},
-
-		setHovered: (item) => set({ hovered: item }),
-
-		openContextMenu: (item, at) => {
-			if (!item || !at) {
-				set({ contextMenu: null });
-				return;
-			}
-			const state = get();
-			if (item.kind === "entity") {
-				state.select(item.id);
-			} else if (item.kind === "road") {
-				state.selectRoad(item.id);
-			} else {
-				state.selectArea(item.id);
-			}
-			set({ contextMenu: { item, ...at }, groundMenu: null, viewpointMenu: null });
-		},
-
-		openGroundMenu: (point, at) => {
-			if (!point || !at) {
-				set({ groundMenu: null });
-				return;
-			}
-			get().clearSelection();
-			set({ groundMenu: { point, ...at }, contextMenu: null, viewpointMenu: null });
-		},
-
-		openViewpointMenu: (id, at) =>
-			set(
-				id && at
-					? { viewpointMenu: { id, ...at }, contextMenu: null, groundMenu: null }
-					: { viewpointMenu: null },
-			),
-
-		framePoint: ([x, z]) =>
-			set((s) => ({
-				viewNonce: s.viewNonce + 1,
-				frameBox: { center: [x, 0, z], size: [10, 2, 10] },
-				cameraFollow: null,
-			})),
-		renameItem: (item, name) => {
-			const recipe = (thing: { name: string }) => {
-				thing.name = name;
-			};
-			if (item.kind === "entity") {
-				get().updateEntity(item.id, recipe);
-			} else if (item.kind === "road") {
-				get().updateRoad(item.id, recipe);
-			} else {
-				get().updateArea(item.id, recipe);
-			}
-		},
-
-		setItemFlag: (item, flag, value) =>
-			get().commit((scene) => {
-				const list =
-					item.kind === "entity"
-						? scene.entities
-						: item.kind === "road"
-							? scene.roads
-							: scene.areas;
-				const found = list.find((thing) => thing.id === item.id);
-				if (found) {
-					found[flag] = value;
-				}
-			}),
-
-		toggleSelectedHidden: () => {
-			const state = get();
-			const item = selectedItem(state);
-			const list =
-				item?.kind === "entity"
-					? state.scene.entities
-					: item?.kind === "road"
-						? state.scene.roads
-						: state.scene.areas;
-			const found = item && list.find((thing) => thing.id === item.id);
-			if (item && found) {
-				state.setItemFlag(item, "hidden", !found.hidden);
-			}
-		},
-
-		revealAll: () =>
-			get().commit((scene) => {
-				for (const thing of [...scene.entities, ...scene.roads, ...scene.areas]) {
-					thing.hidden = false;
-				}
-			}),
-
-		followWithCamera: (entityId, ride) =>
-			set((s) => {
-				const projectionBefore = s.cameraFollow?.projectionBefore ?? s.projection;
-				return {
-					cameraFollow: { entityId, ride, projectionBefore },
-					projection: ride ? "perspective" : projectionBefore,
+					activeViewpointId: null,
 					flight: null,
-				};
-			}),
+					cameraFollow: null,
+				});
+			},
 
-		stopFollowing: () =>
-			set((s) =>
-				s.cameraFollow
-					? {
-							cameraFollow: null,
-							projection: s.cameraFollow.ride ? s.cameraFollow.projectionBefore : s.projection,
+			undo: () =>
+				set((state) => {
+					const previous = state.past.at(-1);
+					if (!previous) {
+						return state;
+					}
+					return {
+						scene: previous,
+						past: state.past.slice(0, -1),
+						future: [state.scene, ...state.future],
+						lastCommit: null,
+						...selectionKeptIn(previous, state),
+						joinOffer: null,
+						followOffer: null,
+					};
+				}),
+
+			redo: () =>
+				set((state) => {
+					const [next, ...rest] = state.future;
+					if (!next) {
+						return state;
+					}
+					return {
+						scene: next,
+						past: [...state.past, state.scene],
+						future: rest,
+						lastCommit: null,
+						...selectionKeptIn(next, state),
+						joinOffer: null,
+						followOffer: null,
+					};
+				}),
+
+			select: (id) =>
+				set((state) =>
+					id
+						? {
+								...NOTHING_SELECTED,
+								selectedId: id,
+								tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
+								followOffer: state.followOffer?.entityId === id ? state.followOffer : null,
+							}
+						: { selectedId: null, followOffer: null },
+				),
+			selectRoad: (id) =>
+				set((state) =>
+					id
+						? {
+								...NOTHING_SELECTED,
+								selectedRoadId: id,
+								selectedPointIndex: id === state.selectedRoadId ? state.selectedPointIndex : null,
+								tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
+							}
+						: { selectedRoadId: null, selectedPointIndex: null },
+				),
+			selectRoadPoint: (roadId, index) =>
+				set((state) => ({
+					...NOTHING_SELECTED,
+					selectedRoadId: roadId,
+					selectedPointIndex: index,
+					tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
+				})),
+			selectArea: (id) =>
+				set((state) =>
+					id
+						? {
+								...NOTHING_SELECTED,
+								selectedAreaId: id,
+								selectedPointIndex: id === state.selectedAreaId ? state.selectedPointIndex : null,
+								tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
+							}
+						: { selectedAreaId: null, selectedPointIndex: null },
+				),
+			selectAreaPoint: (areaId, index) =>
+				set((state) => ({
+					...NOTHING_SELECTED,
+					selectedAreaId: areaId,
+					selectedPointIndex: index,
+					tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
+				})),
+			clearSelection: () =>
+				set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null, boxSelect: null }),
+			toggleSelected: (item) =>
+				set((state) =>
+					selectionOf(
+						state,
+						state.selectedItems.some(sameItem(item))
+							? state.selectedItems.filter((other) => !sameItem(item)(other))
+							: [...state.selectedItems, item],
+					),
+				),
+			selectItems: (items) =>
+				set((state) =>
+					selectionOf(
+						state,
+						items.filter((item, index) => items.findIndex(sameItem(item)) === index),
+					),
+				),
+			setBoxSelect: (mode) => set({ boxSelect: mode, boxDrag: null }),
+			setBoxDrag: (drag) => set({ boxDrag: drag }),
+			removeSelected: () => {
+				const items = get().selectedItems;
+				const ids = (kind: ISceneItem["kind"]) =>
+					new Set(items.filter((item) => item.kind === kind).map((item) => item.id));
+				const [entities, roads, areas] = [ids("entity"), ids("road"), ids("area")];
+				get().commit((scene) => {
+					scene.entities = scene.entities.filter((e) => !entities.has(e.id));
+					scene.roads = scene.roads.filter((r) => !roads.has(r.id));
+					scene.areas = scene.areas.filter((a) => !areas.has(a.id));
+					// Vehicles that drove along a deleted road are parked where the road was.
+					for (const entity of scene.entities) {
+						if (entity.follow && roads.has(entity.follow.roadId)) {
+							entity.follow = null;
 						}
-					: s,
-			),
-
-		goToViewpoint: (id) => {
-			const viewpoint = get().scene.viewpoints.find((v) => v.id === id);
-			if (!viewpoint) {
-				return;
-			}
-			set((s) => ({
-				cameraFollow: null,
-				projection: viewpoint.projection,
-				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
-				activeViewpointId: id,
-			}));
-		},
-
-		selectViewpoint: (id) => set({ ...NOTHING_SELECTED, activeViewpointId: id, tab: "views" }),
-
-		isometricNonce: 0,
-		lookIsometric: () => set((s) => ({ isometricNonce: s.isometricNonce + 1, cameraFollow: null })),
-
-		glideTo: (pose) =>
-			set((s) => ({
-				cameraFollow: null,
-				projection: pose.projection,
-				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
-			})),
-
-		addViewpoint: (pose) => {
-			const count = get().scene.viewpoints.length;
-			const viewpoint = ViewpointSchema.parse({
-				...pose,
-				id: newId("view"),
-				name: `Viewpoint ${count + 1}`,
-			});
-			get().commit((scene) => {
-				scene.viewpoints.push(viewpoint);
-			});
-			set({ activeViewpointId: viewpoint.id });
-			return viewpoint.id;
-		},
-
-		updateViewpoint: (id, recipe, options) =>
-			get().commit((scene) => {
-				const viewpoint = scene.viewpoints.find((v) => v.id === id);
-				if (viewpoint) {
-					recipe(viewpoint);
-				}
-			}, options),
-
-		moveViewpoint: (id, to) =>
-			get().commit((scene) => {
-				const from = scene.viewpoints.findIndex((v) => v.id === id);
-				if (from < 0 || to < 0 || to >= scene.viewpoints.length || from === to) {
+					}
+				});
+				set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null });
+			},
+			duplicateSelected: () => {
+				const { scene: current, selectedItems } = get();
+				const picked = <T extends { id: string }>(list: T[], kind: ISceneItem["kind"]) =>
+					list.filter((thing) => selectedItems.some(sameItem({ kind, id: thing.id })));
+				const copyName = (name: string) => (name ? `${name} copy` : "");
+				const roadIds = new Map<string, string>();
+				const roads = picked(current.roads, "road").map((source): TRoad => {
+					const copy = structuredClone(source);
+					copy.id = newId("road");
+					copy.name = copyName(source.name);
+					copy.points = source.points.map((point) =>
+						withPoint(point, { x: point[0] + 1, z: point[1] + 1 }),
+					);
+					roadIds.set(source.id, copy.id);
+					return copy;
+				});
+				const areas = picked(current.areas, "area").map((source): TArea => {
+					const copy = structuredClone(source);
+					copy.id = newId("area");
+					copy.name = copyName(source.name);
+					copy.points = source.points.map(([x, z]): TVec2 => [round(x + 1), round(z + 1)]);
+					return copy;
+				});
+				const entities = picked(current.entities, "entity").map((source): TEntity => {
+					const copy = structuredClone(source);
+					copy.id = newId(source.kind);
+					copy.name = copyName(source.name);
+					copy.position = [source.position[0] + 1, source.position[1] + 1];
+					const copiedRoad = copy.follow && roadIds.get(copy.follow.roadId);
+					if (copy.follow && copiedRoad) {
+						// Along the copied road, where it was on the original.
+						copy.follow.roadId = copiedRoad;
+					} else if (copy.follow) {
+						// A little further along the same road, like a single copy.
+						copy.follow.offset += 3;
+					}
+					return copy;
+				});
+				if (entities.length + roads.length + areas.length === 0) {
 					return;
 				}
-				const [viewpoint] = scene.viewpoints.splice(from, 1);
-				scene.viewpoints.splice(to, 0, viewpoint);
-			}),
-
-		removeViewpoint: (id) => {
-			get().commit((scene) => {
-				scene.viewpoints = scene.viewpoints.filter((v) => v.id !== id);
-				if (scene.camera.openingViewpointId === id) {
-					scene.camera.openingViewpointId = null;
+				get().commit((scene) => {
+					scene.entities.push(...entities);
+					scene.roads.push(...roads);
+					scene.areas.push(...areas);
+				});
+				get().selectItems([
+					...areas.map((area): ISceneItem => ({ kind: "area", id: area.id })),
+					...roads.map((road): ISceneItem => ({ kind: "road", id: road.id })),
+					...entities.map((entity): ISceneItem => ({ kind: "entity", id: entity.id })),
+				]);
+			},
+			setSelectedFlag: (flag, value) => {
+				const items = get().selectedItems;
+				get().commit((scene) => {
+					for (const item of items) {
+						const found = listOf(scene, item.kind).find((thing) => thing.id === item.id);
+						if (found) {
+							found[flag] = value;
+						}
+					}
+				});
+			},
+			setMode: (mode) =>
+				set({
+					mode,
+					...NOTHING_SELECTED,
+					drawing: null,
+					placingKind: null,
+					transform: null,
+					boxSelect: null,
+					joinOffer: null,
+					routePreview: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+				}),
+			setTab: (tab) => set({ tab }),
+			setDragging: (dragging) => set({ dragging }),
+			startPlacing: (kind) => set({ placingKind: kind, drawing: null, followOffer: null }),
+			stopPlacing: () => set({ placingKind: null }),
+			startTransform: (mode) => set({ transform: { mode, axis: null, typed: "" } }),
+			updateTransform: (patch) =>
+				set((s) => (s.transform ? { transform: { ...s.transform, ...patch } } : s)),
+			endTransform: () => set({ transform: null }),
+			setViewInset: (pixels) => set({ viewInset: pixels }),
+			toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
+			togglePlaying: () => set((s) => ({ playing: !s.playing })),
+			setProjection: (projection) => set({ projection }),
+			toggleProjection: () =>
+				set((s) => ({
+					projection: s.projection === "perspective" ? "orthographic" : "perspective",
+				})),
+			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
+			setPreferencesOpen: (open) => set({ preferencesOpen: open }),
+			setHoldingRightButton: (holding) =>
+				set((s) => (s.holdingRightButton === holding ? s : { holdingRightButton: holding })),
+			resetCamera: () => {
+				const defaults = CameraSettingsSchema.parse({});
+				get().commit((scene) => {
+					const { turntable, turntableSpeed, turntableDelay } = scene.camera;
+					const { tiltShift, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
+					scene.camera = {
+						...defaults,
+						turntable,
+						turntableSpeed,
+						turntableDelay,
+						tiltShift,
+						tiltShiftBlur,
+						tiltShiftFocus,
+						tiltShiftPosition,
+					};
+				});
+				set((s) => ({
+					projection: "orthographic",
+					cameraFollow: null,
+					activeViewpointId: null,
+					viewNonce: s.viewNonce + 1,
+					frameBox: null,
+				}));
+			},
+			resetView: () => {
+				const opening = openingViewpointOf(get().scene);
+				if (opening) {
+					get().goToViewpoint(opening.id);
+					return;
 				}
-			});
-			if (get().activeViewpointId === id) {
-				set({ activeViewpointId: null });
-			}
-		},
+				// The whole world, shown as the world says (scene.camera.openingProjection).
+				set((s) => ({
+					viewNonce: s.viewNonce + 1,
+					frameBox: null,
+					cameraFollow: null,
+					projection: s.scene.camera.openingProjection,
+				}));
+			},
 
-		setOpeningViewpoint: (id) =>
-			get().commit((scene) => {
-				scene.camera.openingViewpointId = id;
-			}),
-
-		addEntity: (input) => {
-			const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
-			get().commit((scene) => {
-				scene.entities.push(entity);
-			});
-			set({ selectedId: entity.id, tab: "object" });
-			return entity.id;
-		},
-
-		updateEntity: (id, recipe, options) =>
-			get().commit((scene) => {
-				const entity = scene.entities.find((e) => e.id === id);
-				if (entity) {
-					recipe(entity);
+			showOpeningView: (remembered) => {
+				const opening = openingViewpointOf(get().scene);
+				const pose = remembered ?? opening;
+				if (!pose) {
+					get().resetView();
+					return;
 				}
-			}, options),
+				set((s) => ({
+					cameraFollow: null,
+					projection: pose.projection,
+					flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
+					activeViewpointId: remembered ? null : (opening?.id ?? null),
+				}));
+			},
 
-		setEntityProp: (id, key, value, options) =>
-			get().updateEntity(
-				id,
-				(entity) => {
-					entity.props[key] = value;
-				},
-				options,
-			),
+			frameSelection: () => {
+				const box = boundsOfAll(get().scene, get().selectedItems);
+				if (box) {
+					set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: box, cameraFollow: null }));
+				}
+			},
 
-		setEntityLight: (id, lightId, change, options) =>
-			get().updateEntity(
-				id,
-				(entity) => {
-					if (typeof entity.lights === "string") {
-						const mode = entity.lights;
-						entity.lights = {};
-						if (mode !== "auto") {
-							for (const spec of getPart(entity.kind)?.lights ?? []) {
-								entity.lights[spec.id] = EntityLightSchema.parse({ mode });
+			setHovered: (item) => set({ hovered: item }),
+
+			openContextMenu: (item, at) => {
+				if (!item || !at) {
+					set({ contextMenu: null });
+					return;
+				}
+				const state = get();
+				// Right-clicking one of several selected things keeps them all: the menu acts on them.
+				if (state.selectedItems.length < 2 || !state.selectedItems.some(sameItem(item))) {
+					state.selectItems([item]);
+				}
+				set({ contextMenu: { item, ...at }, groundMenu: null, viewpointMenu: null });
+			},
+
+			openGroundMenu: (point, at) => {
+				if (!point || !at) {
+					set({ groundMenu: null });
+					return;
+				}
+				get().clearSelection();
+				set({ groundMenu: { point, ...at }, contextMenu: null, viewpointMenu: null });
+			},
+
+			openViewpointMenu: (id, at) =>
+				set(
+					id && at
+						? { viewpointMenu: { id, ...at }, contextMenu: null, groundMenu: null }
+						: { viewpointMenu: null },
+				),
+
+			framePoint: ([x, z]) =>
+				set((s) => ({
+					viewNonce: s.viewNonce + 1,
+					frameBox: { center: [x, 0, z], size: [10, 2, 10] },
+					cameraFollow: null,
+				})),
+			renameItem: (item, name) => {
+				const recipe = (thing: { name: string }) => {
+					thing.name = name;
+				};
+				if (item.kind === "entity") {
+					get().updateEntity(item.id, recipe);
+				} else if (item.kind === "road") {
+					get().updateRoad(item.id, recipe);
+				} else {
+					get().updateArea(item.id, recipe);
+				}
+			},
+
+			setItemFlag: (item, flag, value) =>
+				get().commit((scene) => {
+					const found = listOf(scene, item.kind).find((thing) => thing.id === item.id);
+					if (found) {
+						found[flag] = value;
+					}
+				}),
+
+			toggleSelectedHidden: () => {
+				const state = get();
+				const item = selectedItem(state);
+				const found = item && listOf(state.scene, item.kind).find((thing) => thing.id === item.id);
+				if (found) {
+					state.setSelectedFlag("hidden", !found.hidden);
+				}
+			},
+
+			revealAll: () =>
+				get().commit((scene) => {
+					for (const thing of [...scene.entities, ...scene.roads, ...scene.areas]) {
+						thing.hidden = false;
+					}
+				}),
+
+			followWithCamera: (entityId, ride) =>
+				set((s) => {
+					const projectionBefore = s.cameraFollow?.projectionBefore ?? s.projection;
+					return {
+						cameraFollow: { entityId, ride, projectionBefore },
+						projection: ride ? "perspective" : projectionBefore,
+						flight: null,
+					};
+				}),
+
+			stopFollowing: () =>
+				set((s) =>
+					s.cameraFollow
+						? {
+								cameraFollow: null,
+								projection: s.cameraFollow.ride ? s.cameraFollow.projectionBefore : s.projection,
+							}
+						: s,
+				),
+
+			goToViewpoint: (id) => {
+				const viewpoint = get().scene.viewpoints.find((v) => v.id === id);
+				if (!viewpoint) {
+					return;
+				}
+				set((s) => ({
+					cameraFollow: null,
+					projection: viewpoint.projection,
+					flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
+					activeViewpointId: id,
+				}));
+			},
+
+			selectViewpoint: (id) => set({ ...NOTHING_SELECTED, activeViewpointId: id, tab: "views" }),
+
+			isometricNonce: 0,
+			lookIsometric: () =>
+				set((s) => ({ isometricNonce: s.isometricNonce + 1, cameraFollow: null })),
+
+			glideTo: (pose) =>
+				set((s) => ({
+					cameraFollow: null,
+					projection: pose.projection,
+					flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
+				})),
+
+			addViewpoint: (pose) => {
+				const count = get().scene.viewpoints.length;
+				const viewpoint = ViewpointSchema.parse({
+					...pose,
+					id: newId("view"),
+					name: `Viewpoint ${count + 1}`,
+				});
+				get().commit((scene) => {
+					scene.viewpoints.push(viewpoint);
+				});
+				set({ activeViewpointId: viewpoint.id });
+				return viewpoint.id;
+			},
+
+			updateViewpoint: (id, recipe, options) =>
+				get().commit((scene) => {
+					const viewpoint = scene.viewpoints.find((v) => v.id === id);
+					if (viewpoint) {
+						recipe(viewpoint);
+					}
+				}, options),
+
+			moveViewpoint: (id, to) =>
+				get().commit((scene) => {
+					const from = scene.viewpoints.findIndex((v) => v.id === id);
+					if (from < 0 || to < 0 || to >= scene.viewpoints.length || from === to) {
+						return;
+					}
+					const [viewpoint] = scene.viewpoints.splice(from, 1);
+					scene.viewpoints.splice(to, 0, viewpoint);
+				}),
+
+			removeViewpoint: (id) => {
+				get().commit((scene) => {
+					scene.viewpoints = scene.viewpoints.filter((v) => v.id !== id);
+					if (scene.camera.openingViewpointId === id) {
+						scene.camera.openingViewpointId = null;
+					}
+				});
+				if (get().activeViewpointId === id) {
+					set({ activeViewpointId: null });
+				}
+			},
+
+			setOpeningViewpoint: (id) =>
+				get().commit((scene) => {
+					scene.camera.openingViewpointId = id;
+				}),
+
+			addEntity: (input) => {
+				const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
+				get().commit((scene) => {
+					scene.entities.push(entity);
+				});
+				set({ selectedId: entity.id, tab: "object" });
+				return entity.id;
+			},
+
+			updateEntity: (id, recipe, options) =>
+				get().commit((scene) => {
+					const entity = scene.entities.find((e) => e.id === id);
+					if (entity) {
+						recipe(entity);
+					}
+				}, options),
+
+			setEntityProp: (id, key, value, options) =>
+				get().updateEntity(
+					id,
+					(entity) => {
+						entity.props[key] = value;
+					},
+					options,
+				),
+
+			setEntityLight: (id, lightId, change, options) =>
+				get().updateEntity(
+					id,
+					(entity) => {
+						if (typeof entity.lights === "string") {
+							const mode = entity.lights;
+							entity.lights = {};
+							if (mode !== "auto") {
+								for (const spec of getPart(entity.kind)?.lights ?? []) {
+									entity.lights[spec.id] = EntityLightSchema.parse({ mode });
+								}
 							}
 						}
-					}
-					const next = applySettingChange(
-						entity.lights[lightId] ?? EntityLightSchema.parse({}),
-						change,
-					);
-					// Nothing left that differs from the part: no entry at all.
-					if (isUnset(next)) {
-						delete entity.lights[lightId];
-					} else {
-						entity.lights[lightId] = next;
-					}
-				},
-				options,
-			),
-
-		setEntityColor: (id, colorId, change, options) =>
-			get().updateEntity(
-				id,
-				(entity) => {
-					const spec = getPart(entity.kind)?.colors.find((color) => color.id === colorId);
-					const current = entity.colors[colorId] ?? EntityColorSchema.parse({});
-					// An older world's colour for it becomes its setting here, then the old field goes.
-					const legacy = spec?.legacy ? entity[spec.legacy] : null;
-					const next = applySettingChange(
-						current.color === null && legacy ? { ...current, color: legacy } : current,
-						change,
-					);
-					if (spec?.legacy) {
-						entity[spec.legacy] = null;
-					}
-					if (isUnset(next)) {
-						delete entity.colors[colorId];
-					} else {
-						entity.colors[colorId] = next;
-					}
-				},
-				options,
-			),
-
-		moveEntity: (id, position, options) =>
-			get().updateEntity(
-				id,
-				(entity) => {
-					entity.position = [round(position[0]), round(position[1])];
-				},
-				options,
-			),
-
-		rotateEntity: (id, delta) =>
-			get().updateEntity(
-				id,
-				(entity) => {
-					entity.rotation = normalizeDegrees(entity.rotation + delta);
-				},
-				{ coalesce: `rotate:${id}` },
-			),
-
-		removeEntity: (id) => {
-			get().commit((scene) => {
-				scene.entities = scene.entities.filter((e) => e.id !== id);
-			});
-			if (get().selectedId === id) {
-				set({ selectedId: null });
-			}
-		},
-
-		duplicateEntity: (id) => {
-			const source = get().scene.entities.find((e) => e.id === id);
-			if (!source) {
-				return null;
-			}
-			const copy: TEntity = structuredClone(source);
-			copy.id = newId(source.kind);
-			copy.name = source.name ? `${source.name} copy` : "";
-			copy.position = [source.position[0] + 1, source.position[1] + 1];
-			if (copy.follow) {
-				copy.follow.offset += 3;
-			}
-			get().commit((scene) => {
-				scene.entities.push(copy);
-			});
-			set({ selectedId: copy.id });
-			return copy.id;
-		},
-
-		upsertData: (entry, previousKey) =>
-			get().commit(
-				(scene) => {
-					const lookup = previousKey ?? entry.key;
-					const index = scene.data.findIndex((d) => d.key === lookup);
-					if (index === -1) {
-						scene.data.push(entry);
-						return;
-					}
-					// Refuse to rename onto an existing key.
-					if (entry.key !== lookup && scene.data.some((d) => d.key === entry.key)) {
-						return;
-					}
-					scene.data[index] = entry;
-					if (entry.key !== lookup) {
-						renameDataReferences(scene, lookup, entry.key);
-					}
-				},
-				{ coalesce: `data:${previousKey ?? entry.key}` },
-			),
-
-		removeData: (key) =>
-			get().commit((scene) => {
-				scene.data = scene.data.filter((d) => d.key !== key);
-				renameDataReferences(scene, key, null);
-			}),
-
-		addRoad: (input) => {
-			const road = RoadSchema.parse({ ...input, id: input.id ?? newId("road") });
-			get().commit((scene) => {
-				scene.roads.push(road);
-			});
-			set({ ...NOTHING_SELECTED, selectedRoadId: road.id, tab: "object" });
-			return road.id;
-		},
-
-		updateRoad: (id, recipe, options) =>
-			get().commit((scene) => {
-				const road = scene.roads.find((r) => r.id === id);
-				if (road) {
-					recipe(road);
-				}
-			}, options),
-
-		removeRoad: (id) => {
-			get().commit((scene) => {
-				scene.roads = scene.roads.filter((r) => r.id !== id);
-				// Vehicles that drove along it are parked where the road was.
-				for (const entity of scene.entities) {
-					if (entity.follow?.roadId === id) {
-						entity.follow = null;
-					}
-				}
-			});
-			if (get().selectedRoadId === id) {
-				set({ selectedRoadId: null, selectedPointIndex: null });
-			}
-			set({ joinOffer: null });
-		},
-
-		moveRoadPoint: (id, index, point, options) =>
-			get().updateRoad(
-				id,
-				(road) => {
-					const current = road.points[index];
-					if (current) {
-						road.points[index] = withPoint(current, { x: point[0], z: point[1] });
-					}
-				},
-				options,
-			),
-
-		setRoadPointHeight: (id, index, height, options) =>
-			get().updateRoad(
-				id,
-				(road) => {
-					const current = road.points[index];
-					if (current) {
-						road.points[index] = withPoint(current, { height: Math.max(0, height) });
-					}
-				},
-				options,
-			),
-
-		setRoadPointWidth: (id, index, width, options) =>
-			get().updateRoad(
-				id,
-				(road) => {
-					const current = road.points[index];
-					if (current) {
-						road.points[index] = withPoint(current, {
-							width: width === null ? null : clampRoadWidth(width),
-						});
-					}
-				},
-				options,
-			),
-
-		insertRoadPoint: (id, index, point, options) =>
-			get().updateRoad(
-				id,
-				(road) => {
-					// Between points with their own widths, the new point keeps the width there.
-					const n = road.points.length;
-					const neighbours = road.closed
-						? [road.points[(index - 1 + n) % n], road.points[index % n]]
-						: [road.points[index - 1], road.points[index]];
-					const widths = neighbours.filter(Boolean).map((p) => pointWidth(p));
-					const width = widths.some((w) => w !== undefined)
-						? widths.reduce<number>((sum, w) => sum + (w ?? road.width), 0) / widths.length
-						: null;
-					road.points.splice(index, 0, withPoint([point[0], point[1], point[2]], { width }));
-				},
-				options,
-			),
-
-		removeRoadPoint: (id, index) => {
-			get().updateRoad(id, (road) => {
-				if (road.points.length > 2) {
-					road.points.splice(index, 1);
-				}
-			});
-			set((state) =>
-				state.selectedRoadId === id && state.selectedPointIndex !== null
-					? { selectedPointIndex: null }
-					: state,
-			);
-		},
-
-		splitRoad: (id, index) => {
-			const road = get().scene.roads.find((r) => r.id === id);
-			if (!road || index < 0 || index >= road.points.length) {
-				return null;
-			}
-			if (road.closed) {
-				// Open the loop at this point: it becomes both the start and the end.
-				get().updateRoad(id, (r) => {
-					r.points = [...r.points.slice(index), ...r.points.slice(0, index + 1)];
-					r.closed = false;
-				});
-				set({ selectedPointIndex: 0, joinOffer: null });
-				return id;
-			}
-			if (index === 0 || index === road.points.length - 1) {
-				return null; // nothing to cut at an end
-			}
-			const second = RoadSchema.parse({
-				...structuredClone(road),
-				id: newId("road"),
-				name: road.name ? `${road.name} (2)` : "",
-				points: road.points.slice(index),
-			});
-			get().commit((scene) => {
-				const first = scene.roads.find((r) => r.id === id);
-				if (first) {
-					first.points = first.points.slice(0, index + 1);
-					scene.roads.splice(scene.roads.indexOf(first) + 1, 0, second);
-				}
-			});
-			set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
-			return second.id;
-		},
-
-		joinRoads: (aId, aEnd, bId, bEnd) => {
-			const { roads } = get().scene;
-			const a = roads.find((r) => r.id === aId);
-			const b = roads.find((r) => r.id === bId);
-			if (!a || !b || a.closed || b.closed) {
-				return;
-			}
-			if (aId === bId) {
-				if (aEnd !== bEnd && a.points.length > 2) {
-					get().updateRoad(aId, (r) => {
-						const first = r.points[0];
-						const last = r.points[r.points.length - 1];
-						if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
-							r.points.pop(); // ends touch: keep one shared point
+						const next = applySettingChange(
+							entity.lights[lightId] ?? EntityLightSchema.parse({}),
+							change,
+						);
+						// Nothing left that differs from the part: no entry at all.
+						if (isUnset(next)) {
+							delete entity.lights[lightId];
+						} else {
+							entity.lights[lightId] = next;
 						}
-						r.closed = true;
-					});
-				}
-				set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null });
-				return;
-			}
-			get().commit((scene) => {
-				const target = scene.roads.find((r) => r.id === aId);
-				if (!target) {
-					return;
-				}
-				// The absorbed road keeps its own width as per-point widths if it differs.
-				const bPoints = b.points.map((p) =>
-					b.width !== a.width && pointWidth(p) === undefined ? withPoint(p, { width: b.width }) : p,
-				);
-				target.points = joinedPoints(a.points, aEnd, bPoints, bEnd);
-				scene.roads = scene.roads.filter((r) => r.id !== bId);
-				// Vehicles on the absorbed road now drive the joined one.
-				for (const entity of scene.entities) {
-					if (entity.follow?.roadId === bId) {
-						entity.follow.roadId = aId;
-					}
-				}
-			});
-			set({ ...NOTHING_SELECTED, joinOffer: null, selectedRoadId: aId });
-		},
+					},
+					options,
+				),
 
-		setJoinOffer: (offer) => set({ joinOffer: offer }),
-		setRoutePreview: (preview) => set({ routePreview: preview }),
-		setRerouting: (rerouting) => set({ rerouting }),
-		setFollowOffer: (offer) => set({ followOffer: offer }),
+			setEntityColor: (id, colorId, change, options) =>
+				get().updateEntity(
+					id,
+					(entity) => {
+						const spec = getPart(entity.kind)?.colors.find((color) => color.id === colorId);
+						const current = entity.colors[colorId] ?? EntityColorSchema.parse({});
+						// An older world's colour for it becomes its setting here, then the old field goes.
+						const legacy = spec?.legacy ? entity[spec.legacy] : null;
+						const next = applySettingChange(
+							current.color === null && legacy ? { ...current, color: legacy } : current,
+							change,
+						);
+						if (spec?.legacy) {
+							entity[spec.legacy] = null;
+						}
+						if (isUnset(next)) {
+							delete entity.colors[colorId];
+						} else {
+							entity.colors[colorId] = next;
+						}
+					},
+					options,
+				),
 
-		acceptFollowOffer: () => {
-			const offer = get().followOffer;
-			if (!offer) {
-				return;
-			}
-			set({ followOffer: null });
-			get().updateEntity(offer.entityId, (entity) => {
-				entity.follow = FollowSchema.parse({
-					roadId: offer.roadId,
-					offset: round(offer.offset),
-					reverse: offer.reverse,
+			moveEntity: (id, position, options) =>
+				get().updateEntity(
+					id,
+					(entity) => {
+						entity.position = [round(position[0]), round(position[1])];
+					},
+					options,
+				),
+
+			rotateEntity: (id, delta) =>
+				get().updateEntity(
+					id,
+					(entity) => {
+						entity.rotation = normalizeDegrees(entity.rotation + delta);
+					},
+					{ coalesce: `rotate:${id}` },
+				),
+
+			removeEntity: (id) => {
+				get().commit((scene) => {
+					scene.entities = scene.entities.filter((e) => e.id !== id);
 				});
-				// The road sets height, heading and slope now; these would add on top of it.
-				entity.elevation = 0;
-				entity.rotation = 0;
-				entity.pitch = 0;
-			});
-		},
-
-		startDrawing: (style) =>
-			set({
-				drawing: { target: "road", style, areaType: "grass_01", points: [] },
-				...NOTHING_SELECTED,
-				joinOffer: null,
-				followOffer: null,
-			}),
-
-		startAreaDrawing: (areaType) =>
-			set({
-				drawing: { target: "area", style: "road_01", areaType, points: [] },
-				...NOTHING_SELECTED,
-				joinOffer: null,
-				followOffer: null,
-			}),
-
-		continueDrawing: (roadId, end) => {
-			const road = get().scene.roads.find((r) => r.id === roadId);
-			if (!road || road.closed) {
-				return;
-			}
-			// Orient the points so new ones are added after the chosen end.
-			const points = end === "end" ? [...road.points] : [...road.points].reverse();
-			set({
-				drawing: { target: "road", style: road.style, areaType: "grass_01", points, roadId },
-				...NOTHING_SELECTED,
-				joinOffer: null,
-				followOffer: null,
-			});
-		},
-
-		addArea: (input) => {
-			const area = AreaSchema.parse({ ...input, id: input.id ?? newId("area") });
-			get().commit((scene) => {
-				scene.areas.push(area);
-			});
-			set({ ...NOTHING_SELECTED, selectedAreaId: area.id, tab: "object" });
-			return area.id;
-		},
-
-		updateArea: (id, recipe, options) =>
-			get().commit((scene) => {
-				const area = scene.areas.find((a) => a.id === id);
-				if (area) {
-					recipe(area);
+				if (get().selectedId === id) {
+					set({ selectedId: null });
 				}
-			}, options),
+			},
 
-		removeArea: (id) => {
-			get().commit((scene) => {
-				scene.areas = scene.areas.filter((a) => a.id !== id);
-			});
-			if (get().selectedAreaId === id) {
-				set({ selectedAreaId: null, selectedPointIndex: null });
-			}
-		},
-
-		moveAreaPoint: (id, index, point, options) =>
-			get().updateArea(
-				id,
-				(area) => {
-					if (area.points[index]) {
-						area.points[index] = [round(point[0]), round(point[1])];
-					}
-				},
-				options,
-			),
-
-		insertAreaPoint: (id, index, point, options) =>
-			get().updateArea(
-				id,
-				(area) => {
-					area.points.splice(index, 0, [round(point[0]), round(point[1])]);
-				},
-				options,
-			),
-
-		removeAreaPoint: (id, index) => {
-			get().updateArea(id, (area) => {
-				if (area.points.length > 3) {
-					area.points.splice(index, 1);
-				}
-			});
-			set((state) =>
-				state.selectedAreaId === id && state.selectedPointIndex !== null
-					? { selectedPointIndex: null }
-					: state,
-			);
-		},
-
-		addDrawingPoint: (point) =>
-			set((state) => {
-				if (!state.drawing) {
-					return state;
-				}
-				const last = state.drawing.points.at(-1);
-				if (last && last[0] === point[0] && last[1] === point[1]) {
-					return state;
-				}
-				// New points continue at the previous point's height (ground level for a new road).
-				const next: TRoadPoint = [point[0], point[1], last?.[2] ?? 0];
-				return { drawing: { ...state.drawing, points: [...state.drawing.points, next] } };
-			}),
-
-		undoDrawingPoint: () =>
-			set((state) =>
-				state.drawing
-					? { drawing: { ...state.drawing, points: state.drawing.points.slice(0, -1) } }
-					: state,
-			),
-
-		finishDrawing: (options = {}) => {
-			const { drawing, scene } = get();
-			set({ drawing: null });
-			if (!drawing || drawing.points.length < 2) {
-				return null;
-			}
-			if (drawing.target === "area") {
-				if (drawing.points.length < 3) {
+			duplicateEntity: (id) => {
+				const source = get().scene.entities.find((e) => e.id === id);
+				if (!source) {
 					return null;
 				}
-				const count = scene.areas.filter((a) => a.type === drawing.areaType).length;
-				return get().addArea({
-					name: `${AREA_TYPE_LABELS[drawing.areaType]} ${count + 1}`,
-					type: drawing.areaType,
-					points: drawing.points.map(([x, z]) => [x, z]),
-					height: AREA_TYPES[drawing.areaType].startHeight,
+				const copy: TEntity = structuredClone(source);
+				copy.id = newId(source.kind);
+				copy.name = source.name ? `${source.name} copy` : "";
+				copy.position = [source.position[0] + 1, source.position[1] + 1];
+				if (copy.follow) {
+					copy.follow.offset += 3;
+				}
+				get().commit((scene) => {
+					scene.entities.push(copy);
 				});
-			}
-			const closed = Boolean(options.closed) && drawing.points.length > 2;
-			if (drawing.roadId) {
-				const roadId = drawing.roadId;
-				get().updateRoad(roadId, (road) => {
-					road.points = drawing.points;
-					road.closed = closed;
-				});
-				set({ ...NOTHING_SELECTED, selectedRoadId: roadId, tab: "object" });
-				return roadId;
-			}
-			const count = scene.roads.filter((r) => r.style === drawing.style).length;
-			return get().addRoad({
-				name: `${ROAD_STYLE_LABELS[drawing.style]} ${count + 1}`,
-				style: drawing.style,
-				points: drawing.points,
-				width: ROAD_STYLE_WIDTH[drawing.style],
-				closed,
-			});
-		},
+				set({ selectedId: copy.id });
+				return copy.id;
+			},
 
-		cancelDrawing: () => set({ drawing: null }),
-	}));
+			upsertData: (entry, previousKey) =>
+				get().commit(
+					(scene) => {
+						const lookup = previousKey ?? entry.key;
+						const index = scene.data.findIndex((d) => d.key === lookup);
+						if (index === -1) {
+							scene.data.push(entry);
+							return;
+						}
+						// Refuse to rename onto an existing key.
+						if (entry.key !== lookup && scene.data.some((d) => d.key === entry.key)) {
+							return;
+						}
+						scene.data[index] = entry;
+						if (entry.key !== lookup) {
+							renameDataReferences(scene, lookup, entry.key);
+						}
+					},
+					{ coalesce: `data:${previousKey ?? entry.key}` },
+				),
+
+			removeData: (key) =>
+				get().commit((scene) => {
+					scene.data = scene.data.filter((d) => d.key !== key);
+					renameDataReferences(scene, key, null);
+				}),
+
+			addRoad: (input) => {
+				const road = RoadSchema.parse({ ...input, id: input.id ?? newId("road") });
+				get().commit((scene) => {
+					scene.roads.push(road);
+				});
+				set({ ...NOTHING_SELECTED, selectedRoadId: road.id, tab: "object" });
+				return road.id;
+			},
+
+			updateRoad: (id, recipe, options) =>
+				get().commit((scene) => {
+					const road = scene.roads.find((r) => r.id === id);
+					if (road) {
+						recipe(road);
+					}
+				}, options),
+
+			removeRoad: (id) => {
+				get().commit((scene) => {
+					scene.roads = scene.roads.filter((r) => r.id !== id);
+					// Vehicles that drove along it are parked where the road was.
+					for (const entity of scene.entities) {
+						if (entity.follow?.roadId === id) {
+							entity.follow = null;
+						}
+					}
+				});
+				if (get().selectedRoadId === id) {
+					set({ selectedRoadId: null, selectedPointIndex: null });
+				}
+				set({ joinOffer: null });
+			},
+
+			moveRoadPoint: (id, index, point, options) =>
+				get().updateRoad(
+					id,
+					(road) => {
+						const current = road.points[index];
+						if (current) {
+							road.points[index] = withPoint(current, { x: point[0], z: point[1] });
+						}
+					},
+					options,
+				),
+
+			setRoadPointHeight: (id, index, height, options) =>
+				get().updateRoad(
+					id,
+					(road) => {
+						const current = road.points[index];
+						if (current) {
+							road.points[index] = withPoint(current, { height: Math.max(0, height) });
+						}
+					},
+					options,
+				),
+
+			setRoadPointWidth: (id, index, width, options) =>
+				get().updateRoad(
+					id,
+					(road) => {
+						const current = road.points[index];
+						if (current) {
+							road.points[index] = withPoint(current, {
+								width: width === null ? null : clampRoadWidth(width),
+							});
+						}
+					},
+					options,
+				),
+
+			insertRoadPoint: (id, index, point, options) =>
+				get().updateRoad(
+					id,
+					(road) => {
+						// Between points with their own widths, the new point keeps the width there.
+						const n = road.points.length;
+						const neighbours = road.closed
+							? [road.points[(index - 1 + n) % n], road.points[index % n]]
+							: [road.points[index - 1], road.points[index]];
+						const widths = neighbours.filter(Boolean).map((p) => pointWidth(p));
+						const width = widths.some((w) => w !== undefined)
+							? widths.reduce<number>((sum, w) => sum + (w ?? road.width), 0) / widths.length
+							: null;
+						road.points.splice(index, 0, withPoint([point[0], point[1], point[2]], { width }));
+					},
+					options,
+				),
+
+			removeRoadPoint: (id, index) => {
+				get().updateRoad(id, (road) => {
+					if (road.points.length > 2) {
+						road.points.splice(index, 1);
+					}
+				});
+				set((state) =>
+					state.selectedRoadId === id && state.selectedPointIndex !== null
+						? { selectedPointIndex: null }
+						: state,
+				);
+			},
+
+			splitRoad: (id, index) => {
+				const road = get().scene.roads.find((r) => r.id === id);
+				if (!road || index < 0 || index >= road.points.length) {
+					return null;
+				}
+				if (road.closed) {
+					// Open the loop at this point: it becomes both the start and the end.
+					get().updateRoad(id, (r) => {
+						r.points = [...r.points.slice(index), ...r.points.slice(0, index + 1)];
+						r.closed = false;
+					});
+					set({ selectedPointIndex: 0, joinOffer: null });
+					return id;
+				}
+				if (index === 0 || index === road.points.length - 1) {
+					return null; // nothing to cut at an end
+				}
+				const second = RoadSchema.parse({
+					...structuredClone(road),
+					id: newId("road"),
+					name: road.name ? `${road.name} (2)` : "",
+					points: road.points.slice(index),
+				});
+				get().commit((scene) => {
+					const first = scene.roads.find((r) => r.id === id);
+					if (first) {
+						first.points = first.points.slice(0, index + 1);
+						scene.roads.splice(scene.roads.indexOf(first) + 1, 0, second);
+					}
+				});
+				set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
+				return second.id;
+			},
+
+			joinRoads: (aId, aEnd, bId, bEnd) => {
+				const { roads } = get().scene;
+				const a = roads.find((r) => r.id === aId);
+				const b = roads.find((r) => r.id === bId);
+				if (!a || !b || a.closed || b.closed) {
+					return;
+				}
+				if (aId === bId) {
+					if (aEnd !== bEnd && a.points.length > 2) {
+						get().updateRoad(aId, (r) => {
+							const first = r.points[0];
+							const last = r.points[r.points.length - 1];
+							if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
+								r.points.pop(); // ends touch: keep one shared point
+							}
+							r.closed = true;
+						});
+					}
+					set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null });
+					return;
+				}
+				get().commit((scene) => {
+					const target = scene.roads.find((r) => r.id === aId);
+					if (!target) {
+						return;
+					}
+					// The absorbed road keeps its own width as per-point widths if it differs.
+					const bPoints = b.points.map((p) =>
+						b.width !== a.width && pointWidth(p) === undefined
+							? withPoint(p, { width: b.width })
+							: p,
+					);
+					target.points = joinedPoints(a.points, aEnd, bPoints, bEnd);
+					scene.roads = scene.roads.filter((r) => r.id !== bId);
+					// Vehicles on the absorbed road now drive the joined one.
+					for (const entity of scene.entities) {
+						if (entity.follow?.roadId === bId) {
+							entity.follow.roadId = aId;
+						}
+					}
+				});
+				set({ ...NOTHING_SELECTED, joinOffer: null, selectedRoadId: aId });
+			},
+
+			setJoinOffer: (offer) => set({ joinOffer: offer }),
+			setRoutePreview: (preview) => set({ routePreview: preview }),
+			setRerouting: (rerouting) => set({ rerouting }),
+			setFollowOffer: (offer) => set({ followOffer: offer }),
+
+			acceptFollowOffer: () => {
+				const offer = get().followOffer;
+				if (!offer) {
+					return;
+				}
+				set({ followOffer: null });
+				get().updateEntity(offer.entityId, (entity) => {
+					entity.follow = FollowSchema.parse({
+						roadId: offer.roadId,
+						offset: round(offer.offset),
+						reverse: offer.reverse,
+					});
+					// The road sets height, heading and slope now; these would add on top of it.
+					entity.elevation = 0;
+					entity.rotation = 0;
+					entity.pitch = 0;
+				});
+			},
+
+			startDrawing: (style) =>
+				set({
+					drawing: { target: "road", style, areaType: "grass_01", points: [] },
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				}),
+
+			startAreaDrawing: (areaType) =>
+				set({
+					drawing: { target: "area", style: "road_01", areaType, points: [] },
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				}),
+
+			continueDrawing: (roadId, end) => {
+				const road = get().scene.roads.find((r) => r.id === roadId);
+				if (!road || road.closed) {
+					return;
+				}
+				// Orient the points so new ones are added after the chosen end.
+				const points = end === "end" ? [...road.points] : [...road.points].reverse();
+				set({
+					drawing: { target: "road", style: road.style, areaType: "grass_01", points, roadId },
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				});
+			},
+
+			addArea: (input) => {
+				const area = AreaSchema.parse({ ...input, id: input.id ?? newId("area") });
+				get().commit((scene) => {
+					scene.areas.push(area);
+				});
+				set({ ...NOTHING_SELECTED, selectedAreaId: area.id, tab: "object" });
+				return area.id;
+			},
+
+			updateArea: (id, recipe, options) =>
+				get().commit((scene) => {
+					const area = scene.areas.find((a) => a.id === id);
+					if (area) {
+						recipe(area);
+					}
+				}, options),
+
+			removeArea: (id) => {
+				get().commit((scene) => {
+					scene.areas = scene.areas.filter((a) => a.id !== id);
+				});
+				if (get().selectedAreaId === id) {
+					set({ selectedAreaId: null, selectedPointIndex: null });
+				}
+			},
+
+			moveAreaPoint: (id, index, point, options) =>
+				get().updateArea(
+					id,
+					(area) => {
+						if (area.points[index]) {
+							area.points[index] = [round(point[0]), round(point[1])];
+						}
+					},
+					options,
+				),
+
+			insertAreaPoint: (id, index, point, options) =>
+				get().updateArea(
+					id,
+					(area) => {
+						area.points.splice(index, 0, [round(point[0]), round(point[1])]);
+					},
+					options,
+				),
+
+			removeAreaPoint: (id, index) => {
+				get().updateArea(id, (area) => {
+					if (area.points.length > 3) {
+						area.points.splice(index, 1);
+					}
+				});
+				set((state) =>
+					state.selectedAreaId === id && state.selectedPointIndex !== null
+						? { selectedPointIndex: null }
+						: state,
+				);
+			},
+
+			addDrawingPoint: (point) =>
+				set((state) => {
+					if (!state.drawing) {
+						return state;
+					}
+					const last = state.drawing.points.at(-1);
+					if (last && last[0] === point[0] && last[1] === point[1]) {
+						return state;
+					}
+					// New points continue at the previous point's height (ground level for a new road).
+					const next: TRoadPoint = [point[0], point[1], last?.[2] ?? 0];
+					return { drawing: { ...state.drawing, points: [...state.drawing.points, next] } };
+				}),
+
+			undoDrawingPoint: () =>
+				set((state) =>
+					state.drawing
+						? { drawing: { ...state.drawing, points: state.drawing.points.slice(0, -1) } }
+						: state,
+				),
+
+			finishDrawing: (options = {}) => {
+				const { drawing, scene } = get();
+				set({ drawing: null });
+				if (!drawing || drawing.points.length < 2) {
+					return null;
+				}
+				if (drawing.target === "area") {
+					if (drawing.points.length < 3) {
+						return null;
+					}
+					const count = scene.areas.filter((a) => a.type === drawing.areaType).length;
+					return get().addArea({
+						name: `${AREA_TYPE_LABELS[drawing.areaType]} ${count + 1}`,
+						type: drawing.areaType,
+						points: drawing.points.map(([x, z]) => [x, z]),
+						height: AREA_TYPES[drawing.areaType].startHeight,
+					});
+				}
+				const closed = Boolean(options.closed) && drawing.points.length > 2;
+				if (drawing.roadId) {
+					const roadId = drawing.roadId;
+					get().updateRoad(roadId, (road) => {
+						road.points = drawing.points;
+						road.closed = closed;
+					});
+					set({ ...NOTHING_SELECTED, selectedRoadId: roadId, tab: "object" });
+					return roadId;
+				}
+				const count = scene.roads.filter((r) => r.style === drawing.style).length;
+				return get().addRoad({
+					name: `${ROAD_STYLE_LABELS[drawing.style]} ${count + 1}`,
+					style: drawing.style,
+					points: drawing.points,
+					width: ROAD_STYLE_WIDTH[drawing.style],
+					closed,
+				});
+			},
+
+			cancelDrawing: () => set({ drawing: null }),
+		};
+	});
 };
 
 export const useEditor = createEditorStore();
@@ -1572,3 +1769,18 @@ export const selectSelectedRoad = (state: IEditorState) =>
 
 export const selectSelectedArea = (state: IEditorState) =>
 	state.scene.areas.find((a) => a.id === state.selectedAreaId) ?? null;
+
+/** Whether an item is among the selected ones (ADR-0064), active or not. */
+export const isItemSelected = (state: IEditorState, kind: ISceneItem["kind"], id: string) =>
+	state.selectedItems.some((item) => item.kind === kind && item.id === id);
+
+/** Several things are selected: actions and transforms work on all of them (ADR-0064). */
+export const selectSeveral = (state: IEditorState) => state.selectedItems.length > 1;
+
+/** A Shift-, Ctrl- or Cmd-click: adds to the selection or takes from it, in Edit mode (ADR-0064). */
+export const isToggleClick = (event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) =>
+	event.shiftKey || event.ctrlKey || event.metaKey;
+
+/** Whether a box being drawn would add an item to the selection or take it out (ADR-0064). */
+export const isItemBoxed = (state: IEditorState, kind: ISceneItem["kind"], id: string) =>
+	state.boxDrag?.items.some((item) => item.kind === kind && item.id === id) ?? false;
