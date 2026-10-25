@@ -127,6 +127,7 @@ export const CameraTab = () => {
 			{ coalesce: `camera.${key}` },
 		);
 	const perspective = useEditor((s) => s.perspective);
+	const previewTiltShift = useEditor((s) => s.previewTiltShift);
 	const opening = viewpoints.some((v) => v.id === camera.openingViewpointId)
 		? (camera.openingViewpointId ?? "")
 		: "";
@@ -315,6 +316,75 @@ export const CameraTab = () => {
 					inherit={byDefault("turntableDelay", `${CAMERA_DEFAULTS.turntableDelay} s`)}
 					hint="Seconds without input in View mode. Any press, scroll or key stops it, like a model on a turntable in a shop window: good for a world left on a wall screen."
 				/>
+			</Section>
+
+			<Section
+				id="camera.tiltShift"
+				icon="focus"
+				title="Tilt-shift"
+				keywords="tilt shift miniature blur depth of field focus toy model photo"
+			>
+				<SwitchField
+					label="Miniature blur in View mode"
+					checked={camera.tiltShift}
+					onChange={(v) => set("tiltShift", v)}
+					inherit={byDefault("tiltShift", "off")}
+				/>
+
+				<SliderField
+					label="Blur"
+					value={Math.round(camera.tiltShiftBlur * 100)}
+					min={0}
+					max={100}
+					step={5}
+					suffix="%"
+					onChange={(v) => set("tiltShiftBlur", v / 100)}
+					inherit={byDefault("tiltShiftBlur", `${CAMERA_DEFAULTS.tiltShiftBlur * 100}%`)}
+				/>
+
+				<SliderField
+					label="Sharp band"
+					value={Math.round(camera.tiltShiftFocus * 100)}
+					min={5}
+					max={100}
+					step={5}
+					suffix="%"
+					onChange={(v) => set("tiltShiftFocus", v / 100)}
+					inherit={byDefault("tiltShiftFocus", `${CAMERA_DEFAULTS.tiltShiftFocus * 100}%`)}
+					hint="How much of the view’s height stays sharp."
+				/>
+
+				<SliderField
+					label="Band height"
+					value={Math.round(camera.tiltShiftPosition * 100)}
+					min={0}
+					max={100}
+					step={5}
+					suffix="%"
+					onChange={(v) => set("tiltShiftPosition", v / 100)}
+					inherit={byDefault(
+						"tiltShiftPosition",
+						`${CAMERA_DEFAULTS.tiltShiftPosition * 100}%, the middle`,
+					)}
+					hint="Where the sharp band is, from the bottom of the view (0%) to the top."
+				/>
+
+				<SwitchField
+					label="Show it while editing"
+					checked={previewTiltShift}
+					onChange={(v) => useEditor.getState().setPreviewTiltShift(v)}
+					inherit={{
+						from: "default",
+						inherited: !previewTiltShift,
+						onReset: () => useEditor.getState().setPreviewTiltShift(false),
+						value: "off",
+					}}
+				/>
+
+				<Hint>
+					Blurring the top and bottom makes the world look like a model photographed up close. It
+					shows in View mode; Edit mode stays sharp unless you show it while editing.
+				</Hint>
 			</Section>
 
 			<CameraFeelSection />

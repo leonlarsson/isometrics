@@ -206,6 +206,8 @@ export interface IEditorState {
 	playing: boolean;
 	/** Perspective camera instead of the orthographic diorama view. Runtime UI state. */
 	perspective: boolean;
+	/** Show the world's tilt-shift in Edit mode too, while setting it up (it's View mode's). */
+	previewTiltShift: boolean;
 	/** Incremented to ask the viewport to re-frame the camera. */
 	viewNonce: number;
 	/** What the next re-frame shows: a box (frame selection), or null for the whole ground. */
@@ -261,6 +263,7 @@ export interface IEditorState {
 	toggleSnapping: () => void;
 	togglePlaying: () => void;
 	togglePerspective: () => void;
+	setPreviewTiltShift: (preview: boolean) => void;
 	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle. */
 	resetView: () => void;
 	/**
@@ -572,6 +575,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		snapping: true,
 		playing: true,
 		perspective: false,
+		previewTiltShift: false,
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
@@ -751,6 +755,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
+		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 		resetView: () => {
 			const opening = openingViewpointOf(get().scene);
 			if (opening) {

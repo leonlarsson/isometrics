@@ -606,6 +606,32 @@ export const CameraSettingsSchema = z
 			.max(300)
 			.default(10)
 			.describe("With turntable: seconds without input in View mode before it starts."),
+		tiltShift: z
+			.boolean()
+			.default(false)
+			.describe(
+				"In View mode, blur the top and bottom of the view and keep a band across it sharp, which makes the world look like a miniature (tilt-shift photography).",
+			),
+		tiltShiftBlur: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe("With tiltShift: how strong the blur is, 0–1."),
+		tiltShiftFocus: z
+			.number()
+			.min(0.05)
+			.max(1)
+			.default(0.3)
+			.describe("With tiltShift: how much of the view's height stays sharp, 0–1."),
+		tiltShiftPosition: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"With tiltShift: where the sharp band is, from the bottom of the view (0) to the top (1).",
+			),
 	})
 	.describe("How the camera behaves in this world.");
 
@@ -727,6 +753,10 @@ export const SceneSchema = z
 			turntable: false,
 			turntableSpeed: 4,
 			turntableDelay: 10,
+			tiltShift: false,
+			tiltShiftBlur: 0.5,
+			tiltShiftFocus: 0.3,
+			tiltShiftPosition: 0.5,
 		}),
 	})
 	.superRefine((scene, ctx) => {
