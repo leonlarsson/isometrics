@@ -909,14 +909,14 @@ textarea.input {
 
 	.field:not([data-stacked]) .inheritTag,
 	.field:not([data-stacked]) .reset,
-	.switchRow .inheritTag,
-	.switchRow .reset {
+	.switchRow:not([data-stacked]) .inheritTag,
+	.switchRow:not([data-stacked]) .reset {
 		margin-left: 0;
 	}
 
 	/* A quiet note under the label rather than a pill. */
 	.field:not([data-stacked]) .inheritTag,
-	.switchRow .inheritTag {
+	.switchRow:not([data-stacked]) .inheritTag {
 		flex-basis: 100%;
 		padding: 0;
 		background: none;
@@ -927,7 +927,7 @@ textarea.input {
 	}
 
 	.field:not([data-stacked]) .resetText,
-	.switchRow .resetText {
+	.switchRow:not([data-stacked]) .resetText {
 		display: none;
 	}
 
