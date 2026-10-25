@@ -29,6 +29,7 @@ import { List, ListItem } from "./List";
 import { Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { RailTabPanel, RailTabs } from "./RailTabs";
+import { SettingsDialog } from "./SettingsDialog";
 import { TabPanel, Tabs } from "./Tabs";
 import { Toaster } from "./Toaster";
 import { TooltipProvider } from "./Tooltip";
@@ -66,6 +67,7 @@ export const KitPage = () => {
 	const [selected, setSelected] = useState("ring");
 	const [confirming, setConfirming] = useState(false);
 	const [browsing, setBrowsing] = useState(false);
+	const [settingsOpen, setSettingsOpen] = useState(false);
 
 	useEffect(() => {
 		document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -313,6 +315,8 @@ export const KitPage = () => {
 
 											<Button onClick={() => setBrowsing(true)}>Panel dialog</Button>
 
+											<Button onClick={() => setSettingsOpen(true)}>Settings dialog</Button>
+
 											<Menu.Root>
 												<Menu.Trigger>Menu</Menu.Trigger>
 
@@ -476,6 +480,63 @@ export const KitPage = () => {
 							</Tabs>
 						</div>
 					</div>
+
+					<SettingsDialog
+						open={settingsOpen}
+						onOpenChange={setSettingsOpen}
+						title="Settings"
+						note="A note under the pages."
+						pages={[
+							{
+								id: "general",
+								label: "General",
+								icon: "globe",
+								groups: [
+									{
+										title: "A group",
+										rows: [
+											{
+												id: "switch",
+												field: <SwitchField label="A switch" checked={on} onChange={setOn} />,
+											},
+											{
+												id: "slider",
+												keywords: "number",
+												field: (
+													<SliderField
+														label="A slider"
+														value={slider}
+														min={0}
+														max={5}
+														step={0.1}
+														onChange={setSlider}
+														hint="Rows can have hints."
+													/>
+												),
+											},
+										],
+										note: "A note under a group.",
+									},
+								],
+							},
+							{
+								id: "other",
+								label: "Another page",
+								icon: "eye",
+								groups: [
+									{
+										title: "Search finds every page",
+										rows: [
+											{
+												id: "colour",
+												field: <ColorField label="Colour" value={color} onChange={setColor} />,
+											},
+										],
+									},
+								],
+							},
+						]}
+					/>
 
 					<Dialog
 						open={browsing}
