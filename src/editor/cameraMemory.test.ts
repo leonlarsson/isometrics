@@ -10,7 +10,7 @@ const pose = {
 	azimuth: 120,
 	elevation: 40,
 	span: 18,
-	projection: "diorama" as const,
+	projection: "orthographic" as const,
 	fieldOfView: null,
 	targetHeight: 0,
 };

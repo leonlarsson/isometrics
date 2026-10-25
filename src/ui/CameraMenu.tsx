@@ -63,7 +63,7 @@ export const CameraMenu = () => {
 					icon="video"
 					label="Isometric diorama"
 					checked={!perspective}
-					onCheckedChange={() => store().setProjection("diorama")}
+					onCheckedChange={() => store().setProjection("orthographic")}
 					keepOpen
 					shortcut="P"
 				/>

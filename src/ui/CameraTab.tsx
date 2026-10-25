@@ -106,14 +106,14 @@ export const CameraTab = () => {
 					label="Camera"
 					value={projection}
 					options={[
-						{ value: "diorama", label: "Isometric diorama" },
+						{ value: "orthographic", label: "Isometric diorama" },
 						{ value: "perspective", label: "Perspective" },
 					]}
 					onChange={(next) => useEditor.getState().setProjection(next)}
 					inherit={{
 						from: "default",
-						inherited: projection === "diorama",
-						onReset: () => useEditor.getState().setProjection("diorama"),
+						inherited: projection === "orthographic",
+						onReset: () => useEditor.getState().setProjection("orthographic"),
 						value: "isometric diorama",
 					}}
 					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."

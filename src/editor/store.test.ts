@@ -642,7 +642,7 @@ describe("editor store", () => {
 			azimuth: 315,
 			elevation: 32.5,
 			span: 40,
-			projection: "diorama" as const,
+			projection: "orthographic" as const,
 			fieldOfView: null,
 			targetHeight: 0,
 		};
@@ -673,7 +673,7 @@ describe("editor store", () => {
 		const { camera } = store.getState().scene;
 		expect(camera).toMatchObject({ fieldOfView: 40, steepestElevation: 87, keepOverGround: true });
 		expect(camera).toMatchObject({ turntable: true, tiltShift: true, tiltShiftBlur: 0.9 });
-		expect(store.getState().projection).toBe("diorama");
+		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 		store.getState().undo();
 		expect(store.getState().scene.camera.fieldOfView).toBe(90);
@@ -702,9 +702,9 @@ describe("editor store", () => {
 		expect(store.getState().projection).toBe("perspective");
 		expect(store.getState().activeViewpointId).toBe(opening);
 
-		store.getState().showOpeningView({ ...pose, span: 30, projection: "diorama" as const });
+		store.getState().showOpeningView({ ...pose, span: 30, projection: "orthographic" as const });
 		expect(store.getState().flight).toMatchObject({ pose: { span: 30 }, instant: true });
-		expect(store.getState().projection).toBe("diorama");
+		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().activeViewpointId).toBeNull();
 
 		// Re-centring glides back to the opening viewpoint.

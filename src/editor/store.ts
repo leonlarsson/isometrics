@@ -206,7 +206,7 @@ export interface IEditorState {
 	dragging: boolean;
 	snapping: boolean;
 	playing: boolean;
-	/** How the camera shows the world: the isometric diorama or perspective. Runtime UI state. */
+	/** How the camera shows the world: orthographic (the isometric diorama) or perspective. Runtime UI state. */
 	projection: TProjection;
 	/** Show the world's tilt-shift in Edit mode too, while setting it up (it's View mode's). */
 	previewTiltShift: boolean;
@@ -600,7 +600,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		dragging: false,
 		snapping: true,
 		playing: true,
-		projection: "diorama",
+		projection: "orthographic",
 		previewTiltShift: false,
 		preferencesOpen: false,
 		holdingRightButton: false,
@@ -786,7 +786,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		setProjection: (projection) => set({ projection }),
 		toggleProjection: () =>
-			set((s) => ({ projection: s.projection === "perspective" ? "diorama" : "perspective" })),
+			set((s) => ({ projection: s.projection === "perspective" ? "orthographic" : "perspective" })),
 		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 		setPreferencesOpen: (open) => set({ preferencesOpen: open }),
 		setHoldingRightButton: (holding) =>
@@ -808,7 +808,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				};
 			});
 			set((s) => ({
-				projection: "diorama",
+				projection: "orthographic",
 				cameraFollow: null,
 				activeViewpointId: null,
 				viewNonce: s.viewNonce + 1,

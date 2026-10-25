@@ -127,12 +127,14 @@ describe("legacy viewpoints", () => {
 				{ id: "a", perspective: true },
 				{ id: "b", perspective: false },
 				{ id: "c", projection: "perspective" },
+				{ id: "d", projection: "diorama" },
 			],
 		});
 		expect(scene.viewpoints.map((v) => v.projection)).toEqual([
 			"perspective",
-			"diorama",
+			"orthographic",
 			"perspective",
+			"orthographic",
 		]);
 		expect(scene.viewpoints[0]).not.toHaveProperty("perspective");
 	});

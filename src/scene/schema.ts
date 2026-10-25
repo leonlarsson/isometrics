@@ -493,11 +493,12 @@ export const GroundSchema = z
 const FieldOfViewSchema = z.number().min(1).max(170);
 
 /**
- * How the camera shows the world: diorama = the flat isometric diorama view
- * (orthographic: far things as big as near ones), perspective = through a
- * lens. More may come, so it's a choice, not a yes/no.
+ * How the camera shows the world: orthographic = the flat view the app calls
+ * the isometric diorama (far things as big as near ones; isometric only at
+ * the default angle, so the value says what the camera is), perspective =
+ * through a lens. More may come, so it's a choice, not a yes/no.
  */
-export const ProjectionSchema = z.enum(["diorama", "perspective"]);
+export const ProjectionSchema = z.enum(["orthographic", "perspective"]);
 
 // See docs/adr/0039-saved-viewpoints.md.
 export const ViewpointSchema = z
@@ -537,8 +538,8 @@ export const ViewpointSchema = z
 			.max(400)
 			.default(40)
 			.describe("How many grid units fit from the top to the bottom of the view."),
-		projection: ProjectionSchema.default("diorama").describe(
-			"How the camera shows this view: diorama = the flat isometric diorama view, perspective = through a lens (fieldOfView).",
+		projection: ProjectionSchema.default("orthographic").describe(
+			"How the camera shows this view: orthographic = the flat isometric diorama view (far things as big as near ones), perspective = through a lens (fieldOfView).",
 		),
 		fieldOfView: FieldOfViewSchema.nullable()
 			.default(null)

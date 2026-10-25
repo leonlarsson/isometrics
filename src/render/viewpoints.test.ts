@@ -10,7 +10,7 @@ const pose: TViewPose = {
 	azimuth: 300,
 	elevation: 40,
 	span: 24,
-	projection: "diorama" as const,
+	projection: "orthographic" as const,
 	fieldOfView: null,
 	targetHeight: 0,
 };

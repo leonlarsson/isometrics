@@ -55,7 +55,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 /**
  * Viewpoints saved before projections were a choice said `perspective: true`
- * or `false`; they get `projection` instead.
+ * or `false`; they get `projection` instead. Briefly the flat one was called
+ * "diorama"; it's "orthographic".
  */
 const upgradeViewpoints = (input: Record<string, unknown>): Record<string, unknown> => {
 	const viewpoints = input.viewpoints;
@@ -64,12 +65,16 @@ const upgradeViewpoints = (input: Record<string, unknown>): Record<string, unkno
 	}
 	let changed = false;
 	const next = viewpoints.map((viewpoint) => {
+		if (isRecord(viewpoint) && viewpoint.projection === "diorama") {
+			changed = true;
+			return { ...viewpoint, projection: "orthographic" };
+		}
 		if (!isRecord(viewpoint) || typeof viewpoint.perspective !== "boolean") {
 			return viewpoint;
 		}
 		changed = true;
 		const { perspective, ...rest } = viewpoint;
-		return { projection: perspective ? "perspective" : "diorama", ...rest };
+		return { projection: perspective ? "perspective" : "orthographic", ...rest };
 	});
 	return changed ? { ...input, viewpoints: next } : input;
 };
