@@ -207,7 +207,7 @@ export const PreferencesDialog = () => {
 			icon: "eye",
 			groups: [
 				{
-					title: "Over the view",
+					title: "Where each overlay shows",
 					rows: [
 						{
 							id: "navigationGizmo",
