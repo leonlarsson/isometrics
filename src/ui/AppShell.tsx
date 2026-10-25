@@ -46,6 +46,7 @@ import { TransformBar } from "./TransformBar";
 import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
+import { ViewpointContextMenu } from "./ViewpointContextMenu";
 
 import styles from "./AppShell.module.css";
 
@@ -281,6 +282,8 @@ export const AppShell = () => {
 							<ItemContextMenu />
 
 							<GroundContextMenu />
+
+							<ViewpointContextMenu />
 
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}

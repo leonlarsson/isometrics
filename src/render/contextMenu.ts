@@ -52,6 +52,14 @@ export const openContextMenuUnlessDragged = (
 	dragged: boolean,
 ) => onRightClick(native, dragged, (x, y) => useEditor.getState().openContextMenu(item, { x, y }));
 
+/** `onContextMenu` for a viewpoint's camera in the world: its menu (ui/ViewpointContextMenu). */
+export const openViewpointMenuOnClick = (id: string) => (event: ThreeEvent<MouseEvent>) => {
+	event.stopPropagation();
+	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
+		useEditor.getState().openViewpointMenu(id, { x, y }),
+	);
+};
+
 /** `onContextMenu` for an object, road or area in the scene: its menu (ui/ItemContextMenu). */
 export const openContextMenuOnClick = (item: ISceneItem) => (event: ThreeEvent<MouseEvent>) => {
 	// The nearest thing under the pointer gets the menu, not what's behind it.

@@ -1,5 +1,6 @@
-import { Html, Line } from "@react-three/drei";
-import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import interUrl from "@fontsource/inter/files/inter-latin-600-normal.woff?url";
+import { Billboard, Line, Text } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -9,6 +10,7 @@ import { usePalette } from "#/editor/useTheme";
 import { DEG2RAD } from "#/lib/math";
 import type { TViewpoint } from "#/scene/schema";
 
+import { openViewpointMenuOnClick } from "./contextMenu";
 import { currentView, directionOf, sameView } from "./viewpoints";
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -106,33 +108,24 @@ interface IViewpointMarkerProps {
 const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) => {
 	const palette = usePalette();
 	const worldFieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
+	const selected = useEditor((s) => s.activeViewpointId === viewpoint.id);
 	const [hovered, setHovered] = useState(false);
 	const group = useRef<THREE.Group>(null);
-	const label = useRef<HTMLSpanElement>(null);
 	const shape = useMemo(
 		() => markerShape(viewpoint, aspect, worldFieldOfView),
 		[viewpoint, aspect, worldFieldOfView],
 	);
-	const color = hovered ? palette.selection : palette.text;
+	const strong = hovered || selected;
+	const color = strong ? palette.selection : palette.text;
 	const name = viewpoint.name || `Viewpoint ${index + 1}`;
 
 	// Not the one the camera is at: it would sit right on the camera.
 	useFrame(() => {
 		const pose = currentView.read?.();
-		const here = Boolean(pose && sameView(pose, viewpoint, worldFieldOfView));
 		if (group.current) {
-			group.current.visible = !here;
-		}
-		// The name is a page element, which hiding the 3D group doesn't hide.
-		if (label.current) {
-			label.current.style.display = here ? "none" : "";
+			group.current.visible = !(pose && sameView(pose, viewpoint, worldFieldOfView));
 		}
 	});
-
-	const go = (event: ThreeEvent<MouseEvent>) => {
-		event.stopPropagation();
-		useEditor.getState().goToViewpoint(viewpoint.id);
-	};
 
 	return (
 		<group ref={group}>
@@ -142,18 +135,40 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 					key={line}
 					points={points}
 					color={color}
-					lineWidth={hovered ? 2 : 1}
+					lineWidth={strong ? 2 : 1}
 					transparent
-					opacity={hovered ? 0.9 : 0.35}
+					opacity={strong ? 0.9 : 0.35}
 					depthTest={false}
 				/>
 			))}
 
 			<group position={shape.camera} quaternion={shape.facing}>
 				{/* The body and, in front of it (cameras look down their −z), the lens. */}
+				<mesh scale={shape.size}>
+					<boxGeometry args={[1.4, 1, 1]} />
+
+					<meshBasicMaterial color={color} transparent opacity={strong ? 1 : 0.7} />
+				</mesh>
+
+				<mesh position={[0, 0, -0.7 * shape.size]} rotation-x={-Math.PI / 2} scale={shape.size}>
+					<coneGeometry args={[0.45, 0.6, 12]} />
+
+					<meshBasicMaterial color={color} transparent opacity={strong ? 1 : 0.7} />
+				</mesh>
+
+				{/* An invisible ball around it to click: the camera itself is small. A click selects it
+				(its settings in the Viewpoints tab), a double-click goes there. */}
 				<mesh
-					scale={shape.size}
-					onClick={go}
+					scale={shape.size * 1.6}
+					onClick={(event) => {
+						event.stopPropagation();
+						useEditor.getState().selectViewpoint(viewpoint.id);
+					}}
+					onDoubleClick={(event) => {
+						event.stopPropagation();
+						useEditor.getState().goToViewpoint(viewpoint.id);
+					}}
+					onContextMenu={openViewpointMenuOnClick(viewpoint.id)}
 					onPointerOver={(event) => {
 						event.stopPropagation();
 						setHovered(true);
@@ -164,31 +179,25 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 						document.body.style.cursor = "";
 					}}
 				>
-					<boxGeometry args={[1.4, 1, 1]} />
+					<sphereGeometry args={[1, 8, 6]} />
 
-					<meshBasicMaterial color={color} transparent opacity={hovered ? 1 : 0.7} />
+					<meshBasicMaterial visible={false} />
 				</mesh>
-
-				<mesh position={[0, 0, -0.7 * shape.size]} rotation-x={-Math.PI / 2} scale={shape.size}>
-					<coneGeometry args={[0.45, 0.6, 12]} />
-
-					<meshBasicMaterial color={color} transparent opacity={hovered ? 1 : 0.7} />
-				</mesh>
-
-				<Html center position={[0, shape.size * 1.2, 0]} style={{ pointerEvents: "none" }}>
-					<span
-						ref={label}
-						style={{
-							font: "500 11px var(--font-sans)",
-							color: "var(--text-muted)",
-							whiteSpace: "nowrap",
-							textShadow: "0 0 4px var(--bg)",
-						}}
-					>
-						{name}
-					</span>
-				</Html>
 			</group>
+
+			{/* Its name above it, always facing the view. */}
+			<Billboard position={[shape.camera.x, shape.camera.y + shape.size * 1.3, shape.camera.z]}>
+				<Text
+					font={interUrl}
+					fontSize={shape.size * 0.7}
+					color={color}
+					anchorY="bottom"
+					outlineWidth={shape.size * 0.06}
+					outlineColor={palette.ground}
+				>
+					{name}
+				</Text>
+			</Billboard>
 		</group>
 	);
 };
@@ -196,8 +205,9 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 /**
  * The saved viewpoints drawn in the world in Edit mode (Your camera →
  * Viewpoints in the world, ADR-0062): each a little camera where it looks
- * from, with the outline of what it sees. Click one to go there. The one the
- * camera is at isn't drawn.
+ * from, with a short pyramid of what it sees and its name. Click one to select
+ * it, double-click to go there, right-click for its menu. The one the camera
+ * is at isn't drawn.
  */
 export const ViewpointMarkers = () => {
 	const shown = useCameraFeel().viewpointsInWorld;

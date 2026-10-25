@@ -219,6 +219,8 @@ export interface IEditorState {
 	contextMenu: { item: ISceneItem; x: number; y: number } | null;
 	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
 	groundMenu: { point: TVec2; x: number; y: number } | null;
+	/** A viewpoint's menu, opened on its camera in the world: which one, and where (screen px). */
+	viewpointMenu: { id: string; x: number; y: number } | null;
 	/**
 	 * Where the camera is gliding to (a viewpoint), picked up by render/CameraFlight. An instant
 	 * one jumps there (opening a world where its camera was).
@@ -284,6 +286,8 @@ export interface IEditorState {
 	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }) => void;
 	/** Open the ground's context menu for a ground point at a screen point (deselecting), or close it (null). */
 	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }) => void;
+	/** Open a viewpoint's menu at a screen point, or close it (null). */
+	openViewpointMenu: (id: string | null, at?: { x: number; y: number }) => void;
 	/** Move the camera to a ground point, framing a few cells around it. */
 	framePoint: (point: TVec2) => void;
 	/** Give an object, road or area a new name (empty: it's called by its kind again). */
@@ -301,6 +305,8 @@ export interface IEditorState {
 	stopFollowing: () => void;
 	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
 	goToViewpoint: (id: string) => void;
+	/** Select a viewpoint (its camera in the world was clicked): its settings, in the Viewpoints tab. */
+	selectViewpoint: (id: string) => void;
 	/** Glide the camera to a view (the navigation gizmo's turns). */
 	glideTo: (pose: TViewPose) => void;
 	/** Save a view as a new viewpoint at the end of the list. Returns its id. */
@@ -589,6 +595,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		hovered: null,
 		contextMenu: null,
 		groundMenu: null,
+		viewpointMenu: null,
 		flight: null,
 		activeViewpointId: null,
 		cameraFollow: null,
@@ -750,6 +757,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				followOffer: null,
 				contextMenu: null,
 				groundMenu: null,
+				viewpointMenu: null,
 			}),
 		setTab: (tab) => set({ tab }),
 		setDragging: (dragging) => set({ dragging }),
@@ -835,7 +843,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			} else {
 				state.selectArea(item.id);
 			}
-			set({ contextMenu: { item, ...at }, groundMenu: null });
+			set({ contextMenu: { item, ...at }, groundMenu: null, viewpointMenu: null });
 		},
 
 		openGroundMenu: (point, at) => {
@@ -844,8 +852,15 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				return;
 			}
 			get().clearSelection();
-			set({ groundMenu: { point, ...at }, contextMenu: null });
+			set({ groundMenu: { point, ...at }, contextMenu: null, viewpointMenu: null });
 		},
+
+		openViewpointMenu: (id, at) =>
+			set(
+				id && at
+					? { viewpointMenu: { id, ...at }, contextMenu: null, groundMenu: null }
+					: { viewpointMenu: null },
+			),
 
 		framePoint: ([x, z]) =>
 			set((s) => ({
@@ -934,6 +949,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				activeViewpointId: id,
 			}));
 		},
+
+		selectViewpoint: (id) => set({ ...NOTHING_SELECTED, activeViewpointId: id, tab: "views" }),
 
 		glideTo: (pose) =>
 			set((s) => ({
