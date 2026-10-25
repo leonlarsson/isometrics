@@ -114,11 +114,16 @@
 	color: var(--text-muted);
 }
 
-/* In Edit mode, a line the world hides from View mode (World tab → Shown in View mode). */
-.sceneTitle [data-hidden-in-view] {
-	opacity: 0.4;
+/* In Edit mode, a line the world hides from View mode (World tab → Shown in View mode). A line
+   through doesn't reach into a button (the time of day's), so it gets its own. */
+.sceneTitle [data-hidden-in-view],
+.sceneTitle [data-hidden-in-view] button {
 	text-decoration: line-through;
 	text-decoration-color: color-mix(in oklab, currentColor 50%, transparent);
+}
+
+.sceneTitle [data-hidden-in-view] {
+	opacity: 0.4;
 }
 
 /* In Edit mode, under the title: why some lines are struck through, and the way to the panel. */
