@@ -209,6 +209,8 @@ export interface IEditorState {
 	perspective: boolean;
 	/** Show the world's tilt-shift in Edit mode too, while setting it up (it's View mode's). */
 	previewTiltShift: boolean;
+	/** The Preferences dialog is open (ui/PreferencesDialog). Runtime UI state. */
+	preferencesOpen: boolean;
 	/** Incremented to ask the viewport to re-frame the camera. */
 	viewNonce: number;
 	/** What the next re-frame shows: a box (frame selection), or null for the whole ground. */
@@ -267,6 +269,7 @@ export interface IEditorState {
 	togglePlaying: () => void;
 	togglePerspective: () => void;
 	setPreviewTiltShift: (preview: boolean) => void;
+	setPreferencesOpen: (open: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
 	 * back to their defaults (one undo step), except the turntable's and tilt-shift's.
@@ -590,6 +593,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		playing: true,
 		perspective: false,
 		previewTiltShift: false,
+		preferencesOpen: false,
 		viewNonce: 0,
 		frameBox: null,
 		hovered: null,
@@ -772,6 +776,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		togglePlaying: () => set((s) => ({ playing: !s.playing })),
 		togglePerspective: () => set((s) => ({ perspective: !s.perspective })),
 		setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
+		setPreferencesOpen: (open) => set({ preferencesOpen: open }),
 		resetCamera: () => {
 			const defaults = CameraSettingsSchema.parse({});
 			get().commit((scene) => {

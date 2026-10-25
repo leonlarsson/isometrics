@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+import { readCameraFeel } from "#/editor/cameraFeel";
 import { runningCameraMoves } from "#/editor/keyboardCamera";
 import { useEditor } from "#/editor/store";
 
@@ -75,7 +76,7 @@ export const Turntable = () => {
 			pivot,
 			turn,
 			0,
-			polarLimits(scene.camera, camera instanceof THREE.PerspectiveCamera),
+			polarLimits(scene.camera, readCameraFeel().cameraControl === "free"),
 		);
 		camera.updateMatrixWorld();
 		orbit.update();

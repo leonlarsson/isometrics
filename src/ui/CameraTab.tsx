@@ -1,12 +1,6 @@
 import { useState } from "react";
 
-import {
-	DEFAULT_CAMERA_FEEL,
-	resetCameraFeel,
-	setCameraFeel,
-	type TCameraFeel,
-	useCameraFeel,
-} from "#/editor/cameraFeel";
+import { resetCameraFeel } from "#/editor/cameraFeel";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
 import { CameraSettingsSchema, type TCameraSettings } from "#/scene/schema";
@@ -15,7 +9,6 @@ import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldOfViewField } from "./FieldOfViewField";
 import {
-	FieldGroup,
 	Hint,
 	Section,
 	SelectField,
@@ -31,143 +24,11 @@ import styles from "./CameraTab.module.css";
 /** Every world camera setting as a new world has it, for Default / Reset. */
 const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
 
-/** A personal camera setting's Default / Reset (ADR-0027): its default is the app's. */
-const feelDefault = <K extends keyof TCameraFeel>(feel: TCameraFeel, key: K, value: string) => ({
-	from: "default",
-	inherited: feel[key] === DEFAULT_CAMERA_FEEL[key],
-	onReset: () => setCameraFeel(key, DEFAULT_CAMERA_FEEL[key]),
-	value,
-});
-
 /**
- * Your camera: how the camera feels to move, in every world in this browser
- * (editor/cameraFeel), never saved with the world.
- */
-const CameraFeelSection = () => {
-	const feel = useCameraFeel();
-	return (
-		<Section
-			id="camera.feel"
-			icon="user"
-			title="Your camera"
-			keywords="speed orbit turn zoom scroll wheel invert reverse smooth smoothing damping inertia glide flight viewpoint personal browser keyboard keys arrows overlays composition grid thirds navigation gizmo compass view label viewpoints in the world"
-		>
-			<Hint>
-				Yours alone: these apply to every world in this browser and aren’t saved with the world.
-			</Hint>
-
-			<SliderField
-				label="Orbit speed"
-				value={feel.orbitSpeed}
-				min={0.2}
-				max={3}
-				step={0.1}
-				suffix="×"
-				onChange={(v) => setCameraFeel("orbitSpeed", v)}
-				inherit={feelDefault(feel, "orbitSpeed", "1×")}
-				hint="Dragging to turn and tilt, and Shift+arrows."
-			/>
-
-			<SliderField
-				label="Zoom speed"
-				value={feel.zoomSpeed}
-				min={0.2}
-				max={3}
-				step={0.1}
-				suffix="×"
-				onChange={(v) => setCameraFeel("zoomSpeed", v)}
-				inherit={feelDefault(feel, "zoomSpeed", "1×")}
-				hint="Scrolling, pinching, the middle button, and + and −."
-			/>
-
-			<SwitchField
-				label="Invert zoom"
-				checked={feel.invertZoom}
-				onChange={(v) => setCameraFeel("invertZoom", v)}
-				inherit={feelDefault(feel, "invertZoom", "off")}
-				hint="Scrolling up zooms out instead of in. Pinching and + and − stay as they are."
-			/>
-
-			<SliderField
-				label="Smoothing"
-				value={Math.round(feel.smoothing * 100)}
-				min={0}
-				max={100}
-				step={5}
-				suffix="%"
-				onChange={(v) => setCameraFeel("smoothing", v / 100)}
-				inherit={feelDefault(feel, "smoothing", "60%")}
-				hint="How long the view keeps gliding after you let go: 0% stops at once."
-			/>
-
-			<SliderField
-				label="Glide to viewpoints"
-				value={feel.glideSeconds}
-				min={0}
-				max={3}
-				step={0.1}
-				suffix="s"
-				onChange={(v) => setCameraFeel("glideSeconds", v)}
-				inherit={feelDefault(feel, "glideSeconds", "0.8 s")}
-				hint="How long the camera takes to glide to a viewpoint or back to the opening view: 0 jumps there."
-			/>
-
-			<SliderField
-				label="Keyboard pan speed"
-				value={feel.keyboardSpeed}
-				min={0.2}
-				max={3}
-				step={0.1}
-				suffix="×"
-				onChange={(v) => setCameraFeel("keyboardSpeed", v)}
-				inherit={feelDefault(feel, "keyboardSpeed", "1×")}
-				hint="With nothing selected, the arrow keys pan; with Shift they turn and tilt the view. In View mode W A S D move and Q E turn too. + and − zoom, and Home goes back to the opening view."
-			/>
-
-			<FieldGroup title="Overlays in Edit mode">
-				<SwitchField
-					label="Navigation gizmo"
-					checked={feel.navigationGizmo}
-					onChange={(v) => setCameraFeel("navigationGizmo", v)}
-					inherit={feelDefault(feel, "navigationGizmo", "on")}
-				/>
-
-				<SwitchField
-					label="View label"
-					checked={feel.viewLabel}
-					onChange={(v) => setCameraFeel("viewLabel", v)}
-					inherit={feelDefault(feel, "viewLabel", "on")}
-				/>
-
-				<SwitchField
-					label="Viewpoints in the world"
-					checked={feel.viewpointsInWorld}
-					onChange={(v) => setCameraFeel("viewpointsInWorld", v)}
-					inherit={feelDefault(feel, "viewpointsInWorld", "off")}
-				/>
-
-				<SwitchField
-					label="Composition grid"
-					checked={feel.compositionGrid}
-					onChange={(v) => setCameraFeel("compositionGrid", v)}
-					inherit={feelDefault(feel, "compositionGrid", "off")}
-				/>
-
-				<Hint>
-					The gizmo in the top-right corner shows which way the view looks: click a letter to look
-					that way, the middle to look straight down, or drag it to turn. The label says what the
-					camera shows; viewpoints show as little cameras (click to select one, double-click to go
-					there); the grid splits the view in thirds for lining up viewpoints.
-				</Hint>
-			</FieldGroup>
-		</Section>
-	);
-};
-
-/**
- * The Camera tab (ADR-0062): where the world opens and how its camera is
- * framed, saved with the world, then how the camera feels to you, saved in
- * this browser.
+ * The Camera tab (ADR-0062): the world's camera, saved with it: what kind of
+ * camera and lens, where the world opens, and, folded at first, its zoom and
+ * tilt limits, the turntable and tilt-shift. How the camera moves for you is
+ * in Preferences (ui/PreferencesDialog).
  */
 export const CameraTab = () => {
 	const camera = useEditor((s) => s.scene.camera);
@@ -210,6 +71,14 @@ export const CameraTab = () => {
 						<Button size="sm" icon="reset" onClick={() => setConfirmingReset(true)}>
 							Reset the camera
 						</Button>
+
+						<Button
+							size="sm"
+							icon="user"
+							onClick={() => useEditor.getState().setPreferencesOpen(true)}
+						>
+							Preferences…
+						</Button>
 					</ButtonGroup>
 				</div>
 			)}
@@ -218,7 +87,7 @@ export const CameraTab = () => {
 				open={confirmingReset}
 				onOpenChange={setConfirmingReset}
 				title="Reset the camera?"
-				description="The camera goes back to the whole world in the diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and Your camera in this browser. The turntable and tilt-shift keep their settings."
+				description="The camera goes back to the whole world in the diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and the camera preferences in this browser. The turntable and tilt-shift keep their settings."
 				confirmLabel="Reset the camera"
 				onConfirm={() => {
 					useEditor.getState().resetCamera();
@@ -297,21 +166,20 @@ export const CameraTab = () => {
 						</Button>
 					</>
 				)}
-
-				<SwitchField
-					label="Keep the camera over the ground"
-					checked={camera.keepOverGround}
-					onChange={(v) => set("keepOverGround", v)}
-					inherit={byDefault("keepOverGround", "on")}
-				/>
 			</Section>
 
 			<Section
 				id="camera.limits"
+				defaultClosed
 				icon="focus"
 				title="Zoom and tilt"
 				keywords="limits zoom in out closest farthest tilt low steep angle elevation"
 			>
+				<Hint>
+					Where the camera can go with Simple camera control. With Free (Preferences) it goes
+					anywhere, like in Blender.
+				</Hint>
+
 				<SliderField
 					label="Closest zoom"
 					value={camera.closestSpan}
@@ -344,13 +212,13 @@ export const CameraTab = () => {
 				<SliderField
 					label="Lowest tilt"
 					value={camera.lowestElevation}
-					min={-90}
+					min={0}
 					max={90}
 					step={1}
 					suffix="°"
 					onChange={(v) => set("lowestElevation", v)}
 					inherit={byDefault("lowestElevation", `${CAMERA_DEFAULTS.lowestElevation}°`)}
-					hint="Degrees above the ground: 0 looks level across the world. Below 0, in the perspective view, the camera stands on the ground and looks up: −90 is straight up at the sky."
+					hint="Degrees above the ground: 0 looks level across the world."
 				/>
 
 				<SliderField
@@ -364,10 +232,18 @@ export const CameraTab = () => {
 					inherit={byDefault("steepestElevation", `${CAMERA_DEFAULTS.steepestElevation}°`)}
 					hint="90° looks straight down, like a map."
 				/>
+
+				<SwitchField
+					label="Keep the camera over the ground"
+					checked={camera.keepOverGround}
+					onChange={(v) => set("keepOverGround", v)}
+					inherit={byDefault("keepOverGround", "on")}
+				/>
 			</Section>
 
 			<Section
 				id="camera.turntable"
+				defaultClosed
 				icon="rotateLeft"
 				title="Turntable"
 				keywords="turntable auto rotate spin circle orbit idle kiosk wall screen view mode"
@@ -406,6 +282,7 @@ export const CameraTab = () => {
 
 			<Section
 				id="camera.tiltShift"
+				defaultClosed
 				icon="focus"
 				title="Tilt-shift"
 				keywords="tilt shift miniature blur depth of field focus toy model photo"
@@ -472,8 +349,6 @@ export const CameraTab = () => {
 					shows in View mode; Edit mode stays sharp unless you show it while editing.
 				</Hint>
 			</Section>
-
-			<CameraFeelSection />
 		</>
 	);
 };

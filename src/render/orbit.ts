@@ -21,24 +21,23 @@ export interface IPolarLimits {
 const STRAIGHT_DOWN_MARGIN = 0.0002;
 
 /**
- * The tilt limits for the world's lowest and steepest camera elevations
- * (degrees above the ground; scene.camera), whichever way round they're given.
- * Below level only in perspective, where the camera then stands on the ground
- * and looks up (render/CameraControls); the diorama view would only see the
- * world from underneath. Straight up stops as short of it as straight down.
+ * How far the camera may tilt. Simple camera control (editor/cameraFeel): the
+ * world's lowest and steepest elevations (degrees above the ground;
+ * scene.camera), whichever way round they're given, never below level. Free
+ * camera control: anywhere, from straight down to straight up from under the
+ * ground, as in Blender; both stop as short of straight as STRAIGHT_DOWN_MARGIN.
  */
 export const polarLimits = (
 	camera: { lowestElevation: number; steepestElevation: number },
-	perspective: boolean,
+	free: boolean,
 ): IPolarLimits => {
-	const low = Math.min(camera.lowestElevation, camera.steepestElevation);
-	const steep = Math.max(camera.lowestElevation, camera.steepestElevation);
+	if (free) {
+		return { min: STRAIGHT_DOWN_MARGIN, max: Math.PI - STRAIGHT_DOWN_MARGIN };
+	}
+	const low = Math.max(0, Math.min(camera.lowestElevation, camera.steepestElevation));
+	const steep = Math.max(camera.lowestElevation, camera.steepestElevation, low);
 	const min = Math.max(STRAIGHT_DOWN_MARGIN, (90 - steep) * DEG2RAD);
-	const lowest = perspective ? low : Math.max(low, 0);
-	return {
-		min,
-		max: Math.min(Math.PI - STRAIGHT_DOWN_MARGIN, Math.max(min, (90 - lowest) * DEG2RAD)),
-	};
+	return { min, max: Math.max(min, (90 - low) * DEG2RAD) };
 };
 
 const UP = new THREE.Vector3(0, 1, 0);

@@ -60,18 +60,24 @@ export const farthestSpanOf = (
 	ground: { width: number; depth: number },
 ) => camera.farthestSpan ?? Math.round(Math.max(120, groundSpan(ground) * 2.5));
 
+/** How close and far free camera control lets the camera zoom (grid units across the view). */
+const FREE_CLOSEST = 0.01;
+const FREE_FARTHEST = 100000;
+
 /**
- * The controls' zoom limits for the world's closest and farthest zoom:
- * orthographic zoom (pixels per unit, for a canvas `height` px high) and the
- * perspective camera's distance from its target (for its field of view).
+ * The controls' zoom limits for the world's closest and farthest zoom, or with
+ * free camera control (editor/cameraFeel) next to none: orthographic zoom
+ * (pixels per unit, for a canvas `height` px high) and the perspective
+ * camera's distance from its target (for its field of view).
  */
 export const zoomLimits = (
 	camera: Pick<TCameraSettings, "closestSpan" | "farthestSpan" | "fieldOfView">,
 	ground: { width: number; depth: number },
 	height: number,
+	free = false,
 ) => {
-	const closest = camera.closestSpan;
-	const farthest = Math.max(closest, farthestSpanOf(camera, ground));
+	const closest = free ? FREE_CLOSEST : camera.closestSpan;
+	const farthest = free ? FREE_FARTHEST : Math.max(closest, farthestSpanOf(camera, ground));
 	const distanceFor = (span: number) => span / 2 / Math.tan((camera.fieldOfView * DEG2RAD) / 2);
 	return {
 		minZoom: height / farthest,

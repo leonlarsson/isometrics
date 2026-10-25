@@ -27,6 +27,7 @@ import { NavigationGizmo } from "./NavigationGizmo";
 import { Outliner } from "./Outliner";
 import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
+import { PreferencesDialog } from "./PreferencesDialog";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
 import {
 	INSPECTOR_WIDTH,
@@ -289,6 +290,8 @@ export const AppShell = () => {
 							<GroundContextMenu />
 
 							<ViewpointContextMenu />
+
+							<PreferencesDialog />
 
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}

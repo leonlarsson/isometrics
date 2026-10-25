@@ -102,7 +102,7 @@ export const KeyboardCamera = () => {
 					pivot,
 					move === "turnLeft" ? turn : -turn,
 					0,
-					polarLimits(scene.camera, camera instanceof THREE.PerspectiveCamera),
+					polarLimits(scene.camera, feel.cameraControl === "free"),
 				);
 			} else if (move === "tiltUp" || move === "tiltDown") {
 				// Up looks down more steeply, like a map; down lowers the camera towards the horizon.
@@ -114,13 +114,18 @@ export const KeyboardCamera = () => {
 					pivot,
 					0,
 					move === "tiltUp" ? -tilt : tilt,
-					polarLimits(scene.camera, camera instanceof THREE.PerspectiveCamera),
+					polarLimits(scene.camera, feel.cameraControl === "free"),
 				);
 			} else if (move === "zoomIn" || move === "zoomOut") {
 				const factor = Math.exp(
 					(move === "zoomIn" ? -1 : 1) * ZOOM_RATE * seconds * feel.zoomSpeed,
 				);
-				const limits = zoomLimits(scene.camera, scene.ground, size.height);
+				const limits = zoomLimits(
+					scene.camera,
+					scene.ground,
+					size.height,
+					feel.cameraControl === "free",
+				);
 				if (camera instanceof THREE.OrthographicCamera) {
 					camera.zoom = clamp(camera.zoom / factor, limits.minZoom, limits.maxZoom);
 					camera.updateProjectionMatrix();

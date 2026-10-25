@@ -14,6 +14,11 @@ import { APP_NAME } from "#/lib/app";
 const KEY = `${APP_NAME.toLowerCase()}:camera-feel`;
 
 export const CameraFeelSchema = z.object({
+	/**
+	 * simple: the camera stays above the world, within the world's zoom and tilt limits;
+	 * free: orbit anywhere, as in Blender (under the ground, straight up, any zoom).
+	 */
+	cameraControl: z.enum(["simple", "free"]).catch("simple"),
 	/** Turning and tilting by dragging, a two-finger twist or Shift+arrows, × the usual speed. */
 	orbitSpeed: z.number().min(0.2).max(3).catch(1),
 	/** Zooming with the wheel, the middle button, a pinch or + and −, × the usual speed. */

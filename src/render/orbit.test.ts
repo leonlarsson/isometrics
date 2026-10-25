@@ -52,11 +52,12 @@ describe("orbitAround", () => {
 		expect(position.y).toBeCloseTo(0, 5);
 	});
 
-	it("tilts below level only in perspective", () => {
+	it("stays above level with simple control, and goes anywhere with free control", () => {
 		const sky = { lowestElevation: -60, steepestElevation: 87 };
-		expect(polarLimits(sky, true).max).toBeCloseTo((150 * Math.PI) / 180, 5);
 		expect(polarLimits(sky, false).max).toBeCloseTo(Math.PI / 2, 5);
-		expect(polarLimits({ ...sky, lowestElevation: -90 }, true).max).toBeLessThan(Math.PI);
+		expect(polarLimits(sky, true).min).toBeGreaterThan(0);
+		expect(polarLimits(sky, true).max).toBeGreaterThan((179 * Math.PI) / 180);
+		expect(polarLimits(sky, true).max).toBeLessThan(Math.PI);
 	});
 
 	it("reads the limits either way round", () => {

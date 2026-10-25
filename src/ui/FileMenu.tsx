@@ -125,6 +125,13 @@ export const FileMenu = () => {
 					<Menu.Separator />
 
 					<Menu.Item
+						icon="user"
+						label="Preferences…"
+						description="How the camera moves for you, and overlays, in this browser"
+						onClick={() => useEditor.getState().setPreferencesOpen(true)}
+					/>
+
+					<Menu.Item
 						icon="trash"
 						label="Wipe everything…"
 						description="Every world, backup and setting in this browser"
