@@ -1,7 +1,7 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { type ReactNode, useState } from "react";
 
-import { Button, IconButton } from "./Button";
+import { Button, ButtonGroup, IconButton } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SearchField, SettingsSearchContext } from "./fields";
 import { matchesSearch } from "./fields/settingsSearch";
@@ -65,12 +65,25 @@ export const SettingsDialog = ({
 	const confirmingPage = pages.find((page) => page.id === confirming);
 	// Phones and small tablets: the pages stack above the settings, and the resets turn quiet.
 	const narrow = useNarrowLayout();
+	const pageResetButton = (page: ISettingsPage) =>
+		page.reset && (
+			<Button
+				size="sm"
+				icon="reset"
+				variant={narrow ? "secondary" : "danger"}
+				disabled={!page.reset.changed}
+				onClick={() => setConfirming(page.id)}
+			>
+				{`Reset ${page.label}`}
+			</Button>
+		);
 	const resetAllButton = resetAll && (
 		<Button
 			size="sm"
 			icon="reset"
-			variant={narrow ? "ghost" : "danger"}
+			variant={narrow ? "secondary" : "danger"}
 			block={!narrow}
+			centered
 			disabled={!resetAll.changed}
 			onClick={() => setConfirming("all")}
 		>
@@ -155,26 +168,20 @@ export const SettingsDialog = ({
 											</div>
 										))}
 
-										{/* Last on the page: it acts on everything above it. */}
-										{page.reset && !searching && (
-											<div className={styles.pageActions}>
-												<Button
-													size="sm"
-													icon="reset"
-													variant={narrow ? "ghost" : "danger"}
-													disabled={!page.reset.changed}
-													onClick={() => setConfirming(page.id)}
-												>
-													{`Reset ${page.label}`}
-												</Button>
-											</div>
+										{/* Last on the page: it acts on everything above it. On phones it joins the footer. */}
+										{page.reset && !searching && !narrow && (
+											<div className={styles.pageActions}>{pageResetButton(page)}</div>
 										)}
 									</section>
 								))}
 
-								{narrow && !searching && (resetAll || note) && (
+								{narrow && !searching && (
 									<div className={styles.contentFoot}>
-										{resetAllButton}
+										<ButtonGroup>
+											{shown[0]?.reset && pageResetButton(shown[0])}
+
+											{resetAllButton}
+										</ButtonGroup>
 
 										{note && <p className={styles.note}>{note}</p>}
 									</div>

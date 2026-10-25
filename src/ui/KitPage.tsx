@@ -296,6 +296,10 @@ export const KitPage = () => {
 											<Button size="sm" icon="join" block meta="3.2 away">
 												Block button with meta
 											</Button>
+
+											<Button size="sm" icon="reset" variant="danger" block centered>
+												Centered block button
+											</Button>
 										</ButtonGroup>
 
 										<ButtonGroup>

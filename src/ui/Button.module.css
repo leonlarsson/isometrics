@@ -36,6 +36,10 @@
 	width: 100%;
 }
 
+.button[data-block][data-centered] {
+	justify-content: center;
+}
+
 .text {
 	overflow: hidden;
 	text-overflow: ellipsis;

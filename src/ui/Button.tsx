@@ -28,6 +28,8 @@ interface IButtonProps {
 	disabled?: boolean;
 	/** Stretch to the container's width, with the content left-aligned. */
 	block?: boolean;
+	/** With `block`: the content in the middle instead, for a lone wide action like a reset. */
+	centered?: boolean;
 	/** Extra muted text pushed to the right edge (with `block`). */
 	meta?: ReactNode;
 }
@@ -40,6 +42,7 @@ export const Button = ({
 	icon,
 	disabled,
 	block,
+	centered,
 	meta,
 }: IButtonProps) => {
 	return (
@@ -48,6 +51,7 @@ export const Button = ({
 			data-variant={variant}
 			data-size={size}
 			data-block={block || undefined}
+			data-centered={centered || undefined}
 			disabled={disabled}
 			onClick={onClick}
 		>
