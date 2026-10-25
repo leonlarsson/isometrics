@@ -5,6 +5,7 @@ import {
 	duplicateWorld,
 	openSavedWorld,
 	openWorldFile,
+	resetThisBrowsersSettings,
 	saveWorldFile,
 } from "#/editor/fileActions";
 import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
@@ -40,6 +41,7 @@ export const FileMenu = () => {
 	const [deletingTitle, setDeletingTitle] = useState(title);
 	// Wiping everything takes two confirmations; the second one names what goes.
 	const [wiping, setWiping] = useState(false);
+	const [resettingSettings, setResettingSettings] = useState(false);
 
 	return (
 		<>
@@ -132,6 +134,13 @@ export const FileMenu = () => {
 					/>
 
 					<Menu.Item
+						icon="reset"
+						label="Reset this browser’s settings…"
+						description="Panels, favourites, cameras, Preferences; keeps your worlds"
+						onClick={() => setResettingSettings(true)}
+					/>
+
+					<Menu.Item
 						icon="trash"
 						label="Wipe everything…"
 						description="Every world, backup and setting in this browser"
@@ -158,6 +167,16 @@ export const FileMenu = () => {
 			/>
 
 			<WipeEverything open={wiping} onClose={() => setWiping(false)} />
+
+			<ConfirmDialog
+				open={resettingSettings}
+				onOpenChange={setResettingSettings}
+				title="Reset this browser’s settings?"
+				description="Panel sizes and folds, Add to scene’s favourites and recently used, where the camera was in each world, and Preferences go back to their defaults. Your worlds and backups stay. The page reloads."
+				confirmLabel="Reset settings"
+				danger
+				onConfirm={resetThisBrowsersSettings}
+			/>
 		</>
 	);
 };

@@ -12,6 +12,7 @@ import {
 	openWorldId,
 	readSceneFile,
 	readStoredWorld,
+	resetBrowserSettings,
 	saveScene,
 } from "./persistence";
 import { useEditor } from "./store";
@@ -127,6 +128,20 @@ export const duplicateSavedWorld = (id: string) => {
 		startNewWorld(copyOf(result.scene), id);
 	} else {
 		notify("That world can’t be copied", "It couldn’t be read.", "error");
+	}
+};
+
+/**
+ * Reset this browser's settings, keeping the worlds (editor/persistence),
+ * after saving the open world, then reload so everything starts from its
+ * default.
+ */
+export const resetThisBrowsersSettings = () => {
+	saveBeforeSwitching();
+	if (resetBrowserSettings()) {
+		window.location.reload();
+	} else {
+		notify("Nothing was reset", "The browser refused to change this site’s storage.", "error");
 	}
 };
 

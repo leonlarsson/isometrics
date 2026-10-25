@@ -517,6 +517,46 @@ export const wipeEverything = (): boolean => {
 	}
 };
 
+/** What resetting the browser's settings keeps: the worlds, their backups, which is open. */
+const KEPT_BY_SETTINGS_RESET = [
+	WORLD_KEY_PREFIX,
+	WORLD_INDEX_KEY,
+	OPEN_WORLD_ID_KEY,
+	SINGLE_SAVE_KEY,
+	BACKUP_PREFIX,
+	// Seen the offer to start fresh after a big update: not offered again for a settings reset.
+	`${PREFIX}:fresh-start-seen`,
+];
+
+/**
+ * Forget every setting this app keeps in the browser (panel sizes and folds,
+ * Add to scene's favourites and recent, where the camera was in each world,
+ * Preferences), keeping the worlds and their backups. Reload the page
+ * afterwards so everything starts from its default. Returns false if the
+ * browser refused.
+ */
+export const resetBrowserSettings = (): boolean => {
+	try {
+		const keys: string[] = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (
+				key?.startsWith(`${PREFIX}:`) &&
+				!KEPT_BY_SETTINGS_RESET.some((kept) => key === kept || key.startsWith(kept))
+			) {
+				keys.push(key);
+			}
+		}
+		for (const key of keys) {
+			localStorage.removeItem(key);
+		}
+		return true;
+	} catch (error) {
+		console.warn("Could not reset the browser's settings", error);
+		return false;
+	}
+};
+
 /** Save the scene shortly after every change. Returns an unsubscribe function. */
 export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
 	let timer: ReturnType<typeof setTimeout> | undefined;

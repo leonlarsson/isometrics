@@ -11,6 +11,7 @@ import {
 	openStoredWorld,
 	openWorldId,
 	readSavedRaw,
+	resetBrowserSettings,
 	saveScene,
 	startFreshAfterCrash,
 	storageUsage,
@@ -234,5 +235,42 @@ describe("wipeEverything", () => {
 		// A pending autosave can't bring the open world back before the page reloads.
 		saveScene(scene("Late autosave"));
 		expect(localStorage.length).toBe(0);
+	});
+});
+
+describe("resetBrowserSettings", () => {
+	beforeEach(() => {
+		vi.stubGlobal("localStorage", memoryStorage());
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+	});
+
+	it("forgets every setting and keeps the worlds, their backups and which is open", () => {
+		createWorld(scene("One"));
+		storeRaw("{not json");
+		loadStoredScene(); // makes a backup
+		createWorld(scene("Two"));
+		for (const key of ["panels", "palette", "camera", "preferences", "inspector-width"]) {
+			localStorage.setItem(`isometrics:${key}`, "{}");
+		}
+		localStorage.setItem("isometrics:fresh-start-seen", "3");
+		localStorage.setItem("someone-else", "kept");
+		const open = openWorldId();
+		const worlds = listWorlds();
+		const backups = listSceneBackups();
+		expect(backups.length).toBeGreaterThan(0);
+		expect(resetBrowserSettings()).toBe(true);
+		const left = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+		for (const key of ["panels", "palette", "camera", "preferences", "inspector-width"]) {
+			expect(left).not.toContain(`isometrics:${key}`);
+		}
+		expect(left).toContain("isometrics:fresh-start-seen");
+		expect(left).toContain("someone-else");
+		expect(listWorlds()).toEqual(worlds);
+		expect(listSceneBackups()).toEqual(backups);
+		expect(openWorldId()).toBe(open);
 	});
 });
