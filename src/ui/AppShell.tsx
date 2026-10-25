@@ -9,7 +9,9 @@ import { useEditor } from "#/editor/store";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
+import { lightnessOf } from "#/lib/color";
 import { Viewport } from "#/render/Viewport";
+import { backdropBackground, GREEN_SCREEN } from "#/scene/sky";
 import { formatHour, skyLightAt } from "#/scene/sun";
 
 import { BoxSelectBar } from "./BoxSelectBar";
@@ -82,8 +84,22 @@ const useSky = (): { style: CSSProperties; dark: boolean } => {
  */
 const Stage = ({ children }: { children: ReactNode }) => {
 	const sky = useSky();
+	// A backdrop of the world's own (ADR-0070) replaces the sky's colour behind the diorama.
+	const backdrop = useEditor((s) => s.scene.backdrop);
+	const background = backdropBackground(backdrop, "var(--bg)");
+	const top =
+		backdrop.kind === "greenScreen"
+			? GREEN_SCREEN
+			: backdrop.kind === "gradient"
+				? backdrop.gradientStart
+				: backdrop.color;
+	const dark = background === null ? sky.dark : top !== null && lightnessOf(top) < 0.45;
 	return (
-		<main className={styles.stage} style={sky.style} data-sky-dark={sky.dark || undefined}>
+		<main
+			className={styles.stage}
+			style={background === null ? sky.style : { background }}
+			data-sky-dark={dark || undefined}
+		>
 			{children}
 		</main>
 	);

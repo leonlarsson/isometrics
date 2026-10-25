@@ -8,6 +8,7 @@ import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
+import { BackdropSection, SkySection } from "./SkySettings";
 
 /** Times of day a click away. */
 const PRESETS: { label: string; hour: number }[] = [
@@ -36,7 +37,8 @@ const LIGHTS_OPTIONS: { value: TLighting["lights"]; label: string }[] = [
  * The Sun & sky tab (ADR-0052, ADR-0054): the time of day and where it comes
  * from; the sun's direction, height, colour and strength, each following the
  * time of day (or the classic daylight without one) until it's set by hand;
- * and when lights come on.
+ * the sky in perspective and the backdrop behind the diorama (ADR-0070); and
+ * when lights come on.
  */
 export const SkyTab = () => {
 	const lighting = useEditor((s) => s.scene.lighting);
@@ -235,6 +237,10 @@ export const SkyTab = () => {
 					inherit={following("sunStrength", `${Math.round(fromTime.strength * 100) / 100}×`)}
 				/>
 			</Section>
+
+			<SkySection />
+
+			<BackdropSection />
 
 			<Section id="sky.lights" icon="bulb" title="Lights" keywords="night windows lamps headlights">
 				<SelectField<TLighting["lights"]>

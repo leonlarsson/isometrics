@@ -12,6 +12,7 @@ import { CameraFollow } from "./CameraFollow";
 import { CameraMemory } from "./CameraMemory";
 import { CameraReadout } from "./CameraReadout";
 import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
+import { Clouds } from "./Clouds";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
@@ -28,6 +29,7 @@ import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
 import { RouteHighlight } from "./RouteHighlight";
 import { SceneLights } from "./SceneLights";
+import { SkyDome } from "./SkyDome";
 import { TiltShift } from "./TiltShift";
 import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
@@ -61,6 +63,10 @@ export const Viewport = () => {
 			}}
 		>
 			<Lights />
+
+			<SkyDome />
+
+			<Clouds />
 
 			<Ground />
 

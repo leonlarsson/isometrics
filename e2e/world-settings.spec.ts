@@ -58,6 +58,28 @@ test.describe("Sun & sky (ADR-0052, ADR-0061)", () => {
 	});
 });
 
+test.describe("the sky and the backdrop (ADR-0070)", () => {
+	test("the sky can be switched off and clouded over; the diorama's backdrop can be a green screen", async ({
+		page,
+	}) => {
+		await worldTab(page, "Sun & sky");
+		await box(page, "Cloud cover").fill("80");
+		await box(page, "Cloud cover").press("Enter");
+		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(0.8);
+		await page.getByRole("switch", { name: "Show the sky in perspective" }).click();
+		expect(await read(page, (s) => s.scene.sky.showInPerspective)).toBe(false);
+
+		await choose(page, "Behind the world", "Green screen");
+		expect(await read(page, (s) => s.scene.backdrop.kind)).toBe("greenScreen");
+		// The stage fades to it.
+		await expect
+			.poll(() =>
+				page.getByRole("main").evaluate((stage) => getComputedStyle(stage).backgroundColor),
+			)
+			.toBe("rgb(0, 255, 0)");
+	});
+});
+
 test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 	test("the side vehicles drive on, keeping distance and overtaking", async ({ page }) => {
 		await worldTab(page, "Traffic");

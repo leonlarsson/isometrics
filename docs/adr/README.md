@@ -73,3 +73,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0067](0067-duplicate-and-move.md) | Duplicating while moving: Ctrl+drag and Shift+D | accepted |
 | [0068](0068-copy-and-paste.md) | Copy and paste: things and a panel's settings, as JSON on the system clipboard | accepted |
 | [0069](0069-end-to-end-tests.md) | End-to-end tests in a real browser, driven through dev-only hooks | accepted |
+| [0070](0070-sky.md) | A sky around the world in perspective, and a backdrop of the world's own behind the diorama | accepted |

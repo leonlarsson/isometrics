@@ -27,3 +27,9 @@ export const tintColor = (a: string, b: string, amount: number) => {
 	const filter = channels(b);
 	return toHex(base.map((c, i) => c * (1 - amount + (amount * filter[i]) / 255)));
 };
+
+/** How light a colour looks, 0 (black) to 1 (white), weighting the channels as eyes do. */
+export const lightnessOf = (hex: string) => {
+	const [r, g, b] = channels(hex);
+	return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+};

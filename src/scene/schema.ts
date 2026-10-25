@@ -742,6 +742,89 @@ export const LightingSchema = z
 	})
 	.describe("The sun, the sky and the time of day.");
 
+// See docs/adr/0070-sky.md. Colours left null follow the time of day (or the theme).
+export const SkySchema = z
+	.object({
+		showInPerspective: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Draw the sky around the world in perspective. false shows the backdrop there too (e.g. a green screen).",
+			),
+		colorOverhead: HexColorSchema.nullable()
+			.default(null)
+			.describe(
+				"The sky's colour straight up, as #rrggbb: its colour by day, darkening at night. null = from the time of day.",
+			),
+		colorAtHorizon: HexColorSchema.nullable()
+			.default(null)
+			.describe(
+				"The sky's colour at the horizon, as #rrggbb: its colour by day, darkening at night. null = from the time of day.",
+			),
+		showSun: z
+			.boolean()
+			.default(true)
+			.describe("Show the sun in the sky by day, where the sunlight comes from."),
+		showMoon: z
+			.boolean()
+			.default(true)
+			.describe("Show the moon in the sky at night, opposite the sun."),
+		starDensity: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.6)
+			.describe("How many stars come out at night: 0 = none, 1 = a full starry sky."),
+		cloudCover: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.3)
+			.describe("How cloudy it is: 0 = clear, 1 = many low-poly clouds around the world."),
+		cloudColor: HexColorSchema.nullable()
+			.default(null)
+			.describe("The clouds' colour, as #rrggbb. null = white, tinted by the time of day."),
+		cloudSpeed: z
+			.number()
+			.min(0)
+			.max(5)
+			.default(1)
+			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
+	})
+	.describe(
+		"The sky around the world in perspective: its colours, the sun and moon, stars and clouds. The isometric diorama shows the backdrop instead.",
+	);
+
+export const BackdropSchema = z
+	.object({
+		kind: z
+			.enum(["sky", "color", "gradient", "greenScreen"])
+			.default("sky")
+			.describe(
+				"What's behind the world in the isometric diorama: sky = the sky's colour for the time of day (the theme's background in classic daylight); color = `color`; gradient = from `gradientStart` to `gradientEnd` at `gradientAngle`; greenScreen = pure green (#00ff00), to key the world out in a video editor.",
+			),
+		color: HexColorSchema.nullable()
+			.default(null)
+			.describe("With kind color, the colour, as #rrggbb. null = the theme's background."),
+		gradientStart: HexColorSchema.nullable()
+			.default(null)
+			.describe("With kind gradient, where it starts, as #rrggbb. null = the theme's background."),
+		gradientEnd: HexColorSchema.nullable()
+			.default(null)
+			.describe("With kind gradient, where it ends, as #rrggbb. null = the theme's background."),
+		gradientAngle: z
+			.number()
+			.min(0)
+			.max(360)
+			.default(180)
+			.describe(
+				"With kind gradient, which way it runs, in degrees clockwise from going up (as CSS): 180 = top to bottom, 90 = left to right.",
+			),
+	})
+	.describe(
+		"What's behind the world in the isometric diorama (and in perspective when the sky isn't shown there).",
+	);
+
 export const SceneSchema = z
 	.object({
 		version: z.literal(SCENE_VERSION).describe("Format version; always 1 for now."),
@@ -769,6 +852,24 @@ export const SceneSchema = z
 			sunColor: null,
 			sunStrength: null,
 			lights: "auto",
+		}),
+		sky: SkySchema.default({
+			showInPerspective: true,
+			colorOverhead: null,
+			colorAtHorizon: null,
+			showSun: true,
+			showMoon: true,
+			starDensity: 0.6,
+			cloudCover: 0.3,
+			cloudColor: null,
+			cloudSpeed: 1,
+		}),
+		backdrop: BackdropSchema.default({
+			kind: "sky",
+			color: null,
+			gradientStart: null,
+			gradientEnd: null,
+			gradientAngle: 180,
 		}),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
@@ -869,6 +970,8 @@ export type TTurns = z.output<typeof TurnsSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TLighting = z.output<typeof LightingSchema>;
+export type TSky = z.output<typeof SkySchema>;
+export type TBackdrop = z.output<typeof BackdropSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;

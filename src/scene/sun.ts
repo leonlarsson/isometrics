@@ -174,6 +174,15 @@ const keyAt = (hour: number): Omit<IKey, "hour"> => {
 	};
 };
 
+/** How dark it is at an hour from the time of day alone (0 = day, 1 = night), for the stars. */
+export const darknessAt = (hour: number) => keyAt(hour).night;
+
+/** Where the moon is when the sun is at `azimuth`: opposite it, always this high. */
+export const moonPositionFor = (sunAzimuth: number) => ({
+	azimuth: (sunAzimuth + 180) % 360,
+	elevation: MOON_ELEVATION,
+});
+
 /** Where the sun is at an hour: elevation below 0 at night. */
 export const sunPositionAt = (hour: number) => {
 	const h = ((hour % 24) + 24) % 24;
@@ -236,9 +245,12 @@ export const skyLightAt = (lighting: TLighting, hour: number | null): ISkyLight 
 					const sun = sunPositionAt(hour);
 					// After dark the moon lights the world, from the opposite side of the sky.
 					const moon = sun.elevation < 0;
+					const { azimuth, elevation } = moon
+						? moonPositionFor(sun.azimuth)
+						: { azimuth: sun.azimuth, elevation: Math.max(sun.elevation, 2) };
 					return {
-						azimuth: moon ? (sun.azimuth + 180) % 360 : sun.azimuth,
-						elevation: moon ? MOON_ELEVATION : Math.max(sun.elevation, 2),
+						azimuth,
+						elevation,
 						color: key.light,
 						strength: key.strength,
 						fill: key.fill,
