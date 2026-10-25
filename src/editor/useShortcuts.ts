@@ -305,7 +305,7 @@ export const useShortcuts = () => {
 		{
 			hotkey: "P",
 			callback: () => useEditor.getState().togglePerspective(),
-			options: { meta: { name: "Perspective / diorama view" } },
+			options: { meta: { name: "Perspective / isometric diorama" } },
 		},
 		{
 			hotkey: "H",

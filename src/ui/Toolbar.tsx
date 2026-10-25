@@ -182,7 +182,7 @@ export const Toolbar = () => {
 
 							<Menu.CheckboxItem
 								icon="perspective"
-								label="Perspective view"
+								label="Perspective"
 								checked={perspective}
 								onCheckedChange={togglePerspective}
 							/>

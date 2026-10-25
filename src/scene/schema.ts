@@ -533,7 +533,7 @@ export const ViewpointSchema = z
 		perspective: z
 			.boolean()
 			.default(false)
-			.describe("A perspective view instead of the flat diorama view."),
+			.describe("A perspective view instead of the flat isometric diorama view."),
 		fieldOfView: FieldOfViewSchema.nullable()
 			.default(null)
 			.describe(
@@ -553,7 +553,7 @@ export const CameraSettingsSchema = z
 				"The viewpoint the world opens at for anyone who hasn't looked around it yet (a shared file, another browser), and that re-centring goes back to. null (or an id no viewpoint has) = the whole world from the default angle.",
 			),
 		fieldOfView: FieldOfViewSchema.default(40).describe(
-			"The perspective camera's field of view, in degrees from the top of the view to the bottom: small looks flat, like the diorama view through a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own.",
+			"The perspective camera's field of view, in degrees from the top of the view to the bottom: small looks flat, like the isometric diorama view through a long lens; large exaggerates depth, like a wide-angle lens. A viewpoint can have its own.",
 		),
 		closestSpan: z
 			.number()

@@ -87,7 +87,7 @@ export const CameraTab = () => {
 				open={confirmingReset}
 				onOpenChange={setConfirmingReset}
 				title="Reset the camera?"
-				description="The camera goes back to the whole world in the diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and the camera preferences in this browser. The turntable and tilt-shift keep their settings."
+				description="The camera goes back to the whole world in the isometric diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and the camera preferences in this browser. The turntable and tilt-shift keep their settings."
 				confirmLabel="Reset the camera"
 				onConfirm={() => {
 					useEditor.getState().resetCamera();
@@ -106,8 +106,8 @@ export const CameraTab = () => {
 					label="Camera"
 					value={perspective ? "perspective" : "diorama"}
 					options={[
-						{ value: "diorama", label: "Diorama view" },
-						{ value: "perspective", label: "Perspective view" },
+						{ value: "diorama", label: "Isometric diorama" },
+						{ value: "perspective", label: "Perspective" },
 					]}
 					onChange={(next) => {
 						if ((next === "perspective") !== perspective) {
@@ -118,7 +118,7 @@ export const CameraTab = () => {
 						from: "default",
 						inherited: !perspective,
 						onReset: () => useEditor.getState().togglePerspective(),
-						value: "diorama view",
+						value: "isometric diorama",
 					}}
 					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."
 				/>
@@ -132,7 +132,7 @@ export const CameraTab = () => {
 						onReset: () => set("fieldOfView", CAMERA_DEFAULTS.fieldOfView),
 						degrees: CAMERA_DEFAULTS.fieldOfView,
 					}}
-					hint="For the perspective view (P). Short lenses (18 mm) are wide, with strong depth; long ones (200 mm) are narrow and flat. A viewpoint can have its own."
+					hint="For the perspective camera (P). Short lenses (18 mm) are wide, with strong depth; long ones (200 mm) are narrow and flat. A viewpoint can have its own."
 				/>
 
 				<SelectField

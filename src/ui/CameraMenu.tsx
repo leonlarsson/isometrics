@@ -68,7 +68,7 @@ export const CameraMenu = () => {
 			<Menu.Popup>
 				<Menu.CheckboxItem
 					icon="video"
-					label="Diorama view"
+					label="Isometric diorama"
 					checked={!perspective}
 					onCheckedChange={() => showPerspective(false)}
 					keepOpen
@@ -77,7 +77,7 @@ export const CameraMenu = () => {
 
 				<Menu.CheckboxItem
 					icon="perspective"
-					label="Perspective view"
+					label="Perspective"
 					checked={perspective}
 					onCheckedChange={() => showPerspective(true)}
 					keepOpen

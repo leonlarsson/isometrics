@@ -19,8 +19,8 @@ const describeView = () => {
 	const { scene, cameraFollow, holdingRightButton } = useEditor.getState();
 	const parts = [
 		liveCamera.fieldOfView === null
-			? "Diorama view"
-			: `Perspective view · ${Math.round(liveCamera.fieldOfView)}°`,
+			? "Isometric diorama"
+			: `Perspective · ${Math.round(liveCamera.fieldOfView)}°`,
 	];
 	if (cameraFollow) {
 		const entity = scene.entities.find((e) => e.id === cameraFollow.entityId);
@@ -44,7 +44,7 @@ const describeView = () => {
 
 /**
  * A quiet line in the bottom-left corner of the view saying what the camera
- * shows (ADR-0062), like Blender's "User Perspective": "Perspective view · 40°
+ * shows (ADR-0062), like Blender's "User Perspective": "Perspective · 40°
  * · Downtown", and how fast you fly. Always in Edit mode; in View mode, which
  * is for looking, only while you move with the keys or fly, fading out a
  * moment after. It checks a few times a second rather than every frame, and
