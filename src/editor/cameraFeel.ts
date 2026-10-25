@@ -33,7 +33,7 @@ export const CameraFeelSchema = z.object({
 	/** A line in the view's corner in Edit mode saying what the camera shows. */
 	viewLabel: z.boolean().catch(true),
 	/** Saved viewpoints drawn in the world in Edit mode, as small cameras with what they see. */
-	viewpointsInWorld: z.boolean().catch(true),
+	viewpointsInWorld: z.boolean().catch(false),
 });
 
 export type TCameraFeel = z.output<typeof CameraFeelSchema>;

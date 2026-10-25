@@ -229,12 +229,6 @@ export interface IEditorState {
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
-	 * The viewpoint the camera went to last (or was saved from), until it goes to another view:
-	 * its camera in the world isn't drawn (render/ViewpointMarkers), even after looking around a
-	 * little. Selecting a viewpoint doesn't change it. Runtime UI state.
-	 */
-	enteredViewpointId: string | null;
-	/**
 	 * The camera follows a vehicle (render/CameraFollow): keeping its angle, or riding along
 	 * behind it in perspective. Runtime UI state.
 	 */
@@ -604,7 +598,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		viewpointMenu: null,
 		flight: null,
 		activeViewpointId: null,
-		enteredViewpointId: null,
 		cameraFollow: null,
 
 		commit: (recipe, options = {}) =>
@@ -659,7 +652,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				joinOffer: null,
 				followOffer: null,
 				activeViewpointId: null,
-				enteredViewpointId: null,
 				flight: null,
 				cameraFollow: null,
 			});
@@ -800,7 +792,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				perspective: false,
 				cameraFollow: null,
 				activeViewpointId: null,
-				enteredViewpointId: null,
 				viewNonce: s.viewNonce + 1,
 				frameBox: null,
 			}));
@@ -811,12 +802,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().goToViewpoint(opening.id);
 				return;
 			}
-			set((s) => ({
-				viewNonce: s.viewNonce + 1,
-				frameBox: null,
-				cameraFollow: null,
-				enteredViewpointId: null,
-			}));
+			set((s) => ({ viewNonce: s.viewNonce + 1, frameBox: null, cameraFollow: null }));
 		},
 
 		showOpeningView: (remembered) => {
@@ -831,7 +817,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				perspective: pose.perspective,
 				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
 				activeViewpointId: remembered ? null : (opening?.id ?? null),
-				enteredViewpointId: remembered ? null : (opening?.id ?? null),
 			}));
 		},
 
@@ -939,7 +924,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					cameraFollow: { entityId, ride, perspectiveBefore },
 					perspective: ride ? true : perspectiveBefore,
 					flight: null,
-					enteredViewpointId: null,
 				};
 			}),
 
@@ -963,7 +947,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				perspective: viewpoint.perspective,
 				flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
 				activeViewpointId: id,
-				enteredViewpointId: id,
 			}));
 		},
 
@@ -974,7 +957,6 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				cameraFollow: null,
 				perspective: pose.perspective,
 				flight: { pose, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
-				enteredViewpointId: null,
 			})),
 
 		addViewpoint: (pose) => {
@@ -987,7 +969,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			get().commit((scene) => {
 				scene.viewpoints.push(viewpoint);
 			});
-			set({ activeViewpointId: viewpoint.id, enteredViewpointId: viewpoint.id });
+			set({ activeViewpointId: viewpoint.id });
 			return viewpoint.id;
 		},
 

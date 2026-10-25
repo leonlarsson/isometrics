@@ -139,7 +139,7 @@ const CameraFeelSection = () => {
 					label="Viewpoints in the world"
 					checked={feel.viewpointsInWorld}
 					onChange={(v) => setCameraFeel("viewpointsInWorld", v)}
-					inherit={feelDefault(feel, "viewpointsInWorld", "on")}
+					inherit={feelDefault(feel, "viewpointsInWorld", "off")}
 				/>
 
 				<SwitchField

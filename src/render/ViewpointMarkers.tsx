@@ -1,7 +1,7 @@
 import interUrl from "@fontsource/inter/files/inter-latin-600-normal.woff?url";
 import { Billboard, Line, Text } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useMemo, useRef, useState } from "react";
+import { useThree } from "@react-three/fiber";
+import { Suspense, useMemo, useState } from "react";
 import * as THREE from "three";
 
 import { useCameraFeel } from "#/editor/cameraFeel";
@@ -11,7 +11,7 @@ import { DEG2RAD } from "#/lib/math";
 import type { TViewpoint } from "#/scene/schema";
 
 import { openViewpointMenuOnClick } from "./contextMenu";
-import { currentView, directionOf, runningFlight, sameView } from "./viewpoints";
+import { directionOf } from "./viewpoints";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -110,7 +110,6 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 	const worldFieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
 	const selected = useEditor((s) => s.activeViewpointId === viewpoint.id);
 	const [hovered, setHovered] = useState(false);
-	const group = useRef<THREE.Group>(null);
 	const shape = useMemo(
 		() => markerShape(viewpoint, aspect, worldFieldOfView),
 		[viewpoint, aspect, worldFieldOfView],
@@ -119,24 +118,8 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 	const color = strong ? palette.selection : palette.text;
 	const name = viewpoint.name || `Viewpoint ${index + 1}`;
 
-	const entered = useEditor((s) => s.enteredViewpointId === viewpoint.id);
-
-	// Not drawn while the camera shows exactly this view (it would sit right on the camera), nor
-	// once the camera went to it and is still in it, even after looking around a little. Gliding
-	// there, a perspective camera stays until the glide ends, so it looks like flying into it; a
-	// diorama camera goes at once: its view's camera stands far back (how far makes no difference
-	// to what it sees), so the glide would end well behind the marker instead of in it.
-	useFrame(() => {
-		const pose = currentView.read?.();
-		const here = Boolean(pose && sameView(pose, viewpoint, worldFieldOfView));
-		const inside = entered && (!viewpoint.perspective || !runningFlight.gliding());
-		if (group.current) {
-			group.current.visible = !here && !inside;
-		}
-	});
-
 	return (
-		<group ref={group}>
+		<group>
 			{shape.lines.map((points, line) => (
 				<Line
 					// biome-ignore lint/suspicious/noArrayIndexKey: the lines are fixed in number and order
@@ -217,8 +200,7 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
  * The saved viewpoints drawn in the world in Edit mode (Your camera →
  * Viewpoints in the world, ADR-0062): each a little camera where it looks
  * from, with a short pyramid of what it sees and its name. Click one to select
- * it, double-click to go there, right-click for its menu. The one the camera
- * is at isn't drawn.
+ * it, double-click to go there, right-click for its menu. Off unless turned on.
  */
 export const ViewpointMarkers = () => {
 	const shown = useCameraFeel().viewpointsInWorld;

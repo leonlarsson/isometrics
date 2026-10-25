@@ -147,10 +147,9 @@ export const projectionSwitch = { pending: false };
  * Set by render/CameraFlight, for the glide running now: `retarget` gives it a
  * new field of view to end at (a slider moved during it; false when no glide
  * is running), `stop` stops it where it is (the view turned from outside the
- * canvas, like the navigation gizmo), `gliding` says whether one is running.
+ * canvas, like the navigation gizmo).
  */
 export const runningFlight: {
 	retarget: ((fieldOfView: number) => boolean) | null;
 	stop: (() => void) | null;
-	gliding: () => boolean;
-} = { retarget: null, stop: null, gliding: () => false };
+} = { retarget: null, stop: null };
