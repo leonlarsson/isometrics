@@ -119,18 +119,19 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 	const color = strong ? palette.selection : palette.text;
 	const name = viewpoint.name || `Viewpoint ${index + 1}`;
 
-	// Not the one the camera is at: it would sit right on the camera. Nor, in the diorama view,
-	// the one it's gliding to: that camera stands far back (how far makes no difference to what it
-	// sees), so the glide would end well behind the marker instead of in it, as in perspective.
+	const entered = useEditor((s) => s.enteredViewpointId === viewpoint.id);
+
+	// Not drawn while the camera shows exactly this view (it would sit right on the camera), nor
+	// once the camera went to it and is still in it, even after looking around a little. Gliding
+	// there, a perspective camera stays until the glide ends, so it looks like flying into it; a
+	// diorama camera goes at once: its view's camera stands far back (how far makes no difference
+	// to what it sees), so the glide would end well behind the marker instead of in it.
 	useFrame(() => {
 		const pose = currentView.read?.();
 		const here = Boolean(pose && sameView(pose, viewpoint, worldFieldOfView));
-		const arriving =
-			!viewpoint.perspective &&
-			runningFlight.gliding() &&
-			useEditor.getState().activeViewpointId === viewpoint.id;
+		const inside = entered && (!viewpoint.perspective || !runningFlight.gliding());
 		if (group.current) {
-			group.current.visible = !here && !arriving;
+			group.current.visible = !here && !inside;
 		}
 	});
 

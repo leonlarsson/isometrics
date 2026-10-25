@@ -656,6 +656,32 @@ describe("editor store", () => {
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
 	});
 
+	it("remembers the viewpoint the camera went into until it goes to another view", () => {
+		const store = makeStore();
+		const pose = {
+			target: [0, 0] as [number, number],
+			azimuth: 315,
+			elevation: 32.5,
+			span: 40,
+			perspective: false,
+			fieldOfView: null,
+		};
+		const a = store.getState().addViewpoint(pose);
+		const b = store.getState().addViewpoint({ ...pose, span: 20 });
+		// Saving the current view: the camera is in it.
+		expect(store.getState().enteredViewpointId).toBe(b);
+		store.getState().goToViewpoint(a);
+		expect(store.getState().enteredViewpointId).toBe(a);
+		// Selecting another one doesn't move the camera.
+		store.getState().selectViewpoint(b);
+		expect(store.getState().enteredViewpointId).toBe(a);
+		store.getState().glideTo({ ...pose, azimuth: 90 });
+		expect(store.getState().enteredViewpointId).toBeNull();
+		store.getState().goToViewpoint(b);
+		store.getState().resetView();
+		expect(store.getState().enteredViewpointId).toBeNull();
+	});
+
 	it("resets the camera and its settings, but not the turntable or tilt-shift", () => {
 		const store = makeStore();
 		store.getState().commit((scene) => {
