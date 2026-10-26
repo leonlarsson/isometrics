@@ -136,6 +136,18 @@ test.describe("moods (ADR-0078)", () => {
 			moodId,
 		);
 		expect(await read(page, (s) => s.scene.lighting.time)).toBe(18.5);
+
+		// A viewer can opt out: then viewpoints only move the camera.
+		await page.getByRole("button", { name: "Viewpoints" }).click();
+		await page.getByRole("menuitemcheckbox", { name: "Viewpoints put on their moods" }).click();
+		await page.keyboard.press("Escape");
+		await act(page, (s) => {
+			s.commit((scene) => {
+				scene.lighting.time = 22;
+			});
+			s.goToViewpoint(s.scene.viewpoints[0].id);
+		});
+		expect(await read(page, (s) => s.scene.lighting.time)).toBe(22);
 	});
 });
 

@@ -1,3 +1,4 @@
+import { setPreference, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { currentView } from "#/render/viewpoints";
 import { wearsMood } from "#/scene/moods";
@@ -24,6 +25,7 @@ export const saveCurrentView = () => {
  */
 export const ViewpointsMenu = () => {
 	const scene = useEditor((s) => s.scene);
+	const preferences = usePreferences();
 	const { viewpoints, moods } = scene;
 	const mode = useEditor((s) => s.mode);
 	const store = () => useEditor.getState();
@@ -62,6 +64,12 @@ export const ViewpointsMenu = () => {
 								onClick={() => store().putOnMood(mood.id)}
 							/>
 						))}
+
+						<Menu.CheckboxItem
+							label="Viewpoints put on their moods"
+							checked={preferences.putOnViewpointMoods}
+							onCheckedChange={(on) => setPreference("putOnViewpointMoods", on)}
+						/>
 					</Menu.Group>
 				)}
 

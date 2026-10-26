@@ -23,6 +23,7 @@ const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"invertZoom",
 	"cameraSmoothing",
 	"glideSeconds",
+	"putOnViewpointMoods",
 ];
 const KEYBOARD_PAGE: (keyof TPreferences)[] = ["keyboardSpeed"];
 const OVERLAYS_PAGE: (keyof TPreferences)[] = [
@@ -203,6 +204,19 @@ export const PreferencesDialog = () => {
 									onChange={(v) => setPreference("glideSeconds", v)}
 									inherit={preferenceDefault(preferences, "glideSeconds", "0.8 s")}
 									hint="How long the camera takes to glide to a viewpoint or back to the opening view: 0 jumps there."
+								/>
+							),
+						},
+						{
+							id: "putOnViewpointMoods",
+							keywords: "mood moods look time of day viewpoint automatic",
+							field: (
+								<SwitchField
+									label="Viewpoints put on their moods"
+									checked={preferences.putOnViewpointMoods}
+									onChange={(v) => setPreference("putOnViewpointMoods", v)}
+									inherit={preferenceDefault(preferences, "putOnViewpointMoods", "on")}
+									hint="Going to a viewpoint that has a mood also changes the world's look to it (its time of day, light, sky and water). Off, viewpoints only move the camera."
 								/>
 							),
 						},

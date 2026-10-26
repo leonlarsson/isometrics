@@ -1339,8 +1339,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (!viewpoint) {
 					return;
 				}
-				// Its mood too, if it has one (ADR-0078).
-				if (viewpoint.moodId && get().scene.moods.some((m) => m.id === viewpoint.moodId)) {
+				// Its mood too, if it has one and the viewer lets viewpoints put moods on (ADR-0078).
+				if (
+					viewpoint.moodId &&
+					readPreferences().putOnViewpointMoods &&
+					get().scene.moods.some((m) => m.id === viewpoint.moodId)
+				) {
 					get().putOnMood(viewpoint.moodId);
 				}
 				set((s) => ({
