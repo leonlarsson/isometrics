@@ -28,7 +28,7 @@ Chosen option: **1** (the owner's choice).
 - **Moods** (`moods`, palette icon): the world's moods.
 - **Time & light** (`light`, sun icon; first called Light, renamed so both halves show): the time of day and where it comes from, the sun (direction, height, colour, strength, sun and shade contrast), and when the world's lights come on.
 - **Sky & water** (`sky`, cloud icon, the old tab's id): the sky in perspective, the backdrop behind the diorama, the water.
-- The panels keep their ids (`sky.time`, `sky.water`…), so folded panels stay folded. Buttons and hints that pointed at Sun & sky point at the tab that now has the setting (Open the Time & light tab, Open the Moods tab). Settings search finds them in their new tabs.
+- Panels that moved take their new tab's id (`light.time`, `light.sun`, `light.lights`, `moods.list`; Sky & water's stay `sky.…`), so they unfold once where they had been folded. Buttons and hints that pointed at Sun & sky point at the tab that now has the setting (Open the Time & light tab, Open the Moods tab). Settings search finds them in their new tabs.
 - The world tabs on the rail: World, Moods, Time & light, Sky & water, Camera, Viewpoints, Traffic, Data.
 - Room to grow: a **Weather** tab is likely (clouds, fog, rain, snow; TODO *Weather*), taking the clouds from Sky & water, and Sky & water may split into Sky and Water once each has more.
 

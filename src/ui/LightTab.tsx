@@ -85,7 +85,7 @@ export const LightTab = () => {
 			</FollowDataNote>
 
 			<Section
-				id="sky.time"
+				id="light.time"
 				icon="clock"
 				// The world's time in the title while it has one, so nothing jumps in and out below.
 				title={hours === null ? "Time of day" : `Time of day · ${formatHour(hours)}`}
@@ -197,7 +197,7 @@ export const LightTab = () => {
 			</Section>
 
 			<Section
-				id="sky.sun"
+				id="light.sun"
 				icon="sun"
 				title="Sun"
 				keywords="light shadow shade contrast fill flat overcast"
@@ -260,7 +260,12 @@ export const LightTab = () => {
 				/>
 			</Section>
 
-			<Section id="sky.lights" icon="bulb" title="Lights" keywords="night windows lamps headlights">
+			<Section
+				id="light.lights"
+				icon="bulb"
+				title="Lights"
+				keywords="night windows lamps headlights"
+			>
 				<SelectField<TLighting["whenLightsAreOn"]>
 					label="Lit windows, lamps and headlights"
 					value={lighting.whenLightsAreOn}

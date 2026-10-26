@@ -40,7 +40,7 @@ export const MoodsSection = () => {
 
 	return (
 		<Section
-			id="sky.moods"
+			id="moods.list"
 			icon="palette"
 			title="Moods"
 			keywords="moods looks presets golden hour night atmosphere snapshot"
