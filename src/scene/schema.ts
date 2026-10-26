@@ -740,6 +740,14 @@ export const LightingSchema = z
 			.nullable()
 			.default(null)
 			.describe("How strong the sunlight is; 1 = normal daylight. null = from the time of day."),
+		sunShadeContrast: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"How much darker shade is than sunlight, 0–1: higher moves light from the flat sky and ambient fill into the sun, for deeper shade and shadows while sunlit ground stays as bright; lower softens shade towards an overcast look. 0.5 = the theme's own balance.",
+			),
 		whenLightsAreOn: z
 			.enum(["auto", "on", "off"])
 			.default("auto")
@@ -858,6 +866,7 @@ export const SceneSchema = z
 			sunElevation: null,
 			sunColor: null,
 			sunStrength: null,
+			sunShadeContrast: 0.5,
 			whenLightsAreOn: "auto",
 		}),
 		sky: SkySchema.default({

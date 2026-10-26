@@ -1,4 +1,5 @@
 import { mixColor } from "#/lib/color";
+import { toRadians } from "#/lib/math";
 
 import type { TLighting } from "./schema";
 
@@ -269,6 +270,36 @@ export const skyLightAt = (lighting: TLighting, hour: number | null): ISkyLight 
 		night:
 			lighting.whenLightsAreOn === "on" ? 1 : lighting.whenLightsAreOn === "off" ? 0 : base.night,
 	};
+};
+
+/** The sun and shade contrast that keeps the theme's own balance of sunlight and fill (ADR-0072). */
+export const BALANCED_CONTRAST = 0.5;
+
+/**
+ * How much to strengthen the sunlight and the fill (sky and ambient light)
+ * for a world's sun and shade contrast, given how strong each is now and how
+ * high the sun stands (degrees): light moves between them while the light on
+ * the ground stays the same, so the world gets no brighter or darker, only
+ * its shade deeper or softer. A low sun lights the ground at a slant, so it
+ * gets more of the fill's light for the same effect. At BALANCED_CONTRAST both
+ * stay as they are; each step of 0.2 doubles or halves the fill against the
+ * sun on the ground (the render lab's sun ×1.3 and fill ×0.55 is about 0.75
+ * with a high sun). With no sunlight there's nothing to move.
+ */
+export const sunAndFillFactors = (
+	sun: number,
+	fill: number,
+	sunElevation: number,
+	contrast: number,
+) => {
+	const onGround = sun * Math.sin(toRadians(Math.max(sunElevation, 2)));
+	const shift = 32 ** (BALANCED_CONTRAST - contrast);
+	const shifted = onGround + fill * shift;
+	if (onGround <= 0 || shifted <= 0) {
+		return { sun: 1, fill: 1 };
+	}
+	const total = onGround + fill;
+	return { sun: total / shifted, fill: (total * shift) / shifted };
 };
 
 /** "06:30" for 6.5 hours. */

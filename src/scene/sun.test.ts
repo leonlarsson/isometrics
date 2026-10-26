@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import { mixColor, tintColor } from "#/lib/color";
 
 import { SceneSchema } from "./schema";
-import { CLASSIC_SUN, formatHour, SUNRISE, SUNSET, skyLightAt, sunPositionAt } from "./sun";
+import {
+	BALANCED_CONTRAST,
+	CLASSIC_SUN,
+	formatHour,
+	SUNRISE,
+	SUNSET,
+	skyLightAt,
+	sunAndFillFactors,
+	sunPositionAt,
+} from "./sun";
 
 const lighting = SceneSchema.parse({ version: 1 }).lighting;
 
@@ -88,5 +97,55 @@ describe("color", () => {
 		const middle = sunPositionAt((SUNSET + 24 + SUNRISE) / 2);
 		expect(middle.azimuth).toBeCloseTo(90, 5);
 		expect(middle.elevation).toBeLessThan(0);
+	});
+});
+
+describe("sun and shade contrast", () => {
+	// The light theme's sun and fill (hemisphere + ambient) at full day, the sun high.
+	const sun = 2.4;
+	const fill = 1.85;
+	const high = 90;
+	const onGround = (elevation: number) => sun * Math.sin((elevation * Math.PI) / 180);
+
+	it("keeps the theme's own balance by default", () => {
+		expect(SceneSchema.parse({ version: 1 }).lighting.sunShadeContrast).toBe(BALANCED_CONTRAST);
+		expect(sunAndFillFactors(sun, fill, 40, BALANCED_CONTRAST)).toEqual({ sun: 1, fill: 1 });
+	});
+
+	it("moves light between the sun and the fill, keeping the light on the ground", () => {
+		for (const elevation of [8, 40, 90]) {
+			for (const contrast of [0, 0.25, 0.75, 1]) {
+				const factors = sunAndFillFactors(sun, fill, elevation, contrast);
+				expect(onGround(elevation) * factors.sun + fill * factors.fill).toBeCloseTo(
+					onGround(elevation) + fill,
+					10,
+				);
+			}
+		}
+		const deeper = sunAndFillFactors(sun, fill, high, 0.75);
+		expect(deeper.sun).toBeGreaterThan(1);
+		expect(deeper.fill).toBeLessThan(1);
+		const softer = sunAndFillFactors(sun, fill, high, 0.25);
+		expect(softer.sun).toBeLessThan(1);
+		expect(softer.fill).toBeGreaterThan(1);
+	});
+
+	it("is about the render lab's stronger sun at 0.75, and halves the fill against the sun every 0.2", () => {
+		const lab = sunAndFillFactors(sun, fill, high, 0.75);
+		expect(lab.sun).toBeCloseTo(1.3, 1);
+		expect(lab.fill).toBeCloseTo(0.55, 1);
+		const a = sunAndFillFactors(sun, fill, high, 0.6);
+		const b = sunAndFillFactors(sun, fill, high, 0.8);
+		expect((fill * a.fill) / (sun * a.sun) / ((fill * b.fill) / (sun * b.sun))).toBeCloseTo(2, 10);
+	});
+
+	it("strengthens a low sun more, as it lights the ground at a slant", () => {
+		expect(sunAndFillFactors(sun, fill, 10, 0.75).sun).toBeGreaterThan(
+			sunAndFillFactors(sun, fill, high, 0.75).sun,
+		);
+	});
+
+	it("leaves a world without sunlight as it is", () => {
+		expect(sunAndFillFactors(0, fill, 40, 1)).toEqual({ sun: 1, fill: 1 });
 	});
 });

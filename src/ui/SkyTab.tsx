@@ -2,7 +2,7 @@ import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import type { TLighting } from "#/scene/schema";
-import { formatHour, skyLightAt } from "#/scene/sun";
+import { BALANCED_CONTRAST, formatHour, skyLightAt } from "#/scene/sun";
 
 import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
@@ -196,7 +196,12 @@ export const SkyTab = () => {
 				)}
 			</Section>
 
-			<Section id="sky.sun" icon="sun" title="Sun" keywords="light shadow">
+			<Section
+				id="sky.sun"
+				icon="sun"
+				title="Sun"
+				keywords="light shadow shade contrast fill flat overcast"
+			>
 				<SliderField
 					label="Sun direction"
 					value={lighting.sunAzimuth ?? Math.round(fromTime.azimuth)}
@@ -235,6 +240,23 @@ export const SkyTab = () => {
 					suffix="×"
 					onChange={(strength) => set("sunStrength", strength, "sunStrength")}
 					inherit={following("sunStrength", `${Math.round(fromTime.strength * 100) / 100}×`)}
+				/>
+
+				<SliderField
+					label="Sun and shade contrast"
+					value={Math.round(lighting.sunShadeContrast * 100)}
+					min={0}
+					max={100}
+					step={5}
+					suffix="%"
+					onChange={(value) => set("sunShadeContrast", value / 100, "sunShadeContrast")}
+					inherit={{
+						from: "default",
+						inherited: lighting.sunShadeContrast === BALANCED_CONTRAST,
+						onReset: () => set("sunShadeContrast", BALANCED_CONTRAST),
+						value: `${BALANCED_CONTRAST * 100}%`,
+					}}
+					hint="Higher makes shade and shadows deeper, lower softens them like an overcast day. Sunlit ground stays as bright."
 				/>
 			</Section>
 

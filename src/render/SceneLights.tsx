@@ -6,7 +6,7 @@ import { advanceDayCycle, sceneHoursNow } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { tintColor } from "#/lib/color";
 import type { TLighting, TScene } from "#/scene/schema";
-import { type ISkyLight, skyLightAt } from "#/scene/sun";
+import { type ISkyLight, skyLightAt, sunAndFillFactors } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
 import { groundSpan } from "./cameraMath";
@@ -90,19 +90,26 @@ interface ILights {
 	ambient: THREE.AmbientLight | null;
 }
 
-/** Colour and strengthen the lights for the time of day (the theme's own light at full day). */
-const lightFor = (lights: ILights, sky: ISkyLight, palette: IScenePalette) => {
+/**
+ * Colour and strengthen the lights for the time of day (the theme's own light
+ * at full day), with the world's sun and shade contrast moving light between
+ * the sun and the fill (ADR-0072).
+ */
+const lightFor = (lights: ILights, sky: ISkyLight, palette: IScenePalette, contrast: number) => {
+	const sunlight = palette.sunIntensity * sky.strength;
+	const fill = (palette.hemiIntensity + palette.ambientIntensity) * sky.fill;
+	const factors = sunAndFillFactors(sunlight, fill, sky.elevation, contrast);
 	lights.sun?.color.set(sky.color);
 	if (lights.sun) {
-		lights.sun.intensity = palette.sunIntensity * sky.strength;
+		lights.sun.intensity = sunlight * factors.sun;
 	}
 	if (lights.sky) {
 		lights.sky.color.set(tintColor(palette.hemiSky, sky.tint, sky.tintAmount));
 		lights.sky.groundColor.set(tintColor(palette.hemiGround, sky.tint, sky.tintAmount * 0.6));
-		lights.sky.intensity = palette.hemiIntensity * sky.fill;
+		lights.sky.intensity = palette.hemiIntensity * sky.fill * factors.fill;
 	}
 	if (lights.ambient) {
-		lights.ambient.intensity = palette.ambientIntensity * sky.fill;
+		lights.ambient.intensity = palette.ambientIntensity * sky.fill * factors.fill;
 	}
 };
 
@@ -135,7 +142,7 @@ const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) =
 		}
 		const sky = skyLightAt(lighting, sceneHoursNow());
 		lights.sun = light.current;
-		lightFor(lights, sky, palette);
+		lightFor(lights, sky, palette, lighting.sunShadeContrast);
 		sun.copy(sunDirectionOf(sky));
 		lightX.crossVectors(up, sun).normalize();
 		lightY.crossVectors(sun, lightX);
@@ -185,7 +192,7 @@ const SunOverTheGround = ({ ground, palette, lighting, lights }: ISunProps) => {
 		<directionalLight
 			ref={(light) => {
 				lights.sun = light;
-				lightFor(lights, sky, palette);
+				lightFor(lights, sky, palette, lighting.sunShadeContrast);
 			}}
 			castShadow
 			position={position}

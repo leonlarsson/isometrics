@@ -56,6 +56,23 @@ test.describe("Sun & sky (ADR-0052, ADR-0061)", () => {
 		await choose(page, "Lit windows, lamps and headlights", "Always");
 		expect(await read(page, (s) => s.scene.lighting.whenLightsAreOn)).toBe("on");
 	});
+
+	test("sun and shade contrast is the theme's balance until changed, and resets (ADR-0072)", async ({
+		page,
+	}) => {
+		await worldTab(page, "Sun & sky");
+		const contrast = box(page, "Sun and shade contrast");
+		await expect(contrast).toHaveValue("50");
+		await contrast.fill("75");
+		await contrast.press("Enter");
+		expect(await read(page, (s) => s.scene.lighting.sunShadeContrast)).toBe(0.75);
+		// The field's own Reset, the nearest one above its input.
+		await contrast
+			.locator("xpath=ancestor::*[.//button[@aria-label='Reset']][1]")
+			.getByRole("button", { name: "Reset" })
+			.click();
+		expect(await read(page, (s) => s.scene.lighting.sunShadeContrast)).toBe(0.5);
+	});
 });
 
 test.describe("the sky and the backdrop (ADR-0070)", () => {
