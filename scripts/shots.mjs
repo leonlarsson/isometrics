@@ -19,6 +19,8 @@
  *                                    or viewpoint ids (default close)
  *   --pose '{"target":[0,0],…}'       a camera of its own (a viewpoint's fields), shot as the view "pose"
  *   --size 1600x1000@1               the page's size in CSS px, @ device pixels per px
+ *   --template lantern_bay           a starter world other than Brightwater (its id, from /examples.json)
+ *   --template lantern_bay           a starter world other than Brightwater (its id, from /examples.json)
  *   --mode view|edit                 the editor's mode (default view); --select <id> selects a thing
  *   --frames 120                     frames to time per shot; --no-shots to only time them
  *   --base http://localhost:3000     the dev server (it must be running: pnpm dev)
@@ -236,6 +238,12 @@ process.on("exit", reportErrors);
 
 await page.goto(base, { timeout: 120_000 });
 await page.waitForFunction(() => Boolean(globalThis.__editorStore), null, { timeout: 60_000 });
+if (options.template) {
+	await page.evaluate(async (id) => {
+		const scene = await (await fetch(`/examples/${id}.json`)).json();
+		globalThis.__editorStore.getState().loadScene(scene);
+	}, options.template);
+}
 await page.evaluate(
 	({ world, mode, select }) => {
 		const store = globalThis.__editorStore.getState();
