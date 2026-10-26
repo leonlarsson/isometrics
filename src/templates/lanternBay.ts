@@ -16,12 +16,12 @@ import { paint } from "./paint";
  * night while motion plays.
  *
  * The camera looks from the south (+Z), so the north is the back of the
- * picture: houses on a hill there, lit towers inside the waterfront loop road,
+ * picture: a row of houses with front lawns there, lit towers inside the waterfront loop road,
  * a promenade of lamps along the beach, and the bay in front. A breakwater
  * pier with a beacon closes off a mirror-calm harbour basin, full of moored
  * yachts, from the rippling bay, where a ferry crosses.
  *
- *   Areas: the bay, the calm harbour basin, a beach, the promenade, the pier, the hill
+ *   Areas: the bay, the calm harbour basin, a beach, the promenade, the pier, the back lawns
  *   Roads: the waterfront loop, and a hidden ferry route across the bay
  *   Data:  the town's evening, the offices still at work, the marina and the ferry
  */
@@ -29,8 +29,6 @@ import { paint } from "./paint";
 const LOOP_ID = "waterfront_loop";
 const FERRY_ID = "ferry_route";
 
-/** Height of the hill at the back, and of the breakwater pier. */
-const HILL = 1.6;
 const PIER = 0.5;
 
 // ---------------------------------------------------------------- areas
@@ -48,8 +46,8 @@ const AREAS: TAreaInput[] = [
 			[17, 6],
 			[17, 1],
 			[22, 1],
-			[22, 18],
-			[-22, 18],
+			[22, 20],
+			[-22, 20],
 		],
 	},
 	{
@@ -105,15 +103,15 @@ const AREAS: TAreaInput[] = [
 		],
 	},
 	{
-		id: "hill",
-		name: "Lantern Hill",
-		type: "raised_land_01",
-		height: HILL,
+		id: "back_lawns",
+		name: "Back lawns",
+		// In front of the row of houses at the back, down to the road.
+		type: "grass_01",
 		points: [
-			[-22, -18],
-			[-5, -18],
-			[-6.5, -15.4],
-			[-22, -15.4],
+			[-22, -20],
+			[-4.25, -20],
+			[-6.2, -14.8],
+			[-22, -14.8],
 		],
 	},
 	{
@@ -213,11 +211,13 @@ if (bayview) {
 }
 
 /**
- * Along the hill, which is about as deep as a house: houses 2.2 wide (2.5 with the roof's
- * overhang) and two pines between them, a little apart so no roof or tree runs into another.
+ * A row along the back of the world, behind the waterfront road, with lawns in front and
+ * behind: houses 2.2 wide (2.5 with the roof's overhang) and two pines between them, a little
+ * apart so no roof or tree runs into another.
  */
-const HILL_HOUSE_WIDTH = 2.2;
-const hillHouses: TEntityInput[] = (
+const BACK_HOUSE_WIDTH = 2.2;
+const BACK_ROW = -17.6;
+const backHouses: TEntityInput[] = (
 	[
 		[-20.6, "#f07b4f"],
 		[-17.95, "#4a64e0"],
@@ -226,13 +226,12 @@ const hillHouses: TEntityInput[] = (
 		[-7.9, "#8a5cf0"],
 	] as const
 ).map(([x, roof], i) => ({
-	id: `hill_house_${i}`,
+	id: `back_house_${i}`,
 	kind: "house_01",
-	name: `Hill house ${i + 1}`,
-	position: [x, -16.6] as TVec2,
-	elevation: HILL,
+	name: `House ${i + 1}`,
+	position: [x, BACK_ROW] as TVec2,
 	colors: paint({ roof }),
-	props: { width: HILL_HOUSE_WIDTH },
+	props: { width: BACK_HOUSE_WIDTH },
 }));
 
 const warehouse: TEntityInput[] = [
@@ -409,15 +408,14 @@ const nature: TEntityInput[] = [
 		position: [x, z] as TVec2,
 		props: { size: 0.9 + (i % 3) * 0.15 },
 	})),
-	// In the two gaps between the hill houses.
+	// In the two gaps between the houses at the back.
 	...[
-		[-16.1, -16.7],
-		[-9.75, -16.7],
+		[-16.1, BACK_ROW],
+		[-9.75, BACK_ROW],
 	].map(([x, z], i) => ({
 		id: `pine_${i}`,
 		kind: "pine_tree_01",
 		position: [x, z] as TVec2,
-		elevation: HILL,
 		props: { size: 0.9 },
 	})),
 ];
@@ -462,7 +460,7 @@ export const createLanternBayScene = (): TScene =>
 			subtitle: "An evening on the waterfront",
 		},
 		theme: "system",
-		ground: { width: 44, depth: 36, color: null },
+		ground: { width: 44, depth: 40, color: null },
 		drivingSide: "right",
 		// It opens wearing The evening passes.
 		lighting: EVENING_PASSES,
@@ -536,7 +534,7 @@ export const createLanternBayScene = (): TScene =>
 		roads: ROADS,
 		entities: [
 			...towers,
-			...hillHouses,
+			...backHouses,
 			...warehouse,
 			...promenadeLamps,
 			...quayLamps,
