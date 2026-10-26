@@ -156,10 +156,16 @@ test.describe("viewpoints (ADR-0039)", () => {
 			});
 		});
 		await page.getByRole("button", { name: "View", exact: true }).click();
+		// The bar keeps its width while stepping (as wide as the widest viewpoint's text).
+		const bar = page.getByRole("status").filter({ has: page.getByLabel("Next viewpoint (→)") });
+		const width = async () => (await bar.boundingBox())?.width;
+		const before = await width();
 		await page.getByRole("button", { name: "Next viewpoint (→)" }).click();
 		const first = await read(page, (s) => s.activeViewpointId);
+		expect(await width()).toBe(before);
 		await page.getByRole("button", { name: "Next viewpoint (→)" }).click();
 		expect(await read(page, (s) => s.activeViewpointId)).not.toBe(first);
+		expect(await width()).toBe(before);
 		await page.getByRole("button", { name: "Previous viewpoint (←)" }).click();
 		expect(await read(page, (s) => s.activeViewpointId)).toBe(first);
 	});

@@ -49,6 +49,22 @@
 }
 
 /* Phones in View mode (no bottom sheet): bars sit at the bottom, in thumb reach and clear of the title. */
+/* The viewpoint bar's text for every viewpoint, in one cell: the bar keeps the widest and tallest. */
+.slides {
+	display: grid;
+	max-width: 480px;
+	/* "2 / 5" keeps its width from one viewpoint to the next. */
+	font-variant-numeric: tabular-nums;
+}
+
+.slides > * {
+	grid-area: 1 / 1;
+}
+
+.slides > [aria-hidden="true"] {
+	visibility: hidden;
+}
+
 @media (max-width: 900px) {
 	:global([data-mode="view"]) .bar {
 		top: auto;
