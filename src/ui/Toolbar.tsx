@@ -9,7 +9,7 @@ import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 import { SaveStatus } from "./SaveStatus";
-import { ShadingSwitcher } from "./ShadingSwitcher";
+import { ShadingMenuGroup, ShadingSwitcher } from "./ShadingSwitcher";
 import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
@@ -220,6 +220,10 @@ export const Toolbar = () => {
 									onClick={toggleBoxSelect}
 								/>
 							)}
+
+							<Menu.Separator />
+
+							<ShadingMenuGroup />
 
 							<Menu.Separator />
 

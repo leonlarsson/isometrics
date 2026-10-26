@@ -26,7 +26,7 @@ Chosen option: **1** (the owner's choice), with one shading for Edit and View mo
 
 - Round buttons in the toolbar (`ui/ShadingSwitcher.tsx`): Wireframe, Standard, Nice, Ultra, and a ▾ that opens Preferences on the Graphics page (`setPreferencesOpen(true, "graphics")`). Picking a preset sets the Graphics preset (and leaves wireframe); the tooltip says when the current preset's settings were changed on the Graphics page.
 - **Wireframe** is a preference of its own (`showWireframe`, per browser, off by default) on top of the preset: every standard material (what the world's parts, ground, roads and areas are drawn with) draws its triangles' edges in its own colour (`render/Wireframe.tsx`, looked for each frame and put back when it's off). The editor's gizmo, handles and lines and the painted lights keep their look. It draws as plainly as it can: Standard's graphics (no composer, so no tilt-shift either; no real lights or reflections), and the sun casts no shadows. The Graphics page still shows the preset's settings.
-- Phones: the switcher is on wide toolbars only, like the View cluster; Preferences → Graphics remains.
+- Phones: the same choices as a **Shading** group in the toolbar's More menu (`ShadingMenuGroup`), where the View cluster's buttons go too.
 
 ### Consequences
 
