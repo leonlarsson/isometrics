@@ -30,7 +30,9 @@ Chosen option: **2**.
 - **How rippled** water is belongs to the world, like cloud cover: `water.rippleStrength` (Sun & sky → Water, default 50%), and each water area can set its own (`rippleStrength`, null = the world's, From scene / Reset). 0 is mirror-calm; the strength scales how much the ripples tilt the surface and shift the reflection. The fields say ripples show where Water reflections are on, with the way to Preferences.
 - **Ripples** are a tiling normal map of smooth noise at four scales (sine waves interfere into a crosshatch), drifting slowly; the reflection is shifted through the same moving normals, a little (drei's shift was a twentieth of the view), so it breaks into streaks.
 - **The reflection is drawn exactly as onto the canvas** (its buffer flagged as an XR target, as the composer's scene pass, ADR-0073) and decoded from sRGB in the water's shader. Drawn into a plain buffer, every material in the world switched shader programs twice a frame per water area (tone-mapped and sRGB for the view, neither for the reflection): about 4 ms of CPU per area.
-- A reflector takes its mirror plane from its mesh's rotation, so a mirroring water area turns its mesh rather than its geometry.
+- **How strongly** water mirrors the world belongs to the world too: `water.reflectionStrength` (Sun & sky → Water, Reflections on the water, default 50%), and each water area can set its own. 0% shows only the ripples catching the lights (and skips drawing the mirrored world).
+- **The mirror is drawn here** (`aimMirror` in `render/Water.tsx`) into drei's reflector material: drei's own component cut off what's below the water with a near plane in a form that only works for perspective cameras, which cut the whole reflection away in the diorama. The general form (row 3 of the projection = the clip plane scaled to the view's far corner, less row 4) works for both, and the mirror camera is orthographic when the view is. The Fresnel term takes the view direction as three does, the same everywhere in the diorama.
+- The mirror's plane comes from the water mesh's turn, so a mirroring water area turns its mesh rather than its geometry.
 
 ### Consequences
 

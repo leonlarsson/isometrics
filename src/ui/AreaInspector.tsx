@@ -190,18 +190,18 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 	);
 };
 
-/** The Look tab: the area's colour, and for water how rippled it is. */
+/** The Look tab: the area's colour, and for water how rippled and mirroring it is. */
 const AreaLookTab = ({ area }: { area: TArea }) => {
 	const palette = usePalette();
 	const edit = useAreaEdit(area);
-	const worldRipples = useEditor((s) => s.scene.water.rippleStrength);
+	const worldWater = useEditor((s) => s.scene.water);
 
 	return (
 		<Section
 			id="area.look"
 			icon="palette"
 			title="Look"
-			keywords="colour color ripples water waves calm"
+			keywords="colour color ripples water waves calm reflections mirror"
 		>
 			<ColorField
 				label="Colour"
@@ -225,7 +225,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 				<>
 					<SliderField
 						label="Ripples on the water"
-						value={Math.round((area.rippleStrength ?? worldRipples) * 100)}
+						value={Math.round((area.rippleStrength ?? worldWater.rippleStrength) * 100)}
 						min={0}
 						max={100}
 						step={5}
@@ -242,9 +242,33 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 								edit("rippleStrength", (a) => {
 									a.rippleStrength = null;
 								}),
-							value: `${Math.round(worldRipples * 100)}%`,
+							value: `${Math.round(worldWater.rippleStrength * 100)}%`,
 						}}
 						hint="0% is mirror-calm, 100% choppy."
+					/>
+
+					<SliderField
+						label="Reflections on the water"
+						value={Math.round((area.reflectionStrength ?? worldWater.reflectionStrength) * 100)}
+						min={0}
+						max={100}
+						step={5}
+						suffix="%"
+						onChange={(v) =>
+							edit("reflectionStrength", (a) => {
+								a.reflectionStrength = v / 100;
+							})
+						}
+						inherit={{
+							from: "scene",
+							inherited: area.reflectionStrength === null,
+							onReset: () =>
+								edit("reflectionStrength", (a) => {
+									a.reflectionStrength = null;
+								}),
+							value: `${Math.round(worldWater.reflectionStrength * 100)}%`,
+						}}
+						hint="How strongly it mirrors the world: 0% shows only its ripples catching the lights."
 					/>
 
 					<RipplesNote />

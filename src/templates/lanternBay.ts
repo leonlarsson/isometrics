@@ -58,6 +58,7 @@ const AREAS: TAreaInput[] = [
 		name: "Harbour basin",
 		type: "water_01",
 		rippleStrength: 0.06,
+		reflectionStrength: 1,
 		points: [
 			[2, 0],
 			[17, 0],

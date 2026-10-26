@@ -98,7 +98,7 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 });
 
 test.describe("water (ADR-0075)", () => {
-	test("the world's ripples, and a water area's own, which follows the world until set", async ({
+	test("the world's ripples and reflections, and a water area's own, which follow the world until set", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -119,6 +119,9 @@ test.describe("water (ADR-0075)", () => {
 		await box(page, "Ripples on the water").fill("20");
 		await box(page, "Ripples on the water").press("Enter");
 		expect(await read(page, (s) => s.scene.water.rippleStrength)).toBe(0.2);
+		await box(page, "Reflections on the water").fill("0");
+		await box(page, "Reflections on the water").press("Enter");
+		expect(await read(page, (s) => s.scene.water.reflectionStrength)).toBe(0);
 
 		await act(page, (s) => s.selectArea("pond"));
 		await page.getByRole("tab", { name: "Look" }).click();

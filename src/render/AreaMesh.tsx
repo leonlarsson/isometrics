@@ -8,7 +8,7 @@ import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { AREA_TYPES, areaColor } from "#/scene/areas";
-import type { TArea } from "#/scene/schema";
+import type { TArea, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -49,8 +49,8 @@ interface IAreaBodyProps {
 	handlers?: TAreaHandlers;
 	/** Water mirrors the world (Graphics: Water reflections); only in the editor's view. */
 	reflective?: boolean;
-	/** How rippled the world's water is, for a water area that doesn't set its own. */
-	worldRippleStrength?: number;
+	/** The world's water, for a water area that doesn't set its own ripples and reflections. */
+	worldWater?: TWater;
 }
 
 /**
@@ -65,7 +65,7 @@ export const AreaBody = ({
 	selected,
 	handlers = {},
 	reflective = false,
-	worldRippleStrength = 0.5,
+	worldWater = { rippleStrength: 0.5, reflectionStrength: 0.5 },
 }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = area.height > 0;
@@ -113,7 +113,8 @@ export const AreaBody = ({
 					<ReflectiveWaterMaterial
 						color={color}
 						roughness={AREA_TYPES[area.type].roughness}
-						rippleStrength={area.rippleStrength ?? worldRippleStrength}
+						rippleStrength={area.rippleStrength ?? worldWater.rippleStrength}
+						reflectionStrength={area.reflectionStrength ?? worldWater.reflectionStrength}
 					/>
 				) : (
 					<meshStandardMaterial
@@ -139,7 +140,7 @@ interface IAreaMeshProps {
 /** An area in the editor: selectable while editing. */
 export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const reflective = useGraphics().showWaterReflections;
-	const worldRippleStrength = useEditor((s) => s.scene.water.rippleStrength);
+	const worldWater = useEditor((s) => s.scene.water);
 	const palette = usePalette();
 	const mode = useEditor((s) => s.mode);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
@@ -178,7 +179,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			selected={selected && mode === "edit"}
 			handlers={handlers}
 			reflective={reflective}
-			worldRippleStrength={worldRippleStrength}
+			worldWater={worldWater}
 		/>
 	);
 });

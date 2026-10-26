@@ -490,6 +490,15 @@ export const AreaSchema = z
 			.describe(
 				"With type water_01: how rippled its surface is, 0 = mirror-calm, 1 = choppy (seen where the viewer's graphics settings show water reflections). null = the world's (water.rippleStrength).",
 			),
+		reflectionStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"With type water_01: how strongly it mirrors the world, 0 = not at all (only its ripples catch the lights), 1 = fully (seen where the viewer's graphics settings show water reflections). null = the world's (water.reflectionStrength).",
+			),
 	})
 	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 
@@ -830,6 +839,14 @@ export const WaterSchema = z
 			.describe(
 				"How rippled the world's water is, 0 = mirror-calm, 1 = choppy, unless a water area sets its own (seen where the viewer's graphics settings show water reflections).",
 			),
+		reflectionStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"How strongly the world's water mirrors the world, 0 = not at all (only its ripples catch the lights), 1 = fully, unless a water area sets its own (seen where the viewer's graphics settings show water reflections).",
+			),
 	})
 	.describe("The world's water.");
 
@@ -903,7 +920,7 @@ export const SceneSchema = z
 			cloudColor: null,
 			cloudSpeed: 1,
 		}),
-		water: WaterSchema.default({ rippleStrength: 0.5 }),
+		water: WaterSchema.default({ rippleStrength: 0.5, reflectionStrength: 0.5 }),
 		backdrop: BackdropSchema.default({
 			kind: "sky",
 			color: null,
