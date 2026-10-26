@@ -243,6 +243,26 @@ export const TrafficTab = () => {
 			/>
 
 			<SwitchField
+				label="Lean in turns"
+				checked={scene.leansInTurns}
+				onChange={(v) =>
+					commit((s) => {
+						s.leansInTurns = v;
+					})
+				}
+				inherit={{
+					from: "default",
+					inherited: scene.leansInTurns,
+					onReset: () =>
+						commit((s) => {
+							s.leansInTurns = true;
+						}),
+					value: "on",
+				}}
+				hint="Boats lean into turns, more the faster and tighter they turn. Roads and vehicles can override this."
+			/>
+
+			<SwitchField
 				label="Keep distance"
 				checked={scene.traffic.keepSpacing}
 				onChange={(v) =>

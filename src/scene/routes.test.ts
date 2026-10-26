@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createRouteSampler, projectOntoRoad } from "./routes";
+import { createRouteSampler, projectOntoRoad, turnLeanDegrees } from "./routes";
 import { RoadSchema, type TRoadInput } from "./schema";
 
 const road = (input: Partial<TRoadInput>) =>
@@ -105,5 +105,38 @@ describe("projectOntoRoad", () => {
 		expect(hit?.halfWidth).toBeCloseTo(1);
 		expect(hit?.height).toBeGreaterThan(0.5);
 		expect(hit?.height).toBeLessThan(1.5);
+	});
+});
+
+describe("turnLeanDegrees (ADR-0082)", () => {
+	// East, then a left turn to the north (-z), then straight on.
+	const leftTurn = road({
+		points: [
+			[0, 0],
+			[10, 0],
+			[10, -10],
+		],
+	});
+	const boat = { degreesPerAcceleration: 8, maxDegrees: 10 };
+	const sampler = createRouteSampler(leftTurn, "right", { smoothing: 2 });
+	const at = (travelled: number, speed = 2) =>
+		turnLeanDegrees(sampler, { offset: 0, travelled, length: 3, speed }, boat);
+
+	it("leans into a turn (left in a left turn), none on the straight or standing still", () => {
+		expect(at(10)).toBeLessThan(0);
+		expect(at(3)).toBeCloseTo(0);
+		expect(at(10, 0)).toBeCloseTo(0);
+	});
+
+	it("leans more the faster it goes, out of the turn when its kind leans out, and no further than its most", () => {
+		expect(Math.abs(at(10, 1))).toBeLessThan(Math.abs(at(10, 2)));
+		expect(
+			turnLeanDegrees(
+				sampler,
+				{ offset: 0, travelled: 10, length: 3, speed: 1 },
+				{ ...boat, degreesPerAcceleration: -8 },
+			),
+		).toBeGreaterThan(0);
+		expect(at(10, 20)).toBe(-10);
 	});
 });

@@ -48,6 +48,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 		(s) => s.scene.entities.filter((e) => e.follow?.roadId === road.id).length,
 	);
 	const sceneTurns = useEditor((s) => s.scene.turnStyle);
+	const sceneLeans = useEditor((s) => s.scene.leansInTurns);
 	const driving = useEditor((s) => s.scene.drivingSide);
 	const edit = useRoadEdit(road);
 	const length = polylineLength(roadCenterlineOf(road), road.loops);
@@ -136,6 +137,25 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 								r.turnStyle = null;
 							}),
 						value: TURN_STYLE_LABELS[sceneTurns].toLowerCase(),
+					}}
+				/>
+
+				<SwitchField
+					label="Lean in turns"
+					checked={road.leansInTurns ?? sceneLeans}
+					onChange={(v) =>
+						edit("leans", (r) => {
+							r.leansInTurns = v;
+						})
+					}
+					inherit={{
+						from: "scene",
+						inherited: road.leansInTurns === null,
+						onReset: () =>
+							edit("leans", (r) => {
+								r.leansInTurns = null;
+							}),
+						value: sceneLeans ? "on" : "off",
 					}}
 				/>
 

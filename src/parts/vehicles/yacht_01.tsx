@@ -61,6 +61,8 @@ export const yacht01 = definePart({
 	canFollowPath: true,
 	// From the square stern, as wide as the hull.
 	wake: (p) => ({ width: p.length * 0.32, behind: p.length / 2 }),
+	// Into the turn, like a motor boat: a few degrees in Lantern Bay's corners.
+	turnLean: { degreesPerAcceleration: 8, maxDegrees: 10 },
 	footprint: (p) => [p.length, p.length * 0.32],
 	height: (p) => HULL_HEIGHT + p.deckCount * DECK_HEIGHT + 0.25,
 	Component: ({ props: p, colors, palette, lights }) => {

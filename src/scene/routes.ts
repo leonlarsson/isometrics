@@ -189,3 +189,29 @@ export const projectOntoRoad = (road: TRouteRoad, at: TVec2): IRoadProjection | 
 	}
 	return best;
 };
+
+/**
+ * How far a vehicle leans in a turn right now, in degrees about its own length
+ * (ADR-0082): positive to its right, so a left turn (the heading growing) leans
+ * it left when it leans into turns. By the sideways pull, its speed² × how
+ * sharply the route bends over its length round where it is, times how much
+ * its kind leans per unit of that (negative leans out of the turn), at most
+ * `maxDegrees` either way.
+ */
+export const turnLeanDegrees = (
+	sampler: IRouteSampler,
+	{
+		offset,
+		travelled,
+		length,
+		speed,
+	}: { offset: number; travelled: number; length: number; speed: number },
+	{ degreesPerAcceleration, maxDegrees }: { degreesPerAcceleration: number; maxDegrees: number },
+) => {
+	const reach = Math.max(0.5, length / 2);
+	const ahead = sampler.at(offset, travelled + reach).heading;
+	const behind = sampler.at(offset, travelled - reach).heading;
+	const bend = Math.atan2(Math.sin(ahead - behind), Math.cos(ahead - behind)) / (2 * reach);
+	const lean = -bend * speed * speed * degreesPerAcceleration;
+	return Math.max(-maxDegrees, Math.min(maxDegrees, lean));
+};

@@ -62,6 +62,13 @@ export const resolveTurnStyle = (
 	vehicle: TTurnStyle | null | undefined,
 ): TTurnStyle => vehicle ?? road ?? scene;
 
+/** Whether a vehicle leans in turns: its own setting, else its road's, else the scene's. */
+export const resolveLeansInTurns = (
+	scene: boolean,
+	road: boolean | null | undefined,
+	vehicle: boolean | null | undefined,
+): boolean => vehicle ?? road ?? scene;
+
 /**
  * How far behind and ahead a vehicle looks to smooth its heading (the path
  * sampler's `smoothing`): half its length for smooth turns, 0 for sharp ones.

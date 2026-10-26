@@ -67,7 +67,14 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 	test("the Motion tab sets its speed and direction", async ({ page }) => {
 		await act(page, (s) =>
 			s.updateEntity("car", (e) => {
-				e.follow = { roadId: "main", speed: 2, offset: 0, reverse: false, turnStyle: null };
+				e.follow = {
+					roadId: "main",
+					speed: 2,
+					offset: 0,
+					reverse: false,
+					turnStyle: null,
+					leansInTurns: null,
+				};
 			}),
 		);
 		await act(page, (s) => s.select("car"));
@@ -85,7 +92,14 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 	}) => {
 		await act(page, (s) =>
 			s.updateEntity("car", (e) => {
-				e.follow = { roadId: "main", speed: 2, offset: 0, reverse: false, turnStyle: null };
+				e.follow = {
+					roadId: "main",
+					speed: 2,
+					offset: 0,
+					reverse: false,
+					turnStyle: null,
+					leansInTurns: null,
+				};
 			}),
 		);
 		await outlinerRow(page, "Red car").click({ button: "right" });

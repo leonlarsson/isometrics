@@ -57,6 +57,7 @@ const EntityActions = ({ id }: { id: string }) => {
 						offset: e.follow?.offset ?? 0,
 						reverse: e.follow?.reverse ?? false,
 						turnStyle: e.follow?.turnStyle ?? null,
+						leansInTurns: e.follow?.leansInTurns ?? null,
 					}
 				: null;
 		});

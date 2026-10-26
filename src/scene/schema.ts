@@ -231,6 +231,13 @@ export const FollowSchema = z
 		turnStyle: TurnStyleSchema.nullable()
 			.default(null)
 			.describe("How this vehicle takes corners; null = the road's setting, else the world's."),
+		leansInTurns: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's setting, else the world's.",
+			),
 	})
 	.describe(
 		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round.",
@@ -414,6 +421,11 @@ export const RoadSchema = z
 		turnStyle: TurnStyleSchema.nullable()
 			.default(null)
 			.describe("How vehicles on this road take corners; null = the world's setting."),
+		leansInTurns: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe("Whether vehicles on this road lean in turns; null = the world's setting."),
 		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Surface colour as #rrggbb; null = the style's default for the theme."),
@@ -935,6 +947,12 @@ export const SceneSchema = z
 		turnStyle: TurnStyleSchema.default("smooth").describe(
 			"How vehicles take corners, unless a road or vehicle says otherwise.",
 		),
+		leansInTurns: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
+			),
 		traffic: TrafficSchema.default({ keepSpacing: true, allowOvertaking: true }),
 		lighting: LightingSchema.default({
 			time: null,

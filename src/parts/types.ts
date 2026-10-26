@@ -218,6 +218,13 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 */
 	wake?: (props: P) => { width: number; behind: number };
 	/**
+	 * How it leans in turns while it follows a route (ADR-0082): degrees of lean
+	 * per unit of sideways acceleration (speed² × how sharply the route bends;
+	 * negative leans out of the turn, like a car's body), and at most how far.
+	 * Planes and helicopters bank this way too.
+	 */
+	turnLean?: { degreesPerAcceleration: number; maxDegrees: number };
+	/**
 	 * Its lights (ADR-0058): windows, lamps, cabins, headlights, a rain light…
 	 * Each gets a card in the Lights tab, and objects store their settings for
 	 * it by its id. The part draws them where they are, from `lights` in its

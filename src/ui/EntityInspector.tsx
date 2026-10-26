@@ -11,6 +11,7 @@ import type { ILightSpec, TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
 	ROAD_STYLE_LABELS,
+	resolveLeansInTurns,
 	resolveTurnStyle,
 	roadCenterlineOf,
 	TURN_STYLE_LABELS,
@@ -608,6 +609,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const roads = useEditor((s) => s.scene.roads);
 	const sceneTurns = useEditor((s) => s.scene.turnStyle);
+	const sceneLeans = useEditor((s) => s.scene.leansInTurns);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
 	const followedRoadLength = followedRoad
@@ -615,6 +617,8 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 		: 1;
 	/** What this vehicle inherits: its road's setting, else the scene's. */
 	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.turnStyle, null);
+	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.leansInTurns, null);
+	const leans = getPart(entity.kind)?.turnLean !== undefined;
 
 	return (
 		<Section
@@ -646,6 +650,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 									offset: e.follow?.offset ?? 0,
 									reverse: e.follow?.reverse ?? false,
 									turnStyle: e.follow?.turnStyle ?? null,
+									leansInTurns: e.follow?.leansInTurns ?? null,
 								}
 							: null;
 					})
@@ -719,6 +724,30 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 								}),
 							value: TURN_STYLE_LABELS[roadTurns].toLowerCase(),
 						}}
+					/>
+
+					<SwitchField
+						label="Lean in turns"
+						checked={entity.follow.leansInTurns ?? roadLeans}
+						onChange={(v) =>
+							edit("follow.leans", (e) => {
+								if (e.follow) {
+									e.follow.leansInTurns = v;
+								}
+							})
+						}
+						inherit={{
+							from: followedRoad?.leansInTurns != null ? "road" : "scene",
+							inherited: entity.follow.leansInTurns === null,
+							onReset: () =>
+								edit("follow.leans", (e) => {
+									if (e.follow) {
+										e.follow.leansInTurns = null;
+									}
+								}),
+							value: roadLeans ? "on" : "off",
+						}}
+						hint={leans ? undefined : "This kind of vehicle doesn't lean (for now only boats do)."}
 					/>
 				</>
 			)}

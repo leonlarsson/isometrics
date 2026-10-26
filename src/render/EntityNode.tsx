@@ -15,8 +15,8 @@ import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { usesDataBindings } from "#/scene/dataBindings";
-import { laneOffset, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
-import { createRouteSampler } from "#/scene/routes";
+import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
+import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
 import { BoatWake } from "./BoatWake";
@@ -116,6 +116,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	);
 	const driving = useEditor((s) => s.scene.drivingSide);
 	const sceneTurns = useEditor((s) => s.scene.turnStyle);
+	const sceneLeans = useEditor((s) => s.scene.leansInTurns);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const select = useEditor((s) => s.select);
 	const moveEntity = useEditor((s) => s.moveEntity);
@@ -143,6 +144,12 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
 	const turns = resolveTurnStyle(sceneTurns, road?.turnStyle, entity.follow?.turnStyle);
 	const reverse = entity.follow?.reverse ?? false;
+	// How it leans in turns (ADR-0082), if its kind does and the settings let it.
+	const turnLean = resolveLeansInTurns(sceneLeans, road?.leansInTurns, entity.follow?.leansInTurns)
+		? part?.turnLean
+		: undefined;
+	// The lean now, eased towards what the turn asks for.
+	const leaning = useRef(0);
 	const sampler = useMemo(
 		() =>
 			road
@@ -185,7 +192,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		};
 	}, [inTraffic, entity.id]);
 
-	useFrame(() => {
+	useFrame((_, delta) => {
 		if (!sampler || !entity.follow || !outer.current || !inner.current) {
 			return;
 		}
@@ -206,7 +213,29 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		const z = sample.position[1] + Math.cos(sample.heading) * out;
 		outer.current.position.set(x, entity.elevation + sample.height, z);
 		// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
-		inner.current.rotation.set(0, sample.heading - lean + toRadians(entity.rotation), sample.pitch);
+		// Leaning in a turn (ADR-0082), eased in and out.
+		let roll = 0;
+		if (turnLean) {
+			const wanted = turnLeanDegrees(
+				sampler,
+				{
+					offset: entity.follow.offset,
+					travelled: current?.travelled ?? 0,
+					length: vehicleLength,
+					speed: playing ? (state?.speed ?? entity.follow.speed) : 0,
+				},
+				turnLean,
+			);
+			leaning.current += (wanted - leaning.current) * (1 - Math.exp(-Math.min(delta, 0.1) * 3));
+			roll = toRadians(leaning.current);
+		}
+		// Heading, then the slope's pitch, then the lean about its own length (vehicles face +X).
+		inner.current.rotation.order = "YZX";
+		inner.current.rotation.set(
+			roll,
+			sample.heading - lean + toRadians(entity.rotation),
+			sample.pitch,
+		);
 	});
 
 	const editable = mode === "edit" && !entity.locked;
