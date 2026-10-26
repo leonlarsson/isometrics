@@ -45,7 +45,7 @@ Viewpoints: prepared camera views (target, azimuth, elevation, span), stepped th
 
 Every id must be unique within its list, and follow.roadId must name a road in the same world.
 
-Examples: /examples.json on this site lists complete example worlds (e.g. /examples/brightwater.json) to learn from or start with.`;
+Templates: /templates.json on this site lists complete worlds (e.g. /templates/brightwater.json) to learn from or start with.`;
 
 /** A part's props as JSON Schema, with each inspector field's label as its description. */
 const propsSchema = (part: TAnyPart): TJsonSchema => {

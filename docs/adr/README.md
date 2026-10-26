@@ -86,3 +86,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0080](0080-shading-switcher.md) | A shading switcher in the toolbar: wireframe, Standard, Nice, Ultra | accepted |
 | [0081](0081-boat-wakes.md) | Boat wakes: foam behind boats on a route, and waves in Ultra | proposed |
 | [0082](0082-leaning-in-turns.md) | Vehicles lean in turns, as far as their kind does | proposed |
+| [0083](0083-templates-at-templates.md) | The templates are served at /templates | proposed |

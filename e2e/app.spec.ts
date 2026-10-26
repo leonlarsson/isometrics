@@ -74,10 +74,10 @@ test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => 
 		expect(kinds).toEqual(expect.arrayContaining(["house_01", "office_tower_01", "car_01"]));
 	});
 
-	test("/examples.json lists the starter worlds, each one valid to open", async ({ request }) => {
-		const { examples } = await (await request.get("/examples.json")).json();
-		expect(examples.length).toBeGreaterThan(1);
-		const first = await (await request.get(examples[0].url)).json();
+	test("/templates.json lists the starter worlds, each one valid to open", async ({ request }) => {
+		const { templates } = await (await request.get("/templates.json")).json();
+		expect(templates.length).toBeGreaterThan(1);
+		const first = await (await request.get(templates[0].url)).json();
 		expect(first.version).toBe(1);
 		expect(first.entities.length).toBeGreaterThan(0);
 	});

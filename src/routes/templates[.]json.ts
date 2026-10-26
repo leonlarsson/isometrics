@@ -2,18 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { TEMPLATES } from "#/templates";
 
-// The templates as example worlds, for people and AIs writing worlds against /schema.json.
-export const Route = createFileRoute("/examples.json")({
+// The templates, complete worlds for people and AIs writing worlds against /schema.json (ADR-0083).
+export const Route = createFileRoute("/templates.json")({
 	server: {
 		handlers: {
 			GET: () =>
 				Response.json(
 					{
-						examples: TEMPLATES.map(({ id, name, description }) => ({
+						templates: TEMPLATES.map(({ id, name, description }) => ({
 							id,
 							name,
 							description,
-							url: `/examples/${id}.json`,
+							url: `/templates/${id}.json`,
 						})),
 					},
 					{ headers: { "Cache-Control": "public, max-age=300" } },

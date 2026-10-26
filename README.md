@@ -9,7 +9,7 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-The app opens with **Brightwater**, a small harbour city that shows off most of the editor (bridge, flyover, hill, stadium, marina, live data cards). Your work autosaves in the browser; the **File** menu starts a new empty world or a template, and opens or saves worlds as `.json` files. The file format is published as JSON Schema at `/schema.json`, with every part kind, its props and a short guide, and the templates are served as example worlds at `/examples.json`, so you (or your AI) can write worlds by hand and open them.
+The app opens with **Brightwater**, a small harbour city that shows off most of the editor (bridge, flyover, hill, stadium, marina, live data cards). Your work autosaves in the browser; the **File** menu starts a new empty world or a template, and opens or saves worlds as `.json` files. The file format is published as JSON Schema at `/schema.json`, with every part kind, its props and a short guide, and the templates are served as complete worlds at `/templates.json`, so you (or your AI) can write worlds by hand and open them.
 
 ## Using the editor
 
