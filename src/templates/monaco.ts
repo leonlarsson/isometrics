@@ -426,14 +426,15 @@ const yachts: TEntityInput[] = [
 		[60, 140].flatMap((along, k) =>
 			[1, -1].map((side) => {
 				const [dx, dy] = PIER_DIRECTION;
-				const spot: TVec2 = [bx + dx * along - dy * 24 * side, by + dy * along + dx * 24 * side];
+				// Close enough to their own pier to leave room for the next pier's boats across the water.
+				const spot: TVec2 = [bx + dx * along - dy * 18 * side, by + dy * along + dx * 18 * side];
 				return {
 					id: `yacht_${p}_${k}_${side === 1 ? "a" : "b"}`,
 					kind: "yacht_01",
 					position: fromMap(spot),
 					rotation: ALONG_PIERS + (side === 1 ? 0 : 180),
 					colors: paint({ stripe: (p + k) % 3 === 0 ? "#1f1f24" : null }),
-					props: { length: 1.8 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.6, deckCount: 1 + k },
+					props: { length: 1.6 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.4, deckCount: 1 + k },
 				};
 			}),
 		),

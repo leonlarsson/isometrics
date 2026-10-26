@@ -354,7 +354,7 @@ const hillHouses: TEntityInput[] = ["#f07b4f", "#4a64e0", "#3cbf9a", "#e8b83a", 
 );
 
 const beachHouses: TEntityInput[] = [
-	[-13, 13.6],
+	[-12.7, 13.6],
 	[-9.6, 15.2],
 	[-12.2, 18.2],
 ].map(([x, z], i) => ({
@@ -647,7 +647,7 @@ const PINES: [number, number, number, number][] = [
 	[-22, -23.2, 1.3, HILL],
 	[-16.8, -23, 1.1, HILL],
 	[-12.4, -23.4, 1.2, HILL],
-	[-7.4, -22.6, 1, HILL],
+	[-7.4, -23, 1, HILL],
 	[-4.6, -20.4, 1.2, HILL],
 	[-17.6, -15.6, 0.9, HILL],
 	[-13.2, -15.4, 1, HILL],
