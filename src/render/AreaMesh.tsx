@@ -102,7 +102,8 @@ export const AreaBody = ({
 			<mesh
 				geometry={geometry}
 				position={[0, y, 0]}
-				rotation={mirrors ? [-Math.PI / 2, 0, 0] : undefined}
+				// Set both ways: a prop that goes back to undefined keeps its last value in R3F.
+				rotation={mirrors ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}
 				receiveShadow
 				castShadow={raised}
 				{...handlers}

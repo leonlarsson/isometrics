@@ -3,11 +3,13 @@ import {
 	choose,
 	expect,
 	fileMenu,
+	groundSpot,
 	keys,
 	loadWorld,
 	openEditor,
 	read,
 	reopened,
+	showView,
 	test,
 } from "./editor";
 
@@ -70,6 +72,32 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		// The view keeps drawing through the effects (a page error fails the test).
 		await page.keyboard.press("Escape");
 		await page.waitForTimeout(1000);
+	});
+
+	test("water stays flat going from Ultra's reflections back to Nice", async ({ page }) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "pond",
+					type: "water_01",
+					points: [
+						[-6, -6],
+						[6, -6],
+						[6, 6],
+						[-6, 6],
+					],
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+		await page.getByRole("button", { name: /^Ultra:/ }).click();
+		await page.getByRole("button", { name: /^Nice:/ }).click();
+		// Clicking the water picks it: it hasn't turned on its edge.
+		const { x, y } = await groundSpot(page, [2, 2]);
+		await page.mouse.click(x, y);
+		await expect
+			.poll(() => read(page, (s) => s.selectedItems))
+			.toEqual([{ kind: "area", id: "pond" }]);
 	});
 
 	test("the toolbar's shading switcher: a preset a click away, wireframe, and the Graphics settings (ADR-0080)", async ({
