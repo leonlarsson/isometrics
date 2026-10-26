@@ -97,6 +97,39 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 	});
 });
 
+test.describe("water (ADR-0075)", () => {
+	test("the world's ripples, and a water area's own, which follows the world until set", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "pond",
+					type: "water_01",
+					points: [
+						[-4, -4],
+						[4, -4],
+						[4, 4],
+						[-4, 4],
+					],
+				},
+			],
+		});
+		await worldTab(page, "Sun & sky");
+		await box(page, "Ripples on the water").fill("20");
+		await box(page, "Ripples on the water").press("Enter");
+		expect(await read(page, (s) => s.scene.water.rippleStrength)).toBe(0.2);
+
+		await act(page, (s) => s.selectArea("pond"));
+		await page.getByRole("tab", { name: "Look" }).click();
+		const own = box(page, "Ripples on the water");
+		await expect(own).toHaveValue("20");
+		await own.fill("0");
+		await own.press("Enter");
+		expect(await read(page, (s) => s.scene.areas[0].rippleStrength)).toBe(0);
+	});
+});
+
 test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 	test("the side vehicles drive on, keeping distance and overtaking", async ({ page }) => {
 		await worldTab(page, "Traffic");

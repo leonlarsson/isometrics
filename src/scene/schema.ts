@@ -481,6 +481,15 @@ export const AreaSchema = z
 			.boolean()
 			.default(false)
 			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
+		rippleStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"With type water_01: how rippled its surface is, 0 = mirror-calm, 1 = choppy (seen where the viewer's graphics settings show water reflections). null = the world's (water.rippleStrength).",
+			),
 	})
 	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 
@@ -810,6 +819,20 @@ export const SkySchema = z
 		"The sky around the world in perspective: its colours, the sun and moon, stars and clouds. The isometric diorama shows the backdrop instead.",
 	);
 
+// See docs/adr/0075-reflective-water.md. Each water area can set its own.
+export const WaterSchema = z
+	.object({
+		rippleStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"How rippled the world's water is, 0 = mirror-calm, 1 = choppy, unless a water area sets its own (seen where the viewer's graphics settings show water reflections).",
+			),
+	})
+	.describe("The world's water.");
+
 export const BackdropSchema = z
 	.object({
 		kind: z
@@ -880,6 +903,7 @@ export const SceneSchema = z
 			cloudColor: null,
 			cloudSpeed: 1,
 		}),
+		water: WaterSchema.default({ rippleStrength: 0.5 }),
 		backdrop: BackdropSchema.default({
 			kind: "sky",
 			color: null,
@@ -988,6 +1012,7 @@ export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TLighting = z.output<typeof LightingSchema>;
 export type TSky = z.output<typeof SkySchema>;
 export type TBackdrop = z.output<typeof BackdropSchema>;
+export type TWater = z.output<typeof WaterSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;

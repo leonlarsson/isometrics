@@ -3,6 +3,7 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { useGraphics } from "#/editor/graphics";
 import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
@@ -11,6 +12,7 @@ import type { TArea } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
+import { ReflectiveWaterMaterial } from "./Water";
 
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
@@ -45,6 +47,10 @@ interface IAreaBodyProps {
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TAreaHandlers;
+	/** Water mirrors the world (Graphics: Water reflections); only in the editor's view. */
+	reflective?: boolean;
+	/** How rippled the world's water is, for a water area that doesn't set its own. */
+	worldRippleStrength?: number;
 }
 
 /**
@@ -52,17 +58,29 @@ interface IAreaBodyProps {
  * land with cliff sides. The editor's AreaMesh adds the selection and clicks,
  * and world pictures (scenePictures) use it as is.
  */
-export const AreaBody = ({ area, layer, palette, selected, handlers = {} }: IAreaBodyProps) => {
+export const AreaBody = ({
+	area,
+	layer,
+	palette,
+	selected,
+	handlers = {},
+	reflective = false,
+	worldRippleStrength = 0.5,
+}: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = area.height > 0;
+	const mirrors = reflective && !raised && area.type === "water_01";
 	const geometry = useMemo(() => {
 		const shape = outlineShape(area.points);
 		const geo = raised
 			? new THREE.ExtrudeGeometry(shape, { depth: area.height, bevelEnabled: false })
 			: new THREE.ShapeGeometry(shape);
-		geo.rotateX(-Math.PI / 2);
+		// A reflector finds its mirror's plane from its mesh's turn, so a mirroring one is turned there.
+		if (!mirrors) {
+			geo.rotateX(-Math.PI / 2);
+		}
 		return geo;
-	}, [area.points, area.height, raised]);
+	}, [area.points, area.height, raised, mirrors]);
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
 	const outline = useMemo(() => {
@@ -79,6 +97,7 @@ export const AreaBody = ({ area, layer, palette, selected, handlers = {} }: IAre
 			<mesh
 				geometry={geometry}
 				position={[0, y, 0]}
+				rotation={mirrors ? [-Math.PI / 2, 0, 0] : undefined}
 				receiveShadow
 				castShadow={raised}
 				{...handlers}
@@ -90,6 +109,12 @@ export const AreaBody = ({ area, layer, palette, selected, handlers = {} }: IAre
 
 						<meshStandardMaterial attach="material-1" color={palette.cliff} roughness={1} />
 					</>
+				) : mirrors ? (
+					<ReflectiveWaterMaterial
+						color={color}
+						roughness={AREA_TYPES[area.type].roughness}
+						rippleStrength={area.rippleStrength ?? worldRippleStrength}
+					/>
 				) : (
 					<meshStandardMaterial
 						color={color}
@@ -113,6 +138,8 @@ interface IAreaMeshProps {
 
 /** An area in the editor: selectable while editing. */
 export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
+	const reflective = useGraphics().showWaterReflections;
+	const worldRippleStrength = useEditor((s) => s.scene.water.rippleStrength);
 	const palette = usePalette();
 	const mode = useEditor((s) => s.mode);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
@@ -150,6 +177,8 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			palette={palette}
 			selected={selected && mode === "edit"}
 			handlers={handlers}
+			reflective={reflective}
+			worldRippleStrength={worldRippleStrength}
 		/>
 	);
 });

@@ -21,6 +21,8 @@ export interface IGraphics {
 	showGlowAfterDark: boolean;
 	/** How many lights, nearest the view, light their surroundings as real lights (0: painted only). */
 	realLightCount: TRealLightCount;
+	/** Water mirrors the world round it (a second render of the scene per water area). */
+	showWaterReflections: boolean;
 	/** Soft-edged shadows (PCSS). */
 	useSoftShadows: boolean;
 	antiAliasing: TAntiAliasing;
@@ -33,6 +35,7 @@ export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"ambientOcclusion",
 	"showGlowAfterDark",
 	"realLightCount",
+	"showWaterReflections",
 	"useSoftShadows",
 	"antiAliasing",
 	"maxPixelDensity",
@@ -43,6 +46,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		ambientOcclusion: "off",
 		showGlowAfterDark: false,
 		realLightCount: 0,
+		showWaterReflections: false,
 		useSoftShadows: false,
 		antiAliasing: "multisample",
 		maxPixelDensity: 2,
@@ -51,6 +55,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		ambientOcclusion: "halfResolution",
 		showGlowAfterDark: true,
 		realLightCount: 16,
+		showWaterReflections: false,
 		useSoftShadows: false,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -59,6 +64,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		ambientOcclusion: "fullResolution",
 		showGlowAfterDark: true,
 		realLightCount: 64,
+		showWaterReflections: true,
 		useSoftShadows: true,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -72,6 +78,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 		ambientOcclusion: preferences.ambientOcclusion ?? preset.ambientOcclusion,
 		showGlowAfterDark: preferences.showGlowAfterDark ?? preset.showGlowAfterDark,
 		realLightCount: preferences.realLightCount ?? preset.realLightCount,
+		showWaterReflections: preferences.showWaterReflections ?? preset.showWaterReflections,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
 		antiAliasing: preferences.antiAliasing ?? preset.antiAliasing,
 		maxPixelDensity: preferences.maxPixelDensity ?? preset.maxPixelDensity,

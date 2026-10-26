@@ -17,6 +17,7 @@ import {
 	VectorField,
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
+import { RipplesNote } from "./WaterSettings";
 
 const TYPE_OPTIONS = (Object.keys(AREA_TYPE_LABELS) as TAreaType[]).map((value) => ({
 	value,
@@ -189,13 +190,19 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 	);
 };
 
-/** The Look tab: the area's colour. */
+/** The Look tab: the area's colour, and for water how rippled it is. */
 const AreaLookTab = ({ area }: { area: TArea }) => {
 	const palette = usePalette();
 	const edit = useAreaEdit(area);
+	const worldRipples = useEditor((s) => s.scene.water.rippleStrength);
 
 	return (
-		<Section id="area.look" icon="palette" title="Look" keywords="colour color">
+		<Section
+			id="area.look"
+			icon="palette"
+			title="Look"
+			keywords="colour color ripples water waves calm"
+		>
 			<ColorField
 				label="Colour"
 				value={areaColor(area, palette)}
@@ -213,6 +220,36 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 						}),
 				}}
 			/>
+
+			{area.type === "water_01" && (
+				<>
+					<SliderField
+						label="Ripples on the water"
+						value={Math.round((area.rippleStrength ?? worldRipples) * 100)}
+						min={0}
+						max={100}
+						step={5}
+						suffix="%"
+						onChange={(v) =>
+							edit("rippleStrength", (a) => {
+								a.rippleStrength = v / 100;
+							})
+						}
+						inherit={{
+							from: "scene",
+							inherited: area.rippleStrength === null,
+							onReset: () =>
+								edit("rippleStrength", (a) => {
+									a.rippleStrength = null;
+								}),
+							value: `${Math.round(worldRipples * 100)}%`,
+						}}
+						hint="0% is mirror-calm, 100% choppy."
+					/>
+
+					<RipplesNote />
+				</>
+			)}
 		</Section>
 	);
 };

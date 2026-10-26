@@ -9,6 +9,7 @@ import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
 import { BackdropSection, SkySection } from "./SkySettings";
+import { WaterSection } from "./WaterSettings";
 
 /** Times of day a click away. */
 const PRESETS: { label: string; hour: number }[] = [
@@ -263,6 +264,8 @@ export const SkyTab = () => {
 			<SkySection />
 
 			<BackdropSection />
+
+			<WaterSection />
 
 			<Section id="sky.lights" icon="bulb" title="Lights" keywords="night windows lamps headlights">
 				<SelectField<TLighting["whenLightsAreOn"]>

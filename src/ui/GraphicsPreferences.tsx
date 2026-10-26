@@ -178,6 +178,23 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 						),
 					},
 					{
+						id: "showWaterReflections",
+						keywords: "water reflection mirror ripples river sea harbour",
+						field: (
+							<SwitchField
+								label="Water reflections"
+								checked={graphics.showWaterReflections}
+								onChange={(value) => setPreference("showWaterReflections", value)}
+								inherit={fromPreset(
+									preferences,
+									"showWaterReflections",
+									onOff(preset.showWaterReflections),
+								)}
+								hint="Water mirrors the world round it, broken up by drifting ripples. Draws the world once more for each water area."
+							/>
+						),
+					},
+					{
 						id: "useSoftShadows",
 						keywords: "pcss shadow blur penumbra soft edges",
 						field: (

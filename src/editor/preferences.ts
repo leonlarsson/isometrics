@@ -84,6 +84,8 @@ export const PreferencesSchema = z.object({
 		.union(REAL_LIGHT_COUNTS.map((count) => z.literal(count)))
 		.nullable()
 		.catch(null),
+	/** Water mirrors the world round it, broken by drifting ripples. null = the preset's. */
+	showWaterReflections: z.boolean().nullable().catch(null),
 	/** Soft-edged shadows. null = the preset's. */
 	useSoftShadows: z.boolean().nullable().catch(null),
 	/** Smoothing jagged edges: the canvas's multisampling, or SMAA. null = the preset's. */
