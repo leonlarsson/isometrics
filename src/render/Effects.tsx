@@ -105,6 +105,55 @@ class SceneAsOnCanvasPass extends Pass {
 	}
 }
 
+/**
+ * The colour grade (Graphics: Colour grade, ADR-0076): a little more colour
+ * and contrast, a soft vignette, and after dark cooler shadows against warmer
+ * lights. On the finished, tone-mapped picture, in display (sRGB) values and
+ * clamped at each step, so no colour is pushed below black (the render lab
+ * graded before tone mapping and turned saturated colours black).
+ */
+const colorGradePass = () =>
+	new ShaderPass(
+		new THREE.ShaderMaterial({
+			name: "ColorGrade",
+			uniforms: {
+				tDiffuse: { value: null },
+				saturation: { value: 1.14 },
+				contrast: { value: 1.08 },
+				vignette: { value: 0.32 },
+				aspect: { value: 1 },
+				/** 0 by day, 1 at full dark. */
+				night: { value: 0 },
+			},
+			vertexShader: FULL_SCREEN_VERTEX,
+			fragmentShader: /* glsl */ `
+				uniform sampler2D tDiffuse;
+				uniform float saturation;
+				uniform float contrast;
+				uniform float vignette;
+				uniform float aspect;
+				uniform float night;
+				varying vec2 vUv;
+				void main() {
+					vec4 texel = texture2D(tDiffuse, vUv);
+					// Display values, 0-1 for all but the brightest lights.
+					vec3 c = sRGBTransferOETF(vec4(max(texel.rgb, 0.0), 1.0)).rgb;
+					float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+					c = max(mix(vec3(luma), c, saturation), 0.0);
+					c = max((c - 0.5) * contrast + 0.5, 0.0);
+					// After dark: shadows towards a cool blue, lights towards warm.
+					float lit = smoothstep(0.15, 0.75, luma);
+					vec3 tone = mix(vec3(0.93, 0.98, 1.08), vec3(1.06, 1.0, 0.92), lit);
+					c *= mix(vec3(1.0), tone, night * 0.8);
+					// A soft vignette, round on screen.
+					vec2 fromCentre = (vUv - 0.5) * vec2(aspect, 1.0);
+					c *= 1.0 - vignette * smoothstep(0.35, 1.05, length(fromCentre));
+					gl_FragColor = vec4(sRGBTransferEOTF(vec4(c, 1.0)).rgb, texel.a);
+				}`,
+		}),
+		"tDiffuse",
+	);
+
 /** One direction of the tilt-shift's blur (render/TiltShift), as a pass here. */
 const bandBlurPass = () =>
 	new ShaderPass(
@@ -122,7 +171,10 @@ const composeFor = (
 	gl: THREE.WebGLRenderer,
 	scene: THREE.Scene,
 	camera: THREE.Camera,
-	graphics: Pick<IGraphics, "ambientOcclusion" | "showGlowAfterDark" | "antiAliasing">,
+	graphics: Pick<
+		IGraphics,
+		"ambientOcclusion" | "showGlowAfterDark" | "antiAliasing" | "useColorGrade"
+	>,
 ) => {
 	const composer = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType });
 	const scenePass = new SceneAsOnCanvasPass(
@@ -172,13 +224,17 @@ const composeFor = (
 	const up = bandBlurPass();
 	composer.addPass(across);
 	composer.addPass(up);
+	const grade = graphics.useColorGrade ? colorGradePass() : null;
+	if (grade) {
+		composer.addPass(grade);
+	}
 	// The last pass draws to the canvas, encoding sRGB.
 	composer.addPass(
 		graphics.antiAliasing === "smaa" ? new EffectPass(camera, new SMAAEffect()) : new CopyPass(),
 	);
 	// After every pass is added: the composer hands passes the depth of its own buffers, empty here.
 	occlusion?.setDepthTexture(scenePass.sceneDepth);
-	return { composer, glowLayers, glow, blur: [across, up] as const, drawnAt: "" };
+	return { composer, glowLayers, glow, blur: [across, up] as const, grade, drawnAt: "" };
 };
 
 interface IEffectsProps {
@@ -199,7 +255,7 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 	const camera = useThree((s) => s.camera);
 	const tiltShiftShown = useTiltShiftShown();
 	const composed = useRef<ReturnType<typeof composeFor> | null>(null);
-	const { ambientOcclusion, showGlowAfterDark, antiAliasing } = graphics;
+	const { ambientOcclusion, showGlowAfterDark, antiAliasing, useColorGrade } = graphics;
 
 	// Made in the effect, not during render: disposing a composer empties it, and React may clean up
 	// an effect and run it again (strict mode) with what render made.
@@ -211,6 +267,7 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 			ambientOcclusion,
 			showGlowAfterDark,
 			antiAliasing,
+			useColorGrade,
 		});
 		composed.current = made;
 		return () => {
@@ -220,7 +277,7 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 				composed.current = null;
 			}
 		};
-	}, [gl, scene, camera, ambientOcclusion, showGlowAfterDark, antiAliasing]);
+	}, [gl, scene, camera, ambientOcclusion, showGlowAfterDark, antiAliasing, useColorGrade]);
 
 	useFrame(({ size }, delta) => {
 		const made = composed.current;
@@ -228,7 +285,7 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 			gl.render(scene, camera);
 			return;
 		}
-		const { composer, glowLayers, glow, blur } = made;
+		const { composer, glowLayers, glow, blur, grade } = made;
 		const at = `${size.width}×${size.height}@${gl.getPixelRatio()}`;
 		if (made.drawnAt !== at) {
 			made.drawnAt = at;
@@ -251,6 +308,11 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 			uniforms.centre.value = settings.centre;
 			uniforms.halfHeight.value = settings.halfHeight;
 			uniforms.soft.value = settings.soft;
+		}
+		if (grade) {
+			const uniforms = (grade.fullscreenMaterial as THREE.ShaderMaterial).uniforms;
+			uniforms.night.value = skyLightAt(useEditor.getState().scene.lighting, sceneHoursNow()).night;
+			uniforms.aspect.value = size.width / Math.max(size.height, 1);
 		}
 		composer.render(delta);
 	}, 1);

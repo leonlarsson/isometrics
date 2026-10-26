@@ -23,6 +23,8 @@ export interface IGraphics {
 	realLightCount: TRealLightCount;
 	/** Water mirrors the world round it (a second render of the scene per water area). */
 	showWaterReflections: boolean;
+	/** A colour grade on the finished picture (saturation, contrast, vignette, warm lights at night). */
+	useColorGrade: boolean;
 	/** Soft-edged shadows (PCSS). */
 	useSoftShadows: boolean;
 	antiAliasing: TAntiAliasing;
@@ -36,6 +38,7 @@ export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"showGlowAfterDark",
 	"realLightCount",
 	"showWaterReflections",
+	"useColorGrade",
 	"useSoftShadows",
 	"antiAliasing",
 	"maxPixelDensity",
@@ -47,6 +50,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: false,
 		realLightCount: 0,
 		showWaterReflections: false,
+		useColorGrade: false,
 		useSoftShadows: false,
 		antiAliasing: "multisample",
 		maxPixelDensity: 2,
@@ -56,6 +60,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: true,
 		realLightCount: 16,
 		showWaterReflections: false,
+		useColorGrade: false,
 		useSoftShadows: false,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -65,6 +70,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: true,
 		realLightCount: 64,
 		showWaterReflections: true,
+		useColorGrade: true,
 		useSoftShadows: true,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -79,6 +85,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 		showGlowAfterDark: preferences.showGlowAfterDark ?? preset.showGlowAfterDark,
 		realLightCount: preferences.realLightCount ?? preset.realLightCount,
 		showWaterReflections: preferences.showWaterReflections ?? preset.showWaterReflections,
+		useColorGrade: preferences.useColorGrade ?? preset.useColorGrade,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
 		antiAliasing: preferences.antiAliasing ?? preset.antiAliasing,
 		maxPixelDensity: preferences.maxPixelDensity ?? preset.maxPixelDensity,
@@ -93,7 +100,8 @@ export const changedFromPreset = (preferences: TPreferences) =>
 export const drawsEffects = (graphics: IGraphics) =>
 	graphics.ambientOcclusion !== "off" ||
 	graphics.showGlowAfterDark ||
-	graphics.antiAliasing === "smaa";
+	graphics.antiAliasing === "smaa" ||
+	graphics.useColorGrade;
 
 /** The graphics settings in effect, kept up to date. */
 export const useGraphics = () => graphicsOf(usePreferences());

@@ -195,6 +195,19 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 						),
 					},
 					{
+						id: "useColorGrade",
+						keywords: "colour color grade grading saturation contrast vignette cinematic warm",
+						field: (
+							<SwitchField
+								label="Colour grade"
+								checked={graphics.useColorGrade}
+								onChange={(value) => setPreference("useColorGrade", value)}
+								inherit={fromPreset(preferences, "useColorGrade", onOff(preset.useColorGrade))}
+								hint="Richer colour, a touch more contrast and a soft vignette; after dark, cooler shadows against warmer lights."
+							/>
+						),
+					},
+					{
 						id: "useSoftShadows",
 						keywords: "pcss shadow blur penumbra soft edges",
 						field: (

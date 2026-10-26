@@ -79,3 +79,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0073](0073-effects-composer.md) | The effects composer draws the scene as on the canvas, and the backdrop stays behind it | proposed |
 | [0074](0074-real-night-lights.md) | Real night lights: a part's light also lights its surroundings, the nearest ones to the view | proposed |
 | [0075](0075-reflective-water.md) | Reflective water: the world mirrored in rippling water, added as reflected light | proposed |
+| [0076](0076-colour-grade.md) | A colour grade on the finished picture | proposed |
