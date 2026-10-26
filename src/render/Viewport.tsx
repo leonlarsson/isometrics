@@ -1,4 +1,5 @@
 import { Canvas } from "@react-three/fiber";
+import { lazy, Suspense } from "react";
 
 import { isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
@@ -22,6 +23,7 @@ import { InstantResize } from "./InstantResize";
 import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
+import { labActive, labWebGpu } from "./labFlags";
 import { PlacementPreview } from "./PlacementPreview";
 import { PointerSpot } from "./PointerSpot";
 import { RoadDrawTool } from "./RoadDrawTool";
@@ -35,6 +37,14 @@ import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+
+// Render lab (prototype, docs/rendering-study): loaded only for `?fx=…` or a `LAB_WEBGPU=1` dev server.
+const RenderLab = lazy(() =>
+	import("./RenderLab").then((module) => ({ default: module.RenderLab })),
+);
+
+const createLabGpuRenderer = async (props: { canvas: HTMLCanvasElement | OffscreenCanvas }) =>
+	(await import("./RenderLabGpu")).createGpuRenderer(props);
 
 const Lights = () => {
 	const palette = usePalette();
@@ -51,6 +61,7 @@ export const Viewport = () => {
 	return (
 		<Canvas
 			shadows="percentage"
+			gl={labWebGpu ? (createLabGpuRenderer as never) : undefined}
 			orthographic
 			dpr={[1, 2]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
@@ -63,6 +74,12 @@ export const Viewport = () => {
 			}}
 		>
 			<Lights />
+
+			{labActive && (
+				<Suspense fallback={null}>
+					<RenderLab />
+				</Suspense>
+			)}
 
 			<SkyDome />
 
