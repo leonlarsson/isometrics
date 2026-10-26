@@ -41,6 +41,7 @@ import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+import { WakeFieldStep } from "./WakeField";
 import { Wireframe } from "./Wireframe";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
@@ -161,6 +162,9 @@ export const Viewport = () => {
 			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
 
 			{graphics.showDistanceHaze && <DistanceHaze />}
+
+			{/* The boats' waves, which only reflective water shows (ADR-0081). */}
+			{graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections && <WakeFieldStep />}
 
 			{wireframe && <Wireframe />}
 

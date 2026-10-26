@@ -39,6 +39,7 @@ const PRESET_LABELS: Record<TGraphicsPreset, string> = {
 const BOAT_WAKE_LABELS: Record<TBoatWakes, string> = {
 	off: "Off",
 	foam: "Foam",
+	foamAndWaves: "Foam and waves",
 };
 
 const PRESET_HINTS: Record<TGraphicsPreset, string> = {
@@ -220,7 +221,7 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 									"boatWakes",
 									BOAT_WAKE_LABELS[preset.boatWakes].toLowerCase(),
 								)}
-								hint="Boats on a route leave a trail of foam behind them, longer the faster they go."
+								hint="Boats on a route leave a trail of foam behind them, longer the faster they go. With waves, the water rocks along it too, where water reflections are on."
 							/>
 						),
 					},

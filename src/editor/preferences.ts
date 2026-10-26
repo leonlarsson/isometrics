@@ -31,7 +31,7 @@ export const AMBIENT_OCCLUSION_MODES = ["off", "halfResolution", "fullResolution
 export type TAmbientOcclusion = (typeof AMBIENT_OCCLUSION_MODES)[number];
 
 /** What boats driving along a route leave behind them on the water (ADR-0081). */
-export const BOAT_WAKE_MODES = ["off", "foam"] as const;
+export const BOAT_WAKE_MODES = ["off", "foam", "foamAndWaves"] as const;
 export type TBoatWakes = (typeof BOAT_WAKE_MODES)[number];
 
 /** The canvas's own multisampling, or SMAA in the effects composer. */
@@ -98,7 +98,7 @@ export const PreferencesSchema = z.object({
 		.catch(null),
 	/** Water mirrors the world round it, broken by drifting ripples. null = the preset's. */
 	showWaterReflections: z.boolean().nullable().catch(null),
-	/** What boats driving along a route leave behind them: nothing, or foam. null = the preset's. */
+	/** What boats driving along a route leave behind them: nothing, foam, or foam and waves. null = the preset's. */
 	boatWakes: z.enum(BOAT_WAKE_MODES).nullable().catch(null),
 	/** A colour grade on the finished picture: richer colour, a vignette, warm lights at night. null = the preset's. */
 	useColorGrade: z.boolean().nullable().catch(null),

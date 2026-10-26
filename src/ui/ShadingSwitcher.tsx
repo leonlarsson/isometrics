@@ -23,7 +23,7 @@ const PRESETS: { preset: TGraphicsPreset; icon: TIconName; name: string; drawn: 
 		preset: "ultra",
 		icon: "shadeUltra",
 		name: "Ultra",
-		drawn: "everything, a colour grade and soft shadows too",
+		drawn: "everything, a colour grade, soft shadows and waves behind boats too",
 	},
 ];
 

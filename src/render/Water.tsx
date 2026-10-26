@@ -8,6 +8,8 @@ import { keepOnHotReload } from "#/lib/hot";
 import { MAX_WATER_SEAMS } from "#/scene/areas";
 import type { TWater } from "#/scene/schema";
 
+import { wakeField } from "./WakeField";
+
 /**
  * Reflective water (Graphics: Water reflections, ADR-0075): the world
  * mirrored in the water, broken up by ripples that drift, on top of the
@@ -140,6 +142,12 @@ const asDrawnOnCanvas = (texture: THREE.Texture | null | undefined) => {
 const RIPPLE_NORMAL_SCALE = 0.24;
 const RIPPLE_SHIFT = 0.024;
 
+/** How much the boats' waves (ADR-0081) tilt the surface, and shift the reflection, at full strength. */
+const WAKE_TILT = "1.1";
+const WAKE_SHIFT = "0.012";
+/** How much the water inside a wake's V is calmed: its own ripples this much smaller there. */
+const WAKE_CALM = "0.9";
+
 /** Over how many ground units a water area's own ripples and reflections fade into the world's at a seam. */
 const SEAM_FADE = 2;
 
@@ -157,6 +165,19 @@ const SEAM_GLSL = /* glsl */ `
 	uniform float worldRippleShift;
 	uniform float worldMixStrength;
 	varying vec2 vWaterXZ;
+	uniform sampler2D wakeField;
+	uniform vec2 wakeFieldMin;
+	uniform vec2 wakeFieldSize;
+	uniform float wakeFieldOn;
+	/** How the boats' waves tilt the water here, in the ground's x and z, and how calm it is (WakeField.tsx). */
+	vec3 wakeAt(vec2 at) {
+		if (wakeFieldOn < 0.5) {
+			return vec3(0.0);
+		}
+		vec2 uv = (at - wakeFieldMin) / wakeFieldSize;
+		vec3 wake = texture2D(wakeField, vec2(uv.x, 1.0 - uv.y)).rgb;
+		return vec3(wake.rg, clamp(wake.b, 0.0, 1.0));
+	}
 	float waterOwnnessAt(vec2 at) {
 		float closest = 1e5;
 		for (int i = 0; i < ${MAX_WATER_SEAMS}; i++) {
@@ -202,25 +223,29 @@ const asReflectedLight = (material: THREE.Material, uniforms: IWaterUniforms) =>
 	const compile = material.onBeforeCompile.bind(material);
 	material.onBeforeCompile = (shader, renderer) => {
 		compile(shader, renderer);
-		Object.assign(shader.uniforms, uniforms);
+		Object.assign(shader.uniforms, uniforms, wakeField.uniforms);
 		shader.vertexShader = `varying vec2 vWaterXZ;\n${shader.vertexShader}`.replace(
 			"#include <project_vertex>",
 			"#include <project_vertex>\n\tvWaterXZ = (modelMatrix * vec4(transformed, 1.0)).xz;",
 		);
 		shader.fragmentShader = `${SEAM_GLSL}\n${shader.fragmentShader}`
-			.replace("void main() {", "void main() {\n\tfloat waterOwnness = waterOwnnessAt(vWaterXZ);")
+			.replace(
+				"void main() {",
+				`void main() {\n\tfloat waterOwnness = waterOwnnessAt(vWaterXZ);\n\tvec3 waterWake = wakeAt(vWaterXZ);\n\tvec2 wakeTilt = waterWake.xy;\n\tfloat wakeCalm = 1.0 - ${WAKE_CALM} * waterWake.z;`,
+			)
 			.replace(
 				"#include <normal_fragment_maps>",
 				THREE.ShaderChunk.normal_fragment_maps.replace(
 					"mapN.xy *= normalScale;",
-					"mapN.xy *= mix(vec2(worldNormalScale), normalScale, waterOwnness);",
+					// The boats' waves on top; the water's x is the map's, its z the map's -y.
+					`mapN.xy *= mix(vec2(worldNormalScale), normalScale, waterOwnness) * wakeCalm;\n\tmapN.xy += vec2(wakeTilt.x, -wakeTilt.y) * ${WAKE_TILT};`,
 				),
 			)
 			.replace("uniform float distortion;", "uniform float distortion;\nuniform float rippleShift;")
 			.replace("texture2D(normalMap, vUv * normalScale)", "texture2D(normalMap, vNormalMapUv)")
 			.replace(
 				"coord.z * my_normal.xz * 0.05",
-				"coord.z * my_normal.xz * mix(worldRippleShift, rippleShift, waterOwnness)",
+				`coord.z * (my_normal.xz * mix(worldRippleShift, rippleShift, waterOwnness) * wakeCalm + vec2(wakeTilt.x, -wakeTilt.y) * ${WAKE_SHIFT})`,
 			)
 			.replace(DREI_BLEND, REFLECTED_LIGHT);
 	};

@@ -95,6 +95,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const graphics = useGraphics();
 	const drawsRealLights = graphics.realLightCount > 0;
 	const drawsWakes = graphics.boatWakes !== "off";
+	const makesWaves = graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections;
 	// The world's hour, only for objects with a light on a schedule (others needn't re-render with it).
 	const hour = useSceneHours(
 		typeof entity.lights === "object" &&
@@ -480,6 +481,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					behind={wake.behind * entity.scale}
 					length={vehicleLength}
 					elevation={entity.elevation}
+					makesWaves={makesWaves}
 				/>
 			)}
 		</>

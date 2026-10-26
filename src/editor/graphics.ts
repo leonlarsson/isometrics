@@ -87,7 +87,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: true,
 		realLightCount: 64,
 		showWaterReflections: true,
-		boatWakes: "foam",
+		boatWakes: "foamAndWaves",
 		useColorGrade: true,
 		showDistanceHaze: false,
 		useSoftShadows: true,
