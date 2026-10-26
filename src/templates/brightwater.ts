@@ -696,6 +696,8 @@ export const createBrightwaterScene = (): TScene => {
 		theme: "system",
 		ground: { width: 60, depth: 48, color: null },
 		drivingSide: "right",
+		// Deeper shade than the theme's own balance (ADR-0072).
+		lighting: { sunShadeContrast: 0.75 },
 		// Stepped through in View mode (◀ ▶), like slides.
 		viewpoints: [
 			{
