@@ -75,3 +75,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0069](0069-end-to-end-tests.md) | End-to-end tests in a real browser, driven through dev-only hooks | accepted |
 | [0070](0070-sky.md) | A sky around the world in perspective, and a backdrop of the world's own behind the diorama | accepted |
 | [0071](0071-names-say-what-they-hold.md) | Names say what they hold, and renamed world fields are read under their old names | accepted |
+| [0072](0072-rendering-quality-levels.md) | Quality levels for the 3D view: rebalanced light, ambient occlusion, real night lights and a Render button | proposed |
