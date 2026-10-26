@@ -67,7 +67,13 @@ class SceneAsOnCanvasPass extends Pass {
 				varying vec2 vUv;
 				void main() {
 					vec4 texel = texture2D(tDiffuse, vUv);
-					gl_FragColor = vec4(sRGBTransferEOTF(texel).rgb, texel.a);
+					vec3 linear = sRGBTransferEOTF(texel).rgb;
+					// A lit surface can come out as no number at all, or one too big to add up (a real light
+					// right at a surface). On the canvas that's one dot; a blur after this grows it into
+					// blocks of the wrong colour. So such values are cleared here, before any effect.
+					bvec3 notFinite = equal(floatBitsToUint(linear) & uvec3(0x7f800000u), uvec3(0x7f800000u));
+					linear = mix(clamp(linear, 0.0, 64.0), vec3(0.0), vec3(notFinite));
+					gl_FragColor = vec4(linear, texel.a);
 				}`,
 		});
 	}
