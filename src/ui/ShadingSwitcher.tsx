@@ -17,13 +17,13 @@ const PRESETS: { preset: TGraphicsPreset; icon: TIconName; name: string; drawn: 
 		preset: "nice",
 		icon: "shadeNice",
 		name: "Nice",
-		drawn: "ambient occlusion, real night lights, glow",
+		drawn: "ambient occlusion, real night lights, glow, reflections",
 	},
 	{
 		preset: "ultra",
 		icon: "shadeUltra",
 		name: "Ultra",
-		drawn: "everything, reflections and soft shadows too",
+		drawn: "everything, a colour grade and soft shadows too",
 	},
 ];
 

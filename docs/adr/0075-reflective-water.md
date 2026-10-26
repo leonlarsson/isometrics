@@ -25,7 +25,7 @@ Water is a flat, fairly matte surface (roughness 0.4). With real night lights (A
 
 Chosen option: **2**.
 
-- A graphics setting, **Water reflections** (`showWaterReflections`; Ultra on, Standard and Nice off). With it, each flat water area in the editor's view draws with `ReflectiveWaterMaterial` (`render/Water.tsx`): the world mirrored at the water's height (a second render of the scene per water area, 512² and blurred a little), on the water's own lit surface. Raised water and world pictures (ADR-0047) keep the plain material.
+- A graphics setting, **Water reflections** (`showWaterReflections`; Nice and Ultra on, Standard off; at first Ultra only, until the shared reflection made it cheap). With it, each flat water area in the editor's view draws with `ReflectiveWaterMaterial` (`render/Water.tsx`): the world mirrored at the water's height (one more render of the scene a frame, 512² and blurred a little, shared by every flat water area: they all lie on the ground, layers apart by under a thousandth of a unit, so the first draws it with all of them hidden and each maps it onto itself), on the water's own lit surface. Raised water and world pictures (ADR-0047) keep the plain material.
 - drei's material multiplies the water's colour by the reflection, which scene lighting then dims; the shader is changed so the reflection is **added as reflected light**, by a Fresnel term on top of a base amount (`mirror`), so lights reflect at night and the water reflects more at a low angle.
 - **How rippled** water is belongs to the world, like cloud cover: `water.rippleStrength` (Sky & water → Water, default 50%), and each water area can set its own (`rippleStrength`, null = the world's, From scene / Reset). 0 is mirror-calm; the strength scales how much the ripples tilt the surface and shift the reflection. The fields say ripples show where Water reflections are on, with the way to Preferences.
 - **Where two water areas meet** (`waterSeams` in `scene/areas.ts`: the pieces of an area's outline with other flat water just beyond), its own ripples and reflections fade into the world's over 2 units, so neighbouring water with different settings (Lantern Bay's calm basin and its rippling bay) meets without a line; edges against land keep the area's own look.
@@ -38,8 +38,7 @@ Chosen option: **2**.
 ### Consequences
 
 - Good: at night lights reflect as rippled streaks and the town round the water is mirrored; by day the sky and boats are; the real lights' smears are gone where reflections are on.
-- Bad: a second scene render per water area (about 1 ms each on an RTX 4080 SUPER at 1600×1000; Lantern Bay on Ultra, with two water areas, takes 4.6–7.8 ms a frame in its wide views); relies on two strings in drei's shader, which a drei update could change (the change does nothing then, and the pictures in `scripts/shots.mjs` would show it).
-- Later: one shared reflection for all water at the same height; reflections in Nice at a lower resolution.
+- Bad: one more scene render a frame (Lantern Bay on an RTX 4080 SUPER at 1600×1000: Nice 1.8–4.0 ms a frame without reflections, 2.8–4.4 ms with; Ultra 3.1–6.4 ms; one render per water area cost 4.0–7.5 ms on Nice and 4.5–7.6 ms on Ultra); relies on two strings in drei's shader, which a drei update could change (the change does nothing then, and the pictures in `scripts/shots.mjs` would show it).
 
 ## More information
 

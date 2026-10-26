@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { keepOnHotReload } from "#/lib/hot";
 import { MAX_WATER_SEAMS } from "#/scene/areas";
 import type { TWater } from "#/scene/schema";
 
@@ -312,6 +313,58 @@ const aimMirror = (
 	return true;
 };
 
+/** A water area on the shared mirror: its mesh (once mounted) and whether it shows a reflection. */
+interface IMirrorMember {
+	water: THREE.Object3D | null;
+	mirrors: boolean;
+}
+
+/**
+ * The one reflection every flat water area shows (ADR-0075): they all lie on
+ * the ground (layers apart by less than a thousandth of a unit) and mirror the
+ * same world, so the first of them draws it, with all of them hidden, and each
+ * maps it onto itself. One draw of the mirrored world a frame, not one per area.
+ */
+interface ISharedMirror {
+	sharp: THREE.WebGLRenderTarget;
+	blurred: THREE.WebGLRenderTarget;
+	blur: BlurPass;
+	members: Set<IMirrorMember>;
+}
+
+const sharedMirrors = keepOnHotReload(
+	"water.sharedMirrors",
+	() => new Map<THREE.WebGLRenderer, ISharedMirror>(),
+);
+
+const makeSharedMirror = (gl: THREE.WebGLRenderer): ISharedMirror => {
+	const sharp = new THREE.WebGLRenderTarget(REFLECTION_SIZE, REFLECTION_SIZE, {
+		minFilter: THREE.LinearFilter,
+		magFilter: THREE.LinearFilter,
+		type: THREE.HalfFloatType,
+	});
+	sharp.depthTexture = new THREE.DepthTexture(REFLECTION_SIZE, REFLECTION_SIZE);
+	sharp.depthTexture.type = THREE.UnsignedShortType;
+	asDrawnOnCanvas(sharp.texture);
+	const blurred = new THREE.WebGLRenderTarget(REFLECTION_SIZE, REFLECTION_SIZE, {
+		minFilter: THREE.LinearFilter,
+		magFilter: THREE.LinearFilter,
+		type: THREE.HalfFloatType,
+	});
+	const blur = new BlurPass({ gl, resolution: REFLECTION_SIZE, width: 90, height: 30 });
+	return { sharp, blurred, blur, members: new Set() };
+};
+
+/** The renderer's shared mirror, made when its first water area needs it; it lasts as long as the renderer. */
+const sharedMirrorOf = (gl: THREE.WebGLRenderer) => {
+	let shared = sharedMirrors.get(gl);
+	if (!shared) {
+		shared = makeSharedMirror(gl);
+		sharedMirrors.set(gl, shared);
+	}
+	return shared;
+};
+
 /** The material of a flat water area that reflects the world. */
 export const ReflectiveWaterMaterial = ({
 	color,
@@ -336,21 +389,16 @@ export const ReflectiveWaterMaterial = ({
 	const normalScale = RIPPLE_NORMAL_SCALE * rippleStrength;
 	const normals = rippleNormals();
 
+	const member = useRef<IMirrorMember>({ water: null, mirrors: false }).current;
+	const shared = sharedMirrorOf(gl);
+	useEffect(() => {
+		shared.members.add(member);
+		return () => {
+			shared.members.delete(member);
+		};
+	}, [shared, member]);
+
 	const reflector = useMemo(() => {
-		const sharp = new THREE.WebGLRenderTarget(REFLECTION_SIZE, REFLECTION_SIZE, {
-			minFilter: THREE.LinearFilter,
-			magFilter: THREE.LinearFilter,
-			type: THREE.HalfFloatType,
-		});
-		sharp.depthTexture = new THREE.DepthTexture(REFLECTION_SIZE, REFLECTION_SIZE);
-		sharp.depthTexture.type = THREE.UnsignedShortType;
-		asDrawnOnCanvas(sharp.texture);
-		const blurred = new THREE.WebGLRenderTarget(REFLECTION_SIZE, REFLECTION_SIZE, {
-			minFilter: THREE.LinearFilter,
-			magFilter: THREE.LinearFilter,
-			type: THREE.HalfFloatType,
-		});
-		const blur = new BlurPass({ gl, resolution: REFLECTION_SIZE, width: 90, height: 30 });
 		const textureMatrix = new THREE.Matrix4();
 		// Its settings after it's made: its constructor applies them before it can hold them.
 		const material = new MeshReflectorMaterialImpl();
@@ -360,9 +408,9 @@ export const ReflectiveWaterMaterial = ({
 			mixBlur: 0.6,
 			hasBlur: true,
 			textureMatrix,
-			tDiffuse: sharp.texture,
-			tDepth: sharp.depthTexture,
-			tDiffuseBlur: blurred.texture,
+			tDiffuse: shared.sharp.texture,
+			tDepth: shared.sharp.depthTexture,
+			tDiffuseBlur: shared.blurred.texture,
 			depthScale: 0,
 			polygonOffset: true,
 			polygonOffsetFactor: -1,
@@ -373,17 +421,10 @@ export const ReflectiveWaterMaterial = ({
 			perspective: new THREE.PerspectiveCamera(),
 			orthographic: new THREE.OrthographicCamera(),
 		};
-		return { sharp, blurred, blur, textureMatrix, material, mirrors };
-	}, [gl, u]);
+		return { textureMatrix, material, mirrors };
+	}, [shared, u]);
 
-	useEffect(
-		() => () => {
-			reflector.sharp.dispose();
-			reflector.blurred.dispose();
-			reflector.material.dispose();
-		},
-		[reflector],
-	);
+	useEffect(() => () => reflector.material.dispose(), [reflector]);
 
 	const { material } = reflector;
 	material.color.set(color);
@@ -400,28 +441,42 @@ export const ReflectiveWaterMaterial = ({
 		normals.offset.set(t * 0.011, t * 0.007);
 		const water = (material as unknown as { __r3f?: { parent?: { object?: THREE.Object3D } } })
 			.__r3f?.parent?.object;
+		member.water = water ?? null;
 		// Not mirroring at all (nor where it fades into the world's water): no need to draw the mirror.
-		const mirrors = reflectionStrength > 0 || (seams.length > 0 && world.reflectionStrength > 0);
-		if (!water || !mirrors) {
+		member.mirrors = reflectionStrength > 0 || (seams.length > 0 && world.reflectionStrength > 0);
+		if (!water) {
 			return;
 		}
-		const mirror =
+		const eye =
 			camera instanceof THREE.OrthographicCamera
 				? reflector.mirrors.orthographic
 				: reflector.mirrors.perspective;
-		if (!aimMirror(water, camera, mirror, reflector.textureMatrix)) {
+		// Its own map onto the reflection, even when another water area draws it.
+		if (!aimMirror(water, camera, eye, reflector.textureMatrix)) {
 			return;
 		}
-		water.visible = false;
+		const members = [...shared.members];
+		if (members[0] !== member || !members.some((each) => each.mirrors)) {
+			return;
+		}
+		for (const each of members) {
+			if (each.water) {
+				each.water.visible = false;
+			}
+		}
 		const shadowsUpdate = gl.shadowMap.autoUpdate;
 		gl.shadowMap.autoUpdate = false;
-		gl.setRenderTarget(reflector.sharp);
+		gl.setRenderTarget(shared.sharp);
 		gl.state.buffers.depth.setMask(true);
 		gl.clear();
-		gl.render(scene, mirror);
-		reflector.blur.render(gl, reflector.sharp, reflector.blurred);
+		gl.render(scene, eye);
+		shared.blur.render(gl, shared.sharp, shared.blurred);
 		gl.shadowMap.autoUpdate = shadowsUpdate;
-		water.visible = true;
+		for (const each of members) {
+			if (each.water) {
+				each.water.visible = true;
+			}
+		}
 		gl.setRenderTarget(null);
 	});
 

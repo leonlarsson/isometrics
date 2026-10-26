@@ -36,7 +36,7 @@ const PRESET_LABELS: Record<TGraphicsPreset, string> = {
 
 const PRESET_HINTS: Record<TGraphicsPreset, string> = {
 	standard: "The view as it always was, for any device.",
-	nice: "Darker where things meet, and a glow round lights after dark. For a good graphics card.",
+	nice: "Darker where things meet, a glow round lights after dark, and the world mirrored in the water. For a good graphics card.",
 	ultra: "Nice, sharper and with soft-edged shadows. For a strong graphics card.",
 };
 

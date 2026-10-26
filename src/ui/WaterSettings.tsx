@@ -21,8 +21,8 @@ export const RipplesNote = () => {
 	return (
 		<>
 			<Hint>
-				Ripples and reflections show where water reflections are on (Preferences → Graphics, Ultra),
-				not here yet.
+				Ripples and reflections show where water reflections are on (Preferences → Graphics, Nice
+				and Ultra), not here yet.
 			</Hint>
 
 			<Button size="sm" onClick={() => useEditor.getState().setPreferencesOpen(true)}>

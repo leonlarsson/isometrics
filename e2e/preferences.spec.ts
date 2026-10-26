@@ -74,7 +74,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await page.waitForTimeout(1000);
 	});
 
-	test("water stays flat going from Ultra's reflections back to Nice", async ({ page }) => {
+	test("water stays flat going from Ultra's reflections back to Standard", async ({ page }) => {
 		await loadWorld(page, {
 			areas: [
 				{
@@ -91,13 +91,14 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		});
 		await showView(page, [0, 0], 30);
 		await page.getByRole("button", { name: /^Ultra:/ }).click();
-		await page.getByRole("button", { name: /^Nice:/ }).click();
-		// Clicking the water picks it: it hasn't turned on its edge.
-		const { x, y } = await groundSpot(page, [2, 2]);
-		await page.mouse.click(x, y);
-		await expect
-			.poll(() => read(page, (s) => s.selectedItems))
-			.toEqual([{ kind: "area", id: "pond" }]);
+		await page.getByRole("button", { name: /^Standard:/ }).click();
+		// Clicking the water picks it: it hasn't turned on its edge. Again until it does, as the
+		// first click can come before the next frame has moved the mesh.
+		await expect(async () => {
+			const { x, y } = await groundSpot(page, [2, 2]);
+			await page.mouse.click(x, y);
+			expect(await read(page, (s) => s.selectedItems)).toEqual([{ kind: "area", id: "pond" }]);
+		}).toPass({ timeout: 5000 });
 	});
 
 	test("the toolbar's shading switcher: a preset a click away, wireframe, and the Graphics settings (ADR-0080)", async ({

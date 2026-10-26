@@ -68,7 +68,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		ambientOcclusion: "halfResolution",
 		showGlowAfterDark: true,
 		realLightCount: 16,
-		showWaterReflections: false,
+		showWaterReflections: true,
 		useColorGrade: false,
 		showDistanceHaze: false,
 		useSoftShadows: false,
