@@ -1,6 +1,7 @@
 import type { TScene } from "#/scene/schema";
 
 import { createBrightwaterScene } from "./brightwater";
+import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
 
 export { createEmptyScene } from "./empty";
@@ -18,6 +19,13 @@ export const TEMPLATES: ITemplateInfo[] = [
 		name: "Brightwater",
 		description: "Harbour city: river bridge, flyover, hill, stadium, marina and live city data",
 		create: createBrightwaterScene,
+	},
+	{
+		id: "lantern_bay",
+		name: "Lantern Bay",
+		description:
+			"Waterfront at dusk: lit towers, lamps on the promenade, a mirror-calm harbour. Best with Graphics: Ultra",
+		create: createLanternBayScene,
 	},
 	{
 		id: "monaco",
