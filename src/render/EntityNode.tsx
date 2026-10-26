@@ -19,6 +19,7 @@ import { laneOffset, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
+import { BoatWake } from "./BoatWake";
 import { openContextMenuOnClick } from "./contextMenu";
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
@@ -91,7 +92,9 @@ const UnknownPart = () => {
 export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const part = getPart(entity.kind);
 	const palette = usePalette();
-	const drawsRealLights = useGraphics().realLightCount > 0;
+	const graphics = useGraphics();
+	const drawsRealLights = graphics.realLightCount > 0;
+	const drawsWakes = graphics.boatWakes !== "off";
 	// The world's hour, only for objects with a light on a schedule (others needn't re-render with it).
 	const hour = useSceneHours(
 		typeof entity.lights === "object" &&
@@ -396,68 +399,89 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const anchorY = part.height(props) * entity.scale;
 	const Component = part.Component;
 
+	const wake = following && drawsWakes ? part.wake?.(props) : undefined;
+
 	return (
-		<group
-			ref={outer}
-			position={following ? undefined : [entity.position[0], entity.elevation, entity.position[1]]}
-		>
+		<>
 			<group
-				ref={inner}
-				// Heading, then nose up or down (vehicles face +X, so pitch turns about Z), as when driving.
-				rotation={following ? undefined : [0, toRadians(entity.rotation), toRadians(entity.pitch)]}
-				scale={entity.scale}
-				{...handlers}
+				ref={outer}
+				position={
+					following ? undefined : [entity.position[0], entity.elevation, entity.position[1]]
+				}
 			>
-				<Component
-					props={props}
-					colors={colors}
-					palette={palette}
-					playing={playing}
-					lights={lights}
-					data={data}
-				/>
+				<group
+					ref={inner}
+					// Heading, then nose up or down (vehicles face +X, so pitch turns about Z), as when driving.
+					rotation={
+						following ? undefined : [0, toRadians(entity.rotation), toRadians(entity.pitch)]
+					}
+					scale={entity.scale}
+					{...handlers}
+				>
+					<Component
+						props={props}
+						colors={colors}
+						palette={palette}
+						playing={playing}
+						lights={lights}
+						data={data}
+					/>
 
-				{/* Its lights that light their surroundings, where they shine from (ADR-0072). */}
-				{drawsRealLights &&
-					part.lights?.flatMap((spec) => {
-						const light = lights[spec.id];
-						const found = spec.realLight?.(props);
-						if (!found || !light) {
-							return [];
-						}
-						const ownReach = LIGHT_SHAPES_WITH_REACH.includes(spec.shape);
-						return [found]
-							.flat()
-							.map((source, i) => (
-								<RealLightSource
-									key={`${spec.id}@${source.at.join(",")}`}
-									id={`${entity.id}:${spec.id}:${i}`}
-									at={source.at}
-									light={light}
-									shape={spec.shape}
-									reach={(ownReach ? light.reach : (source.reach ?? 1)) * entity.scale}
-								/>
-							));
-					})}
+					{/* Its lights that light their surroundings, where they shine from (ADR-0072). */}
+					{drawsRealLights &&
+						part.lights?.flatMap((spec) => {
+							const light = lights[spec.id];
+							const found = spec.realLight?.(props);
+							if (!found || !light) {
+								return [];
+							}
+							const ownReach = LIGHT_SHAPES_WITH_REACH.includes(spec.shape);
+							return [found]
+								.flat()
+								.map((source, i) => (
+									<RealLightSource
+										key={`${spec.id}@${source.at.join(",")}`}
+										id={`${entity.id}:${spec.id}:${i}`}
+										at={source.at}
+										light={light}
+										shape={spec.shape}
+										reach={(ownReach ? light.reach : (source.reach ?? 1)) * entity.scale}
+									/>
+								));
+						})}
 
-				{mode === "edit" && (selected || hovered || listHovered || boxed) && (
-					<SelectionFrame
-						size={footprint}
-						color={palette.selection}
-						dashed={!selected || (boxed && unboxing)}
+					{mode === "edit" && (selected || hovered || listHovered || boxed) && (
+						<SelectionFrame
+							size={footprint}
+							color={palette.selection}
+							dashed={!selected || (boxed && unboxing)}
+						/>
+					)}
+				</group>
+
+				{mode === "edit" && alone && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
+
+				{entity.label?.enabled && (
+					<EntityLabel
+						entity={entity}
+						anchorY={anchorY}
+						color={resolveLabelColor(part, entity, palette, data)}
 					/>
 				)}
 			</group>
 
-			{mode === "edit" && alone && !entity.locked && !drawing && <EntityGizmo entity={entity} />}
-
-			{entity.label?.enabled && (
-				<EntityLabel
-					entity={entity}
-					anchorY={anchorY}
-					color={resolveLabelColor(part, entity, palette, data)}
+			{/* The foam it leaves on the water while it follows a route (ADR-0081). */}
+			{wake && sampler && entity.follow && (
+				<BoatWake
+					sampler={sampler}
+					offset={entity.follow.offset}
+					vehicle={vehicle}
+					width={wake.width * entity.scale}
+					behind={wake.behind * entity.scale}
+					length={vehicleLength}
+					elevation={entity.elevation}
 				/>
 			)}
-		</group>
+		</>
 	);
 });

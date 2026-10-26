@@ -17,7 +17,7 @@ const PRESETS: { preset: TGraphicsPreset; icon: TIconName; name: string; drawn: 
 		preset: "nice",
 		icon: "shadeNice",
 		name: "Nice",
-		drawn: "ambient occlusion, real night lights, glow, reflections",
+		drawn: "ambient occlusion, real night lights, glow, reflections, boat wakes",
 	},
 	{
 		preset: "ultra",

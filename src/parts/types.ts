@@ -212,6 +212,12 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
 	/**
+	 * It leaves a wake on the water while it follows a route (ADR-0081): how
+	 * wide it is where the wake starts, and how far behind its centre that is
+	 * (in its own space, at scale 1).
+	 */
+	wake?: (props: P) => { width: number; behind: number };
+	/**
 	 * Its lights (ADR-0058): windows, lamps, cabins, headlights, a rain light…
 	 * Each gets a card in the Lights tab, and objects store their settings for
 	 * it by its id. The part draws them where they are, from `lights` in its

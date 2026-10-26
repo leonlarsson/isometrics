@@ -8,6 +8,7 @@ import {
 import {
 	AMBIENT_OCCLUSION_MODES,
 	ANTI_ALIASING_MODES,
+	BOAT_WAKE_MODES,
 	DEFAULT_PREFERENCES,
 	GRAPHICS_PRESETS,
 	PIXEL_DENSITIES,
@@ -18,6 +19,7 @@ import {
 	setPreference,
 	type TAmbientOcclusion,
 	type TAntiAliasing,
+	type TBoatWakes,
 	type TGraphicsPreset,
 	type TPixelDensity,
 	type TPreferences,
@@ -32,6 +34,11 @@ const PRESET_LABELS: Record<TGraphicsPreset, string> = {
 	standard: "Standard",
 	nice: "Nice",
 	ultra: "Ultra",
+};
+
+const BOAT_WAKE_LABELS: Record<TBoatWakes, string> = {
+	off: "Off",
+	foam: "Foam",
 };
 
 const PRESET_HINTS: Record<TGraphicsPreset, string> = {
@@ -192,7 +199,28 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 									"showWaterReflections",
 									onOff(preset.showWaterReflections),
 								)}
-								hint="Water mirrors the world round it, broken up by drifting ripples. Draws the world once more for each water area."
+								hint="Water mirrors the world round it, broken up by drifting ripples. Draws the world once more, for all the water."
+							/>
+						),
+					},
+					{
+						id: "boatWakes",
+						keywords: "boat wake foam trail water ship yacht ferry waves",
+						field: (
+							<SelectField<TBoatWakes>
+								label="Boat wakes"
+								value={graphics.boatWakes}
+								options={BOAT_WAKE_MODES.map((value) => ({
+									value,
+									label: BOAT_WAKE_LABELS[value],
+								}))}
+								onChange={(value) => setPreference("boatWakes", value)}
+								inherit={fromPreset(
+									preferences,
+									"boatWakes",
+									BOAT_WAKE_LABELS[preset.boatWakes].toLowerCase(),
+								)}
+								hint="Boats on a route leave a trail of foam behind them, longer the faster they go."
 							/>
 						),
 					},

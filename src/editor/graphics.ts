@@ -1,6 +1,7 @@
 import {
 	type TAmbientOcclusion,
 	type TAntiAliasing,
+	type TBoatWakes,
 	type TGraphicsPreset,
 	type TPixelDensity,
 	type TPreferences,
@@ -22,8 +23,10 @@ export interface IGraphics {
 	showGlowAfterDark: boolean;
 	/** How many lights, nearest the view, light their surroundings as real lights (0: painted only). */
 	realLightCount: TRealLightCount;
-	/** Water mirrors the world round it (a second render of the scene per water area). */
+	/** Water mirrors the world round it (one more render of the scene, shared by all the water). */
 	showWaterReflections: boolean;
+	/** What boats driving along a route leave behind them on the water. */
+	boatWakes: TBoatWakes;
 	/** A colour grade on the finished picture (saturation, contrast, vignette, warm lights at night). */
 	useColorGrade: boolean;
 	/** In perspective, far things fade into the sky's colour at the horizon. */
@@ -43,6 +46,7 @@ export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"showGlowAfterDark",
 	"realLightCount",
 	"showWaterReflections",
+	"boatWakes",
 	"useColorGrade",
 	"showDistanceHaze",
 	"shadowMapSize",
@@ -57,6 +61,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: false,
 		realLightCount: 0,
 		showWaterReflections: false,
+		boatWakes: "off",
 		useColorGrade: false,
 		showDistanceHaze: false,
 		useSoftShadows: false,
@@ -69,6 +74,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: true,
 		realLightCount: 16,
 		showWaterReflections: true,
+		boatWakes: "foam",
 		useColorGrade: false,
 		showDistanceHaze: false,
 		useSoftShadows: false,
@@ -81,6 +87,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showGlowAfterDark: true,
 		realLightCount: 64,
 		showWaterReflections: true,
+		boatWakes: "foam",
 		useColorGrade: true,
 		showDistanceHaze: false,
 		useSoftShadows: true,
@@ -98,6 +105,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 		showGlowAfterDark: preferences.showGlowAfterDark ?? preset.showGlowAfterDark,
 		realLightCount: preferences.realLightCount ?? preset.realLightCount,
 		showWaterReflections: preferences.showWaterReflections ?? preset.showWaterReflections,
+		boatWakes: preferences.boatWakes ?? preset.boatWakes,
 		useColorGrade: preferences.useColorGrade ?? preset.useColorGrade,
 		showDistanceHaze: preferences.showDistanceHaze ?? preset.showDistanceHaze,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
