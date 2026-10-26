@@ -17,6 +17,13 @@ const PATHS = {
 	copy: "M8 8h12v12H8zM4 16V4h12",
 	paste: "M9 3h6v3H9zM8 4.5H5V21h14V4.5h-3",
 	cloud: "M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 9.5 4.25 4.25 0 0 0 7 18z",
+	// The shading switcher's orbs (ADR-0080): wireframe, then Standard, Nice and Ultra, more lit each.
+	shadeWire:
+		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c-3.5 3-3.5 15 0 18M12 3c3.5 3 3.5 15 0 18",
+	shadeStandard: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+	shadeNice: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11",
+	shadeUltra:
+		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11M14 15a7.5 7.5 0 0 0 2.5-4M8.5 8.5h.01",
 	lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
 	unlock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2",
 	rotateLeft: "M4 4v6h6M4.5 10A8 8 0 1 1 6 16",

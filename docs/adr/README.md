@@ -83,3 +83,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0077](0077-distance-haze.md) | Distance haze in perspective, as its own graphics setting | proposed |
 | [0078](0078-moods.md) | Moods: named looks saved in a world, and viewpoints that put one on | proposed |
 | [0079](0079-light-and-sky-tabs.md) | Sun & sky splits into Moods, Time & light, and Sky & water | proposed |
+| [0080](0080-shading-switcher.md) | A shading switcher in the toolbar: wireframe, Standard, Nice, Ultra | proposed |

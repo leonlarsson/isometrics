@@ -118,5 +118,17 @@ export const drawsEffects = (graphics: IGraphics) =>
 	graphics.antiAliasing === "smaa" ||
 	graphics.useColorGrade;
 
-/** The graphics settings in effect, kept up to date. */
-export const useGraphics = () => graphicsOf(usePreferences());
+/**
+ * What the view draws with: the graphics settings in effect, or in wireframe
+ * (ADR-0080) Standard's (no effects, real lights or reflections; its own
+ * pixel density).
+ */
+export const drawnGraphicsOf = (preferences: TPreferences): IGraphics => {
+	const graphics = graphicsOf(preferences);
+	return preferences.showWireframe
+		? { ...PRESET_GRAPHICS.standard, maxPixelDensity: graphics.maxPixelDensity }
+		: graphics;
+};
+
+/** What the view draws with (drawnGraphicsOf), kept up to date. */
+export const useGraphics = () => drawnGraphicsOf(usePreferences());

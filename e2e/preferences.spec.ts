@@ -72,6 +72,25 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await page.waitForTimeout(1000);
 	});
 
+	test("the toolbar's shading switcher: a preset a click away, wireframe, and the Graphics settings (ADR-0080)", async ({
+		page,
+	}) => {
+		const ultra = page.getByRole("button", { name: /^Ultra:/ });
+		await ultra.click();
+		await expect(ultra).toHaveAttribute("aria-pressed", "true");
+		const wireframe = page.getByRole("button", { name: /^Wireframe:/ });
+		await wireframe.click();
+		await expect(wireframe).toHaveAttribute("aria-pressed", "true");
+		await expect(ultra).toHaveAttribute("aria-pressed", "false");
+		await page.getByRole("button", { name: /^Standard:/ }).click();
+		await expect(wireframe).toHaveAttribute("aria-pressed", "false");
+		// The ▾ opens Preferences on the Graphics page, which shows the preset picked.
+		await page.getByRole("button", { name: "Graphics settings…" }).click();
+		await expect(preferences(page).getByRole("combobox", { name: "Preset" })).toContainText(
+			"Standard",
+		);
+	});
+
 	test("Names of copies: Number them makes Ctrl+D name copies “… 2”", async ({ page }) => {
 		await fileMenu(page, /^Preferences/);
 		await page.getByRole("button", { name: "Editing" }).click();

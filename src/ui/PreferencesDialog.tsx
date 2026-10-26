@@ -101,6 +101,7 @@ const overlayField = (preferences: TPreferences, key: TOverlay, label: string, h
  */
 export const PreferencesDialog = () => {
 	const open = useEditor((s) => s.preferencesOpen);
+	const openOnPage = useEditor((s) => s.preferencesPage);
 	const setOpen = useEditor((s) => s.setPreferencesOpen);
 	const preferences = usePreferences();
 
@@ -345,6 +346,7 @@ export const PreferencesDialog = () => {
 			title="Preferences"
 			note="Yours alone: kept in this browser for every world, never saved with one."
 			pages={pages}
+			openOnPage={openOnPage}
 			resetAll={{
 				label: "Reset all preferences",
 				onReset: () => resetPreferences(),

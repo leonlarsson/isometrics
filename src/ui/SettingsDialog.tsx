@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Button, ButtonGroup, IconButton } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -42,6 +42,8 @@ interface ISettingsDialogProps {
 	pages: ISettingsPage[];
 	/** Put every setting back to its default; `changed` says whether any differs now. */
 	resetAll?: { label: string; onReset: () => void; changed: boolean };
+	/** The page it opens on, when it's opened for one (e.g. Graphics from the toolbar). */
+	openOnPage?: string | null;
 }
 
 /**
@@ -57,8 +59,15 @@ export const SettingsDialog = ({
 	note,
 	pages,
 	resetAll,
+	openOnPage = null,
 }: ISettingsDialogProps) => {
 	const [pageId, setPageId] = useState(pages[0]?.id ?? "");
+	// Opened for a page: show it.
+	useEffect(() => {
+		if (open && openOnPage) {
+			setPageId(openOnPage);
+		}
+	}, [open, openOnPage]);
 	const [query, setQuery] = useState("");
 	// Which reset is being confirmed: a page's id, "all", or none.
 	const [confirming, setConfirming] = useState<string | null>(null);

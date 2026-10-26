@@ -120,6 +120,8 @@ const lightFor = (lights: ILights, sky: ISkyLight, palette: IScenePalette, contr
 interface ISunProps {
 	/** Pixels per side of the sun's shadow map. */
 	shadowMapSize: number;
+	/** Whether the sun casts shadows (not in wireframe). */
+	castsShadows: boolean;
 	ground: TScene["ground"];
 	palette: IScenePalette;
 	lighting: TLighting;
@@ -134,7 +136,14 @@ interface ISunProps {
  * whole shadow pixels (so they don't shimmer while panning). Zoomed out, it
  * covers the whole ground.
  */
-const SunFollowingTheView = ({ shadowMapSize, ground, palette, lighting, lights }: ISunProps) => {
+const SunFollowingTheView = ({
+	shadowMapSize,
+	castsShadows,
+	ground,
+	palette,
+	lighting,
+	lights,
+}: ISunProps) => {
 	const light = useRef<THREE.DirectionalLight>(null);
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -178,7 +187,7 @@ const SunFollowingTheView = ({ shadowMapSize, ground, palette, lighting, lights 
 	return (
 		<directionalLight
 			ref={light}
-			castShadow
+			castShadow={castsShadows}
 			intensity={palette.sunIntensity}
 			shadow-mapSize={[shadowMapSize, shadowMapSize]}
 			shadow-bias={-0.0004}
@@ -190,7 +199,14 @@ const SunFollowingTheView = ({ shadowMapSize, ground, palette, lighting, lights 
  * A sun whose shadows cover the whole ground, at the world's set time of day
  * (pictures of worlds, which don't move).
  */
-const SunOverTheGround = ({ shadowMapSize, ground, palette, lighting, lights }: ISunProps) => {
+const SunOverTheGround = ({
+	shadowMapSize,
+	castsShadows,
+	ground,
+	palette,
+	lighting,
+	lights,
+}: ISunProps) => {
 	const half = Math.max(ground.width, ground.depth) * 0.75;
 	const sky = skyLightAt(lighting, lighting.time);
 	const position = sunDirectionOf(sky).multiplyScalar(half * 1.4);
@@ -200,7 +216,7 @@ const SunOverTheGround = ({ shadowMapSize, ground, palette, lighting, lights }: 
 				lights.sun = light;
 				lightFor(lights, sky, palette, lighting.sunShadeContrast);
 			}}
-			castShadow
+			castShadow={castsShadows}
 			position={position}
 			intensity={palette.sunIntensity * sky.strength}
 			color={sky.color}
@@ -228,6 +244,8 @@ interface ISceneLightsProps {
 	followView?: boolean;
 	/** Pixels per side of the sun's shadow map (Graphics: Shadow detail). */
 	shadowMapSize?: number;
+	/** Whether the sun casts shadows (not in wireframe, ADR-0080). */
+	castsShadows?: boolean;
 }
 
 /** The scene's sky, fill and sun (or moon), for the world's time of day. */
@@ -237,6 +255,7 @@ export const SceneLights = ({
 	lighting,
 	followView = false,
 	shadowMapSize = SHADOW_MAP,
+	castsShadows = true,
 }: ISceneLightsProps) => {
 	const lights = useRef<ILights>({ sun: null, sky: null, ambient: null }).current;
 	return (
@@ -260,6 +279,7 @@ export const SceneLights = ({
 				<SunFollowingTheView
 					key={shadowMapSize}
 					shadowMapSize={shadowMapSize}
+					castsShadows={castsShadows}
 					ground={ground}
 					palette={palette}
 					lighting={lighting}
@@ -268,6 +288,7 @@ export const SceneLights = ({
 			) : (
 				<SunOverTheGround
 					shadowMapSize={shadowMapSize}
+					castsShadows={castsShadows}
 					ground={ground}
 					palette={palette}
 					lighting={lighting}

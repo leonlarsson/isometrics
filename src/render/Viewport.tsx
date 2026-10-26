@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { lazy, Suspense } from "react";
 
 import { drawsEffects, useGraphics } from "#/editor/graphics";
+import { usePreferences } from "#/editor/preferences";
 import { isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 
@@ -40,6 +41,7 @@ import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+import { Wireframe } from "./Wireframe";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
 const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
@@ -49,6 +51,7 @@ const Lights = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const shadowMapSize = useGraphics().shadowMapSize;
+	const wireframe = usePreferences().showWireframe;
 	return (
 		<SceneLights
 			ground={ground}
@@ -56,6 +59,7 @@ const Lights = () => {
 			lighting={lighting}
 			followView
 			shadowMapSize={shadowMapSize}
+			castsShadows={!wireframe}
 		/>
 	);
 };
@@ -65,8 +69,10 @@ export const Viewport = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
 	const graphics = useGraphics();
+	const wireframe = usePreferences().showWireframe;
 	const tiltShiftShown = useTiltShiftShown();
-	const composed = drawsEffects(graphics) || tiltShiftShown;
+	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
+	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
 
 	return (
 		<Canvas
@@ -155,6 +161,8 @@ export const Viewport = () => {
 			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
 
 			{graphics.showDistanceHaze && <DistanceHaze />}
+
+			{wireframe && <Wireframe />}
 
 			<CameraReadout />
 

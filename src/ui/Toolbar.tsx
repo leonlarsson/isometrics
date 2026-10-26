@@ -9,6 +9,7 @@ import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 import { SaveStatus } from "./SaveStatus";
+import { ShadingSwitcher } from "./ShadingSwitcher";
 import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
@@ -145,6 +146,10 @@ export const Toolbar = () => {
 				)}
 
 				<ViewpointsMenu />
+
+				<span className={styles.wideOnly}>
+					<ShadingSwitcher />
+				</span>
 
 				<span className={styles.wideOnly}>
 					<IconButtonGroup cluster="View">

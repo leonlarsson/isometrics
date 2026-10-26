@@ -263,6 +263,8 @@ export interface IEditorState {
 	holdingRightButton: boolean;
 	/** The Preferences dialog is open (ui/PreferencesDialog). Runtime UI state. */
 	preferencesOpen: boolean;
+	/** The page Preferences was opened for, if any (e.g. "graphics" from the toolbar). */
+	preferencesPage: string | null;
 	/** Incremented to ask the viewport to re-frame the camera. */
 	viewNonce: number;
 	/** What the next re-frame shows: a box (frame selection), or null for the whole ground. */
@@ -363,7 +365,8 @@ export interface IEditorState {
 	/** P: between the isometric diorama and perspective. */
 	toggleProjection: () => void;
 	setPreviewTiltShift: (preview: boolean) => void;
-	setPreferencesOpen: (open: boolean) => void;
+	/** Opens or closes Preferences, opening on `page` if given. */
+	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
@@ -808,6 +811,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			projection: "orthographic",
 			previewTiltShift: false,
 			preferencesOpen: false,
+			preferencesPage: null,
 			holdingRightButton: false,
 			viewNonce: 0,
 			frameBox: null,
@@ -1184,7 +1188,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					projection: s.projection === "perspective" ? "orthographic" : "perspective",
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
-			setPreferencesOpen: (open) => set({ preferencesOpen: open }),
+			setPreferencesOpen: (open, page) =>
+				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),
 			setHoldingRightButton: (holding) =>
 				set((s) => (s.holdingRightButton === holding ? s : { holdingRightButton: holding })),
 			resetCamera: () => {

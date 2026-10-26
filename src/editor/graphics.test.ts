@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { changedFromPreset, drawsEffects, graphicsOf, PRESET_GRAPHICS } from "./graphics";
+import {
+	changedFromPreset,
+	drawnGraphicsOf,
+	drawsEffects,
+	graphicsOf,
+	PRESET_GRAPHICS,
+} from "./graphics";
 import { DEFAULT_PREFERENCES, parsePreferences } from "./preferences";
 
 describe("graphics settings (ADR-0072)", () => {
@@ -38,5 +44,20 @@ describe("graphics settings (ADR-0072)", () => {
 		expect(parsePreferences(JSON.stringify({ graphicsPreset: "potato" })).graphicsPreset).toBe(
 			"standard",
 		);
+	});
+});
+
+describe("wireframe (ADR-0080)", () => {
+	it("draws with Standard's graphics, keeping the pixel density, whatever the preset", () => {
+		const ultra = {
+			...DEFAULT_PREFERENCES,
+			graphicsPreset: "ultra" as const,
+			maxPixelDensity: 1 as const,
+		};
+		expect(drawnGraphicsOf(ultra)).toEqual(graphicsOf(ultra));
+		expect(drawnGraphicsOf({ ...ultra, showWireframe: true })).toEqual({
+			...PRESET_GRAPHICS.standard,
+			maxPixelDensity: 1,
+		});
 	});
 });
