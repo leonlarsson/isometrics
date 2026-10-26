@@ -3,7 +3,7 @@ status: proposed
 date: 2026-10-26
 ---
 
-# 0079. Sun & sky splits into Moods, Light, and Sky & water
+# 0079. Sun & sky splits into Moods, Time & light, and Sky & water
 
 ## Context and problem statement
 
@@ -17,8 +17,8 @@ The Sun & sky tab (ADR-0052, ADR-0054) grew to seven panels and some 27 fields: 
 
 ## Considered options
 
-1. **Moods, Light, Sky & water.**
-2. **Light, Sky & water**, with Moods at the top of Light.
+1. **Moods, Time & light, Sky & water.**
+2. **Time & light, Sky & water**, with Moods at the top of Time & light.
 3. **Time, Sun & lights, Sky, Water**, one small tab each.
 
 ## Decision outcome
@@ -26,15 +26,16 @@ The Sun & sky tab (ADR-0052, ADR-0054) grew to seven panels and some 27 fields: 
 Chosen option: **1** (the owner's choice).
 
 - **Moods** (`moods`, palette icon): the world's moods.
-- **Light** (`light`, sun icon): the time of day and where it comes from, the sun (direction, height, colour, strength, sun and shade contrast), and when the world's lights come on.
+- **Time & light** (`light`, sun icon; first called Light, renamed so both halves show): the time of day and where it comes from, the sun (direction, height, colour, strength, sun and shade contrast), and when the world's lights come on.
 - **Sky & water** (`sky`, cloud icon, the old tab's id): the sky in perspective, the backdrop behind the diorama, the water.
-- The panels keep their ids (`sky.time`, `sky.water`…), so folded panels stay folded. Buttons and hints that pointed at Sun & sky point at the tab that now has the setting (Open the Light tab, Open the Moods tab). Settings search finds them in their new tabs.
-- The world tabs on the rail: World, Moods, Light, Sky & water, Camera, Viewpoints, Traffic, Data.
+- The panels keep their ids (`sky.time`, `sky.water`…), so folded panels stay folded. Buttons and hints that pointed at Sun & sky point at the tab that now has the setting (Open the Time & light tab, Open the Moods tab). Settings search finds them in their new tabs.
+- The world tabs on the rail: World, Moods, Time & light, Sky & water, Camera, Viewpoints, Traffic, Data.
+- Room to grow: a **Weather** tab is likely (clouds, fog, rain, snow; TODO *Weather*), taking the clouds from Sky & water, and Sky & water may split into Sky and Water once each has more.
 
 ### Consequences
 
 - Good: shorter tabs, grouped by what's set together; moods have a place of their own.
-- Bad: eight world tabs on the rail; one more click between the time of day and the sky.
+- Bad: eight world tabs on the rail (nine with Weather); one more click between the time of day and the sky.
 
 ## More information
 

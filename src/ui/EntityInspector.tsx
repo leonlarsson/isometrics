@@ -423,19 +423,19 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 		lighting.whenLightsAreOn === "off"
 			? {
 					title: "Lights are off everywhere",
-					text: "Light → Lights is set to Never, so no light in this world turns on after dark. Set it to After dark there.",
+					text: "Time & light → Lights is set to Never, so no light in this world turns on after dark. Set it to After dark there.",
 				}
 			: lighting.whenLightsAreOn === "on" || lighting.timeSource !== "fixed"
 				? null
 				: hour === null
 					? {
 							title: "It's always day here",
-							text: "This world shows classic daylight: the sun stays where it is and there's no clock, so lights that turn on after dark or on a schedule stay off. Pick a time in the Light tab, or set a light to turn on Always.",
+							text: "This world shows classic daylight: the sun stays where it is and there's no clock, so lights that turn on after dark or on a schedule stay off. Pick a time in the Time & light tab, or set a light to turn on Always.",
 						}
 					: palette.night < SWITCH_ON_DARKNESS
 						? {
 								title: "It's daytime here",
-								text: `It's ${formatClock(hour)} here and the time doesn't move, so lights that turn on after dark stay off. Pick a later time, or a day cycle, in the Light tab.`,
+								text: `It's ${formatClock(hour)} here and the time doesn't move, so lights that turn on after dark stay off. Pick a later time, or a day cycle, in the Time & light tab.`,
 							}
 						: null;
 
@@ -446,7 +446,7 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					<Hint>{notDark.text}</Hint>
 
 					<Button size="sm" icon="sun" onClick={() => setTab("light")}>
-						Open the Light tab
+						Open the Time & light tab
 					</Button>
 				</Section>
 			)}

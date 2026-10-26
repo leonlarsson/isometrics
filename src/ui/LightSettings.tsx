@@ -251,7 +251,7 @@ export const LightSettings = ({
 							schedule.length === 0
 								? "With no periods it's never on. Add the times it should be on, like a timer."
 								: hour === null
-									? "This world shows classic daylight, with no clock, so it stays off until you pick a time in the Light tab."
+									? "This world shows classic daylight, with no clock, so it stays off until you pick a time in the Time & light tab."
 									: `It's ${formatClock(hour)} in the world, so it's ${scheduledOn ? "on" : "off"} now.`
 						}
 					/>

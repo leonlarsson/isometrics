@@ -108,7 +108,7 @@ const Stage = ({ children }: { children: ReactNode }) => {
 /**
  * The world's title and subtitle, and under them its time when it has one
  * (classic daylight has no clock). In edit mode the time also says where it
- * comes from, in the words of the Light tab's Time follows, and opens that tab.
+ * comes from, in the words of the Time & light tab's Time follows, and opens that tab.
  */
 interface ISceneTitleProps {
 	onOpenSky: () => void;
@@ -162,7 +162,7 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 			{!shown(onScreen.showTimeOfDay) ? null : editing ? (
 				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.showTimeOfDay)}>
 					<span className={styles.sceneTimeOpen}>
-						<Tooltip label="Open the Light tab">
+						<Tooltip label="Open the Time & light tab">
 							<Button variant="text" size="sm" icon="clock" onClick={onOpenSky}>
 								{hour === null ? (
 									"Classic daylight"

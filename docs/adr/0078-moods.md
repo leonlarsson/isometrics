@@ -7,7 +7,7 @@ date: 2026-10-26
 
 ## Context and problem statement
 
-A world's look is many settings across the Light, Sky & water and Camera tabs: the time of day and how it passes, the sun, the contrast between sun and shade, the sky and clouds, the water's ripples and reflections, tilt-shift. Getting a world back to "golden hour, paused, tilt-shift on" means setting them one by one, and a shot like the `scripts/shots.mjs` pictures can't be reproduced from the UI. The owner asked for presets per world, and for viewpoints that carry a look (2026-10-26).
+A world's look is many settings across the Time & light, Sky & water and Camera tabs: the time of day and how it passes, the sun, the contrast between sun and shade, the sky and clouds, the water's ripples and reflections, tilt-shift. Getting a world back to "golden hour, paused, tilt-shift on" means setting them one by one, and a shot like the `scripts/shots.mjs` pictures can't be reproduced from the UI. The owner asked for presets per world, and for viewpoints that carry a look (2026-10-26).
 
 ## Decision drivers
 

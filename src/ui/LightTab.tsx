@@ -33,7 +33,7 @@ const LIGHTS_OPTIONS: { value: TLighting["whenLightsAreOn"]; label: string }[] =
 ];
 
 /**
- * The Light tab (ADR-0052, ADR-0054, ADR-0079): the time of day and where it
+ * The Time & light tab (ADR-0052, ADR-0054, ADR-0079): the time of day and where it
  * comes from; the sun's direction, height, colour and strength, each
  * following the time of day (or the classic daylight without one) until it's
  * set by hand, and the contrast between sun and shade; and when the world's

@@ -42,11 +42,11 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 	});
 });
 
-test.describe("Light (ADR-0052, ADR-0061)", () => {
+test.describe("Time & light (ADR-0052, ADR-0061)", () => {
 	test("the time follows a day cycle, a preset sets a fixed time, lights can be always on", async ({
 		page,
 	}) => {
-		await worldTab(page, "Light");
+		await worldTab(page, "Time & light");
 		await choose(page, "Time follows", "A day cycle");
 		expect(await read(page, (s) => s.scene.lighting.timeSource)).toBe("cycle");
 		await choose(page, "Time follows", "A fixed time");
@@ -60,7 +60,7 @@ test.describe("Light (ADR-0052, ADR-0061)", () => {
 	test("sun and shade contrast: Brightwater's is deeper than the default, and Reset goes back to the theme's balance (ADR-0072)", async ({
 		page,
 	}) => {
-		await worldTab(page, "Light");
+		await worldTab(page, "Time & light");
 		const contrast = box(page, "Sun and shade contrast");
 		await expect(contrast).toHaveValue("75");
 		await contrast.fill("60");

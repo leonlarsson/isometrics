@@ -37,7 +37,7 @@ import styles from "./Inspector.module.css";
 const WORLD_TABS: IInspectorTab[] = [
 	{ value: "world", label: "World", icon: "globe", content: <WorldTab /> },
 	{ value: "moods", label: "Moods", icon: "palette", content: <MoodsSection /> },
-	{ value: "light", label: "Light", icon: "sun", content: <LightTab /> },
+	{ value: "light", label: "Time & light", icon: "sun", content: <LightTab /> },
 	{ value: "sky", label: "Sky & water", icon: "cloud", content: <SkyWaterTab /> },
 	{ value: "camera", label: "Camera", icon: "video", content: <CameraTab /> },
 	{ value: "views", label: "Viewpoints", icon: "camera", content: <ViewpointsSection /> },
