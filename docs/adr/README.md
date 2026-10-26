@@ -81,3 +81,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0075](0075-reflective-water.md) | Reflective water: the world mirrored in rippling water, added as reflected light | proposed |
 | [0076](0076-colour-grade.md) | A colour grade on the finished picture | proposed |
 | [0077](0077-distance-haze.md) | Distance haze in perspective, as its own graphics setting | proposed |
+| [0078](0078-moods.md) | Moods: named looks saved in a world, and viewpoints that put one on | proposed |

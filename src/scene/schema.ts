@@ -568,6 +568,13 @@ export const ViewpointSchema = z
 			.describe(
 				"With projection perspective: this view's own field of view, in degrees. null = the world's (camera.fieldOfView).",
 			),
+		moodId: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe(
+				"The id of a mood (moods) that going to this view also puts on: its time of day, light, sky, water and tilt-shift. null = the view leaves the look as it is.",
+			),
 	})
 	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
 
@@ -850,6 +857,38 @@ export const WaterSchema = z
 	})
 	.describe("The world's water.");
 
+// See docs/adr/0078-moods.md.
+export const MoodSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the moods."),
+		name: z.string().default("").describe("Shown in the list, e.g. Golden hour."),
+		lighting: LightingSchema.default(() => LightingSchema.parse({})).describe(
+			"The world's lighting with this mood (as `lighting`).",
+		),
+		sky: SkySchema.default(() => SkySchema.parse({})).describe(
+			"The world's sky with this mood (as `sky`).",
+		),
+		water: WaterSchema.default(() => WaterSchema.parse({})).describe(
+			"The world's water with this mood (as `water`).",
+		),
+		camera: CameraSettingsSchema.pick({
+			tiltShiftOn: true,
+			tiltShiftBlur: true,
+			tiltShiftFocus: true,
+			tiltShiftPosition: true,
+		})
+			.default(() => ({
+				tiltShiftOn: false,
+				tiltShiftBlur: 0.5,
+				tiltShiftFocus: 0.3,
+				tiltShiftPosition: 0.5,
+			}))
+			.describe("The world's tilt-shift with this mood (as those settings in `camera`)."),
+	})
+	.describe(
+		"A named look of the world, like Golden hour or Night: its time of day, light, sky, water and tilt-shift, put on with one click or by going to a viewpoint that has it.",
+	);
+
 export const BackdropSchema = z
 	.object({
 		kind: z
@@ -921,6 +960,10 @@ export const SceneSchema = z
 			cloudSpeed: 1,
 		}),
 		water: WaterSchema.default({ rippleStrength: 0.5, reflectionStrength: 0.5 }),
+		moods: z
+			.array(MoodSchema)
+			.default([])
+			.describe("Named looks of the world (time of day, light, sky, water, tilt-shift)."),
 		backdrop: BackdropSchema.default({
 			kind: "sky",
 			color: null,
@@ -1004,6 +1047,11 @@ export const SceneSchema = z
 			["viewpoints"],
 			"viewpoint id",
 		);
+		checkUnique(
+			scene.moods.map((m) => m.id),
+			["moods"],
+			"mood id",
+		);
 	});
 
 export type TScene = z.output<typeof SceneSchema>;
@@ -1030,6 +1078,7 @@ export type TLighting = z.output<typeof LightingSchema>;
 export type TSky = z.output<typeof SkySchema>;
 export type TBackdrop = z.output<typeof BackdropSchema>;
 export type TWater = z.output<typeof WaterSchema>;
+export type TMood = z.output<typeof MoodSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;

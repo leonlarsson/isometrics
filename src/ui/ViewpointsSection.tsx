@@ -5,8 +5,9 @@ import { currentView } from "#/render/viewpoints";
 
 import { Button, IconButton, IconButtonGroup } from "./Button";
 import { FieldOfViewField } from "./FieldOfViewField";
-import { Hint, Section, TextField } from "./fields";
+import { Hint, Section, SelectField, TextField } from "./fields";
 import { List, ListItem } from "./List";
+import { moodName } from "./MoodsSection";
 
 /** A viewpoint's name, or its place in the list when it has none. */
 export const viewpointName = (viewpoint: { name: string }, index: number) =>
@@ -20,6 +21,7 @@ export const ViewpointsSection = () => {
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const activeId = useEditor((s) => s.activeViewpointId);
 	const worldFieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
+	const moods = useEditor((s) => s.scene.moods);
 	const openingId = useEditor((s) => s.scene.camera.openingViewpointId);
 	const openingIndex = viewpoints.findIndex((v) => v.id === openingId);
 	const [renaming, setRenaming] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export const ViewpointsSection = () => {
 			id="views.list"
 			icon="camera"
 			title="Viewpoints"
-			keywords="camera views slides opening view start star"
+			keywords="camera views slides opening view start star mood"
 		>
 			{viewpoints.length === 0 ? (
 				<Hint>
@@ -131,6 +133,42 @@ export const ViewpointsSection = () => {
 						)
 					}
 				/>
+			)}
+
+			{active && (
+				<SelectField<string>
+					label={`Mood with “${viewpointName(active, activeIndex)}”`}
+					value={active.moodId ?? ""}
+					options={[
+						{ value: "", label: "Leave the look as it is" },
+						...moods.map((mood, index) => ({ value: mood.id, label: moodName(mood, index) })),
+					]}
+					onChange={(id) =>
+						store().updateViewpoint(active.id, (v) => {
+							v.moodId = id || null;
+						})
+					}
+					inherit={{
+						from: "default",
+						inherited: active.moodId === null,
+						onReset: () =>
+							store().updateViewpoint(active.id, (v) => {
+								v.moodId = null;
+							}),
+						value: "leave the look as it is",
+					}}
+					hint={
+						moods.length === 0
+							? "Save moods in the Sun & sky tab (Moods), then pick one here: going to this view puts it on."
+							: "Going to this view also puts on the mood's time of day, light, sky, water and tilt-shift."
+					}
+				/>
+			)}
+
+			{active && moods.length === 0 && (
+				<Button size="sm" icon="sun" onClick={() => store().setTab("sky")}>
+					Open the Sun & sky tab
+				</Button>
 			)}
 
 			{active?.projection === "perspective" && (

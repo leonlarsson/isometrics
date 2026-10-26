@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { getPart } from "#/parts/registry";
+import { wearsMood } from "#/scene/moods";
 
 import { createEmptyScene, TEMPLATES } from "./index";
+import { createLanternBayScene } from "./lanternBay";
 
 const templates = [
 	...TEMPLATES.map((template) => [template.id, template.create] as const),
@@ -21,5 +23,21 @@ describe("templates", () => {
 				expect(known, `${entity.id} (${entity.kind})`).toContain(key);
 			}
 		}
+	});
+
+	it.each(templates)("%s's viewpoints name moods it has", (_, create) => {
+		const scene = create();
+		const moods = new Set(scene.moods.map((mood) => mood.id));
+		for (const viewpoint of scene.viewpoints) {
+			if (viewpoint.moodId !== null) {
+				expect(moods, viewpoint.id).toContain(viewpoint.moodId);
+			}
+		}
+	});
+
+	it("Lantern Bay opens wearing its mood The evening passes (ADR-0078)", () => {
+		const scene = createLanternBayScene();
+		const evening = scene.moods.find((mood) => mood.name === "The evening passes");
+		expect(evening && wearsMood(scene, evening)).toBe(true);
 	});
 });

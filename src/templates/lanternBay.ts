@@ -417,6 +417,38 @@ const nature: TEntityInput[] = [
 	})),
 ];
 
+// ---------------------------------------------------------------- moods
+
+/** Its look, the same in every mood but for the time of day (ADR-0078). */
+const SKY = { cloudCover: 0.2, starDensity: 0.9 };
+const WATER = { rippleStrength: 0.45 };
+const TILT_SHIFT = {
+	tiltShiftOn: true,
+	tiltShiftBlur: 0.45,
+	tiltShiftFocus: 0.38,
+	tiltShiftPosition: 0.5,
+};
+const LIGHTING = { dayLength: 300, sunShadeContrast: 0.75 };
+
+/** From golden hour into the night, a day in five minutes while motion plays (ADR-0052). */
+const EVENING_PASSES = { ...LIGHTING, time: 18.3, timeSource: "cycle" as const };
+
+const mood = (id: string, name: string, lighting: Record<string, unknown>) => ({
+	id,
+	name,
+	lighting: { ...LIGHTING, ...lighting },
+	sky: SKY,
+	water: WATER,
+	camera: TILT_SHIFT,
+});
+
+const MOODS = [
+	mood("mood_evening", "The evening passes", EVENING_PASSES),
+	mood("mood_golden", "Golden hour", { time: 18.3, timeSource: "fixed" }),
+	mood("mood_blue", "Blue hour", { time: 19.8, timeSource: "fixed" }),
+	mood("mood_night", "Night", { time: 21.5, timeSource: "fixed" }),
+];
+
 export const createLanternBayScene = (): TScene =>
 	SceneSchema.parse({
 		version: SCENE_VERSION,
@@ -427,17 +459,12 @@ export const createLanternBayScene = (): TScene =>
 		theme: "system",
 		ground: { width: 44, depth: 36, color: null },
 		drivingSide: "right",
-		// From golden hour into the night, a day in five minutes while motion plays (ADR-0052).
-		lighting: { time: 18.3, timeSource: "cycle", dayLength: 300, sunShadeContrast: 0.75 },
-		sky: { cloudCover: 0.2, starDensity: 0.9 },
-		water: { rippleStrength: 0.45 },
-		camera: {
-			openingViewpointId: "view_bay",
-			lowestElevation: 5,
-			tiltShiftOn: true,
-			tiltShiftBlur: 0.45,
-			tiltShiftFocus: 0.38,
-		},
+		// It opens wearing The evening passes.
+		lighting: EVENING_PASSES,
+		sky: SKY,
+		water: WATER,
+		camera: { openingViewpointId: "view_bay", lowestElevation: 5, ...TILT_SHIFT },
+		moods: MOODS,
 		viewpoints: [
 			{
 				id: "view_bay",
@@ -448,6 +475,7 @@ export const createLanternBayScene = (): TScene =>
 				elevation: 10,
 				span: 30,
 				projection: "perspective",
+				moodId: "mood_evening",
 			},
 			{
 				id: "view_overview",
@@ -465,6 +493,7 @@ export const createLanternBayScene = (): TScene =>
 				elevation: 12,
 				span: 13,
 				projection: "perspective",
+				moodId: "mood_night",
 			},
 			{
 				id: "view_basin",
@@ -475,6 +504,7 @@ export const createLanternBayScene = (): TScene =>
 				elevation: 14,
 				span: 15,
 				projection: "perspective",
+				moodId: "mood_blue",
 			},
 			{
 				id: "view_pier",
@@ -485,6 +515,7 @@ export const createLanternBayScene = (): TScene =>
 				elevation: 16,
 				span: 14,
 				projection: "perspective",
+				moodId: "mood_night",
 			},
 		],
 		data: [

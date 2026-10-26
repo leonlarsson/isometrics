@@ -6,6 +6,7 @@ import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
+import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
 	joinedPoints,
@@ -44,6 +45,7 @@ import {
 } from "#/scene/schema";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
+import { restartDayCycle } from "./dayClock";
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
 import { readPreferences } from "./preferences";
 import { notify } from "./toasts";
@@ -410,6 +412,15 @@ export interface IEditorState {
 	removeViewpoint: (id: string) => void;
 	/** The viewpoint the world opens at (and re-centring goes back to), or null for the whole world. */
 	setOpeningViewpoint: (id: string | null) => void;
+	/** Saves the world's look now as a new mood (ADR-0078) and returns its id. */
+	saveMood: () => string;
+	/** Puts a mood on the world: its time of day, light, sky, water and tilt-shift. */
+	putOnMood: (id: string) => void;
+	/** Saves the world's look now over a mood. */
+	resaveMood: (id: string) => void;
+	renameMood: (id: string, name: string) => void;
+	/** Deletes a mood; viewpoints that had it leave the look as it is. */
+	removeMood: (id: string) => void;
 	/** Move a viewpoint to another place in the list (`to` = its new index). */
 	moveViewpoint: (id: string, to: number) => void;
 
@@ -1328,6 +1339,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (!viewpoint) {
 					return;
 				}
+				// Its mood too, if it has one (ADR-0078).
+				if (viewpoint.moodId && get().scene.moods.some((m) => m.id === viewpoint.moodId)) {
+					get().putOnMood(viewpoint.moodId);
+				}
 				set((s) => ({
 					cameraFollow: null,
 					projection: viewpoint.projection,
@@ -1396,6 +1411,55 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			setOpeningViewpoint: (id) =>
 				get().commit((scene) => {
 					scene.camera.openingViewpointId = id;
+				}),
+
+			saveMood: () => {
+				const { scene } = get();
+				const mood = moodOf(scene, newId("mood"), `Mood ${scene.moods.length + 1}`);
+				get().commit((draft) => {
+					draft.moods.push(mood);
+				});
+				return mood.id;
+			},
+
+			putOnMood: (id) => {
+				const mood = get().scene.moods.find((m) => m.id === id);
+				if (!mood || wearsMood(get().scene, mood)) {
+					return;
+				}
+				get().commit((scene) => {
+					putOnMood(scene, mood);
+				});
+				// A day cycle starts again from the mood's time.
+				if (mood.lighting.timeSource === "cycle") {
+					restartDayCycle();
+				}
+			},
+
+			resaveMood: (id) =>
+				get().commit((scene) => {
+					const index = scene.moods.findIndex((m) => m.id === id);
+					if (index >= 0) {
+						scene.moods[index] = moodOf(scene as TScene, id, scene.moods[index].name);
+					}
+				}),
+
+			renameMood: (id, name) =>
+				get().commit((scene) => {
+					const mood = scene.moods.find((m) => m.id === id);
+					if (mood) {
+						mood.name = name;
+					}
+				}),
+
+			removeMood: (id) =>
+				get().commit((scene) => {
+					scene.moods = scene.moods.filter((m) => m.id !== id);
+					for (const viewpoint of scene.viewpoints) {
+						if (viewpoint.moodId === id) {
+							viewpoint.moodId = null;
+						}
+					}
 				}),
 
 			addEntity: (input) => {

@@ -27,6 +27,7 @@ describe("sceneJsonSchema", () => {
 			"data.key",
 			"data.value",
 			"viewpoints.id",
+			"moods.id",
 		];
 		const required: string[] = [];
 		const undescribed: string[] = [];

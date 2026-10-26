@@ -1,8 +1,10 @@
 import { useEditor } from "#/editor/store";
 import { currentView } from "#/render/viewpoints";
+import { wearsMood } from "#/scene/moods";
 
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
+import { moodName, moodTime } from "./MoodsSection";
 import { viewpointName } from "./ViewpointsSection";
 
 import styles from "./ViewpointsMenu.module.css";
@@ -16,11 +18,13 @@ export const saveCurrentView = () => {
 };
 
 /**
- * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), and in
- * Edit mode save the current view or open the list in the Viewpoints tab.
+ * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), put on
+ * one of the world's moods, and in Edit mode save the current view or open the
+ * list in the Viewpoints tab.
  */
 export const ViewpointsMenu = () => {
-	const viewpoints = useEditor((s) => s.scene.viewpoints);
+	const scene = useEditor((s) => s.scene);
+	const { viewpoints, moods } = scene;
 	const mode = useEditor((s) => s.mode);
 	const store = () => useEditor.getState();
 
@@ -46,6 +50,20 @@ export const ViewpointsMenu = () => {
 						onClick={() => store().goToViewpoint(viewpoint.id)}
 					/>
 				))}
+
+				{moods.length > 0 && (
+					<Menu.Group label="Moods">
+						{moods.map((mood, index) => (
+							<Menu.Item
+								key={mood.id}
+								icon={wearsMood(scene, mood) ? "check" : undefined}
+								label={moodName(mood, index)}
+								description={moodTime(mood)}
+								onClick={() => store().putOnMood(mood.id)}
+							/>
+						))}
+					</Menu.Group>
+				)}
 
 				{mode === "edit" && <Menu.Separator />}
 

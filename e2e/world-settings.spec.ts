@@ -97,6 +97,48 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 	});
 });
 
+test.describe("moods (ADR-0078)", () => {
+	test("save the look as a mood, change it, put the mood back on; a viewpoint puts its mood on", async ({
+		page,
+	}) => {
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.lighting.time = 18.5;
+				scene.lighting.timeSource = "fixed";
+			}),
+		);
+		await worldTab(page, "Sun & sky");
+		await page.getByRole("button", { name: "Save the current look" }).click();
+		// It opens for naming.
+		await page.keyboard.press("Control+a");
+		await page.keyboard.type("Dusk");
+		await page.keyboard.press("Enter");
+		const moodId = await read(page, (s) => s.scene.moods.at(-1)?.id ?? "");
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.lighting.time = 22;
+			}),
+		);
+		expect(await read(page, (s) => s.scene.moods.at(-1)?.name)).toBe("Dusk");
+		await page.getByRole("button", { name: /^Dusk/ }).click();
+		expect(await read(page, (s) => s.scene.lighting.time)).toBe(18.5);
+
+		// A viewpoint with the mood puts it on when gone to.
+		await act(
+			page,
+			(s, moodId) => {
+				s.commit((scene) => {
+					scene.lighting.time = 22;
+					scene.viewpoints[0].moodId = moodId;
+				});
+				s.goToViewpoint(s.scene.viewpoints[0].id);
+			},
+			moodId,
+		);
+		expect(await read(page, (s) => s.scene.lighting.time)).toBe(18.5);
+	});
+});
+
 test.describe("water (ADR-0075)", () => {
 	test("the world's ripples and reflections, and a water area's own, which follow the world until set", async ({
 		page,

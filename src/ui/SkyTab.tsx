@@ -8,6 +8,7 @@ import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
+import { MoodsSection } from "./MoodsSection";
 import { BackdropSection, SkySection } from "./SkySettings";
 import { WaterSection } from "./WaterSettings";
 
@@ -84,6 +85,8 @@ export const SkyTab = () => {
 			<FollowDataNote title="The time can follow data">
 				The time of day can come from a value in the Data tab, like the hour a sensor reports.
 			</FollowDataNote>
+
+			<MoodsSection />
 
 			<Section
 				id="sky.time"
