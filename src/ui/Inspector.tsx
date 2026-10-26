@@ -21,11 +21,13 @@ import { groupTabs } from "./GroupInspector";
 import { Icon, type TIconName } from "./Icon";
 import { describeItems } from "./ItemContextMenu";
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
+import { LightTab } from "./LightTab";
+import { MoodsSection } from "./MoodsSection";
 import { Outliner } from "./Outliner";
 import { PartsPalette } from "./PartsPalette";
 import { RailTabPanel, RailTabs } from "./RailTabs";
 import { roadTabs } from "./RoadInspector";
-import { SkyTab } from "./SkyTab";
+import { SkyWaterTab } from "./SkySettings";
 import { ViewpointsSection } from "./ViewpointsSection";
 import { TrafficTab, WorldTab } from "./WorldTabs";
 
@@ -34,7 +36,9 @@ import styles from "./Inspector.module.css";
 /** The tabs about the whole world, always on the rail. */
 const WORLD_TABS: IInspectorTab[] = [
 	{ value: "world", label: "World", icon: "globe", content: <WorldTab /> },
-	{ value: "sky", label: "Sun & sky", icon: "sun", content: <SkyTab /> },
+	{ value: "moods", label: "Moods", icon: "palette", content: <MoodsSection /> },
+	{ value: "light", label: "Light", icon: "sun", content: <LightTab /> },
+	{ value: "sky", label: "Sky & water", icon: "cloud", content: <SkyWaterTab /> },
 	{ value: "camera", label: "Camera", icon: "video", content: <CameraTab /> },
 	{ value: "views", label: "Viewpoints", icon: "camera", content: <ViewpointsSection /> },
 	{ value: "traffic", label: "Traffic", icon: "traffic", content: <TrafficTab /> },

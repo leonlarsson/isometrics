@@ -141,7 +141,7 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* In edit mode the time is a button that opens Sun & sky; the title itself lets clicks through. */
+/* In edit mode the time is a button that opens the Light tab; the title itself lets clicks through. */
 .sceneTimeOpen {
 	pointer-events: auto;
 }

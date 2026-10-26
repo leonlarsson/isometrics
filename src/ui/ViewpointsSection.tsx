@@ -159,15 +159,15 @@ export const ViewpointsSection = () => {
 					}}
 					hint={
 						moods.length === 0
-							? "Save moods in the Sun & sky tab (Moods), then pick one here: going to this view puts it on."
+							? "Save moods in the Moods tab, then pick one here: going to this view puts it on."
 							: "Going to this view also puts on the mood's time of day, light, sky, water and tilt-shift."
 					}
 				/>
 			)}
 
 			{active && moods.length === 0 && (
-				<Button size="sm" icon="sun" onClick={() => store().setTab("sky")}>
-					Open the Sun & sky tab
+				<Button size="sm" icon="palette" onClick={() => store().setTab("moods")}>
+					Open the Moods tab
 				</Button>
 			)}
 

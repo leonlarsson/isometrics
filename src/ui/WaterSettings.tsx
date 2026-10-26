@@ -32,7 +32,7 @@ export const RipplesNote = () => {
 	);
 };
 
-/** Sun & sky → Water: how rippled and how mirroring the world's water is, unless an area sets its own. */
+/** Sky & water → Water: how rippled and how mirroring the world's water is, unless an area sets its own. */
 export const WaterSection = () => {
 	const water = useEditor((s) => s.scene.water);
 	const commit = useEditor((s) => s.commit);

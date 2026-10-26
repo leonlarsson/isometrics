@@ -8,9 +8,6 @@ import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
-import { MoodsSection } from "./MoodsSection";
-import { BackdropSection, SkySection } from "./SkySettings";
-import { WaterSection } from "./WaterSettings";
 
 /** Times of day a click away. */
 const PRESETS: { label: string; hour: number }[] = [
@@ -36,13 +33,14 @@ const LIGHTS_OPTIONS: { value: TLighting["whenLightsAreOn"]; label: string }[] =
 ];
 
 /**
- * The Sun & sky tab (ADR-0052, ADR-0054): the time of day and where it comes
- * from; the sun's direction, height, colour and strength, each following the
- * time of day (or the classic daylight without one) until it's set by hand;
- * the sky in perspective and the backdrop behind the diorama (ADR-0070); and
- * when lights come on.
+ * The Light tab (ADR-0052, ADR-0054, ADR-0079): the time of day and where it
+ * comes from; the sun's direction, height, colour and strength, each
+ * following the time of day (or the classic daylight without one) until it's
+ * set by hand, and the contrast between sun and shade; and when the world's
+ * lights come on. The sky, backdrop and water are in Sky & water, the world's
+ * moods in Moods.
  */
-export const SkyTab = () => {
+export const LightTab = () => {
 	const lighting = useEditor((s) => s.scene.lighting);
 	const data = useEditor((s) => s.scene.data);
 	const commit = useEditor((s) => s.commit);
@@ -85,8 +83,6 @@ export const SkyTab = () => {
 			<FollowDataNote title="The time can follow data">
 				The time of day can come from a value in the Data tab, like the hour a sensor reports.
 			</FollowDataNote>
-
-			<MoodsSection />
 
 			<Section
 				id="sky.time"
@@ -264,18 +260,18 @@ export const SkyTab = () => {
 				/>
 			</Section>
 
-			<SkySection />
-
-			<BackdropSection />
-
-			<WaterSection />
-
 			<Section id="sky.lights" icon="bulb" title="Lights" keywords="night windows lamps headlights">
 				<SelectField<TLighting["whenLightsAreOn"]>
 					label="Lit windows, lamps and headlights"
 					value={lighting.whenLightsAreOn}
 					options={LIGHTS_OPTIONS}
 					onChange={(lights) => set("whenLightsAreOn", lights)}
+					inherit={{
+						from: "default",
+						inherited: lighting.whenLightsAreOn === "auto",
+						onReset: () => set("whenLightsAreOn", "auto"),
+						value: "after dark",
+					}}
 				/>
 
 				{fromTime.night >= SWITCH_ON_DARKNESS && lighting.whenLightsAreOn === "auto" && (

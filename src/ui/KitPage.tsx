@@ -207,7 +207,7 @@ export const KitPage = () => {
 									groups={[
 										[
 											{ value: "world", label: "World", icon: "globe" },
-											{ value: "sky", label: "Sun & sky", icon: "sun" },
+											{ value: "sky", label: "Light", icon: "sun" },
 										],
 										[{ value: "object", label: "Object", icon: "cube" }],
 									]}

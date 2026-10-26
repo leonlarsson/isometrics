@@ -8,6 +8,7 @@ import { skyColorsAt, skyLookAt } from "#/scene/sky";
 
 import { Button } from "./Button";
 import { ColorField, Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
+import { WaterSection } from "./WaterSettings";
 
 const SKY_DEFAULTS = SkySchema.parse({});
 
@@ -271,3 +272,14 @@ export const BackdropSection = () => {
 		</Section>
 	);
 };
+
+/** The Sky & water tab (ADR-0079): the sky in perspective, the backdrop behind the diorama, the water. */
+export const SkyWaterTab = () => (
+	<>
+		<SkySection />
+
+		<BackdropSection />
+
+		<WaterSection />
+	</>
+);

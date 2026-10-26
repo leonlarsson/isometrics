@@ -42,11 +42,11 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 	});
 });
 
-test.describe("Sun & sky (ADR-0052, ADR-0061)", () => {
+test.describe("Light (ADR-0052, ADR-0061)", () => {
 	test("the time follows a day cycle, a preset sets a fixed time, lights can be always on", async ({
 		page,
 	}) => {
-		await worldTab(page, "Sun & sky");
+		await worldTab(page, "Light");
 		await choose(page, "Time follows", "A day cycle");
 		expect(await read(page, (s) => s.scene.lighting.timeSource)).toBe("cycle");
 		await choose(page, "Time follows", "A fixed time");
@@ -60,7 +60,7 @@ test.describe("Sun & sky (ADR-0052, ADR-0061)", () => {
 	test("sun and shade contrast: Brightwater's is deeper than the default, and Reset goes back to the theme's balance (ADR-0072)", async ({
 		page,
 	}) => {
-		await worldTab(page, "Sun & sky");
+		await worldTab(page, "Light");
 		const contrast = box(page, "Sun and shade contrast");
 		await expect(contrast).toHaveValue("75");
 		await contrast.fill("60");
@@ -79,7 +79,7 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 	test("the sky can be switched off and clouded over; the diorama's backdrop can be a green screen", async ({
 		page,
 	}) => {
-		await worldTab(page, "Sun & sky");
+		await worldTab(page, "Sky & water");
 		await box(page, "Cloud cover").fill("80");
 		await box(page, "Cloud cover").press("Enter");
 		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(0.8);
@@ -107,7 +107,7 @@ test.describe("moods (ADR-0078)", () => {
 				scene.lighting.timeSource = "fixed";
 			}),
 		);
-		await worldTab(page, "Sun & sky");
+		await worldTab(page, "Moods");
 		await page.getByRole("button", { name: "Save the current look" }).click();
 		// It opens for naming.
 		await page.keyboard.press("Control+a");
@@ -169,7 +169,7 @@ test.describe("water (ADR-0075)", () => {
 				},
 			],
 		});
-		await worldTab(page, "Sun & sky");
+		await worldTab(page, "Sky & water");
 		await box(page, "Ripples on the water").fill("20");
 		await box(page, "Ripples on the water").press("Enter");
 		expect(await read(page, (s) => s.scene.water.rippleStrength)).toBe(0.2);

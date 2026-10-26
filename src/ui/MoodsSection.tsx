@@ -28,7 +28,7 @@ export const moodTime = (mood: TMood) => {
 };
 
 /**
- * Sun & sky → Moods (ADR-0078): named looks of the world (its time of day,
+ * The Moods tab (ADR-0078, ADR-0079): named looks of the world (its time of day,
  * light, sky, water and tilt-shift). Click one to put it on; save the look as
  * it is now as a new mood or over one; a viewpoint can put one on too.
  */

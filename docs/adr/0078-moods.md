@@ -7,7 +7,7 @@ date: 2026-10-26
 
 ## Context and problem statement
 
-A world's look is many settings across Sun & sky and the Camera tab: the time of day and how it passes, the sun, the contrast between sun and shade, the sky and clouds, the water's ripples and reflections, tilt-shift. Getting a world back to "golden hour, paused, tilt-shift on" means setting them one by one, and a shot like the `scripts/shots.mjs` pictures can't be reproduced from the UI. The owner asked for presets per world, and for viewpoints that carry a look (2026-10-26).
+A world's look is many settings across the Light, Sky & water and Camera tabs: the time of day and how it passes, the sun, the contrast between sun and shade, the sky and clouds, the water's ripples and reflections, tilt-shift. Getting a world back to "golden hour, paused, tilt-shift on" means setting them one by one, and a shot like the `scripts/shots.mjs` pictures can't be reproduced from the UI. The owner asked for presets per world, and for viewpoints that carry a look (2026-10-26).
 
 ## Decision drivers
 
@@ -29,7 +29,7 @@ Chosen option: **1**.
 - `scene.moods`: each has an id, a name and copies of `lighting` (the time of day and how it passes included), `sky`, `water`, and the tilt-shift settings of `camera`. Missing parts get the defaults, like the world's own fields.
 - **Putting on a mood** copies them into the world as one edit (undoable). A mood whose time cycles starts its day cycle again from the mood's time. The list shows which mood the world wears now, by comparing the settings.
 - **Viewpoints** can name a mood (`moodId`, null = leave the look as it is); going to the viewpoint (the list, the Views menu, keys 1–9, the View mode bar) puts it on. Opening a world doesn't: it opens with its own look. A viewer can opt out (a preference, per browser: **Viewpoints put on their moods**, on by default, in Preferences → Camera and as a checkbox in the Views menu); then viewpoints only move the camera.
-- UI: Sun & sky → **Moods** (click to put one on; save the current look as a new mood or over one; rename; delete, which leaves viewpoints that had it as they are); the selected viewpoint's **Mood with “…”** field in the Viewpoints tab; the moods in the toolbar's Views menu, so viewers can switch in View mode.
+- UI: the **Moods** tab (click to put one on; save the current look as a new mood or over one; rename; delete, which leaves viewpoints that had it as they are); the selected viewpoint's **Mood with “…”** field in the Viewpoints tab; the moods in the toolbar's Views menu, so viewers can switch in View mode.
 - A new setting that is part of the world's look goes into moods too (`scene/moods.ts`: `moodOf`, `putOnMood`), with its own field in `MoodSchema`.
 - Lantern Bay ships The evening passes (its own look, a day cycle from 18:18), Golden hour, Blue hour and Night; its viewpoints put them on.
 
