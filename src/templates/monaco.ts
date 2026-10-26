@@ -395,7 +395,7 @@ const city: TEntityInput[] = (
 	position: fromMap([x, y]),
 	elevation: HILLSIDE,
 	colors: paint({ facade: ["#e9d8b8", "#d9c3a5", "#f1e4cf", "#c9d6e0"][i % 4], grid: "#fbf7ef" }),
-	props: { width: 2.4, depth: 2.4, floors },
+	props: { width: 2.4, depth: 2.4, floorCount: floors },
 }));
 
 /** Lower ground: La Condamine, the old town on the Rock, and the block above Portier. */
@@ -417,7 +417,7 @@ const lowCity: TEntityInput[] = (
 	position: fromMap([x, y]),
 	elevation,
 	colors: paint({ facade: ["#f1e4cf", "#e9d8b8", "#efd9c0", "#d9c3a5"][i % 4], grid: "#fbf7ef" }),
-	props: { width: 2.2, depth: 2.2, floors },
+	props: { width: 2.2, depth: 2.2, floorCount: floors },
 }));
 
 /** Yachts moored along the piers, and a few bigger ones on the outer quay. */
@@ -450,7 +450,7 @@ const yachts: TEntityInput[] = [
 		kind: "yacht_01",
 		position: fromMap([x, y]),
 		colors: paint({ stripe: i % 2 === 0 ? "#1f1f24" : null }),
-		props: { length, decks },
+		props: { length, deckCount: decks },
 	})),
 ];
 
@@ -472,7 +472,7 @@ const trees: TEntityInput[] = (
 	kind: i % 2 === 0 ? "round_tree_01" : "pine_tree_01",
 	position: fromMap([x, y]),
 	elevation,
-	props: { letterHeight: 0.9 },
+	props: { size: 0.9 },
 }));
 
 /** The Circuit de Monaco around Port Hercule, with live race data. */

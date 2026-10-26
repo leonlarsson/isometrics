@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { TreeSizeSchema, treeRenamedProps, treeSizeFields } from "./treeSize";
 
 export const roundTree01 = definePart({
 	kind: "round_tree_01",
@@ -11,6 +11,7 @@ export const roundTree01 = definePart({
 	keywords: ["oak", "plant", "nature", "park"],
 	schema: TreeSizeSchema,
 	fields: treeSizeFields,
+	renamedProps: treeRenamedProps,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },

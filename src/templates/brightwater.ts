@@ -442,8 +442,8 @@ const logistics: TEntityInput[] = [
 		position: [19, -6.4],
 		props: { radius: 1.1 },
 	},
-	{ id: "parcels_a", kind: "parcel_stack_01", position: [15.6, -6.4], props: { count: 8 } },
-	{ id: "parcels_b", kind: "parcel_stack_01", position: [22.4, -6], props: { count: 5 } },
+	{ id: "parcels_a", kind: "parcel_stack_01", position: [15.6, -6.4], props: { parcelCount: 8 } },
+	{ id: "parcels_b", kind: "parcel_stack_01", position: [22.4, -6], props: { parcelCount: 5 } },
 	...[-7.4, -5.2].map((z, i) => ({
 		id: `parked_truck_${i}`,
 		kind: "truck_01",
@@ -610,7 +610,7 @@ const civic: TEntityInput[] = [
 		kind: "round_tree_01",
 		name: "Old oak",
 		position: [-12.6, 6.6],
-		props: { letterHeight: 1.6 },
+		props: { size: 1.6 },
 		label: {
 			title: "Riverside Park",
 			dataKeys: ["park_visitors"],

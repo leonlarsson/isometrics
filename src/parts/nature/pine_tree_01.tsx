@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { TreeSizeSchema, treeRenamedProps, treeSizeFields } from "./treeSize";
 
 export const pineTree01 = definePart({
 	kind: "pine_tree_01",
@@ -11,6 +11,7 @@ export const pineTree01 = definePart({
 	keywords: ["fir", "spruce", "forest", "plant", "nature"],
 	schema: TreeSizeSchema,
 	fields: treeSizeFields,
+	renamedProps: treeRenamedProps,
 	colors: [
 		{ id: "needles", name: "Needles", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
