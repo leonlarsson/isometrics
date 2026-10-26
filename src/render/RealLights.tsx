@@ -30,9 +30,21 @@ const sources = keepOnHotReload("realLightSources", () => new Map<string, IRealL
 const BRIGHTNESS: Record<TLightShape, number> = {
 	pool: 4.5,
 	beam: 3.5,
-	windows: 9,
+	windows: 2.2,
 	glow: 4,
 	lens: 1.5,
+};
+
+/**
+ * How fast the light falls off with distance, by its shape: lamps and
+ * headlights are bright close by; light from windows spreads in a broad wash.
+ */
+const DECAY: Record<TLightShape, number> = {
+	pool: 1.6,
+	beam: 1.6,
+	windows: 0.9,
+	glow: 1.3,
+	lens: 1.6,
 };
 
 /** How far the light carries beyond the reach of its painted pool or glow. */
@@ -150,6 +162,7 @@ export const RealLights = ({ count }: IRealLightsProps) => {
 			light.color.set(source.light.color);
 			light.intensity = realLightIntensity(source.light, source.shape) * slot.fade;
 			light.distance = source.reach * REACH_FACTOR;
+			light.decay = DECAY[source.shape];
 		});
 	});
 

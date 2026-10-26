@@ -73,9 +73,10 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	 * Lights the streets, walls and water round it as a real light too, from
 	 * here, when the graphics settings draw real lights at night (ADR-0072);
 	 * without it, the light is painted only. A part with several lights in one
-	 * place gives it to one of them.
+	 * place gives it to one of them. Several sources for a light that shines
+	 * from several places, like a tower's windows on each of its sides.
 	 */
-	realLight?(props: P): IRealLightSource;
+	realLight?(props: P): IRealLightSource | IRealLightSource[];
 }
 
 /**

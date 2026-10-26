@@ -5,6 +5,7 @@ import {
 	CopyPass,
 	EffectComposer,
 	EffectPass,
+	KernelSize,
 	Pass,
 	ShaderPass,
 	SMAAEffect,
@@ -19,8 +20,13 @@ import { skyLightAt } from "#/scene/sun";
 
 import { BandBlurShader, bandBlurSettings, useTiltShiftShown } from "./TiltShift";
 
-/** The glow's strength at full dark; it fades with the light and is off by day. */
-const GLOW_AT_NIGHT = 1.1;
+/**
+ * The glow after dark, in two layers: a tight, bright one round lit panes,
+ * lamps and headlights, and a faint, wide halo round the brightest. Their
+ * strengths at full dark; they fade with the light and are off by day.
+ */
+const GLOW_CORE_AT_NIGHT = 0.9;
+const GLOW_HALO_AT_NIGHT = 0.35;
 
 /** postprocessing's full-screen triangle is in clip space already. */
 const FULL_SCREEN_VERTEX = /* glsl */ `
@@ -134,13 +140,25 @@ const composeFor = (
 		});
 		composer.addPass(occlusion);
 	}
-	// The Kawase blur, not the mipmap one: fed a scene without multisampling (with SMAA), the mipmap
-	// blur turned a whole channel of some views to NaN, which the canvas shows as a frame in one or two
-	// colours, or black (low perspective views at night, while panning).
-	const bloom = graphics.showGlowAfterDark
-		? new BloomEffect({ mipmapBlur: false, luminanceThreshold: 0.85 })
+	// The Kawase blur, not the mipmap one: the mipmap blur turned the red channel of some whole night
+	// views to NaN inside its own passes (with SMAA, no multisampling), which the canvas shows as a
+	// frame in one or two colours, or black, while panning.
+	const glowLayers = graphics.showGlowAfterDark
+		? ([
+				new BloomEffect({
+					mipmapBlur: false,
+					kernelSize: KernelSize.SMALL,
+					luminanceThreshold: 0.9,
+					luminanceSmoothing: 0.15,
+				}),
+				new BloomEffect({
+					mipmapBlur: false,
+					kernelSize: KernelSize.HUGE,
+					luminanceThreshold: 0.97,
+				}),
+			] as const)
 		: null;
-	const glow = bloom ? new EffectPass(camera, bloom) : null;
+	const glow = glowLayers ? new EffectPass(camera, ...glowLayers) : null;
 	if (glow) {
 		composer.addPass(glow);
 	}
@@ -154,7 +172,7 @@ const composeFor = (
 	);
 	// After every pass is added: the composer hands passes the depth of its own buffers, empty here.
 	occlusion?.setDepthTexture(scenePass.sceneDepth);
-	return { composer, bloom, glow, blur: [across, up] as const, drawnAt: "" };
+	return { composer, glowLayers, glow, blur: [across, up] as const, drawnAt: "" };
 };
 
 interface IEffectsProps {
@@ -204,15 +222,16 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 			gl.render(scene, camera);
 			return;
 		}
-		const { composer, bloom, glow, blur } = made;
+		const { composer, glowLayers, glow, blur } = made;
 		const at = `${size.width}×${size.height}@${gl.getPixelRatio()}`;
 		if (made.drawnAt !== at) {
 			made.drawnAt = at;
 			composer.setSize(size.width, size.height, false);
 		}
-		if (bloom && glow) {
+		if (glowLayers && glow) {
 			const night = skyLightAt(useEditor.getState().scene.lighting, sceneHoursNow()).night;
-			bloom.intensity = GLOW_AT_NIGHT * night;
+			glowLayers[0].intensity = GLOW_CORE_AT_NIGHT * night;
+			glowLayers[1].intensity = GLOW_HALO_AT_NIGHT * night;
 			glow.enabled = night > 0.01;
 		}
 		const settings = bandBlurSettings(useEditor.getState().scene.camera, size.width, size.height);

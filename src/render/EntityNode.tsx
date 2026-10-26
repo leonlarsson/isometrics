@@ -419,23 +419,25 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 
 				{/* Its lights that light their surroundings, where they shine from (ADR-0072). */}
 				{drawsRealLights &&
-					part.lights?.map((spec) => {
-						const source = spec.realLight?.(props);
+					part.lights?.flatMap((spec) => {
 						const light = lights[spec.id];
-						if (!source || !light) {
-							return null;
+						const found = spec.realLight?.(props);
+						if (!found || !light) {
+							return [];
 						}
 						const ownReach = LIGHT_SHAPES_WITH_REACH.includes(spec.shape);
-						return (
-							<RealLightSource
-								key={spec.id}
-								id={`${entity.id}:${spec.id}`}
-								at={source.at}
-								light={light}
-								shape={spec.shape}
-								reach={(ownReach ? light.reach : (source.reach ?? 1)) * entity.scale}
-							/>
-						);
+						return [found]
+							.flat()
+							.map((source, i) => (
+								<RealLightSource
+									key={`${spec.id}@${source.at.join(",")}`}
+									id={`${entity.id}:${spec.id}:${i}`}
+									at={source.at}
+									light={light}
+									shape={spec.shape}
+									reach={(ownReach ? light.reach : (source.reach ?? 1)) * entity.scale}
+								/>
+							));
 					})}
 
 				{mode === "edit" && (selected || hovered || listHovered || boxed) && (

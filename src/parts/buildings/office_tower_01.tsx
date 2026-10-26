@@ -31,11 +31,20 @@ export const officeTower01 = definePart({
 			litPanes: 0.28,
 			weight: 9,
 			comesOn: "oneByOne",
-			// The windows' light on the street round the tower (the screens add none of their own).
-			realLight: (p) => ({
-				at: [0, Math.min(1.5, (p.floorCount * FLOOR_HEIGHT) / 2), 0],
-				reach: Math.max(p.width, p.depth) * 1.6,
-			}),
+			// The windows' light on the street and the buildings on every side of the tower (the screens
+			// add none of their own).
+			realLight: (p) => {
+				// Low and out on the street, so it lights the ground and the buildings across from it, and
+				// only grazes its own wall.
+				const y = 1.1;
+				const out = 1.4;
+				return [
+					{ at: [0, y, p.depth / 2 + out], reach: p.width * 1.4 },
+					{ at: [0, y, -p.depth / 2 - out], reach: p.width * 1.4 },
+					{ at: [p.width / 2 + out, y, 0], reach: p.depth * 1.4 },
+					{ at: [-p.width / 2 - out, y, 0], reach: p.depth * 1.4 },
+				];
+			},
 		},
 		{
 			id: "screens",
