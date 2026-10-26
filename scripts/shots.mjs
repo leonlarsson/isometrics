@@ -240,7 +240,8 @@ await page.goto(base, { timeout: 120_000 });
 await page.waitForFunction(() => Boolean(globalThis.__editorStore), null, { timeout: 60_000 });
 if (options.template) {
 	await page.evaluate(async (id) => {
-		const scene = await (await fetch(`/templates/${id}.json`)).json();
+		// Never from the browser's cache: shots are for seeing a template just changed.
+		const scene = await (await fetch(`/templates/${id}.json`, { cache: "no-store" })).json();
 		globalThis.__editorStore.getState().loadScene(scene);
 	}, options.template);
 }
