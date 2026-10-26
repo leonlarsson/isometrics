@@ -40,7 +40,7 @@ const roadStates = keepOnHotReload(
 /** Moves every driving vehicle while motion plays. Mount once in the scene. */
 export const TrafficStep = () => {
 	const playing = useEditor((s) => s.playing);
-	const { spacing, overtaking } = useEditor((s) => s.scene.traffic);
+	const { keepSpacing, allowOvertaking } = useEditor((s) => s.scene.traffic);
 
 	// Before the vehicles draw themselves (they read where this put them).
 	useFrame((_, delta) => {
@@ -49,7 +49,7 @@ export const TrafficStep = () => {
 		}
 		const dt = Math.min(delta, 0.1);
 		// Spacing off: every vehicle simply drives at its own speed.
-		if (!spacing) {
+		if (!keepSpacing) {
 			roadStates.clear();
 			for (const vehicle of drivingVehicles.values()) {
 				vehicle.travelled += vehicle.speed * dt;
@@ -85,7 +85,12 @@ export const TrafficStep = () => {
 			const loop = cars[0].stream !== "both";
 			const states = roadStates.get(roadId) ?? new Map<string, ITrafficState>();
 			roadStates.set(roadId, states);
-			const moves = stepRoadTraffic({ length: sampler.length, loop, overtaking }, cars, states, dt);
+			const moves = stepRoadTraffic(
+				{ length: sampler.length, loop, allowOvertaking },
+				cars,
+				states,
+				dt,
+			);
 			for (const [id, vehicle] of vehicles) {
 				vehicle.travelled += moves.get(id) ?? 0;
 				vehicle.state = states.get(id) ?? null;

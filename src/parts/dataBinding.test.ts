@@ -13,10 +13,10 @@ const data = [
 const bind = (
 	key: string,
 	options: {
-		above?: number;
-		full?: number;
-		low?: number;
-		high?: number;
+		onAbove?: number;
+		valueAtFull?: number;
+		valueAtLowColor?: number;
+		valueAtHighColor?: number;
 		lowColor?: string;
 		highColor?: string;
 	} = {},
@@ -25,15 +25,15 @@ const bind = (
 describe("data bindings (ADR-0058)", () => {
 	it("switches on above a threshold (0 by default), and off without the value", () => {
 		expect(readSwitch(bind("queue"), data)).toBe(true);
-		expect(readSwitch(bind("queue", { above: 50 }), data)).toBe(true);
-		expect(readSwitch(bind("queue", { above: 60 }), data)).toBe(false);
+		expect(readSwitch(bind("queue", { onAbove: 50 }), data)).toBe(true);
+		expect(readSwitch(bind("queue", { onAbove: 60 }), data)).toBe(false);
 		expect(readSwitch(bind("word"), data)).toBe(false);
 		expect(readSwitch(bind("gone"), data)).toBeUndefined();
 	});
 
 	it("scales a number by its value at 100%, within limits", () => {
-		expect(readScale(bind("queue", { full: 40 }), data)).toBe(1.5);
-		expect(readScale(bind("queue", { full: 10 }), data, { max: 3 })).toBe(3);
+		expect(readScale(bind("queue", { valueAtFull: 40 }), data)).toBe(1.5);
+		expect(readScale(bind("queue", { valueAtFull: 10 }), data, { max: 3 })).toBe(3);
 		expect(readScale(bind("status"), data)).toBeUndefined();
 	});
 
@@ -45,14 +45,23 @@ describe("data bindings (ADR-0058)", () => {
 
 	it("places a number on the colour scale: lowColor at low, highColor at high, mixed in between", () => {
 		const scale = { lowColor: "#000000", highColor: "#ffffff" };
-		expect(readColor(bind("queue", { ...scale, low: 0, high: 50 }), data)).toBe("#ffffff");
-		expect(readColor(bind("queue", { ...scale, low: 60, high: 100 }), data)).toBe("#000000");
-		expect(readColor(bind("queue", { ...scale, low: 70, high: 100 }), data)).toBe("#000000");
-		const halfway = readColor(bind("queue", { ...scale, low: 20, high: 100 }), data);
+		expect(
+			readColor(bind("queue", { ...scale, valueAtLowColor: 0, valueAtHighColor: 50 }), data),
+		).toBe("#ffffff");
+		expect(
+			readColor(bind("queue", { ...scale, valueAtLowColor: 60, valueAtHighColor: 100 }), data),
+		).toBe("#000000");
+		expect(
+			readColor(bind("queue", { ...scale, valueAtLowColor: 70, valueAtHighColor: 100 }), data),
+		).toBe("#000000");
+		const halfway = readColor(
+			bind("queue", { ...scale, valueAtLowColor: 20, valueAtHighColor: 100 }),
+			data,
+		);
 		expect(halfway).not.toBe("#000000");
 		expect(halfway).not.toBe("#ffffff");
 		// Defaults: green at 0, red at 100.
-		expect(readColor(bind("queue", { high: 60 }), data)).toBe("#e0483b");
+		expect(readColor(bind("queue", { valueAtHighColor: 60 }), data)).toBe("#e0483b");
 	});
 });
 

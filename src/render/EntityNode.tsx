@@ -13,7 +13,7 @@ import { resolveColors, resolveLabelColor } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
-import { laneOffset, resolveTurns, turnSmoothing } from "#/scene/roads";
+import { laneOffset, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
@@ -91,7 +91,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	// The world's hour, only for objects with a light on a schedule (others needn't re-render with it).
 	const hour = useSceneHours(
 		typeof entity.lights === "object" &&
-			Object.values(entity.lights).some((light) => light.mode === "schedule"),
+			Object.values(entity.lights).some((light) => light.whenOn === "schedule"),
 	);
 	const mode = useEditor((s) => s.mode);
 	// Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064).
@@ -106,8 +106,8 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const road = useEditor((s) =>
 		entity.follow ? (s.scene.roads.find((r) => r.id === entity.follow?.roadId) ?? null) : null,
 	);
-	const driving = useEditor((s) => s.scene.driving);
-	const sceneTurns = useEditor((s) => s.scene.turns);
+	const driving = useEditor((s) => s.scene.drivingSide);
+	const sceneTurns = useEditor((s) => s.scene.turnStyle);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const select = useEditor((s) => s.select);
 	const moveEntity = useEditor((s) => s.moveEntity);
@@ -133,7 +133,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const data = useEditor((s) => (usesData ? s.scene.data : undefined));
 	// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
 	const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
-	const turns = resolveTurns(sceneTurns, road?.turns, entity.follow?.turns);
+	const turns = resolveTurnStyle(sceneTurns, road?.turnStyle, entity.follow?.turnStyle);
 	const reverse = entity.follow?.reverse ?? false;
 	const sampler = useMemo(
 		() =>

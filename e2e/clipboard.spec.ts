@@ -26,7 +26,7 @@ const lampsAndHouse = async (page: Page) => {
 				position: [-4, 0],
 				lights: {
 					lamp: {
-						mode: null,
+						whenOn: null,
 						comesOn: null,
 						schedule: null,
 						color: null,

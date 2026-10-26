@@ -7,7 +7,7 @@ import { toRadians } from "#/lib/math";
 import { resolveColors } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
-import { resolveTurns, turnSmoothing } from "#/scene/roads";
+import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TScene } from "#/scene/schema";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
@@ -81,8 +81,8 @@ const startPose = (entity: TEntity, scene: TScene) => {
 	}
 	const props = resolveProps(part, entity.props);
 	const length = part.footprint(props)[0] * entity.scale;
-	const turns = resolveTurns(scene.turns, road.turns, entity.follow.turns);
-	const sample = createRouteSampler(road, scene.driving, {
+	const turns = resolveTurnStyle(scene.turnStyle, road.turnStyle, entity.follow.turnStyle);
+	const sample = createRouteSampler(road, scene.drivingSide, {
 		reverse: entity.follow.reverse,
 		smoothing: turnSmoothing(turns, length),
 	}).at(entity.follow.offset);

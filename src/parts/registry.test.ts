@@ -153,4 +153,11 @@ describe("resolveProps", () => {
 		expect(resolveProps(tower, { storeys: 9 })).toMatchObject({ floors: 9 });
 		expect(resolveProps(tower, { storeys: 9, floors: 4 })).toMatchObject({ floors: 4 });
 	});
+
+	it("reads a prop renamed twice under its newest name, the latest old name winning", () => {
+		// levels → storeys → floors: both older names point at the newest, oldest first.
+		const part = { ...tower, renamedProps: { levels: "floors", storeys: "floors" } };
+		expect(resolveProps(part, { levels: 3 })).toMatchObject({ floors: 3 });
+		expect(resolveProps(part, { levels: 3, storeys: 9 })).toMatchObject({ floors: 9 });
+	});
 });

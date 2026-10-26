@@ -169,7 +169,7 @@ describe("editor store", () => {
 		s().undoDrawingPoint();
 		const id = s().finishDrawing();
 		const road = s().scene.roads.find((r) => r.id === id);
-		expect(road).toMatchObject({ style: "dirt_path_01", name: "Dirt path 1", closed: false });
+		expect(road).toMatchObject({ style: "dirt_path_01", name: "Dirt path 1", loops: false });
 		expect(road?.points).toEqual([
 			[0, 0, 0],
 			[4, 0, 0],
@@ -189,8 +189,8 @@ describe("editor store", () => {
 		s().startDrawing("road_01");
 		s().addDrawingPoint([0, 0]);
 		s().addDrawingPoint([4, 0]);
-		const id = s().finishDrawing({ closed: true });
-		expect(s().scene.roads.find((r) => r.id === id)?.closed).toBe(false);
+		const id = s().finishDrawing({ loops: true });
+		expect(s().scene.roads.find((r) => r.id === id)?.loops).toBe(false);
 	});
 
 	it("sets one part prop and keeps every other stored prop, even unknown ones (ADR-0056)", () => {
@@ -198,16 +198,16 @@ describe("editor store", () => {
 		const s = () => store.getState();
 		const id = s().addEntity({
 			kind: "office_tower_01",
-			props: { floors: 9, fromNewerVersion: "keep me", storeys: 4 },
+			props: { floorCount: 9, fromNewerVersion: "keep me", storeys: 4 },
 		});
-		s().setEntityProp(id, "floors", 12);
+		s().setEntityProp(id, "floorCount", 12);
 		expect(s().scene.entities.find((e) => e.id === id)?.props).toEqual({
-			floors: 12,
+			floorCount: 12,
 			fromNewerVersion: "keep me",
 			storeys: 4,
 		});
 		s().undo();
-		expect(s().scene.entities.find((e) => e.id === id)?.props.floors).toBe(9);
+		expect(s().scene.entities.find((e) => e.id === id)?.props.floorCount).toBe(9);
 	});
 
 	it("sets one light's settings, turning an older world's single setting into each light's", () => {
@@ -216,10 +216,10 @@ describe("editor store", () => {
 		const lamp = s().addEntity({ kind: "street_lamp_01", lights: "off" });
 		s().setEntityLight(lamp, "lamp", { color: "#ff0000" });
 		expect(s().scene.entities.find((e) => e.id === lamp)?.lights).toEqual({
-			lamp: expect.objectContaining({ mode: "off", color: "#ff0000", strength: null }),
+			lamp: expect.objectContaining({ whenOn: "off", color: "#ff0000", strength: null }),
 		});
 		// Back to the part's for everything: no entry left.
-		s().setEntityLight(lamp, "lamp", { mode: null, color: null });
+		s().setEntityLight(lamp, "lamp", { whenOn: null, color: null });
 		expect(s().scene.entities.find((e) => e.id === lamp)?.lights).toEqual({});
 	});
 
@@ -228,14 +228,16 @@ describe("editor store", () => {
 		const s = () => store.getState();
 		const lamp = s().addEntity({ kind: "street_lamp_01" });
 		const binding = DataBindingSchema.parse({ key: "orders" });
-		s().setEntityLight(lamp, "lamp", { data: { on: binding, strength: { ...binding, full: 10 } } });
+		s().setEntityLight(lamp, "lamp", {
+			data: { on: binding, strength: { ...binding, valueAtFull: 10 } },
+		});
 		s().setEntityColor(lamp, "post", { data: { color: binding } });
 		s().upsertData({ key: "sales", label: "Orders", value: 3, unit: "" }, "orders");
 		const entity = () => s().scene.entities.find((e) => e.id === lamp);
 		const lights = () => entity()?.lights as Record<string, TEntityLight>;
 		expect(lights().lamp.data).toEqual({
 			on: { ...binding, key: "sales" },
-			strength: { ...binding, key: "sales", full: 10 },
+			strength: { ...binding, key: "sales", valueAtFull: 10 },
 		});
 		expect(entity()?.colors.post.data).toEqual({ color: { ...binding, key: "sales" } });
 		// Deleting the value: those settings no longer follow data, and nothing else is left.
@@ -366,7 +368,7 @@ describe("editor store", () => {
 		const store = makeStore();
 		const s = () => store.getState();
 		const id = s().addRoad({
-			closed: true,
+			loops: true,
 			points: [
 				[0, 0],
 				[4, 0],
@@ -375,7 +377,7 @@ describe("editor store", () => {
 		});
 		expect(s().splitRoad(id, 1)).toBe(id);
 		const road = s().scene.roads[0];
-		expect(road.closed).toBe(false);
+		expect(road.loops).toBe(false);
 		expect(road.points.map((p) => [p[0], p[1]])).toEqual([
 			[4, 0],
 			[4, 4],
@@ -421,7 +423,7 @@ describe("editor store", () => {
 		});
 		s().joinRoads(id, "start", id, "end");
 		const road = s().scene.roads[0];
-		expect(road.closed).toBe(true);
+		expect(road.loops).toBe(true);
 		expect(road.points).toHaveLength(3); // the shared point appears once
 	});
 
@@ -664,8 +666,8 @@ describe("editor store", () => {
 			scene.camera.fieldOfView = 90;
 			scene.camera.steepestElevation = 60;
 			scene.camera.keepOverGround = false;
-			scene.camera.turntable = true;
-			scene.camera.tiltShift = true;
+			scene.camera.turntableOn = true;
+			scene.camera.tiltShiftOn = true;
 			scene.camera.tiltShiftBlur = 0.9;
 		});
 		store.getState().toggleProjection();
@@ -673,7 +675,7 @@ describe("editor store", () => {
 		store.getState().resetCamera();
 		const { camera } = store.getState().scene;
 		expect(camera).toMatchObject({ fieldOfView: 40, steepestElevation: 87, keepOverGround: true });
-		expect(camera).toMatchObject({ turntable: true, tiltShift: true, tiltShiftBlur: 0.9 });
+		expect(camera).toMatchObject({ turntableOn: true, tiltShiftOn: true, tiltShiftBlur: 0.9 });
 		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 		store.getState().undo();
@@ -1068,7 +1070,7 @@ describe("names of copies (ADR-0068)", () => {
 	});
 
 	it("numbers them when the preference says so", () => {
-		setPreference("copyNames", "numbered");
+		setPreference("namesOfCopies", "numbered");
 		const store = named();
 		store.getState().duplicateEntity("w");
 		store.getState().select("w");

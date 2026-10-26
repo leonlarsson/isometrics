@@ -28,7 +28,7 @@ export const Turntable = () => {
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
-	const enabled = useEditor((s) => s.mode === "view" && s.scene.camera.turntable);
+	const enabled = useEditor((s) => s.mode === "view" && s.scene.camera.turntableOn);
 	// When there was last any input (performance.now() ms), and how long it has been turning.
 	const lastInput = useRef(performance.now());
 	const turning = useRef(0);

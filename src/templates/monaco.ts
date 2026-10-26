@@ -364,7 +364,7 @@ const paddock: TEntityInput[] = (
 	position: fromMap(spot),
 	rotation: -38.8,
 	colors: paint({ walls: LIVERIES[i][0], roof: LIVERIES[i][1] }),
-	props: { width: 1.4, depth: 1.1, height: 0.9, garageDoor: false },
+	props: { width: 1.4, depth: 1.1, height: 0.9, showGarageDoor: false },
 }));
 
 /** Monte-Carlo's towers on the hillside. */
@@ -433,7 +433,7 @@ const yachts: TEntityInput[] = [
 					position: fromMap(spot),
 					rotation: ALONG_PIERS + (side === 1 ? 0 : 180),
 					colors: paint({ stripe: (p + k) % 3 === 0 ? "#1f1f24" : null }),
-					props: { length: 1.8 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.6, decks: 1 + k },
+					props: { length: 1.8 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.6, deckCount: 1 + k },
 				};
 			}),
 		),
@@ -472,7 +472,7 @@ const trees: TEntityInput[] = (
 	kind: i % 2 === 0 ? "round_tree_01" : "pine_tree_01",
 	position: fromMap([x, y]),
 	elevation,
-	props: { size: 0.9 },
+	props: { letterHeight: 0.9 },
 }));
 
 /** The Circuit de Monaco around Port Hercule, with live race data. */
@@ -482,7 +482,7 @@ export const createMonacoScene = (): TScene => {
 		meta: { title: "Monaco street circuit", subtitle: "Live race overview" },
 		theme: "system",
 		ground: { width: 70, depth: 34, color: null },
-		driving: "right",
+		drivingSide: "right",
 		data: [
 			{ key: "lap", label: "Lap", value: "42 / 78" },
 			{ key: "leader", label: "Leader", value: "Car 16" },
@@ -501,16 +501,16 @@ export const createMonacoScene = (): TScene => {
 				id: TRACK_ID,
 				name: "Circuit de Monaco",
 				style: "road_01",
-				closed: true,
+				loops: true,
 				width: 1.2,
 				cornerRadius: 1,
 				// Race tarmac, darker than a town road, with no centre line.
 				color: "#9c988f",
-				markings: false,
-				lane: "centre",
+				showMarkings: false,
+				drivingLane: "centre",
 				// The climb from Sainte Dévote to the Casino sits on the hillside.
 				supports: "embankment",
-				railings: false,
+				showRailings: false,
 				points: TRACK,
 			},
 			{
@@ -537,7 +537,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([1610, 588]),
 				rotation: 1.5,
 				colors: paint({ walls: "#d9d4c7", roof: "#e9d5c4" }),
-				props: { length: 12, width: 2.4, height: 1.2, building: 2.2 },
+				props: { length: 12, width: 2.4, height: 1.2, buildingFloors: 2.2 },
 				label: { title: "Top speed", dataKeys: ["top_speed"], offset: [0, 1, 3] },
 			},
 			{
@@ -548,7 +548,7 @@ export const createMonacoScene = (): TScene => {
 				elevation: CASINO_PLATEAU,
 				rotation: 180,
 				colors: paint({ walls: "#f3e7cf", roof: "#c9a15a" }),
-				props: { width: 3.4, depth: 2, height: 2.4, garageDoor: false },
+				props: { width: 3.4, depth: 2, height: 2.4, showGarageDoor: false },
 				label: { title: "Track temp", dataKeys: ["track_temp"], offset: [0, 1.4, 0] },
 			},
 			{
@@ -558,7 +558,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([1533, 470]),
 				elevation: HILLSIDE,
 				colors: paint({ walls: "#efe2c8", roof: "#9c8b6f" }),
-				props: { width: 2, depth: 1.4, height: 2.2, garageDoor: false },
+				props: { width: 2, depth: 1.4, height: 2.2, showGarageDoor: false },
 			},
 			{
 				id: "palace",
@@ -568,14 +568,14 @@ export const createMonacoScene = (): TScene => {
 				elevation: ROCK,
 				rotation: -20,
 				colors: paint({ walls: "#f0e3cc", roof: "#c96a4a" }),
-				props: { width: 4, depth: 2.4, height: 1.6, garageDoor: false },
+				props: { width: 4, depth: 2.4, height: 1.6, showGarageDoor: false },
 			},
 			{
 				id: "start_line",
 				kind: "beacon_01",
 				name: "Start / finish",
 				position: fromMap([816, 456]),
-				props: { radius: 0.8, pulse: true },
+				props: { radius: 0.8, pulses: true },
 				label: { title: "Lap", dataKeys: ["lap"], offset: [3, 1.2, 3] },
 				details: {
 					description: "Start / finish line on Boulevard Albert Ier.",
@@ -588,7 +588,7 @@ export const createMonacoScene = (): TScene => {
 				name: "Grandstand (start straight)",
 				position: fromMap([747, 461]),
 				rotation: 38.5,
-				props: { length: 5, rows: 3 },
+				props: { length: 5, seatRows: 3 },
 				label: { title: "Spectators", dataKeys: ["spectators"], offset: [0, 1.5, 0] },
 			},
 			{
@@ -598,7 +598,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([845, 391]),
 				rotation: 33.5,
 				colors: paint({ seats: "#e2603b" }),
-				props: { length: 4, rows: 3 },
+				props: { length: 4, seatRows: 3 },
 			},
 			{
 				id: "grandstand_rascasse",
@@ -607,7 +607,7 @@ export const createMonacoScene = (): TScene => {
 				position: fromMap([713, 699]),
 				rotation: 153.4,
 				colors: paint({ seats: "#2bb58c" }),
-				props: { length: 3, rows: 2, roof: false },
+				props: { length: 3, seatRows: 2, showRoof: false },
 			},
 			...paddock,
 			...city,
@@ -617,7 +617,7 @@ export const createMonacoScene = (): TScene => {
 				id: "cruiser",
 				kind: "yacht_01",
 				name: "Cruising yacht",
-				props: { length: 3.6, decks: 2 },
+				props: { length: 3.6, deckCount: 2 },
 				follow: { roadId: "sea_lane", speed: 0.8, offset: 4 },
 			},
 			...trees,

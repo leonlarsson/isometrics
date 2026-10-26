@@ -8,7 +8,7 @@ import { definePart } from "../types";
 
 const YachtSchema = z.object({
 	length: z.number().min(1.5).max(12).default(3.4),
-	decks: z.number().int().min(1).max(4).default(2),
+	deckCount: z.number().int().min(1).max(4).default(2),
 });
 
 /** Hull outline seen from above: square stern, pointed bow towards +X. */
@@ -38,9 +38,10 @@ export const yacht01 = definePart({
 	description: "Motor yacht for harbours and the sea; can cruise along a route",
 	keywords: ["boat", "ship", "ferry", "vessel"],
 	schema: YachtSchema,
+	renamedProps: { decks: "deckCount" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 1.5, max: 12, step: 0.1 },
-		{ key: "decks", label: "Decks", type: "number", min: 1, max: 4, step: 1 },
+		{ key: "deckCount", label: "Number of decks", type: "number", min: 1, max: 4, step: 1 },
 	],
 	colors: [
 		{ id: "hull", name: "Hull", default: "#f7f7f4", legacy: "color" },
@@ -48,7 +49,7 @@ export const yacht01 = definePart({
 	],
 	canFollowPath: true,
 	footprint: (p) => [p.length, p.length * 0.32],
-	height: (p) => HULL_HEIGHT + p.decks * DECK_HEIGHT + 0.25,
+	height: (p) => HULL_HEIGHT + p.deckCount * DECK_HEIGHT + 0.25,
 	Component: ({ props: p, colors, palette, lights }) => {
 		const width = p.length * 0.32;
 		const hull = useMemo(() => hullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
@@ -74,7 +75,7 @@ export const yacht01 = definePart({
 					<Mat color={colors.stripe} />
 				</mesh>
 
-				{Array.from({ length: p.decks }, (_, d) => {
+				{Array.from({ length: p.deckCount }, (_, d) => {
 					const deckLength = p.length * (0.5 - d * 0.1);
 					const y = HULL_HEIGHT + DECK_HEIGHT * (d + 0.5);
 					const x = -p.length * 0.06 - d * p.length * 0.04;
@@ -101,7 +102,7 @@ export const yacht01 = definePart({
 
 				<Box
 					size={[0.05, 0.25, 0.05]}
-					position={[-p.length * 0.12, HULL_HEIGHT + p.decks * DECK_HEIGHT + 0.12, 0]}
+					position={[-p.length * 0.12, HULL_HEIGHT + p.deckCount * DECK_HEIGHT + 0.12, 0]}
 					color={palette.trim}
 				/>
 			</group>

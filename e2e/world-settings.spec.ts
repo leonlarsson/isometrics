@@ -35,8 +35,8 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 
 	test("what viewers see: switching the title off hides it in View mode", async ({ page }) => {
 		await worldTab(page, "World");
-		await page.getByRole("switch", { name: "Title", exact: true }).click();
-		expect(await read(page, (s) => s.scene.onScreen.title)).toBe(false);
+		await page.getByRole("switch", { name: "Show the title", exact: true }).click();
+		expect(await read(page, (s) => s.scene.onScreen.showTitle)).toBe(false);
 		await page.getByRole("button", { name: "View", exact: true }).click();
 		await expect(page.getByRole("heading", { name: "Brightwater" })).toBeHidden();
 	});
@@ -54,7 +54,7 @@ test.describe("Sun & sky (ADR-0052, ADR-0061)", () => {
 		await menuItem(page, "Dusk").click();
 		expect(await read(page, (s) => s.scene.lighting.time)).toBeCloseTo(19.7, 1);
 		await choose(page, "Lit windows, lamps and headlights", "Always");
-		expect(await read(page, (s) => s.scene.lighting.lights)).toBe("on");
+		expect(await read(page, (s) => s.scene.lighting.whenLightsAreOn)).toBe("on");
 	});
 });
 
@@ -84,7 +84,7 @@ test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 	test("the side vehicles drive on, keeping distance and overtaking", async ({ page }) => {
 		await worldTab(page, "Traffic");
 		await choose(page, "Vehicles drive on the", "Left");
-		expect(await read(page, (s) => s.scene.driving)).toBe("left");
+		expect(await read(page, (s) => s.scene.drivingSide)).toBe("left");
 		const overtake = page.getByRole("switch", { name: "Overtake slower vehicles" });
 		const before = await overtake.getAttribute("aria-checked");
 		await overtake.click();

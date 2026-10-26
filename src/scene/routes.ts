@@ -10,7 +10,7 @@ import type { TDrivingSide, TRoad, TRoadPoint, TVec2 } from "./schema";
 
 type TRouteRoad = Pick<
 	TRoad,
-	"points" | "closed" | "cornerRadius" | "width" | "style" | "lane" | "turns"
+	"points" | "loops" | "cornerRadius" | "width" | "style" | "drivingLane" | "turnStyle"
 >;
 
 // Roads are immutable (immer), so each road object's centre line only needs computing once.
@@ -89,7 +89,7 @@ export const createRouteSampler = (
 	{ smoothing = 0, reverse = false }: IRouteOptions = {},
 ): IRouteSampler => {
 	const line = centerlineOf(road);
-	const sampler = createPathSampler(reverse ? reversed(line, road.closed) : line, road.closed, {
+	const sampler = createPathSampler(reverse ? reversed(line, road.loops) : line, road.loops, {
 		lane: laneOffset(road, driving),
 		smoothing,
 	});
@@ -156,7 +156,7 @@ export interface IRoadProjection {
 export const projectOntoRoad = (road: TRouteRoad, at: TVec2): IRoadProjection | null => {
 	const line = centerlineOf(road);
 	const n = line.length;
-	const count = road.closed && n > 2 ? n : n - 1;
+	const count = road.loops && n > 2 ? n : n - 1;
 	let best: IRoadProjection | null = null;
 	let along = 0;
 	for (let i = 0; i < count; i++) {

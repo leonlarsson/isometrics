@@ -35,11 +35,11 @@ describe("parseOrRepairScene", () => {
 	it("keeps the world's settings, turns included", () => {
 		const { scene } = repairScene({
 			version: 1,
-			driving: "left",
-			turns: "sharp",
+			drivingSide: "left",
+			turnStyle: "sharp",
 			roads: [road({ style: "cobblestone" })],
 		});
-		expect(scene).toMatchObject({ driving: "left", turns: "sharp" });
+		expect(scene).toMatchObject({ drivingSide: "left", turnStyle: "sharp" });
 	});
 
 	it("drops one bad road point but keeps the road", () => {
@@ -109,16 +109,16 @@ describe("parseOrRepairScene", () => {
 	it("repairs and counts every world setting, including newer ones like traffic", () => {
 		// An older save stored traffic as a plain switch.
 		const { scene, report } = repairScene({ version: 1, traffic: true });
-		expect(scene.traffic).toEqual({ spacing: true, overtaking: true });
+		expect(scene.traffic).toEqual({ keepSpacing: true, allowOvertaking: true });
 		expect(report.fixed).toBe(1);
 
 		// A valid setting survives when something else needs repairing.
 		const kept = repairScene({
 			version: 1,
-			traffic: { spacing: true, overtaking: false },
+			traffic: { keepSpacing: true, allowOvertaking: false },
 			theme: "neon",
 		});
-		expect(kept.scene.traffic.overtaking).toBe(false);
+		expect(kept.scene.traffic.allowOvertaking).toBe(false);
 	});
 
 	it("repairs worlds from a newer version", () => {

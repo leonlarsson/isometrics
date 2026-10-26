@@ -9,7 +9,7 @@ const TunnelSchema = z.object({
 	width: z.number().min(1).max(12).default(3.2),
 	height: z.number().min(0.8).max(5).default(1.5),
 	/** Floors of building on top (0 = none), like a hotel built over the road. */
-	building: z.number().min(0).max(10).default(0),
+	buildingFloors: z.number().min(0).max(10).default(0),
 });
 
 const WALL = 0.35;
@@ -26,18 +26,26 @@ export const tunnel01 = definePart({
 	description: "Covered road section, open at both ends; place it over a road",
 	keywords: ["underpass", "covered", "bridge"],
 	schema: TunnelSchema,
+	renamedProps: { building: "buildingFloors" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 2, max: 60, step: 0.5 },
 		{ key: "width", label: "Inside width", type: "number", min: 1, max: 12, step: 0.1 },
 		{ key: "height", label: "Inside height", type: "number", min: 0.8, max: 5, step: 0.1 },
-		{ key: "building", label: "Building on top", type: "number", min: 0, max: 10, step: 0.5 },
+		{
+			key: "buildingFloors",
+			label: "Floors of building on top",
+			type: "number",
+			min: 0,
+			max: 10,
+			step: 0.5,
+		},
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#d9d4c7", legacy: "color" },
 		{ id: "roof", name: "Roof & building", default: "#f1e8d8", legacy: "accent" },
 	],
 	footprint: (p) => [p.length, p.width + WALL * 2],
-	height: (p) => p.height + WALL + p.building,
+	height: (p) => p.height + WALL + p.buildingFloors,
 	Component: ({ props: p, colors, palette }) => {
 		const outer = p.width + WALL * 2;
 		return (
@@ -68,10 +76,10 @@ export const tunnel01 = definePart({
 					/>
 				))}
 
-				{p.building > 0 && (
+				{p.buildingFloors > 0 && (
 					<RBox
-						size={[p.length * 0.9, p.building, outer + 1.2]}
-						position={[0, p.height + WALL + p.building / 2, 0]}
+						size={[p.length * 0.9, p.buildingFloors, outer + 1.2]}
+						position={[0, p.height + WALL + p.buildingFloors / 2, 0]}
 						color={colors.roof}
 						radius={0.1}
 					/>

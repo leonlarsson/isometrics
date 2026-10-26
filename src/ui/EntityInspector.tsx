@@ -11,12 +11,12 @@ import type { ILightSpec, TFieldSpec } from "#/parts/types";
 import {
 	polylineLength,
 	ROAD_STYLE_LABELS,
-	resolveTurns,
+	resolveTurnStyle,
 	roadCenterlineOf,
-	TURNS_LABELS,
-	TURNS_OPTIONS,
+	TURN_STYLE_LABELS,
+	TURN_STYLE_OPTIONS,
 } from "#/scene/roads";
-import type { TEntity, TTurns } from "#/scene/schema";
+import type { TEntity, TTurnStyle } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
@@ -420,12 +420,12 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setTab = useEditor((s) => s.setTab);
 	// Why lights set to come on after dark can't right now, if they can't (null: they can).
 	const notDark: { title: string; text: string } | null =
-		lighting.lights === "off"
+		lighting.whenLightsAreOn === "off"
 			? {
 					title: "Lights are off everywhere",
 					text: "Sun & sky → Lights is set to Never, so no light in this world turns on after dark. Set it to After dark there.",
 				}
-			: lighting.lights === "on" || lighting.timeSource !== "fixed"
+			: lighting.whenLightsAreOn === "on" || lighting.timeSource !== "fixed"
 				? null
 				: hour === null
 					? {
@@ -607,14 +607,14 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Motion tab: the road it drives along, how fast, and where it starts. */
 const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const roads = useEditor((s) => s.scene.roads);
-	const sceneTurns = useEditor((s) => s.scene.turns);
+	const sceneTurns = useEditor((s) => s.scene.turnStyle);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
 	const followedRoadLength = followedRoad
-		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.closed)))
+		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.loops)))
 		: 1;
 	/** What this vehicle inherits: its road's setting, else the scene's. */
-	const roadTurns = resolveTurns(sceneTurns, followedRoad?.turns, null);
+	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.turnStyle, null);
 
 	return (
 		<Section
@@ -645,7 +645,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 									speed: e.follow?.speed ?? 2,
 									offset: e.follow?.offset ?? 0,
 									reverse: e.follow?.reverse ?? false,
-									turns: e.follow?.turns ?? null,
+									turnStyle: e.follow?.turnStyle ?? null,
 								}
 							: null;
 					})
@@ -696,28 +696,28 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 						}
 					/>
 
-					<SelectField<TTurns>
+					<SelectField<TTurnStyle>
 						label="Turns"
-						value={entity.follow.turns ?? roadTurns}
-						options={TURNS_OPTIONS}
+						value={entity.follow.turnStyle ?? roadTurns}
+						options={TURN_STYLE_OPTIONS}
 						onChange={(v) =>
 							edit("follow.turns", (e) => {
 								if (e.follow) {
-									e.follow.turns = v;
+									e.follow.turnStyle = v;
 								}
 							})
 						}
 						inherit={{
 							// The road's own setting, or the scene's when the road has none.
-							from: followedRoad?.turns ? "road" : "scene",
-							inherited: entity.follow.turns === null,
+							from: followedRoad?.turnStyle ? "road" : "scene",
+							inherited: entity.follow.turnStyle === null,
 							onReset: () =>
 								edit("follow.turns", (e) => {
 									if (e.follow) {
-										e.follow.turns = null;
+										e.follow.turnStyle = null;
 									}
 								}),
-							value: TURNS_LABELS[roadTurns].toLowerCase(),
+							value: TURN_STYLE_LABELS[roadTurns].toLowerCase(),
 						}}
 					/>
 				</>

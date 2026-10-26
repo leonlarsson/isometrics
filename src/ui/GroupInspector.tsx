@@ -429,7 +429,7 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 					const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
 					const defaults = lightDefaults(own, entity, palette);
 					return {
-						mode: setting?.mode ?? objectMode,
+						mode: setting?.whenOn ?? objectMode,
 						comesOn: comesOnOf(own, setting),
 						schedule: setting?.schedule ?? [],
 						color: setting?.color ?? defaults.color,

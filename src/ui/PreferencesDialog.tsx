@@ -20,7 +20,7 @@ const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"orbitSpeed",
 	"zoomSpeed",
 	"invertZoom",
-	"smoothing",
+	"cameraSmoothing",
 	"glideSeconds",
 ];
 const KEYBOARD_PAGE: (keyof TPreferences)[] = ["keyboardSpeed"];
@@ -30,7 +30,7 @@ const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"viewpointsInWorld",
 	"compositionGrid",
 ];
-const EDITING_PAGE: (keyof TPreferences)[] = ["copyNames"];
+const EDITING_PAGE: (keyof TPreferences)[] = ["namesOfCopies"];
 
 /** A page's reset: back to the defaults, offered once any of them changed. */
 const pageReset = (preferences: TPreferences, keys: (keyof TPreferences)[]) => ({
@@ -167,18 +167,18 @@ export const PreferencesDialog = () => {
 							),
 						},
 						{
-							id: "smoothing",
+							id: "cameraSmoothing",
 							keywords: "damping inertia drift",
 							field: (
 								<SliderField
 									label="Smoothing"
-									value={Math.round(preferences.smoothing * 100)}
+									value={Math.round(preferences.cameraSmoothing * 100)}
 									min={0}
 									max={100}
 									step={5}
 									suffix="%"
-									onChange={(v) => setPreference("smoothing", v / 100)}
-									inherit={preferenceDefault(preferences, "smoothing", "60%")}
+									onChange={(v) => setPreference("cameraSmoothing", v / 100)}
+									inherit={preferenceDefault(preferences, "cameraSmoothing", "60%")}
 									hint="How long the view keeps gliding after you let go: 0% stops at once."
 								/>
 							),
@@ -295,20 +295,20 @@ export const PreferencesDialog = () => {
 					title: "Copies",
 					rows: [
 						{
-							id: "copyNames",
+							id: "namesOfCopies",
 							keywords: "copy duplicate paste name names number numbered",
 							field: (
-								<SelectField<TPreferences["copyNames"]>
+								<SelectField<TPreferences["namesOfCopies"]>
 									label="Names of copies"
-									value={preferences.copyNames}
+									value={preferences.namesOfCopies}
 									options={[
 										{ value: "copy", label: "Add “copy”" },
 										{ value: "numbered", label: "Number them" },
 									]}
-									onChange={(v) => setPreference("copyNames", v)}
-									inherit={preferenceDefault(preferences, "copyNames", "add “copy”")}
+									onChange={(v) => setPreference("namesOfCopies", v)}
+									inherit={preferenceDefault(preferences, "namesOfCopies", "add “copy”")}
 									hint={
-										preferences.copyNames === "copy"
+										preferences.namesOfCopies === "copy"
 											? "A copy of “Tower” is called “Tower copy”."
 											: "A copy of “Tower” is called “Tower 2”, the next “Tower 3”; a copy of “Gate 5” is “Gate 6”."
 									}

@@ -72,7 +72,7 @@ export const RoadDrawTool = () => {
 					}
 					e.stopPropagation();
 					if (nearFirst) {
-						useEditor.getState().finishDrawing({ closed: true });
+						useEditor.getState().finishDrawing({ loops: true });
 						return;
 					}
 					const point = groundPointFrom(e, drawHeight);

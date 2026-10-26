@@ -26,8 +26,19 @@ describe("preferences", () => {
 		expect(parsePreferences(null)).toEqual(DEFAULT_PREFERENCES);
 		expect(parsePreferences("{nope")).toEqual(DEFAULT_PREFERENCES);
 		expect(
-			parsePreferences(JSON.stringify({ zoomSpeed: 2, orbitSpeed: "fast", smoothing: 9 })),
+			parsePreferences(JSON.stringify({ zoomSpeed: 2, orbitSpeed: "fast", cameraSmoothing: 9 })),
 		).toEqual({ ...DEFAULT_PREFERENCES, zoomSpeed: 2 });
+	});
+
+	it("reads a renamed setting under its old name", () => {
+		expect(parsePreferences(JSON.stringify({ smoothing: 0.2, copyNames: "numbered" }))).toEqual({
+			...DEFAULT_PREFERENCES,
+			cameraSmoothing: 0.2,
+			namesOfCopies: "numbered",
+		});
+		expect(
+			parsePreferences(JSON.stringify({ smoothing: 0.2, cameraSmoothing: 0.9 })).cameraSmoothing,
+		).toBe(0.9);
 	});
 
 	it("stores a change, keeping one made in another tab meanwhile", async () => {
@@ -43,7 +54,7 @@ describe("preferences", () => {
 
 	it("turns smoothing into damping: none at 0, the usual at the default, more towards 1", () => {
 		expect(dampingFactorOf(0)).toBeNull();
-		expect(dampingFactorOf(DEFAULT_PREFERENCES.smoothing)).toBeCloseTo(0.12, 5);
+		expect(dampingFactorOf(DEFAULT_PREFERENCES.cameraSmoothing)).toBeCloseTo(0.12, 5);
 		expect(dampingFactorOf(1)).toBeLessThan(0.12);
 		expect(dampingFactorOf(0.1)).toBeGreaterThan(0.12);
 	});

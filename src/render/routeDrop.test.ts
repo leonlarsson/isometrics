@@ -10,7 +10,7 @@ const load = (road: Partial<TRoadInput>, driving: "right" | "left" = "right") =>
 	useEditor.getState().loadScene(
 		SceneSchema.parse({
 			version: 1,
-			driving,
+			drivingSide: driving,
 			roads: [
 				{
 					id: "r",
@@ -58,7 +58,10 @@ describe("findRouteDrop", () => {
 	});
 
 	it("picks the direction by the half of the road on roads without lanes too", () => {
-		for (const road of [{ lane: "centre" as const }, { style: "hidden_route_01" as const }]) {
+		for (const road of [
+			{ drivingLane: "centre" as const },
+			{ style: "hidden_route_01" as const },
+		]) {
 			load(road);
 			const forward = findRouteDrop(down(5, 0.3), { vehicleLength: 1 });
 			expect(forward).toMatchObject({ reverse: false, rotation: 0 });

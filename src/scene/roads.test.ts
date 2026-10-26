@@ -14,7 +14,7 @@ import {
 	pointWidth,
 	polylineLength,
 	ROAD_STYLE_WIDTH,
-	resolveTurns,
+	resolveTurnStyle,
 	roadCenterline,
 	segmentMidpoints,
 	turnSmoothing,
@@ -146,10 +146,14 @@ describe("dashPolyline", () => {
 
 describe("lanes", () => {
 	it("drives on the right or left, and down the centre of hidden or centre-lane roads", () => {
-		expect(laneOffset({ width: 2, style: "road_01", lane: "side" }, "right")).toBeGreaterThan(0);
-		expect(laneOffset({ width: 2, style: "road_01", lane: "side" }, "left")).toBeLessThan(0);
-		expect(laneOffset({ width: 2, style: "hidden_route_01", lane: "side" }, "right")).toBe(0);
-		expect(laneOffset({ width: 2, style: "road_01", lane: "centre" }, "right")).toBe(0);
+		expect(
+			laneOffset({ width: 2, style: "road_01", drivingLane: "side" }, "right"),
+		).toBeGreaterThan(0);
+		expect(laneOffset({ width: 2, style: "road_01", drivingLane: "side" }, "left")).toBeLessThan(0);
+		expect(laneOffset({ width: 2, style: "hidden_route_01", drivingLane: "side" }, "right")).toBe(
+			0,
+		);
+		expect(laneOffset({ width: 2, style: "road_01", drivingLane: "centre" }, "right")).toBe(0);
 	});
 
 	it("puts opposite directions on opposite sides", () => {
@@ -624,10 +628,10 @@ describe("widthForStyle", () => {
 
 describe("turns", () => {
 	it("uses the vehicle's setting, else the road's, else the scene's", () => {
-		expect(resolveTurns("smooth", null, null)).toBe("smooth");
-		expect(resolveTurns("smooth", "sharp", null)).toBe("sharp");
-		expect(resolveTurns("smooth", "sharp", "smooth")).toBe("smooth");
-		expect(resolveTurns("sharp", undefined, undefined)).toBe("sharp");
+		expect(resolveTurnStyle("smooth", null, null)).toBe("smooth");
+		expect(resolveTurnStyle("smooth", "sharp", null)).toBe("sharp");
+		expect(resolveTurnStyle("smooth", "sharp", "smooth")).toBe("smooth");
+		expect(resolveTurnStyle("sharp", undefined, undefined)).toBe("sharp");
 	});
 
 	it("smooths over half the vehicle's length, within limits; sharp is 0", () => {

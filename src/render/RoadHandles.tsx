@@ -79,7 +79,7 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 	// Survives the drag ending (pointer up comes before the click).
 	const keepsOthers = useRef(false);
 
-	const end: TRoadEnd | null = road.closed
+	const end: TRoadEnd | null = road.loops
 		? null
 		: index === 0
 			? "start"
@@ -358,7 +358,7 @@ export const RoadHandles = () => {
 
 	return (
 		<group>
-			{segmentMidpoints(road.points, road.closed).map(({ index, point }) => (
+			{segmentMidpoints(road.points, road.loops).map(({ index, point }) => (
 				<InsertHandle
 					key={`insert-${index}`}
 					roadId={road.id}

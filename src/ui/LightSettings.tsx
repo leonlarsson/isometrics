@@ -161,7 +161,7 @@ export const LightSettings = ({
 	const comesOn = comesOnOf(spec, setting);
 	const schedule = setting?.schedule ?? [];
 	const scheduledOn = hour !== null && schedule.some((period) => inPeriod(hour, period));
-	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.mode ?? inheritedMode);
+	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.whenOn ?? inheritedMode);
 	const reach = REACH[spec.shape];
 
 	return (
@@ -180,7 +180,7 @@ export const LightSettings = ({
 				<SelectField<TTurnsOn>
 					label="When"
 					value={turnsOn}
-					mixed={mixed("mode") || mixed("data.on")}
+					mixed={mixed("whenOn") || mixed("data.on")}
 					options={(["auto", "on", "off", "schedule", "data"] as const).map((option) => ({
 						value: option,
 						label: `${turnsOnLabels[option]}${unavailable[option] ?? ""}`,
@@ -191,16 +191,16 @@ export const LightSettings = ({
 							? follow("on")
 							: next === "schedule"
 								? onChange({
-										mode: next,
+										whenOn: next,
 										schedule: setting?.schedule ?? [NEW_PERIOD],
 										data: { on: null },
 									})
-								: onChange({ mode: next, data: { on: null } })
+								: onChange({ whenOn: next, data: { on: null } })
 					}
 					inherit={{
 						from: "default",
-						inherited: setting?.mode == null && !bound.on,
-						onReset: () => onChange({ mode: null, data: { on: null } }),
+						inherited: setting?.whenOn == null && !bound.on,
+						onReset: () => onChange({ whenOn: null, data: { on: null } }),
 						value: turnsOnLabels[inheritedMode].toLowerCase(),
 					}}
 					hint={

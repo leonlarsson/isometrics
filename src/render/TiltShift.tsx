@@ -115,7 +115,7 @@ const TiltShiftPasses = () => {
  */
 export const TiltShift = () => {
 	const shown = useEditor(
-		(s) => s.scene.camera.tiltShift && (s.mode === "view" || s.previewTiltShift),
+		(s) => s.scene.camera.tiltShiftOn && (s.mode === "view" || s.previewTiltShift),
 	);
 	return shown ? <TiltShiftPasses /> : null;
 };

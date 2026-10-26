@@ -182,10 +182,10 @@ test.describe("the Camera tab (ADR-0062)", () => {
 		await expect(page.getByRole("tab", { name: "Camera", selected: true })).toBeVisible();
 		await openPanel(page, "Turntable");
 		await page.getByRole("switch", { name: "Circle the view in View mode" }).click();
-		expect(await read(page, (s) => s.scene.camera.turntable)).toBe(true);
+		expect(await read(page, (s) => s.scene.camera.turntableOn)).toBe(true);
 		await openPanel(page, "Tilt-shift");
 		await page.getByRole("switch", { name: "Miniature blur in View mode" }).click();
-		expect(await read(page, (s) => s.scene.camera.tiltShift)).toBe(true);
+		expect(await read(page, (s) => s.scene.camera.tiltShiftOn)).toBe(true);
 	});
 
 	test("the opening projection can be perspective", async ({ page }) => {

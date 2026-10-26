@@ -103,10 +103,10 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 		scene.roads = (world.roads ?? []).map((r) => ({
 			...road,
 			name: "",
-			closed: false,
+			loops: false,
 			hidden: false,
 			locked: false,
-			turns: null,
+			turnStyle: null,
 			...r,
 		})) as typeof scene.roads;
 		const area = scene.areas[0];

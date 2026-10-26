@@ -1,4 +1,4 @@
-import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurns, TVec2 } from "./schema";
+import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurnStyle, TVec2 } from "./schema";
 import { variantName } from "./variants";
 
 /**
@@ -41,32 +41,32 @@ export const ROAD_STYLE_LABELS = Object.fromEntries(
 	]),
 ) as Record<TRoadStyle, string>;
 
-export const TURNS_LABELS: Record<TTurns, string> = {
+export const TURN_STYLE_LABELS: Record<TTurnStyle, string> = {
 	smooth: "Smoothly",
 	sharp: "Sharply",
 };
 
 /** The same two choices everywhere turns can be set (scene, road, vehicle). */
-export const TURNS_OPTIONS = (Object.keys(TURNS_LABELS) as TTurns[]).map((value) => ({
+export const TURN_STYLE_OPTIONS = (Object.keys(TURN_STYLE_LABELS) as TTurnStyle[]).map((value) => ({
 	value,
-	label: TURNS_LABELS[value],
+	label: TURN_STYLE_LABELS[value],
 }));
 
 /**
  * How a vehicle takes corners: its own setting, else its road's, else the
- * scene's (see TurnsSchema).
+ * scene's (see TurnStyleSchema).
  */
-export const resolveTurns = (
-	scene: TTurns,
-	road: TTurns | null | undefined,
-	vehicle: TTurns | null | undefined,
-): TTurns => vehicle ?? road ?? scene;
+export const resolveTurnStyle = (
+	scene: TTurnStyle,
+	road: TTurnStyle | null | undefined,
+	vehicle: TTurnStyle | null | undefined,
+): TTurnStyle => vehicle ?? road ?? scene;
 
 /**
  * How far behind and ahead a vehicle looks to smooth its heading (the path
  * sampler's `smoothing`): half its length for smooth turns, 0 for sharp ones.
  */
-export const turnSmoothing = (turns: TTurns, vehicleLength: number) =>
+export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
 	turns === "sharp" ? 0 : Math.min(Math.max(vehicleLength / 2, 0.3), 3);
 
 /** Default width per style when drawing a new road. */
@@ -313,8 +313,8 @@ export const roadCenterline = (
 };
 
 export const roadCenterlineOf = (
-	road: Pick<TRoad, "points" | "closed" | "cornerRadius" | "width">,
-) => roadCenterline(road.points, road.closed, road.cornerRadius, road.width);
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width">,
+) => roadCenterline(road.points, road.loops, road.cornerRadius, road.width);
 
 /** Total ground length of a polyline (heights ignored), including the closing segment for loops. */
 export const polylineLength = (points: readonly (readonly number[])[], closed: boolean) => {
@@ -689,10 +689,10 @@ export const dashPolyline = (
  * Hidden routes have no lanes, so vehicles drive on the line itself.
  */
 export const laneOffset = (
-	road: Pick<TRoad, "width" | "style" | "lane">,
+	road: Pick<TRoad, "width" | "style" | "drivingLane">,
 	driving: TDrivingSide,
 ) => {
-	if (isHiddenRoute(road.style) || road.lane === "centre") {
+	if (isHiddenRoute(road.style) || road.drivingLane === "centre") {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);
@@ -715,8 +715,8 @@ export const segmentMidpoints = (points: TPointInput[], closed: boolean) => {
 /** End points of open roads, for joining. Closed roads have no ends. */
 export type TRoadEnd = "start" | "end";
 
-export const roadEnds = (road: Pick<TRoad, "points" | "closed">) =>
-	road.closed
+export const roadEnds = (road: Pick<TRoad, "points" | "loops">) =>
+	road.loops
 		? []
 		: ([
 				{ end: "start" as TRoadEnd, index: 0, point: road.points[0] },

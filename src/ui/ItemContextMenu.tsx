@@ -56,7 +56,7 @@ const EntityActions = ({ id }: { id: string }) => {
 						speed: e.follow?.speed ?? 2,
 						offset: e.follow?.offset ?? 0,
 						reverse: e.follow?.reverse ?? false,
-						turns: e.follow?.turns ?? null,
+						turnStyle: e.follow?.turnStyle ?? null,
 					}
 				: null;
 		});
@@ -161,7 +161,7 @@ const EntityActions = ({ id }: { id: string }) => {
 const RoadActions = ({ id }: { id: string }) => {
 	const road = useEditor((s) => s.scene.roads.find((r) => r.id === id));
 	const store = () => useEditor.getState();
-	if (!road || road.closed || road.locked) {
+	if (!road || road.loops || road.locked) {
 		return null;
 	}
 	return (

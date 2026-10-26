@@ -11,7 +11,8 @@ import { APP_NAME } from "#/lib/app";
  * See docs/adr/0062-camera-settings.md.
  *
  * When the settings change: nothing is migrated. A setting that can't be read
- * goes back to its default; the others are kept.
+ * goes back to its default; the others are kept. A renamed one is read under
+ * its old name too (RENAMED_PREFERENCES).
  */
 const KEY = `${APP_NAME.toLowerCase()}:preferences`;
 
@@ -34,7 +35,7 @@ export const PreferencesSchema = z.object({
 	/** Scrolling up zooms out instead of in. */
 	invertZoom: z.boolean().catch(false),
 	/** How long the camera keeps gliding after a move: 0 stops at once, 1 drifts a long way. */
-	smoothing: z.number().min(0).max(1).catch(0.6),
+	cameraSmoothing: z.number().min(0).max(1).catch(0.6),
 	/** Seconds a glide to a viewpoint takes; 0 jumps there. */
 	glideSeconds: z.number().min(0).max(3).catch(0.8),
 	/** Panning with the arrow keys (and W A S D in View mode), × the usual speed. */
@@ -51,7 +52,7 @@ export const PreferencesSchema = z.object({
 	 * What a copy of a named thing is called (ADR-0068): "Tower copy", or numbered, "Tower 2",
 	 * "Tower 3"…
 	 */
-	copyNames: z.enum(["copy", "numbered"]).catch("copy"),
+	namesOfCopies: z.enum(["copy", "numbered"]).catch("copy"),
 });
 
 export type TPreferences = z.output<typeof PreferencesSchema>;
@@ -59,11 +60,25 @@ export type TPreferences = z.output<typeof PreferencesSchema>;
 /** Every setting at its default. */
 export const DEFAULT_PREFERENCES: TPreferences = PreferencesSchema.parse({});
 
+/** Old names of renamed settings, and their names now (ADR-0071). Never remove an entry. */
+const RENAMED_PREFERENCES: Readonly<Record<string, keyof TPreferences>> = {
+	smoothing: "cameraSmoothing",
+	copyNames: "namesOfCopies",
+};
+
 /** Stored settings, each one that can't be read at its default. */
 export const parsePreferences = (raw: string | null): TPreferences => {
 	try {
 		const value: unknown = JSON.parse(raw ?? "{}");
-		return PreferencesSchema.parse(typeof value === "object" && value !== null ? value : {});
+		const stored: Record<string, unknown> =
+			typeof value === "object" && value !== null ? { ...value } : {};
+		for (const [from, to] of Object.entries(RENAMED_PREFERENCES)) {
+			if (from in stored && !(to in stored)) {
+				stored[to] = stored[from];
+			}
+			delete stored[from];
+		}
+		return PreferencesSchema.parse(stored);
 	} catch {
 		return DEFAULT_PREFERENCES;
 	}

@@ -81,7 +81,7 @@ export const readSwitch = (
 	data: readonly TDataEntry[] | undefined,
 ) => {
 	const entry = boundEntry(binding, data);
-	return entry && binding ? switchesOn(entry.value, binding.above ?? 0) : undefined;
+	return entry && binding ? switchesOn(entry.value, binding.onAbove ?? 0) : undefined;
 };
 
 /** A scale binding's reading: the value ÷ `full`, between `min` and `max`; undefined if it isn't a number. */
@@ -92,14 +92,14 @@ export const readScale = (
 ) => {
 	const value = dataNumber(boundEntry(binding, data)?.value);
 	return binding && Number.isFinite(value)
-		? Math.min(max, Math.max(min, value / (binding.full ?? 1)))
+		? Math.min(max, Math.max(min, value / (binding.valueAtFull ?? 1)))
 		: undefined;
 };
 
 /** A colour scale's options as they are in effect: the binding's, else the defaults. */
 export const colorScaleOf = (binding: TDataBinding) => ({
-	low: binding.low ?? 0,
-	high: binding.high ?? 100,
+	low: binding.valueAtLowColor ?? 0,
+	high: binding.valueAtHighColor ?? 100,
 	lowColor: binding.lowColor ?? "#2bb58c",
 	highColor: binding.highColor ?? "#e0483b",
 });

@@ -18,7 +18,7 @@ const load = () => {
 					kind: "street_lamp_01",
 					position: [0, 0],
 					lights: {
-						lamp: { mode: "schedule", schedule: [{ from: 18, until: 23 }], strength: 2 },
+						lamp: { whenOn: "schedule", schedule: [{ from: 18, until: 23 }], strength: 2 },
 					},
 					colors: { post: { color: "#ff0000" } },
 				},
@@ -66,7 +66,7 @@ describe("copying and pasting settings (ADR-0068)", () => {
 		select("b");
 		pasteSettings(copied!, { lightId: "lamp", scheduleOnly: true });
 		const lamp = (entity("b")!.lights as Record<string, Record<string, unknown>>).lamp;
-		expect(lamp.mode).toBe("schedule");
+		expect(lamp.whenOn).toBe("schedule");
 		expect(lamp.schedule).toEqual([{ from: 18, until: 23 }]);
 		expect(lamp.strength).toBeNull();
 	});
@@ -166,7 +166,7 @@ describe("names of pasted things (ADR-0068)", () => {
 	});
 
 	it("numbers them when the preference says so", () => {
-		setPreference("copyNames", "numbered");
+		setPreference("namesOfCopies", "numbered");
 		const text = copyRingRoad();
 		pasteText(text);
 		pasteText(text);

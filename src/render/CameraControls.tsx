@@ -725,7 +725,7 @@ export const CameraControls = () => {
 	const height = useThree((s) => s.size.height);
 	const preferences = usePreferences();
 	const free = preferences.cameraControl === "free";
-	const damping = dampingFactorOf(preferences.smoothing);
+	const damping = dampingFactorOf(preferences.cameraSmoothing);
 	return (
 		<>
 			<OrbitControls

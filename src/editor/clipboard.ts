@@ -336,7 +336,7 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
 					entity.id,
 					spec.id,
 					options.scheduleOnly
-						? { mode: "schedule", schedule: settings.light.schedule ?? [], data: { on: null } }
+						? { whenOn: "schedule", schedule: settings.light.schedule ?? [], data: { on: null } }
 						: replaceLight(settings.light, current),
 					commit,
 				);
@@ -530,7 +530,7 @@ const pasteThings = (
 	];
 
 	// Named like copies: kept where the name is free, else as the preference says (scene/naming).
-	const style = readPreferences().copyNames;
+	const style = readPreferences().namesOfCopies;
 	const roadName = copyNamer(
 		current.roads.map((road) => road.name),
 		style,

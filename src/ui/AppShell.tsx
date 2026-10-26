@@ -139,25 +139,28 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	const faded = (inView: boolean) => (editing && !inView) || undefined;
 	// Says why lines are struck through, in Edit mode, when any line shown here is.
 	const anyFaded =
-		editing && (!onScreen.title || (!onScreen.subtitle && meta.subtitle) || !onScreen.timeOfDay);
+		editing &&
+		(!onScreen.showTitle || (!onScreen.showSubtitle && meta.subtitle) || !onScreen.showTimeOfDay);
 	if (
-		!shown(onScreen.title) &&
-		!(shown(onScreen.subtitle) && meta.subtitle) &&
-		!shown(onScreen.timeOfDay)
+		!shown(onScreen.showTitle) &&
+		!(shown(onScreen.showSubtitle) && meta.subtitle) &&
+		!shown(onScreen.showTimeOfDay)
 	) {
 		return null;
 	}
 	return (
 		// Label cards step aside for it (data-label-obstacle), like for the bars.
 		<div className={styles.sceneTitle} data-label-obstacle="">
-			{shown(onScreen.title) && <h1 data-hidden-in-view={faded(onScreen.title)}>{meta.title}</h1>}
-
-			{shown(onScreen.subtitle) && meta.subtitle && (
-				<p data-hidden-in-view={faded(onScreen.subtitle)}>{meta.subtitle}</p>
+			{shown(onScreen.showTitle) && (
+				<h1 data-hidden-in-view={faded(onScreen.showTitle)}>{meta.title}</h1>
 			)}
 
-			{!shown(onScreen.timeOfDay) ? null : editing ? (
-				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.timeOfDay)}>
+			{shown(onScreen.showSubtitle) && meta.subtitle && (
+				<p data-hidden-in-view={faded(onScreen.showSubtitle)}>{meta.subtitle}</p>
+			)}
+
+			{!shown(onScreen.showTimeOfDay) ? null : editing ? (
+				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.showTimeOfDay)}>
 					<span className={styles.sceneTimeOpen}>
 						<Tooltip label="Open Sun & sky">
 							<Button variant="text" size="sm" icon="clock" onClick={onOpenSky}>

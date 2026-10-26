@@ -46,7 +46,7 @@ describe("sun", () => {
 				sunElevation: 20,
 				sunColor: "#ff0000",
 				sunStrength: 2,
-				lights: "on",
+				whenLightsAreOn: "on",
 			},
 			12,
 		);
@@ -57,7 +57,7 @@ describe("sun", () => {
 			2,
 			1,
 		]);
-		expect(skyLightAt({ ...lighting, lights: "off" }, 0).night).toBe(0);
+		expect(skyLightAt({ ...lighting, whenLightsAreOn: "off" }, 0).night).toBe(0);
 	});
 
 	it("formats hours as a clock", () => {

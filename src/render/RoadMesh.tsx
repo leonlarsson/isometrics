@@ -120,28 +120,28 @@ export const RoadBody = ({
 
 	const surface = useDisposable(
 		useMemo(
-			() => ribbonGeometry([{ center, halfWidth: road.width / 2, closed: road.closed }], y),
-			[center, road.width, road.closed, y],
+			() => ribbonGeometry([{ center, halfWidth: road.width / 2, closed: road.loops }], y),
+			[center, road.width, road.loops, y],
 		),
 	);
 	const markings = useDisposable(
 		useMemo(
 			() =>
 				ribbonGeometry(
-					dashPolyline(center, road.closed, MARKING_DASH, MARKING_GAP).map((dash) => ({
+					dashPolyline(center, road.loops, MARKING_DASH, MARKING_GAP).map((dash) => ({
 						center: dash,
 						halfWidth: MARKING_HALF_WIDTH,
 						closed: false,
 					})),
 					y + 0.002,
 				),
-			[center, road.closed, y],
+			[center, road.loops, y],
 		),
 	);
 	const sides = useMemo(
 		() =>
-			buildElevatedSides(center, road.closed, road.width / 2, {
-				railings: road.railings && !hidden,
+			buildElevatedSides(center, road.loops, road.width / 2, {
+				railings: road.showRailings && !hidden,
 				embankment: road.supports === "embankment" && !hidden,
 				embankmentAngle: road.embankmentAngle,
 				embankmentWidth: road.embankmentWidth,
@@ -149,9 +149,9 @@ export const RoadBody = ({
 			}),
 		[
 			center,
-			road.closed,
+			road.loops,
 			road.width,
-			road.railings,
+			road.showRailings,
 			road.supports,
 			road.embankmentAngle,
 			road.embankmentWidth,
@@ -167,18 +167,18 @@ export const RoadBody = ({
 	const pillars = useMemo(
 		() =>
 			road.supports === "pillars" && !hidden
-				? pillarPositions(center, road.closed, road.pillarSpacing)
+				? pillarPositions(center, road.loops, road.pillarSpacing)
 				: [],
-		[center, road.closed, road.supports, road.pillarSpacing, hidden],
+		[center, road.loops, road.supports, road.pillarSpacing, hidden],
 	);
 
 	const outline = useMemo(() => {
 		const pts = center.map(([x, z, h]) => [x, y + h + 0.03, z] as [number, number, number]);
-		if (road.closed && pts.length > 2) {
+		if (road.loops && pts.length > 2) {
 			pts.push(pts[0]);
 		}
 		return pts;
-	}, [center, road.closed, y]);
+	}, [center, road.loops, y]);
 
 	if (hidden && !editing) {
 		return null;
@@ -195,7 +195,7 @@ export const RoadBody = ({
 				)}
 			</mesh>
 
-			{ROAD_STYLES[road.style].centreLine && road.markings && (
+			{ROAD_STYLES[road.style].centreLine && road.showMarkings && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
 				</mesh>

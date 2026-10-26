@@ -12,7 +12,7 @@ const ROOF_OVERHANG = 0.1;
 const TowerSchema = z.object({
 	width: z.number().min(1).max(12).default(3.2),
 	depth: z.number().min(1).max(12).default(3.2),
-	floors: z.number().int().min(1).max(40).default(9),
+	floorCount: z.number().int().min(1).max(40).default(9),
 });
 
 export const officeTower01 = definePart({
@@ -46,19 +46,20 @@ export const officeTower01 = definePart({
 	description: "Multi-storey building with a window grid",
 	keywords: ["office", "skyscraper", "high-rise", "apartments", "building", "block"],
 	schema: TowerSchema,
+	renamedProps: { floors: "floorCount" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 12, step: 0.25 },
 		{ key: "depth", label: "Depth", type: "number", min: 1, max: 12, step: 0.25 },
-		{ key: "floors", label: "Floors", type: "number", min: 1, max: 40, step: 1 },
+		{ key: "floorCount", label: "Number of floors", type: "number", min: 1, max: 40, step: 1 },
 	],
 	colors: [
 		{ id: "facade", name: "Facade", default: "#2bb58c", legacy: "color" },
 		{ id: "grid", name: "Window grid", default: "#e8f6f0", legacy: "accent" },
 	],
 	footprint: (p) => [p.width, p.depth],
-	height: (p) => p.floors * FLOOR_HEIGHT + ROOF_CAP + 0.5,
+	height: (p) => p.floorCount * FLOOR_HEIGHT + ROOF_CAP + 0.5,
 	Component: ({ props: p, colors, lights }) => {
-		const h = p.floors * FLOOR_HEIGHT;
+		const h = p.floorCount * FLOOR_HEIGHT;
 		const columnsX = Math.max(2, Math.round(p.width / 0.7));
 		const columnsZ = Math.max(2, Math.round(p.depth / 0.7));
 		return (
@@ -77,13 +78,13 @@ export const officeTower01 = definePart({
 					height={h}
 					columnsX={columnsX}
 					columnsZ={columnsZ}
-					floors={p.floors}
-					seed={p.floors * 7 + Math.round(p.width * 13) + Math.round(p.depth * 5)}
+					floors={p.floorCount}
+					seed={p.floorCount * 7 + Math.round(p.width * 13) + Math.round(p.depth * 5)}
 				/>
 
 				{/* Bands between floors only; the roof cap covers the top so no faces are coplanar. */}
 
-				{Array.from({ length: p.floors - 1 }, (_, i) => (
+				{Array.from({ length: p.floorCount - 1 }, (_, i) => (
 					<Box
 						// biome-ignore lint/suspicious/noArrayIndexKey: floors are positional
 						key={i}

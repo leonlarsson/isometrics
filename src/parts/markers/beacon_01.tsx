@@ -8,7 +8,7 @@ import { definePart } from "../types";
 
 const BeaconSchema = z.object({
 	radius: z.number().min(0.2).max(10).default(0.9),
-	pulse: z.boolean().default(true),
+	pulses: z.boolean().default(true),
 });
 
 const BeaconRing = ({
@@ -48,9 +48,10 @@ export const beacon01 = definePart({
 	description: "Pulsing ring to highlight a live spot",
 	keywords: ["marker", "highlight", "pin", "ping"],
 	schema: BeaconSchema,
+	renamedProps: { pulse: "pulses" },
 	fields: [
 		{ key: "radius", label: "Radius", type: "number", min: 0.2, max: 10, step: 0.1 },
-		{ key: "pulse", label: "Pulse", type: "boolean" },
+		{ key: "pulses", label: "Pulses", type: "boolean" },
 	],
 	colors: [
 		{ id: "ring", name: "Ring", default: (p) => p.signal, legacy: "color" },
@@ -60,7 +61,7 @@ export const beacon01 = definePart({
 	height: () => 0.3,
 	Component: ({ props: p, colors, playing }) => (
 		<group>
-			<BeaconRing radius={p.radius} color={colors.ring} pulse={p.pulse} playing={playing} />
+			<BeaconRing radius={p.radius} color={colors.ring} pulse={p.pulses} playing={playing} />
 
 			<mesh position={[0, 0.12, 0]} castShadow>
 				<sphereGeometry args={[0.14, 16, 16]} />

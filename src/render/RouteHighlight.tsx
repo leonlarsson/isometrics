@@ -22,7 +22,7 @@ type TPoint = [number, number, number];
  * on an open road the whole trip, there, U-turn, back and U-turn.
  */
 const RouteLine = ({ road, reverse }: { road: TRoad; reverse: boolean }) => {
-	const driving = useEditor((s) => s.scene.driving);
+	const driving = useEditor((s) => s.scene.drivingSide);
 	const palette = usePalette();
 
 	const geometry = useMemo(() => {

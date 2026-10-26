@@ -4,7 +4,7 @@ import { type ICommitOptions, SNAP_STEP, useEditor } from "#/editor/store";
 import { keepOnHotReload } from "#/lib/hot";
 import { DEG2RAD, normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
-import { resolveTurns, turnSmoothing } from "#/scene/roads";
+import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, type IRoadProjection, projectOntoRoad } from "#/scene/routes";
 import type { TRoad, TVec2 } from "#/scene/schema";
 
@@ -87,10 +87,13 @@ export const findRouteDrop = (
 
 	const { road, projection } = best;
 	// Driving on the right, the forward lane is right of the road's direction.
-	const reverse = projection.side * (scene.driving === "right" ? 1 : -1) < 0;
-	const sampler = createRouteSampler(road, scene.driving, {
+	const reverse = projection.side * (scene.drivingSide === "right" ? 1 : -1) < 0;
+	const sampler = createRouteSampler(road, scene.drivingSide, {
 		reverse,
-		smoothing: turnSmoothing(resolveTurns(scene.turns, road.turns, null), vehicleLength),
+		smoothing: turnSmoothing(
+			resolveTurnStyle(scene.turnStyle, road.turnStyle, null),
+			vehicleLength,
+		),
 	});
 	const offset = Math.min(
 		Math.max(snapping ? snap(projection.offset, SNAP_STEP) : projection.offset, 0),

@@ -4,7 +4,7 @@ import { createRouteSampler, projectOntoRoad } from "./routes";
 import { RoadSchema, type TRoadInput } from "./schema";
 
 const road = (input: Partial<TRoadInput>) =>
-	RoadSchema.parse({ id: "r", cornerRadius: 0, lane: "centre", points: [], ...input });
+	RoadSchema.parse({ id: "r", cornerRadius: 0, drivingLane: "centre", points: [], ...input });
 
 const line = road({
 	points: [
@@ -14,7 +14,7 @@ const line = road({
 });
 
 const square = road({
-	closed: true,
+	loops: true,
 	points: [
 		[0, 0],
 		[10, 0],
@@ -35,7 +35,7 @@ describe("createRouteSampler", () => {
 	});
 
 	it("places vehicles in their road's traffic: one cycle on open roads, two streams on loops", () => {
-		const sideLine = road({ ...line, lane: "side" });
+		const sideLine = road({ ...line, drivingLane: "side" });
 		const forward = createRouteSampler(sideLine, "right");
 		const back = createRouteSampler(sideLine, "right", { reverse: true });
 		// Reversed on an open road is the same cycle, on the way back.
@@ -68,7 +68,7 @@ describe("createRouteSampler", () => {
 	});
 
 	it("puts a reversed vehicle in the other lane", () => {
-		const sided = road({ ...line, lane: "side", style: "road_01" });
+		const sided = road({ ...line, drivingLane: "side", style: "road_01" });
 		const forward = createRouteSampler(sided, "right").at(5);
 		const back = createRouteSampler(sided, "right", { reverse: true }).at(5);
 		expect(forward.position[1]).toBeGreaterThan(0);

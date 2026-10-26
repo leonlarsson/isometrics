@@ -194,7 +194,7 @@ export const LabelLayer = () => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	// The world can hide every card from View mode (World tab → Shown in View mode); Edit mode still
 	// shows them, faded, so they can be worked on.
-	const cardsInView = useEditor((s) => s.scene.onScreen.labelCards);
+	const cardsInView = useEditor((s) => s.scene.onScreen.showLabelCards);
 	const editing = useEditor((s) => s.mode === "edit");
 	const labelled =
 		cardsInView || editing

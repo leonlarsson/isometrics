@@ -11,7 +11,7 @@ export interface IEmptySceneOptions {
 	title?: string;
 	ground?: { width: number; depth: number };
 	theme?: TThemePreference;
-	driving?: TDrivingSide;
+	drivingSide?: TDrivingSide;
 }
 
 /** Starting option: bare ground, with no objects, roads, areas or data. */
@@ -19,12 +19,12 @@ export const createEmptyScene = ({
 	title = "Untitled world",
 	ground,
 	theme,
-	driving,
+	drivingSide,
 }: IEmptySceneOptions = {}): TScene =>
 	SceneSchema.parse({
 		version: SCENE_VERSION,
 		meta: { title },
 		...(ground && { ground: { ...ground, color: null } }),
 		...(theme && { theme }),
-		...(driving && { driving }),
+		...(drivingSide && { drivingSide }),
 	});

@@ -10,6 +10,7 @@ import {
 } from "./legacy";
 import { parseScene } from "./migrate";
 import { parseOrRepairScene } from "./repair";
+import type { TEntityLight } from "./schema";
 import { AreaTypeSchema, RoadStyleSchema } from "./schema";
 
 const oldWorld = () => ({
@@ -137,5 +138,84 @@ describe("legacy viewpoints", () => {
 			"orthographic",
 		]);
 		expect(scene.viewpoints[0]).not.toHaveProperty("perspective");
+	});
+});
+
+describe("renamed fields (ADR-0071)", () => {
+	const binding = { key: "queue", above: 5, full: 50, low: 10, high: 90 };
+	const oldWorld = {
+		version: 1,
+		driving: "left",
+		turns: "sharp",
+		onScreen: {
+			title: false,
+			subtitle: false,
+			timeOfDay: false,
+			labelCards: false,
+			details: false,
+			viewpointBar: false,
+		},
+		lighting: { lights: "on" },
+		traffic: { spacing: false, overtaking: false },
+		camera: { turntable: true, tiltShift: true },
+		roads: [
+			{
+				id: "r",
+				points: [
+					[0, 0],
+					[4, 0],
+					[4, 4],
+				],
+				closed: true,
+				markings: false,
+				railings: false,
+				lane: "centre",
+				turns: "sharp",
+			},
+		],
+		entities: [
+			{
+				id: "car",
+				kind: "car_01",
+				follow: { roadId: "r", turns: "smooth" },
+				lights: { headlights: { mode: "off", data: { strength: binding } } },
+				colors: { body: { data: { color: binding } } },
+			},
+		],
+		data: [{ key: "queue", value: 1 }],
+	};
+
+	it("keep their values under the new names, without repairs", () => {
+		const { scene, report } = parseOrRepairScene(structuredClone(oldWorld));
+		expect(report).toBeNull();
+		expect(scene.drivingSide).toBe("left");
+		expect(scene.turnStyle).toBe("sharp");
+		expect(Object.values(scene.onScreen).every((shown) => shown === false)).toBe(true);
+		expect(scene.lighting.whenLightsAreOn).toBe("on");
+		expect(scene.traffic).toEqual({ keepSpacing: false, allowOvertaking: false });
+		expect(scene.camera).toMatchObject({ turntableOn: true, tiltShiftOn: true });
+		expect(scene.roads[0]).toMatchObject({
+			loops: true,
+			showMarkings: false,
+			showRailings: false,
+			drivingLane: "centre",
+			turnStyle: "sharp",
+		});
+		const [car] = scene.entities;
+		expect(car.follow?.turnStyle).toBe("smooth");
+		const lights = car.lights as Record<string, TEntityLight>;
+		expect(lights.headlights.whenOn).toBe("off");
+		const renamed = { onAbove: 5, valueAtFull: 50, valueAtLowColor: 10, valueAtHighColor: 90 };
+		expect(lights.headlights.data.strength).toMatchObject(renamed);
+		expect(car.colors.body.data.color).toMatchObject(renamed);
+	});
+
+	it("leave the input untouched, and a value under the new name wins", () => {
+		const input = structuredClone(oldWorld);
+		upgradeLegacyIds(input);
+		expect(input).toEqual(oldWorld);
+		expect(parseScene({ version: 1, driving: "left", drivingSide: "right" }).drivingSide).toBe(
+			"right",
+		);
 	});
 });

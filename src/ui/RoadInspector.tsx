@@ -10,11 +10,11 @@ import {
 	ROAD_STYLE_LABELS,
 	ROAD_STYLES,
 	roadCenterlineOf,
-	TURNS_LABELS,
-	TURNS_OPTIONS,
+	TURN_STYLE_LABELS,
+	TURN_STYLE_OPTIONS,
 	widthForStyle,
 } from "#/scene/roads";
-import type { TRoad, TRoadLane, TRoadStyle, TRoadSupports, TTurns } from "#/scene/schema";
+import type { TDrivingLane, TRoad, TRoadStyle, TRoadSupports, TTurnStyle } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import {
@@ -47,10 +47,10 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 	const followers = useEditor(
 		(s) => s.scene.entities.filter((e) => e.follow?.roadId === road.id).length,
 	);
-	const sceneTurns = useEditor((s) => s.scene.turns);
-	const driving = useEditor((s) => s.scene.driving);
+	const sceneTurns = useEditor((s) => s.scene.turnStyle);
+	const driving = useEditor((s) => s.scene.drivingSide);
 	const edit = useRoadEdit(road);
-	const length = polylineLength(roadCenterlineOf(road), road.closed);
+	const length = polylineLength(roadCenterlineOf(road), road.loops);
 
 	return (
 		<>
@@ -104,38 +104,38 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 
 			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
 				{!isHiddenRoute(road.style) && (
-					<SelectField<TRoadLane>
+					<SelectField<TDrivingLane>
 						label="Vehicles drive"
-						value={road.lane}
+						value={road.drivingLane}
 						options={[
 							{ value: "side", label: `In lanes (keep ${driving})` },
 							{ value: "centre", label: "Down the centre (one-way, race track)" },
 						]}
 						onChange={(v) =>
 							edit("lane", (r) => {
-								r.lane = v;
+								r.drivingLane = v;
 							})
 						}
 					/>
 				)}
 
-				<SelectField<TTurns>
+				<SelectField<TTurnStyle>
 					label="Vehicles turn"
-					value={road.turns ?? sceneTurns}
-					options={TURNS_OPTIONS}
+					value={road.turnStyle ?? sceneTurns}
+					options={TURN_STYLE_OPTIONS}
 					onChange={(v) =>
 						edit("turns", (r) => {
-							r.turns = v;
+							r.turnStyle = v;
 						})
 					}
 					inherit={{
 						from: "scene",
-						inherited: road.turns === null,
+						inherited: road.turnStyle === null,
 						onReset: () =>
 							edit("turns", (r) => {
-								r.turns = null;
+								r.turnStyle = null;
 							}),
-						value: TURNS_LABELS[sceneTurns].toLowerCase(),
+						value: TURN_STYLE_LABELS[sceneTurns].toLowerCase(),
 					}}
 				/>
 
@@ -207,10 +207,10 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 
 				<SwitchField
 					label="Loop (join the ends)"
-					checked={road.closed}
+					checked={road.loops}
 					onChange={(v) =>
-						edit("closed", (r) => {
-							r.closed = v;
+						edit("loops", (r) => {
+							r.loops = v;
 						})
 					}
 				/>
@@ -316,10 +316,10 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 
 							<SwitchField
 								label="Railings"
-								checked={road.railings}
+								checked={road.showRailings}
 								onChange={(v) =>
 									edit("railings", (r) => {
-										r.railings = v;
+										r.showRailings = v;
 									})
 								}
 							/>
@@ -364,10 +364,10 @@ const RoadLookTab = ({ road }: { road: TRoad }) => {
 			{ROAD_STYLES[road.style].centreLine && (
 				<SwitchField
 					label="Centre line"
-					checked={road.markings}
+					checked={road.showMarkings}
 					onChange={(v) =>
 						edit("markings", (r) => {
-							r.markings = v;
+							r.showMarkings = v;
 						})
 					}
 				/>

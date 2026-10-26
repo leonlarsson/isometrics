@@ -275,9 +275,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Circle the view in View mode"
-					checked={camera.turntable}
-					onChange={(v) => set("turntable", v)}
-					inherit={byDefault("turntable", "off")}
+					checked={camera.turntableOn}
+					onChange={(v) => set("turntableOn", v)}
+					inherit={byDefault("turntableOn", "off")}
 				/>
 
 				<SliderField
@@ -314,9 +314,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Miniature blur in View mode"
-					checked={camera.tiltShift}
-					onChange={(v) => set("tiltShift", v)}
-					inherit={byDefault("tiltShift", "off")}
+					checked={camera.tiltShiftOn}
+					onChange={(v) => set("tiltShiftOn", v)}
+					inherit={byDefault("tiltShiftOn", "off")}
 				/>
 
 				<SwitchField

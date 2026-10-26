@@ -501,7 +501,7 @@ export interface IEditorState {
 	addDrawingPoint: (point: TVec2) => void;
 	undoDrawingPoint: () => void;
 	/** Create the road (2+ points) or area (3+ points) from the drawn points. Returns its id. */
-	finishDrawing: (options?: { closed?: boolean }) => string | null;
+	finishDrawing: (options?: { loops?: boolean }) => string | null;
 	cancelDrawing: () => void;
 }
 
@@ -1032,7 +1032,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					list.filter((thing) => selectedItems.some(sameItem({ kind, id: thing.id })));
 				// Copies are named as the preference says: "Tower copy", or "Tower 2" (scene/naming). Left
 				// behind, the copies keep the names and the originals, which move, take the new ones.
-				const style = readPreferences().copyNames;
+				const style = readPreferences().namesOfCopies;
 				const namers = {
 					entity: copyNamer(
 						current.entities.map((e) => e.name),
@@ -1171,14 +1171,14 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			resetCamera: () => {
 				const defaults = CameraSettingsSchema.parse({});
 				get().commit((scene) => {
-					const { turntable, turntableSpeed, turntableDelay } = scene.camera;
-					const { tiltShift, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
+					const { turntableOn, turntableSpeed, turntableDelay } = scene.camera;
+					const { tiltShiftOn, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
 					scene.camera = {
 						...defaults,
-						turntable,
+						turntableOn,
 						turntableSpeed,
 						turntableDelay,
-						tiltShift,
+						tiltShiftOn,
 						tiltShiftBlur,
 						tiltShiftFocus,
 						tiltShiftPosition,
@@ -1433,7 +1433,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							entity.lights = {};
 							if (mode !== "auto") {
 								for (const spec of getPart(entity.kind)?.lights ?? []) {
-									entity.lights[spec.id] = EntityLightSchema.parse({ mode });
+									entity.lights[spec.id] = EntityLightSchema.parse({ whenOn: mode });
 								}
 							}
 						}
@@ -1510,7 +1510,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const copy: TEntity = structuredClone(source);
 				copy.id = newId(source.kind);
 				const names = new Set(get().scene.entities.map((e) => e.name));
-				renameEntity(copy, copyName(source.name, names, readPreferences().copyNames));
+				renameEntity(copy, copyName(source.name, names, readPreferences().namesOfCopies));
 				copy.position = [source.position[0] + 1, source.position[1] + 1];
 				if (copy.follow) {
 					copy.follow.offset += 3;
@@ -1626,7 +1626,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					(road) => {
 						// Between points with their own widths, the new point keeps the width there.
 						const n = road.points.length;
-						const neighbours = road.closed
+						const neighbours = road.loops
 							? [road.points[(index - 1 + n) % n], road.points[index % n]]
 							: [road.points[index - 1], road.points[index]];
 						const widths = neighbours.filter(Boolean).map((p) => pointWidth(p));
@@ -1656,11 +1656,11 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (!road || index < 0 || index >= road.points.length) {
 					return null;
 				}
-				if (road.closed) {
+				if (road.loops) {
 					// Open the loop at this point: it becomes both the start and the end.
 					get().updateRoad(id, (r) => {
 						r.points = [...r.points.slice(index), ...r.points.slice(0, index + 1)];
-						r.closed = false;
+						r.loops = false;
 					});
 					set({ selectedPointIndex: 0, joinOffer: null });
 					return id;
@@ -1689,7 +1689,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const { roads } = get().scene;
 				const a = roads.find((r) => r.id === aId);
 				const b = roads.find((r) => r.id === bId);
-				if (!a || !b || a.closed || b.closed) {
+				if (!a || !b || a.loops || b.loops) {
 					return;
 				}
 				if (aId === bId) {
@@ -1700,7 +1700,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
 								r.points.pop(); // ends touch: keep one shared point
 							}
-							r.closed = true;
+							r.loops = true;
 						});
 					}
 					set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null });
@@ -1771,7 +1771,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			continueDrawing: (roadId, end) => {
 				const road = get().scene.roads.find((r) => r.id === roadId);
-				if (!road || road.closed) {
+				if (!road || road.loops) {
 					return;
 				}
 				// Orient the points so new ones are added after the chosen end.
@@ -1882,12 +1882,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						height: AREA_TYPES[drawing.areaType].startHeight,
 					});
 				}
-				const closed = Boolean(options.closed) && drawing.points.length > 2;
+				const loops = Boolean(options.loops) && drawing.points.length > 2;
 				if (drawing.roadId) {
 					const roadId = drawing.roadId;
 					get().updateRoad(roadId, (road) => {
 						road.points = drawing.points;
-						road.closed = closed;
+						road.loops = loops;
 					});
 					set({ ...NOTHING_SELECTED, selectedRoadId: roadId, tab: "object" });
 					return roadId;
@@ -1898,7 +1898,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					style: drawing.style,
 					points: drawing.points,
 					width: ROAD_STYLE_WIDTH[drawing.style],
-					closed,
+					loops,
 				});
 			},
 

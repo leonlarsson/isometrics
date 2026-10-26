@@ -27,7 +27,7 @@ const SOURCES: { value: TLighting["timeSource"]; label: string }[] = [
 	{ value: "data", label: "From data" },
 ];
 
-const LIGHTS_OPTIONS: { value: TLighting["lights"]; label: string }[] = [
+const LIGHTS_OPTIONS: { value: TLighting["whenLightsAreOn"]; label: string }[] = [
 	{ value: "auto", label: "After dark" },
 	{ value: "on", label: "Always" },
 	{ value: "off", label: "Never" },
@@ -243,14 +243,14 @@ export const SkyTab = () => {
 			<BackdropSection />
 
 			<Section id="sky.lights" icon="bulb" title="Lights" keywords="night windows lamps headlights">
-				<SelectField<TLighting["lights"]>
+				<SelectField<TLighting["whenLightsAreOn"]>
 					label="Lit windows, lamps and headlights"
-					value={lighting.lights}
+					value={lighting.whenLightsAreOn}
 					options={LIGHTS_OPTIONS}
-					onChange={(lights) => set("lights", lights)}
+					onChange={(lights) => set("whenLightsAreOn", lights)}
 				/>
 
-				{fromTime.night >= SWITCH_ON_DARKNESS && lighting.lights === "auto" && (
+				{fromTime.night >= SWITCH_ON_DARKNESS && lighting.whenLightsAreOn === "auto" && (
 					<Hint>It's dark: lights that turn on after dark are on.</Hint>
 				)}
 			</Section>

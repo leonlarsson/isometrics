@@ -52,8 +52,8 @@ export const DataBindingFields = ({
 }: IDataBindingFieldsProps) => {
 	const entry = boundEntry(binding, data);
 	const name = entry ? entry.label || entry.key : binding.key;
-	const above = binding.above ?? 0;
-	const full = binding.full ?? 1;
+	const above = binding.onAbove ?? 0;
+	const full = binding.valueAtFull ?? 1;
 	const reading = readScale(binding, data, { max });
 	const color = entry ? cssColor(entry.value) : null;
 	const scale = colorScaleOf(binding);
@@ -95,11 +95,11 @@ export const DataBindingFields = ({
 				<NumberField
 					label="On above"
 					value={above}
-					onChange={(value) => onChange({ ...binding, above: value }, "above")}
+					onChange={(value) => onChange({ ...binding, onAbove: value }, "onAbove")}
 					inherit={{
 						from: "default",
-						inherited: binding.above === null,
-						onReset: () => onChange({ ...binding, above: null }),
+						inherited: binding.onAbove === null,
+						onReset: () => onChange({ ...binding, onAbove: null }),
 						value: "0",
 					}}
 					hint={now}
@@ -111,11 +111,13 @@ export const DataBindingFields = ({
 					<NumberField
 						label="Low value"
 						value={scale.low}
-						onChange={(value) => onChange({ ...binding, low: value }, "low")}
+						onChange={(value) =>
+							onChange({ ...binding, valueAtLowColor: value }, "valueAtLowColor")
+						}
 						inherit={{
 							from: "default",
-							inherited: binding.low === null,
-							onReset: () => onChange({ ...binding, low: null }),
+							inherited: binding.valueAtLowColor === null,
+							onReset: () => onChange({ ...binding, valueAtLowColor: null }),
 							value: "0",
 						}}
 					/>
@@ -134,11 +136,13 @@ export const DataBindingFields = ({
 					<NumberField
 						label="High value"
 						value={scale.high}
-						onChange={(value) => onChange({ ...binding, high: value }, "high")}
+						onChange={(value) =>
+							onChange({ ...binding, valueAtHighColor: value }, "valueAtHighColor")
+						}
 						inherit={{
 							from: "default",
-							inherited: binding.high === null,
-							onReset: () => onChange({ ...binding, high: null }),
+							inherited: binding.valueAtHighColor === null,
+							onReset: () => onChange({ ...binding, valueAtHighColor: null }),
 							value: "100",
 						}}
 					/>
@@ -161,11 +165,11 @@ export const DataBindingFields = ({
 					label="100% at"
 					value={full}
 					min={0.001}
-					onChange={(value) => onChange({ ...binding, full: value }, "full")}
+					onChange={(value) => onChange({ ...binding, valueAtFull: value }, "valueAtFull")}
 					inherit={{
 						from: "default",
-						inherited: binding.full === null,
-						onReset: () => onChange({ ...binding, full: null }),
+						inherited: binding.valueAtFull === null,
+						onReset: () => onChange({ ...binding, valueAtFull: null }),
 						value: "1",
 					}}
 					hint={`The value that gives 100%; twice it gives 200%. ${now}`}

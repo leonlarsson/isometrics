@@ -61,11 +61,11 @@ describe("SceneSchema", () => {
 			title: "Harbour",
 			ground: { width: 60, depth: 24 },
 			theme: "dark",
-			driving: "left",
+			drivingSide: "left",
 		});
 		expect(scene.meta.title).toBe("Harbour");
 		expect(scene.ground).toEqual({ width: 60, depth: 24, color: null });
-		expect([scene.theme, scene.driving]).toEqual(["dark", "left"]);
+		expect([scene.theme, scene.drivingSide]).toEqual(["dark", "left"]);
 	});
 });
 

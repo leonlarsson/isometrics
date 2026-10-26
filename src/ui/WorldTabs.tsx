@@ -1,12 +1,12 @@
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
-import { TURNS_OPTIONS } from "#/scene/roads";
+import { TURN_STYLE_OPTIONS } from "#/scene/roads";
 import {
 	OnScreenSchema,
 	type TDrivingSide,
 	type TOnScreen,
 	type TThemePreference,
-	type TTurns,
+	type TTurnStyle,
 } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
@@ -25,22 +25,22 @@ import {
 const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
 
 const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
-	{ key: "title", label: "Title" },
-	{ key: "subtitle", label: "Subtitle" },
-	{ key: "timeOfDay", label: "Time of day" },
+	{ key: "showTitle", label: "Show the title" },
+	{ key: "showSubtitle", label: "Show the subtitle" },
+	{ key: "showTimeOfDay", label: "Show the time of day" },
 	{
-		key: "labelCards",
-		label: "Label cards",
+		key: "showLabelCards",
+		label: "Show label cards",
 		hint: "Every object's card. One object's card is switched in its Label tab.",
 	},
 	{
-		key: "details",
-		label: "Details on click",
+		key: "showDetails",
+		label: "Show details on click",
 		hint: "An object's values when it's clicked.",
 	},
 	{
-		key: "viewpointBar",
-		label: "Viewpoint bar",
+		key: "showViewpointBar",
+		label: "Show the viewpoint bar",
 		hint: "← and → still step through the viewpoints without it.",
 	},
 ];
@@ -218,25 +218,25 @@ export const TrafficTab = () => {
 		>
 			<SelectField<TDrivingSide>
 				label="Vehicles drive on the"
-				value={scene.driving}
+				value={scene.drivingSide}
 				options={[
 					{ value: "right", label: "Right" },
 					{ value: "left", label: "Left" },
 				]}
 				onChange={(v) =>
 					commit((s) => {
-						s.driving = v;
+						s.drivingSide = v;
 					})
 				}
 			/>
 
-			<SelectField<TTurns>
+			<SelectField<TTurnStyle>
 				label="Vehicles turn"
-				value={scene.turns}
-				options={TURNS_OPTIONS}
+				value={scene.turnStyle}
+				options={TURN_STYLE_OPTIONS}
 				onChange={(v) =>
 					commit((s) => {
-						s.turns = v;
+						s.turnStyle = v;
 					})
 				}
 				hint="Smoothly eases through corners; sharply snaps to each new direction. Roads and vehicles can override this."
@@ -244,21 +244,21 @@ export const TrafficTab = () => {
 
 			<SwitchField
 				label="Keep distance"
-				checked={scene.traffic.spacing}
+				checked={scene.traffic.keepSpacing}
 				onChange={(v) =>
 					commit((s) => {
-						s.traffic.spacing = v;
+						s.traffic.keepSpacing = v;
 					})
 				}
 			/>
 
-			{scene.traffic.spacing ? (
+			{scene.traffic.keepSpacing ? (
 				<SwitchField
 					label="Overtake slower vehicles"
-					checked={scene.traffic.overtaking}
+					checked={scene.traffic.allowOvertaking}
 					onChange={(v) =>
 						commit((s) => {
-							s.traffic.overtaking = v;
+							s.traffic.allowOvertaking = v;
 						})
 					}
 				/>

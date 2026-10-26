@@ -21,7 +21,7 @@ const LIFT = 0.1;
 const roadOutline = (road: TRoad, baseY: number): TPoint[][] => {
 	const line = roadCenterlineOf(road);
 	const n = line.length;
-	const loop = road.closed && n > 2;
+	const loop = road.loops && n > 2;
 	const left: TPoint[] = [];
 	const right: TPoint[] = [];
 	for (let i = 0; i < n; i++) {

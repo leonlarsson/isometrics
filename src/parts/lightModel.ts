@@ -159,7 +159,7 @@ export const resolveLight = (
 		// Switched by a value: on while it says so, day and night (off without the value).
 		level = readSwitch(bound.on, data) ? strength : 0;
 	} else {
-		const mode = setting?.mode ?? objectMode;
+		const mode = setting?.whenOn ?? objectMode;
 		if (mode === "off") {
 			level = 0;
 		} else if (mode === "on") {

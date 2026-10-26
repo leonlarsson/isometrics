@@ -38,7 +38,7 @@ const lamp: IPartLights = {
 const setting = (fields: Partial<TEntityLight>) => EntityLightSchema.parse(fields);
 
 /** A data binding to the value `key`, with options. */
-const bind = (key: string, options: { above?: number; full?: number } = {}) =>
+const bind = (key: string, options: { onAbove?: number; valueAtFull?: number } = {}) =>
 	DataBindingSchema.parse({ key, ...options });
 
 const entity = (lights: Record<string, TEntityLight> | "auto" | "on" | "off" = {}, props = {}) => ({
@@ -68,8 +68,8 @@ describe("resolveLights (ADR-0058)", () => {
 		const lights = resolveLights(
 			car,
 			entity({
-				headlights: setting({ mode: "on", color: "#ffffff", strength: 2, reach: 4 }),
-				rain: setting({ mode: "off" }),
+				headlights: setting({ whenOn: "on", color: "#ffffff", strength: 2, reach: 4 }),
+				rain: setting({ whenOn: "off" }),
 			}),
 			{ palette: day, driving: false },
 		);
@@ -131,7 +131,7 @@ describe("resolveLights (ADR-0058)", () => {
 			{ key: "calm", label: "Calm", value: "off", unit: "" },
 		];
 		const lights = (key: string) =>
-			resolveLights(car, entity({ rain: setting({ data: { on: bind(key) }, mode: "off" }) }), {
+			resolveLights(car, entity({ rain: setting({ data: { on: bind(key) }, whenOn: "off" }) }), {
 				palette: day,
 				driving: false,
 				data,
@@ -147,7 +147,9 @@ describe("resolveLights (ADR-0058)", () => {
 			resolveLights(
 				car,
 				entity({
-					rain: setting({ data: { strength: bind("visitors", full === null ? {} : { full }) } }),
+					rain: setting({
+						data: { strength: bind("visitors", full === null ? {} : { valueAtFull: full }) },
+					}),
 				}),
 				{
 					palette: night,
@@ -211,11 +213,11 @@ describe("lit panes", () => {
 		expect(lit({})).toEqual([0.28, 0.2]);
 		expect(lit({ screens: setting({ litPanes: 0.9 }) })).toEqual([0.28, 0.9]);
 		expect(
-			lit({ windows: setting({ data: { litPanes: bind("occupancy", { full: 100 }) } }) }),
+			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 100 }) } }) }),
 		).toEqual([0.45, 0.2]);
 		// Never more than all of them.
 		expect(
-			lit({ windows: setting({ data: { litPanes: bind("occupancy", { full: 10 }) } }) })[0],
+			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 10 }) } }) })[0],
 		).toBe(1);
 	});
 });
@@ -256,7 +258,7 @@ describe("when lights come on", () => {
 	it("follows a schedule like a timer, with periods past midnight, and stays off without a time of day", () => {
 		const timer = entity({
 			rain: setting({
-				mode: "schedule",
+				whenOn: "schedule",
 				schedule: [
 					{ from: 5, until: 8 },
 					{ from: 22, until: 2 },
@@ -279,7 +281,7 @@ describe("when lights come on", () => {
 		]);
 		expect(onAt(null)).toBe(false);
 		// No periods: never on.
-		const empty = entity({ rain: setting({ mode: "schedule" }) });
+		const empty = entity({ rain: setting({ whenOn: "schedule" }) });
 		expect(resolveLights(car, empty, { palette: night, driving: false, hour: 6 }).rain.on).toBe(
 			false,
 		);
@@ -287,7 +289,7 @@ describe("when lights come on", () => {
 
 	it("on a schedule at once, switches exactly at its times", () => {
 		const evening = entity({
-			rain: setting({ mode: "schedule", schedule: [{ from: 18, until: 23 }] }),
+			rain: setting({ whenOn: "schedule", schedule: [{ from: 18, until: 23 }] }),
 		});
 		const onAt = (hour: number) =>
 			resolveLights(car, evening, { palette: day, driving: false, hour }).rain.on;
@@ -295,7 +297,7 @@ describe("when lights come on", () => {
 	});
 
 	it("on a schedule gradually or one by one, comes on over the first hour and goes over the last", () => {
-		const evening = { mode: "schedule" as const, schedule: [{ from: 18, until: 23 }] };
+		const evening = { whenOn: "schedule" as const, schedule: [{ from: 18, until: 23 }] };
 		const fading = entity({ rain: setting({ ...evening, comesOn: "gradually" }) });
 		const level = (hour: number) =>
 			resolveLights(car, fading, { palette: day, driving: false, hour }).rain.level;

@@ -7,9 +7,9 @@ import { definePart } from "../types";
 
 const GrandstandSchema = z.object({
 	length: z.number().min(2).max(40).default(8),
-	rows: z.number().int().min(1).max(10).default(4),
-	crowd: z.boolean().default(true),
-	roof: z.boolean().default(true),
+	seatRows: z.number().int().min(1).max(10).default(4),
+	showCrowd: z.boolean().default(true),
+	showRoof: z.boolean().default(true),
 });
 
 const ROW_DEPTH = 0.55;
@@ -64,28 +64,29 @@ export const grandstand01 = definePart({
 	description: "Stepped seating with spectators; faces +Z",
 	keywords: ["stadium", "stand", "seats", "crowd", "arena", "spectators"],
 	schema: GrandstandSchema,
+	renamedProps: { rows: "seatRows", crowd: "showCrowd", roof: "showRoof" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 2, max: 40, step: 0.5 },
-		{ key: "rows", label: "Rows", type: "number", min: 1, max: 10, step: 1 },
-		{ key: "crowd", label: "Spectators", type: "boolean" },
-		{ key: "roof", label: "Roof", type: "boolean" },
+		{ key: "seatRows", label: "Seat rows", type: "number", min: 1, max: 10, step: 1 },
+		{ key: "showCrowd", label: "Show spectators", type: "boolean" },
+		{ key: "showRoof", label: "Show the roof", type: "boolean" },
 	],
 	colors: [
 		{ id: "seats", name: "Seats", default: "#3d4fd6", legacy: "color" },
 		{ id: "structure", name: "Structure", default: "#e4e1da", legacy: "accent" },
 	],
-	footprint: (p) => [p.length, p.rows * ROW_DEPTH],
-	height: (p) => p.rows * ROW_RISE + (p.roof ? 1.3 : 0.3),
+	footprint: (p) => [p.length, p.seatRows * ROW_DEPTH],
+	height: (p) => p.seatRows * ROW_RISE + (p.showRoof ? 1.3 : 0.3),
 	Component: ({ props: p, colors }) => {
-		const depth = p.rows * ROW_DEPTH;
+		const depth = p.seatRows * ROW_DEPTH;
 		// Row 0 is the front (+Z), lowest; each row behind it is one step higher.
-		const rows = Array.from({ length: p.rows }, (_, i) => ({
+		const rows = Array.from({ length: p.seatRows }, (_, i) => ({
 			z: depth / 2 - ROW_DEPTH / 2 - i * ROW_DEPTH,
 			top: (i + 1) * ROW_RISE,
 		}));
 		const spectators = useMemo(
 			() =>
-				p.crowd
+				p.showCrowd
 					? rows.flatMap((row, r) =>
 							spread(Math.floor((p.length - 0.2) / SPECTATOR_SPACING), p.length - 0.2)
 								.filter((_, i) => jitter(r * 97 + i) > 0.2)
@@ -99,10 +100,10 @@ export const grandstand01 = definePart({
 								),
 						)
 					: [],
-			// `rows` is derived from p.rows and p.length, so these are the real inputs.
-			[p.crowd, p.rows, p.length],
+			// `rows` is derived from p.seatRows and p.length, so these are the real inputs.
+			[p.showCrowd, p.seatRows, p.length],
 		);
-		const roofY = p.rows * ROW_RISE + 1.2;
+		const roofY = p.seatRows * ROW_RISE + 1.2;
 
 		return (
 			<group>
@@ -125,7 +126,7 @@ export const grandstand01 = definePart({
 
 				{spectators.length > 0 && <Crowd positions={spectators} />}
 
-				{p.roof && (
+				{p.showRoof && (
 					<>
 						{spread(Math.max(2, Math.round(p.length / 4)), p.length - 0.4).map((x) => (
 							<Box

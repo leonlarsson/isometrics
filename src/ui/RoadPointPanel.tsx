@@ -21,14 +21,14 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 
 	const store = () => useEditor.getState();
 	const coalesce = (field: string) => ({ coalesce: `${road.id}:point:${index}:${field}` });
-	const end: TRoadEnd | null = road.closed
+	const end: TRoadEnd | null = road.loops
 		? null
 		: index === 0
 			? "start"
 			: index === road.points.length - 1
 				? "end"
 				: null;
-	const canSplit = road.closed || end === null;
+	const canSplit = road.loops || end === null;
 
 	const joinOptions = end
 		? roads
@@ -104,7 +104,7 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 			<ButtonGroup>
 				{canSplit && (
 					<Button size="sm" icon="cut" onClick={() => store().splitRoad(road.id, index)}>
-						{road.closed ? "Open loop here" : "Split road here"}
+						{road.loops ? "Open loop here" : "Split road here"}
 					</Button>
 				)}
 

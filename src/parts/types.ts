@@ -167,7 +167,9 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	/**
 	 * Props that were renamed: old name → new name. A world saved with the old
 	 * name keeps its value (`resolveProps` reads it when the new one is missing).
-	 * Never remove an entry. See docs/adr/0056-safe-schema-and-part-changes.md.
+	 * Never remove an entry. Renamed again: point every older name at the newest,
+	 * oldest first (`{ pulse: "flashes", pulses: "flashes" }`; of several stored,
+	 * the latest listed wins). See docs/adr/0056-safe-schema-and-part-changes.md.
 	 */
 	renamedProps?: Readonly<Record<string, Extract<keyof P, string>>>;
 	/**

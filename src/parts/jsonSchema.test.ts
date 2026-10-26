@@ -27,7 +27,9 @@ describe("worldJsonSchema", () => {
 		const tower = entitySchema().allOf.find(
 			(rule) => rule.if.properties.kind.const === "office_tower_01",
 		);
-		expect(tower?.then.properties.props.properties.floors?.description).toBe("Floors");
+		expect(tower?.then.properties.props.properties.floorCount?.description).toBe(
+			"Number of floors",
+		);
 	});
 
 	it("explains the format", () => {

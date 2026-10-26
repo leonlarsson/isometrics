@@ -202,7 +202,7 @@ const ROADS: TRoadInput[] = [
 		id: RING_ID,
 		name: "Ring road",
 		style: "road_01",
-		closed: true,
+		loops: true,
 		cornerRadius: 4,
 		points: [
 			[-22, -12],
@@ -248,7 +248,7 @@ const ROADS: TRoadInput[] = [
 		width: 1.2,
 		cornerRadius: 3,
 		supports: "embankment",
-		railings: false,
+		showRailings: false,
 		points: [
 			[-23.2, 2],
 			[-27.4, 2],
@@ -274,7 +274,7 @@ const ROADS: TRoadInput[] = [
 		id: FERRY_ID,
 		name: "Ferry route",
 		style: "hidden_route_01",
-		closed: true,
+		loops: true,
 		cornerRadius: 6,
 		// A loop round the bay.
 		points: [
@@ -304,7 +304,7 @@ const towers: TEntityInput[] = [
 		kind: "office_tower_01",
 		name: "Meridian Tower",
 		position: [-18.8, -8],
-		props: { width: 3.4, depth: 3.4, floors: 16 },
+		props: { width: 3.4, depth: 3.4, floorCount: 16 },
 		details: { description: "The tallest building in Brightwater: offices and a sky bar." },
 	},
 	{
@@ -313,7 +313,7 @@ const towers: TEntityInput[] = [
 		name: "Northgate offices",
 		position: [-3.6, -8.4],
 		colors: paint({ facade: "#4a64e0" }),
-		props: { width: 3, depth: 3, floors: 8 },
+		props: { width: 3, depth: 3, floorCount: 8 },
 	},
 	{
 		id: "tower_square",
@@ -321,7 +321,7 @@ const towers: TEntityInput[] = [
 		name: "Square apartments",
 		position: [-3.6, -3.8],
 		colors: paint({ facade: "#8a5cf0" }),
-		props: { width: 2.8, depth: 2.8, floors: 9 },
+		props: { width: 2.8, depth: 2.8, floorCount: 9 },
 	},
 	{
 		id: "tower_park",
@@ -329,7 +329,7 @@ const towers: TEntityInput[] = [
 		name: "Parkside residences",
 		position: [-4.2, 2.6],
 		colors: paint({ facade: "#e8b83a" }),
-		props: { width: 3.2, depth: 3.2, floors: 11 },
+		props: { width: 3.2, depth: 3.2, floorCount: 11 },
 	},
 	{
 		id: "tower_low",
@@ -337,7 +337,7 @@ const towers: TEntityInput[] = [
 		name: "Library",
 		position: [-7.6, 6.8],
 		colors: paint({ facade: "#f07b4f" }),
-		props: { width: 3.6, depth: 2.6, floors: 4 },
+		props: { width: 3.6, depth: 2.6, floorCount: 4 },
 	},
 ];
 
@@ -349,7 +349,7 @@ const hillHouses: TEntityInput[] = ["#f07b4f", "#4a64e0", "#3cbf9a", "#e8b83a", 
 		position: [-24 + i * 4, -21] as TVec2,
 		elevation: HILL,
 		colors: paint({ roof: color }),
-		props: { chimney: i % 2 === 0 },
+		props: { showChimney: i % 2 === 0 },
 	}),
 );
 
@@ -372,7 +372,7 @@ const stadium: TEntityInput[] = [
 		kind: "grandstand_01",
 		name: "Main stand",
 		position: [-21, 13.2],
-		props: { length: 10, rows: 4 },
+		props: { length: 10, seatRows: 4 },
 		label: {
 			title: "Match day",
 			dataKeys: ["attendance", "seats_filled"],
@@ -389,7 +389,7 @@ const stadium: TEntityInput[] = [
 		name: "South stand",
 		position: [-21, 21.2],
 		rotation: 180,
-		props: { length: 10, rows: 3, roof: false },
+		props: { length: 10, seatRows: 3, showRoof: false },
 	},
 	{
 		id: "stand_west",
@@ -397,7 +397,7 @@ const stadium: TEntityInput[] = [
 		name: "West stand",
 		position: [-27.2, 17.2],
 		rotation: 90,
-		props: { length: 5, rows: 3, roof: false },
+		props: { length: 5, seatRows: 3, showRoof: false },
 	},
 	{
 		id: "stand_east",
@@ -405,7 +405,7 @@ const stadium: TEntityInput[] = [
 		name: "East stand",
 		position: [-14.8, 17.2],
 		rotation: -90,
-		props: { length: 5, rows: 3, roof: false },
+		props: { length: 5, seatRows: 3, showRoof: false },
 	},
 ];
 
@@ -415,7 +415,7 @@ const logistics: TEntityInput[] = [
 		kind: "warehouse_01",
 		name: "Distribution centre",
 		position: [19, -11],
-		props: { width: 10, depth: 6, height: 3, doors: 4 },
+		props: { width: 10, depth: 6, height: 3, doorCount: 4 },
 		label: {
 			title: "Parcels today",
 			dataKeys: ["parcels_today"],
@@ -458,14 +458,14 @@ const harbour: TEntityInput[] = [
 		kind: "tunnel_01",
 		name: "Harbour gate",
 		position: [20, -1],
-		props: { length: 4, width: 3, height: 1.5, building: 1 },
+		props: { length: 4, width: 3, height: 1.5, buildingFloors: 1 },
 	},
 	{
 		id: "harbour_office",
 		kind: "depot_01",
 		name: "Harbour office",
 		position: [19, 3.6],
-		props: { width: 3.6, depth: 2.4, height: 1.6, garageDoor: false },
+		props: { width: 3.6, depth: 2.4, height: 1.6, showGarageDoor: false },
 		label: {
 			title: "Marina",
 			dataKeys: ["berths", "boats_in"],
@@ -482,7 +482,7 @@ const harbour: TEntityInput[] = [
 		name: `Moored yacht ${i + 1}`,
 		position: [x, 8.6] as TVec2,
 		rotation: -90,
-		props: { length: i === 2 ? 3.6 : 2.6, decks: i === 2 ? 2 : 1 },
+		props: { length: i === 2 ? 3.6 : 2.6, deckCount: i === 2 ? 2 : 1 },
 	})),
 	...[
 		// Well clear of the ferry route.
@@ -494,17 +494,17 @@ const harbour: TEntityInput[] = [
 		name: `Anchored yacht ${i + 1}`,
 		position: [x, z] as TVec2,
 		rotation,
-		props: { length: 2.4, decks: 1 },
+		props: { length: 2.4, deckCount: 1 },
 	})),
 	{
 		id: "ferry",
 		kind: "yacht_01",
 		name: "Bay ferry",
 		colors: paint({ hull: "#ffffff", stripe: "#4a64e0" }),
-		props: { length: 4, decks: 2 },
+		props: { length: 4, deckCount: 2 },
 		follow: { roadId: FERRY_ID, speed: 1.4, offset: 13 },
 		// Its cabins glow brighter the more passengers it carries: 60 is 100% (ADR-0058).
-		lights: { cabins: { data: { strength: { key: "ferry_passengers", full: 60 } } } },
+		lights: { cabins: { data: { strength: { key: "ferry_passengers", valueAtFull: 60 } } } },
 		label: {
 			title: "Bay ferry",
 			dataKeys: ["ferry_next", "ferry_passengers"],
@@ -522,7 +522,7 @@ const harbour: TEntityInput[] = [
 		position: [2, 17],
 		rotation: -12,
 		colors: paint({ walls: "#e8b83a" }),
-		props: { width: 2.4, depth: 1.8, height: 1.2, garageDoor: false },
+		props: { width: 2.4, depth: 1.8, height: 1.2, showGarageDoor: false },
 	},
 ];
 
@@ -588,7 +588,7 @@ const civic: TEntityInput[] = [
 		// Turned so its long side runs north–south, leaving room for Meridian Tower.
 		rotation: 90,
 		colors: paint({ facade: "#e2cfa8" }),
-		props: { width: 5, depth: 3.4, floors: 4 },
+		props: { width: 5, depth: 3.4, floorCount: 4 },
 		label: {
 			title: "Brightwater",
 			dataKeys: ["population", "air_quality"],
@@ -610,7 +610,7 @@ const civic: TEntityInput[] = [
 		kind: "round_tree_01",
 		name: "Old oak",
 		position: [-12.6, 6.6],
-		props: { size: 1.6 },
+		props: { letterHeight: 1.6 },
 		label: {
 			title: "Riverside Park",
 			dataKeys: ["park_visitors"],
@@ -695,7 +695,7 @@ export const createBrightwaterScene = (): TScene => {
 		},
 		theme: "system",
 		ground: { width: 60, depth: 48, color: null },
-		driving: "right",
+		drivingSide: "right",
 		// Stepped through in View mode (◀ ▶), like slides.
 		viewpoints: [
 			{

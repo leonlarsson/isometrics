@@ -33,14 +33,14 @@ interface INewWorldChoices {
 	startFrom: string;
 	groundPreset: TGroundPreset;
 	theme: TThemePreference;
-	driving: TDrivingSide;
+	drivingSide: TDrivingSide;
 }
 
 const DEFAULT_CHOICES: INewWorldChoices = {
 	startFrom: BLANK,
 	groundPreset: "blocks",
 	theme: "system",
-	driving: "right",
+	drivingSide: "right",
 };
 
 const blankPictureId = (preset: TGroundPreset) => `${BLANK}:${preset}`;
@@ -137,7 +137,7 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 						title,
 						ground: { width, depth },
 						theme: choices.theme,
-						driving: choices.driving,
+						drivingSide: choices.drivingSide,
 					}),
 		);
 	};
@@ -216,12 +216,12 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 
 							<SelectField<TDrivingSide>
 								label="Vehicles drive on the"
-								value={choices.driving}
+								value={choices.drivingSide}
 								options={[
 									{ value: "right", label: "Right" },
 									{ value: "left", label: "Left" },
 								]}
-								onChange={(driving) => update({ driving })}
+								onChange={(drivingSide) => update({ drivingSide })}
 							/>
 
 							<Hint>
