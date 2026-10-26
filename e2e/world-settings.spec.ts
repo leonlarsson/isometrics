@@ -43,7 +43,7 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 });
 
 test.describe("Time & light (ADR-0052, ADR-0061)", () => {
-	test("the time follows a day cycle, a preset sets a fixed time, lights can be always on", async ({
+	test("the time follows a day cycle, a preset or a typed time sets a fixed one, lights can be always on", async ({
 		page,
 	}) => {
 		await worldTab(page, "Time & light");
@@ -53,6 +53,12 @@ test.describe("Time & light (ADR-0052, ADR-0061)", () => {
 		await page.getByRole("button", { name: "Preset times" }).click();
 		await menuItem(page, "Dusk").click();
 		expect(await read(page, (s) => s.scene.lighting.time)).toBeCloseTo(19.7, 1);
+		// To the minute, typed: the slider moves in quarter hours, the box takes any time.
+		const clock = page.getByRole("textbox", { name: "Time of day", exact: true });
+		await clock.fill("18:18");
+		await clock.press("Tab");
+		expect(await read(page, (s) => s.scene.lighting.time)).toBeCloseTo(18.3, 5);
+		await expect(clock).toHaveValue("18:18");
 		await choose(page, "Lit windows, lamps and headlights", "Always");
 		expect(await read(page, (s) => s.scene.lighting.whenLightsAreOn)).toBe("on");
 	});
