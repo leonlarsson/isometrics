@@ -84,6 +84,6 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0078](0078-moods.md) | Moods: named looks saved in a world, and viewpoints that put one on | accepted |
 | [0079](0079-light-and-sky-tabs.md) | Sun & sky splits into Moods, Time & light, and Sky & water | accepted |
 | [0080](0080-shading-switcher.md) | A shading switcher in the toolbar: wireframe, Standard, Nice, Ultra | accepted |
-| [0081](0081-boat-wakes.md) | Boat wakes: foam behind boats on a route, and waves in Ultra | proposed |
-| [0082](0082-leaning-in-turns.md) | Vehicles lean in turns, as far as their kind does | proposed |
-| [0083](0083-templates-at-templates.md) | The templates are served at /templates | proposed |
+| [0081](0081-boat-wakes.md) | Boat wakes: foam behind boats on a route, and waves in Ultra | accepted |
+| [0082](0082-leaning-in-turns.md) | Vehicles lean in turns, as far as their kind does | accepted |
+| [0083](0083-templates-at-templates.md) | The templates are served at /templates | accepted |
