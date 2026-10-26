@@ -140,7 +140,7 @@ const RIPPLE_NORMAL_SCALE = 0.24;
 const RIPPLE_SHIFT = 0.024;
 
 /** Over how many ground units a water area's own ripples and reflections fade into the world's at a seam. */
-const SEAM_FADE = 3;
+const SEAM_FADE = 2;
 
 /**
  * A water area's own look near where it meets other water (ADR-0075):
