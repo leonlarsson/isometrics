@@ -48,9 +48,9 @@ const lampStrength = async (page: Page, id: string) =>
 	((await entity(page, id))?.lights as Record<string, { strength: number | null }>)?.lamp
 		?.strength ?? null;
 
-test.beforeEach(async ({ page, context }) => {
+test.beforeEach(async ({ page, context, baseURL }) => {
 	await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-		origin: "http://localhost:3000",
+		origin: new URL(baseURL ?? "http://localhost:3000").origin,
 	});
 	await openEditor(page);
 	await lampsAndHouse(page);
