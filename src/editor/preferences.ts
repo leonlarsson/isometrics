@@ -22,6 +22,22 @@ export type TOverlayPlace = (typeof OVERLAY_PLACES)[number];
 
 const OverlayPlaceSchema = z.enum(OVERLAY_PLACES);
 
+/** Graphics presets (ADR-0072, editor/graphics): standard is the view as it always was. */
+export const GRAPHICS_PRESETS = ["standard", "nice", "ultra"] as const;
+export type TGraphicsPreset = (typeof GRAPHICS_PRESETS)[number];
+
+/** Ambient occlusion: none, or at half or full resolution. */
+export const AMBIENT_OCCLUSION_MODES = ["off", "halfResolution", "fullResolution"] as const;
+export type TAmbientOcclusion = (typeof AMBIENT_OCCLUSION_MODES)[number];
+
+/** The canvas's own multisampling, or SMAA in the effects composer. */
+export const ANTI_ALIASING_MODES = ["multisample", "smaa"] as const;
+export type TAntiAliasing = (typeof ANTI_ALIASING_MODES)[number];
+
+/** The highest number of device pixels per CSS pixel the view draws at. */
+export const PIXEL_DENSITIES = [1, 1.5, 2] as const;
+export type TPixelDensity = (typeof PIXEL_DENSITIES)[number];
+
 export const PreferencesSchema = z.object({
 	/**
 	 * simple: the camera stays above the world, within the world's zoom and tilt limits;
@@ -53,6 +69,21 @@ export const PreferencesSchema = z.object({
 	 * "Tower 3"…
 	 */
 	namesOfCopies: z.enum(["copy", "numbered"]).catch("copy"),
+	/** The Graphics page's preset (ADR-0072); the graphics settings below follow it while null. */
+	graphicsPreset: z.enum(GRAPHICS_PRESETS).catch("standard"),
+	/** Darkening where things meet: off, at half or at full resolution. null = the preset's. */
+	ambientOcclusion: z.enum(AMBIENT_OCCLUSION_MODES).nullable().catch(null),
+	/** A glow round lit windows, lamps and headlights, as strong as it's dark. null = the preset's. */
+	showGlowAfterDark: z.boolean().nullable().catch(null),
+	/** Soft-edged shadows. null = the preset's. */
+	useSoftShadows: z.boolean().nullable().catch(null),
+	/** Smoothing jagged edges: the canvas's multisampling, or SMAA. null = the preset's. */
+	antiAliasing: z.enum(ANTI_ALIASING_MODES).nullable().catch(null),
+	/** The most device pixels per CSS pixel the view draws: 1, 1.5 or 2. null = the preset's. */
+	maxPixelDensity: z
+		.union(PIXEL_DENSITIES.map((density) => z.literal(density)))
+		.nullable()
+		.catch(null),
 });
 
 export type TPreferences = z.output<typeof PreferencesSchema>;

@@ -76,3 +76,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0070](0070-sky.md) | A sky around the world in perspective, and a backdrop of the world's own behind the diorama | accepted |
 | [0071](0071-names-say-what-they-hold.md) | Names say what they hold, and renamed world fields are read under their old names | accepted |
 | [0072](0072-rendering-quality-levels.md) | Graphics settings for the 3D view: presets with overrides, a world's sun and shade contrast, real night lights | accepted |
+| [0073](0073-effects-composer.md) | The effects composer draws the scene as on the canvas, and the backdrop stays behind it | proposed |

@@ -1,5 +1,8 @@
+import { SoftShadows } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { lazy, Suspense } from "react";
 
+import { drawsEffects, useGraphics } from "#/editor/graphics";
 import { isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 
@@ -30,11 +33,14 @@ import { RoadMesh } from "./RoadMesh";
 import { RouteHighlight } from "./RouteHighlight";
 import { SceneLights } from "./SceneLights";
 import { SkyDome } from "./SkyDome";
-import { TiltShift } from "./TiltShift";
+import { useTiltShiftShown } from "./TiltShift";
 import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+
+// The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
+const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
 
 const Lights = () => {
 	const palette = usePalette();
@@ -47,12 +53,15 @@ export const Viewport = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
+	const graphics = useGraphics();
+	const tiltShiftShown = useTiltShiftShown();
+	const composed = drawsEffects(graphics) || tiltShiftShown;
 
 	return (
 		<Canvas
 			shadows="percentage"
 			orthographic
-			dpr={[1, 2]}
+			dpr={[1, graphics.maxPixelDensity]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
 			onPointerMissed={(event) => {
 				// Only a left click on nothing deselects; a right-click is the start of an orbit. Shift or
@@ -123,7 +132,13 @@ export const Viewport = () => {
 
 			<Turntable />
 
-			<TiltShift />
+			{composed && (
+				<Suspense fallback={null}>
+					<Effects graphics={graphics} />
+				</Suspense>
+			)}
+
+			{graphics.useSoftShadows && <SoftShadows size={18} samples={12} focus={0.6} />}
 
 			<CameraReadout />
 

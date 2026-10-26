@@ -41,6 +41,34 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await expect(page.getByRole("combobox", { name: "Names of copies" })).toBeVisible();
 	});
 
+	test("Graphics: a preset sets every setting, and a changed one stays and resets (ADR-0072)", async ({
+		page,
+	}) => {
+		await fileMenu(page, /^Preferences/);
+		await page.getByRole("button", { name: "Graphics" }).click();
+		const occlusion = page.getByRole("combobox", { name: "Ambient occlusion" });
+		await expect(occlusion).toContainText("Off");
+		await choose(page, "Preset", "Nice");
+		await expect(occlusion).toContainText("Half resolution");
+		const glow = page.getByRole("switch", { name: "Glow after dark" });
+		await expect(glow).toHaveAttribute("aria-checked", "true");
+		await glow.click();
+		await expect(preferences(page)).toContainText("1 setting below is changed from it");
+		// Another preset keeps the change.
+		await choose(page, "Preset", "Ultra");
+		await expect(occlusion).toContainText("Full resolution");
+		await expect(glow).toHaveAttribute("aria-checked", "false");
+		// The setting's own Reset, the nearest one above it.
+		await glow
+			.locator("xpath=ancestor::*[.//button[@aria-label='Reset']][1]")
+			.getByRole("button", { name: "Reset" })
+			.click();
+		await expect(glow).toHaveAttribute("aria-checked", "true");
+		// The view keeps drawing through the effects (a page error fails the test).
+		await page.keyboard.press("Escape");
+		await page.waitForTimeout(1000);
+	});
+
 	test("Names of copies: Number them makes Ctrl+D name copies “… 2”", async ({ page }) => {
 		await fileMenu(page, /^Preferences/);
 		await page.getByRole("button", { name: "Editing" }).click();

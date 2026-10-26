@@ -1,12 +1,15 @@
-import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
 import { useEditor } from "#/editor/store";
+import type { TScene } from "#/scene/schema";
+
+/**
+ * The world's tilt-shift (scene.camera.tiltShift, ADR-0062): the top and
+ * bottom of the view blur and a band across it stays sharp, the miniature
+ * look. Drawn as two passes of the effects composer (render/Effects,
+ * ADR-0072), which the view goes through while it shows: in View mode, and in
+ * Edit mode while previewing it from the Camera tab.
+ */
 
 /** At full strength: CSS px between the blur's samples (it reaches four times as far). */
 const MAX_SAMPLE_STEP_PX = 6;
@@ -16,7 +19,7 @@ const MAX_SAMPLE_STEP_PX = 6;
  * the view: none inside the band, easing to full strength over `soft` of the
  * view's height beyond it. Run twice, across and then up.
  */
-const BandBlurShader = {
+export const BandBlurShader = {
 	name: "BandBlurShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -53,69 +56,21 @@ const BandBlurShader = {
 };
 
 /**
- * Draws the frame through the blur passes instead of straight to the canvas.
- * Mounted only while the effect shows, since taking over drawing (a frame
- * callback with a priority) stops R3F's own.
+ * The blur's settings for a view `width` × `height` CSS px: one step between
+ * samples in UV for each direction, and the sharp band.
  */
-const TiltShiftPasses = () => {
-	const gl = useThree((s) => s.gl);
-	const scene = useThree((s) => s.scene);
-	const camera = useThree((s) => s.camera);
-	const size = useThree((s) => s.size);
-	const settings = useEditor((s) => s.scene.camera);
-
-	const passes = useMemo(() => {
-		const composer = new EffectComposer(gl);
-		const render = new RenderPass(scene, camera);
-		const across = new ShaderPass(BandBlurShader);
-		const up = new ShaderPass(BandBlurShader);
-		composer.addPass(render);
-		composer.addPass(across);
-		composer.addPass(up);
-		composer.addPass(new OutputPass());
-		return { composer, render, across, up };
-	}, [gl, scene]);
-
-	useEffect(() => () => passes.composer.dispose(), [passes]);
-
-	useEffect(() => {
-		passes.composer.setPixelRatio(gl.getPixelRatio());
-		passes.composer.setSize(size.width, size.height);
-	}, [passes, size.width, size.height, gl]);
-
-	useEffect(() => {
-		const reach = MAX_SAMPLE_STEP_PX * settings.tiltShiftBlur;
-		const half = settings.tiltShiftFocus / 2;
-		for (const [pass, direction] of [
-			[passes.across, [reach / size.width, 0]],
-			[passes.up, [0, reach / size.height]],
-		] as const) {
-			pass.uniforms.direction.value.set(direction[0], direction[1]);
-			pass.uniforms.centre.value = settings.tiltShiftPosition;
-			pass.uniforms.halfHeight.value = half;
-			// The blur reaches full strength a fifth of the view's height beyond the band.
-			pass.uniforms.soft.value = 0.2;
-		}
-	}, [passes, settings, size.width, size.height]);
-
-	useFrame(() => {
-		// The camera can change (diorama ↔ perspective) without remounting.
-		passes.render.camera = camera;
-		passes.composer.render();
-	}, 1);
-
-	return null;
+export const bandBlurSettings = (camera: TScene["camera"], width: number, height: number) => {
+	const reach = MAX_SAMPLE_STEP_PX * camera.tiltShiftBlur;
+	return {
+		across: [reach / width, 0] as const,
+		up: [0, reach / height] as const,
+		centre: camera.tiltShiftPosition,
+		halfHeight: camera.tiltShiftFocus / 2,
+		// The blur reaches full strength a fifth of the view's height beyond the band.
+		soft: 0.2,
+	};
 };
 
-/**
- * The world's tilt-shift (scene.camera.tiltShift, ADR-0062): the top and
- * bottom of the view blur and a band across it stays sharp, the miniature
- * look. Shown in View mode, and in Edit mode while previewing it from the
- * Camera tab.
- */
-export const TiltShift = () => {
-	const shown = useEditor(
-		(s) => s.scene.camera.tiltShiftOn && (s.mode === "view" || s.previewTiltShift),
-	);
-	return shown ? <TiltShiftPasses /> : null;
-};
+/** Whether the world's tilt-shift shows: in View mode, and in Edit mode while previewing it. */
+export const useTiltShiftShown = () =>
+	useEditor((s) => s.scene.camera.tiltShiftOn && (s.mode === "view" || s.previewTiltShift));

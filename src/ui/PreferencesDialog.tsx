@@ -12,6 +12,7 @@ import {
 import { useEditor } from "#/editor/store";
 
 import { SelectField, SliderField, SwitchField } from "./fields";
+import { graphicsPage } from "./GraphicsPreferences";
 import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
 
 /** The preferences on each page, for resetting a page. */
@@ -320,6 +321,7 @@ export const PreferencesDialog = () => {
 				},
 			],
 		},
+		graphicsPage(preferences),
 	];
 
 	return (
