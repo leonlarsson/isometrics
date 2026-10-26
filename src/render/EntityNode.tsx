@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
+import { useGraphics } from "#/editor/graphics";
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
 import { isItemBoxed, isItemSelected, isToggleClick, SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
@@ -12,6 +13,7 @@ import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
+import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { usesDataBindings } from "#/scene/dataBindings";
 import { laneOffset, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
@@ -20,6 +22,7 @@ import type { TEntity, TVec2 } from "#/scene/schema";
 import { openContextMenuOnClick } from "./contextMenu";
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
+import { RealLightSource } from "./RealLights";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
@@ -88,6 +91,7 @@ const UnknownPart = () => {
 export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 	const part = getPart(entity.kind);
 	const palette = usePalette();
+	const drawsRealLights = useGraphics().realLightCount > 0;
 	// The world's hour, only for objects with a light on a schedule (others needn't re-render with it).
 	const hour = useSceneHours(
 		typeof entity.lights === "object" &&
@@ -412,6 +416,27 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					lights={lights}
 					data={data}
 				/>
+
+				{/* Its lights that light their surroundings, where they shine from (ADR-0072). */}
+				{drawsRealLights &&
+					part.lights?.map((spec) => {
+						const source = spec.realLight?.(props);
+						const light = lights[spec.id];
+						if (!source || !light) {
+							return null;
+						}
+						const ownReach = LIGHT_SHAPES_WITH_REACH.includes(spec.shape);
+						return (
+							<RealLightSource
+								key={spec.id}
+								id={`${entity.id}:${spec.id}`}
+								at={source.at}
+								light={light}
+								shape={spec.shape}
+								reach={(ownReach ? light.reach : (source.reach ?? 1)) * entity.scale}
+							/>
+						);
+					})}
 
 				{mode === "edit" && (selected || hovered || listHovered || boxed) && (
 					<SelectionFrame

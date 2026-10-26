@@ -27,6 +27,7 @@ import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { PlacementPreview } from "./PlacementPreview";
 import { PointerSpot } from "./PointerSpot";
+import { RealLights } from "./RealLights";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
 import { RoadMesh } from "./RoadMesh";
@@ -139,6 +140,8 @@ export const Viewport = () => {
 			)}
 
 			{graphics.useSoftShadows && <SoftShadows size={18} samples={12} focus={0.6} />}
+
+			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
 
 			<CameraReadout />
 

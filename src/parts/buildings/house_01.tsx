@@ -16,7 +16,18 @@ export const house01 = definePart({
 	kind: "house_01",
 	name: "House",
 	category: "buildings",
-	lights: [{ id: "windows", name: "Windows", shape: "glow" }],
+	lights: [
+		{
+			id: "windows",
+			name: "Windows",
+			shape: "glow",
+			// In front of the windows, at the front.
+			realLight: (p) => ({
+				at: [0, p.height * 0.5, p.depth / 2 + 0.5],
+				reach: Math.max(p.width, p.depth) * 1.3,
+			}),
+		},
+	],
 	description: "Small house with a pitched roof",
 	keywords: ["home", "cottage", "villa", "residential"],
 	schema: HouseSchema,

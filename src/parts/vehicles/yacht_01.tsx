@@ -34,7 +34,18 @@ export const yacht01 = definePart({
 	kind: "yacht_01",
 	name: "Yacht",
 	category: "vehicles",
-	lights: [{ id: "cabins", name: "Cabin lights", shape: "glow" }],
+	lights: [
+		{
+			id: "cabins",
+			name: "Cabin lights",
+			shape: "glow",
+			// Among the cabins, lighting the deck and the water round the yacht.
+			realLight: (p) => ({
+				at: [0, HULL_HEIGHT + p.deckCount * DECK_HEIGHT * 0.6, 0],
+				reach: p.length * 0.9,
+			}),
+		},
+	],
 	description: "Motor yacht for harbours and the sea; can cruise along a route",
 	keywords: ["boat", "ship", "ferry", "vessel"],
 	schema: YachtSchema,

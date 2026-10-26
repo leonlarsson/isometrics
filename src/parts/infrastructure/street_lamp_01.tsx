@@ -29,6 +29,8 @@ export const streetLamp01 = definePart({
 				reach: typeof props.reach === "number" ? props.reach : null,
 				color: accent,
 			}),
+			// The lamp's head.
+			realLight: (p) => ({ at: [0, p.height + 0.04, 0] }),
 		},
 	],
 	// Now its lamp light's strength and reach (ADR-0058); old values are read by its legacy hook.

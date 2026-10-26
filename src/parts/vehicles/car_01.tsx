@@ -8,7 +8,17 @@ export const car01 = definePart({
 	kind: "car_01",
 	name: "Car",
 	category: "vehicles",
-	lights: [{ id: "headlights", name: "Headlights", shape: "beam", when: "driving", reach: 2.4 }],
+	lights: [
+		{
+			id: "headlights",
+			name: "Headlights",
+			shape: "beam",
+			when: "driving",
+			reach: 2.4,
+			// Ahead of the lamps, lighting the road and what's on it.
+			realLight: () => ({ at: [0.63 + 0.7, 0.32, 0] }),
+		},
+	],
 	description: "Small car; can drive along a road",
 	keywords: ["taxi", "vehicle", "automobile"],
 	schema: z.object({}),

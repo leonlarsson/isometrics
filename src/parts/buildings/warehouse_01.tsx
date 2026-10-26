@@ -16,7 +16,18 @@ export const warehouse01 = definePart({
 	kind: "warehouse_01",
 	name: "Warehouse",
 	category: "buildings",
-	lights: [{ id: "doorways", name: "Doorways", shape: "glow" }],
+	lights: [
+		{
+			id: "doorways",
+			name: "Doorways",
+			shape: "glow",
+			// In front of the loading doors, at the front.
+			realLight: (p) => ({
+				at: [0, Math.min(1.8, p.height * 0.6) * 0.6, p.depth / 2 + 0.8],
+				reach: p.width * 0.6,
+			}),
+		},
+	],
 	description: "Large hall with loading doors and solar roof",
 	keywords: ["factory", "hall", "storage", "logistics", "industrial"],
 	schema: WarehouseSchema,

@@ -4,6 +4,7 @@ import {
 	type TGraphicsPreset,
 	type TPixelDensity,
 	type TPreferences,
+	type TRealLightCount,
 	usePreferences,
 } from "./preferences";
 
@@ -18,6 +19,8 @@ export interface IGraphics {
 	ambientOcclusion: TAmbientOcclusion;
 	/** Bloom round bright things, as strong as it's dark (none by day). */
 	showGlowAfterDark: boolean;
+	/** How many lights, nearest the view, light their surroundings as real lights (0: painted only). */
+	realLightCount: TRealLightCount;
 	/** Soft-edged shadows (PCSS). */
 	useSoftShadows: boolean;
 	antiAliasing: TAntiAliasing;
@@ -29,6 +32,7 @@ export type TGraphicsSetting = keyof IGraphics;
 export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"ambientOcclusion",
 	"showGlowAfterDark",
+	"realLightCount",
 	"useSoftShadows",
 	"antiAliasing",
 	"maxPixelDensity",
@@ -38,6 +42,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 	standard: {
 		ambientOcclusion: "off",
 		showGlowAfterDark: false,
+		realLightCount: 0,
 		useSoftShadows: false,
 		antiAliasing: "multisample",
 		maxPixelDensity: 2,
@@ -45,6 +50,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 	nice: {
 		ambientOcclusion: "halfResolution",
 		showGlowAfterDark: true,
+		realLightCount: 16,
 		useSoftShadows: false,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -52,6 +58,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 	ultra: {
 		ambientOcclusion: "fullResolution",
 		showGlowAfterDark: true,
+		realLightCount: 64,
 		useSoftShadows: true,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
@@ -64,6 +71,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 	return {
 		ambientOcclusion: preferences.ambientOcclusion ?? preset.ambientOcclusion,
 		showGlowAfterDark: preferences.showGlowAfterDark ?? preset.showGlowAfterDark,
+		realLightCount: preferences.realLightCount ?? preset.realLightCount,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
 		antiAliasing: preferences.antiAliasing ?? preset.antiAliasing,
 		maxPixelDensity: preferences.maxPixelDensity ?? preset.maxPixelDensity,

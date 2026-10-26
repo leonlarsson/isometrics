@@ -34,7 +34,16 @@ export const light01 = definePart({
 			],
 		},
 	],
-	lights: [{ id: "light", name: "Light", shape: "pool", reach: 3 }],
+	lights: [
+		{
+			id: "light",
+			name: "Light",
+			shape: "pool",
+			reach: 3,
+			// The lens of a ground spot, or just above the ground.
+			realLight: (p) => ({ at: [0, p.fixture === "spot" ? 0.3 : 0.1, 0] }),
+		},
+	],
 	colors: [{ id: "fixture", name: "Fixture", default: "#4a4d55", legacy: "color" }],
 	footprint: () => [0.4, 0.4],
 	height: (p) => (p.fixture === "spot" ? 0.3 : 0.05),

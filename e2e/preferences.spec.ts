@@ -50,6 +50,9 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await expect(occlusion).toContainText("Off");
 		await choose(page, "Preset", "Nice");
 		await expect(occlusion).toContainText("Half resolution");
+		await expect(page.getByRole("combobox", { name: "Real lights at night" })).toContainText(
+			"16 nearest the view",
+		);
 		const glow = page.getByRole("switch", { name: "Glow after dark" });
 		await expect(glow).toHaveAttribute("aria-checked", "true");
 		await glow.click();

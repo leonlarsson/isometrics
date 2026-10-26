@@ -12,6 +12,7 @@ import {
 	GRAPHICS_PRESETS,
 	PIXEL_DENSITIES,
 	preferencesChanged,
+	REAL_LIGHT_COUNTS,
 	resetPreferences,
 	setPreference,
 	type TAmbientOcclusion,
@@ -19,6 +20,7 @@ import {
 	type TGraphicsPreset,
 	type TPixelDensity,
 	type TPreferences,
+	type TRealLightCount,
 } from "#/editor/preferences";
 
 import { SelectField, SwitchField } from "./fields";
@@ -149,6 +151,29 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 									onOff(preset.showGlowAfterDark),
 								)}
 								hint="A soft glow round lit windows, lamps and headlights, as strong as it's dark: none by day."
+							/>
+						),
+					},
+					{
+						id: "realLightCount",
+						keywords: "real lights night lamps windows headlights point lights illuminate streets",
+						field: (
+							<SelectField<`${TRealLightCount}`>
+								label="Real lights at night"
+								value={`${graphics.realLightCount}`}
+								options={REAL_LIGHT_COUNTS.map((count) => ({
+									value: `${count}`,
+									label: count === 0 ? "None (painted glows only)" : `${count} nearest the view`,
+								}))}
+								onChange={(value) =>
+									setPreference("realLightCount", Number(value) as TRealLightCount)
+								}
+								inherit={fromPreset(
+									preferences,
+									"realLightCount",
+									preset.realLightCount === 0 ? "none" : `${preset.realLightCount}`,
+								)}
+								hint="Lamps, lit windows, cabins and headlights light the streets, walls and water round them. Each one costs a little on every surface it reaches."
 							/>
 						),
 					},

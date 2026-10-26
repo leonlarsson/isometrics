@@ -16,8 +16,22 @@ export type TLightShape = "lens" | "beam" | "pool" | "windows" | "glow";
 /** Light shapes that light the ground, and so have a reach. */
 export const LIGHT_SHAPES_WITH_REACH: readonly TLightShape[] = ["beam", "pool"];
 
+/**
+ * Where a light lights its surroundings from as a real light (ADR-0072): a
+ * point in the part's own space (before the object's scale and turn, front
+ * +Z, vehicles +X).
+ */
+export interface IRealLightSource {
+	at: [number, number, number];
+	/**
+	 * How far it lights round it, in grid units at scale 1, for lights without a
+	 * reach of their own (windows, glows); beams and pools use theirs.
+	 */
+	reach?: number;
+}
+
 /** One of a part's lights (ADR-0058). Its look and place are the part's; objects can change the rest. */
-export interface ILightSpec {
+export interface ILightSpec<P extends object = Record<string, unknown>> {
 	/** Stable key objects store their settings under, e.g. "headlights". Rename with renamedLights. */
 	id: string;
 	/** What the Lights tab calls it, e.g. "Headlights". */
@@ -55,6 +69,13 @@ export interface ILightSpec {
 		strength?: number | null;
 		reach?: number | null;
 	};
+	/**
+	 * Lights the streets, walls and water round it as a real light too, from
+	 * here, when the graphics settings draw real lights at night (ADR-0072);
+	 * without it, the light is painted only. A part with several lights in one
+	 * place gives it to one of them.
+	 */
+	realLight?(props: P): IRealLightSource;
 }
 
 /**
@@ -195,7 +216,7 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * it by its id. The part draws them where they are, from `lights` in its
 	 * render props.
 	 */
-	lights?: ILightSpec[];
+	lights?: ILightSpec<P>[];
 	/**
 	 * Lights whose id changed: old id → new id, so objects keep their settings
 	 * for them (like renamedProps). Never remove an entry.
