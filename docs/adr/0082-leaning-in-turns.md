@@ -18,7 +18,7 @@ Vehicles on a route turn by their heading only, upright like toys on a rail. A b
 
 - A part says how it leans (`turnLean`: degrees per unit of sideways acceleration, negative out of the turn, and at most how far). The yacht leans into turns, 8° per unit, at most 10°; cars don't for now (the owner wasn't sure how much they should).
 - The lean is the sideways pull, the speed² × how sharply the route bends over the vehicle's length round where it is (`turnLeanDegrees` in `scene/routes.ts`), eased in and out (`EntityNode`), and none while motion is paused. It turns about the vehicle's own length: the rotation order is heading, then the slope's pitch, then the lean (Euler `YZX`, which is the same as before while the lean is 0).
-- A setting at three levels, like **Vehicles turn**: the world's **Lean in turns** (`leansInTurns`, on by default; Traffic tab), a road's and a vehicle's (null = the road's, else the world's; From scene / From road and Reset). A vehicle whose kind doesn't lean shows the switch with a note saying so.
+- A setting at three levels, like **Vehicles turn**: the world's **Lean in turns** (`leansInTurns`, on by default; Traffic tab), a road's and a vehicle's (null = the road's, else the world's; From scene / From road and Reset). Only vehicles whose kind leans show the vehicle's switch: unlike an option waiting on something the user can add (AGENTS.md: don't hide what isn't available yet), nothing in a car's settings could make it lean.
 
 ### Consequences
 

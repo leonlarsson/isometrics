@@ -618,6 +618,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	/** What this vehicle inherits: its road's setting, else the scene's. */
 	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.turnStyle, null);
 	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.leansInTurns, null);
+	// Whether its kind leans in turns at all (a part's turnLean).
 	const leans = getPart(entity.kind)?.turnLean !== undefined;
 
 	return (
@@ -726,29 +727,31 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 						}}
 					/>
 
-					<SwitchField
-						label="Lean in turns"
-						checked={entity.follow.leansInTurns ?? roadLeans}
-						onChange={(v) =>
-							edit("follow.leans", (e) => {
-								if (e.follow) {
-									e.follow.leansInTurns = v;
-								}
-							})
-						}
-						inherit={{
-							from: followedRoad?.leansInTurns != null ? "road" : "scene",
-							inherited: entity.follow.leansInTurns === null,
-							onReset: () =>
+					{/* Only kinds that lean (ADR-0082): nothing a car's settings could change makes it lean. */}
+					{leans && (
+						<SwitchField
+							label="Lean in turns"
+							checked={entity.follow.leansInTurns ?? roadLeans}
+							onChange={(v) =>
 								edit("follow.leans", (e) => {
 									if (e.follow) {
-										e.follow.leansInTurns = null;
+										e.follow.leansInTurns = v;
 									}
-								}),
-							value: roadLeans ? "on" : "off",
-						}}
-						hint={leans ? undefined : "This kind of vehicle doesn't lean (for now only boats do)."}
-					/>
+								})
+							}
+							inherit={{
+								from: followedRoad?.leansInTurns != null ? "road" : "scene",
+								inherited: entity.follow.leansInTurns === null,
+								onReset: () =>
+									edit("follow.leans", (e) => {
+										if (e.follow) {
+											e.follow.leansInTurns = null;
+										}
+									}),
+								value: roadLeans ? "on" : "off",
+							}}
+						/>
+					)}
 				</>
 			)}
 
