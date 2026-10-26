@@ -4,6 +4,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { MAX_WATER_SEAMS } from "#/scene/areas";
+import type { TWater } from "#/scene/schema";
+
 /**
  * Reflective water (Graphics: Water reflections, ADR-0075): the world
  * mirrored in the water, broken up by ripples that drift, on top of the
@@ -114,7 +117,8 @@ const REFLECTED_LIGHT = /* glsl */ `
 	float facing = clamp(dot(normal, toCamera), 0.0, 1.0);
 	float fresnel = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
 	vec3 reflected = sRGBTransferEOTF(vec4(max(newMerge.rgb, 0.0), 1.0)).rgb;
-	totalEmissiveRadiance += reflected * mixStrength * mix(mirror, 1.0, fresnel);`;
+	float reflectionStrength = mix(worldMixStrength, mixStrength, waterOwnness);
+	totalEmissiveRadiance += reflected * reflectionStrength * mix(mirror, 1.0, fresnel);`;
 
 /**
  * Draws the reflection exactly as onto the canvas (each material tone-mapped
@@ -135,20 +139,88 @@ const asDrawnOnCanvas = (texture: THREE.Texture | null | undefined) => {
 const RIPPLE_NORMAL_SCALE = 0.24;
 const RIPPLE_SHIFT = 0.024;
 
+/** Over how many ground units a water area's own ripples and reflections fade into the world's at a seam. */
+const SEAM_FADE = 3;
+
+/**
+ * A water area's own look near where it meets other water (ADR-0075):
+ * `waterOwnness` is 0 on a seam and 1 from SEAM_FADE away, and the ripples
+ * and the reflection fade from the world's to the area's own over it, so two
+ * water areas meet without a line.
+ */
+const SEAM_GLSL = /* glsl */ `
+	uniform vec4 waterSeams[${MAX_WATER_SEAMS}];
+	uniform int waterSeamCount;
+	uniform float seamFade;
+	uniform float worldNormalScale;
+	uniform float worldRippleShift;
+	uniform float worldMixStrength;
+	varying vec2 vWaterXZ;
+	float waterOwnnessAt(vec2 at) {
+		float closest = 1e5;
+		for (int i = 0; i < ${MAX_WATER_SEAMS}; i++) {
+			if (i >= waterSeamCount) {
+				break;
+			}
+			vec2 a = waterSeams[i].xy;
+			vec2 along = waterSeams[i].zw - a;
+			float t = clamp(dot(at - a, along) / max(dot(along, along), 1e-6), 0.0, 1.0);
+			closest = min(closest, length(at - a - along * t));
+		}
+		return smoothstep(0.0, seamFade, closest);
+	}
+`;
+
+/** Settings the water's shader reads each frame (uniforms, shared with it by reference). */
+interface IWaterUniforms {
+	rippleShift: { value: number };
+	waterSeams: { value: THREE.Vector4[] };
+	waterSeamCount: { value: number };
+	seamFade: { value: number };
+	worldNormalScale: { value: number };
+	worldRippleShift: { value: number };
+	worldMixStrength: { value: number };
+}
+
+const waterUniforms = (): IWaterUniforms => ({
+	rippleShift: { value: 0 },
+	waterSeams: { value: Array.from({ length: MAX_WATER_SEAMS }, () => new THREE.Vector4()) },
+	waterSeamCount: { value: 0 },
+	seamFade: { value: SEAM_FADE },
+	worldNormalScale: { value: 0 },
+	worldRippleShift: { value: 0 },
+	worldMixStrength: { value: 0 },
+});
+
 /**
  * Changes drei's shader: the moving ripples for the reflection too, shifting
- * it by `shift` (drei's was a twentieth of the view), and the reflection as
- * light.
+ * it by `rippleShift` (drei's was a twentieth of the view), the reflection as
+ * light, and both fading into the world's at seams with other water.
  */
-const asReflectedLight = (material: THREE.Material, shift: { value: number }) => {
+const asReflectedLight = (material: THREE.Material, uniforms: IWaterUniforms) => {
 	const compile = material.onBeforeCompile.bind(material);
 	material.onBeforeCompile = (shader, renderer) => {
 		compile(shader, renderer);
-		shader.uniforms.rippleShift = shift;
-		shader.fragmentShader = shader.fragmentShader
+		Object.assign(shader.uniforms, uniforms);
+		shader.vertexShader = `varying vec2 vWaterXZ;\n${shader.vertexShader}`.replace(
+			"#include <project_vertex>",
+			"#include <project_vertex>\n\tvWaterXZ = (modelMatrix * vec4(transformed, 1.0)).xz;",
+		);
+		shader.fragmentShader = `${SEAM_GLSL}\n${shader.fragmentShader}`
+			.replace("void main() {", "void main() {\n\tfloat waterOwnness = waterOwnnessAt(vWaterXZ);")
+			.replace(
+				"#include <normal_fragment_maps>",
+				THREE.ShaderChunk.normal_fragment_maps.replace(
+					"mapN.xy *= normalScale;",
+					"mapN.xy *= mix(vec2(worldNormalScale), normalScale, waterOwnness);",
+				),
+			)
 			.replace("uniform float distortion;", "uniform float distortion;\nuniform float rippleShift;")
 			.replace("texture2D(normalMap, vUv * normalScale)", "texture2D(normalMap, vNormalMapUv)")
-			.replace("coord.z * my_normal.xz * 0.05", "coord.z * my_normal.xz * rippleShift")
+			.replace(
+				"coord.z * my_normal.xz * 0.05",
+				"coord.z * my_normal.xz * mix(worldRippleShift, rippleShift, waterOwnness)",
+			)
 			.replace(DREI_BLEND, REFLECTED_LIGHT);
 	};
 	material.customProgramCacheKey = () => "isometrics-water";
@@ -161,9 +233,12 @@ interface IReflectiveWaterProps {
 	reflectionStrength: number;
 	/** How rippled it is: 0 = mirror-calm, 1 = choppy (the area's, or the world's). */
 	rippleStrength: number;
+	/** The world's ripples and reflections, which its own fade into at seams. */
+	world: TWater;
+	/** Where it meets other water ([x1, z1, x2, z2], scene/areas: waterSeams). */
+	seams: [number, number, number, number][];
 }
 
-/** The material of a flat water area that reflects the world. */
 /** How strong the mirrored world is at reflection strength 1. */
 const FULL_REFLECTION = 1.1;
 
@@ -237,15 +312,27 @@ const aimMirror = (
 	return true;
 };
 
+/** The material of a flat water area that reflects the world. */
 export const ReflectiveWaterMaterial = ({
 	color,
 	roughness,
 	reflectionStrength,
 	rippleStrength,
+	world,
+	seams,
 }: IReflectiveWaterProps) => {
 	const gl = useThree((s) => s.gl);
-	const shift = useRef({ value: 0 }).current;
-	shift.value = RIPPLE_SHIFT * rippleStrength;
+	const uniforms = useRef<IWaterUniforms | null>(null);
+	uniforms.current ??= waterUniforms();
+	const u = uniforms.current;
+	u.rippleShift.value = RIPPLE_SHIFT * rippleStrength;
+	u.worldRippleShift.value = RIPPLE_SHIFT * world.rippleStrength;
+	u.worldNormalScale.value = RIPPLE_NORMAL_SCALE * world.rippleStrength;
+	u.worldMixStrength.value = FULL_REFLECTION * world.reflectionStrength;
+	u.waterSeamCount.value = seams.length;
+	seams.forEach(([x1, z1, x2, z2], i) => {
+		u.waterSeams.value[i].set(x1, z1, x2, z2);
+	});
 	const normalScale = RIPPLE_NORMAL_SCALE * rippleStrength;
 	const normals = rippleNormals();
 
@@ -281,13 +368,13 @@ export const ReflectiveWaterMaterial = ({
 			polygonOffsetFactor: -1,
 		});
 		material.defines = { ...material.defines, USE_BLUR: "" };
-		asReflectedLight(material, shift);
+		asReflectedLight(material, u);
 		const mirrors = {
 			perspective: new THREE.PerspectiveCamera(),
 			orthographic: new THREE.OrthographicCamera(),
 		};
 		return { sharp, blurred, blur, textureMatrix, material, mirrors };
-	}, [gl, shift]);
+	}, [gl, u]);
 
 	useEffect(
 		() => () => {
@@ -313,8 +400,9 @@ export const ReflectiveWaterMaterial = ({
 		normals.offset.set(t * 0.011, t * 0.007);
 		const water = (material as unknown as { __r3f?: { parent?: { object?: THREE.Object3D } } })
 			.__r3f?.parent?.object;
-		// Not mirroring at all: no need to draw the mirrored world.
-		if (!water || reflectionStrength <= 0) {
+		// Not mirroring at all (nor where it fades into the world's water): no need to draw the mirror.
+		const mirrors = reflectionStrength > 0 || (seams.length > 0 && world.reflectionStrength > 0);
+		if (!water || !mirrors) {
 			return;
 		}
 		const mirror =

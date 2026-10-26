@@ -7,12 +7,14 @@ import { useGraphics } from "#/editor/graphics";
 import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
-import { AREA_TYPES, areaColor } from "#/scene/areas";
+import { AREA_TYPES, areaColor, waterSeams } from "#/scene/areas";
 import type { TArea, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
 import { ReflectiveWaterMaterial } from "./Water";
+
+const NO_SEAMS: [number, number, number, number][] = [];
 
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
@@ -51,6 +53,8 @@ interface IAreaBodyProps {
 	reflective?: boolean;
 	/** The world's water, for a water area that doesn't set its own ripples and reflections. */
 	worldWater?: TWater;
+	/** Where a water area meets other water (scene/areas: waterSeams). */
+	waterSeams?: [number, number, number, number][];
 }
 
 /**
@@ -66,6 +70,7 @@ export const AreaBody = ({
 	handlers = {},
 	reflective = false,
 	worldWater = { rippleStrength: 0.5, reflectionStrength: 0.5 },
+	waterSeams = NO_SEAMS,
 }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = area.height > 0;
@@ -113,6 +118,8 @@ export const AreaBody = ({
 					<ReflectiveWaterMaterial
 						color={color}
 						roughness={AREA_TYPES[area.type].roughness}
+						world={worldWater}
+						seams={waterSeams}
 						rippleStrength={area.rippleStrength ?? worldWater.rippleStrength}
 						reflectionStrength={area.reflectionStrength ?? worldWater.reflectionStrength}
 					/>
@@ -141,6 +148,11 @@ interface IAreaMeshProps {
 export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const reflective = useGraphics().showWaterReflections;
 	const worldWater = useEditor((s) => s.scene.water);
+	const areas = useEditor((s) => s.scene.areas);
+	const seams = useMemo(
+		() => (reflective && area.type === "water_01" ? waterSeams(area, areas) : NO_SEAMS),
+		[reflective, area, areas],
+	);
 	const palette = usePalette();
 	const mode = useEditor((s) => s.mode);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
@@ -180,6 +192,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			handlers={handlers}
 			reflective={reflective}
 			worldWater={worldWater}
+			waterSeams={seams}
 		/>
 	);
 });
