@@ -76,11 +76,11 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0070](0070-sky.md) | A sky around the world in perspective, and a backdrop of the world's own behind the diorama | accepted |
 | [0071](0071-names-say-what-they-hold.md) | Names say what they hold, and renamed world fields are read under their old names | accepted |
 | [0072](0072-rendering-quality-levels.md) | Graphics settings for the 3D view: presets with overrides, a world's sun and shade contrast, real night lights | accepted |
-| [0073](0073-effects-composer.md) | The effects composer draws the scene as on the canvas, and the backdrop stays behind it | proposed |
-| [0074](0074-real-night-lights.md) | Real night lights: a part's light also lights its surroundings, the nearest ones to the view | proposed |
-| [0075](0075-reflective-water.md) | Reflective water: the world mirrored in rippling water, added as reflected light | proposed |
-| [0076](0076-colour-grade.md) | A colour grade on the finished picture | proposed |
-| [0077](0077-distance-haze.md) | Distance haze in perspective, as its own graphics setting | proposed |
-| [0078](0078-moods.md) | Moods: named looks saved in a world, and viewpoints that put one on | proposed |
-| [0079](0079-light-and-sky-tabs.md) | Sun & sky splits into Moods, Time & light, and Sky & water | proposed |
-| [0080](0080-shading-switcher.md) | A shading switcher in the toolbar: wireframe, Standard, Nice, Ultra | proposed |
+| [0073](0073-effects-composer.md) | The effects composer draws the scene as on the canvas, and the backdrop stays behind it | accepted |
+| [0074](0074-real-night-lights.md) | Real night lights: a part's light also lights its surroundings, the nearest ones to the view | accepted |
+| [0075](0075-reflective-water.md) | Reflective water: the world mirrored in rippling water, added as reflected light | accepted |
+| [0076](0076-colour-grade.md) | A colour grade on the finished picture | accepted |
+| [0077](0077-distance-haze.md) | Distance haze in perspective, as its own graphics setting | accepted |
+| [0078](0078-moods.md) | Moods: named looks saved in a world, and viewpoints that put one on | accepted |
+| [0079](0079-light-and-sky-tabs.md) | Sun & sky splits into Moods, Time & light, and Sky & water | accepted |
+| [0080](0080-shading-switcher.md) | A shading switcher in the toolbar: wireframe, Standard, Nice, Ultra | accepted |
