@@ -101,11 +101,31 @@ const rippleNormals = () => {
 const DREI_BLEND =
 	"diffuseColor.rgb = diffuseColor.rgb * ((1.0 - min(1.0, mirror)) + newMerge.rgb * mixStrength);";
 
-/** The reflection added as reflected light instead, by how low the view meets the water. */
+/**
+ * The reflection added as reflected light instead, by how low the view meets
+ * the water. The reflection is drawn as onto the canvas (asDrawnOnCanvas), so
+ * it's decoded from sRGB first.
+ */
 const REFLECTED_LIGHT = /* glsl */ `
 	float facing = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
 	float fresnel = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
-	totalEmissiveRadiance += newMerge.rgb * mixStrength * mix(mirror, 1.0, fresnel);`;
+	vec3 reflected = sRGBTransferEOTF(vec4(max(newMerge.rgb, 0.0), 1.0)).rgb;
+	totalEmissiveRadiance += reflected * mixStrength * mix(mirror, 1.0, fresnel);`;
+
+/**
+ * Draws the reflection exactly as onto the canvas (each material tone-mapped
+ * as it opts, written as sRGB), like the effects composer's scene pass
+ * (ADR-0073): three keeps one shader per material for both. Drawn into a plain
+ * buffer instead, every material in the world switched shaders twice a frame
+ * per water area, which cost about 4 ms of CPU per area.
+ */
+const asDrawnOnCanvas = (texture: THREE.Texture | null | undefined) => {
+	const target = texture?.renderTarget as THREE.WebGLRenderTarget | null | undefined;
+	if (target && !(target as { isXRRenderTarget?: boolean }).isXRRenderTarget) {
+		Object.assign(target, { isXRRenderTarget: true });
+		target.texture.colorSpace = THREE.SRGBColorSpace;
+	}
+};
 
 /** At full strength (1): how much the ripples tilt the surface, and shift the reflection, in the view. */
 const RIPPLE_NORMAL_SCALE = 0.24;
@@ -159,6 +179,7 @@ export const ReflectiveWaterMaterial = ({
 				if (material && changed.current !== material) {
 					changed.current = material;
 					asReflectedLight(material, shift);
+					asDrawnOnCanvas((material as unknown as { tDiffuse?: THREE.Texture }).tDiffuse);
 				}
 			}}
 			color={color}
@@ -166,10 +187,10 @@ export const ReflectiveWaterMaterial = ({
 			metalness={0}
 			normalMap={normals}
 			normalScale={new THREE.Vector2(normalScale, normalScale)}
-			resolution={1024}
+			resolution={512}
 			mirror={0.35}
 			mixStrength={1.1}
-			blur={[180, 60]}
+			blur={[90, 30]}
 			mixBlur={0.6}
 			depthScale={0}
 			polygonOffset

@@ -25,16 +25,17 @@ Water is a flat, fairly matte surface (roughness 0.4). With real night lights (A
 
 Chosen option: **2**.
 
-- A graphics setting, **Water reflections** (`showWaterReflections`; Ultra on, Standard and Nice off). With it, each flat water area in the editor's view draws with `ReflectiveWaterMaterial` (`render/Water.tsx`): the world mirrored at the water's height (a second render of the scene per water area, 1024² and blurred a little), on the water's own lit surface. Raised water and world pictures (ADR-0047) keep the plain material.
+- A graphics setting, **Water reflections** (`showWaterReflections`; Ultra on, Standard and Nice off). With it, each flat water area in the editor's view draws with `ReflectiveWaterMaterial` (`render/Water.tsx`): the world mirrored at the water's height (a second render of the scene per water area, 512² and blurred a little), on the water's own lit surface. Raised water and world pictures (ADR-0047) keep the plain material.
 - drei's material multiplies the water's colour by the reflection, which scene lighting then dims; the shader is changed so the reflection is **added as reflected light**, by a Fresnel term on top of a base amount (`mirror`), so lights reflect at night and the water reflects more at a low angle.
 - **How rippled** water is belongs to the world, like cloud cover: `water.rippleStrength` (Sun & sky → Water, default 50%), and each water area can set its own (`rippleStrength`, null = the world's, From scene / Reset). 0 is mirror-calm; the strength scales how much the ripples tilt the surface and shift the reflection. The fields say ripples show where Water reflections are on, with the way to Preferences.
 - **Ripples** are a tiling normal map of smooth noise at four scales (sine waves interfere into a crosshatch), drifting slowly; the reflection is shifted through the same moving normals, a little (drei's shift was a twentieth of the view), so it breaks into streaks.
+- **The reflection is drawn exactly as onto the canvas** (its buffer flagged as an XR target, as the composer's scene pass, ADR-0073) and decoded from sRGB in the water's shader. Drawn into a plain buffer, every material in the world switched shader programs twice a frame per water area (tone-mapped and sRGB for the view, neither for the reflection): about 4 ms of CPU per area.
 - A reflector takes its mirror plane from its mesh's rotation, so a mirroring water area turns its mesh rather than its geometry.
 
 ### Consequences
 
 - Good: at night lights reflect as rippled streaks and the town round the water is mirrored; by day the sky and boats are; the real lights' smears are gone where reflections are on.
-- Bad: a second scene render per water area (about 0.5 ms on an RTX 4080 SUPER in the marina view at 1600×1000); relies on two strings in drei's shader, which a drei update could change (the change does nothing then, and the pictures in `scripts/shots.mjs` would show it).
+- Bad: a second scene render per water area (about 1 ms each on an RTX 4080 SUPER at 1600×1000; Lantern Bay on Ultra, with two water areas, takes 4.6–7.8 ms a frame in its wide views); relies on two strings in drei's shader, which a drei update could change (the change does nothing then, and the pictures in `scripts/shots.mjs` would show it).
 - Later: one shared reflection for all water at the same height; reflections in Nice at a lower resolution.
 
 ## More information
