@@ -212,20 +212,27 @@ if (bayview) {
 	};
 }
 
-const hillHouses: TEntityInput[] = [
-	"#f07b4f",
-	"#4a64e0",
-	"#3cbf9a",
-	"#e8b83a",
-	"#8a5cf0",
-	"#e05a4a",
-].map((roof, i) => ({
+/**
+ * Along the hill, which is about as deep as a house: houses 2.2 wide (2.5 with the roof's
+ * overhang) and two pines between them, a little apart so no roof or tree runs into another.
+ */
+const HILL_HOUSE_WIDTH = 2.2;
+const hillHouses: TEntityInput[] = (
+	[
+		[-20.6, "#f07b4f"],
+		[-17.95, "#4a64e0"],
+		[-14.25, "#3cbf9a"],
+		[-11.6, "#e8b83a"],
+		[-7.9, "#8a5cf0"],
+	] as const
+).map(([x, roof], i) => ({
 	id: `hill_house_${i}`,
 	kind: "house_01",
 	name: `Hill house ${i + 1}`,
-	position: [-20.4 + i * 2.6, -16.6] as TVec2,
+	position: [x, -16.6] as TVec2,
 	elevation: HILL,
 	colors: paint({ roof }),
+	props: { width: HILL_HOUSE_WIDTH },
 }));
 
 const warehouse: TEntityInput[] = [
@@ -402,18 +409,16 @@ const nature: TEntityInput[] = [
 		position: [x, z] as TVec2,
 		props: { size: 0.9 + (i % 3) * 0.15 },
 	})),
+	// In the two gaps between the hill houses.
 	...[
-		[-21, -15.9],
-		[-14.4, -15.8],
-		[-7.6, -16.6],
-		[-19, -17.6],
-		[-10.4, -17.6],
+		[-16.1, -16.7],
+		[-9.75, -16.7],
 	].map(([x, z], i) => ({
 		id: `pine_${i}`,
 		kind: "pine_tree_01",
 		position: [x, z] as TVec2,
 		elevation: HILL,
-		props: { size: 0.9 + (i % 2) * 0.3 },
+		props: { size: 0.9 },
 	})),
 ];
 
