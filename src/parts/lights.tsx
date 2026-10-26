@@ -70,6 +70,8 @@ const GroundGlow = ({
 			blending={THREE.AdditiveBlending}
 			depthWrite={false}
 			toneMapped={false}
+			// Lights shine through distance haze.
+			fog={false}
 		/>
 	</mesh>
 );
@@ -107,7 +109,7 @@ export const LightLens = ({
 			<boxGeometry args={size} />
 
 			{light.on ? (
-				<meshBasicMaterial color={light.color} toneMapped={false} />
+				<meshBasicMaterial color={light.color} toneMapped={false} fog={false} />
 			) : (
 				<Mat color={lens} roughness={0.4} />
 			)}
@@ -192,6 +194,7 @@ export const Headlights = ({
 						blending={THREE.AdditiveBlending}
 						depthWrite={false}
 						toneMapped={false}
+						fog={false}
 					/>
 				</mesh>
 			)}

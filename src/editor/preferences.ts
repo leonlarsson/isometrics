@@ -97,6 +97,8 @@ export const PreferencesSchema = z.object({
 		.union(SHADOW_MAP_SIZES.map((size) => z.literal(size)))
 		.nullable()
 		.catch(null),
+	/** In perspective, far things fade into the sky's colour at the horizon. null = the preset's. */
+	showDistanceHaze: z.boolean().nullable().catch(null),
 	/** Soft-edged shadows. null = the preset's. */
 	useSoftShadows: z.boolean().nullable().catch(null),
 	/** Smoothing jagged edges: the canvas's multisampling, or SMAA. null = the preset's. */

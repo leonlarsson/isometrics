@@ -210,6 +210,23 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 						),
 					},
 					{
+						id: "showDistanceHaze",
+						keywords: "haze fog mist atmosphere distance depth aerial perspective",
+						field: (
+							<SwitchField
+								label="Distance haze"
+								checked={graphics.showDistanceHaze}
+								onChange={(value) => setPreference("showDistanceHaze", value)}
+								inherit={fromPreset(
+									preferences,
+									"showDistanceHaze",
+									onOff(preset.showDistanceHaze),
+								)}
+								hint="In perspective, far things fade into the sky's colour at the horizon, for depth."
+							/>
+						),
+					},
+					{
 						id: "useSoftShadows",
 						keywords: "pcss shadow blur penumbra soft edges",
 						field: (

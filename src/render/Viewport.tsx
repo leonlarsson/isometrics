@@ -16,6 +16,7 @@ import { CameraMemory } from "./CameraMemory";
 import { CameraReadout } from "./CameraReadout";
 import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { Clouds } from "./Clouds";
+import { DistanceHaze } from "./DistanceHaze";
 import { EntityNode } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
@@ -152,6 +153,8 @@ export const Viewport = () => {
 			{graphics.useSoftShadows && <SoftShadows size={8} samples={16} focus={0.6} />}
 
 			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
+
+			{graphics.showDistanceHaze && <DistanceHaze />}
 
 			<CameraReadout />
 

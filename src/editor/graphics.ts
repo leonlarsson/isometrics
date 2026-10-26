@@ -26,6 +26,8 @@ export interface IGraphics {
 	showWaterReflections: boolean;
 	/** A colour grade on the finished picture (saturation, contrast, vignette, warm lights at night). */
 	useColorGrade: boolean;
+	/** In perspective, far things fade into the sky's colour at the horizon. */
+	showDistanceHaze: boolean;
 	/** Pixels per side of the sun's shadow map: more is sharper. */
 	shadowMapSize: TShadowMapSize;
 	/** Soft-edged shadows (PCSS). */
@@ -42,6 +44,7 @@ export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"realLightCount",
 	"showWaterReflections",
 	"useColorGrade",
+	"showDistanceHaze",
 	"shadowMapSize",
 	"useSoftShadows",
 	"antiAliasing",
@@ -55,6 +58,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		realLightCount: 0,
 		showWaterReflections: false,
 		useColorGrade: false,
+		showDistanceHaze: false,
 		useSoftShadows: false,
 		shadowMapSize: 2048,
 		antiAliasing: "multisample",
@@ -66,6 +70,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		realLightCount: 16,
 		showWaterReflections: false,
 		useColorGrade: false,
+		showDistanceHaze: false,
 		useSoftShadows: false,
 		shadowMapSize: 2048,
 		antiAliasing: "smaa",
@@ -77,6 +82,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		realLightCount: 64,
 		showWaterReflections: true,
 		useColorGrade: true,
+		showDistanceHaze: false,
 		useSoftShadows: true,
 		shadowMapSize: 4096,
 		antiAliasing: "smaa",
@@ -93,6 +99,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 		realLightCount: preferences.realLightCount ?? preset.realLightCount,
 		showWaterReflections: preferences.showWaterReflections ?? preset.showWaterReflections,
 		useColorGrade: preferences.useColorGrade ?? preset.useColorGrade,
+		showDistanceHaze: preferences.showDistanceHaze ?? preset.showDistanceHaze,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
 		shadowMapSize: preferences.shadowMapSize ?? preset.shadowMapSize,
 		antiAliasing: preferences.antiAliasing ?? preset.antiAliasing,
