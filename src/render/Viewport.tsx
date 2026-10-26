@@ -47,7 +47,16 @@ const Lights = () => {
 	const palette = usePalette();
 	const ground = useEditor((s) => s.scene.ground);
 	const lighting = useEditor((s) => s.scene.lighting);
-	return <SceneLights ground={ground} palette={palette} lighting={lighting} followView />;
+	const shadowMapSize = useGraphics().shadowMapSize;
+	return (
+		<SceneLights
+			ground={ground}
+			palette={palette}
+			lighting={lighting}
+			followView
+			shadowMapSize={shadowMapSize}
+		/>
+	);
 };
 
 export const Viewport = () => {
@@ -139,7 +148,8 @@ export const Viewport = () => {
 				</Suspense>
 			)}
 
-			{graphics.useSoftShadows && <SoftShadows size={18} samples={12} focus={0.6} />}
+			{/* Soft shadow edges; a small light, so long shadows stay. */}
+			{graphics.useSoftShadows && <SoftShadows size={8} samples={16} focus={0.6} />}
 
 			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
 

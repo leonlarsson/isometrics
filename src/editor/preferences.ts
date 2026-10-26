@@ -38,6 +38,10 @@ export type TAntiAliasing = (typeof ANTI_ALIASING_MODES)[number];
 export const REAL_LIGHT_COUNTS = [0, 8, 16, 32, 64] as const;
 export type TRealLightCount = (typeof REAL_LIGHT_COUNTS)[number];
 
+/** Pixels per side of the sun's shadow map: more is sharper. */
+export const SHADOW_MAP_SIZES = [2048, 4096] as const;
+export type TShadowMapSize = (typeof SHADOW_MAP_SIZES)[number];
+
 /** The highest number of device pixels per CSS pixel the view draws at. */
 export const PIXEL_DENSITIES = [1, 1.5, 2] as const;
 export type TPixelDensity = (typeof PIXEL_DENSITIES)[number];
@@ -88,6 +92,11 @@ export const PreferencesSchema = z.object({
 	showWaterReflections: z.boolean().nullable().catch(null),
 	/** A colour grade on the finished picture: richer colour, a vignette, warm lights at night. null = the preset's. */
 	useColorGrade: z.boolean().nullable().catch(null),
+	/** Pixels per side of the sun's shadow map, 2048 or 4096. null = the preset's. */
+	shadowMapSize: z
+		.union(SHADOW_MAP_SIZES.map((size) => z.literal(size)))
+		.nullable()
+		.catch(null),
 	/** Soft-edged shadows. null = the preset's. */
 	useSoftShadows: z.boolean().nullable().catch(null),
 	/** Smoothing jagged edges: the canvas's multisampling, or SMAA. null = the preset's. */

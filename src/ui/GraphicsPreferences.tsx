@@ -14,6 +14,7 @@ import {
 	preferencesChanged,
 	REAL_LIGHT_COUNTS,
 	resetPreferences,
+	SHADOW_MAP_SIZES,
 	setPreference,
 	type TAmbientOcclusion,
 	type TAntiAliasing,
@@ -21,6 +22,7 @@ import {
 	type TPixelDensity,
 	type TPreferences,
 	type TRealLightCount,
+	type TShadowMapSize,
 } from "#/editor/preferences";
 
 import { SelectField, SwitchField } from "./fields";
@@ -217,6 +219,29 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 								onChange={(value) => setPreference("useSoftShadows", value)}
 								inherit={fromPreset(preferences, "useSoftShadows", onOff(preset.useSoftShadows))}
 								hint="Shadows with soft edges, sharper close to what casts them."
+							/>
+						),
+					},
+					{
+						id: "shadowMapSize",
+						keywords: "shadow resolution sharp detail map quality",
+						field: (
+							<SelectField<`${TShadowMapSize}`>
+								label="Shadow detail"
+								value={`${graphics.shadowMapSize}`}
+								options={SHADOW_MAP_SIZES.map((size) => ({
+									value: `${size}`,
+									label: size === 2048 ? "Standard" : "High",
+								}))}
+								onChange={(value) =>
+									setPreference("shadowMapSize", Number(value) as TShadowMapSize)
+								}
+								inherit={fromPreset(
+									preferences,
+									"shadowMapSize",
+									preset.shadowMapSize === 2048 ? "standard" : "high",
+								)}
+								hint="How sharp the sun's shadows are: High draws them from four times as many pixels."
 							/>
 						),
 					},

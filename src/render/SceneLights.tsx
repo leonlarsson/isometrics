@@ -12,7 +12,10 @@ import type { IScenePalette } from "#/scene/theme";
 import { groundSpan } from "./cameraMath";
 import { directionOf } from "./viewpoints";
 
-/** The shadow map's size; its pixels are spread over the area the sun's shadows cover. */
+/**
+ * The shadow map's size, unless the graphics settings ask for more (Shadow
+ * detail); its pixels are spread over the area the sun's shadows cover.
+ */
 const SHADOW_MAP = 2048;
 /** Room around the visible ground that keeps shadows near the edges of the view. */
 const VIEW_MARGIN = 4;
@@ -24,7 +27,8 @@ const LOWEST_SHADOW_SUN = 6;
  * surface doesn't shadow itself in stripes ("acne"): at least one shadow
  * pixel, which is bigger when the sun's shadows cover more ground.
  */
-const normalBiasFor = (radius: number) => Math.max(0.03, ((2 * radius) / SHADOW_MAP) * 1.5);
+const normalBiasFor = (radius: number, mapSize = SHADOW_MAP) =>
+	Math.max(0.03, ((2 * radius) / mapSize) * 1.5);
 
 /** Towards the sun (or the moon) from the ground, for a light's direction in degrees. */
 const sunDirectionOf = (light: Pick<ISkyLight, "azimuth" | "elevation">) =>
@@ -44,7 +48,7 @@ const aimSun = (light: THREE.DirectionalLight, radius: number) => {
 	light.position.copy(centre).addScaledVector(sun, distance);
 	light.target.position.copy(centre);
 	light.target.updateMatrixWorld();
-	light.shadow.normalBias = normalBiasFor(radius);
+	light.shadow.normalBias = normalBiasFor(radius, light.shadow.mapSize.x);
 	const camera = light.shadow.camera;
 	if (camera.right !== radius || camera.far !== distance * 2) {
 		Object.assign(camera, {
@@ -114,6 +118,8 @@ const lightFor = (lights: ILights, sky: ISkyLight, palette: IScenePalette, contr
 };
 
 interface ISunProps {
+	/** Pixels per side of the sun's shadow map. */
+	shadowMapSize: number;
 	ground: TScene["ground"];
 	palette: IScenePalette;
 	lighting: TLighting;
@@ -128,7 +134,7 @@ interface ISunProps {
  * whole shadow pixels (so they don't shimmer while panning). Zoomed out, it
  * covers the whole ground.
  */
-const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) => {
+const SunFollowingTheView = ({ shadowMapSize, ground, palette, lighting, lights }: ISunProps) => {
 	const light = useRef<THREE.DirectionalLight>(null);
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -160,7 +166,7 @@ const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) =
 			return;
 		}
 		// The view's centre, moved in whole shadow pixels across the sun's view.
-		const texel = (2 * stepped) / SHADOW_MAP;
+		const texel = (2 * stepped) / shadowMapSize;
 		centre.set(target.x, 0, target.z);
 		const x = Math.round(centre.dot(lightX) / texel) * texel;
 		const y = Math.round(centre.dot(lightY) / texel) * texel;
@@ -174,7 +180,7 @@ const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) =
 			ref={light}
 			castShadow
 			intensity={palette.sunIntensity}
-			shadow-mapSize={[SHADOW_MAP, SHADOW_MAP]}
+			shadow-mapSize={[shadowMapSize, shadowMapSize]}
 			shadow-bias={-0.0004}
 		/>
 	);
@@ -184,7 +190,7 @@ const SunFollowingTheView = ({ ground, palette, lighting, lights }: ISunProps) =
  * A sun whose shadows cover the whole ground, at the world's set time of day
  * (pictures of worlds, which don't move).
  */
-const SunOverTheGround = ({ ground, palette, lighting, lights }: ISunProps) => {
+const SunOverTheGround = ({ shadowMapSize, ground, palette, lighting, lights }: ISunProps) => {
 	const half = Math.max(ground.width, ground.depth) * 0.75;
 	const sky = skyLightAt(lighting, lighting.time);
 	const position = sunDirectionOf(sky).multiplyScalar(half * 1.4);
@@ -198,7 +204,7 @@ const SunOverTheGround = ({ ground, palette, lighting, lights }: ISunProps) => {
 			position={position}
 			intensity={palette.sunIntensity * sky.strength}
 			color={sky.color}
-			shadow-mapSize={[SHADOW_MAP, SHADOW_MAP]}
+			shadow-mapSize={[shadowMapSize, shadowMapSize]}
 			shadow-camera-left={-half}
 			shadow-camera-right={half}
 			shadow-camera-top={half}
@@ -206,7 +212,7 @@ const SunOverTheGround = ({ ground, palette, lighting, lights }: ISunProps) => {
 			shadow-camera-near={0.5}
 			shadow-camera-far={half * 4}
 			shadow-bias={-0.0004}
-			shadow-normalBias={normalBiasFor(half)}
+			shadow-normalBias={normalBiasFor(half, shadowMapSize)}
 		/>
 	);
 };
@@ -220,6 +226,8 @@ interface ISceneLightsProps {
 	 * shadows cover what's on screen, sharp on any ground (docs/adr/0049, 0052).
 	 */
 	followView?: boolean;
+	/** Pixels per side of the sun's shadow map (Graphics: Shadow detail). */
+	shadowMapSize?: number;
 }
 
 /** The scene's sky, fill and sun (or moon), for the world's time of day. */
@@ -228,6 +236,7 @@ export const SceneLights = ({
 	palette,
 	lighting,
 	followView = false,
+	shadowMapSize = SHADOW_MAP,
 }: ISceneLightsProps) => {
 	const lights = useRef<ILights>({ sun: null, sky: null, ambient: null }).current;
 	return (
@@ -247,14 +256,23 @@ export const SceneLights = ({
 			/>
 
 			{followView ? (
+				// A new size needs a new shadow map: a new light makes one.
 				<SunFollowingTheView
+					key={shadowMapSize}
+					shadowMapSize={shadowMapSize}
 					ground={ground}
 					palette={palette}
 					lighting={lighting}
 					lights={lights}
 				/>
 			) : (
-				<SunOverTheGround ground={ground} palette={palette} lighting={lighting} lights={lights} />
+				<SunOverTheGround
+					shadowMapSize={shadowMapSize}
+					ground={ground}
+					palette={palette}
+					lighting={lighting}
+					lights={lights}
+				/>
 			)}
 		</>
 	);

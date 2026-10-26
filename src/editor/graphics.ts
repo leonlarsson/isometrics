@@ -5,6 +5,7 @@ import {
 	type TPixelDensity,
 	type TPreferences,
 	type TRealLightCount,
+	type TShadowMapSize,
 	usePreferences,
 } from "./preferences";
 
@@ -25,6 +26,8 @@ export interface IGraphics {
 	showWaterReflections: boolean;
 	/** A colour grade on the finished picture (saturation, contrast, vignette, warm lights at night). */
 	useColorGrade: boolean;
+	/** Pixels per side of the sun's shadow map: more is sharper. */
+	shadowMapSize: TShadowMapSize;
 	/** Soft-edged shadows (PCSS). */
 	useSoftShadows: boolean;
 	antiAliasing: TAntiAliasing;
@@ -39,6 +42,7 @@ export const GRAPHICS_SETTINGS: readonly TGraphicsSetting[] = [
 	"realLightCount",
 	"showWaterReflections",
 	"useColorGrade",
+	"shadowMapSize",
 	"useSoftShadows",
 	"antiAliasing",
 	"maxPixelDensity",
@@ -52,6 +56,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showWaterReflections: false,
 		useColorGrade: false,
 		useSoftShadows: false,
+		shadowMapSize: 2048,
 		antiAliasing: "multisample",
 		maxPixelDensity: 2,
 	},
@@ -62,6 +67,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showWaterReflections: false,
 		useColorGrade: false,
 		useSoftShadows: false,
+		shadowMapSize: 2048,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
 	},
@@ -72,6 +78,7 @@ export const PRESET_GRAPHICS: Record<TGraphicsPreset, IGraphics> = {
 		showWaterReflections: true,
 		useColorGrade: true,
 		useSoftShadows: true,
+		shadowMapSize: 4096,
 		antiAliasing: "smaa",
 		maxPixelDensity: 2,
 	},
@@ -87,6 +94,7 @@ export const graphicsOf = (preferences: TPreferences): IGraphics => {
 		showWaterReflections: preferences.showWaterReflections ?? preset.showWaterReflections,
 		useColorGrade: preferences.useColorGrade ?? preset.useColorGrade,
 		useSoftShadows: preferences.useSoftShadows ?? preset.useSoftShadows,
+		shadowMapSize: preferences.shadowMapSize ?? preset.shadowMapSize,
 		antiAliasing: preferences.antiAliasing ?? preset.antiAliasing,
 		maxPixelDensity: preferences.maxPixelDensity ?? preset.maxPixelDensity,
 	};
