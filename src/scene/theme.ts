@@ -142,21 +142,25 @@ export const resolveTheme = (
 	return preference;
 };
 
-/** Friendly preset colours offered in every colour picker. */
-export const SWATCHES = [
-	"#3d4fd6",
-	"#4a64e0",
-	"#2bb58c",
-	"#3cbf9a",
-	"#8a5cf0",
-	"#c06bd8",
-	"#f07b4f",
-	"#e2603b",
-	"#f2c230",
-	"#e85d75",
-	"#7cc48a",
-	"#a07a5a",
-	"#f7f7f4",
-	"#9a9a96",
-	"#3a3b40",
+/**
+ * Friendly preset colours offered in every colour picker, each with a plain
+ * name the picker shows (tooltips, screen readers), so they can be told apart
+ * without seeing the difference.
+ */
+export const SWATCHES: readonly { color: string; name: string }[] = [
+	{ color: "#3d4fd6", name: "Blue" },
+	{ color: "#4a64e0", name: "Light blue" },
+	{ color: "#2bb58c", name: "Teal green" },
+	{ color: "#3cbf9a", name: "Mint green" },
+	{ color: "#8a5cf0", name: "Violet" },
+	{ color: "#c06bd8", name: "Pink-purple" },
+	{ color: "#f07b4f", name: "Orange" },
+	{ color: "#e2603b", name: "Red-orange" },
+	{ color: "#f2c230", name: "Yellow" },
+	{ color: "#e85d75", name: "Pinkish red" },
+	{ color: "#7cc48a", name: "Light green" },
+	{ color: "#a07a5a", name: "Brown" },
+	{ color: "#f7f7f4", name: "White" },
+	{ color: "#9a9a96", name: "Grey" },
+	{ color: "#3a3b40", name: "Dark grey" },
 ];

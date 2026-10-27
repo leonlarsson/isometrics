@@ -777,8 +777,26 @@ textarea.input {
 	box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.colorTrigger .hex {
+/* The colour's name in words, then its hex code; when narrow, the hex code is cut short first. */
+.colorText {
 	flex: 1;
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+	white-space: nowrap;
+}
+
+.colorName {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	font-size: 13px;
+	text-overflow: ellipsis;
+}
+
+.colorText .hex {
+	flex: 0 100 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -822,6 +840,8 @@ textarea.input {
 
 .swatch {
 	all: unset;
+	display: grid;
+	place-items: center;
 	cursor: pointer;
 	aspect-ratio: 1;
 	border-radius: 6px;
@@ -831,6 +851,18 @@ textarea.input {
 .swatch[data-active] {
 	outline: 2px solid var(--text);
 	outline-offset: 1px;
+}
+
+/* A tick on a badge of its own, so it reads on any colour. */
+.swatchTick {
+	display: grid;
+	place-items: center;
+	width: 15px;
+	height: 15px;
+	border-radius: 50%;
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 0 0 1px var(--border-strong);
 }
 
 .swatch:focus-visible {
@@ -849,11 +881,25 @@ textarea.input {
 	cursor: pointer;
 }
 
-.colorRow .hex {
-	margin-left: auto;
+.colorRowLabel {
+	flex: none;
+	white-space: nowrap;
 }
 
+.colorRowValue {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	min-width: 0;
+	margin-left: auto;
+	line-height: 1.25;
+	text-align: right;
+	white-space: nowrap;
+}
+
+/* Always its own size, however long the colour's name beside it. */
 .colorInput {
+	flex: none;
 	width: 36px;
 	height: 28px;
 	padding: 0;

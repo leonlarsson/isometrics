@@ -57,10 +57,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		await chimney.click();
 		await expect(details.getByText("showChimney")).toBeVisible();
 		await details.getByRole("button", { name: "Colour", exact: true }).first().click();
-		await page
-			.getByRole("button", { name: /^Use #/ })
-			.first()
-			.click();
+		await page.getByRole("button", { name: /^Use / }).first().click();
 		await page.keyboard.press("Escape");
 		await expect(details).toBeVisible();
 		const settings = () =>

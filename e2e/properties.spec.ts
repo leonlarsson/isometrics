@@ -53,11 +53,14 @@ test.describe("the properties editor (ADR-0054)", () => {
 		const roof = page.locator("fieldset").filter({ hasText: /^Roof/ });
 		await expect(roof.getByText("Default")).toBeVisible();
 		await roof.getByRole("button", { name: "Colour" }).click();
-		await page
-			.getByRole("button", { name: /^Use #/ })
-			.first()
-			.click();
+		// The presets are named, not only shown (ADR-0089): picked by name, then the field says it.
+		await page.getByRole("button", { name: /^Use teal green/ }).click();
+		await expect(page.getByRole("button", { name: /^Use teal green/ })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
 		await page.keyboard.press("Escape");
+		await expect(roof.getByText("Teal green")).toBeVisible();
 		await expect(roof.getByRole("button", { name: "Reset" })).toBeVisible();
 		expect((await entity(page, "a"))?.colors.roof?.color).toBeTruthy();
 		await roof.getByRole("button", { name: "Reset" }).click();
