@@ -96,6 +96,13 @@ export interface IColorSpec<C extends string = string> {
 	 * colour was `color`, the second `accent`. Read while it isn't set in `colors`.
 	 */
 	legacy?: "color" | "accent";
+	/**
+	 * It's see-through, like glass (ADR-0090): objects can set how see-through
+	 * it is (`transparency`, 0 solid to 1 clear), and until they do it's this.
+	 * Only for glass with something behind it; see-through things can't be
+	 * drawn together with their copies (ADR-0086).
+	 */
+	seeThrough?: { transparency: number };
 }
 
 /** One of a part's lights as it is right now (`resolveLights`). */
@@ -161,6 +168,8 @@ export interface IPartRenderProps<P, C extends string = string> {
 	props: P;
 	/** Each of its colours (its `colors`, by id) as it is right now: set, from data, or the default. */
 	colors: Record<C, string>;
+	/** How see-through each colour is, 0 solid to 1 clear (ADR-0090): 0 unless it's `seeThrough`. */
+	transparency: Record<C, number>;
 	palette: IScenePalette;
 	/** False in edit mode or when motion is paused. */
 	playing: boolean;

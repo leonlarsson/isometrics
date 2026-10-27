@@ -6,7 +6,7 @@ import { rememberUsed } from "#/editor/paletteMemory";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { toRadians } from "#/lib/math";
-import { resolvePartColors } from "#/parts/colorModel";
+import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import type { TVec2 } from "#/scene/schema";
@@ -84,6 +84,7 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 				<Component
 					props={props}
 					colors={colors}
+					transparency={resolvePartTransparencies(part)}
 					palette={palette}
 					lights={resolvePartLights(part, palette)}
 					playing={false}

@@ -256,6 +256,26 @@ export const PartColorsSection = ({
 								hint={showFileNames ? <FileName name={spec.id} /> : undefined}
 							/>
 						</DataDrivenField>
+
+						{/* Glass and the like: how see-through it is (ADR-0090). */}
+						{spec.seeThrough && (
+							<SliderField
+								label="Transparency"
+								value={Math.round((setting?.transparency ?? spec.seeThrough.transparency) * 100)}
+								min={0}
+								max={100}
+								step={1}
+								suffix="%"
+								onChange={(value) => change({ transparency: value / 100 }, "transparency")}
+								inherit={{
+									from: "default",
+									inherited: setting?.transparency == null,
+									onReset: () => change({ transparency: null }),
+									value: `${Math.round(spec.seeThrough.transparency * 100)}%`,
+								}}
+								hint="0% is solid, 100% clear."
+							/>
+						)}
 					</FieldGroup>
 				);
 			})}

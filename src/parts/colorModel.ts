@@ -64,7 +64,24 @@ export const resolveColors = (
 		part.colors.map((spec) => [spec.id, resolveColor(spec, entity, palette, data)]),
 	);
 
+/** How see-through a colour is, 0 solid to 1 clear: as set, else the part's; 0 if it isn't see-through. */
+export const resolveTransparency = (spec: IColorSpec, entity: TStoredColors) =>
+	spec.seeThrough
+		? (colorSettingOf(entity, spec.id)?.transparency ?? spec.seeThrough.transparency)
+		: 0;
+
+/** How see-through each of an object's colours is, by id (ADR-0090). */
+export const resolveTransparencies = (
+	part: IPartColors,
+	entity: TStoredColors,
+): Record<string, number> =>
+	Object.fromEntries(part.colors.map((spec) => [spec.id, resolveTransparency(spec, entity)]));
+
 const NO_COLORS: TStoredColors = { colors: {}, color: null, accent: null };
+
+/** A part's colours as it has them (the palette, thumbnails, placing), and how see-through they are. */
+export const resolvePartTransparencies = (part: IPartColors) =>
+	resolveTransparencies(part, NO_COLORS);
 
 /** A part's colours as it has them (the palette, thumbnails, placing). */
 export const resolvePartColors = (part: IPartColors, palette: IScenePalette) =>

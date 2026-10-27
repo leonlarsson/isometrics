@@ -45,7 +45,7 @@ export const greenhouse01 = definePart({
 	colors: [
 		{ id: "frame", name: "Frame", default: "#f4f3ee", legacy: "color" },
 		{ id: "plants", name: "Plants", default: "#5c9a48", legacy: "accent" },
-		{ id: "glass", name: "Glass", default: "#cfe6e4" },
+		{ id: "glass", name: "Glass", default: "#cfe6e4", seeThrough: { transparency: 0.65 } },
 	],
 	lights: [
 		{
@@ -59,7 +59,7 @@ export const greenhouse01 = definePart({
 	],
 	footprint: (p) => [p.width + 0.1, p.length + 0.1],
 	height: (p) => WALL_HEIGHT + roofRise(p.width),
-	Component: ({ props: p, colors, lights }) => {
+	Component: ({ props: p, colors, transparency, lights }) => {
 		const bays = Math.max(2, Math.round(p.length / 0.6));
 		const half = p.width / 2;
 		const rise = roofRise(p.width);
@@ -76,7 +76,7 @@ export const greenhouse01 = definePart({
 			<meshStandardMaterial
 				color={colors.glass}
 				transparent
-				opacity={0.35}
+				opacity={1 - transparency.glass}
 				roughness={0.1}
 				emissive={lights.growLights.on ? lights.growLights.color : "#000000"}
 				emissiveIntensity={lights.growLights.on ? 0.5 * lights.growLights.level : 0}

@@ -17,7 +17,7 @@ import {
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
-import { resolveColors, resolveLabelColor } from "#/parts/colorModel";
+import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
@@ -464,6 +464,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 						<Component
 							props={props}
 							colors={colors}
+							transparency={resolveTransparencies(part, entity)}
 							palette={palette}
 							playing={playing}
 							lights={lights}

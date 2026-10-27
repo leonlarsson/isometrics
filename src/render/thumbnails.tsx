@@ -2,7 +2,7 @@ import { createRoot, extend, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
-import { resolveColors } from "#/parts/colorModel";
+import { resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { PARTS, resolveProps, type TAnyPart } from "#/parts/registry";
 import {
@@ -157,6 +157,7 @@ export const partDrawing = (
 	return {
 		props: resolveProps(part, settings.props),
 		colors: resolveColors(part, stored, palette),
+		transparency: resolveTransparencies(part, stored),
 		lights: resolveLights(part, stored, { palette, driving: false, hour }),
 	};
 };
@@ -228,7 +229,12 @@ const Shot = ({ part, settings, look, size, onShot }: IShotProps) => {
 	}, []);
 
 	const palette = pictureLookPalette(look);
-	const { props, colors, lights } = partDrawing(part, settings, palette, pictureLookHour(look));
+	const { props, colors, transparency, lights } = partDrawing(
+		part,
+		settings,
+		palette,
+		pictureLookHour(look),
+	);
 	const Component = part.Component;
 	return (
 		<>
@@ -238,6 +244,7 @@ const Shot = ({ part, settings, look, size, onShot }: IShotProps) => {
 				<Component
 					props={props}
 					colors={colors}
+					transparency={transparency}
 					palette={palette}
 					lights={lights}
 					playing={false}

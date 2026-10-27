@@ -4,7 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import { toRadians } from "#/lib/math";
-import { resolveColors } from "#/parts/colorModel";
+import { resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
@@ -119,6 +119,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 				<Component
 					props={resolveProps(part, entity.props)}
 					colors={colors}
+					transparency={resolveTransparencies(part, entity)}
 					palette={palette}
 					playing={false}
 					lights={lights}

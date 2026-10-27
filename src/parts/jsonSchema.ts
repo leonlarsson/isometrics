@@ -25,7 +25,7 @@ Coordinates: the ground is a flat slab centred on the origin, ground.width along
 
 Entities: kind picks the part; each kind's description says what it is and how big it is, and props takes that kind's parameters. scale resizes the whole part.
 
-Colours: each kind lists its colours by id in the catalogue (a house has roof and door, a car body and windows). An entity's colors holds settings only for the ones that differ from the kind's defaults, by id: color (#rrggbb), and data: { "color": { key, valueAtLowColor, valueAtHighColor, lowColor, highColor } } to take it from a data value, where key is the key of an entry in the world's data. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number is placed on a colour scale, lowColor at valueAtLowColor (0 by default) and highColor at valueAtHighColor (100 by default), mixed in between, like a heatmap. A value that's neither leaves the colour as set. Older worlds have color and accent on the entity for its first two colours; write colors instead. Examples: a red roof; a tower that turns from green to red as an occupancy value goes from 50 to 100:
+Colours: each kind lists its colours by id in the catalogue (a house has roof and door, a car body and windows). An entity's colors holds settings only for the ones that differ from the kind's defaults, by id: color (#rrggbb), transparency (0 solid to 1 clear, for the see-through ones the catalogue marks, like glass), and data: { "color": { key, valueAtLowColor, valueAtHighColor, lowColor, highColor } } to take it from a data value, where key is the key of an entry in the world's data. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number is placed on a colour scale, lowColor at valueAtLowColor (0 by default) and highColor at valueAtHighColor (100 by default), mixed in between, like a heatmap. A value that's neither leaves the colour as set. Older worlds have color and accent on the entity for its first two colours; write colors instead. Examples: a red roof; a tower that turns from green to red as an occupancy value goes from 50 to 100:
 "colors": { "roof": { "color": "#c0392b" } }
 "colors": { "facade": { "data": { "color": { "key": "occupancy", "valueAtLowColor": 50, "valueAtHighColor": 100, "lowColor": "#2bb58c", "highColor": "#e0483b" } } } }
 
@@ -82,7 +82,7 @@ const describeLight = (light: ILightSpec) =>
 
 /** One colour for the catalogue: its id, name and default, e.g. "roof (Roof, default #f07b4f)". */
 const describeColor = (color: IColorSpec) =>
-	`${color.id} (${color.name}, default ${typeof color.default === "string" ? color.default : "from the theme"})`;
+	`${color.id} (${color.name}, default ${typeof color.default === "string" ? color.default : "from the theme"}${color.seeThrough ? `; see-through, transparency ${color.seeThrough.transparency} by default` : ""})`;
 
 /** One line per part: what it is, how big it is by default, its colours and lights. */
 const describePart = (part: TAnyPart) => {

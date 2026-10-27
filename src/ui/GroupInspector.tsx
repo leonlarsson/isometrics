@@ -6,7 +6,7 @@ import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
+import { COLOR_DATA, colorDefault, colorSettingOf, resolveTransparency } from "#/parts/colorModel";
 import { comesOnOf, lightDefaults, lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
@@ -360,6 +360,13 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 						return colorSettingOf(entity, spec.id)?.color ?? colorDefault(own, entity, palette);
 					});
 					const bindings = entities.map((entity) => colorSettingOf(entity, spec.id)?.data.color);
+					// See-through when every one of them has it see-through, each as it shows.
+					const seeThrough = holders.every(({ part }) =>
+						part.colors.some((color) => color.id === spec.id && color.seeThrough),
+					);
+					const transparencies = holders.map(({ entity, part }) =>
+						resolveTransparency(part.colors.find((color) => color.id === spec.id) ?? spec, entity),
+					);
 					const inherited = holders.every(({ entity, part }) => {
 						const own = part.colors.find((color) => color.id === spec.id) ?? spec;
 						return (
@@ -398,6 +405,28 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 									}}
 								/>
 							</DataDrivenField>
+
+							{/* Glass and the like: how see-through it is (ADR-0090). */}
+							{seeThrough && (
+								<SliderField
+									label="Transparency"
+									value={Math.round((transparencies.at(-1) ?? 0) * 100)}
+									mixed={differ(transparencies)}
+									min={0}
+									max={100}
+									step={1}
+									suffix="%"
+									onChange={(value) => change({ transparency: value / 100 }, "transparency")}
+									inherit={{
+										from: "default",
+										inherited: entities.every(
+											(entity) => colorSettingOf(entity, spec.id)?.transparency == null,
+										),
+										onReset: () => change({ transparency: null }),
+									}}
+									hint="0% is solid, 100% clear."
+								/>
+							)}
 						</FieldGroup>
 					);
 				})}

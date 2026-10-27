@@ -88,6 +88,15 @@ export const EntityColorSchema = z
 		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("The colour as #rrggbb; null = the part's default for the theme."),
+		transparency: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"For see-through colours (glass), how see-through it is: 0 = solid, 1 = clear. null = the part's. Ignored for colours that aren't see-through.",
+			),
 		data: z
 			.record(z.string(), DataBindingSchema)
 			.default({})

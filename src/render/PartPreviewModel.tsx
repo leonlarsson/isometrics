@@ -118,7 +118,7 @@ const Turntable = ({
 	if (!part) {
 		return null;
 	}
-	const { props, colors, lights } = partDrawing(part, settings, palette, hour);
+	const { props, colors, transparency, lights } = partDrawing(part, settings, palette, hour);
 	const Component = part.Component;
 	return (
 		<>
@@ -129,6 +129,7 @@ const Turntable = ({
 				<Component
 					props={props}
 					colors={colors}
+					transparency={transparency}
 					palette={palette}
 					lights={lights}
 					playing

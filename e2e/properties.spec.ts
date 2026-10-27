@@ -67,6 +67,25 @@ test.describe("the properties editor (ADR-0054)", () => {
 		expect((await entity(page, "a"))?.colors.roof ?? null).toBeNull();
 	});
 
+	test("see-through glass has a Transparency setting under its colour (ADR-0090)", async ({
+		page,
+	}) => {
+		await loadWorld(page, { entities: [{ id: "g", kind: "greenhouse_01", position: [0, 0] }] });
+		await act(page, (s) => s.select("g"));
+		await tab(page, "Look").click();
+		const glass = page.locator("fieldset").filter({ hasText: /^Glass/ });
+		const transparency = glass.getByRole("textbox", { name: "Transparency" });
+		await expect(transparency).toHaveValue("65");
+		await transparency.fill("20");
+		await transparency.press("Enter");
+		await expect
+			.poll(async () => (await entity(page, "g"))?.colors.glass?.transparency)
+			.toBeCloseTo(0.2);
+		// Solid colours have none.
+		const frame = page.locator("fieldset").filter({ hasText: /^Frame/ });
+		await expect(frame.getByRole("textbox", { name: "Transparency" })).toHaveCount(0);
+	});
+
 	test("the settings search finds a setting, and says when nothing matches", async ({ page }) => {
 		await page.getByRole("button", { name: "Search the settings" }).click();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("lift");
