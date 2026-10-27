@@ -1,4 +1,4 @@
-import { act, expect, menuItem, openEditor, read, test } from "./editor";
+import { act, expect, menuItem, openEditor, read, test, viewCentre } from "./editor";
 
 test.describe("the side panes (ADR-0055)", () => {
 	test("each folds to a strip and opens again; Ctrl+Space hides both", async ({ page }) => {
@@ -9,7 +9,10 @@ test.describe("the side panes (ADR-0055)", () => {
 		await page.getByRole("button", { name: /Show Add to scene/ }).click();
 		await expect(parts).toBeVisible();
 
-		await page.locator("canvas").hover();
+		// Over the view (by where it is, not waiting for it to hold still: in SwiftShader its frames
+		// come unevenly while the panel's part pictures render).
+		const { x, y } = await viewCentre(page);
+		await page.mouse.move(x, y, { steps: 4 });
 		await page.keyboard.press("Control+Space");
 		await expect(parts).toBeHidden();
 		await expect(page.getByRole("tab", { name: "World" })).toBeHidden();

@@ -28,6 +28,11 @@ export const parasol01 = definePart({
 	footprint: (p) =>
 		p.isOpen ? [metres(OPEN_WIDTH), metres(OPEN_WIDTH)] : [metres(0.5), metres(0.5)],
 	height: () => metres(HEIGHT),
+	// Open, only its pole stands on the ground: tables and chairs go under the canopy.
+	overhang: (p) =>
+		p.isOpen
+			? { foot: [metres(0.06), metres(0.06)], from: metres(HEIGHT - 0.5) }
+			: { foot: [metres(0.5), metres(0.5)], from: 0 },
 	Component: ({ props: p, colors }) => (
 		// Drawn in metres.
 		<group scale={UNITS_PER_METRE}>

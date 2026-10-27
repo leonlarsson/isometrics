@@ -18,7 +18,11 @@ import { paint } from "./paint";
  * marina in the front-right corner. A river runs from the north edge into the
  * sea and splits downtown (west) from the logistics park (east).
  *
- *   Areas: river and bay (one water area), beach, raised hill, plazas, park with a pond, stadium pitch
+ * Beyond the logistics park to the east lies the old town (a high street with
+ * shops, a café, a church, a school and a tram), and beyond the stadium to the
+ * west, farmland (fields, a barn, greenhouses, an orchard and a tractor).
+ *
+ *   Areas: river and bay (one water area), beach, raised hill, plazas, park with a pond, stadium pitch, fields
  *   Roads: ring road (loop), bridge over the river, a flyover that climbs onto
  *          the hill, an embankment trail, a road through a tunnel that widens
  *          at the quay, and a hidden ferry route across the sea
@@ -30,6 +34,9 @@ const RING_ID = "ring_road";
 const BRIDGE_ID = "harbour_road";
 const HILL_ROAD_ID = "hill_road";
 const FERRY_ID = "ferry_route";
+const HIGH_STREET_ID = "high_street";
+const FARM_TRACK_ID = "farm_track";
+const HILL_TRAIL_ID = "hill_trail";
 
 /** Height of the raised hill in the north-west. */
 const HILL = 2;
@@ -61,7 +68,8 @@ const AREAS: TAreaInput[] = [
 			[21, 7],
 			[24, 6.4],
 			[30, 5.6],
-			[30, 24],
+			[50, 5.6],
+			[50, 24],
 			[-8, 24],
 			// Coast along Long Beach, then up the west bank
 			[-5.5, 21.4],
@@ -102,7 +110,7 @@ const AREAS: TAreaInput[] = [
 		type: "raised_land_01",
 		height: HILL,
 		points: [
-			[-30, -24],
+			[-50, -24],
 			[-2, -24],
 			[-2.4, -19.6],
 			[-5.4, -15.6],
@@ -110,6 +118,7 @@ const AREAS: TAreaInput[] = [
 			[-20, -15.2],
 			[-25.4, -14.2],
 			[-30, -14],
+			[-50, -13.6],
 		],
 	},
 	{
@@ -182,7 +191,8 @@ const AREAS: TAreaInput[] = [
 		type: "plaza_01",
 		points: [
 			[10.5, 1.5],
-			[30, 1.4],
+			[50, 1.4],
+			[50, 5.6],
 			[30, 5.6],
 			[24, 6.4],
 			[21, 7],
@@ -191,6 +201,43 @@ const AREAS: TAreaInput[] = [
 			[15.6, 9.4],
 			[14, 7.6],
 			[12.4, 4.8],
+		],
+	},
+	{
+		id: "wheat_field",
+		name: "Wheat field",
+		type: "grass_01",
+		color: "#d8c46a",
+		points: [
+			[-40.6, -10.4],
+			[-35, -10.4],
+			[-35, 2],
+			[-40.6, 2],
+		],
+	},
+	{
+		// Hollow Wood's floor, beyond the farm track.
+		id: "hollow_wood",
+		name: "Hollow Wood",
+		type: "grass_01",
+		color: "#7aa35c",
+		points: [
+			[-50, -13.6],
+			[-42.4, -13.6],
+			[-42.4, 24],
+			[-50, 24],
+		],
+	},
+	{
+		id: "meadow",
+		name: "Meadow",
+		type: "grass_01",
+		color: "#8fbf5a",
+		points: [
+			[-40.6, 3.6],
+			[-35, 3.6],
+			[-35, 14.4],
+			[-40.6, 14.4],
 		],
 	},
 ];
@@ -242,10 +289,12 @@ const ROADS: TRoadInput[] = [
 	},
 	{
 		// Walking trail up the west flank of the hill, on an earth bank.
-		id: "hill_trail",
+		id: HILL_TRAIL_ID,
 		name: "Hill trail",
 		style: "dirt_path_01",
 		width: 1.2,
+		// A single track: the cyclist rides down the middle.
+		drivingLane: "centre",
 		cornerRadius: 3,
 		supports: "embankment",
 		showRailings: false,
@@ -294,6 +343,35 @@ const ROADS: TRoadInput[] = [
 			[2.5, 23],
 		],
 	},
+	{
+		// The old town's high street, from the harbour north past the shops and the church.
+		id: HIGH_STREET_ID,
+		name: "High street",
+		style: "road_01",
+		cornerRadius: 2.5,
+		points: [
+			[28, -1],
+			[36, -1],
+			[36, -22],
+		],
+	},
+	{
+		// Round the fields, for the tractor.
+		id: FARM_TRACK_ID,
+		name: "Farm track",
+		style: "dirt_path_01",
+		width: 1.2,
+		// One track: the tractor drives down the middle.
+		drivingLane: "centre",
+		loops: true,
+		cornerRadius: 2,
+		points: [
+			[-34, -11.4],
+			[-34, 15.4],
+			[-41.4, 15.4],
+			[-41.4, -11.4],
+		],
+	},
 ];
 
 // ---------------------------------------------------------------- entities
@@ -317,19 +395,23 @@ const towers: TEntityInput[] = [
 	},
 	{
 		id: "tower_square",
-		kind: "office_tower_01",
+		kind: "apartment_block_01",
 		name: "Square apartments",
 		position: [-3.6, -3.8],
-		colors: paint({ facade: "#8a5cf0" }),
-		props: { width: 2.8, depth: 2.8, floorCount: 9 },
+		// Its balconies to the square.
+		rotation: 180,
+		colors: paint({ walls: "#c9b8e8" }),
+		props: { width: 2.8, depth: 2.4, floorCount: 8 },
 	},
 	{
 		id: "tower_park",
-		kind: "office_tower_01",
+		kind: "apartment_block_01",
 		name: "Parkside residences",
 		position: [-4.2, 2.6],
-		colors: paint({ facade: "#e8b83a" }),
-		props: { width: 3.2, depth: 3.2, floorCount: 11 },
+		// Its balconies over the ring road to the park.
+		rotation: -90,
+		colors: paint({ walls: "#efd9a0" }),
+		props: { width: 3.2, depth: 2.6, floorCount: 10 },
 	},
 	{
 		id: "tower_low",
@@ -498,10 +580,10 @@ const harbour: TEntityInput[] = [
 	})),
 	{
 		id: "ferry",
-		kind: "yacht_01",
+		kind: "ferry_01",
 		name: "Bay ferry",
-		colors: paint({ hull: "#ffffff", stripe: "#4a64e0" }),
-		props: { length: 4, deckCount: 2 },
+		colors: paint({ hull: "#4a64e0", funnel: "#e8b83a" }),
+		props: { length: 4.6 },
 		follow: { roadId: FERRY_ID, speed: 1.4, offset: 13 },
 		// Its cabins glow brighter the more passengers it carries: 60 is 100% (ADR-0058).
 		lights: { cabins: { data: { strength: { key: "ferry_passengers", valueAtFull: 60 } } } },
@@ -517,13 +599,51 @@ const harbour: TEntityInput[] = [
 	},
 	{
 		id: "beach_cafe",
-		kind: "depot_01",
+		kind: "cafe_01",
 		name: "Beach café",
 		position: [2, 17],
-		rotation: -12,
-		colors: paint({ walls: "#e8b83a" }),
-		props: { width: 2.4, depth: 1.8, height: 1.2, showGarageDoor: false },
+		// Facing the beach road, its terrace in front.
+		rotation: 168,
+		colors: paint({ walls: "#f3d98a", awning: "#3cbf9a" }),
+		props: { width: 2.6, depth: 1.6 },
 	},
+	// Its terrace between the café and the beach road: tables and chairs, a parasol beside each.
+	...[
+		[0.4, 15.2],
+		[2.2, 14.9],
+		[4, 14.6],
+	].flatMap(([x, z], i) => [
+		{ id: `beach_table_${i}`, kind: "cafe_table_01", position: [x, z] as TVec2 },
+		{
+			id: `beach_parasol_${i}`,
+			kind: "parasol_01",
+			position: [x, z + 0.34] as TVec2,
+			colors: paint({ canopy: ["#e2603b", "#3cbf9a", "#f2c230"][i] }),
+		},
+		{ id: `beach_chair_${i}a`, kind: "chair_01", position: [x - 0.32, z] as TVec2, rotation: 90 },
+		{ id: `beach_chair_${i}b`, kind: "chair_01", position: [x + 0.32, z] as TVec2, rotation: -90 },
+	]),
+	{
+		id: "lighthouse",
+		kind: "lighthouse_01",
+		name: "Headland lighthouse",
+		position: [15.8, 8],
+		props: { height: 3.2 },
+	},
+	...[
+		// Out on the bay, clear of the ferry route.
+		[28.4, 12.8, -25],
+		[34, 16, 15],
+		[38, 9, 200],
+	].map(([x, z, rotation], i) => ({
+		id: `sailing_boat_${i}`,
+		kind: "sailing_boat_01",
+		name: `Sailing boat ${i + 1}`,
+		position: [x, z] as TVec2,
+		rotation,
+		colors: paint({ sails: [null, "#f2c230", null][i] }),
+		props: { length: [2, 2.4, 1.8][i] },
+	})),
 ];
 
 const traffic: TEntityInput[] = [
@@ -685,6 +805,272 @@ const nature: TEntityInput[] = [
 	},
 ];
 
+/** A small random of our own, the same every time, for nudging trees in the woods. */
+const shake = (seed: number) => {
+	const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+	return x - Math.floor(x);
+};
+
+/**
+ * A wood: trees on a grid across a rectangle, each nudged, sized and picked a
+ * little differently (the same every time), never inside each other.
+ */
+const wood = (
+	name: string,
+	[x0, z0]: TVec2,
+	[x1, z1]: TVec2,
+	kinds: readonly string[],
+	{ elevation = 0, spacing = 1.8 } = {},
+): TEntityInput[] => {
+	const trees: TEntityInput[] = [];
+	let spot = 0;
+	for (let x = x0 + spacing / 2; x < x1; x += spacing) {
+		for (let z = z0 + spacing / 2; z < z1; z += spacing) {
+			// Seeded by the spot on the grid (not the trees so far, which a gap doesn't count).
+			spot += 1;
+			const seed = spot * 13 + name.length * 101;
+			// Leave a few gaps, so it isn't a plantation.
+			if (shake(seed + 7) < 0.12) {
+				continue;
+			}
+			trees.push({
+				id: `${name}_${trees.length}`,
+				kind: kinds[Math.floor(shake(seed + 3) * kinds.length)],
+				position: [
+					Math.round((x + (shake(seed) - 0.5) * 0.5) * 100) / 100,
+					Math.round((z + (shake(seed + 1) - 0.5) * 0.5) * 100) / 100,
+				],
+				elevation,
+				props: { size: Math.round((0.8 + shake(seed + 2) * 0.35) * 100) / 100 },
+			});
+		}
+	}
+	return trees;
+};
+
+/** Woods at the edges: Hollow Wood beyond the farm, pines along the hill, a wood behind the old town. */
+const woods: TEntityInput[] = [
+	...wood(
+		"hollow_wood",
+		[-50, -12.8],
+		[-42.6, 23.6],
+		["pine_tree_01", "round_tree_01", "birch_01", "pine_tree_01"],
+	),
+	...wood("hill_pines", [-50, -23.8], [-31, -15.4], ["pine_tree_01"], { elevation: HILL }),
+	...wood("east_wood", [42.6, -23.6], [50, -0.8], ["round_tree_01", "birch_01", "pine_tree_01"]),
+];
+
+/** Riverside Park: benches round the duck pond, flower beds, paths lit by bollards, more trees. */
+const park: TEntityInput[] = [
+	// Facing the pond (front +Z turned towards it).
+	{ id: "park_bench_north", kind: "bench_01", position: [-16, 6.3], rotation: 180 },
+	{ id: "park_bench_east", kind: "bench_01", position: [-12.5, 3.1], rotation: -90 },
+	{ id: "park_bench_west", kind: "bench_01", position: [-19.7, 2.6], rotation: 90 },
+	{ id: "park_picnic", kind: "picnic_table_01", position: [-19.4, 5.6], rotation: 90 },
+	{ id: "park_bin_1", kind: "bin_01", position: [-15.1, 6.6] },
+	{ id: "park_bin_2", kind: "bin_01", position: [-12.4, 1.9] },
+	{
+		id: "park_flowers_1",
+		kind: "flower_bed_01",
+		position: [-11.7, 4.4],
+		rotation: 90,
+		props: { length: 1.8, width: 0.7 },
+	},
+	...[
+		[-17.2, 6.4],
+		[-13.9, 6.7],
+		[-12.2, 2.5],
+		[-17.4, 0.6],
+		[-20, 4.3],
+	].map(([x, z], i) => ({
+		id: `park_bollard_${i}`,
+		kind: "bollard_light_01",
+		position: [x, z] as TVec2,
+	})),
+	{ id: "park_birch_1", kind: "birch_01", position: [-20.1, 3.4], props: { size: 1.1 } },
+	{ id: "park_birch_2", kind: "birch_01", position: [-11.3, 7.9], props: { size: 0.9 } },
+	{ id: "park_broad_tree", kind: "round_tree_02", position: [-14.1, 7.9], props: { size: 1 } },
+	{ id: "park_bush_1", kind: "bush_01", position: [-18.9, 2], props: { size: 0.8 } },
+	{ id: "park_bush_2", kind: "bush_01", position: [-13.3, 4.9], props: { size: 0.7 } },
+	{ id: "park_reeds", kind: "tall_grass_01", position: [-17.9, 4.3], props: { size: 1 } },
+];
+
+/**
+ * The old town east of the logistics park: a high street running north from the
+ * harbour, terraced houses and shops on its west side, the church, the school and
+ * a block of flats on its east side, old-town lanterns, and the tram up and down it.
+ */
+const oldTown: TEntityInput[] = [
+	// West side, fronts to the street (+X).
+	{
+		id: "old_town_terrace",
+		kind: "terraced_row_01",
+		name: "Mill Lane terrace",
+		position: [33.2, -19],
+		rotation: 90,
+		props: { houseCount: 4 },
+	},
+	{
+		id: "old_town_grocer",
+		kind: "shop_01",
+		name: "Corner grocer",
+		position: [33.2, -14.6],
+		rotation: 90,
+	},
+	{
+		id: "old_town_bakery",
+		kind: "shop_02",
+		name: "Bakery",
+		position: [33.2, -12.4],
+		rotation: 90,
+		colors: paint({ walls: "#e3c9a2", awning: "#8a5cf0" }),
+	},
+	{
+		id: "old_town_books",
+		kind: "shop_02",
+		name: "Bookshop",
+		position: [33.2, -10.9],
+		rotation: 90,
+		colors: paint({ walls: "#9cc4d8", awning: "#2f7a5d" }),
+		props: { floorCount: 4 },
+	},
+	{
+		id: "old_town_cafe",
+		kind: "cafe_01",
+		name: "Harbour café",
+		position: [33, -4.6],
+		rotation: 90,
+		props: { width: 2.4 },
+	},
+	// The café's terrace, south of it towards the harbour.
+	...[
+		[32.6, -2.7],
+		[34.2, -2.7],
+	].flatMap(([x, z], i) => [
+		{ id: `old_town_table_${i}`, kind: "cafe_table_01", position: [x, z] as TVec2 },
+		{ id: `old_town_parasol_${i}`, kind: "parasol_01", position: [x + 0.34, z] as TVec2 },
+		{ id: `old_town_chair_${i}a`, kind: "chair_01", position: [x, z - 0.32] as TVec2 },
+		{
+			id: `old_town_chair_${i}b`,
+			kind: "chair_01",
+			position: [x, z + 0.32] as TVec2,
+			rotation: 180,
+		},
+	]),
+	{
+		id: "old_town_planter",
+		kind: "planter_01",
+		position: [33.4, -7.2],
+		rotation: 90,
+		props: { length: 1.4 },
+	},
+	// East side, fronts to the street (-X).
+	{
+		id: "old_town_church",
+		kind: "church_01",
+		name: "St Brigid's",
+		position: [39.4, -19],
+		rotation: -90,
+		props: { towerHeight: 4 },
+	},
+	{
+		id: "old_town_school",
+		kind: "school_01",
+		name: "Harbour school",
+		position: [39.2, -12.4],
+		rotation: -90,
+	},
+	{
+		id: "old_town_flats",
+		kind: "apartment_block_01",
+		name: "Quayside flats",
+		position: [39.6, -5.6],
+		rotation: -90,
+		props: { width: 3.6, depth: 2.2, floorCount: 6 },
+	},
+	// Lanterns down both sides of the street.
+	...[-20, -16, -12, -8, -4].flatMap((z, i) => [
+		{ id: `old_town_lantern_w${i}`, kind: "street_lamp_02", position: [34.7, z] as TVec2 },
+		{ id: `old_town_lantern_e${i}`, kind: "street_lamp_02", position: [37.3, z + 2] as TVec2 },
+	]),
+	{ id: "old_town_cypress", kind: "cypress_01", position: [41.2, -21.6], props: { size: 1.1 } },
+	{ id: "old_town_birch", kind: "birch_01", position: [41.2, -9.2] },
+];
+
+/**
+ * Farmland west of the stadium: a wheat field and a meadow inside the farm track,
+ * the barn and greenhouses beside it, an orchard, and rough ground at the edges.
+ */
+const farmland: TEntityInput[] = [
+	{
+		id: "farm_barn",
+		kind: "barn_01",
+		name: "Hollow Farm barn",
+		position: [-31.4, 5.6],
+		rotation: -90,
+	},
+	{ id: "farm_greenhouse_1", kind: "greenhouse_01", position: [-31.6, -0.6] },
+	{
+		id: "farm_greenhouse_2",
+		kind: "greenhouse_01",
+		position: [-31.6, -4.2],
+		props: { width: 1.8, length: 3 },
+	},
+	// The orchard, in rows.
+	...[9.4, 11.4, 13.4].flatMap((z, row) =>
+		[-32.6, -30.8].map((x, column) => ({
+			id: `farm_fruit_tree_${row}_${column}`,
+			kind: "fruit_tree_01",
+			position: [x, z] as TVec2,
+			props: { size: 0.9 },
+			colors: paint({ fruit: row === 1 ? "#f2c230" : null }),
+		})),
+	),
+	{ id: "farm_dead_tree", kind: "dead_tree_01", position: [-39.6, 19.4], props: { size: 1.2 } },
+	{ id: "farm_log", kind: "log_01", position: [-37.6, 19.8], rotation: 20, props: { length: 1.2 } },
+	{ id: "farm_rocks", kind: "rocks_01", position: [-35.4, 21], props: { rockCount: 4 } },
+	...[
+		[-41, 18.4],
+		[-36.6, 17.6],
+		[-33, 19.6],
+		[-40.8, 22],
+	].map(([x, z], i) => ({
+		id: `farm_tall_grass_${i}`,
+		kind: "tall_grass_01",
+		position: [x, z] as TVec2,
+	})),
+	{ id: "farm_bush_1", kind: "bush_01", position: [-34.4, 21.8] },
+];
+
+/** More traffic: a bus round the ring road, the tram on the high street, a tractor, a cyclist. */
+const moreTraffic: TEntityInput[] = [
+	{
+		id: "ring_bus",
+		kind: "bus_01",
+		name: "Route 4 bus",
+		follow: { roadId: RING_ID, speed: 2.2, offset: 20 },
+	},
+	{
+		id: "old_town_tram",
+		kind: "tram_01",
+		name: "Harbour tram",
+		follow: { roadId: HIGH_STREET_ID, speed: 1.6, offset: 6 },
+	},
+	{
+		id: "farm_tractor",
+		kind: "tractor_01",
+		name: "Tractor",
+		follow: { roadId: FARM_TRACK_ID, speed: 1.2, offset: 4 },
+	},
+	{
+		id: "hill_cyclist",
+		kind: "bicycle_01",
+		name: "Cyclist",
+		colors: paint({ riderTop: "#e2603b" }),
+		follow: { roadId: HILL_TRAIL_ID, speed: 1, offset: 2 },
+	},
+];
+
 /** Starter template: a harbour city with a river, a hill, a stadium, a marina and live city data. */
 export const createBrightwaterScene = (): TScene => {
 	return SceneSchema.parse({
@@ -694,7 +1080,7 @@ export const createBrightwaterScene = (): TScene => {
 			subtitle: "City operations at a glance",
 		},
 		theme: "system",
-		ground: { width: 60, depth: 48, color: null },
+		ground: { width: 100, depth: 48, color: null },
 		drivingSide: "right",
 		// Deeper shade than the theme's own balance (ADR-0072).
 		lighting: { sunShadeContrast: 0.75 },
@@ -705,7 +1091,7 @@ export const createBrightwaterScene = (): TScene => {
 				name: "Overview",
 				description: "Brightwater at a glance, with the city's live numbers.",
 				target: [0, 0],
-				span: 46,
+				span: 74,
 			},
 			{
 				id: "view_downtown",
@@ -725,6 +1111,25 @@ export const createBrightwaterScene = (): TScene => {
 				azimuth: 345,
 				elevation: 34,
 				span: 24,
+			},
+			{
+				id: "view_old_town",
+				name: "Old town",
+				description: "The high street: shops, the café terrace, the church and the tram.",
+				target: [36, -10],
+				azimuth: 300,
+				elevation: 32,
+				span: 22,
+				projection: "perspective",
+			},
+			{
+				id: "view_farmland",
+				name: "Farmland",
+				description: "Fields, the barn, the greenhouses and Hollow Wood, west of the stadium.",
+				target: [-40, 2],
+				azimuth: 320,
+				elevation: 34,
+				span: 32,
 			},
 			{
 				id: "view_marina",
@@ -765,6 +1170,11 @@ export const createBrightwaterScene = (): TScene => {
 			...hillHouses,
 			...beachHouses,
 			...nature,
+			...park,
+			...oldTown,
+			...farmland,
+			...woods,
+			...moreTraffic,
 		],
 	});
 };

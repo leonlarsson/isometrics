@@ -225,6 +225,12 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	footprint: (props: P) => [number, number];
 	/** Height at scale 1, used to anchor labels. */
 	height: (props: P) => number;
+	/**
+	 * Wider overhead than at its foot (a parasol over a table): what stands on the
+	 * ground (width, depth at scale 1), and from what height the rest of its
+	 * footprint begins, so things can stand under it.
+	 */
+	overhang?: (props: P) => { foot: [number, number]; from: number };
 	/** Whether the part can be set to follow a route. */
 	canFollowPath?: boolean;
 	/**

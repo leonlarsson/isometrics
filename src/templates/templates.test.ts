@@ -12,32 +12,42 @@ const templates = [
 	["empty", createEmptyScene] as const,
 ];
 
-/** An object's ground outline (its footprint, turned and scaled) and the heights it takes up. */
-const bodyOf = (entity: TEntity) => {
+/**
+ * An object's bodies: ground outlines (a footprint, turned and scaled) and the heights each
+ * takes up. One, or two for parts wider overhead than at their foot (`overhang`, a parasol):
+ * the foot from the ground, the rest of the footprint from where it begins.
+ */
+const bodiesOf = (entity: TEntity) => {
 	const part = getPart(entity.kind);
 	if (!part) {
-		return null;
+		return [];
 	}
 	const props = resolveProps(part, entity.props);
-	const [width, depth] = part.footprint(props);
 	const turn = (entity.rotation * Math.PI) / 180;
 	// Vehicles face +X; a turn of r degrees about Y takes +X to (cos r, -sin r).
 	const along: [number, number] = [Math.cos(turn), -Math.sin(turn)];
 	const across: [number, number] = [Math.sin(turn), Math.cos(turn)];
-	return {
+	const top = entity.elevation + part.height(props) * entity.scale;
+	const body = ([width, depth]: [number, number], bottom: number) => ({
 		centre: entity.position,
 		axes: [along, across] as const,
 		halves: [(width * entity.scale) / 2, (depth * entity.scale) / 2] as const,
-		bottom: entity.elevation,
-		top: entity.elevation + part.height(props) * entity.scale,
-	};
+		bottom,
+		top,
+	});
+	const overhang = part.overhang?.(props);
+	return overhang
+		? [
+				body(overhang.foot, entity.elevation),
+				body(part.footprint(props), entity.elevation + overhang.from * entity.scale),
+			]
+		: [body(part.footprint(props), entity.elevation)];
 };
 
 /** How far two outlines overlap, the least along any of their axes (0 or less: they don't). */
-const overlapOf = (
-	a: NonNullable<ReturnType<typeof bodyOf>>,
-	b: NonNullable<ReturnType<typeof bodyOf>>,
-) => {
+type TBody = ReturnType<typeof bodiesOf>[number];
+
+const overlapOf = (a: TBody, b: TBody) => {
 	let least = Number.POSITIVE_INFINITY;
 	for (const axis of [...a.axes, ...b.axes]) {
 		const reach = (body: typeof a) =>
@@ -63,12 +73,15 @@ describe("templates", () => {
 		const clashes: string[] = [];
 		standing.forEach((a, i) => {
 			for (const b of standing.slice(i + 1)) {
-				const one = bodyOf(a);
-				const other = bodyOf(b);
-				if (!one || !other || one.top <= other.bottom || other.top <= one.bottom) {
-					continue;
-				}
-				const overlap = overlapOf(one, other);
+				// The most any body of one overlaps any body of the other, where their heights meet.
+				const overlap = Math.max(
+					0,
+					...bodiesOf(a).flatMap((one) =>
+						bodiesOf(b)
+							.filter((other) => one.top > other.bottom && other.top > one.bottom)
+							.map((other) => overlapOf(one, other)),
+					),
+				);
 				if (overlap > 0.05) {
 					clashes.push(`${a.id} and ${b.id} (by ${overlap.toFixed(2)})`);
 				}
