@@ -50,22 +50,26 @@ const isTextEntry = (target: EventTarget | null) =>
  */
 export const useShortcuts = () => {
 	const mode = useEditor((s) => s.mode);
-	const selected = useEditor(selectSelectedEntity);
-	const selectedRoad = useEditor(selectSelectedRoad);
-	const selectedArea = useEditor(selectSelectedArea);
+	// Only what the keys depend on, not the selection itself: these render the whole app again (they
+	// sit in AppShell), so they mustn't on every change to the selected object (a drag).
+	const objectSelected = useEditor((s) => selectSelectedEntity(s) !== null);
+	const selectedLocked = useEditor((s) => selectSelectedEntity(s)?.locked === true);
+	const selectedFollows = useEditor((s) => Boolean(selectSelectedEntity(s)?.follow));
+	const roadOrAreaSelected = useEditor(
+		(s) => selectSelectedRoad(s) !== null || selectSelectedArea(s) !== null,
+	);
 
-	const canEdit = mode === "edit" && selected !== null;
+	const canEdit = mode === "edit" && objectSelected;
 	// Several things selected: the keys that move, turn, resize and delete work on all of them.
 	// Or a whole road or area (ADR-0066).
 	const several = useEditor((s) => s.mode === "edit" && selectMovesAsGroup(s));
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
-	const canDelete =
-		mode === "edit" && (selected !== null || selectedRoad !== null || selectedArea !== null);
+	const canDelete = mode === "edit" && (objectSelected || roadOrAreaSelected);
 	// Holding the right mouse button, W A S D and Q E move the camera instead (see below).
 	const holdingRightButton = useEditor((s) => s.holdingRightButton);
 	const canGroup = several && !holdingRightButton;
-	const canTransform = canGroup || (!several && canEdit && !selected.locked && !holdingRightButton);
-	const canNudge = canGroup || (canTransform && !selected?.follow);
+	const canTransform = canGroup || (!several && canEdit && !selectedLocked && !holdingRightButton);
+	const canNudge = canGroup || (canTransform && !selectedFollows);
 	// A point of a road or a corner of an area (several move together, ADR-0065).
 	const selectedPoint = useEditor((s) => s.mode === "edit" && s.selectedPointIndex !== null);
 	// A point of a road or area that can be edited (visible, not locked): the arrows nudge it.

@@ -1,5 +1,5 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
 import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
@@ -47,52 +47,89 @@ const OTHER = "Other";
 
 const keyOf = (item: ISceneItem) => `${item.kind}:${item.id}`;
 
+/**
+ * Each object's row as last made, for as long as the object, the palette and the world's data are
+ * the same: a change to one object in a world of thousands makes one row again, not all of them.
+ */
+const madeRows = new WeakMap<
+	object,
+	{ palette: IScenePalette; data: TScene["data"]; row: IOutlinerRow }
+>();
+
+const cachedRow = <T extends object>(
+	thing: T,
+	palette: IScenePalette,
+	data: TScene["data"],
+	make: (thing: T) => IOutlinerRow,
+) => {
+	const made = madeRows.get(thing);
+	if (made && made.palette === palette && made.data === data) {
+		return made.row;
+	}
+	const row = make(thing);
+	madeRows.set(thing, { palette, data, row });
+	return row;
+};
+
 /** Every object, road and area as a row, objects grouped by part category. */
 const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 	const firstValue = (keys: string[]) => {
 		const key = keys[0];
 		return key ? formatEntry(scene.data.find((entry) => entry.key === key)) : null;
 	};
+	const { data } = scene;
 	return [
-		...scene.entities.map((entity): IOutlinerRow => {
-			const part = getPart(entity.kind);
-			const { first, second } = part
-				? swatchColors(resolveColors(part, entity, palette, scene.data), part)
-				: { first: palette.selection, second: palette.selection };
-			return {
-				item: { kind: "entity", id: entity.id },
-				group: part ? CATEGORY_LABELS[part.category] : OTHER,
-				name: entity.name,
-				fallback: part ? partName(part) : entity.kind,
-				swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
-				hidden: entity.hidden,
-				locked: entity.locked,
-				value: firstValue(entity.label?.dataKeys ?? entity.details.dataKeys),
-			};
-		}),
-		...scene.roads.map(
-			(road): IOutlinerRow => ({
-				item: { kind: "road", id: road.id },
-				group: ROADS,
-				name: road.name,
-				fallback: ROAD_STYLE_LABELS[road.style],
-				swatch: roadSwatch(road, palette),
-				hidden: road.hidden,
-				locked: road.locked,
-				value: null,
+		...scene.entities.map((each) =>
+			cachedRow(each, palette, data, (entity): IOutlinerRow => {
+				const part = getPart(entity.kind);
+				const { first, second } = part
+					? swatchColors(resolveColors(part, entity, palette, scene.data), part)
+					: { first: palette.selection, second: palette.selection };
+				return {
+					item: { kind: "entity", id: entity.id },
+					group: part ? CATEGORY_LABELS[part.category] : OTHER,
+					name: entity.name,
+					fallback: part ? partName(part) : entity.kind,
+					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
+					hidden: entity.hidden,
+					locked: entity.locked,
+					value: firstValue(entity.label?.dataKeys ?? entity.details.dataKeys),
+				};
 			}),
 		),
-		...scene.areas.map(
-			(area): IOutlinerRow => ({
-				item: { kind: "area", id: area.id },
-				group: AREAS,
-				name: area.name,
-				fallback: AREA_TYPE_LABELS[area.type],
-				swatch: areaSwatch(area, palette),
-				hidden: area.hidden,
-				locked: area.locked,
-				value: null,
-			}),
+		...scene.roads.map((each) =>
+			cachedRow(
+				each,
+				palette,
+				data,
+				(road): IOutlinerRow => ({
+					item: { kind: "road", id: road.id },
+					group: ROADS,
+					name: road.name,
+					fallback: ROAD_STYLE_LABELS[road.style],
+					swatch: roadSwatch(road, palette),
+					hidden: road.hidden,
+					locked: road.locked,
+					value: null,
+				}),
+			),
+		),
+		...scene.areas.map((each) =>
+			cachedRow(
+				each,
+				palette,
+				data,
+				(area): IOutlinerRow => ({
+					item: { kind: "area", id: area.id },
+					group: AREAS,
+					name: area.name,
+					fallback: AREA_TYPE_LABELS[area.type],
+					swatch: areaSwatch(area, palette),
+					hidden: area.hidden,
+					locked: area.locked,
+					value: null,
+				}),
+			),
 		),
 	];
 };
@@ -203,13 +240,61 @@ const OutlinerRowItem = memo(
 		keyOf(before.row.item) === keyOf(after.row.item),
 );
 
+/** Rows are drawn in chunks of this many (see OutlinerRowChunk). */
+const CHUNK = 100;
+
+interface IOutlinerRowChunkProps {
+	rows: IOutlinerRow[];
+	selectedRows: ReadonlySet<string>;
+	renaming: string | null;
+	onSelect: IOutlinerRowProps["onSelect"];
+	onRenamingChange: (key: string | null) => void;
+}
+
+/**
+ * A run of rows, drawn again only when one of them changes (rows are the same objects while their
+ * item is, see cachedRow), or the selection or renaming: a change to one object in a world of
+ * thousands makes one chunk's elements again, not every row's.
+ */
+const OutlinerRowChunk = memo(
+	({ rows, selectedRows, renaming, onSelect, onRenamingChange }: IOutlinerRowChunkProps) =>
+		rows.map((row) => {
+			const key = keyOf(row.item);
+			return (
+				<OutlinerRowItem
+					key={key}
+					row={row}
+					current={selectedRows.has(key)}
+					editing={renaming === key}
+					onSelect={onSelect}
+					onRenamingChange={onRenamingChange}
+				/>
+			);
+		}),
+	(before, after) =>
+		before.selectedRows === after.selectedRows &&
+		before.renaming === after.renaming &&
+		before.onSelect === after.onSelect &&
+		before.onRenamingChange === after.onRenamingChange &&
+		before.rows.length === after.rows.length &&
+		before.rows.every((row, i) => row === after.rows[i]),
+);
+
+/** A list split into runs of `size`. */
+const chunksOf = <T,>(list: T[], size: number) =>
+	Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
+		list.slice(i * size, (i + 1) * size),
+	);
+
 /**
  * Everything in the world as a list, like Blender's outliner: click to
  * select, double-click (or F2) to rename, and hide or lock each item. Hovering
  * a row highlights its item in the world. See docs/adr/0035-outliner.md.
  */
 export const Outliner = () => {
-	const scene = useEditor((s) => s.scene);
+	// Behind the world while it changes fast (a drag changes it every frame): drawn again when there's
+	// time, so thousands of rows don't hold up the view (ADR-0092).
+	const scene = useDeferredValue(useEditor((s) => s.scene));
 	const selectedKey = useEditor((s) =>
 		s.selectedId
 			? `entity:${s.selectedId}`
@@ -288,15 +373,58 @@ export const Outliner = () => {
 		meta: { name: "Rename the selection" },
 	});
 
-	const rows = rowsOf(scene, palette);
-	const selectedRows = selectedKeys.split(" ");
-	const shown = rows.filter(
-		(row) =>
-			(!query.trim() || matches(row, query)) &&
-			(!onlyData || row.value !== null) &&
-			(!onlySelected || selectedRows.includes(keyOf(row.item))),
+	const rows = useMemo(() => rowsOf(scene, palette), [scene, palette]);
+	const selectedRows = useMemo(() => new Set(selectedKeys.split(" ")), [selectedKeys]);
+	const shown = useMemo(
+		() =>
+			rows.filter(
+				(row) =>
+					(!query.trim() || matches(row, query)) &&
+					(!onlyData || row.value !== null) &&
+					(!onlySelected || selectedRows.has(keyOf(row.item))),
+			),
+		[rows, query, onlyData, onlySelected, selectedRows],
 	);
-	const groups = GROUP_ORDER.filter((group) => shown.some((row) => row.group === group));
+	const groups = useMemo(
+		() => GROUP_ORDER.filter((group) => shown.some((row) => row.group === group)),
+		[shown],
+	);
+
+	// The rows as elements, made again only when what they show changes: an urgent render (the
+	// world as it is, before the deferred one) reuses them as they are.
+	const sections = useMemo(
+		() =>
+			groups.map((group) => (
+				<CollapsibleSection
+					key={group}
+					label={group}
+					icon={GROUP_ICONS[group]}
+					count={shown.filter((row) => row.group === group).length}
+					// While searching every match shows, folded or not.
+					open={query.trim() !== "" || (panels[`outliner:${group}`] ?? true)}
+					onOpenChange={(open) => setPanelOpen(`outliner:${group}`, open)}
+				>
+					<List>
+						{chunksOf(
+							shown.filter((row) => row.group === group),
+							CHUNK,
+						).map((rows, i) => (
+							<OutlinerRowChunk
+								// By position: a chunk keeps its place as rows come and go.
+								// biome-ignore lint/suspicious/noArrayIndexKey: chunks have no identity of their own
+								key={i}
+								rows={rows}
+								selectedRows={selectedRows}
+								renaming={renaming}
+								onSelect={onSelect}
+								onRenamingChange={setRenaming}
+							/>
+						))}
+					</List>
+				</CollapsibleSection>
+			)),
+		[groups, shown, panels, query, selectedRows, renaming, onSelect],
+	);
 
 	return (
 		<div className={styles.outliner}>
@@ -347,35 +475,7 @@ export const Outliner = () => {
 					</Hint>
 				)}
 
-				{groups.map((group) => (
-					<CollapsibleSection
-						key={group}
-						label={group}
-						icon={GROUP_ICONS[group]}
-						count={shown.filter((row) => row.group === group).length}
-						// While searching every match shows, folded or not.
-						open={query.trim() !== "" || (panels[`outliner:${group}`] ?? true)}
-						onOpenChange={(open) => setPanelOpen(`outliner:${group}`, open)}
-					>
-						<List>
-							{shown
-								.filter((row) => row.group === group)
-								.map((row) => {
-									const key = keyOf(row.item);
-									return (
-										<OutlinerRowItem
-											key={key}
-											row={row}
-											current={selectedRows.includes(key)}
-											editing={renaming === key}
-											onSelect={onSelect}
-											onRenamingChange={setRenaming}
-										/>
-									);
-								})}
-						</List>
-					</CollapsibleSection>
-				))}
+				{sections}
 
 				{rows.length > 0 && (
 					<>

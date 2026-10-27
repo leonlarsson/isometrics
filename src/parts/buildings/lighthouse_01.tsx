@@ -114,6 +114,8 @@ export const lighthouse01 = definePart({
 	kind: "lighthouse_01",
 	name: "Lighthouse",
 	category: "buildings",
+	// Its beam turns every frame.
+	movesOnItsOwn: true,
 	description: "Striped lighthouse with a lantern room whose beam sweeps round after dark",
 	keywords: ["beacon", "coast", "harbour", "sea", "tower", "landmark", "light"],
 	schema: LighthouseSchema,

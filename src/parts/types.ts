@@ -262,6 +262,12 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	flat?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
 	rendersAsync?: boolean;
+	/**
+	 * It moves pieces of itself every frame (`useFrame`: a turning beam, a pulsing ring), so its
+	 * matrices are kept up to date each frame like a driving vehicle's (ADR-0092). Objects that
+	 * stand still are only placed when they change. A test checks parts using useFrame say so.
+	 */
+	movesOnItsOwn?: boolean;
 	Component: FC<IPartRenderProps<P, C>>;
 }
 

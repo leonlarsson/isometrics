@@ -166,6 +166,45 @@ const bandBlurPass = () =>
 		"tDiffuse",
 	);
 
+/**
+ * n8ao walks the whole scene each frame: for see-through materials, and once it has found one,
+ * four times more to hide and show every object around its two renders of them. In a big world
+ * that's tens of thousands of objects, most in groups hidden because batches draw them (ADR-0092).
+ * The same, visiting only what's drawn: found once per frame, as the frame starts.
+ */
+const walkOnlyWhatIsDrawn = (occlusion: N8AOPostPass, scene: THREE.Scene) => {
+	const drawn: THREE.Object3D[] = [];
+	occlusion.detectTransparency = () => {
+		drawn.length = 0;
+		let seeThrough = false;
+		scene.traverseVisible((object) => {
+			const material = (object as THREE.Mesh).material as THREE.Material | undefined;
+			if (material) {
+				drawn.push(object);
+				seeThrough ||= material.transparent;
+			}
+		});
+		// Once aware, it stays so, as n8ao does.
+		if (seeThrough && !occlusion.configuration.transparencyAware) {
+			occlusion.configuration.transparencyAware = true;
+		}
+	};
+	const renderTransparency = occlusion.renderTransparency.bind(occlusion);
+	occlusion.renderTransparency = (renderer) => {
+		const traverse = scene.traverse;
+		scene.traverse = (callback) => {
+			for (const object of drawn) {
+				callback(object);
+			}
+		};
+		try {
+			renderTransparency(renderer);
+		} finally {
+			scene.traverse = traverse;
+		}
+	};
+};
+
 /** The composer and its passes for these settings, the ones a frame adjusts kept at hand. */
 const composeFor = (
 	gl: THREE.WebGLRenderer,
@@ -196,6 +235,7 @@ const composeFor = (
 			// The last pass encodes the output.
 			gammaCorrection: false,
 		});
+		walkOnlyWhatIsDrawn(occlusion, scene);
 		composer.addPass(occlusion);
 	}
 	// The Kawase blur, not the mipmap one: the mipmap blur turned the red channel of some whole night

@@ -16,13 +16,7 @@ export const INSTANCED_ORIGINALS_LAYER = 1;
 const defaultOnBeforeRender = THREE.Object3D.prototype.onBeforeRender;
 const defaultOnBeforeCompile = THREE.Material.prototype.onBeforeCompile;
 
-/**
- * What a geometry is, for sharing: the shape a part named it by
- * (`userData.shareKey`, parts/primitives' `shareGeometryAs`), or its type and
- * parameters when it's one of three's own shapes with plain numbers for
- * parameters (a box, a cylinder); otherwise only itself.
- */
-export const geometryKey = (geometry: THREE.BufferGeometry) => {
+const keyOfGeometry = (geometry: THREE.BufferGeometry) => {
 	if (typeof geometry.userData.shareKey === "string") {
 		return `shared:${geometry.userData.shareKey}`;
 	}
@@ -36,6 +30,25 @@ export const geometryKey = (geometry: THREE.BufferGeometry) => {
 	return geometry.uuid;
 };
 
+/** Each geometry's key once worked out: a geometry's shape never changes (a new shape is a new geometry). */
+const geometryKeys = new WeakMap<THREE.BufferGeometry, string>();
+
+/**
+ * What a geometry is, for sharing: the shape a part named it by
+ * (`userData.shareKey`, parts/primitives' `shareGeometryAs`), or its type and
+ * parameters when it's one of three's own shapes with plain numbers for
+ * parameters (a box, a cylinder); otherwise only itself.
+ */
+export const geometryKey = (geometry: THREE.BufferGeometry) => {
+	const known = geometryKeys.get(geometry);
+	if (known !== undefined) {
+		return known;
+	}
+	const key = keyOfGeometry(geometry);
+	geometryKeys.set(geometry, key);
+	return key;
+};
+
 type TSharedMaterial =
 	| THREE.MeshStandardMaterial
 	| THREE.MeshBasicMaterial
@@ -44,7 +57,8 @@ type TSharedMaterial =
 const colorKey = (color: THREE.Color | undefined) => (color ? color.getHexString() : "-");
 
 /**
- * What a material looks like, for sharing, or null when it can't be shared:
+ * What a material looks like apart from its colour (each instance in a batch
+ * has its own, ADR-0092), for sharing, or null when it can't be shared:
  * see-through ones (their order matters), ones with a shader of their own
  * (text), and kinds the parts don't use.
  */
@@ -66,7 +80,6 @@ export const materialKey = (material: THREE.Material): string | null => {
 	const lambert = material as THREE.MeshLambertMaterial;
 	return [
 		material.type,
-		colorKey(shared.color),
 		colorKey(standard.emissive ?? lambert.emissive),
 		standard.emissiveIntensity ?? lambert.emissiveIntensity ?? "-",
 		standard.roughness ?? "-",
@@ -86,10 +99,20 @@ export const materialKey = (material: THREE.Material): string | null => {
 };
 
 /**
- * A mesh's key, for drawing it with others that have the same one; null for
- * meshes drawn on their own: with several materials, instanced, skinned or
- * morphing, with render hooks of their own, or marked `userData.notInstanced`
- * by a part that changes them outside React.
+ * How a geometry's data is laid out (indexed or not, and its attributes): geometries in one batch
+ * must match in it, whatever their shapes.
+ */
+export const layoutKey = (geometry: THREE.BufferGeometry) =>
+	`${geometry.getIndex() ? "i" : "n"}:${Object.entries(geometry.attributes)
+		.map(([name, attribute]) => `${name}${attribute.itemSize}${attribute.normalized ? "n" : ""}`)
+		.sort()
+		.join(",")}`;
+
+/**
+ * A mesh's batch key, for drawing it with every other that looks the same, whatever its shape (a
+ * batch holds each shape it needs, ADR-0092); null for meshes drawn on their own: with several
+ * materials, instanced, skinned or morphing, with render hooks of their own, marked
+ * `userData.notInstanced` by a part that changes them outside React, or with nothing to draw.
  */
 export const meshKey = (mesh: THREE.Mesh): string | null => {
 	if (
@@ -99,7 +122,9 @@ export const meshKey = (mesh: THREE.Mesh): string | null => {
 		mesh.morphTargetInfluences !== undefined ||
 		Array.isArray(mesh.material) ||
 		mesh.onBeforeRender !== defaultOnBeforeRender ||
-		mesh.userData.notInstanced
+		mesh.userData.notInstanced ||
+		// Nothing to draw (yet): a geometry without positions, e.g. one a part fills in later.
+		!mesh.geometry.getAttribute("position")
 	) {
 		return null;
 	}
@@ -107,30 +132,52 @@ export const meshKey = (mesh: THREE.Mesh): string | null => {
 	if (material === null) {
 		return null;
 	}
-	return `${geometryKey(mesh.geometry)}#${material}#${mesh.castShadow ? 1 : 0}${mesh.receiveShadow ? 1 : 0}#${mesh.renderOrder}`;
+	return `${layoutKey(mesh.geometry)}#${material}#${mesh.castShadow ? 1 : 0}${mesh.receiveShadow ? 1 : 0}#${mesh.renderOrder}`;
 };
 
 /** The meshes one object shares, by key, found after it last rendered. */
-interface IInstancedRoot {
+export interface IInstancedRoot {
 	group: THREE.Object3D;
-	shared: { mesh: THREE.Mesh; key: string }[];
+	shared: { mesh: THREE.Mesh; key: string; geometry: THREE.BufferGeometry }[];
+	/** How many things in its part are drawn (meshes, lines, points, sprites), shared or not. */
+	renderables: number;
 	/** Rendered since its meshes were last looked through. */
 	dirty: boolean;
+	/**
+	 * It may move between renders (driving, selected and dragged, or a part that moves on its own):
+	 * its instances are placed every frame. Others only when something changed (ADR-0092).
+	 */
+	moving: boolean;
+	/** Everything it draws is drawn by batches, so its own group is hidden from the renderer. */
+	batchedAway: boolean;
 }
 
-/** Every object's part, by its group; `changed` is set when one was added, removed or re-rendered. */
+/**
+ * Every object's part, by its group; `changed` is set when one was added, removed or re-rendered,
+ * `regrouped` only when one was added or removed.
+ */
 export const instancing = keepOnHotReload("instancing", () => ({
 	roots: new Map<THREE.Object3D, IInstancedRoot>(),
 	changed: true,
+	regrouped: true,
 }));
 
 /** An object's part rendered (or was added): look through its meshes again before the next frame. */
-export const markInstancedRoot = (group: THREE.Object3D) => {
+export const markInstancedRoot = (group: THREE.Object3D, moving = true) => {
 	const root = instancing.roots.get(group);
 	if (root) {
 		root.dirty = true;
+		root.moving = moving;
 	} else {
-		instancing.roots.set(group, { group, shared: [], dirty: true });
+		instancing.roots.set(group, {
+			group,
+			shared: [],
+			renderables: 0,
+			dirty: true,
+			moving,
+			batchedAway: false,
+		});
+		instancing.regrouped = true;
 	}
 	instancing.changed = true;
 };
@@ -139,6 +186,7 @@ export const markInstancedRoot = (group: THREE.Object3D) => {
 export const forgetInstancedRoot = (group: THREE.Object3D) => {
 	if (instancing.roots.delete(group)) {
 		instancing.changed = true;
+		instancing.regrouped = true;
 	}
 };
 
@@ -149,11 +197,20 @@ export const forgetInstancedRoot = (group: THREE.Object3D) => {
  */
 export const scanRoot = (root: IInstancedRoot) => {
 	root.shared = [];
+	root.renderables = 0;
 	root.group.traverse((object) => {
-		const mesh = object as THREE.Mesh;
+		const mesh = object as THREE.Mesh & {
+			isLine?: boolean;
+			isPoints?: boolean;
+			isSprite?: boolean;
+		};
+		if (mesh.isLine || mesh.isPoints || mesh.isSprite) {
+			root.renderables += 1;
+		}
 		if (!mesh.isMesh) {
 			return;
 		}
+		root.renderables += 1;
 		const key = meshKey(mesh);
 		if (key === null) {
 			if (mesh.layers.isEnabled(INSTANCED_ORIGINALS_LAYER)) {
@@ -161,15 +218,18 @@ export const scanRoot = (root: IInstancedRoot) => {
 			}
 			return;
 		}
-		root.shared.push({ mesh, key });
+		root.shared.push({ mesh, key, geometry: mesh.geometry });
 	});
 	root.dirty = false;
 };
 
-/** Whether an original is shown: it and every parent visible. */
+/**
+ * Whether an original is shown: it and every parent visible. A part's group hidden because batches
+ * draw all of it (`userData.batchedAway`) doesn't count.
+ */
 export const isShown = (object: THREE.Object3D) => {
 	for (let at: THREE.Object3D | null = object; at; at = at.parent) {
-		if (!at.visible) {
+		if (!at.visible && !at.userData.batchedAway) {
 			return false;
 		}
 	}

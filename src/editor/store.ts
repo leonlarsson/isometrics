@@ -2134,8 +2134,27 @@ export const selectSelectedArea = (state: IEditorState) =>
 	state.scene.areas.find((a) => a.id === state.selectedAreaId) ?? null;
 
 /** Whether an item is among the selected ones (ADR-0064), active or not. */
+/**
+ * Each list of items as a set of keys, made once per list (lists are replaced, never changed): asked
+ * by every object on every change, so it mustn't look through a selection of hundreds each time.
+ */
+const itemKeySets = new WeakMap<readonly ISceneItem[], Set<string>>();
+
+export const includesItem = (
+	items: readonly ISceneItem[],
+	kind: ISceneItem["kind"],
+	id: string,
+) => {
+	let keys = itemKeySets.get(items);
+	if (!keys) {
+		keys = new Set(items.map((item) => `${item.kind}:${item.id}`));
+		itemKeySets.set(items, keys);
+	}
+	return keys.has(`${kind}:${id}`);
+};
+
 export const isItemSelected = (state: IEditorState, kind: ISceneItem["kind"], id: string) =>
-	state.selectedItems.some((item) => item.kind === kind && item.id === id);
+	includesItem(state.selectedItems, kind, id);
 
 /** Several things are selected: actions and transforms work on all of them (ADR-0064). */
 export const selectSeveral = (state: IEditorState) => state.selectedItems.length > 1;
@@ -2146,7 +2165,7 @@ export const isToggleClick = (event: { shiftKey: boolean; ctrlKey: boolean; meta
 
 /** Whether a box being drawn would add an item to the selection or take it out (ADR-0064). */
 export const isItemBoxed = (state: IEditorState, kind: ISceneItem["kind"], id: string) =>
-	state.boxDrag?.items.some((item) => item.kind === kind && item.id === id) ?? false;
+	state.boxDrag ? includesItem(state.boxDrag.items, kind, id) : false;
 
 /**
  * The selection moves, turns and resizes as a group (ADR-0064, ADR-0066): several things, or a

@@ -170,9 +170,10 @@ describe("resolveProps", () => {
 describe("parts that change their meshes each frame", () => {
 	const sources = import.meta.glob("./*/*.tsx", { query: "?raw", import: "default", eager: true });
 	it.each(Object.entries(sources).filter(([, source]) => String(source).includes("useFrame")))(
-		"%s marks the meshes it changes notInstanced",
+		"%s marks the meshes it changes notInstanced, and says it moves on its own",
 		(_, source) => {
 			expect(String(source)).toContain("notInstanced");
+			expect(String(source)).toContain("movesOnItsOwn: true");
 		},
 	);
 });
