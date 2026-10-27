@@ -6,6 +6,7 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 
 - [ ] Remove the `noindex, nofollow` robots meta tag and the `X-Robots-Tag` header in `src/routes/__root.tsx`.
 - [ ] Make `og:image` in `src/routes/__root.tsx` an absolute URL once the production domain is set (most link previews ignore relative ones), and refresh `public/og.png` if the look has changed. (Description, Open Graph, `theme-color` and favicon: done.)
+- [ ] **README: beautiful shots of the app itself (owner's idea, 2026-10-27):** the gallery has world shots (`scripts/gallery.mjs`); add polished pictures of the UI and the parts catalogue too: the editor with its panels open on a nice world (Add to scene, the properties on a tab that shows something off, like Lights or Look), View mode with data cards, the parts catalogue's grid and a part's details (both themes), maybe a moment like drawing a road. Taken by a script like the gallery's, so they can be retaken after the look changes (real GPU, `node.exe` on WSL; a fixed window size and device pixel ratio 2 for sharp pictures), into `docs/gallery/`, as their own section in the README.
 
 ## Safer schema and part changes
 
