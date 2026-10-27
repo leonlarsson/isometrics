@@ -113,12 +113,19 @@ export interface IResolvedLight {
 	weight: number;
 }
 
-export type TPartCategory = "buildings" | "vehicles" | "nature" | "infrastructure" | "markers";
+export type TPartCategory =
+	| "buildings"
+	| "vehicles"
+	| "nature"
+	| "furniture"
+	| "infrastructure"
+	| "markers";
 
 export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	buildings: "Buildings",
 	vehicles: "Vehicles",
 	nature: "Nature",
+	furniture: "Street furniture",
 	infrastructure: "Ground & props",
 	markers: "Markers",
 };

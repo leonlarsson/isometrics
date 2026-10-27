@@ -18,6 +18,7 @@ export const CATEGORY_ICONS: Record<TPartCategory, TIconName> = {
 	buildings: "building",
 	vehicles: "car",
 	nature: "tree",
+	furniture: "bench",
 	infrastructure: "cone",
 	markers: "pin",
 };

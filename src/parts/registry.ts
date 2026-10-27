@@ -5,6 +5,14 @@ import { grandstand01 } from "./buildings/grandstand_01";
 import { house01 } from "./buildings/house_01";
 import { officeTower01 } from "./buildings/office_tower_01";
 import { warehouse01 } from "./buildings/warehouse_01";
+import { bench01 } from "./furniture/bench_01";
+import { bin01 } from "./furniture/bin_01";
+import { cafeTable01 } from "./furniture/cafe_table_01";
+import { chair01 } from "./furniture/chair_01";
+import { flowerPot01 } from "./furniture/flower_pot_01";
+import { parasol01 } from "./furniture/parasol_01";
+import { picnicTable01 } from "./furniture/picnic_table_01";
+import { planter01 } from "./furniture/planter_01";
 import { light01 } from "./infrastructure/light_01";
 import { parcelStack01 } from "./infrastructure/parcel_stack_01";
 import { streetLamp01 } from "./infrastructure/street_lamp_01";
@@ -38,6 +46,14 @@ export const PARTS: TAnyPart[] = [
 	yacht01,
 	roundTree01,
 	pineTree01,
+	bench01,
+	picnicTable01,
+	cafeTable01,
+	chair01,
+	parasol01,
+	flowerPot01,
+	planter01,
+	bin01,
 	zone01,
 	tunnel01,
 	streetLamp01,
