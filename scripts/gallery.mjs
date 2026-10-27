@@ -22,6 +22,8 @@ const PICTURES = [
 	["lantern-bay", "--template", "lantern_bay", "--views", "view_bay", "--mood", "mood_golden"],
 	["lantern-bay", "--template", "lantern_bay", "--views", "view_promenade", "--mood", "mood_night"],
 	["lantern-bay", "--template", "lantern_bay", "--views", "view_basin", "--mood", "mood_blue"],
+	["lantern-bay", "--template", "lantern_bay", "--views", "view_lighthouse", "--mood", "mood_night"],
+	["lantern-bay", "--template", "lantern_bay", "--views", "view_lanes", "--mood", "mood_golden"],
 	[
 		"lantern-bay-cards",
 		"--template",
@@ -34,6 +36,8 @@ const PICTURES = [
 	],
 	["brightwater-cards", "--views", "view_overview", "--hours", "world", "--with-cards"],
 	["brightwater", "--views", "view_downtown", "--hours", "17.8"],
+	["brightwater", "--views", "view_old_town", "--hours", "17.8"],
+	["brightwater", "--views", "view_farmland", "--hours", "15"],
 	// At night on the dark theme: Brightwater has no sky, and its lights glow brighter on dark.
 	["brightwater-dark", "--views", "view_overview", "--hours", "22", "--world", "theme=dark"],
 ];
