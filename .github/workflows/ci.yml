@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run it by hand from the Actions tab ("Run workflow"): the only way the end-to-end tests run.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -39,6 +41,9 @@ jobs:
 
   e2e:
     # The editor in headless Chromium (e2e/, ADR-0069), split over three machines to stay quick.
+    # On demand only: in CI's software rendering they're slow and time out under load, so they're
+    # run locally for the area a change touches, and here when started from the Actions tab.
+    if: github.event_name == 'workflow_dispatch'
     name: End-to-end tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 20

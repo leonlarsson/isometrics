@@ -22,7 +22,7 @@ Guide for AI agents (and humans) working in this repo.
 | `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
 | `pnpm build` / `pnpm run deploy` | Production build / deploy to Cloudflare Workers (`pnpm deploy` without `run` is pnpm's own built-in command) |
 
-Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`, and for UI changes the end-to-end specs for the area you touched (`pnpm e2e e2e/<area>.spec.ts`), adding or updating tests for what changed. CI (`.github/workflows/ci.yml`) runs all of them on every push to `main` and on pull requests, the end-to-end tests split over three machines.
+Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`, and for UI changes the end-to-end specs for the area you touched (`pnpm e2e e2e/<area>.spec.ts`), adding or updating tests for what changed. CI (`.github/workflows/ci.yml`) runs lint, types and unit tests on every push to `main` and on pull requests; the end-to-end tests only run when started by hand from GitHub's Actions tab (Run workflow), split over three machines, so run the specs for what you changed locally.
 
 ## Layout
 
