@@ -1,9 +1,12 @@
 import { variantName } from "#/scene/variants";
 
+import { cafe01 } from "./buildings/cafe_01";
 import { depot01 } from "./buildings/depot_01";
 import { grandstand01 } from "./buildings/grandstand_01";
 import { house01 } from "./buildings/house_01";
 import { officeTower01 } from "./buildings/office_tower_01";
+import { shop01 } from "./buildings/shop_01";
+import { shop02 } from "./buildings/shop_02";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
 import { bin01 } from "./furniture/bin_01";
@@ -48,6 +51,9 @@ export const PARTS: TAnyPart[] = [
 	warehouse01,
 	officeTower01,
 	house01,
+	shop01,
+	shop02,
+	cafe01,
 	depot01,
 	grandstand01,
 	deliveryVan01,
