@@ -1,5 +1,5 @@
 import { Collapsible } from "@base-ui/react/collapsible";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { setPanelOpen, usePanelOpen } from "#/editor/panelMemory";
 
@@ -23,6 +23,11 @@ interface ISectionProps {
 	id?: string;
 	/** Folded until it's opened for the first time. */
 	defaultClosed?: boolean;
+	/**
+	 * Remember in this browser whether it's open (the default). Without, it starts as
+	 * `defaultClosed` says each time it shows (the parts catalogue's panels).
+	 */
+	remembersOpen?: boolean;
 	/** More words that find the whole panel in the settings search. */
 	keywords?: string;
 }
@@ -40,12 +45,14 @@ export const Section = ({
 	icon,
 	id,
 	defaultClosed = false,
+	remembersOpen = true,
 	keywords = "",
 }: ISectionProps) => {
 	const query = useSettingsSearch();
 	const remembered = usePanelOpen(id ?? "", !defaultClosed);
+	const [openHere, setOpenHere] = useState(!defaultClosed);
 	const searching = query !== "";
-	const open = !id || searching || remembered;
+	const open = !id || searching || (remembersOpen ? remembered : openHere);
 	const heading = (
 		<>
 			{id && (
@@ -68,7 +75,16 @@ export const Section = ({
 			render={<section />}
 			className={styles.section}
 			open={open}
-			onOpenChange={(next) => id && !searching && setPanelOpen(id, next)}
+			onOpenChange={(next) => {
+				if (!id || searching) {
+					return;
+				}
+				if (remembersOpen) {
+					setPanelOpen(id, next);
+				} else {
+					setOpenHere(next);
+				}
+			}}
 			data-searching={searching || undefined}
 			data-title-match={(searching && matchesSearch(`${title} ${keywords}`, query)) || undefined}
 		>

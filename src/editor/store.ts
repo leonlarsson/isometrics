@@ -9,6 +9,12 @@ import { bindingMapsOf } from "#/scene/dataBindings";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
+	applySettingChange,
+	isUnsetSetting,
+	type TEntityColorChange,
+	type TEntityLightChange,
+} from "#/scene/objectSettings";
+import {
 	joinedPoints,
 	pointWidth,
 	ROAD_STYLE_LABELS,
@@ -26,12 +32,9 @@ import {
 	type TArea,
 	type TAreaInput,
 	type TAreaType,
-	type TDataBinding,
 	type TDataEntry,
 	type TEntity,
-	type TEntityColor,
 	type TEntityInput,
-	type TEntityLight,
 	type TProjection,
 	type TRoad,
 	type TRoadInput,
@@ -52,19 +55,6 @@ import { notify } from "./toasts";
 
 export type TEditorMode = "edit" | "view";
 
-/**
- * A change to an object's settings for one light: fields to set (null = back
- * to the part's), and data bindings by setting (a binding to set, or null to
- * stop that setting following data).
- */
-export type TEntityLightChange = Partial<Omit<TEntityLight, "data">> & {
-	data?: Partial<Record<string, TDataBinding | null>>;
-};
-
-/** A change to an object's setting for one colour, like a light's (ADR-0060). */
-export type TEntityColorChange = Partial<Omit<TEntityColor, "data">> & {
-	data?: Partial<Record<string, TDataBinding | null>>;
-};
 /** The properties editor's tabs about the whole world (ADR-0054). */
 export type TWorldTab =
 	| "world"
@@ -728,29 +718,6 @@ export const renameEntity = (entity: Pick<TEntity, "name" | "label">, name: stri
 	entity.name = name;
 };
 
-/** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
-const isUnset = ({ data, ...fields }: TEntityLight | TEntityColor) =>
-	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
-
-/** A setting with a change applied: fields set, data bindings set or (null) removed. */
-const applySettingChange = <T extends TEntityLight | TEntityColor>(
-	current: T,
-	{
-		data: dataChange,
-		...fields
-	}: Partial<Omit<T, "data">> & { data?: Partial<Record<string, TDataBinding | null>> },
-): T => {
-	const next = { ...current, ...fields, data: { ...current.data } };
-	for (const [setting, binding] of Object.entries(dataChange ?? {})) {
-		if (binding) {
-			next.data[setting] = binding;
-		} else {
-			delete next.data[setting];
-		}
-	}
-	return next;
-};
-
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
@@ -780,13 +747,13 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 		// Nothing left that differs from the part: no entry at all.
 		if (typeof entity.lights === "object") {
 			for (const [id, light] of Object.entries(entity.lights)) {
-				if (isUnset(light)) {
+				if (isUnsetSetting(light)) {
 					delete entity.lights[id];
 				}
 			}
 		}
 		for (const [id, color] of Object.entries(entity.colors)) {
-			if (isUnset(color)) {
+			if (isUnsetSetting(color)) {
 				delete entity.colors[id];
 			}
 		}
@@ -1547,7 +1514,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							change,
 						);
 						// Nothing left that differs from the part: no entry at all.
-						if (isUnset(next)) {
+						if (isUnsetSetting(next)) {
 							delete entity.lights[lightId];
 						} else {
 							entity.lights[lightId] = next;
@@ -1571,7 +1538,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						if (spec?.legacy) {
 							entity[spec.legacy] = null;
 						}
-						if (isUnset(next)) {
+						if (isUnsetSetting(next)) {
 							delete entity.colors[colorId];
 						} else {
 							entity.colors[colorId] = next;

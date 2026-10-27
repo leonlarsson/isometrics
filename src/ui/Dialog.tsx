@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 
 import { Button } from "./Button";
 import { useDialogDrag } from "./useDialogDrag";
@@ -23,6 +23,11 @@ interface IDialogProps {
 	confirm?: { label: string; onConfirm: () => void; disabled?: boolean; keepOpen?: boolean };
 	/** Room for two columns, e.g. choices on the left and their settings on the right. */
 	wide?: boolean;
+	/**
+	 * What gets focus when it opens: its first control (the default), or the dialog itself, for
+	 * one that's mostly to read, so no button's tooltip pops up (a part's details).
+	 */
+	initialFocus?: "firstControl" | "dialog";
 }
 
 /**
@@ -40,15 +45,22 @@ export const Dialog = ({
 	closeLabel,
 	confirm,
 	wide,
+	initialFocus = "firstControl",
 }: IDialogProps) => {
 	const dragHandle = useDialogDrag();
+	const popup = useRef<HTMLDivElement>(null);
 
 	return (
 		<BaseDialog.Root open={open} onOpenChange={onOpenChange}>
 			<BaseDialog.Portal>
 				<BaseDialog.Backdrop className={styles.backdrop} />
 
-				<BaseDialog.Popup className={styles.popup} data-wide={wide || undefined}>
+				<BaseDialog.Popup
+					ref={popup}
+					className={styles.popup}
+					data-wide={wide || undefined}
+					initialFocus={initialFocus === "dialog" ? popup : undefined}
+				>
 					<BaseDialog.Title className={styles.title} {...dragHandle}>
 						{title}
 					</BaseDialog.Title>

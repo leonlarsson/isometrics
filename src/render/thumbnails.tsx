@@ -1,10 +1,15 @@
 import { createRoot, extend, useThree } from "@react-three/fiber";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
-import { resolvePartColors } from "#/parts/colorModel";
-import { resolvePartLights } from "#/parts/lightModel";
+import { resolveColors } from "#/parts/colorModel";
+import { resolveLights } from "#/parts/lightModel";
 import { PARTS, resolveProps, type TAnyPart } from "#/parts/registry";
+import {
+	hasObjectSettings,
+	NO_OBJECT_SETTINGS,
+	type TObjectSettings,
+} from "#/scene/objectSettings";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { VIEW_DIRECTION } from "./CameraRig";
@@ -121,6 +126,24 @@ const NIGHT_LIGHT = { share: 0.3, sunShare: 0.25, moon: "#a9b8ff" };
 export const pictureLookPalette = (look: IPictureLook): IScenePalette =>
 	look.night ? { ...scenePalettes[look.theme], night: 1 } : scenePalettes[look.theme];
 
+/** The hour a look shows, for lights on a schedule: noon by day, 22:00 at night. */
+export const pictureLookHour = (look: IPictureLook) => (look.night ? 22 : 12);
+
+/** How a part draws with an object's settings, parked, in a look's colours at its hour. */
+export const partDrawing = (
+	part: TAnyPart,
+	settings: TObjectSettings,
+	palette: IScenePalette,
+	hour: number | null,
+) => {
+	const stored = { ...settings, color: null, accent: null };
+	return {
+		props: resolveProps(part, settings.props),
+		colors: resolveColors(part, stored, palette),
+		lights: resolveLights(part, stored, { palette, driving: false, hour }),
+	};
+};
+
 /**
  * The lights of the scene, without shadows: for pictures and previews of
  * single parts. At night (`palette.night`) a dim, bluish moonlight instead.
@@ -148,15 +171,20 @@ export const PartLights = ({ palette }: { palette: IScenePalette }) => {
 	);
 };
 
-interface IShotProps {
+/** One picture to take: a part, with an object's settings, in a look. */
+interface IShot {
 	part: TAnyPart;
-	palette: IScenePalette;
+	settings: TObjectSettings;
+	look: IPictureLook;
+}
+
+interface IShotProps extends IShot {
 	size: IPictureSize;
 	onShot: (url: string) => void;
 }
 
 /** Shows one part, frames it, renders one frame and hands back the picture. */
-const Shot = ({ part, palette, size, onShot }: IShotProps) => {
+const Shot = ({ part, settings, look, size, onShot }: IShotProps) => {
 	const gl = useThree((s) => s.gl);
 	const scene = useThree((s) => s.scene);
 	const camera = useThree((s) => s.camera);
@@ -182,8 +210,8 @@ const Shot = ({ part, palette, size, onShot }: IShotProps) => {
 		}
 	}, []);
 
-	const props = resolveProps(part, {});
-	const colors = resolvePartColors(part, palette);
+	const palette = pictureLookPalette(look);
+	const { props, colors, lights } = partDrawing(part, settings, palette, pictureLookHour(look));
 	const Component = part.Component;
 	return (
 		<>
@@ -194,7 +222,7 @@ const Shot = ({ part, palette, size, onShot }: IShotProps) => {
 					props={props}
 					colors={colors}
 					palette={palette}
-					lights={resolvePartLights(part, palette)}
+					lights={lights}
 					playing={false}
 					onReady={part.rendersAsync ? shoot : undefined}
 				/>
@@ -203,10 +231,13 @@ const Shot = ({ part, palette, size, onShot }: IShotProps) => {
 	);
 };
 
-/** Render every part for one set, publishing each picture as soon as it's ready. */
-const renderSet = async (set: IPictureSet) => {
-	const key = keyOf(set);
-	const palette = pictureLookPalette(set.look);
+let shots = 0;
+
+/** Take pictures with one offscreen canvas (one WebGL context), which goes away afterwards. */
+const withPictureCanvas = async (
+	size: IPictureSize,
+	use: (take: (shot: IShot) => Promise<string>) => Promise<void>,
+) => {
 	// <Canvas> teaches R3F three's classes; a root of our own, maybe before any canvas, needs it too.
 	extend(THREE as unknown as Parameters<typeof extend>[0]);
 	const canvas = document.createElement("canvas");
@@ -215,25 +246,35 @@ const renderSet = async (set: IPictureSet) => {
 		gl: { alpha: true, antialias: true, preserveDrawingBuffer: true },
 		orthographic: true,
 		camera: { near: 0.1, far: 200 },
-		size: { ...set.size, top: 0, left: 0 },
+		size: { ...size, top: 0, left: 0 },
 		dpr: DPR,
 		frameloop: "never",
 	});
-	const pictures: Record<string, string> = {};
 	try {
-		for (const part of PARTS) {
-			await idle();
-			pictures[part.kind] = await new Promise<string>((resolve) => {
-				root.render(
-					<Shot key={part.kind} part={part} palette={palette} size={set.size} onShot={resolve} />,
-				);
-			});
-			cache.set(key, { ...pictures });
-			notify();
-		}
+		await use(
+			(shot) =>
+				new Promise<string>((resolve) => {
+					shots += 1;
+					root.render(<Shot key={shots} {...shot} size={size} onShot={resolve} />);
+				}),
+		);
 	} finally {
 		root.unmount();
 	}
+};
+
+/** Render every part for one set, publishing each picture as soon as it's ready. */
+const renderSet = (set: IPictureSet) => {
+	const key = keyOf(set);
+	const pictures: Record<string, string> = {};
+	return withPictureCanvas(set.size, async (take) => {
+		for (const part of PARTS) {
+			await idle();
+			pictures[part.kind] = await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look });
+			cache.set(key, { ...pictures });
+			notify();
+		}
+	});
 };
 
 /** Work through the requested sets one at a time (each run uses its own WebGL context). */
@@ -284,3 +325,72 @@ export const usePartPictures = (look: IPictureLook, size: IPictureSize): TThumbn
 /** The Add to scene panel's small pictures of the parts for a theme, by day. */
 export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails =>
 	usePartPictures({ theme, night: false }, THUMBNAIL_SIZE);
+
+/** Pictures of one part with an object's settings, taken one batch at a time. */
+let settingsShots = Promise.resolve();
+
+/** The last batches taken, by part, settings, looks and size: reopening a part shows them at once. */
+const settingsCache = new Map<string, string[]>();
+const SETTINGS_CACHE_SIZE = 24;
+
+/** How long changed settings must stay the same before their pictures are taken (a slider being dragged). */
+const SETTLE_MS = 250;
+
+/**
+ * Pictures of one part with an object's settings (none: as it comes), one per
+ * look, rendered on their own rather than waiting for every part's: a moment
+ * after the settings stop changing, the last ones kept meanwhile (a part's
+ * details in the catalogue).
+ */
+export const usePartPicturesWith = (
+	part: TAnyPart,
+	settings: TObjectSettings,
+	looks: readonly IPictureLook[],
+	size: IPictureSize,
+): (string | undefined)[] => {
+	const key = [
+		part.kind,
+		JSON.stringify(settings),
+		...looks.map((look) => keyOf({ look, size })),
+	].join("|");
+	const [taken, setTaken] = useState<{ kind: string; urls: string[] } | null>(null);
+	const cached = settingsCache.get(key);
+	useEffect(() => {
+		if (cached) {
+			setTaken({ kind: part.kind, urls: cached });
+			return;
+		}
+		let stale = false;
+		const timer = setTimeout(
+			() => {
+				settingsShots = settingsShots.then(() =>
+					stale
+						? undefined
+						: withPictureCanvas(size, async (take) => {
+								const urls: string[] = [];
+								for (const look of looks) {
+									urls.push(await take({ part, settings, look }));
+								}
+								settingsCache.set(key, urls);
+								// Oldest first: a slider dragged through many values keeps only the last few.
+								for (const old of settingsCache.keys()) {
+									if (settingsCache.size <= SETTINGS_CACHE_SIZE) {
+										break;
+									}
+									settingsCache.delete(old);
+								}
+								if (!stale) {
+									setTaken({ kind: part.kind, urls });
+								}
+							}).catch((error) => console.warn("Could not render part pictures", error)),
+				);
+			},
+			hasObjectSettings(settings) ? SETTLE_MS : 0,
+		);
+		return () => {
+			stale = true;
+			clearTimeout(timer);
+		};
+	}, [key]);
+	return cached ?? (taken?.kind === part.kind ? taken.urls : []);
+};

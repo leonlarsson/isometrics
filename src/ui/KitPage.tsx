@@ -306,6 +306,10 @@ export const KitPage = () => {
 											<Button size="sm" icon="plus">
 												Add
 											</Button>
+
+											<Button size="sm" icon="check" showsSuccess>
+												Just worked
+											</Button>
 										</ButtonGroup>
 
 										<ButtonGroup vertical>

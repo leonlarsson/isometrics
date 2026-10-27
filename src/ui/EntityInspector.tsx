@@ -2,12 +2,11 @@ import type { Draft } from "immer";
 
 import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
 import { useSceneHours } from "#/editor/dayClock";
-import { type ICommitOptions, type TEntityColorChange, useEditor } from "#/editor/store";
+import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
-import { lightDefaults, lightSettingsOf, SWITCH_ON_DARKNESS } from "#/parts/lightModel";
-import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
-import type { ILightSpec, TFieldSpec } from "#/parts/types";
+import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
+import { getPart, partName, type TAnyPart } from "#/parts/registry";
+import type { ILightSpec } from "#/parts/types";
 import {
 	polylineLength,
 	ROAD_STYLE_LABELS,
@@ -22,12 +21,9 @@ import type { TEntity, TTurnStyle } from "#/scene/schema";
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
 import { CopyPasteMenu } from "./CopyPasteMenu";
-import { DataDrivenField } from "./DataDrivenField";
 import { FollowDataNote } from "./FollowDataNote";
 import {
 	CheckboxGroupField,
-	ColorField,
-	FieldGroup,
 	formatClock,
 	Hint,
 	Section,
@@ -38,8 +34,8 @@ import {
 	VectorField,
 } from "./fields";
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
-import { LightSettings } from "./LightSettings";
 import { Menu } from "./Menu";
+import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
 
 const KeyPicker = ({
 	label,
@@ -62,101 +58,6 @@ const KeyPicker = ({
 			onChange={onChange}
 		/>
 	);
-};
-
-/** Pick one of the world's data keys, or none. */
-const DataKeyField = ({
-	label,
-	value,
-	onChange,
-	mixed,
-}: {
-	label: string;
-	value: string;
-	onChange: (key: string) => void;
-	mixed?: boolean;
-}) => {
-	const data = useEditor((s) => s.scene.data);
-	return (
-		<SelectField
-			label={label}
-			value={value}
-			mixed={mixed}
-			options={[
-				{ value: "", label: "None" },
-				...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
-			]}
-			onChange={onChange}
-			hint={data.length === 0 ? "Add values in the Data tab to show one here." : undefined}
-		/>
-	);
-};
-
-/** One of a part's own settings, as its field spec describes it. */
-export const PropField = ({
-	spec,
-	value,
-	onChange,
-	mixed,
-}: {
-	spec: TFieldSpec;
-	value: unknown;
-	onChange: (value: unknown) => void;
-	/** It differs between the selected objects (ADR-0064). */
-	mixed?: boolean;
-}) => {
-	switch (spec.type) {
-		case "number":
-			return (
-				<SliderField
-					label={spec.label}
-					value={Number(value)}
-					min={spec.min}
-					max={spec.max}
-					step={spec.step}
-					onChange={onChange}
-					mixed={mixed}
-				/>
-			);
-		case "boolean":
-			return (
-				<SwitchField
-					label={spec.label}
-					checked={Boolean(value)}
-					onChange={onChange}
-					mixed={mixed}
-				/>
-			);
-		case "text":
-			return (
-				<TextField
-					label={spec.label}
-					value={String(value ?? "")}
-					placeholder={spec.placeholder}
-					onChange={onChange}
-					mixed={mixed}
-				/>
-			);
-		case "dataKey":
-			return (
-				<DataKeyField
-					label={spec.label}
-					value={String(value ?? "")}
-					onChange={onChange}
-					mixed={mixed}
-				/>
-			);
-		case "select":
-			return (
-				<SelectField
-					label={spec.label}
-					value={String(value)}
-					options={spec.options}
-					onChange={onChange}
-					mixed={mixed}
-				/>
-			);
-	}
 };
 
 /** Every edit coalesces per entity+field so typing or sliding is one undo step. */
@@ -289,14 +190,13 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Shape tab: the part's own settings (floors, width, text…). */
 const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setEntityProp = useEditor((s) => s.setEntityProp);
-	const props = resolveProps(part, entity.props);
+	const data = useEditor((s) => s.scene.data);
 
 	return (
-		<Section
-			id="shape.part"
-			icon="spline"
-			title={`${partName(part)} shape`}
-			keywords="shape size"
+		<PartShapeSection
+			part={part}
+			object={entity}
+			data={data}
 			actions={
 				<CopyPasteMenu
 					what={`${partName(part)} shape`}
@@ -304,18 +204,10 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					onPaste={() => pasteFromClipboard()}
 				/>
 			}
-		>
-			{part.fields.map((spec) => (
-				<PropField
-					key={spec.key}
-					spec={spec}
-					value={props[spec.key]}
-					onChange={(v) =>
-						setEntityProp(entity.id, spec.key, v, { coalesce: `${entity.id}:prop:${spec.key}` })
-					}
-				/>
-			))}
-		</Section>
+			onChange={(key, value) =>
+				setEntityProp(entity.id, key, value, { coalesce: `${entity.id}:prop:${key}` })
+			}
+		/>
 	);
 };
 
@@ -335,11 +227,11 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				a number on a colour scale, like a building that turns from green to red as it fills up.
 			</FollowDataNote>
 
-			<Section
-				id="look.colours"
-				icon="palette"
-				title="Colours"
-				keywords="colors paint data scale heatmap"
+			<PartColorsSection
+				part={part}
+				object={entity}
+				data={data}
+				palette={palette}
 				actions={
 					<CopyPasteMenu
 						what="Colours"
@@ -347,45 +239,15 @@ const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						onPaste={() => pasteFromClipboard()}
 					/>
 				}
-			>
-				{part.colors.map((spec) => {
-					const setting = colorSettingOf(entity, spec.id);
-					const change = (colorChange: TEntityColorChange, field?: string) =>
-						setEntityColor(
-							entity.id,
-							spec.id,
-							colorChange,
-							field ? { coalesce: `${entity.id}:color:${spec.id}:${field}` } : undefined,
-						);
-					// An older world's colour counts as set here, so Reset goes back to the part's.
-					const fromOlderWorld = spec.legacy ? entity[spec.legacy] : null;
-					return (
-						<FieldGroup key={spec.id} title={spec.name}>
-							<DataDrivenField
-								kind={COLOR_DATA.color}
-								binding={setting?.data.color}
-								data={data}
-								onBindingChange={(binding, field) =>
-									change({ data: { color: binding } }, field && `data.${field}`)
-								}
-							>
-								<ColorField
-									label="Colour"
-									value={setting?.color ?? colorDefault(spec, entity, palette)}
-									onChange={(color) => change({ color }, "color")}
-									inherit={{
-										from: "default",
-										inherited: (setting?.color ?? fromOlderWorld) === null,
-										onReset: () => change({ color: null }),
-									}}
-								/>
-							</DataDrivenField>
-						</FieldGroup>
-					);
-				})}
-
-				{part.colors.length === 0 && <Hint>It has no colours to change.</Hint>}
-			</Section>
+				onChange={(colorId, change, field) =>
+					setEntityColor(
+						entity.id,
+						colorId,
+						change,
+						field ? { coalesce: `${entity.id}:color:${colorId}:${field}` } : undefined,
+					)
+				}
+			/>
 		</>
 	);
 };
@@ -457,34 +319,22 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				lamp that turns on while an alert is above 0.
 			</FollowDataNote>
 
-			{(part.lights ?? []).map((spec) => {
-				const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
-				// Window lights split the part's windows between them by weight.
-				const windowWeights = (part.lights ?? [])
-					.filter((light) => light.shape === "windows")
-					.reduce((sum, light) => sum + (light.weight ?? 1), 0);
-				return (
-					<LightSettings
-						key={spec.id}
-						spec={spec}
-						defaults={lightDefaults(spec, entity, palette)}
-						setting={setting}
-						inheritedMode={objectMode}
-						data={data}
-						hour={hour}
-						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
-						menu={<LightCopyPasteMenu entity={entity} spec={spec} />}
-						onChange={(change, field) =>
-							setEntityLight(
-								entity.id,
-								spec.id,
-								change,
-								field ? { coalesce: `${entity.id}:light:${spec.id}:${field}` } : undefined,
-							)
-						}
-					/>
-				);
-			})}
+			<PartLightCards
+				part={part}
+				object={entity}
+				data={data}
+				palette={palette}
+				hour={hour}
+				menu={(spec) => <LightCopyPasteMenu entity={entity} spec={spec} />}
+				onChange={(lightId, change, field) =>
+					setEntityLight(
+						entity.id,
+						lightId,
+						change,
+						field ? { coalesce: `${entity.id}:light:${lightId}:${field}` } : undefined,
+					)
+				}
+			/>
 		</>
 	);
 };

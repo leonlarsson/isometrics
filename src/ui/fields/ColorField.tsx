@@ -1,4 +1,5 @@
 import { Popover } from "@base-ui/react/popover";
+import type { ReactNode } from "react";
 
 import { SWATCHES } from "#/scene/theme";
 
@@ -17,15 +18,16 @@ interface IColorFieldProps {
 	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
+	hint?: ReactNode;
 }
 
 /**
  * A colour as one compact button (its swatch and hex code) that opens the
  * friendly preset swatches and a free colour picker in a popover.
  */
-export const ColorField = ({ label, value, onChange, inherit, mixed }: IColorFieldProps) => {
+export const ColorField = ({ label, value, onChange, inherit, mixed, hint }: IColorFieldProps) => {
 	return (
-		<Field label={label} inherit={inherit} mixed={mixed}>
+		<Field label={label} inherit={inherit} mixed={mixed} hint={hint}>
 			{(id) => (
 				<Popover.Root>
 					<Popover.Trigger id={id} className={styles.colorTrigger}>

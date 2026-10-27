@@ -32,6 +32,8 @@ interface IButtonProps {
 	centered?: boolean;
 	/** Extra muted text pushed to the right edge (with `block`). */
 	meta?: ReactNode;
+	/** Outlined in green for a moment after it worked, e.g. once it copied (with a `check` icon). */
+	showsSuccess?: boolean;
 }
 
 export const Button = ({
@@ -44,11 +46,13 @@ export const Button = ({
 	block,
 	centered,
 	meta,
+	showsSuccess,
 }: IButtonProps) => {
 	return (
 		<BaseButton
 			className={styles.button}
 			data-variant={variant}
+			data-success={showsSuccess || undefined}
 			data-size={size}
 			data-block={block || undefined}
 			data-centered={centered || undefined}

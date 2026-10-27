@@ -70,6 +70,16 @@
 	box-shadow: inset 0 0 0 1px var(--text-muted);
 }
 
+/* It just worked (showsSuccess): a green outline and icon, hovered or not. */
+.button[data-success],
+.button[data-success]:hover:not([data-disabled]) {
+	box-shadow: inset 0 0 0 1px var(--success);
+}
+
+.button[data-success] svg {
+	color: var(--success);
+}
+
 .button[data-variant="ghost"] {
 	color: var(--text-muted);
 }

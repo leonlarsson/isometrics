@@ -172,7 +172,11 @@
 	gap: 20px;
 }
 
+/* The pictures stay in sight while the settings beside them scroll. */
 .detailsPictures {
+	position: sticky;
+	top: 0;
+	align-self: start;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -247,53 +251,12 @@
 	font-size: 12px;
 }
 
-.heading {
-	margin: 12px 0 0;
-	font-size: 14px;
-	font-weight: 700;
-}
-
-.rows {
+/* Copy as JSON and Reset all. */
+.tryOut {
 	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.rows li {
-	display: grid;
-	grid-template-columns: auto max-content minmax(0, 1fr);
-	align-items: baseline;
+	flex-wrap: wrap;
 	gap: 8px;
-}
-
-/* Rows without a swatch or icon in front. */
-.rows li:not(:has(> :nth-child(3))) {
-	grid-template-columns: max-content minmax(0, 1fr);
-}
-
-.rowName {
-	font-weight: 600;
-}
-
-.rowMeta {
-	color: var(--text-muted);
-	font-size: 13px;
-}
-
-.swatch {
-	align-self: center;
-	width: 16px;
-	height: 16px;
-	border: 1px solid var(--border-strong);
-	border-radius: 5px;
-}
-
-.none {
-	margin: 0;
-	color: var(--text-muted);
+	margin-top: 4px;
 }
 
 @media (max-width: 900px) {
@@ -303,5 +266,9 @@
 
 	.details {
 		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.detailsPictures {
+		position: static;
 	}
 }

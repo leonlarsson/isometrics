@@ -4,31 +4,27 @@ import type { ReactNode } from "react";
 import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
 import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
-import {
-	type ICommitOptions,
-	listOf,
-	newId,
-	type TEntityColorChange,
-	useEditor,
-} from "#/editor/store";
+import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
 import { comesOnOf, lightDefaults, lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
+import type { TEntityColorChange } from "#/scene/objectSettings";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TEntity, TScene } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import { CopyPasteMenu } from "./CopyPasteMenu";
 import { DataDrivenField } from "./DataDrivenField";
-import { LightCopyPasteMenu, PropField } from "./EntityInspector";
+import { LightCopyPasteMenu } from "./EntityInspector";
 import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, FieldGroup, Hint, Kbd, Section, SliderField } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { LightSettings, type TLightSettingKey } from "./LightSettings";
 import { List, ListItem } from "./List";
+import { PropField } from "./PartSettings";
 
 /** A selected object whose part this version has, with that part. */
 interface IMember {
@@ -258,6 +254,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 	const part = members[0].part;
 	const writeAll = writeTo(members.map((member) => member.entity));
 	const props = members.map((member) => resolveProps(part, member.entity.props));
+	const data = useEditor((s) => s.scene.data);
 
 	return (
 		<Section
@@ -281,6 +278,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 					spec={spec}
 					value={props.at(-1)?.[spec.key]}
 					mixed={differ(props.map((values) => values[spec.key]))}
+					data={data}
 					onChange={(v) =>
 						writeAll(
 							(id, options) => useEditor.getState().setEntityProp(id, spec.key, v, options),

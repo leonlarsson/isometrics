@@ -1,33 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { notify } from "#/editor/toasts";
 import { usePrefersDark } from "#/editor/useTheme";
 import { APP_NAME } from "#/lib/app";
-import { resolvePartColors } from "#/parts/colorModel";
 import { PARTS, partName, resolveProps, type TAnyPart } from "#/parts/registry";
-import {
-	CATEGORY_LABELS,
-	type ILightSpec,
-	type TFieldSpec,
-	type TLightShape,
-	type TPartCategory,
-} from "#/parts/types";
+import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { PartPreviewModel } from "#/render/PartPreviewModel";
 import {
 	type IPictureLook,
 	type IPictureSize,
+	pictureLookHour,
 	pictureLookPalette,
 	usePartPictures,
+	usePartPicturesWith,
 } from "#/render/thumbnails";
+import {
+	hasObjectSettings,
+	NO_OBJECT_SETTINGS,
+	type TObjectSettings,
+	withColorChange,
+	withLightChange,
+	withPropChange,
+} from "#/scene/objectSettings";
 import { scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
-import { IconButton } from "./Button";
+import { Button, IconButton } from "./Button";
 import { ChipGroup } from "./ChipGroup";
 import { Dialog } from "./Dialog";
 import { Hint, SearchField } from "./fields";
-import { Icon } from "./Icon";
 import { CATEGORY_ICONS } from "./inspectorTabs";
-import { COMES_ON } from "./LightSettings";
+import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
 import { Toaster } from "./Toaster";
 import { TooltipProvider } from "./Tooltip";
 
@@ -44,14 +46,7 @@ const LOOKS: { look: IPictureLook; label: string }[] = [
 	{ look: { theme: "dark", night: true }, label: "Dark, at night" },
 ];
 
-/** What each shape of light is, in a few words. */
-const LIGHT_SHAPES: Record<TLightShape, string> = {
-	lens: "A small glowing light",
-	beam: "A beam on the road ahead",
-	pool: "A glow on the ground around it",
-	windows: "Lit windows",
-	glow: "A glowing surface",
-};
+const LOOKS_SHOWN = LOOKS.map(({ look }) => look);
 
 const round = (value: number) => Math.round(value * 10) / 10;
 
@@ -73,87 +68,97 @@ const matches = (part: TAnyPart, query: string) => {
 		.every((word) => text.includes(word));
 };
 
-/** What a setting can be, in words. */
-const settingRange = (field: TFieldSpec) => {
-	switch (field.type) {
-		case "number":
-			return `${field.min} to ${field.max}`;
-		case "boolean":
-			return "On or off";
-		case "select":
-			return field.options.map((option) => option.label).join(", ");
-		case "text":
-			return "Text";
-		case "dataKey":
-			return "One of the world's data values";
-	}
+/** How long a copy button shows its tick after copying. */
+const COPIED_MS = 2000;
+
+/**
+ * Put text on the clipboard, saying so (or that the browser didn't allow it);
+ * `copied` is true for a moment afterwards, so the button can show a tick.
+ */
+const useCopy = () => {
+	const [copied, setCopied] = useState(false);
+	const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+	useEffect(() => () => clearTimeout(timer.current), []);
+	const copy = (text: string, done: string) => {
+		void navigator.clipboard
+			.writeText(text)
+			.then(() => {
+				notify(done);
+				setCopied(true);
+				clearTimeout(timer.current);
+				timer.current = setTimeout(() => setCopied(false), COPIED_MS);
+			})
+			.catch(() => notify("Couldn't copy: the browser didn't allow it"));
+	};
+	return { copied, copy };
 };
 
-/** A setting's value in words. */
-const settingValue = (field: TFieldSpec, value: unknown) => {
-	switch (field.type) {
-		case "boolean":
-			return value ? "On" : "Off";
-		case "select":
-			return field.options.find((option) => option.value === value)?.label ?? String(value);
-		case "text":
-			return value ? `“${value}”` : "Empty";
-		case "dataKey":
-			return value ? String(value) : "None";
-		default:
-			return String(value);
-	}
-};
-
-/** When a light is on by itself, and how it comes on. */
-const lightWhen = (light: ILightSpec) =>
-	`${light.when === "driving" ? "On while driving after dark" : "On after dark"}, ${COMES_ON[
-		light.comesOn ?? "atOnce"
-	].label.toLowerCase()}`;
+/**
+ * The part with these settings as an object copied from the editor (ADR-0068):
+ * Ctrl+V in a world pastes it, and the object inside is what a world's file holds.
+ */
+const objectText = (part: TAnyPart, { props, colors, lights }: TObjectSettings) =>
+	JSON.stringify(
+		{
+			app: APP_NAME.toLowerCase(),
+			type: "things",
+			entities: [
+				{
+					id: part.kind,
+					kind: part.kind,
+					...(Object.keys(props).length > 0 && { props }),
+					...(Object.keys(colors).length > 0 && { colors }),
+					...(Object.keys(lights).length > 0 && { lights }),
+				},
+			],
+		},
+		null,
+		2,
+	);
 
 /** A part's kind, to copy for a world written by hand or by an AI. */
-const KindCode = ({ kind }: { kind: string }) => (
-	<span className={styles.kind}>
-		<code>{kind}</code>
+const KindCode = ({ kind }: { kind: string }) => {
+	const { copied, copy } = useCopy();
+	return (
+		<span className={styles.kind}>
+			<code>{kind}</code>
 
-		<IconButton
-			icon="copy"
-			label={`Copy ${kind}`}
-			onClick={() => {
-				void navigator.clipboard
-					.writeText(kind)
-					.then(() => notify(`Copied ${kind}`))
-					.catch(() => notify("Couldn't copy: the browser didn't allow it"));
-			}}
-		/>
-	</span>
-);
+			<IconButton
+				icon={copied ? "check" : "copy"}
+				label={copied ? `Copied ${kind}` : `Copy ${kind}`}
+				onClick={() => copy(kind, `Copied ${kind}`)}
+			/>
+		</span>
+	);
+};
 
-/** Everything about one part: a live model, its four looks, and what it has. */
-const PartDetails = ({
-	part,
-	theme,
-	night,
-}: {
+interface IPartDetailsProps {
 	part: TAnyPart;
 	theme: TResolvedTheme;
 	night: boolean;
-}) => {
-	const looks = [
-		usePartPictures(LOOKS[0].look, LOOK_PICTURE),
-		usePartPictures(LOOKS[1].look, LOOK_PICTURE),
-		usePartPictures(LOOKS[2].look, LOOK_PICTURE),
-		usePartPictures(LOOKS[3].look, LOOK_PICTURE),
-	];
+	/** What's been changed here: its props, colours and lights. */
+	settings: TObjectSettings;
+	onSettingsChange: (settings: TObjectSettings) => void;
+}
+
+/**
+ * Everything about one part: a live model and its four looks, and the
+ * editor's own panels for its settings, colours and lights to try it out.
+ */
+const PartDetails = ({ part, theme, night, settings, onSettingsChange }: IPartDetailsProps) => {
+	const looks = usePartPicturesWith(part, settings, LOOKS_SHOWN, LOOK_PICTURE);
 	const palette = pictureLookPalette({ theme, night });
-	const props = resolveProps(part, {}) as Record<string, unknown>;
+	const hour = pictureLookHour({ theme, night });
+	const props = resolveProps(part, settings.props) as Record<string, unknown>;
 	const [width, depth] = part.footprint(props);
-	const colors = resolvePartColors(part, palette);
+	const object = { ...settings, color: null, accent: null };
+	const changed = hasObjectSettings(settings);
+	const json = useCopy();
 	return (
 		<div className={styles.details}>
 			<div className={styles.detailsPictures}>
 				<div className={styles.model} data-night={night || undefined}>
-					<PartPreviewModel kind={part.kind} palette={palette} />
+					<PartPreviewModel kind={part.kind} palette={palette} settings={settings} hour={hour} />
 				</div>
 
 				<div className={styles.looks}>
@@ -167,7 +172,7 @@ const PartDetails = ({
 									look.night ? undefined : { background: scenePalettes[look.theme].background }
 								}
 							>
-								{looks[i][part.kind] && <img src={looks[i][part.kind]} alt="" />}
+								{looks[i] && <img src={looks[i]} alt="" />}
 							</span>
 
 							<figcaption>{label}</figcaption>
@@ -192,7 +197,7 @@ const PartDetails = ({
 
 					<dt>Size</dt>
 
-					<dd>{`${round(width)} × ${round(depth)} wide, ${round(part.height(props))} tall (at its default settings)`}</dd>
+					<dd>{`${round(width)} × ${round(depth)} wide, ${round(part.height(props))} tall`}</dd>
 
 					{part.canFollowPath && (
 						<>
@@ -211,71 +216,68 @@ const PartDetails = ({
 					)}
 				</dl>
 
-				<h3 className={styles.heading}>Colours</h3>
+				<div className={styles.tryOut}>
+					<Button
+						size="sm"
+						icon={json.copied ? "check" : "copy"}
+						showsSuccess={json.copied}
+						onClick={() =>
+							json.copy(
+								objectText(part, settings),
+								`Copied ${partName(part)}: paste it into a world with Ctrl+V`,
+							)
+						}
+					>
+						Copy as JSON
+					</Button>
 
-				<ul className={styles.rows}>
-					{part.colors.map((color) => (
-						<li key={color.id}>
-							<span className={styles.swatch} style={{ background: colors[color.id] }} />
+					<Button
+						size="sm"
+						icon="reset"
+						disabled={!changed}
+						onClick={() => onSettingsChange(NO_OBJECT_SETTINGS)}
+					>
+						Reset all
+					</Button>
+				</div>
 
-							<span className={styles.rowName}>{color.name}</span>
+				<Hint>
+					Try its settings, colours and lights below; the link keeps them. Copy as JSON to paste it
+					into a world (Ctrl+V in the editor) or a world's file. In a world, colours and lights can
+					also follow its data.
+				</Hint>
 
-							<span className={styles.rowMeta}>
-								{typeof color.default === "function" ? "Follows the theme" : colors[color.id]}
+				<PartShapeSection
+					part={part}
+					object={object}
+					data={[]}
+					showFileNames
+					startsFolded
+					onChange={(key, value) =>
+						onSettingsChange(withPropChange(settings, key, value, resolveProps(part, {})))
+					}
+				/>
 
-								{" · "}
+				<PartColorsSection
+					part={part}
+					object={object}
+					data={[]}
+					showFileNames
+					startsFolded
+					palette={palette}
+					onChange={(id, change) => onSettingsChange(withColorChange(settings, id, change))}
+				/>
 
-								<code>{color.id}</code>
-							</span>
-						</li>
-					))}
-				</ul>
-
-				<h3 className={styles.heading}>Lights</h3>
-
-				{(part.lights ?? []).length === 0 ? (
-					<p className={styles.none}>None</p>
-				) : (
-					<ul className={styles.rows}>
-						{part.lights?.map((light) => (
-							<li key={light.id}>
-								<Icon name="bulb" size={16} />
-
-								<span className={styles.rowName}>{light.name}</span>
-
-								<span className={styles.rowMeta}>
-									{`${(light.description ?? LIGHT_SHAPES[light.shape]).replace(/\.$/, "")}. ${lightWhen(light)}.`}
-
-									{" · "}
-
-									<code>{light.id}</code>
-								</span>
-							</li>
-						))}
-					</ul>
-				)}
-
-				<h3 className={styles.heading}>Settings</h3>
-
-				{part.fields.length === 0 ? (
-					<p className={styles.none}>None</p>
-				) : (
-					<ul className={styles.rows}>
-						{part.fields.map((field) => (
-							<li key={field.key}>
-								<span className={styles.rowName}>{field.label}</span>
-
-								<span className={styles.rowMeta}>
-									{`${settingRange(field)}; ${settingValue(field, props[field.key])} at first`}
-
-									{" · "}
-
-									<code>{field.key}</code>
-								</span>
-							</li>
-						))}
-					</ul>
-				)}
+				<PartLightCards
+					part={part}
+					object={object}
+					data={[]}
+					showFileNames
+					startsFolded
+					palette={palette}
+					hour={hour}
+					onChange={(id, change) => onSettingsChange(withLightChange(settings, id, change))}
+				/>
 			</div>
 		</div>
 	);
@@ -285,15 +287,24 @@ interface IPartsCatalogueProps {
 	/** The part whose details are open (`?part=` in the address), or null. */
 	openKind: string | null;
 	onOpen: (kind: string | null) => void;
+	/** What's been changed in its details (`?settings=`). */
+	settings: TObjectSettings;
+	onSettingsChange: (settings: TObjectSettings) => void;
 }
 
 /**
  * The parts catalogue at /parts: every part you can add to a world, in either
  * theme, by day or at night, with a search and the categories as chips. A
- * part's details show it turning, its four looks, and its colours, lights and
- * settings with the names a world's file uses for them (ADR-0087).
+ * part's details show it turning and its four looks, with the editor's panels
+ * for its settings, colours and lights to try it out, and the names a world's
+ * file uses for them (ADR-0087).
  */
-export const PartsCatalogue = ({ openKind, onOpen }: IPartsCatalogueProps) => {
+export const PartsCatalogue = ({
+	openKind,
+	onOpen,
+	settings,
+	onSettingsChange,
+}: IPartsCatalogueProps) => {
 	const prefersDark = usePrefersDark();
 	const [theme, setTheme] = useState<TResolvedTheme>(() => (prefersDark ? "dark" : "light"));
 	const [time, setTime] = useState<"day" | "night">("day");
@@ -329,8 +340,8 @@ export const PartsCatalogue = ({ openKind, onOpen }: IPartsCatalogueProps) => {
 					</header>
 
 					<p className={styles.intro}>
-						Every part you can add to a world, with its colours, lights and settings. Click one to
-						see it turn and how it looks in each theme by day and at night.
+						Every part you can add to a world. Click one to see it turn and how it looks in each
+						theme by day and at night, and to try out its settings, colours and lights.
 					</p>
 
 					<p className={styles.intro}>
@@ -421,8 +432,17 @@ export const PartsCatalogue = ({ openKind, onOpen }: IPartsCatalogueProps) => {
 					description={open ? CATEGORY_LABELS[open.category] : undefined}
 					closeLabel="Close"
 					wide
+					initialFocus="dialog"
 				>
-					{open && <PartDetails part={open} theme={theme} night={night} />}
+					{open && (
+						<PartDetails
+							part={open}
+							theme={theme}
+							night={night}
+							settings={settings}
+							onSettingsChange={onSettingsChange}
+						/>
+					)}
 				</Dialog>
 			</Toaster>
 		</TooltipProvider>

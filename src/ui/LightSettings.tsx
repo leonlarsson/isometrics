@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import type { TEntityLightChange } from "#/editor/store";
 import {
 	comesOnOf,
 	inPeriod,
@@ -9,6 +8,7 @@ import {
 	type TLightDataTarget,
 } from "#/parts/lightModel";
 import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
+import type { TEntityLightChange } from "#/scene/objectSettings";
 import {
 	DataBindingSchema,
 	type TComesOn,
@@ -61,6 +61,10 @@ interface ILightSettingsProps {
 	appliesTo?: string;
 	/** The card's Copy / Paste menu (ADR-0068). */
 	menu?: ReactNode;
+	/** What a world's file calls the light, under its description (the parts catalogue). */
+	fileName?: ReactNode;
+	/** Folded each time it shows, not remembered (the parts catalogue). */
+	startsFolded?: boolean;
 }
 
 /** A light setting, or what one of its settings follows in the data, for `mixed`. */
@@ -134,6 +138,8 @@ export const LightSettings = ({
 	mixed = NOTHING_MIXED,
 	appliesTo,
 	menu,
+	fileName,
+	startsFolded,
 }: ILightSettingsProps) => {
 	const bound = setting?.data ?? {};
 	const hasData = data.length > 0;
@@ -171,10 +177,14 @@ export const LightSettings = ({
 			title={spec.name}
 			keywords="light lights night glow colour brightness turns on data windows lit panes"
 			actions={menu}
+			defaultClosed={startsFolded}
+			remembersOpen={!startsFolded}
 		>
 			{appliesTo && <Hint>{appliesTo}</Hint>}
 
 			{spec.description && <Hint>{spec.description}</Hint>}
+
+			{fileName && <Hint>{fileName}</Hint>}
 
 			<FieldGroup title="Turns on">
 				<SelectField<TTurnsOn>

@@ -36,6 +36,11 @@
 		opacity 120ms ease-out;
 }
 
+/* Focused itself when it opens (`initialFocus="dialog"`): no ring around the whole dialog. */
+.popup:focus {
+	outline: none;
+}
+
 .popup[data-wide] {
 	width: 840px;
 }
