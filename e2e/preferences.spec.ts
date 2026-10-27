@@ -18,6 +18,14 @@ const preferences = (page: import("@playwright/test").Page) =>
 
 test.beforeEach(async ({ page }) => {
 	await openEditor(page);
+	// A small world: these switch to Nice and Ultra, whose frames of the whole starter world take
+	// seconds in CI's software rendering and starve the page.
+	await loadWorld(page, {
+		entities: [
+			{ id: "house", kind: "house_01", position: [0, 0] },
+			{ id: "tree", kind: "round_tree_01", position: [3, 1] },
+		],
+	});
 });
 
 test.describe("Preferences (ADR-0062, ADR-0068)", () => {
