@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import { jitter, Mat } from "./primitives";
+import { jitter, Mat, spread } from "./primitives";
 import type { IResolvedLight } from "./types";
 
 /**
@@ -244,6 +244,45 @@ export const LightPool = ({
 			strength={1 - Math.exp(-1.1 * light.level)}
 			position={[x, GLOW_HEIGHT, z]}
 		/>
+	);
+};
+
+/**
+ * The soft light a row of lit windows throws on the ground beside something
+ * long (a bus, a tram): faint pools along both sides, `length` long and
+ * `width` apart, a `share` of the light's brightness, so they glow but don't
+ * look like lamps.
+ */
+export const WindowGlowOnGround = ({
+	light,
+	length,
+	width,
+	share = 0.3,
+}: {
+	light: IResolvedLight;
+	length: number;
+	width: number;
+	share?: number;
+}) => {
+	if (!light.on) {
+		return null;
+	}
+	const pools = Math.max(1, Math.round(length / 1.2));
+	const radius = Math.min(0.9, (length / pools) * 0.75);
+	return (
+		<>
+			{spread(pools, length).flatMap((x) =>
+				[1, -1].map((side) => (
+					<GroundGlow
+						key={`${x},${side}`}
+						color={light.color}
+						radius={radius}
+						strength={1 - Math.exp(-1.1 * light.level * share)}
+						position={[x, GLOW_HEIGHT, side * (width / 2 + radius * 0.35)]}
+					/>
+				)),
+			)}
+		</>
 	);
 };
 

@@ -1,31 +1,16 @@
 import { useLayoutEffect, useMemo } from "react";
-import * as THREE from "three";
 import { z } from "zod";
 
 import { lightEmission } from "../lights";
-import { Box, Mat, shareGeometryAs } from "../primitives";
+import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
+
+import { boatHullGeometry } from "./boatKit";
 
 const YachtSchema = z.object({
 	length: z.number().min(1.5).max(12).default(3.4),
 	deckCount: z.number().int().min(1).max(4).default(2),
 });
-
-/** Hull outline seen from above: square stern, pointed bow towards +X. */
-const hullGeometry = (length: number, width: number, height: number) => {
-	const shape = new THREE.Shape();
-	shape.moveTo(-length / 2, -width / 2);
-	shape.lineTo(length * 0.2, -width / 2);
-	shape.quadraticCurveTo(length * 0.45, -width / 2, length / 2, 0);
-	shape.quadraticCurveTo(length * 0.45, width / 2, length * 0.2, width / 2);
-	shape.lineTo(-length / 2, width / 2);
-	shape.closePath();
-	const geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
-	// Extruded along +Z; turn it so the extrusion goes up and the outline lies on the ground.
-	geometry.rotateX(-Math.PI / 2);
-	geometry.computeVertexNormals();
-	return shareGeometryAs(geometry, `yachtHull:${length},${width},${height}`);
-};
 
 const HULL_HEIGHT = 0.42;
 const DECK_HEIGHT = 0.3;
@@ -67,9 +52,9 @@ export const yacht01 = definePart({
 	height: (p) => HULL_HEIGHT + p.deckCount * DECK_HEIGHT + 0.25,
 	Component: ({ props: p, colors, palette, lights }) => {
 		const width = p.length * 0.32;
-		const hull = useMemo(() => hullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
+		const hull = useMemo(() => boatHullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
 		const stripe = useMemo(
-			() => hullGeometry(p.length * 1.01, width * 1.03, 0.07),
+			() => boatHullGeometry(p.length * 1.01, width * 1.03, 0.07),
 			[p.length, width],
 		);
 		useLayoutEffect(
