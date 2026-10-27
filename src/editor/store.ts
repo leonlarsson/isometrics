@@ -2,6 +2,7 @@ import { type Draft, produce } from "immer";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 
+import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
@@ -50,6 +51,14 @@ import { createBrightwaterScene } from "#/templates/brightwater";
 
 import { restartDayCycle } from "./dayClock";
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
+import {
+	DEFAULT_BRUSH,
+	eraseStamp,
+	type IPaintBrush,
+	PAINT_DENSITY,
+	PAINT_SIZE,
+	paintStamp,
+} from "./paint";
 import { readPreferences } from "./preferences";
 import { notify } from "./toasts";
 
@@ -227,6 +236,10 @@ export interface IEditorState {
 	 */
 	selectedPointIndices: number[];
 	drawing: IRoadDrawing | null;
+	/** The paint bar is open: a drag on the view paints (or erases) objects (ADR-0091). */
+	painting: boolean;
+	/** The brush's settings, remembered per browser. */
+	paintBrush: IPaintBrush;
 	/** Part kind being dragged from the palette onto the scene. Runtime UI state. */
 	placingKind: string | null;
 	transform: ITransformSession | null;
@@ -335,6 +348,16 @@ export interface IEditorState {
 	/** Select exactly these items; the last is the active one. */
 	selectItems: (items: ISceneItem[]) => void;
 	setBoxSelect: (mode: "add" | "remove" | null) => void;
+	/** Open or close the paint bar (ADR-0091). */
+	setPainting: (on: boolean) => void;
+	setPaintBrush: (change: Partial<IPaintBrush>) => void;
+	/**
+	 * One stamp of the brush at a ground point, in a stroke (a unique key): what it paints is added,
+	 * or what it erases taken away, and a whole stroke is one undo step. Closing the paint bar
+	 * selects what was painted while it was open, so it moves or deletes as one.
+	 */
+	paintAt: (center: TVec2, stroke: string, mode: IPaintBrush["mode"]) => void;
+
 	setBoxDrag: (drag: IEditorState["boxDrag"]) => void;
 	/** Delete everything selected (one undo step). */
 	removeSelected: () => void;
@@ -539,6 +562,41 @@ export interface IEditorState {
 }
 
 export const newId = (prefix: string) => `${prefix}_${nanoid(8)}`;
+
+/** What was painted since the paint bar opened, to select when it closes (ADR-0091). */
+const paintedThisTime = new Set<string>();
+
+const PAINT_BRUSH_KEY = `${APP_NAME.toLowerCase()}:paint-brush`;
+
+/** The brush as last used in this browser, each setting checked; the default for anything off. */
+const readPaintBrush = (): IPaintBrush => {
+	try {
+		const stored = JSON.parse(
+			localStorage.getItem(PAINT_BRUSH_KEY) ?? "{}",
+		) as Partial<IPaintBrush>;
+		const within = (
+			value: unknown,
+			{ min, max }: { min: number; max: number },
+			fallback: number,
+		) => (typeof value === "number" && value >= min && value <= max ? value : fallback);
+		return {
+			brushId: typeof stored.brushId === "string" ? stored.brushId : DEFAULT_BRUSH.brushId,
+			mode: stored.mode === "erase" ? "erase" : "paint",
+			size: within(stored.size, PAINT_SIZE, DEFAULT_BRUSH.size),
+			density: within(stored.density, PAINT_DENSITY, DEFAULT_BRUSH.density),
+		};
+	} catch {
+		return DEFAULT_BRUSH;
+	}
+};
+
+const savePaintBrush = (brush: IPaintBrush) => {
+	try {
+		localStorage.setItem(PAINT_BRUSH_KEY, JSON.stringify(brush));
+	} catch {
+		// Storage unavailable: it's remembered until the page closes.
+	}
+};
 
 /** Keep road/area/point selection only if it still exists in `scene` (after undo/redo). */
 const validRoadSelection = (
@@ -784,6 +842,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			boxSelect: null,
 			boxDrag: null,
 			drawing: null,
+			painting: false,
+			paintBrush: readPaintBrush(),
 			placingKind: null,
 			transform: null,
 			viewInset: 0,
@@ -1019,7 +1079,63 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						items.filter((item, index) => items.findIndex(sameItem(item)) === index),
 					),
 				),
-			setBoxSelect: (mode) => set({ boxSelect: mode, boxDrag: null }),
+			setBoxSelect: (mode) =>
+				set(
+					mode
+						? { boxSelect: mode, boxDrag: null, painting: false }
+						: { boxSelect: null, boxDrag: null },
+				),
+			setPainting: (on) => {
+				if (on) {
+					paintedThisTime.clear();
+					set({
+						painting: true,
+						boxSelect: null,
+						drawing: null,
+						placingKind: null,
+						followOffer: null,
+					});
+					return;
+				}
+				set({ painting: false });
+				// What was painted (and is still there) is selected, to move or delete as one.
+				const present = new Set(get().scene.entities.map((entity) => entity.id));
+				const painted = [...paintedThisTime].filter((id) => present.has(id));
+				paintedThisTime.clear();
+				if (painted.length > 0) {
+					get().selectItems(painted.map((id) => ({ kind: "entity" as const, id })));
+				}
+			},
+			setPaintBrush: (change) => {
+				const next = { ...get().paintBrush, ...change };
+				set({ paintBrush: next });
+				savePaintBrush(next);
+			},
+			paintAt: (center, stroke, mode) => {
+				const { scene, paintBrush } = get();
+				const options = { coalesce: `paint:${stroke}`, gesture: true };
+				if (mode === "erase") {
+					const ids = new Set(eraseStamp(scene, paintBrush, center));
+					if (ids.size > 0) {
+						get().commit((draft) => {
+							draft.entities = draft.entities.filter((entity) => !ids.has(entity.id));
+						}, options);
+					}
+					return;
+				}
+				const added = paintStamp(scene, paintBrush, center).map((input) =>
+					EntitySchema.parse({ ...input, id: newId(input.kind) }),
+				);
+				if (added.length === 0) {
+					return;
+				}
+				get().commit((draft) => {
+					draft.entities.push(...added);
+				}, options);
+				for (const entity of added) {
+					paintedThisTime.add(entity.id);
+				}
+			},
 			setBoxDrag: (drag) => set({ boxDrag: drag }),
 			removeSelected: () => {
 				const items = get().selectedItems;
@@ -1142,6 +1258,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					mode,
 					...NOTHING_SELECTED,
 					drawing: null,
+					painting: false,
 					placingKind: null,
 					transform: null,
 					boxSelect: null,

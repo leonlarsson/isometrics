@@ -46,6 +46,7 @@ export const Toolbar = () => {
 	const commit = useEditor((s) => s.commit);
 	const boxSelecting = useEditor((s) => s.boxSelect === "add");
 	const toggleBoxSelect = () => useEditor.getState().setBoxSelect(boxSelecting ? null : "add");
+	const painting = useEditor((s) => s.painting);
 
 	const panes = useSidePanes();
 	const panesHidden = !panes.left && !panes.right;
@@ -127,6 +128,15 @@ export const Toolbar = () => {
 								label="Select with a box (B)"
 								pressed={boxSelecting}
 								onClick={toggleBoxSelect}
+							/>
+
+							<IconButton
+								size="md"
+								tooltipSide="bottom"
+								icon="brush"
+								label="Paint objects: trees, bushes, rocks… (N)"
+								pressed={painting}
+								onClick={() => useEditor.getState().setPainting(!painting)}
 							/>
 
 							<IconButton

@@ -89,6 +89,8 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 
 **Add a setting to the properties:** put it in a panel (`Section` with an `id`, an icon and search `keywords`) in the tab it belongs to, or add a tab to `WORLD_TABS` in `Inspector.tsx` or to `entityTabs`/`roadTabs`/`areaTabs` (ADR-0054). Fields made from the kit are found by the settings search automatically. A part's own panels (its shape, colours and lights) are `ui/PartSettings`, shared with the parts catalogue (ADR-0087): they take an object's settings and an `onChange`, so keep the editor's store out of them.
 
+**Add a brush mix:** add it to `BRUSH_MIXES` in `editor/paint.ts` (part kinds with weights); the paint bar lists it (ADR-0091). Painted objects are plain objects, so nothing else changes.
+
 **Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. A variant of an existing template (the same world at dusk, say) is `deriveTemplate(createBrightwaterScene, (scene) => { … })` from `templates/derive.ts`: it builds the base fresh and changes only what differs, so later changes to the base flow through; never copy a template's code. The schema test validates every template automatically, and it appears as a starter in File → New world…, with a picture rendered from the template itself (ADR-0047).
 
 ## Verifying visually

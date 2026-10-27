@@ -29,6 +29,7 @@ import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
 import { MotionClockStep } from "./motionClock";
+import { PaintTool } from "./PaintTool";
 import { PlacementPreview } from "./PlacementPreview";
 import { PointerSpot } from "./PointerSpot";
 import { RealLights } from "./RealLights";
@@ -143,6 +144,8 @@ export const Viewport = () => {
 			<KeyboardTransform />
 
 			<BoxSelect />
+
+			<PaintTool />
 
 			<PointerSpot />
 

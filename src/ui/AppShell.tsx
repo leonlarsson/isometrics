@@ -29,6 +29,7 @@ import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
 import { NavigationGizmo } from "./NavigationGizmo";
 import { Outliner } from "./Outliner";
+import { PaintBar } from "./PaintBar";
 import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
 import { PreferencesDialog } from "./PreferencesDialog";
@@ -321,6 +322,8 @@ export const AppShell = () => {
 							<TransformBar />
 
 							<BoxSelectBar />
+
+							<PaintBar />
 
 							<JoinOfferBar />
 

@@ -299,6 +299,12 @@ export const useShortcuts = () => {
 			options: { enabled: canBox, meta: { name: "Select with a box" } },
 		},
 		{
+			hotkey: "N",
+			// Opens the paint bar; its own N closes it (ui/PaintBar).
+			callback: () => useEditor.getState().setPainting(true),
+			options: { enabled: canBox, meta: { name: "Paint objects" } },
+		},
+		{
 			hotkey: "Shift+B",
 			callback: () => {
 				const { boxSelect, setBoxSelect } = useEditor.getState();
