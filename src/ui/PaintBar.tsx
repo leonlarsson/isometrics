@@ -2,24 +2,27 @@ import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
 import { BRUSH_MIXES, PAINT_DENSITY, PAINT_SIZE, type TPaintMode } from "#/editor/paint";
 import { useEditor } from "#/editor/store";
-import { PARTS, partName } from "#/parts/registry";
+import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 
 import { Button } from "./Button";
 import { ChipGroup } from "./ChipGroup";
-import { Kbd, SelectField, SliderField } from "./fields";
+import { ComboboxField, type IComboboxGroup, Kbd, SliderField } from "./fields";
 
 import styles from "./PaintBar.module.css";
 
 /** The brushes: the ready mixes first, then every part that stands still, by category. */
-const BRUSH_OPTIONS = [
-	...BRUSH_MIXES.map((mix) => ({ value: mix.id, label: mix.name })),
-	...PARTS.filter((part) => !part.canFollowPath && !part.flat && part.category !== "markers").map(
-		(part) => ({
-			value: `part:${part.kind}`,
-			label: `${CATEGORY_LABELS[part.category]} · ${partName(part)}`,
-		}),
-	),
+const BRUSH_GROUPS: IComboboxGroup<string>[] = [
+	{ label: "Mixes", options: BRUSH_MIXES.map((mix) => ({ value: mix.id, label: mix.name })) },
+	...partsByCategory()
+		.filter(([category]) => category !== "markers")
+		.map(([category, parts]) => ({
+			label: CATEGORY_LABELS[category],
+			options: parts
+				.filter((part) => !part.canFollowPath && !part.flat)
+				.map((part) => ({ value: `part:${part.kind}`, label: partName(part) })),
+		}))
+		.filter((group) => group.options.length > 0),
 ];
 
 const PaintControls = () => {
@@ -86,11 +89,12 @@ const PaintControls = () => {
 				/>
 
 				<div className={styles.brush}>
-					<SelectField
+					<ComboboxField
 						label="Brush"
 						value={brush.brushId}
-						options={BRUSH_OPTIONS}
+						groups={BRUSH_GROUPS}
 						onChange={(brushId) => setPaintBrush({ brushId })}
+						placeholder="Search parts and mixes…"
 					/>
 				</div>
 

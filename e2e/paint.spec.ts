@@ -26,7 +26,7 @@ test.describe("painting objects (ADR-0091)", () => {
 		await keys(page, "n");
 		const bar = page.getByRole("toolbar", { name: "Paint" });
 		await expect(bar).toBeVisible();
-		await expect(bar.getByRole("combobox", { name: "Brush" })).toContainText("Mixed wood");
+		await expect(bar.getByRole("combobox", { name: "Brush" })).toHaveValue("Mixed wood");
 
 		// A stroke across the road.
 		const from = await groundSpot(page, [-6, -3]);
@@ -64,6 +64,23 @@ test.describe("painting objects (ADR-0091)", () => {
 			.poll(() => read(page, (s) => s.scene.entities.length))
 			.toBeLessThan(painted.length + 1);
 		expect(await read(page, (s) => s.scene.entities.some((e) => e.id === "house"))).toBe(true);
+
+		// The brush box searches every part and mix: type, pick, paint.
+		await bar.getByRole("button", { name: "Paint", exact: true }).click();
+		const box = bar.getByRole("combobox", { name: "Brush" });
+		await box.click();
+		await box.fill("birch");
+		await page.getByRole("option", { name: "Birch" }).click();
+		await expect(box).toHaveValue("Birch");
+		const before = await read(page, (s) => s.scene.entities.length);
+		const spot = await groundSpot(page, [6, 6]);
+		await page.mouse.move(spot.x, spot.y);
+		await page.mouse.down();
+		await page.mouse.move(spot.x + 40, spot.y, { steps: 6 });
+		await page.mouse.up();
+		const birches = (await read(page, (s) => s.scene.entities.map((e) => e.kind))).slice(before);
+		expect(birches.length).toBeGreaterThan(0);
+		expect(new Set(birches)).toEqual(new Set(["birch_01"]));
 
 		// Esc puts the brush away, and what's left of the painting is selected, the house not.
 		const left = await read(page, (s) => s.scene.entities.length - 1);

@@ -9,6 +9,11 @@
 
 export { CheckboxGroupField } from "./CheckboxGroupField";
 export { ColorField } from "./ColorField";
+export {
+	ComboboxField,
+	type IComboboxGroup,
+	type IComboboxOption,
+} from "./ComboboxField";
 export { Field } from "./Field";
 export { FieldGroup } from "./FieldGroup";
 export { GroupLabel } from "./GroupLabel";

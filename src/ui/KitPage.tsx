@@ -11,6 +11,7 @@ import { Dialog } from "./Dialog";
 import {
 	CheckboxGroupField,
 	ColorField,
+	ComboboxField,
 	FieldGroup,
 	GroupLabel,
 	Hint,
@@ -57,6 +58,7 @@ export const KitPage = () => {
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [chip, setChip] = useState("all");
+	const [comboValue, setComboValue] = useState("birch");
 	const [on, setOn] = useState(true);
 	const [rowName, setRowName] = useState("Harbour depot");
 	const [renaming, setRenaming] = useState(false);
@@ -413,6 +415,29 @@ export const KitPage = () => {
 												{ value: "all", label: "All", count: 19 },
 												{ value: "buildings", label: "Buildings", icon: "building", count: 5 },
 												{ value: "nature", label: "Nature", icon: "tree", count: 2 },
+											]}
+										/>
+
+										<ComboboxField
+											label="Combobox (with a search)"
+											value={comboValue}
+											onChange={setComboValue}
+											groups={[
+												{
+													label: "Trees",
+													options: [
+														{ value: "oak", label: "Oak" },
+														{ value: "birch", label: "Birch" },
+														{ value: "pine", label: "Pine" },
+													],
+												},
+												{
+													label: "Bushes",
+													options: [
+														{ value: "box", label: "Box hedge" },
+														{ value: "rose", label: "Rose bush" },
+													],
+												},
 											]}
 										/>
 
