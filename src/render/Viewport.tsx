@@ -27,6 +27,7 @@ import { InstantResize } from "./InstantResize";
 import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
+import { MotionClockStep } from "./motionClock";
 import { PlacementPreview } from "./PlacementPreview";
 import { PointerSpot } from "./PointerSpot";
 import { RealLights } from "./RealLights";
@@ -177,6 +178,8 @@ export const Viewport = () => {
 			<CameraReadout />
 
 			<ViewpointMarkers />
+
+			<MotionClockStep />
 
 			<TrafficStep />
 

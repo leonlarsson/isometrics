@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { keepOnHotReload } from "#/lib/hot";
+import { motionClock } from "#/lib/motionClock";
 import { MAX_WATER_SEAMS } from "#/scene/areas";
 import type { TWater } from "#/scene/schema";
 
@@ -460,9 +461,10 @@ export const ReflectiveWaterMaterial = ({
 	(material as unknown as { mixStrength: number }).mixStrength =
 		FULL_REFLECTION * reflectionStrength;
 
-	useFrame(({ clock, camera, scene }) => {
+	useFrame(({ camera, scene }) => {
 		// The same drift for every water area; slow, and not along an axis.
-		const t = clock.elapsedTime;
+		// Held still while motion is paused.
+		const t = motionClock.seconds;
 		normals.offset.set(t * 0.011, t * 0.007);
 		const water = (material as unknown as { __r3f?: { parent?: { object?: THREE.Object3D } } })
 			.__r3f?.parent?.object;

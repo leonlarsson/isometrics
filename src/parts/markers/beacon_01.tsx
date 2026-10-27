@@ -3,6 +3,8 @@ import { useRef } from "react";
 import type * as THREE from "three";
 import { z } from "zod";
 
+import { motionClock } from "#/lib/motionClock";
+
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
@@ -15,20 +17,19 @@ const BeaconRing = ({
 	radius,
 	color,
 	pulse,
-	playing,
 }: {
 	radius: number;
 	color: string;
 	pulse: boolean;
-	playing: boolean;
 }) => {
 	const ring = useRef<THREE.Mesh>(null);
 	const material = useRef<THREE.MeshBasicMaterial>(null);
-	useFrame(({ clock }) => {
+	useFrame(() => {
 		if (!ring.current || !material.current) {
 			return;
 		}
-		const t = pulse && playing ? (clock.elapsedTime % 1.6) / 1.6 : 0.4;
+		// Held where it is while motion is paused.
+		const t = pulse ? (motionClock.seconds % 1.6) / 1.6 : 0.4;
 		ring.current.scale.setScalar(0.6 + t * 0.7);
 		material.current.opacity = 0.9 * (1 - t);
 	});
@@ -59,9 +60,9 @@ export const beacon01 = definePart({
 	],
 	footprint: (p) => [p.radius * 2, p.radius * 2],
 	height: () => 0.3,
-	Component: ({ props: p, colors, playing }) => (
+	Component: ({ props: p, colors }) => (
 		<group>
-			<BeaconRing radius={p.radius} color={colors.ring} pulse={p.pulses} playing={playing} />
+			<BeaconRing radius={p.radius} color={colors.ring} pulse={p.pulses} />
 
 			<mesh position={[0, 0.12, 0]} castShadow>
 				<sphereGeometry args={[0.14, 16, 16]} />

@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { motionClock } from "#/lib/motionClock";
 import type { IRouteSampler } from "#/scene/routes";
 
 import type { IDrivingVehicle } from "./traffic";
@@ -130,7 +131,7 @@ export const BoatWake = ({
 		};
 	}, [makesWaves, waveGeometry]);
 
-	useFrame(({ clock }) => {
+	useFrame(() => {
 		const boat = vehicle.current;
 		const shape = mesh.current;
 		if (!shape) {
@@ -228,7 +229,8 @@ export const BoatWake = ({
 		if (!shape.visible) {
 			return;
 		}
-		const t = clock.elapsedTime;
+		// The shimmer holds still while motion is paused.
+		const t = motionClock.seconds;
 		const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
 		const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
 		const { rows: samples, radii } = rowsBehind(SEGMENTS, shown / SEGMENTS, behind, 0, length);
