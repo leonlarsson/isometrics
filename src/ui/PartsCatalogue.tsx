@@ -158,7 +158,15 @@ const PartDetails = ({ part, theme, night, settings, onSettingsChange }: IPartDe
 		<div className={styles.details}>
 			<div className={styles.detailsPictures}>
 				<div className={styles.model} data-night={night || undefined}>
-					<PartPreviewModel kind={part.kind} palette={palette} settings={settings} hour={hour} />
+					<PartPreviewModel
+						kind={part.kind}
+						palette={palette}
+						settings={settings}
+						hour={hour}
+						zoomsWithWheel
+					/>
+
+					<span className={styles.modelHint}>Scroll to zoom</span>
 				</div>
 
 				<div className={styles.looks}>

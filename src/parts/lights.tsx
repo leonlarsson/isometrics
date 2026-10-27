@@ -59,7 +59,8 @@ const GroundGlow = ({
 	strength: number;
 	position: TV3;
 }) => (
-	<mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
+	// Light on the ground, not the part: pictures and previews frame the part without it.
+	<mesh position={position} rotation={[-Math.PI / 2, 0, 0]} userData={{ lightOnTheGround: true }}>
 		<planeGeometry args={[radius * 2, radius * 2]} />
 
 		<meshBasicMaterial
@@ -183,7 +184,11 @@ export const Headlights = ({
 
 			{/* The beams on the road ahead, opening out from the lights, while they're on. */}
 			{light.on && (
-				<mesh position={[light.reach / 2, -y + GLOW_HEIGHT, -z]} rotation={[-Math.PI / 2, 0, 0]}>
+				<mesh
+					position={[light.reach / 2, -y + GLOW_HEIGHT, -z]}
+					rotation={[-Math.PI / 2, 0, 0]}
+					userData={{ lightOnTheGround: true }}
+				>
 					<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
 
 					<meshBasicMaterial

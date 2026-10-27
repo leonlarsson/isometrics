@@ -119,6 +119,23 @@ export const frameBoxIn = (
 	camera.updateProjectionMatrix();
 };
 
+const piece = new THREE.Box3();
+
+/**
+ * A part's own extent, without the light it throws on the ground (pools and
+ * beams, marked `userData.lightOnTheGround`), which can reach far past it.
+ */
+export const partBounds = (part: THREE.Object3D, target: THREE.Box3) => {
+	target.makeEmpty();
+	part.updateWorldMatrix(true, true);
+	part.traverse((object) => {
+		if ("geometry" in object && !object.userData.lightOnTheGround) {
+			target.union(piece.makeEmpty().expandByObject(object));
+		}
+	});
+	return target;
+};
+
 /** Moonlight for pictures at night: how much of the day's light is left, and its colour. */
 const NIGHT_LIGHT = { share: 0.3, sunShare: 0.25, moon: "#a9b8ff" };
 
@@ -197,7 +214,7 @@ const Shot = ({ part, settings, look, size, onShot }: IShotProps) => {
 			return;
 		}
 		shot.current = true;
-		frameBoxIn(camera, box.setFromObject(group.current), size, FILL);
+		frameBoxIn(camera, partBounds(group.current, box), size, FILL);
 		gl.render(scene, camera);
 		onShot(gl.domElement.toDataURL("image/png"));
 	};
