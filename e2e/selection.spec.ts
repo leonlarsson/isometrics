@@ -4,6 +4,7 @@ import {
 	act,
 	clickWith,
 	expect,
+	groundSpot,
 	loadWorld,
 	openEditor,
 	outliner,
@@ -106,6 +107,36 @@ test.describe("selecting (ADR-0028, ADR-0035, ADR-0064)", () => {
 		await page.keyboard.press("b");
 		await page.keyboard.press("Escape");
 		expect(await read(page, (s) => s.boxSelect)).toBeNull();
+	});
+
+	test("a click in a light's glow on the ground passes through to the ground", async ({ page }) => {
+		await loadWorld(page, {
+			entities: [
+				{
+					id: "lamp",
+					kind: "street_lamp_01",
+					position: [0, 0],
+					// Always on, so its pool is there (a light's whole setting: loadWorld fills in no defaults).
+					lights: {
+						lamp: {
+							whenOn: "on",
+							comesOn: null,
+							schedule: null,
+							color: null,
+							strength: null,
+							reach: null,
+							litPanes: null,
+							data: {},
+						},
+					},
+				},
+			],
+		});
+		await showView(page, [0, 0], 12);
+		// Inside its pool of light, well away from the post: the ground, so nothing is picked up.
+		const inThePool = await groundSpot(page, [1.2, 0.8]);
+		await page.mouse.click(inThePool.x, inThePool.y);
+		expect(await selected(page)).toEqual([]);
 	});
 });
 

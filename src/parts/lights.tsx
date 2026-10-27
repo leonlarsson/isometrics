@@ -47,6 +47,14 @@ const getGlow = () => {
 	return glow;
 };
 
+/**
+ * Light on the ground isn't the part: the pointer's ray passes through it, so a
+ * click or drag there reaches what's under it (the ground, a road) rather than
+ * picking up the lamp or car it comes from. Also left out of a part's size in
+ * pictures (`userData.lightOnTheGround`, render/thumbnails).
+ */
+const passThrough = () => {};
+
 /** A soft glow of `color` on the ground, `radius` across, lighting what's under it. */
 const GroundGlow = ({
 	color,
@@ -59,8 +67,12 @@ const GroundGlow = ({
 	strength: number;
 	position: TV3;
 }) => (
-	// Light on the ground, not the part: pictures and previews frame the part without it.
-	<mesh position={position} rotation={[-Math.PI / 2, 0, 0]} userData={{ lightOnTheGround: true }}>
+	<mesh
+		position={position}
+		rotation={[-Math.PI / 2, 0, 0]}
+		userData={{ lightOnTheGround: true }}
+		raycast={passThrough}
+	>
 		<planeGeometry args={[radius * 2, radius * 2]} />
 
 		<meshBasicMaterial
@@ -188,6 +200,7 @@ export const Headlights = ({
 					position={[light.reach / 2, -y + GLOW_HEIGHT, -z]}
 					rotation={[-Math.PI / 2, 0, 0]}
 					userData={{ lightOnTheGround: true }}
+					raycast={passThrough}
 				>
 					<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
 
