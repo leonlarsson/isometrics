@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { z } from "zod";
 
 import { lightEmission } from "../lights";
-import { Box, Mat } from "../primitives";
+import { Box, Mat, shareGeometryAs } from "../primitives";
 import { definePart } from "../types";
 
 const YachtSchema = z.object({
@@ -24,7 +24,7 @@ const hullGeometry = (length: number, width: number, height: number) => {
 	// Extruded along +Z; turn it so the extrusion goes up and the outline lies on the ground.
 	geometry.rotateX(-Math.PI / 2);
 	geometry.computeVertexNormals();
-	return geometry;
+	return shareGeometryAs(geometry, `yachtHull:${length},${width},${height}`);
 };
 
 const HULL_HEIGHT = 0.42;

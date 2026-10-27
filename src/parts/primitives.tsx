@@ -1,8 +1,19 @@
 import { RoundedBox } from "@react-three/drei";
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 type TV3 = [number, number, number];
+
+/**
+ * Names a geometry built by hand by its shape (`userData.shareKey`), so objects
+ * with the same one are drawn together (ADR-0086): three's own shapes (a box,
+ * a cylinder) are known by their parameters, but a hand-built one is only
+ * itself otherwise. The key must say everything the shape depends on.
+ */
+export const shareGeometryAs = <G extends THREE.BufferGeometry>(geometry: G, key: string): G => {
+	geometry.userData.shareKey = key;
+	return geometry;
+};
 
 interface IBoxProps {
 	size: TV3;
@@ -67,8 +78,16 @@ export const Box = ({
 
 export const RBox = ({ size, position, color, radius = 0.1 }: IBoxProps & { radius?: number }) => {
 	const r = Math.min(radius, ...size.map((s) => s / 2 - 0.001));
+	const mesh = useRef<THREE.Mesh>(null);
+	// drei builds the geometry: named by its shape after each render, so rounded boxes share.
+	useLayoutEffect(() => {
+		if (mesh.current) {
+			shareGeometryAs(mesh.current.geometry, `roundedBox:${size.join(",")},${r}`);
+		}
+	});
 	return (
 		<RoundedBox
+			ref={mesh}
 			args={size}
 			radius={Math.max(r, 0.001)}
 			smoothness={3}
@@ -108,7 +127,7 @@ export const GableRoof = ({
 		geo.translate(0, 0, -width / 2);
 		geo.rotateY(Math.PI / 2);
 		geo.computeVertexNormals();
-		return geo;
+		return shareGeometryAs(geo, `gableRoof:${width},${depth},${height}`);
 	}, [width, depth, height]);
 
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
@@ -183,7 +202,10 @@ export const Taper = ({
 		const geo = new THREE.BufferGeometry();
 		geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
 		geo.computeVertexNormals();
-		return geo;
+		return shareGeometryAs(
+			geo,
+			`taper:${length},${backHeight},${backWidth},${frontHeight},${frontWidth},${lift}`,
+		);
 	}, [length, backHeight, backWidth, frontHeight, frontWidth, lift]);
 
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);

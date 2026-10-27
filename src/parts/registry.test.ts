@@ -161,3 +161,18 @@ describe("resolveProps", () => {
 		expect(resolveProps(part, { levels: 3, storeys: 9 })).toMatchObject({ floors: 9 });
 	});
 });
+
+/**
+ * Objects that look the same are drawn together (ADR-0086), and only where
+ * their meshes are is followed each frame: a part that changes a mesh's
+ * material or geometry in `useFrame` must mark it `userData.notInstanced`.
+ */
+describe("parts that change their meshes each frame", () => {
+	const sources = import.meta.glob("./*/*.tsx", { query: "?raw", import: "default", eager: true });
+	it.each(Object.entries(sources).filter(([, source]) => String(source).includes("useFrame")))(
+		"%s marks the meshes it changes notInstanced",
+		(_, source) => {
+			expect(String(source)).toContain("notInstanced");
+		},
+	);
+});

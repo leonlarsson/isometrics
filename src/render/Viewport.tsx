@@ -23,6 +23,7 @@ import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { GroupGizmo } from "./GroupGizmo";
 import { HoverHighlight } from "./HoverHighlight";
+import { InstancedParts } from "./InstancedParts";
 import { InstantResize } from "./InstantResize";
 import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
@@ -114,6 +115,8 @@ export const Viewport = () => {
 			{entities.map((entity) => (
 				<EntityNode key={entity.id} entity={entity} />
 			))}
+
+			<InstancedParts />
 
 			{roads.map((road, index) =>
 				road.hidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,

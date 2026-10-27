@@ -34,7 +34,13 @@ const BeaconRing = ({
 		material.current.opacity = 0.9 * (1 - t);
 	});
 	return (
-		<mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+		// Its material changes each frame: drawn on its own, not with other beacons' (ADR-0086).
+		<mesh
+			ref={ring}
+			rotation={[-Math.PI / 2, 0, 0]}
+			position={[0, 0.03, 0]}
+			userData={{ notInstanced: true }}
+		>
 			<ringGeometry args={[radius * 0.85, radius, 48]} />
 
 			<meshBasicMaterial ref={material} color={color} transparent depthWrite={false} />

@@ -30,6 +30,7 @@ import { BoatWake } from "./BoatWake";
 import { openContextMenuOnClick } from "./contextMenu";
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
+import { useInstancedPart } from "./InstancedParts";
 import { RealLightSource } from "./RealLights";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
@@ -245,6 +246,10 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		);
 	});
 
+	// Its meshes drawn together with other objects' that look the same (ADR-0086).
+	const partGroup = useRef<THREE.Group>(null);
+	useInstancedPart(partGroup);
+
 	const editable = mode === "edit" && !entity.locked;
 
 	/** Where a driving vehicle is on screen right now (the scene only knows where it started). */
@@ -455,14 +460,16 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 					scale={entity.scale}
 					{...handlers}
 				>
-					<Component
-						props={props}
-						colors={colors}
-						palette={palette}
-						playing={playing}
-						lights={lights}
-						data={data}
-					/>
+					<group ref={partGroup}>
+						<Component
+							props={props}
+							colors={colors}
+							palette={palette}
+							playing={playing}
+							lights={lights}
+							data={data}
+						/>
+					</group>
 
 					{/* Its lights that light their surroundings, where they shine from (ADR-0072). */}
 					{drawsRealLights &&
