@@ -1,3 +1,4 @@
+import { drawnModeOf, useEditor } from "#/editor/store";
 import type { TEntity } from "#/scene/schema";
 
 import { registerLabelAnchor, registerLabelPin } from "./labelRegistry";
@@ -16,6 +17,13 @@ interface IEntityLabelProps {
  * placed by LabelProjector, which may move the card aside so cards don't overlap.
  */
 export const EntityLabel = ({ entity, anchorY, color }: IEntityLabelProps) => {
+	// The pin shows where its card does (ui/LabelLayer): not in View mode when the world hides its
+	// cards, nor in a picture without them (ADR-0084); Edit mode shows them, faded.
+	const pinHidden = useEditor((s) =>
+		s.stillRender
+			? !s.stillRender.showsCards
+			: drawnModeOf(s) === "view" && !s.scene.onScreen.showLabelCards,
+	);
 	const label = entity.label;
 	if (!label) {
 		return null;
@@ -26,7 +34,11 @@ export const EntityLabel = ({ entity, anchorY, color }: IEntityLabelProps) => {
 
 	return (
 		<group>
-			<mesh position={anchor} ref={(object) => registerLabelPin(entity.id, object)}>
+			<mesh
+				position={anchor}
+				visible={!pinHidden}
+				ref={(object) => registerLabelPin(entity.id, object)}
+			>
 				<sphereGeometry args={[0.13, 16, 16]} />
 
 				<meshBasicMaterial color={color} />

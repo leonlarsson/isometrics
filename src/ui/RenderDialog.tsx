@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { downloadPicture } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
-import { renderStill, smoothingFor, viewPixelSize } from "#/render/StillRender";
+import { drawingLimits, renderStill, smoothingFor, viewPixelSize } from "#/render/StillRender";
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
@@ -18,6 +18,7 @@ const SIZES = [
 	{ value: "1920x1080", label: "Full HD, 1920 × 1080" },
 	{ value: "2560x1440", label: "QHD, 2560 × 1440" },
 	{ value: "3840x2160", label: "4K, 3840 × 2160" },
+	{ value: "7680x4320", label: "8K, 7680 × 4320" },
 	{ value: "2048x2048", label: "Square, 2048 × 2048" },
 	{ value: "1080x1920", label: "Portrait, 1080 × 1920" },
 ] as const;
@@ -26,7 +27,8 @@ type TSizeChoice = (typeof SIZES)[number]["value"];
 const SMOOTHING = [
 	{ value: "1", label: "Off" },
 	{ value: "2", label: "2 × (smooth)" },
-	{ value: "3", label: "3 × (smoothest)" },
+	{ value: "3", label: "3 ×" },
+	{ value: "4", label: "4 × (smoothest)" },
 ] as const;
 type TSmoothingChoice = (typeof SMOOTHING)[number]["value"];
 
@@ -36,6 +38,12 @@ const sizeOf = (choice: TSizeChoice) => {
 	}
 	const [width, height] = choice.split("x").map(Number);
 	return { width, height };
+};
+
+/** Whether this graphics card can draw a picture this size at all (each side within its limit). */
+const fitsCard = ({ width, height }: { width: number; height: number }) => {
+	const { maxSide } = drawingLimits();
+	return width <= maxSide && height <= maxSide;
 };
 
 /** Two frames, for an instant jump to a viewpoint to be drawn. */
@@ -165,7 +173,15 @@ export const RenderDialog = () => {
 					<SelectField<TSizeChoice>
 						label="Size"
 						value={size}
-						options={SIZES.map((choice) => ({ value: choice.value, label: choice.label }))}
+						// Sizes this card can't draw at all are greyed out, saying why.
+						options={SIZES.map((choice) => {
+							const fits = choice.value === "view" || fitsCard(sizeOf(choice.value));
+							return {
+								value: choice.value,
+								label: fits ? choice.label : `${choice.label} (too big for this graphics card)`,
+								disabled: !fits,
+							};
+						})}
 						onChange={setSize}
 						hint={size === "view" ? `${width} × ${height}` : undefined}
 					/>
@@ -176,9 +192,11 @@ export const RenderDialog = () => {
 						options={SMOOTHING.map((choice) => ({ value: choice.value, label: choice.label }))}
 						onChange={setSmoothing}
 						hint={
-							smoothed < Number(smoothing)
-								? `Drawn at ${smoothed.toFixed(1)} × its size, as far as a picture this big can be.`
-								: "Drawn at that many times its size and shrunk, for clean edges."
+							smoothed < 1.05 && Number(smoothing) > 1
+								? "No smoothing at this size: it's as big as the browser draws in one go (about 33 million pixels). A smaller size can be smoothed."
+								: smoothed < Number(smoothing)
+									? `Smoothed ${smoothed.toFixed(1)} × at this size, as far as the browser draws in one go.`
+									: "Drawn at that many times its size and shrunk, for clean edges."
 						}
 					/>
 

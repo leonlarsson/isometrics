@@ -1,5 +1,6 @@
 import { addAfterEffect, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
+import type * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 
@@ -16,12 +17,52 @@ import { paintCards, type TCardPaints, takeCards } from "./paintCards";
 
 /** Frames drawn at the picture's size before it's taken: new shaders, the bigger shadow map and the effects settle. */
 const SETTLE_FRAMES = 30;
-/** At most this many pixels drawn: larger pictures are smoothed less (a 4K picture at about 1.5 times). */
-const MAX_DRAWN_PIXELS = 36_000_000;
+/** The renderer the live view draws with, once it's mounted: for its limits, and to take pictures. */
+let liveRenderer: THREE.WebGLRenderer | null = null;
 
-/** How many times over a picture of this size is drawn: as asked, as far as MAX_DRAWN_PIXELS allows. */
-export const smoothingFor = (width: number, height: number, wanted: number) =>
-	Math.max(1, Math.min(wanted, Math.sqrt(MAX_DRAWN_PIXELS / (width * height))));
+/**
+ * How big a picture this graphics card can draw in one frame: the widest side it
+ * draws (WebGL's renderbuffer and viewport limits), and how many pixels in all.
+ * The browser gives a canvas at most 2²⁵ pixels, about 33.5 million (Chrome's
+ * limit, whatever the card: 4K smoothed 2 times, 8K not at all). A browser
+ * can't say how much memory a card has, so smaller cards (8192 a side or less)
+ * are kept to less.
+ */
+export const drawingLimits = () => {
+	const context = liveRenderer?.getContext();
+	if (!context) {
+		return { maxSide: 8192, maxPixels: 36_000_000 };
+	}
+	const viewport = context.getParameter(context.MAX_VIEWPORT_DIMS) as Int32Array;
+	const maxSide = Math.min(
+		context.getParameter(context.MAX_RENDERBUFFER_SIZE) as number,
+		context.getParameter(context.MAX_TEXTURE_SIZE) as number,
+		viewport[0],
+		viewport[1],
+	);
+	const guess = maxSide > 8192 ? BROWSER_MAX_PIXELS : maxSide === 8192 ? 30_000_000 : 16_000_000;
+	// Once a picture has found the browser's own limit, no more than that.
+	return { maxSide, maxPixels: Math.min(guess, browserMaxPixels) };
+};
+
+/**
+ * The most pixels the browser gave a canvas's drawing buffer, once a picture
+ * asked for more: it makes a smaller buffer than asked for without a word, and
+ * three.js, drawing at the size asked for, would then fill only a corner of it.
+ */
+let browserMaxPixels = Number.POSITIVE_INFINITY;
+
+/** The most pixels a browser gives a canvas's drawing buffer (Chrome's 2²⁵). */
+const BROWSER_MAX_PIXELS = 2 ** 25;
+
+/** How many times over a picture of this size is drawn: as asked, as far as the card allows (drawingLimits). */
+export const smoothingFor = (width: number, height: number, wanted: number) => {
+	const { maxSide, maxPixels } = drawingLimits();
+	return Math.max(
+		1,
+		Math.min(wanted, Math.sqrt(maxPixels / (width * height)), maxSide / width, maxSide / height),
+	);
+};
 
 interface IStillRequest {
 	width: number;
@@ -180,8 +221,10 @@ export const StillRender = () => {
 
 	useEffect(() => {
 		liveCanvas = get().gl.domElement;
+		liveRenderer = get().gl;
 		return () => {
 			liveCanvas = null;
+			liveRenderer = null;
 		};
 	}, []);
 
@@ -226,6 +269,21 @@ export const StillRender = () => {
 			if (taken || get().viewport.dpr !== useEditor.getState().stillRender?.pixelRatio) {
 				return;
 			}
+			// Smaller than asked for (the browser's limit): draw at what it gave, and settle again.
+			const drawn = get().gl.getContext();
+			const { width: wide, height: high } = get().gl.domElement;
+			if (drawn.drawingBufferWidth < wide - 1 || drawn.drawingBufferHeight < high - 1) {
+				browserMaxPixels = drawn.drawingBufferWidth * drawn.drawingBufferHeight;
+				const fits = Math.min(drawn.drawingBufferWidth / wide, drawn.drawingBufferHeight / high);
+				useEditor.setState((s) => ({
+					stillRender: s.stillRender && {
+						...s.stillRender,
+						pixelRatio: (s.stillRender.pixelRatio ?? 1) * fits * 0.999,
+					},
+				}));
+				frames = 0;
+				return;
+			}
 			frames += 1;
 			if (frames < SETTLE_FRAMES) {
 				return;
@@ -249,8 +307,20 @@ export const StillRender = () => {
 				);
 			}, "image/png");
 		});
+		// A card without room for it drops its WebGL context: say so, rather than leave a blank view.
+		const canvas = get().gl.domElement;
+		const lost = () => {
+			taken = true;
+			finish({
+				error: new Error(
+					"The graphics card ran out of room for a picture this big. Try a smaller size or less smoothing, and reload the page if the view stays blank.",
+				),
+			});
+		};
+		canvas.addEventListener("webglcontextlost", lost);
 		return () => {
 			stop();
+			canvas.removeEventListener("webglcontextlost", lost);
 			if (!taken) {
 				finish({ error: new Error("The render was stopped.") });
 			}
