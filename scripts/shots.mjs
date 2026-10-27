@@ -14,15 +14,21 @@
  *   --pref key=value                 a preference, e.g. --pref ambientOcclusion=off (repeatable)
  *   --world path=value               a world setting, e.g. --world lighting.sunShadeContrast=0.75,
  *                                    --world theme=dark, --world camera.tiltShiftOn=true (repeatable)
- *   --hours 12,18.6,22               times of day (default 12,18.6,22)
+ *   --hours 12,18.6,22               times of day (default 12,18.6,22); "world" keeps the world's own
+ *                                    (or the mood's), stopped there
+ *   --mood mood_golden               a mood of the world's put on first (its look: light, sky, water,
+ *                                    tilt-shift; ADR-0078)
  *   --views close,view_overview      "close" (downtown in perspective), "none" (the opening view)
  *                                    or viewpoint ids (default close)
  *   --pose '{"target":[0,0],…}'       a camera of its own (a viewpoint's fields), shot as the view "pose"
  *   --size 1600x1000@1               the page's size in CSS px, @ device pixels per px
  *   --template lantern_bay           a starter world other than Brightwater (its id, from /templates.json)
- *   --template lantern_bay           a starter world other than Brightwater (its id, from /templates.json)
  *   --mode view|edit                 the editor's mode (default view); --select <id> selects a thing
  *   --frames 120                     frames to time per shot; --no-shots to only time them
+ *   --with-cards                     the stage as View mode shows it: the title and label cards over
+ *                                    the view (not the viewpoint bar), not just the canvas
+ *   --jpg                            JPEG pictures (quality 90) instead of PNG
+ *   --out docs/gallery               the folder for the pictures (default shots/)
  *   --base http://localhost:3000     the dev server (it must be running: pnpm dev)
  *
  * The GPU: on WSL, run it with Windows' node (node.exe scripts/shots.mjs …): it uses the installed
@@ -30,7 +36,7 @@
  * Chromium on SwiftShader (software): the pictures are right, the times mean nothing.
  */
 import { mkdirSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -98,11 +104,13 @@ if (command === "sheet") {
 	process.exit(0);
 }
 
+/** Options that are on when given, with no value after them. */
+const SWITCHES = ["no-shots", "with-cards", "jpg"];
 const options = { pref: [], world: [] };
 for (let i = 0; i < rest.length; i++) {
 	const flag = rest[i].replace(/^--/, "");
-	if (flag === "no-shots") {
-		options.noShots = true;
+	if (SWITCHES.includes(flag)) {
+		options[flag] = true;
 	} else if (flag === "pref" || flag === "world") {
 		options[flag].push(rest[++i]);
 	} else {
@@ -128,8 +136,18 @@ const preferences = {
 	graphicsPreset: options.graphics ?? "standard",
 	...Object.fromEntries(pairsOf(options.pref)),
 };
-const world = pairsOf(options.world);
-const hours = (options.hours ?? "12,18.6,22").split(",").map(Number);
+const world = [
+	// The cards and title, without the viewpoint bar's ◀ ▶ over the world; or no cards, so their
+	// pins (dots in the 3D view) go too.
+	...(options["with-cards"]
+		? [["onScreen.showViewpointBar", false]]
+		: [["onScreen.showLabelCards", false]]),
+	...pairsOf(options.world),
+];
+const hours =
+	options.hours === "world" ? ["world"] : (options.hours ?? "12,18.6,22").split(",").map(Number);
+const shotsDir = options.out ? resolve(options.out) : OUT;
+const extension = options.jpg ? "jpg" : "png";
 const views = options.pose ? ["pose"] : (options.views ?? "close").split(",");
 const [, width, height, scale] = (options.size ?? "1600x1000@1").match(
 	/^(\d+)x(\d+)(?:@([\d.]+))?$/,
@@ -209,7 +227,7 @@ const timeFrames = () => {
 
 const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
-mkdirSync(OUT, { recursive: true });
+mkdirSync(shotsDir, { recursive: true });
 const browser = await launch();
 const context = await browser.newContext({
 	viewport: { width: Number(width), height: Number(height) },
@@ -246,13 +264,19 @@ if (options.template) {
 	}, options.template);
 }
 await page.evaluate(
-	({ world, mode, select }) => {
+	({ world, mode, select, mood }) => {
 		const store = globalThis.__editorStore.getState();
 		store.setMode(mode);
 		if (select) {
 			store.select(select);
 		}
-		store.commit((scene) => {
+		if (mood) {
+			if (!store.scene.moods.some((m) => m.id === mood)) {
+				throw new Error(`No mood ${mood} in this world`);
+			}
+			store.putOnMood(mood);
+		}
+		globalThis.__editorStore.getState().commit((scene) => {
 			for (const [path, value] of world) {
 				const keys = path.split(".");
 				const last = keys.pop();
@@ -260,12 +284,14 @@ await page.evaluate(
 			}
 		});
 	},
-	{ world, mode: options.mode ?? "view", select: options.select },
+	{ world, mode: options.mode ?? "view", select: options.select, mood: options.mood },
 );
-// Only the 3D view: no title, cards or bars over it.
-await page.addStyleTag({
-	content: "body * { visibility: hidden !important } canvas { visibility: visible !important }",
-});
+// Only the 3D view: no title, cards or bars over it. With the cards: the stage, as View mode shows it.
+if (!options["with-cards"]) {
+	await page.addStyleTag({
+		content: "body * { visibility: hidden !important } canvas { visibility: visible !important }",
+	});
+}
 await page.waitForTimeout(3000);
 
 for (const view of views) {
@@ -285,11 +311,15 @@ for (const view of views) {
 		);
 	}
 	for (const hour of hours) {
-		await page.evaluate((hour) => {
+		// The world's own time ("world"), or the one asked for; either way stopped there.
+		const time = await page.evaluate((hour) => {
 			globalThis.__editorStore.getState().commit((scene) => {
-				scene.lighting.time = hour;
+				if (hour !== "world") {
+					scene.lighting.time = hour;
+				}
 				scene.lighting.timeSource = "fixed";
 			});
+			return globalThis.__editorStore.getState().scene.lighting.time;
 		}, hour);
 		// Let the frame settle and the GPU clock up before timing.
 		await page.waitForTimeout(2500);
@@ -304,12 +334,16 @@ for (const view of views) {
 			globalThis.__shotTiming.on = false;
 			return globalThis.__shotTiming.gpu;
 		});
-		const shot = `${command}-${view.replace("view_", "")}-${hour}`;
-		if (!options.noShots) {
+		// A world without a clock (classic daylight) has no time: "daylight".
+		const shot = `${command}-${view.replace("view_", "")}-${time ?? "daylight"}`;
+		if (!options["no-shots"]) {
 			await page
-				.locator("canvas")
+				.locator(options["with-cards"] ? "main" : "canvas")
 				.first()
-				.screenshot({ path: join(OUT, `${shot}.png`) });
+				.screenshot({
+					path: join(shotsDir, `${shot}.${extension}`),
+					...(options.jpg ? { type: "jpeg", quality: 90 } : {}),
+				});
 		}
 		console.log(`${shot}: ${median(gpu).toFixed(2)} ms GPU per frame (median of ${gpu.length})`);
 	}

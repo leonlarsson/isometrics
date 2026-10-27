@@ -2,6 +2,18 @@
 
 Build animated 3D miniature worlds that show your data: drop in buildings, vehicles and trees, draw roads, bridges, water, parks and raised land, label it all with your numbers, and present the result as a living map of your business.
 
+![Lantern Bay at golden hour, from the bay: towers along the waterfront mirrored in the water](docs/gallery/lantern-bay-bay-18.3.jpg)
+
+## Gallery
+
+| | |
+|---|---|
+| ![Lantern Bay at night: lamps along the promenade, lit windows reflected in the bay](docs/gallery/lantern-bay-promenade-21.5.jpg) | ![Lantern Bay's harbour basin at blue hour, the yachts and lit towers mirrored in still water](docs/gallery/lantern-bay-basin-19.8.jpg) |
+| ![Lantern Bay at a glance, with its evening in numbers on data cards](docs/gallery/lantern-bay-cards-overview-18.3.jpg) | ![Brightwater with its live numbers on data cards: stadium, park, ring road, marina, depot](docs/gallery/brightwater-cards-overview-daylight.jpg) |
+| ![Brightwater's downtown at golden hour, long shadows across the river](docs/gallery/brightwater-downtown-17.8.jpg) | ![Brightwater at night on the dark theme: lit windows, street lamps, headlights and boats](docs/gallery/brightwater-dark-overview-22.jpg) |
+
+Drawn on the Ultra graphics preset. `node scripts/gallery.mjs` retakes them all (on WSL with Windows' node, `node.exe`, for the real GPU) from a running `pnpm dev`.
+
 ## Quick start
 
 ```bash
