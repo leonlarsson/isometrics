@@ -94,11 +94,22 @@
 	transition: background 1.2s ease;
 }
 
+/*
+ * The world's title on a nameplate, like the label cards: the theme's own colours on its own
+ * surface, so it reads on any sky, backdrop or part of the world behind it.
+ */
 .sceneTitle {
 	position: absolute;
 	top: 20px;
 	left: 24px;
 	z-index: 1;
+	max-width: min(360px, calc(100% - 48px));
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-card);
 	pointer-events: none;
 }
 
@@ -151,15 +162,6 @@
 	opacity: 0.75;
 }
 
-/* On a night sky (the time of day, ADR-0052) the light theme's dark title turns light. */
-:global(:root[data-theme="light"]) .stage[data-sky-dark] .sceneTitle h1 {
-	color: var(--surface-raised);
-}
-
-:global(:root[data-theme="light"]) .stage[data-sky-dark] .sceneTitle p {
-	color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
-}
-
 /*
  * Narrow layout (keep in sync with useNarrowLayout): the scene keeps the whole
  * screen and the inspector floats over its bottom as a sheet, so opening it
@@ -197,6 +199,8 @@
 	.sceneTitle {
 		top: 12px;
 		left: 16px;
+		max-width: calc(100% - 32px);
+		padding: 8px 12px;
 	}
 
 	.sceneTitle h1 {

@@ -116,3 +116,19 @@ export const backdropBackground = (backdrop: TBackdrop, themeBackground: string)
 			return GREEN_SCREEN;
 	}
 };
+
+/**
+ * The sky's colour behind the isometric diorama at an hour (ADR-0052), and how much of it shows
+ * over the theme's background: none at noon, more as the light colours (dawn, golden hour),
+ * almost all at dusk and night. Null with the classic daylight, which has no sky colour.
+ */
+export const dioramaSkyAt = (lighting: TLighting, hour: number | null) => {
+	const light = skyLightAt(lighting, hour);
+	if (!light.sky) {
+		return null;
+	}
+	return {
+		color: light.sky,
+		weight: Math.min(0.9, 0.9 * Math.max(light.night, light.tintAmount * 1.2)),
+	};
+};

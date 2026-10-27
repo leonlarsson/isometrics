@@ -9,10 +9,9 @@ import { useEditor } from "#/editor/store";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
-import { lightnessOf } from "#/lib/color";
 import { Viewport } from "#/render/Viewport";
-import { backdropBackground, GREEN_SCREEN } from "#/scene/sky";
-import { formatHour, skyLightAt } from "#/scene/sun";
+import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
+import { formatHour } from "#/scene/sun";
 
 import { BoxSelectBar } from "./BoxSelectBar";
 import { Button, IconButton } from "./Button";
@@ -63,19 +62,16 @@ import styles from "./AppShell.module.css";
  * (dawn, golden hour) and almost fully at dusk and night. Nothing with the
  * classic daylight.
  */
-const useSky = (): { style: CSSProperties; dark: boolean } => {
+const useSky = (): CSSProperties => {
 	const lighting = useEditor((s) => s.scene.lighting);
-	const sky = skyLightAt(lighting, useSceneHours());
-	if (!sky.sky) {
-		return { style: {}, dark: false };
+	const sky = dioramaSkyAt(lighting, useSceneHours());
+	if (!sky) {
+		return {};
 	}
-	// As coloured as the light: the theme's own background at noon, the day's sky at dusk and night.
-	const weight = Math.min(0.9, 0.9 * Math.max(sky.night, sky.tintAmount * 1.2));
 	return {
-		style: { "--sky": sky.sky, "--sky-weight": `${Math.round(weight * 100)}%` } as CSSProperties,
-		// The world's title switches to light text on a night sky (AppShell.module.css).
-		dark: sky.night >= 0.5,
-	};
+		"--sky": sky.color,
+		"--sky-weight": `${Math.round(sky.weight * 100)}%`,
+	} as CSSProperties;
 };
 
 /**
@@ -88,19 +84,8 @@ const Stage = ({ children }: { children: ReactNode }) => {
 	// A backdrop of the world's own (ADR-0070) replaces the sky's colour behind the diorama.
 	const backdrop = useEditor((s) => s.scene.backdrop);
 	const background = backdropBackground(backdrop, "var(--bg)");
-	const top =
-		backdrop.kind === "greenScreen"
-			? GREEN_SCREEN
-			: backdrop.kind === "gradient"
-				? backdrop.gradientStart
-				: backdrop.color;
-	const dark = background === null ? sky.dark : top !== null && lightnessOf(top) < 0.45;
 	return (
-		<main
-			className={styles.stage}
-			style={background === null ? sky.style : { background }}
-			data-sky-dark={dark || undefined}
-		>
+		<main className={styles.stage} style={background === null ? sky : { background }}>
 			{children}
 		</main>
 	);
