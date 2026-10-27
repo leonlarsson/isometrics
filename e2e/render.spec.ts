@@ -1,4 +1,4 @@
-import { choose, expect, openEditor, read, test } from "./editor";
+import { choose, expect, loadWorld, openEditor, read, test } from "./editor";
 
 test.describe("Render a picture (ADR-0084)", () => {
 	test("pauses motion, renders the view as a PNG, then puts the view back as it was", async ({
@@ -6,6 +6,13 @@ test.describe("Render a picture (ADR-0084)", () => {
 	}) => {
 		test.setTimeout(120_000);
 		await openEditor(page);
+		// A small world (the starter world keeps its title), so the render is quick even in software.
+		await loadWorld(page, {
+			entities: [
+				{ id: "house", kind: "house_01", position: [0, 0] },
+				{ id: "tree", kind: "round_tree_01", position: [3, 1] },
+			],
+		});
 		const before = await page.locator("canvas").first().boundingBox();
 		await page.getByRole("button", { name: "Render a picture…" }).click();
 		// Opening it pauses motion, so the moment stays put.
