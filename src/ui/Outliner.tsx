@@ -1,5 +1,5 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import type { ISceneItem } from "#/editor/framing";
 import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
@@ -128,6 +128,81 @@ const matches = (row: IOutlinerRow, query: string) => {
 		.every((word) => text.includes(word));
 };
 
+interface IOutlinerRowProps {
+	row: IOutlinerRow;
+	current: boolean;
+	editing: boolean;
+	/** Stable across renders (a ref's current function), so rows that didn't change don't redraw. */
+	onSelect: (
+		item: ISceneItem,
+		keys: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+	) => void;
+	onRenamingChange: (key: string | null) => void;
+}
+
+const store = () => useEditor.getState();
+
+/**
+ * One row: drawn again only when its own item, selection or renaming changes,
+ * not on every change to the world (a stroke of the paint brush adds dozens of
+ * objects; hundreds of rows with their buttons and tooltips made it lag).
+ */
+const OutlinerRowItem = memo(
+	({ row, current, editing, onSelect, onRenamingChange }: IOutlinerRowProps) => {
+		const key = keyOf(row.item);
+		const label = row.name || row.fallback;
+		return (
+			<ListItem
+				label={label}
+				meta={row.value ?? undefined}
+				swatch={row.swatch}
+				current={current}
+				muted={row.hidden}
+				onClick={(keys) => onSelect(row.item, keys)}
+				onHover={(hovering) => store().setHovered(hovering ? row.item : null)}
+				onContextMenu={(at) => store().openContextMenu(row.item, at)}
+				rename={{
+					value: row.name,
+					placeholder: row.fallback,
+					editing,
+					onEditingChange: (isEditing) => onRenamingChange(isEditing ? key : null),
+					onCommit: (name) => store().renameItem(row.item, name),
+				}}
+				actions={
+					<IconButtonGroup>
+						<IconButton
+							icon={row.hidden ? "eyeOff" : "eye"}
+							label={row.hidden ? `Show ${label} (H)` : `Hide ${label} (H)`}
+							pressed={row.hidden}
+							onClick={() => store().setItemFlag(row.item, "hidden", !row.hidden)}
+						/>
+
+						<IconButton
+							icon={row.locked ? "lock" : "unlock"}
+							label={row.locked ? `Unlock ${label}` : `Lock ${label}`}
+							pressed={row.locked}
+							onClick={() => store().setItemFlag(row.item, "locked", !row.locked)}
+						/>
+					</IconButtonGroup>
+				}
+			/>
+		);
+	},
+	// The row is made afresh each render; what it shows is what counts.
+	(before, after) =>
+		before.current === after.current &&
+		before.editing === after.editing &&
+		before.onSelect === after.onSelect &&
+		before.onRenamingChange === after.onRenamingChange &&
+		before.row.name === after.row.name &&
+		before.row.fallback === after.row.fallback &&
+		before.row.swatch === after.row.swatch &&
+		before.row.hidden === after.row.hidden &&
+		before.row.locked === after.row.locked &&
+		before.row.value === after.row.value &&
+		keyOf(before.row.item) === keyOf(after.row.item),
+);
+
 /**
  * Everything in the world as a list, like Blender's outliner: click to
  * select, double-click (or F2) to rename, and hide or lock each item. Hovering
@@ -156,7 +231,6 @@ export const Outliner = () => {
 	const panels = usePanelMemory();
 	const narrow = useNarrowLayout();
 
-	const store = () => useEditor.getState();
 	/**
 	 * Select a row's item: Ctrl/Cmd-click adds it or takes it out, Shift-click selects the rows
 	 * from the active one to it, as listed (ADR-0064).
@@ -188,6 +262,13 @@ export const Outliner = () => {
 			state.selectArea(item.id);
 		}
 	};
+
+	// Rows call the latest select through a stable function, so they needn't redraw when it changes.
+	const selectRef = useRef(select);
+	selectRef.current = select;
+	const [onSelect] = useState(
+		() => (item: ISceneItem, keys: Parameters<typeof select>[1]) => selectRef.current(item, keys),
+	);
 
 	// A row under the pointer when the outliner goes away mustn't stay highlighted.
 	useEffect(() => () => store().setHovered(null), []);
@@ -281,42 +362,14 @@ export const Outliner = () => {
 								.filter((row) => row.group === group)
 								.map((row) => {
 									const key = keyOf(row.item);
-									const label = row.name || row.fallback;
 									return (
-										<ListItem
+										<OutlinerRowItem
 											key={key}
-											label={label}
-											meta={row.value ?? undefined}
-											swatch={row.swatch}
+											row={row}
 											current={selectedRows.includes(key)}
-											muted={row.hidden}
-											onClick={(keys) => select(row.item, keys)}
-											onHover={(hovering) => store().setHovered(hovering ? row.item : null)}
-											onContextMenu={(at) => store().openContextMenu(row.item, at)}
-											rename={{
-												value: row.name,
-												placeholder: row.fallback,
-												editing: renaming === key,
-												onEditingChange: (editing) => setRenaming(editing ? key : null),
-												onCommit: (name) => store().renameItem(row.item, name),
-											}}
-											actions={
-												<IconButtonGroup>
-													<IconButton
-														icon={row.hidden ? "eyeOff" : "eye"}
-														label={row.hidden ? `Show ${label} (H)` : `Hide ${label} (H)`}
-														pressed={row.hidden}
-														onClick={() => store().setItemFlag(row.item, "hidden", !row.hidden)}
-													/>
-
-													<IconButton
-														icon={row.locked ? "lock" : "unlock"}
-														label={row.locked ? `Unlock ${label}` : `Lock ${label}`}
-														pressed={row.locked}
-														onClick={() => store().setItemFlag(row.item, "locked", !row.locked)}
-													/>
-												</IconButtonGroup>
-											}
+											editing={renaming === key}
+											onSelect={onSelect}
+											onRenamingChange={setRenaming}
 										/>
 									);
 								})}
