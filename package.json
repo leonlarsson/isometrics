@@ -1,6 +1,7 @@
 {
   "name": "isometrics",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@10.17.1",
   "imports": {

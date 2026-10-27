@@ -81,3 +81,7 @@ See [`AGENTS.md`](AGENTS.md) for the code layout and conventions, and [`docs/adr
 ## Stack
 
 TanStack Start · React 19 · three.js / React Three Fiber / drei · Zustand + Immer · Zod · CSS Modules · Biome · Vitest · Cloudflare Workers
+
+## License
+
+Copyright © 2026 Leon San José Larsson. All rights reserved. The source is public for reference only: no part of it may be copied, changed, hosted or used without written permission. See [`LICENSE`](LICENSE).
