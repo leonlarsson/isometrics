@@ -251,6 +251,8 @@ export const LightPool = ({
 const PATTERN = 16;
 /** Pixels per cell in the pattern; a lit window fills all but a hair of its cell. */
 const CELL = 8;
+/** Pixels per cell when panes are smaller than their cells, so their edges stay crisp. */
+const FINE_CELL = 20;
 
 /**
  * The shared pattern of windows, split between lights: one mask per light,
@@ -261,8 +263,12 @@ const CELL = 8;
  * lit panes only ever adds panes and never moves another light's.
  */
 const windowMasks = new Map<string, THREE.CanvasTexture[]>();
-const getWindowMasks = (weights: readonly number[], litPanes: readonly number[]) => {
-	const cacheKey = `${weights.join(",")}|${litPanes.map((part) => part.toFixed(3)).join(",")}`;
+const getWindowMasks = (
+	weights: readonly number[],
+	litPanes: readonly number[],
+	paneSize: readonly [number, number] | undefined,
+) => {
+	const cacheKey = `${weights.join(",")}|${litPanes.map((part) => part.toFixed(3)).join(",")}|${paneSize?.join(",") ?? "whole"}`;
 	const cached = windowMasks.get(cacheKey);
 	if (cached || typeof document === "undefined") {
 		return cached ?? null;
@@ -284,10 +290,14 @@ const getWindowMasks = (weights: readonly number[], litPanes: readonly number[])
 			panes[owner].push({ cell, score: jitter(cell + 7) / busy });
 		}
 	}
+	// A pane fills all of its cell, or the middle `paneSize` of it.
+	const cellSize = paneSize ? FINE_CELL : CELL;
+	const [across, up] = paneSize ?? [1, 1];
+	const inset = [Math.round(((1 - across) * cellSize) / 2), Math.round(((1 - up) * cellSize) / 2)];
 	const masks = panes.map((own, index) => {
 		const canvas = document.createElement("canvas");
-		canvas.width = PATTERN * CELL;
-		canvas.height = PATTERN * CELL;
+		canvas.width = PATTERN * cellSize;
+		canvas.height = PATTERN * cellSize;
 		const ctx = canvas.getContext("2d");
 		if (ctx) {
 			ctx.fillStyle = "#000000";
@@ -296,7 +306,12 @@ const getWindowMasks = (weights: readonly number[], litPanes: readonly number[])
 			ctx.fillStyle = "#ffffff";
 			const lit = [...own].sort((a, b) => a.score - b.score);
 			for (const { cell } of lit.slice(0, Math.round((litPanes[index] ?? 1) * own.length))) {
-				ctx.fillRect((cell % PATTERN) * CELL, Math.floor(cell / PATTERN) * CELL, CELL, CELL);
+				ctx.fillRect(
+					(cell % PATTERN) * cellSize + inset[0],
+					Math.floor(cell / PATTERN) * cellSize + inset[1],
+					cellSize - 2 * inset[0],
+					cellSize - 2 * inset[1],
+				);
 			}
 		}
 		const mask = new THREE.CanvasTexture(canvas);
@@ -332,6 +347,12 @@ interface ILitWindowsProps {
 	floors: number;
 	/** Picks a different part of the pattern, so neighbouring buildings differ. */
 	seed: number;
+	/**
+	 * How much of its cell each pane fills, across and up (0–1): for windows with
+	 * wall between them, drawn in the same cells (`buildings/windowKit`). The
+	 * whole cell by default, a glass facade's.
+	 */
+	paneSize?: readonly [number, number];
 }
 
 /**
@@ -349,10 +370,12 @@ export const LitWindows = ({
 	columnsZ,
 	floors,
 	seed,
+	paneSize,
 }: ILitWindowsProps) => {
 	const masks = getWindowMasks(
 		lights.map((light) => light.weight),
 		lights.map((light) => light.litPanes),
+		paneSize,
 	);
 	// Each face of each light its own copy (sharing the image), repeated to one cell per window.
 	const faces = useMemo(() => {

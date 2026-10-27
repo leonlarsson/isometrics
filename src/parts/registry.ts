@@ -1,12 +1,21 @@
 import { variantName } from "#/scene/variants";
 
+import { apartmentBlock01 } from "./buildings/apartment_block_01";
+import { barn01 } from "./buildings/barn_01";
 import { cafe01 } from "./buildings/cafe_01";
+import { church01 } from "./buildings/church_01";
 import { depot01 } from "./buildings/depot_01";
+import { factory01 } from "./buildings/factory_01";
 import { grandstand01 } from "./buildings/grandstand_01";
+import { greenhouse01 } from "./buildings/greenhouse_01";
 import { house01 } from "./buildings/house_01";
+import { lighthouse01 } from "./buildings/lighthouse_01";
 import { officeTower01 } from "./buildings/office_tower_01";
+import { petrolStation01 } from "./buildings/petrol_station_01";
+import { school01 } from "./buildings/school_01";
 import { shop01 } from "./buildings/shop_01";
 import { shop02 } from "./buildings/shop_02";
+import { terracedRow01 } from "./buildings/terraced_row_01";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
 import { bin01 } from "./furniture/bin_01";
@@ -55,11 +64,20 @@ export type TAnyPart = IPartDefinition<any>;
 export const PARTS: TAnyPart[] = [
 	warehouse01,
 	officeTower01,
+	apartmentBlock01,
 	house01,
+	terracedRow01,
 	shop01,
 	shop02,
 	cafe01,
+	school01,
+	church01,
 	depot01,
+	factory01,
+	petrolStation01,
+	barn01,
+	greenhouse01,
+	lighthouse01,
 	grandstand01,
 	deliveryVan01,
 	truck01,

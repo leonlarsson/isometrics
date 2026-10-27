@@ -114,7 +114,7 @@ const percent = (strength: number) => `${Math.round(strength * 100)}%`;
 
 /** What a shape's reach is called, and what it does. */
 const REACH: Record<string, { label: string; hint: string }> = {
-	beam: { label: "Beam length", hint: "How far its beam reaches along the road ahead." },
+	beam: { label: "Beam length", hint: "How far its beam reaches, like headlights along the road." },
 	pool: { label: "Glow size", hint: "How far its glow spreads on the ground around it." },
 };
 
