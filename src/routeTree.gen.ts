@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KitRouteImport } from './routes/kit'
+import { Route as PartsRouteImport } from './routes/parts'
 import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
 import { Route as TemplatesDotjsonRouteImport } from './routes/templates[.]json'
 import { Route as TemplatesFileRouteImport } from './routes/templates.$file'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const KitRoute = KitRouteImport.update({
   id: '/kit',
   path: '/kit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartsRoute = PartsRouteImport.update({
+  id: '/parts',
+  path: '/parts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
@@ -44,6 +50,7 @@ const TemplatesFileRoute = TemplatesFileRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/kit': typeof KitRoute
+  '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
   '/templates/$file': typeof TemplatesFileRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/kit': typeof KitRoute
+  '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
   '/templates/$file': typeof TemplatesFileRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/kit': typeof KitRoute
+  '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
   '/templates/$file': typeof TemplatesFileRoute
@@ -66,13 +75,25 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/kit' | '/schema.json' | '/templates.json' | '/templates/$file'
+    | '/'
+    | '/kit'
+    | '/parts'
+    | '/schema.json'
+    | '/templates.json'
+    | '/templates/$file'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/kit' | '/schema.json' | '/templates.json' | '/templates/$file'
+  to:
+    | '/'
+    | '/kit'
+    | '/parts'
+    | '/schema.json'
+    | '/templates.json'
+    | '/templates/$file'
   id:
     | '__root__'
     | '/'
     | '/kit'
+    | '/parts'
     | '/schema.json'
     | '/templates.json'
     | '/templates/$file'
@@ -81,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KitRoute: typeof KitRoute
+  PartsRoute: typeof PartsRoute
   SchemaDotjsonRoute: typeof SchemaDotjsonRoute
   TemplatesDotjsonRoute: typeof TemplatesDotjsonRoute
   TemplatesFileRoute: typeof TemplatesFileRoute
@@ -100,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/kit'
       fullPath: '/kit'
       preLoaderRoute: typeof KitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parts': {
+      id: '/parts'
+      path: '/parts'
+      fullPath: '/parts'
+      preLoaderRoute: typeof PartsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schema.json': {
@@ -129,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KitRoute: KitRoute,
+  PartsRoute: PartsRoute,
   SchemaDotjsonRoute: SchemaDotjsonRoute,
   TemplatesDotjsonRoute: TemplatesDotjsonRoute,
   TemplatesFileRoute: TemplatesFileRoute,

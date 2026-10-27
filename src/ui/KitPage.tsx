@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { notify } from "#/editor/toasts";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
+import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards } from "./ChoiceCards";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -55,6 +56,7 @@ export const KitPage = () => {
 	]);
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
+	const [chip, setChip] = useState("all");
 	const [on, setOn] = useState(true);
 	const [rowName, setRowName] = useState("Harbour depot");
 	const [renaming, setRenaming] = useState(false);
@@ -394,6 +396,19 @@ export const KitPage = () => {
 													description:
 														"A longer description is cut off after two lines like this one",
 												},
+											]}
+										/>
+									</Section>
+
+									<Section title="Chips">
+										<ChipGroup
+											label="Category"
+											value={chip}
+											onChange={setChip}
+											chips={[
+												{ value: "all", label: "All", count: 19 },
+												{ value: "buildings", label: "Buildings", icon: "building", count: 5 },
+												{ value: "nature", label: "Nature", icon: "tree", count: 2 },
 											]}
 										/>
 									</Section>

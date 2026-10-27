@@ -155,3 +155,28 @@
 		cursor: pointer;
 	}
 }
+
+/* Under the search, always in sight: the parts catalogue, in a new tab. */
+.catalogue {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: fit-content;
+	margin: -4px 0 8px;
+	padding: 2px;
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+	font-size: 13px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.catalogue:hover {
+	color: var(--accent);
+	text-decoration: underline;
+}
+
+.catalogue:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}

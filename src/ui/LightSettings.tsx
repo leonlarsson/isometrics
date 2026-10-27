@@ -72,7 +72,7 @@ const NOTHING_MIXED = () => false;
 type TTurnsOn = TLightMode | "data";
 
 /** What each way of coming on is called, and what it does. */
-const COMES_ON: Record<
+export const COMES_ON: Record<
 	TComesOn,
 	{
 		label: string;

@@ -381,6 +381,13 @@ export const PartsPalette = () => {
 						shortcut="/"
 					/>
 				</div>
+
+				{/* Every part with its colours, lights and settings, in a tab of its own (ADR-0087). */}
+				<a className={styles.catalogue} href="/parts" target="_blank" rel="noreferrer">
+					<Icon name="cube" size={14} />
+					Browse all parts
+					<Icon name="newTab" size={13} />
+				</a>
 			</div>
 
 			<div className={styles.list} onScroll={() => hidePreview(true)}>

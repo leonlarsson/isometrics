@@ -15,10 +15,12 @@ const subscribe = (callback: () => void) => {
 
 const prefersDark = () => window.matchMedia(QUERY).matches;
 
+/** Whether the device asks for dark colours (the system theme), following it as it changes. */
+export const usePrefersDark = () => useSyncExternalStore(subscribe, prefersDark, () => false);
+
 export const useResolvedTheme = (): TResolvedTheme => {
 	const preference = useEditor((s) => s.scene.theme);
-	const dark = useSyncExternalStore(subscribe, prefersDark, () => false);
-	return resolveTheme(preference, dark);
+	return resolveTheme(preference, usePrefersDark());
 };
 
 /**

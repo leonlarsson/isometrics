@@ -25,6 +25,8 @@
 	--accent-contrast: #ffffff;
 	--accent-soft: rgb(217 100 58 / 0.12);
 	--danger: #c84646;
+	/* Behind pictures of parts at night (the parts catalogue), in both themes: a night sky. */
+	--picture-night: #1f2647;
 
 	--radius-sm: 8px;
 	--radius-md: 12px;

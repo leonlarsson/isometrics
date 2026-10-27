@@ -1,4 +1,4 @@
-import { createRoot, useThree } from "@react-three/fiber";
+import { createRoot, extend, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
@@ -10,31 +10,52 @@ import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/
 import { VIEW_DIRECTION } from "./CameraRig";
 
 /**
- * Small pictures of every part for the Add to scene panel, rendered in the
- * browser from the parts themselves: each part in its default look, lit like
- * the scene and seen from the same angle, on a transparent background. One
- * offscreen canvas renders them all once per theme, then goes away; the images
- * live in memory only. See docs/adr/0036-part-thumbnails.md.
+ * Pictures of every part, rendered in the browser from the parts themselves:
+ * each part in its default look, lit like the scene and seen from the same
+ * angle, on a transparent background. Small ones for the Add to scene panel,
+ * bigger ones for the parts catalogue, by day or at night with its lights on.
+ * One offscreen canvas renders a set (a look at a size) once, then goes away;
+ * the images live in memory only. See docs/adr/0036-part-thumbnails.md.
  */
 
 export type TThumbnails = Readonly<Record<string, string>>;
 
-/** CSS pixels; rendered at twice that for sharp tiles. */
-const SIZE = { width: 112, height: 84 };
+/** How a set of pictures looks: the theme, and by day or at night with the parts' lights on. */
+export interface IPictureLook {
+	theme: TResolvedTheme;
+	night: boolean;
+}
+
+/** A picture's size in CSS pixels; rendered at twice that, for sharp pictures. */
+export interface IPictureSize {
+	width: number;
+	height: number;
+}
+
+/** The Add to scene panel's tiles. */
+const THUMBNAIL_SIZE: IPictureSize = { width: 112, height: 84 };
 const DPR = 2;
 /** How much of the picture the part fills. */
 const FILL = 0.84;
 
+interface IPictureSet {
+	look: IPictureLook;
+	size: IPictureSize;
+}
+
+const keyOf = ({ look, size }: IPictureSet) =>
+	`${look.theme}/${look.night ? "night" : "day"}/${size.width}x${size.height}`;
+
 const EMPTY: TThumbnails = {};
-const cache = new Map<TResolvedTheme, TThumbnails>();
+const cache = new Map<string, TThumbnails>();
 const listeners = new Set<() => void>();
-const queued = new Set<TResolvedTheme>();
+const queued = new Map<string, IPictureSet>();
 /**
- * Themes asked for so far. The cache only has a theme once its first picture is done, so a
+ * Sets asked for so far. The cache only has a set once its first picture is done, so a
  * second request before that (a remount while starting up) would otherwise queue it again
  * and render every part twice.
  */
-const requested = new Set<TResolvedTheme>();
+const requested = new Set<string>();
 let working = false;
 
 /** Wait until the browser has a quiet moment, so rendering pictures never makes the page stutter. */
@@ -93,15 +114,36 @@ export const frameBoxIn = (
 	camera.updateProjectionMatrix();
 };
 
-/** The lights of the scene, without shadows: for pictures and previews of single parts. */
+/** Moonlight for pictures at night: how much of the day's light is left, and its colour. */
+const NIGHT_LIGHT = { share: 0.3, sunShare: 0.25, moon: "#a9b8ff" };
+
+/** The theme's colours for a look: at night, dark enough that the parts' lights are on (ADR-0058). */
+export const pictureLookPalette = (look: IPictureLook): IScenePalette =>
+	look.night ? { ...scenePalettes[look.theme], night: 1 } : scenePalettes[look.theme];
+
+/**
+ * The lights of the scene, without shadows: for pictures and previews of
+ * single parts. At night (`palette.night`) a dim, bluish moonlight instead.
+ */
 export const PartLights = ({ palette }: { palette: IScenePalette }) => {
+	const night = palette.night > 0.5;
 	return (
 		<>
-			<hemisphereLight args={[palette.hemiSky, palette.hemiGround, palette.hemiIntensity]} />
+			<hemisphereLight
+				args={[
+					palette.hemiSky,
+					palette.hemiGround,
+					palette.hemiIntensity * (night ? NIGHT_LIGHT.share : 1),
+				]}
+			/>
 
-			<ambientLight intensity={palette.ambientIntensity} />
+			<ambientLight intensity={palette.ambientIntensity * (night ? NIGHT_LIGHT.share : 1)} />
 
-			<directionalLight position={[6, 12, 4]} intensity={palette.sunIntensity} />
+			<directionalLight
+				position={[6, 12, 4]}
+				color={night ? NIGHT_LIGHT.moon : "#ffffff"}
+				intensity={palette.sunIntensity * (night ? NIGHT_LIGHT.sunShare : 1)}
+			/>
 		</>
 	);
 };
@@ -109,11 +151,12 @@ export const PartLights = ({ palette }: { palette: IScenePalette }) => {
 interface IShotProps {
 	part: TAnyPart;
 	palette: IScenePalette;
+	size: IPictureSize;
 	onShot: (url: string) => void;
 }
 
 /** Shows one part, frames it, renders one frame and hands back the picture. */
-const Shot = ({ part, palette, onShot }: IShotProps) => {
+const Shot = ({ part, palette, size, onShot }: IShotProps) => {
 	const gl = useThree((s) => s.gl);
 	const scene = useThree((s) => s.scene);
 	const camera = useThree((s) => s.camera);
@@ -126,7 +169,7 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 			return;
 		}
 		shot.current = true;
-		frameBoxIn(camera, box.setFromObject(group.current), SIZE, FILL);
+		frameBoxIn(camera, box.setFromObject(group.current), size, FILL);
 		gl.render(scene, camera);
 		onShot(gl.domElement.toDataURL("image/png"));
 	};
@@ -160,27 +203,32 @@ const Shot = ({ part, palette, onShot }: IShotProps) => {
 	);
 };
 
-/** Render every part for one theme, publishing each picture as soon as it's ready. */
-const renderTheme = async (theme: TResolvedTheme) => {
-	const palette = scenePalettes[theme];
+/** Render every part for one set, publishing each picture as soon as it's ready. */
+const renderSet = async (set: IPictureSet) => {
+	const key = keyOf(set);
+	const palette = pictureLookPalette(set.look);
+	// <Canvas> teaches R3F three's classes; a root of our own, maybe before any canvas, needs it too.
+	extend(THREE as unknown as Parameters<typeof extend>[0]);
 	const canvas = document.createElement("canvas");
 	const root = createRoot(canvas);
 	await root.configure({
 		gl: { alpha: true, antialias: true, preserveDrawingBuffer: true },
 		orthographic: true,
 		camera: { near: 0.1, far: 200 },
-		size: { ...SIZE, top: 0, left: 0 },
+		size: { ...set.size, top: 0, left: 0 },
 		dpr: DPR,
 		frameloop: "never",
 	});
-	const thumbnails: Record<string, string> = {};
+	const pictures: Record<string, string> = {};
 	try {
 		for (const part of PARTS) {
 			await idle();
-			thumbnails[part.kind] = await new Promise<string>((resolve) => {
-				root.render(<Shot key={part.kind} part={part} palette={palette} onShot={resolve} />);
+			pictures[part.kind] = await new Promise<string>((resolve) => {
+				root.render(
+					<Shot key={part.kind} part={part} palette={palette} size={set.size} onShot={resolve} />,
+				);
 			});
-			cache.set(theme, { ...thumbnails });
+			cache.set(key, { ...pictures });
 			notify();
 		}
 	} finally {
@@ -188,20 +236,20 @@ const renderTheme = async (theme: TResolvedTheme) => {
 	}
 };
 
-/** Work through the requested themes one at a time (each run uses its own WebGL context). */
+/** Work through the requested sets one at a time (each run uses its own WebGL context). */
 const work = async () => {
 	if (working) {
 		return;
 	}
 	working = true;
-	for (const theme of queued) {
-		queued.delete(theme);
+	for (const [key, set] of queued) {
+		queued.delete(key);
 		try {
-			await renderTheme(theme);
+			await renderSet(set);
 		} catch (error) {
 			// No WebGL, or a part failed to render: the tiles keep their colour chips.
-			console.warn("Could not render part thumbnails", error);
-			cache.set(theme, cache.get(theme) ?? EMPTY);
+			console.warn("Could not render part pictures", error);
+			cache.set(key, cache.get(key) ?? EMPTY);
 		}
 	}
 	working = false;
@@ -213,21 +261,26 @@ const subscribe = (listener: () => void) => {
 };
 
 /**
- * Pictures of the parts for a theme, by part kind; empty at first, filling in
- * as they're rendered. The first call for a theme starts rendering it.
+ * Pictures of the parts in a look at a size, by part kind; empty at first,
+ * filling in as they're rendered. The first call for a set starts rendering it.
  */
-export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails => {
-	const thumbnails = useSyncExternalStore(
+export const usePartPictures = (look: IPictureLook, size: IPictureSize): TThumbnails => {
+	const key = keyOf({ look, size });
+	const pictures = useSyncExternalStore(
 		subscribe,
-		() => cache.get(theme) ?? EMPTY,
+		() => cache.get(key) ?? EMPTY,
 		() => EMPTY,
 	);
 	useEffect(() => {
-		if (!requested.has(theme)) {
-			requested.add(theme);
-			queued.add(theme);
+		if (!requested.has(key)) {
+			requested.add(key);
+			queued.set(key, { look, size });
 			void work();
 		}
-	}, [theme]);
-	return thumbnails;
+	}, [key]);
+	return pictures;
 };
+
+/** The Add to scene panel's small pictures of the parts for a theme, by day. */
+export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails =>
+	usePartPictures({ theme, night: false }, THUMBNAIL_SIZE);

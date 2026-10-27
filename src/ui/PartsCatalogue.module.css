@@ -1,0 +1,307 @@
+/* The parts catalogue at /parts: a header, the search and chips, a grid of cards. */
+.page {
+	isolation: isolate;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	max-width: 1180px;
+	min-height: 100dvh;
+	margin: 0 auto;
+	padding: 24px;
+	background: var(--bg);
+	color: var(--text);
+}
+
+:global(body):has(.page) {
+	background: var(--bg);
+}
+
+/*
+ * The scrollbar always shows, so the page never shifts: with a few cards left by a filter, and
+ * while a part's details are open (the dialog's scroll lock would hide it; `!important` beats
+ * its inline style).
+ */
+:global(html):has(.page) {
+	overflow-y: scroll !important;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.brand h1 {
+	margin: 0;
+	font-size: 22px;
+	letter-spacing: -0.02em;
+}
+
+/* The editor's logo (Toolbar.module.css). */
+.logo {
+	flex: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 7px;
+	background: linear-gradient(135deg, var(--accent) 50%, #3d4fd6 50%);
+	transform: rotate(45deg) scale(0.85);
+}
+
+.link {
+	color: var(--accent);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.link:hover {
+	text-decoration: underline;
+}
+
+.intro {
+	max-width: 720px;
+	margin: 0;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+}
+
+.search {
+	flex: 1 1 240px;
+	max-width: 360px;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.card {
+	all: unset;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+	overflow: hidden;
+	cursor: pointer;
+	transition:
+		border-color 120ms ease,
+		transform 120ms ease;
+}
+
+.card:hover {
+	border-color: var(--border-strong);
+	transform: translateY(-1px);
+}
+
+.card:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* A part's picture: the page's background by day, a night sky at night. */
+.picture,
+.lookPicture {
+	display: grid;
+	place-items: center;
+	background: var(--surface-sunken);
+}
+
+.picture {
+	aspect-ratio: 240 / 170;
+}
+
+.picture[data-night],
+.lookPicture[data-night] {
+	background: var(--picture-night);
+}
+
+.picture img,
+.lookPicture img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.cardText {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px 12px 12px;
+}
+
+.cardDescription {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.cardKind {
+	margin-top: 4px;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* A part's details: the pictures on the left, what it has on the right. */
+.details {
+	display: grid;
+	grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+	gap: 20px;
+}
+
+.detailsPictures {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.model {
+	height: 240px;
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+}
+
+.model[data-night] {
+	background: var(--picture-night);
+}
+
+.looks {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.look {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.lookPicture {
+	aspect-ratio: 150 / 110;
+	border-radius: var(--radius-sm);
+}
+
+.facts {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.description {
+	margin: 0;
+	font-size: 15px;
+}
+
+.list {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 6px 16px;
+	margin: 0;
+}
+
+.list dt {
+	color: var(--text-muted);
+}
+
+.list dd {
+	margin: 0;
+}
+
+.kind {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.page code,
+.details code {
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+.heading {
+	margin: 12px 0 0;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.rows {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rows li {
+	display: grid;
+	grid-template-columns: auto max-content minmax(0, 1fr);
+	align-items: baseline;
+	gap: 8px;
+}
+
+/* Rows without a swatch or icon in front. */
+.rows li:not(:has(> :nth-child(3))) {
+	grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.rowName {
+	font-weight: 600;
+}
+
+.rowMeta {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.swatch {
+	align-self: center;
+	width: 16px;
+	height: 16px;
+	border: 1px solid var(--border-strong);
+	border-radius: 5px;
+}
+
+.none {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+	.page {
+		padding: 16px;
+	}
+
+	.details {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

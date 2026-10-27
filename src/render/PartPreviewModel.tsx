@@ -6,6 +6,7 @@ import { usePalette } from "#/editor/useTheme";
 import { resolvePartColors } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
+import type { IScenePalette } from "#/scene/theme";
 
 import { frameBoxIn, PartLights } from "./thumbnails";
 
@@ -16,8 +17,9 @@ const FILL = 0.8;
 const bounds = new THREE.Box3();
 
 /** One part, turning slowly, framed so it never touches the edges while it turns. */
-const Turntable = ({ kind }: { kind: string }) => {
-	const palette = usePalette();
+const Turntable = ({ kind, palette: given }: { kind: string; palette?: IScenePalette }) => {
+	const worldPalette = usePalette();
+	const palette = given ?? worldPalette;
 	const camera = useThree((s) => s.camera);
 	const size = useThree((s) => s.size);
 	const turning = useRef<THREE.Group>(null);
@@ -85,12 +87,14 @@ const Turntable = ({ kind }: { kind: string }) => {
 
 /**
  * A live 3D view of one part, slowly turning: the Add to scene panel's hover
- * preview. One at a time; switching `kind` keeps the same canvas.
+ * preview, and the parts catalogue's. One at a time; switching `kind` keeps the
+ * same canvas. In the world's colours, or the `palette` given (the catalogue's
+ * theme, at night with its lights on).
  */
-export const PartPreviewModel = ({ kind }: { kind: string }) => {
+export const PartPreviewModel = ({ kind, palette }: { kind: string; palette?: IScenePalette }) => {
 	return (
 		<Canvas orthographic dpr={[1, 2]} camera={{ near: 0.1, far: 200 }} gl={{ alpha: true }}>
-			<Turntable key={kind} kind={kind} />
+			<Turntable key={kind} kind={kind} palette={palette} />
 		</Canvas>
 	);
 };
