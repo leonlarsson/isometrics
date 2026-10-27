@@ -88,6 +88,11 @@ const fragmentShader = /* glsl */ `
  */
 export const SkyDome = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
+	// A green screen is for keying the world out, and a see-through picture has no sky (ADR-0084):
+	// the backdrop shows in perspective too, or nothing.
+	const skyless = useEditor(
+		(s) => s.scene.backdrop.kind === "greenScreen" || (s.stillRender?.transparent ?? false),
+	);
 	const sky = useEditor((s) => s.scene.sky);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const hour = useSceneHours();
@@ -142,7 +147,7 @@ export const SkyDome = () => {
 		dome.scale.setScalar((camera as THREE.PerspectiveCamera).far * FAR_SHARE);
 	});
 
-	if (!perspective || !sky.showInPerspective) {
+	if (!perspective || !sky.showInPerspective || skyless) {
 		return null;
 	}
 	return (

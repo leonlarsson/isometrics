@@ -6,7 +6,14 @@ import * as THREE from "three";
 import { useSceneHours } from "#/editor/dayClock";
 import { useGraphics } from "#/editor/graphics";
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
-import { isItemBoxed, isItemSelected, isToggleClick, SNAP_STEP, useEditor } from "#/editor/store";
+import {
+	drawnModeOf,
+	isItemBoxed,
+	isItemSelected,
+	isToggleClick,
+	SNAP_STEP,
+	useEditor,
+} from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
@@ -101,7 +108,7 @@ export const EntityNode = memo(({ entity }: { entity: TEntity }) => {
 		typeof entity.lights === "object" &&
 			Object.values(entity.lights).some((light) => light.whenOn === "schedule"),
 	);
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	// Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064).
 	const selected = useEditor((s) => isItemSelected(s, "entity", entity.id));
 	const alone = useEditor((s) => s.selectedId === entity.id && s.selectedItems.length === 1);

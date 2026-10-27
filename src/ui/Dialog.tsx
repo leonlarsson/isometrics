@@ -15,8 +15,11 @@ interface IDialogProps {
 	children: ReactNode;
 	/** Label of the button that closes it. */
 	closeLabel?: string;
-	/** A main action next to the close button (which then says Cancel), e.g. Create. */
-	confirm?: { label: string; onConfirm: () => void; disabled?: boolean };
+	/**
+	 * A main action next to the close button (which then says Cancel), e.g. Create. It closes the
+	 * dialog, unless `keepOpen` (an action whose result shows in it, like Render).
+	 */
+	confirm?: { label: string; onConfirm: () => void; disabled?: boolean; keepOpen?: boolean };
 	/** Room for two columns, e.g. choices on the left and their settings on the right. */
 	wide?: boolean;
 }
@@ -64,7 +67,9 @@ export const Dialog = ({
 								disabled={confirm.disabled}
 								onClick={() => {
 									confirm.onConfirm();
-									onOpenChange(false);
+									if (!confirm.keepOpen) {
+										onOpenChange(false);
+									}
 								}}
 							>
 								{confirm.label}

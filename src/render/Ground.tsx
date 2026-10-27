@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useState } from "react";
 import * as THREE from "three";
 
-import { isToggleClick, useEditor } from "#/editor/store";
+import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
@@ -38,7 +38,7 @@ const useGridCell = () => {
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
 	const cell = useGridCell();

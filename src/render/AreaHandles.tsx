@@ -3,7 +3,13 @@ import { useRef, useState } from "react";
 import type * as THREE from "three";
 
 import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
-import { isToggleClick, selectSelectedArea, selectSeveral, useEditor } from "#/editor/store";
+import {
+	drawnModeOf,
+	isToggleClick,
+	selectSelectedArea,
+	selectSeveral,
+	useEditor,
+} from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { segmentMidpoints } from "#/scene/roads";
@@ -183,7 +189,7 @@ export const AreaHandles = () => {
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	// A selection box being drawn over its corners (ADR-0065): what letting go would select.
 	const boxDrag = useEditor((s) => s.boxDrag);
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
 

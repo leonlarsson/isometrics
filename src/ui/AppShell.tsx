@@ -34,6 +34,7 @@ import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
 import { PreferencesDialog } from "./PreferencesDialog";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
+import { RenderDialog } from "./RenderDialog";
 import {
 	INSPECTOR_WIDTH,
 	OUTLINER_HEIGHT,
@@ -355,6 +356,8 @@ export const AppShell = () => {
 							<ViewpointContextMenu />
 
 							<PreferencesDialog />
+
+							<RenderDialog />
 
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}

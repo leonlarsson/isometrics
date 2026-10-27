@@ -5,7 +5,7 @@ import { Suspense, useMemo, useState } from "react";
 import * as THREE from "three";
 
 import { overlayShownIn, usePreferences } from "#/editor/preferences";
-import { useEditor } from "#/editor/store";
+import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { DEG2RAD } from "#/lib/math";
 import type { TViewpoint } from "#/scene/schema";
@@ -206,7 +206,7 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
  */
 export const ViewpointMarkers = () => {
 	const place = usePreferences().viewpointsInWorld;
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const aspect = useThree((s) => (s.size.height > 0 ? s.size.width / s.size.height : 1.5));
 	if (!overlayShownIn(place, mode)) {

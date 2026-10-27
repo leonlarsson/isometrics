@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 
-import { useEditor } from "#/editor/store";
+import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadCenterlineOf } from "#/scene/roads";
 import type { TArea, TRoad } from "#/scene/schema";
@@ -63,7 +63,7 @@ export const HoverHighlight = () => {
 	const boxed = useEditor((s) => s.boxDrag?.items);
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	const palette = usePalette();
 
 	const lines = useMemo(() => {

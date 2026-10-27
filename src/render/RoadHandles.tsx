@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
 import {
+	drawnModeOf,
 	type IJoinOffer,
 	isToggleClick,
 	selectSelectedRoad,
@@ -346,7 +347,7 @@ export const RoadHandles = () => {
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	// A selection box being drawn over its points (ADR-0065): what letting go would select.
 	const boxDrag = useEditor((s) => s.boxDrag);
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
 	const palette = usePalette();

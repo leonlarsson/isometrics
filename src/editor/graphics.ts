@@ -9,6 +9,7 @@ import {
 	type TShadowMapSize,
 	usePreferences,
 } from "./preferences";
+import { useEditor } from "./store";
 
 /**
  * Graphics settings (Preferences → Graphics, ADR-0072): how much this
@@ -120,7 +121,7 @@ export const changedFromPreset = (preferences: TPreferences) =>
 	GRAPHICS_SETTINGS.filter((setting) => preferences[setting] !== null).length;
 
 /** Whether the view needs the effects composer: Standard's view never does. */
-export const drawsEffects = (graphics: IGraphics) =>
+export const drawsEffects = (graphics: TDrawnGraphics) =>
 	graphics.ambientOcclusion !== "off" ||
 	graphics.showGlowAfterDark ||
 	graphics.antiAliasing === "smaa" ||
@@ -138,5 +139,24 @@ export const drawnGraphicsOf = (preferences: TPreferences): IGraphics => {
 		: graphics;
 };
 
-/** What the view draws with (drawnGraphicsOf), kept up to date. */
-export const useGraphics = () => drawnGraphicsOf(usePreferences());
+/** What the view draws with: the graphics settings, or a still picture's, whose shadows go further. */
+export type TDrawnGraphics = Omit<IGraphics, "shadowMapSize"> & { shadowMapSize: number };
+
+/**
+ * What a still picture is drawn with (Render a picture…, ADR-0084): Ultra and beyond, as it
+ * needn't keep up with a moving view; its own pixel density, set by the render.
+ */
+export const RENDER_GRAPHICS: TDrawnGraphics = {
+	...PRESET_GRAPHICS.ultra,
+	realLightCount: 64,
+	// Sharper than any live view's.
+	shadowMapSize: 8192,
+	boatWakes: "foamAndWaves",
+};
+
+/** What the view draws with (drawnGraphicsOf, or the render's while a still renders), kept up to date. */
+export const useGraphics = (): TDrawnGraphics => {
+	const graphics = drawnGraphicsOf(usePreferences());
+	const rendering = useEditor((s) => s.stillRender !== null);
+	return rendering ? { ...RENDER_GRAPHICS, maxPixelDensity: graphics.maxPixelDensity } : graphics;
+};

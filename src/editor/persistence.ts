@@ -584,8 +584,7 @@ const slugify = (text: string) =>
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "") || "world";
 
-const downloadText = (filename: string, text: string) => {
-	const blob = new Blob([text], { type: "application/json" });
+const downloadBlob = (filename: string, blob: Blob) => {
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
@@ -593,6 +592,13 @@ const downloadText = (filename: string, text: string) => {
 	link.click();
 	URL.revokeObjectURL(url);
 };
+
+const downloadText = (filename: string, text: string) =>
+	downloadBlob(filename, new Blob([text], { type: "application/json" }));
+
+/** Download a rendered picture (ADR-0084), named after its world and size. */
+export const downloadPicture = (title: string, picture: Blob, width: number, height: number) =>
+	downloadBlob(`${slugify(title)}-${width}x${height}.png`, picture);
 
 export const downloadScene = (scene: TScene) =>
 	downloadText(`${slugify(scene.meta.title)}.json`, JSON.stringify(scene, null, 2));

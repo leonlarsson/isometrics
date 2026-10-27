@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
-import { selectMovesAsGroup, useEditor } from "#/editor/store";
+import { drawnModeOf, selectMovesAsGroup, useEditor } from "#/editor/store";
 
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyGroupDrag } from "./transforms";
@@ -17,7 +17,7 @@ const AREA_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "rotate", "scale"];
  */
 export const GroupGizmo = () => {
 	const several = useEditor(selectMovesAsGroup);
-	const editing = useEditor((s) => s.mode === "edit" && s.drawing === null);
+	const editing = useEditor((s) => drawnModeOf(s) === "edit" && s.drawing === null);
 	const scene = useEditor((s) => s.scene);
 	const items = useEditor((s) => s.selectedItems);
 	const start = useRef<IGroupStart | null>(null);

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { useEditor } from "#/editor/store";
+import { drawnModeOf, useEditor } from "#/editor/store";
 import type { TScene } from "#/scene/schema";
 
 /**
@@ -73,4 +73,4 @@ export const bandBlurSettings = (camera: TScene["camera"], width: number, height
 
 /** Whether the world's tilt-shift shows: in View mode, and in Edit mode while previewing it. */
 export const useTiltShiftShown = () =>
-	useEditor((s) => s.scene.camera.tiltShiftOn && (s.mode === "view" || s.previewTiltShift));
+	useEditor((s) => s.scene.camera.tiltShiftOn && (drawnModeOf(s) === "view" || s.previewTiltShift));

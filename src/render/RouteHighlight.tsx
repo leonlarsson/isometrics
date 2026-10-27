@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 
-import { useEditor } from "#/editor/store";
+import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { createRouteSampler } from "#/scene/routes";
 import type { TRoad } from "#/scene/schema";
@@ -101,7 +101,7 @@ const RouteLine = ({ road, reverse }: { road: TRoad; reverse: boolean }) => {
  */
 export const RouteHighlight = () => {
 	const offered = useEditor((s) => s.routePreview ?? s.followOffer);
-	const editing = useEditor((s) => s.mode === "edit");
+	const editing = useEditor((s) => drawnModeOf(s) === "edit");
 	const selectedItems = useEditor((s) => s.selectedItems);
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);

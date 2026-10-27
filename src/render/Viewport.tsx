@@ -36,6 +36,7 @@ import { RoadMesh } from "./RoadMesh";
 import { RouteHighlight } from "./RouteHighlight";
 import { SceneLights } from "./SceneLights";
 import { SkyDome } from "./SkyDome";
+import { StillRender } from "./StillRender";
 import { useTiltShiftShown } from "./TiltShift";
 import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
@@ -52,7 +53,9 @@ const Lights = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const shadowMapSize = useGraphics().shadowMapSize;
-	const wireframe = usePreferences().showWireframe;
+	// No shadows in wireframe, unless a still picture renders (ADR-0084).
+	const rendering = useEditor((s) => s.stillRender !== null);
+	const wireframe = usePreferences().showWireframe && !rendering;
 	return (
 		<SceneLights
 			ground={ground}
@@ -70,7 +73,10 @@ export const Viewport = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
 	const graphics = useGraphics();
-	const wireframe = usePreferences().showWireframe;
+	// A still picture renders without wireframe, at its own pixel ratio (ADR-0084).
+	const rendering = useEditor((s) => s.stillRender !== null);
+	const stillPixelRatio = useEditor((s) => s.stillRender?.pixelRatio ?? null);
+	const wireframe = usePreferences().showWireframe && !rendering;
 	const tiltShiftShown = useTiltShiftShown();
 	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
@@ -79,7 +85,7 @@ export const Viewport = () => {
 		<Canvas
 			shadows="percentage"
 			orthographic
-			dpr={[1, graphics.maxPixelDensity]}
+			dpr={stillPixelRatio ?? [1, graphics.maxPixelDensity]}
 			camera={{ position: [100, 90, 100], zoom: 18, near: 0.1, far: 1000 }}
 			onPointerMissed={(event) => {
 				// Only a left click on nothing deselects; a right-click is the start of an orbit. Shift or
@@ -173,6 +179,8 @@ export const Viewport = () => {
 			<ViewpointMarkers />
 
 			<TrafficStep />
+
+			<StillRender />
 
 			<CameraFollow />
 

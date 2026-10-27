@@ -3,7 +3,7 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
+import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import {
@@ -265,7 +265,7 @@ interface IRoadMeshProps {
 
 export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const palette = usePalette();
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>

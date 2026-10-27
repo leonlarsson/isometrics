@@ -37,6 +37,8 @@ const pickPreset = (preset: TGraphicsPreset) => {
 
 const openGraphicsSettings = () => useEditor.getState().setPreferencesOpen(true, "graphics");
 
+const openRenderDialog = () => useEditor.getState().setRenderDialogOpen(true);
+
 /**
  * The toolbar's shading switcher (ADR-0080), like Blender's viewport shading:
  * wireframe, or a Graphics preset (ADR-0072) a click away, and the button to
@@ -86,6 +88,14 @@ export const ShadingSwitcher = () => {
 				label="Graphics settings…"
 				onClick={openGraphicsSettings}
 			/>
+
+			<IconButton
+				size="md"
+				tooltipSide="bottom"
+				icon="picture"
+				label="Render a picture…"
+				onClick={openRenderDialog}
+			/>
 		</IconButtonGroup>
 	);
 };
@@ -115,6 +125,8 @@ export const ShadingMenuGroup = () => {
 			))}
 
 			<Menu.Item icon="chevronDown" label="Graphics settings…" onClick={openGraphicsSettings} />
+
+			<Menu.Item icon="picture" label="Render a picture…" onClick={openRenderDialog} />
 		</Menu.Group>
 	);
 };

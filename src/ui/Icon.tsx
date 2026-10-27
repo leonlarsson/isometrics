@@ -17,6 +17,8 @@ const PATHS = {
 	copy: "M8 8h12v12H8zM4 16V4h12",
 	paste: "M9 3h6v3H9zM8 4.5H5V21h14V4.5h-3",
 	cloud: "M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 9.5 4.25 4.25 0 0 0 7 18z",
+	// A framed picture with hills and a sun: Render a picture… (ADR-0084).
+	picture: "M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15.5 9.5h.01",
 	// The shading switcher's orbs (ADR-0080): wireframe, then Standard, Nice and Ultra, more lit each.
 	shadeWire:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c-3.5 3-3.5 15 0 18M12 3c3.5 3 3.5 15 0 18",

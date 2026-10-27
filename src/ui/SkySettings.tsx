@@ -75,7 +75,7 @@ export const SkySection = () => {
 				checked={sky.showInPerspective}
 				onChange={(shown) => set("showInPerspective", shown)}
 				inherit={byDefault("showInPerspective", "on")}
-				hint="Around the world when you look in perspective. Off, perspective shows the backdrop below too."
+				hint="Around the world when you look in perspective. Off, perspective shows the backdrop below too, as it always does with a green screen."
 			/>
 
 			{sky.showInPerspective && (

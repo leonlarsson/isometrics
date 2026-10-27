@@ -127,6 +127,15 @@ export const FileMenu = () => {
 					<Menu.Separator />
 
 					<Menu.Item
+						icon="picture"
+						label="Render a picture…"
+						description="A still of the world at its finest, to save as a PNG"
+						onClick={() => useEditor.getState().setRenderDialogOpen(true)}
+					/>
+
+					<Menu.Separator />
+
+					<Menu.Item
 						icon="user"
 						label="Preferences…"
 						description="How the camera moves for you, and overlays, in this browser"

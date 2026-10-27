@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import { useEditor } from "#/editor/store";
+import { drawnModeOf, useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
@@ -195,9 +195,12 @@ export const LabelLayer = () => {
 	// The world can hide every card from View mode (World tab → Shown in View mode); Edit mode still
 	// shows them, faded, so they can be worked on.
 	const cardsInView = useEditor((s) => s.scene.onScreen.showLabelCards);
-	const editing = useEditor((s) => s.mode === "edit");
+	const editing = useEditor((s) => drawnModeOf(s) === "edit");
+	// A picture with its cards (ADR-0084) shows them even where the world hides them in View mode.
+	const cardsInPicture = useEditor((s) => s.stillRender?.showsCards ?? false);
+	const rendering = useEditor((s) => s.stillRender !== null);
 	const labelled =
-		cardsInView || editing
+		cardsInView || editing || cardsInPicture
 			? entities.filter((entity) => entity.label?.enabled && !entity.hidden)
 			: [];
 
@@ -220,7 +223,11 @@ export const LabelLayer = () => {
 			</svg>
 
 			{labelled.map((entity) => (
-				<LabelCard key={entity.id} entity={entity} selected={entity.id === selectedId} />
+				<LabelCard
+					key={entity.id}
+					entity={entity}
+					selected={!rendering && entity.id === selectedId}
+				/>
 			))}
 		</div>
 	);

@@ -282,6 +282,25 @@ export interface IEditorState {
 	 * one jumps there (opening a world where its camera was).
 	 */
 	flight: { pose: TViewPose; nonce: number; instant: boolean } | null;
+	/**
+	 * A still picture being rendered (ADR-0084, render/StillRender): its size in pixels, and how
+	 * many times as many pixels a side it's drawn with before it's shrunk to that (smoothing).
+	 * While there is one, the view draws as in View mode with the render's graphics. Runtime only.
+	 */
+	stillRender: {
+		width: number;
+		height: number;
+		smoothing: number;
+		nonce: number;
+		/** The canvas's pixel ratio for it, once the render has set the canvas's shape. */
+		pixelRatio: number | null;
+		/** Without the backdrop or, in perspective, the sky. */
+		transparent: boolean;
+		/** With the data cards and their leaders (shown for it even where the world hides them). */
+		showsCards: boolean;
+	} | null;
+	/** Render a picture… is open. */
+	renderDialogOpen: boolean;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
@@ -367,6 +386,7 @@ export interface IEditorState {
 	setPreviewTiltShift: (preview: boolean) => void;
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
+	setRenderDialogOpen: (open: boolean) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
@@ -405,7 +425,8 @@ export interface IEditorState {
 	/** Stop following; a ride-along goes back to the camera type it started from. */
 	stopFollowing: () => void;
 	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
-	goToViewpoint: (id: string) => void;
+	/** Go to a viewpoint (and put on its mood, if the viewer lets it); `instant` jumps there. */
+	goToViewpoint: (id: string, options?: { instant?: boolean }) => void;
 	/** Select a viewpoint (its camera in the world was clicked): its settings, in the Viewpoints tab. */
 	selectViewpoint: (id: string) => void;
 	/** Asks the camera (render/CameraFlight) to glide to the nearest true isometric angle. */
@@ -811,6 +832,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			projection: "orthographic",
 			previewTiltShift: false,
 			preferencesOpen: false,
+			renderDialogOpen: false,
+			stillRender: null,
 			preferencesPage: null,
 			holdingRightButton: false,
 			viewNonce: 0,
@@ -1188,6 +1211,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					projection: s.projection === "perspective" ? "orthographic" : "perspective",
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
+			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
 			setPreferencesOpen: (open, page) =>
 				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),
 			setHoldingRightButton: (holding) =>
@@ -1347,7 +1371,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						: s,
 				),
 
-			goToViewpoint: (id) => {
+			goToViewpoint: (id, { instant = false } = {}) => {
 				const viewpoint = get().scene.viewpoints.find((v) => v.id === id);
 				if (!viewpoint) {
 					return;
@@ -1363,7 +1387,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				set((s) => ({
 					cameraFollow: null,
 					projection: viewpoint.projection,
-					flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant: false },
+					flight: { pose: viewpoint, nonce: (s.flight?.nonce ?? 0) + 1, instant },
 					activeViewpointId: id,
 				}));
 			},
@@ -1987,6 +2011,13 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 		};
 	});
 };
+
+/**
+ * The mode the 3D view draws as: View mode's look (no gizmos, handles or grid) while a still
+ * picture renders (ADR-0084), without leaving Edit mode, so the selection and panels stay.
+ */
+export const drawnModeOf = (s: Pick<IEditorState, "mode" | "stillRender">): TEditorMode =>
+	s.stillRender ? "view" : s.mode;
 
 export const useEditor = createEditorStore();
 

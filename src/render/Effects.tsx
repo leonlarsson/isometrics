@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { sceneHoursNow } from "#/editor/dayClock";
-import type { IGraphics } from "#/editor/graphics";
+import type { IGraphics, TDrawnGraphics } from "#/editor/graphics";
 import { useEditor } from "#/editor/store";
 import { skyLightAt } from "#/scene/sun";
 
@@ -238,7 +238,7 @@ const composeFor = (
 };
 
 interface IEffectsProps {
-	graphics: IGraphics;
+	graphics: TDrawnGraphics;
 }
 
 /**

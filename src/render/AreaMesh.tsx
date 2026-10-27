@@ -4,7 +4,7 @@ import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
 import { useGraphics } from "#/editor/graphics";
-import { isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
+import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { AREA_TYPES, areaColor, waterSeams } from "#/scene/areas";
@@ -155,7 +155,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 		[reflective, area, areas],
 	);
 	const palette = usePalette();
-	const mode = useEditor((s) => s.mode);
+	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>
