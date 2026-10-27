@@ -28,7 +28,7 @@
 	background: var(--surface-raised);
 	color: var(--text);
 	box-shadow: var(--shadow-panel);
-	transform: translate(-50%, -50%);
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px)));
 	transition:
 		transform 120ms ease-out,
 		opacity 120ms ease-out;
@@ -37,13 +37,27 @@
 .popup[data-starting-style],
 .popup[data-ending-style] {
 	opacity: 0;
-	transform: translate(-50%, -50%) scale(0.97);
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px))) scale(0.97);
+}
+
+/* Moved by its title bar (useDialogDrag): no easing while it follows the pointer. */
+.popup[data-dragging] {
+	transition: none;
 }
 
 .title {
-	margin: 0;
+	/* The title bar moves the dialog (useDialogDrag), from the popup's top edge and sides. */
+	margin: -20px -20px 0;
+	padding: 20px 20px 0;
+	cursor: grab;
+	user-select: none;
+	touch-action: none;
 	font-size: 16px;
 	font-weight: 700;
+}
+
+.popup[data-dragging] .title {
+	cursor: grabbing;
 }
 
 .description {

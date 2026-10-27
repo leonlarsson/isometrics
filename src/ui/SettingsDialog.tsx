@@ -6,6 +6,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { SearchField, SettingsSearchContext } from "./fields";
 import { matchesSearch } from "./fields/settingsSearch";
 import { Icon, type TIconName } from "./Icon";
+import { useDialogDrag } from "./useDialogDrag";
 import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./SettingsDialog.module.css";
@@ -50,7 +51,7 @@ interface ISettingsDialogProps {
  * A settings window, like an app's preferences: a search and the pages on the
  * left, the open page's settings on the right, one per row, in titled groups.
  * Searching shows every page's settings that match, by their label or their
- * keywords. Built on Base UI's Dialog (ADR-0024).
+ * keywords. Built on Base UI's Dialog (ADR-0024); its title bar moves it.
  */
 export const SettingsDialog = ({
 	open,
@@ -74,6 +75,7 @@ export const SettingsDialog = ({
 	const confirmingPage = pages.find((page) => page.id === confirming);
 	// Phones and small tablets: the pages stack above the settings, and the resets turn quiet.
 	const narrow = useNarrowLayout();
+	const dragHandle = useDialogDrag();
 	const pageResetButton = (page: ISettingsPage) =>
 		page.reset && (
 			<Button
@@ -108,7 +110,7 @@ export const SettingsDialog = ({
 				<BaseDialog.Backdrop className={styles.backdrop} />
 
 				<BaseDialog.Popup className={styles.popup}>
-					<header className={styles.header}>
+					<header className={styles.header} {...dragHandle}>
 						<BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
 
 						<IconButton icon="close" label="Close" onClick={() => onOpenChange(false)} />

@@ -37,3 +37,55 @@ test.describe("phones (ADR-0030, ADR-0046)", () => {
 		expect(await read(page, (s) => s.projection)).toBe("perspective");
 	});
 });
+
+test.describe("dialogs", () => {
+	test("move by their title bar, stay inside the window and open in the centre again", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		const dialog = page.getByRole("dialog", { name: "Render a picture" });
+		// Where its middle is: its content can still change its height, which keeps the middle put.
+		const middle = async () => {
+			const box = await dialog.boundingBox();
+			if (!box) {
+				throw new Error("the dialog isn't showing");
+			}
+			return { x: box.x + box.width / 2, y: box.y + box.height / 2, left: box.x };
+		};
+		const openDialog = async () => {
+			await page.getByRole("button", { name: "Render a picture…" }).click();
+			// Measured once it has finished growing in.
+			await dialog.evaluate((element) =>
+				Promise.all(element.getAnimations().map((animation) => animation.finished)),
+			);
+		};
+		await openDialog();
+		const centred = await middle();
+		const title = await dialog.getByRole("heading", { name: "Render a picture" }).boundingBox();
+		if (!title) {
+			throw new Error("the dialog has no title");
+		}
+		// A small step down: the dialog is almost as tall as the window, which it can't leave.
+		const grab = { x: title.x + 10, y: title.y + title.height / 2 };
+		await page.mouse.move(grab.x, grab.y);
+		await page.mouse.down();
+		await page.mouse.move(grab.x - 150, grab.y + 10, { steps: 5 });
+		await page.mouse.up();
+		const moved = await middle();
+		expect(moved.x).toBeCloseTo(centred.x - 150, 0);
+		expect(moved.y).toBeCloseTo(centred.y + 10, 0);
+
+		// Dragged far past the window's edge, it stops at it.
+		await page.mouse.move(grab.x - 150, grab.y + 10);
+		await page.mouse.down();
+		await page.mouse.move(-500, grab.y + 10, { steps: 5 });
+		await page.mouse.up();
+		expect((await middle()).left).toBeCloseTo(8, 0);
+
+		await page.getByRole("button", { name: "Close", exact: true }).click();
+		await expect(dialog).toBeHidden();
+		await openDialog();
+		const reopened = await middle();
+		expect([reopened.x, reopened.y]).toEqual([centred.x, centred.y]);
+	});
+});

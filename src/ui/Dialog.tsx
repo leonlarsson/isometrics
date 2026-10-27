@@ -2,6 +2,7 @@ import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ReactNode } from "react";
 
 import { Button } from "./Button";
+import { useDialogDrag } from "./useDialogDrag";
 
 import styles from "./Dialog.module.css";
 
@@ -28,7 +29,7 @@ interface IDialogProps {
  * A modal panel for content that needs more room than a menu: a title, a
  * scrolling body and a close button, optionally with a main action beside
  * it. Built on Base UI's Dialog (ADR-0024); for a yes/no question use
- * `ConfirmDialog`. Escape and the backdrop close it.
+ * `ConfirmDialog`. Escape and the backdrop close it; its title bar moves it.
  */
 export const Dialog = ({
 	open,
@@ -40,13 +41,17 @@ export const Dialog = ({
 	confirm,
 	wide,
 }: IDialogProps) => {
+	const dragHandle = useDialogDrag();
+
 	return (
 		<BaseDialog.Root open={open} onOpenChange={onOpenChange}>
 			<BaseDialog.Portal>
 				<BaseDialog.Backdrop className={styles.backdrop} />
 
 				<BaseDialog.Popup className={styles.popup} data-wide={wide || undefined}>
-					<BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
+					<BaseDialog.Title className={styles.title} {...dragHandle}>
+						{title}
+					</BaseDialog.Title>
 
 					{description && (
 						<BaseDialog.Description className={styles.description}>

@@ -29,7 +29,7 @@
 	color: var(--text);
 	box-shadow: var(--shadow-panel);
 	overflow: hidden;
-	transform: translate(-50%, -50%);
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px)));
 	transition:
 		transform 120ms ease-out,
 		opacity 120ms ease-out;
@@ -38,7 +38,12 @@
 .popup[data-starting-style],
 .popup[data-ending-style] {
 	opacity: 0;
-	transform: translate(-50%, -50%) scale(0.97);
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px))) scale(0.97);
+}
+
+/* Moved by its title bar (useDialogDrag): no easing while it follows the pointer. */
+.popup[data-dragging] {
+	transition: none;
 }
 
 .header {
@@ -47,6 +52,14 @@
 	justify-content: space-between;
 	padding: 10px 12px 10px 18px;
 	border-bottom: 1px solid var(--border);
+	/* The title bar moves the dialog (useDialogDrag). */
+	cursor: grab;
+	user-select: none;
+	touch-action: none;
+}
+
+.popup[data-dragging] .header {
+	cursor: grabbing;
 }
 
 .title {

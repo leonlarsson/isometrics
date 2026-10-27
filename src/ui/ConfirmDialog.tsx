@@ -2,6 +2,7 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { Button } from "./Button";
+import { useDialogDrag } from "./useDialogDrag";
 
 import styles from "./ConfirmDialog.module.css";
 
@@ -27,7 +28,7 @@ interface IConfirmDialogProps {
 
 /**
  * A modal yes/no question, built on Base UI's AlertDialog (ADR-0024). Use it
- * instead of `window.confirm`. Cancel and Escape close it without acting.
+ * instead of `window.confirm`. Cancel and Escape close it without acting; its title bar moves it.
  */
 export const ConfirmDialog = ({
 	open,
@@ -42,6 +43,7 @@ export const ConfirmDialog = ({
 	confirmDelaySeconds = 0,
 }: IConfirmDialogProps) => {
 	const [waiting, setWaiting] = useState(0);
+	const dragHandle = useDialogDrag();
 	useEffect(() => {
 		if (!open || confirmDelaySeconds <= 0) {
 			setWaiting(0);
@@ -58,7 +60,9 @@ export const ConfirmDialog = ({
 				<AlertDialog.Backdrop className={styles.backdrop} />
 
 				<AlertDialog.Popup className={styles.popup}>
-					<AlertDialog.Title className={styles.title}>{title}</AlertDialog.Title>
+					<AlertDialog.Title className={styles.title} {...dragHandle}>
+						{title}
+					</AlertDialog.Title>
 
 					<AlertDialog.Description className={styles.description}>
 						{description}
