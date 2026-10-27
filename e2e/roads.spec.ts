@@ -8,13 +8,12 @@ import {
 	keys,
 	loadWorld,
 	openEditor,
+	paletteTile,
 	read,
 	showView,
 	test,
 	viewCentre,
 } from "./editor";
-
-const palette = (page: Page) => page.getByRole("navigation", { name: "Parts" });
 
 /** Screen spots across the view, left to right, to draw through and click again later. */
 const spotsAcross = async (page: Page, count: number) => {
@@ -25,9 +24,13 @@ const spotsAcross = async (page: Page, count: number) => {
 	}));
 };
 
+/** Add to scene's tile for a road style or area type. */
+const drawTile = (page: Page, tile: string) =>
+	paletteTile(page, ["Road", "Dirt path", "Hidden route"].includes(tile) ? "Roads" : "Areas", tile);
+
 /** Draw a road (or area) by clicking these spots, then Enter. */
 const drawThrough = async (page: Page, tile: string, spots: { x: number; y: number }[]) => {
-	await palette(page).getByRole("button", { name: tile, exact: true }).click();
+	await (await drawTile(page, tile)).click();
 	for (const spot of spots) {
 		await page.mouse.click(spot.x, spot.y);
 	}
@@ -55,7 +58,7 @@ test.describe("drawing roads and areas (ADR-0017, ADR-0021)", () => {
 
 	test("Backspace takes back the last point, Esc gives up", async ({ page }) => {
 		const spots = await spotsAcross(page, 3);
-		await palette(page).getByRole("button", { name: "Road", exact: true }).click();
+		await (await drawTile(page, "Road")).click();
 		for (const spot of spots) {
 			await page.mouse.click(spot.x, spot.y);
 		}

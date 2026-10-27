@@ -6,6 +6,7 @@ import {
 	loadWorld,
 	menuItem,
 	openEditor,
+	paletteTile,
 	read,
 	showView,
 	test,
@@ -21,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 	await showView(page, [0, 0], 30);
 });
 
-test.describe("Add to scene (ADR-0051)", () => {
+test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 	test("a click adds the part where you're looking, selected; it's then recently used", async ({
 		page,
 	}) => {
@@ -45,7 +46,7 @@ test.describe("Add to scene (ADR-0051)", () => {
 	});
 
 	test("a part dragged onto the view lands where it's dropped", async ({ page }) => {
-		await tile(page, "Round tree").scrollIntoViewIfNeeded();
+		await (await paletteTile(page, "Nature", "Round tree")).scrollIntoViewIfNeeded();
 		const box = await tile(page, "Round tree").boundingBox();
 		const spot = await groundSpot(page, [5, 5]);
 		if (!box) {
@@ -58,6 +59,27 @@ test.describe("Add to scene (ADR-0051)", () => {
 		const tree = await read(page, (s) => s.scene.entities.at(-1));
 		expect(tree?.kind).toBe("round_tree_01");
 		expect(tree?.position.map(Math.round)).toEqual([5, 5]);
+	});
+
+	test("chips show one category at a time, as a grid or a list, remembered (ADR-0088)", async ({
+		page,
+	}) => {
+		await expect(tile(page, "House")).toBeVisible();
+		await expect(tile(page, "Car")).toBeHidden();
+		await palette(page).getByRole("button", { name: "Vehicles", exact: true }).click();
+		await expect(tile(page, "Car")).toBeVisible();
+		await expect(tile(page, "House")).toBeHidden();
+
+		// The list says what each is.
+		await palette(page).getByRole("button", { name: "Show as a list" }).click();
+		await expect(palette(page).getByText("Small car", { exact: false }).first()).toBeVisible();
+
+		await page.reload();
+		await expect(tile(page, "Car")).toBeVisible();
+		await expect(palette(page).getByRole("button", { name: "Show as a list" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
 	});
 
 	test("the ground's right-click menu adds a part there, or starts a road from there", async ({

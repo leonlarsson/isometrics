@@ -19,6 +19,8 @@ interface IChipGroupProps<TValue extends string> {
 	value: TValue;
 	onChange: (value: TValue) => void;
 	chips: IChip<TValue>[];
+	/** `sm` for narrow places, like the Add to scene panel. */
+	size?: "sm" | "md";
 }
 
 /**
@@ -31,9 +33,11 @@ export const ChipGroup = <TValue extends string>({
 	value,
 	onChange,
 	chips,
+	size = "md",
 }: IChipGroupProps<TValue>) => (
 	<ToggleGroup
 		className={styles.group}
+		data-size={size}
 		aria-label={label}
 		value={[value]}
 		onValueChange={(pressed) => {
@@ -45,7 +49,7 @@ export const ChipGroup = <TValue extends string>({
 	>
 		{chips.map((chip) => (
 			<Toggle key={chip.value} value={chip.value} className={styles.chip}>
-				{chip.icon && <Icon name={chip.icon} size={14} />}
+				{chip.icon && <Icon name={chip.icon} size={size === "sm" ? 13 : 14} />}
 
 				{chip.label}
 

@@ -13,7 +13,7 @@ const freshModule = async () => {
 
 describe("paletteMemory", () => {
 	it("reads empty lists when nothing is stored or it's unreadable", () => {
-		const empty = { favourites: [], recent: [], collapsed: [] };
+		const empty = { favourites: [], recent: [], collapsed: [], category: null, layout: "grid" };
 		expect(parsePaletteMemory(null)).toEqual(empty);
 		expect(parsePaletteMemory("{nope")).toEqual(empty);
 		expect(parsePaletteMemory("5")).toEqual(empty);
@@ -49,6 +49,8 @@ describe("paletteMemory", () => {
 				favourites: ["part:house_01", "part:car_01"],
 				recent: ["road:road_01"],
 				collapsed: [],
+				category: null,
+				layout: "grid",
 			});
 		});
 

@@ -26,6 +26,17 @@
 		color 120ms ease;
 }
 
+.group[data-size="sm"] {
+	gap: 4px;
+}
+
+.group[data-size="sm"] .chip {
+	gap: 4px;
+	height: 26px;
+	padding: 0 9px;
+	font-size: 12px;
+}
+
 .chip:hover {
 	background: var(--surface-sunken);
 	color: var(--text);

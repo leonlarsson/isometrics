@@ -21,3 +21,21 @@ export const variantName = (id: string, name: string, ids: readonly string[]) =>
 	const siblings = ids.filter((other) => familyOf(other) === family).length;
 	return siblings > 1 ? `${name} ${variantOf(id)}` : name;
 };
+
+/**
+ * Things grouped by family, in the order their families first appear, each
+ * family's variants by number: one entry per family, for a tile that holds
+ * all its looks. `idOf` says where a thing's id is ("part:race_car_02" works
+ * too: the prefix stays in the family).
+ */
+export const groupByFamily = <T>(things: readonly T[], idOf: (thing: T) => string) => {
+	const families = new Map<string, T[]>();
+	for (const thing of things) {
+		const family = familyOf(idOf(thing));
+		families.set(family, [...(families.get(family) ?? []), thing]);
+	}
+	return [...families.entries()].map(([family, variants]) => ({
+		family,
+		variants: [...variants].sort((a, b) => variantOf(idOf(a)) - variantOf(idOf(b))),
+	}));
+};

@@ -23,10 +23,15 @@
 	margin: 0 0 12px;
 }
 
+/* The category chips, under the search. */
+.chips {
+	margin: -4px 0 10px;
+}
+
 .grid {
 	display: grid;
 	/* As many equal columns as fit (two at the default width, more when the panel is widened). */
-	grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
 	gap: 6px;
 }
 
@@ -131,6 +136,13 @@
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
+.text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
 .name {
 	padding: 0 2px;
 	font-size: 12px;
@@ -179,4 +191,93 @@
 .catalogue:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 1px;
+}
+
+/* A family's tile: how many variants it holds, and the button that shows them. */
+.meta {
+	padding: 0 2px;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.tile[data-family] .text {
+	padding-right: 26px;
+}
+
+.variantsButton {
+	position: absolute;
+	right: 2px;
+	bottom: 2px;
+}
+
+/* A family opened: all its variants, across the whole row under its tile. */
+.variants {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+}
+
+.variantsTitle {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+/* What it is: shown in the list, not on the grid's tiles. */
+.description {
+	display: none;
+	padding: 0 2px;
+	font-size: 12px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The list: a row per item, its picture small on the left, its name and what it is beside it. */
+.list[data-layout="list"] .grid {
+	grid-template-columns: minmax(0, 1fr);
+	gap: 4px;
+}
+
+.list[data-layout="list"] .part {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 8px 4px 4px;
+}
+
+.list[data-layout="list"] .preview {
+	flex: none;
+	width: 56px;
+}
+
+.list[data-layout="list"] .description {
+	display: block;
+}
+
+/* In a row the star sits on the picture's corner, and the grip at the row's end. */
+.list[data-layout="list"] .grip {
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.list[data-layout="list"] .tile[data-draggable] .text,
+.list[data-layout="list"] .part[data-draggable] .text {
+	padding-right: 16px;
+}
+
+.list[data-layout="list"] .tile[data-family] .text {
+	padding-right: 48px;
+}
+
+.list[data-layout="list"] .variantsButton {
+	right: 22px;
+	bottom: auto;
+	top: 50%;
+	transform: translateY(-50%);
 }

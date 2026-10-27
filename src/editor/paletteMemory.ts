@@ -5,9 +5,10 @@ import { APP_NAME } from "#/lib/app";
 
 /**
  * What Add to scene remembers per browser: favourite items, recently used
- * ones, and which sections are folded. A UI preference like the panel sizes,
- * not part of any world. Items are palette keys: "part:house_01",
- * "road:road_01", "area:water_01". See docs/adr/0051-add-to-scene.md.
+ * ones, which sections are folded, the category shown and whether it's a grid
+ * or a list. A UI preference like the panel sizes, not part of any world.
+ * Items are palette keys: "part:house_01", "road:road_01", "area:water_01".
+ * See docs/adr/0051-add-to-scene.md and docs/adr/0088-add-to-scene-for-many-parts.md.
  */
 const KEY = `${APP_NAME.toLowerCase()}:palette`;
 
@@ -19,6 +20,10 @@ export const PaletteMemorySchema = z.object({
 	recent: z.array(z.string()).catch([]),
 	/** Sections folded shut: "favourites", "recent", or a group's name. */
 	collapsed: z.array(z.string()).catch([]),
+	/** The category chip chosen: "roads", "areas" or a part category; null for the first one shown. */
+	category: z.string().nullable().catch(null),
+	/** Items as a grid of tiles with pictures, or a list of rows with what each is. */
+	layout: z.enum(["grid", "list"]).catch("grid"),
 });
 
 export type TPaletteMemory = z.output<typeof PaletteMemorySchema>;
@@ -103,6 +108,14 @@ export const setSectionCollapsed = (section: string, collapsed: boolean) => {
 	const state = latest();
 	const others = state.collapsed.filter((other) => other !== section);
 	update({ ...state, collapsed: collapsed ? [...others, section] : others });
+};
+
+export const setPaletteCategory = (category: string) => {
+	update({ ...latest(), category });
+};
+
+export const setPaletteLayout = (layout: TPaletteMemory["layout"]) => {
+	update({ ...latest(), layout });
 };
 
 /** Another tab of the app changed it (or the storage was wiped): follow it. */

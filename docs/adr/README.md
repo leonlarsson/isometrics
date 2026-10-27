@@ -91,3 +91,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0085](0085-title-nameplate.md) | The world's title on a nameplate | proposed |
 | [0086](0086-automatic-instancing.md) | Objects that look the same are drawn together (automatic instancing) | accepted |
 | [0087](0087-parts-catalogue.md) | A public parts catalogue at /parts | proposed |
+| [0088](0088-add-to-scene-for-many-parts.md) | Add to scene for many parts: category chips, families and a list | proposed |

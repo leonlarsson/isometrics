@@ -3,6 +3,8 @@ import { type PointerEvent, type ReactElement, useEffect, useRef, useState } fro
 
 import {
 	rememberUsed,
+	setPaletteCategory,
+	setPaletteLayout,
 	setSectionCollapsed,
 	toggleFavourite,
 	usePaletteMemory,
@@ -20,8 +22,10 @@ import { currentView } from "#/render/viewpoints";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 import type { TAreaType, TRoadStyle } from "#/scene/schema";
+import { groupByFamily } from "#/scene/variants";
 
-import { IconButton } from "./Button";
+import { IconButton, IconButtonGroup } from "./Button";
+import { ChipGroup, type IChip } from "./ChipGroup";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { Hint, SearchField } from "./fields";
 import { releaseFocusAfterPointerClick } from "./focus";
@@ -80,10 +84,29 @@ const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaType[]).map((type) => ({
 	...AREA_TOOL_INFO[type],
 }));
 
+/** What the chips choose between: roads, areas, then the parts' categories. */
+type TPaletteCategory = "roads" | "areas" | TPartCategory;
+
+/** Without icons, so they take few rows in the narrow panel; the section's heading has one. */
+const CHIPS: IChip<TPaletteCategory>[] = [
+	{ value: "roads", label: "Roads" },
+	{ value: "areas", label: "Areas" },
+	...partsByCategory().map(([category]) => ({ value: category, label: CATEGORY_LABELS[category] })),
+];
+
+/** Shown until another chip is chosen. */
+const FIRST_CATEGORY: TPaletteCategory = "buildings";
+
 interface IPaletteItem {
 	key: string;
+	/** Its chip. */
+	category: TPaletteCategory;
 	group: string;
 	name: string;
+	/** Its family's name, for a tile that holds all the family's variants ("Race car", not "Race car 2"). */
+	familyName: string;
+	/** What it is, under its name in the list. */
+	description: string;
 	/** What the tooltip says. */
 	tooltip: string;
 	/** Extra text the search matches: description and everyday words. */
@@ -97,6 +120,14 @@ interface IPaletteItem {
 	/** Part kind, for items that can also be dragged onto the scene. */
 	kind?: string;
 	onSelect: () => void;
+}
+
+/** A family's tile: it adds its first variant, and opens to show them all. */
+interface IFamilyOfTile {
+	/** Its family's id among the palette's keys ("part:race_car"). */
+	id: string;
+	variants: number;
+	open: boolean;
 }
 
 /** Hover this long before the preview card opens; once open, other tiles show instantly. */
@@ -154,6 +185,8 @@ export const PartsPalette = () => {
 	const narrow = useNarrowLayout();
 	const memory = usePaletteMemory();
 	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+	/** The family whose variants are shown, by its id ("part:race_car"). */
+	const [openFamily, setOpenFamily] = useState<string | null>(null);
 
 	/** Show the card for a tile: after a pause, or straight away if one is open or `now`. */
 	const showPreview = (kind: string, tile: HTMLElement, now = false) => {
@@ -189,8 +222,11 @@ export const PartsPalette = () => {
 	const items: IPaletteItem[] = [
 		...ROAD_TOOLS.map(({ style, description, keywords }) => ({
 			key: `road:${style}`,
+			category: "roads" as const,
 			group: "Roads",
 			name: ROAD_STYLE_LABELS[style],
+			familyName: ROAD_STYLE_LABELS[style],
+			description,
 			tooltip: `${description}. Click points on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} road`,
 			swatch: roadSwatch[style],
@@ -199,8 +235,11 @@ export const PartsPalette = () => {
 		})),
 		...AREA_TOOLS.map(({ type, description, keywords }) => ({
 			key: `area:${type}`,
+			category: "areas" as const,
 			group: "Areas",
 			name: AREA_TYPE_LABELS[type],
+			familyName: AREA_TYPE_LABELS[type],
+			description,
 			tooltip: `${description}. Click its corners on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} area`,
 			swatch: areaColor({ type, color: null }, palette),
@@ -212,8 +251,11 @@ export const PartsPalette = () => {
 				const { first, second } = swatchColors(resolvePartColors(part, palette), part);
 				return {
 					key: `part:${part.kind}`,
+					category,
 					group: CATEGORY_LABELS[category],
 					name: partName(part),
+					familyName: part.name,
+					description: part.description,
 					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
 					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
@@ -263,26 +305,39 @@ export const PartsPalette = () => {
 	const shown = searching ? items.filter((item) => matches(item, query)) : items;
 	const pick = (keys: string[]) =>
 		keys.map((key) => byKey.get(key)).filter((item): item is IPaletteItem => item !== undefined);
-	// Favourites and recently used first (not while searching: the matches are what count then).
+	const category = CHIPS.find((chip) => chip.value === memory.category)?.value ?? FIRST_CATEGORY;
+	const categoryItems = items.filter((item) => item.category === category);
+	// Favourites and recently used first, then the chosen category; while searching, the matches
+	// in every category are what count.
 	const sections = [
 		...(searching
-			? []
+			? [...new Set(shown.map((item) => item.group))].map((group) => ({
+					id: group,
+					label: group,
+					items: shown.filter((item) => item.group === group),
+				}))
 			: [
 					{ id: "favourites", label: "Favourites", items: pick(memory.favourites) },
 					{ id: "recent", label: "Recently used", items: pick(memory.recent) },
+					{
+						id: categoryItems[0]?.group ?? category,
+						label: categoryItems[0]?.group ?? category,
+						items: categoryItems,
+						byFamily: true,
+					},
 				]),
-		...[...new Set(shown.map((item) => item.group))].map((group) => ({
-			id: group,
-			label: group,
-			items: shown.filter((item) => item.group === group),
-		})),
 	].filter((section) => section.items.length > 0);
 	const menuItem = menu ? byKey.get(menu.key) : undefined;
 
-	const tile = (item: IPaletteItem, section: string) => {
+	const tile = (item: IPaletteItem, section: string, family?: IFamilyOfTile) => {
 		const favourite = memory.favourites.includes(item.key);
+		const name = family ? item.familyName : item.name;
 		return (
-			<div key={`${section}:${item.key}`} className={styles.tile}>
+			<div
+				key={`${section}:${item.key}`}
+				className={styles.tile}
+				data-family={family ? "" : undefined}
+			>
 				<TileTooltip item={item}>
 					<button
 						type="button"
@@ -329,7 +384,20 @@ export const PartsPalette = () => {
 							)}
 						</span>
 
-						<span className={styles.name}>{item.name}</span>
+						<span className={styles.text}>
+							<span className={styles.name}>{name}</span>
+
+							{/* Out of the name: the variants button says it, and parts' descriptions are their aria-description. */}
+							{family && (
+								<span className={styles.meta} aria-hidden="true">
+									{`${family.variants} variants`}
+								</span>
+							)}
+
+							<span className={styles.description} aria-hidden="true">
+								{item.description}
+							</span>
+						</span>
 
 						{item.kind && (
 							<span className={styles.grip} aria-hidden="true">
@@ -339,12 +407,25 @@ export const PartsPalette = () => {
 					</button>
 				</TileTooltip>
 
+				{family && (
+					<span className={styles.variantsButton}>
+						<IconButton
+							icon="layers"
+							label={
+								family.open
+									? `Hide the variants of ${item.familyName}`
+									: `Show the ${family.variants} variants of ${item.familyName}`
+							}
+							pressed={family.open}
+							onClick={() => setOpenFamily(family.open ? null : family.id)}
+						/>
+					</span>
+				)}
+
 				<span className={styles.star} data-on={favourite || undefined}>
 					<IconButton
 						icon="star"
-						label={
-							favourite ? `Remove ${item.name} from favourites` : `Add ${item.name} to favourites`
-						}
+						label={favourite ? `Remove ${name} from favourites` : `Add ${name} to favourites`}
 						pressed={favourite}
 						onClick={() => toggleFavourite(item.key)}
 					/>
@@ -353,11 +434,52 @@ export const PartsPalette = () => {
 		);
 	};
 
+	/** A tile per family, opening to show its variants underneath (ADR-0088). */
+	const familyTiles = (list: IPaletteItem[], section: string) =>
+		groupByFamily(list, (item) => item.key).flatMap(({ family, variants }) => {
+			const [first] = variants;
+			if (variants.length === 1) {
+				return [tile(first, section)];
+			}
+			const open = openFamily === family;
+			return [
+				tile(first, section, { id: family, variants: variants.length, open }),
+				...(open
+					? [
+							<div key={`${section}:${family}:variants`} className={styles.variants}>
+								<span className={styles.variantsTitle}>{`${first.familyName}: every variant`}</span>
+
+								<div className={styles.grid}>
+									{variants.map((item) => tile(item, `${section}:${family}`))}
+								</div>
+							</div>,
+						]
+					: []),
+			];
+		});
+
 	return (
 		<nav className={styles.palette} aria-label="Parts">
 			<PaneHeader
 				icon="plusSquare"
 				title="Add to scene"
+				actions={
+					<IconButtonGroup>
+						<IconButton
+							icon="grid"
+							label="Show as a grid"
+							pressed={memory.layout === "grid"}
+							onClick={() => setPaletteLayout("grid")}
+						/>
+
+						<IconButton
+							icon="list"
+							label="Show as a list"
+							pressed={memory.layout === "list"}
+							onClick={() => setPaletteLayout("list")}
+						/>
+					</IconButtonGroup>
+				}
 				// Phones have the sheet, which hides on its own.
 				fold={
 					narrow
@@ -382,6 +504,19 @@ export const PartsPalette = () => {
 					/>
 				</div>
 
+				{/* One category at a time; a search looks through them all. */}
+				{!searching && (
+					<div className={styles.chips}>
+						<ChipGroup
+							label="Category"
+							size="sm"
+							value={category}
+							onChange={setPaletteCategory}
+							chips={CHIPS}
+						/>
+					</div>
+				)}
+
 				{/* Every part with its colours, lights and settings, in a tab of its own (ADR-0087). */}
 				<a className={styles.catalogue} href="/parts" target="_blank" rel="noreferrer">
 					<Icon name="cube" size={14} />
@@ -390,7 +525,7 @@ export const PartsPalette = () => {
 				</a>
 			</div>
 
-			<div className={styles.list} onScroll={() => hidePreview(true)}>
+			<div className={styles.list} data-layout={memory.layout} onScroll={() => hidePreview(true)}>
 				{sections.length === 0 && <Hint>Nothing matches “{query.trim()}”.</Hint>}
 
 				{sections.map((section) => (
@@ -403,7 +538,11 @@ export const PartsPalette = () => {
 						open={searching || !memory.collapsed.includes(section.id)}
 						onOpenChange={(open) => setSectionCollapsed(section.id, !open)}
 					>
-						<div className={styles.grid}>{section.items.map((item) => tile(item, section.id))}</div>
+						<div className={styles.grid}>
+							{"byFamily" in section
+								? familyTiles(section.items, section.id)
+								: section.items.map((item) => tile(item, section.id))}
+						</div>
 					</CollapsibleSection>
 				))}
 			</div>

@@ -238,6 +238,16 @@ export const pickFromMenu = async (page: Page, button: string, item: string | Re
 	await menuItem(page, item).click();
 };
 
+/**
+ * A tile in Add to scene, after choosing its category chip ("Roads", "Areas",
+ * "Vehicles"…): the panel shows one category at a time (ADR-0088).
+ */
+export const paletteTile = async (page: Page, category: string, name: string) => {
+	const palette = page.getByRole("navigation", { name: "Parts" });
+	await palette.getByRole("button", { name: category, exact: true }).click();
+	return palette.getByRole("button", { name, exact: true }).first();
+};
+
 /** Unfold a panel (a Section with an id) if it's folded. */
 export const openPanel = async (page: Page, title: string | RegExp) => {
 	const header = page

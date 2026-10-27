@@ -415,6 +415,18 @@ export const KitPage = () => {
 												{ value: "nature", label: "Nature", icon: "tree", count: 2 },
 											]}
 										/>
+
+										<ChipGroup
+											label="Category, small"
+											size="sm"
+											value={chip}
+											onChange={setChip}
+											chips={[
+												{ value: "all", label: "All" },
+												{ value: "buildings", label: "Buildings", icon: "building" },
+												{ value: "nature", label: "Nature", icon: "tree" },
+											]}
+										/>
 									</Section>
 
 									<Section title="Collapsible section">
