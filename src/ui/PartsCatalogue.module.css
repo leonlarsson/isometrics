@@ -158,6 +158,13 @@
 	font-size: 13px;
 }
 
+/* A family's card: how many variants it holds. */
+.cardVariants {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--accent);
+}
+
 .cardKind {
 	margin-top: 4px;
 	font-family: var(--font-mono);

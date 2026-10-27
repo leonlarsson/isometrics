@@ -35,7 +35,7 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 
 	test("the search narrows the parts, and says when nothing matches", async ({ page }) => {
 		await palette(page).getByRole("searchbox", { name: "Search parts" }).fill("tree");
-		await expect(tile(page, "Round tree")).toBeVisible();
+		await expect(tile(page, "Pine tree")).toBeVisible();
 		await expect(tile(page, "House")).toBeHidden();
 	});
 
@@ -80,6 +80,17 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 			"aria-pressed",
 			"true",
 		);
+	});
+
+	test("a family's tile adds its first variant and opens to show them all (ADR-0088)", async ({
+		page,
+	}) => {
+		await paletteTile(page, "Nature", "Round tree");
+		await palette(page).getByRole("button", { name: "Show the 2 variants of Round tree" }).click();
+		await tile(page, "Round tree 2").click();
+		expect(await read(page, (s) => s.scene.entities.at(-1)?.kind)).toBe("round_tree_02");
+		await tile(page, "Round tree").click();
+		expect(await read(page, (s) => s.scene.entities.at(-1)?.kind)).toBe("round_tree_01");
 	});
 
 	test("the ground's right-click menu adds a part there, or starts a road from there", async ({

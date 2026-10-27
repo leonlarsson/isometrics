@@ -20,8 +20,19 @@ import { tunnel01 } from "./infrastructure/tunnel_01";
 import { zone01 } from "./infrastructure/zone_01";
 import { beacon01 } from "./markers/beacon_01";
 import { text01 } from "./markers/text_01";
+import { birch01 } from "./nature/birch_01";
+import { bush01 } from "./nature/bush_01";
+import { cypress01 } from "./nature/cypress_01";
+import { deadTree01 } from "./nature/dead_tree_01";
+import { flowerBed01 } from "./nature/flower_bed_01";
+import { fruitTree01 } from "./nature/fruit_tree_01";
+import { log01 } from "./nature/log_01";
+import { palmTree01 } from "./nature/palm_tree_01";
 import { pineTree01 } from "./nature/pine_tree_01";
+import { rocks01 } from "./nature/rocks_01";
 import { roundTree01 } from "./nature/round_tree_01";
+import { roundTree02 } from "./nature/round_tree_02";
+import { tallGrass01 } from "./nature/tall_grass_01";
 import type { IPartDefinition, TPartCategory } from "./types";
 import { car01 } from "./vehicles/car_01";
 import { deliveryVan01 } from "./vehicles/delivery_van_01";
@@ -45,7 +56,18 @@ export const PARTS: TAnyPart[] = [
 	raceCar01,
 	yacht01,
 	roundTree01,
+	roundTree02,
 	pineTree01,
+	birch01,
+	cypress01,
+	palmTree01,
+	fruitTree01,
+	deadTree01,
+	bush01,
+	flowerBed01,
+	tallGrass01,
+	rocks01,
+	log01,
 	bench01,
 	picnicTable01,
 	cafeTable01,

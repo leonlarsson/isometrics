@@ -23,6 +23,7 @@ import {
 	withPropChange,
 } from "#/scene/objectSettings";
 import { scenePalettes, type TResolvedTheme } from "#/scene/theme";
+import { familyOf, groupByFamily } from "#/scene/variants";
 
 import { Button, IconButton } from "./Button";
 import { ChipGroup } from "./ChipGroup";
@@ -132,6 +133,10 @@ const KindCode = ({ kind }: { kind: string }) => {
 	);
 };
 
+/** A part's family: every part whose kind shares its family ("round_tree_01", "round_tree_02"). */
+const familyParts = (part: TAnyPart) =>
+	PARTS.filter((other) => familyOf(other.kind) === familyOf(part.kind));
+
 interface IPartDetailsProps {
 	part: TAnyPart;
 	theme: TResolvedTheme;
@@ -145,7 +150,15 @@ interface IPartDetailsProps {
  * Everything about one part: a live model and its four looks, and the
  * editor's own panels for its settings, colours and lights to try it out.
  */
-const PartDetails = ({ part, theme, night, settings, onSettingsChange }: IPartDetailsProps) => {
+const PartDetails = ({
+	part,
+	theme,
+	night,
+	settings,
+	onSettingsChange,
+	onOpen,
+}: IPartDetailsProps & { onOpen: (kind: string) => void }) => {
+	const family = familyParts(part);
 	const looks = usePartPicturesWith(part, settings, LOOKS_SHOWN, LOOK_PICTURE);
 	const palette = pictureLookPalette({ theme, night });
 	const hour = pictureLookHour({ theme, night });
@@ -190,6 +203,17 @@ const PartDetails = ({ part, theme, night, settings, onSettingsChange }: IPartDe
 			</div>
 
 			<div className={styles.facts}>
+				{/* A family's variants: switch between them here (ADR-0088). */}
+				{family.length > 1 && (
+					<ChipGroup
+						label="Variant"
+						size="sm"
+						value={part.kind}
+						onChange={onOpen}
+						chips={family.map((variant) => ({ value: variant.kind, label: partName(variant) }))}
+					/>
+				)}
+
 				<p className={styles.description}>{part.description}.</p>
 
 				<dl className={styles.list}>
@@ -408,24 +432,33 @@ export const PartsCatalogue = ({
 						</Hint>
 					)}
 
+					{/* A card per family, showing its first variant; its details switch between them. */}
 					<ul className={styles.grid}>
-						{shown.map((part) => (
-							<li key={part.kind}>
-								<button type="button" className={styles.card} onClick={() => onOpen(part.kind)}>
-									<span className={styles.picture} data-night={night || undefined}>
-										{pictures[part.kind] && <img src={pictures[part.kind]} alt="" />}
-									</span>
+						{groupByFamily(shown, (part) => part.kind).map(
+							({ family, variants: [part, ...more] }) => (
+								<li key={family}>
+									<button type="button" className={styles.card} onClick={() => onOpen(part.kind)}>
+										<span className={styles.picture} data-night={night || undefined}>
+											{pictures[part.kind] && <img src={pictures[part.kind]} alt="" />}
+										</span>
 
-									<span className={styles.cardText}>
-										<strong>{partName(part)}</strong>
+										<span className={styles.cardText}>
+											<strong>{more.length > 0 ? part.name : partName(part)}</strong>
 
-										<span className={styles.cardDescription}>{part.description}</span>
+											{more.length > 0 && (
+												<span className={styles.cardVariants}>{`${more.length + 1} variants`}</span>
+											)}
 
-										<code className={styles.cardKind}>{part.kind}</code>
-									</span>
-								</button>
-							</li>
-						))}
+											<span className={styles.cardDescription}>{part.description}</span>
+
+											<code className={styles.cardKind}>
+												{more.length > 0 ? `${familyOf(part.kind)}_…` : part.kind}
+											</code>
+										</span>
+									</button>
+								</li>
+							),
+						)}
 					</ul>
 				</div>
 
@@ -449,6 +482,7 @@ export const PartsCatalogue = ({
 							night={night}
 							settings={settings}
 							onSettingsChange={onSettingsChange}
+							onOpen={onOpen}
 						/>
 					)}
 				</Dialog>

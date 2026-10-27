@@ -10,7 +10,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		const all = await cards.count();
 
 		// A category narrows the list; its chip says how many.
-		await page.getByRole("button", { name: /^Nature \d+$/ }).click();
+		await page.getByRole("button", { name: /^Markers \d+$/ }).click();
 		await expect(cards).toHaveCount(2);
 		await page.getByRole("button", { name: /^All \d+$/ }).click();
 		await expect(cards).toHaveCount(all);
@@ -33,6 +33,14 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		// An address with a part opens its details straight away.
 		await page.goto("/parts?part=house_01");
 		await expect(page.getByRole("dialog", { name: "House" })).toBeVisible();
+
+		// A family's variants share a card, and its details switch between them (ADR-0088).
+		await page.goto("/parts");
+		await cards.filter({ hasText: "variants" }).filter({ hasText: "Round tree" }).click();
+		await expect(page.getByRole("dialog", { name: "Round tree 1" })).toBeVisible();
+		await page.getByRole("button", { name: "Round tree 2" }).click();
+		await expect(page.getByRole("dialog", { name: "Round tree 2" })).toBeVisible();
+		expect(new URL(page.url()).searchParams.get("part")).toBe("round_tree_02");
 	});
 
 	test("tries out a part's settings, kept in the address", async ({ page }) => {

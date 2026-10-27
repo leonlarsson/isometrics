@@ -40,4 +40,4 @@ Chosen option: **1, category chips** (the owner's choice, 2026-10-27), because o
 
 ## More information
 
-Changes the layout of ADR-0051 (favourites, recently used and folding sections stay). `src/ui/PartsPalette.tsx`, `src/editor/paletteMemory.ts`, `src/scene/variants.ts`. Follows the *A big library of parts* item of the TODO. The parts catalogue is to group a family's variants the same way once there are some.
+Changes the layout of ADR-0051 (favourites, recently used and folding sections stay). `src/ui/PartsPalette.tsx`, `src/editor/paletteMemory.ts`, `src/scene/variants.ts`. Follows the *A big library of parts* item of the TODO. The parts catalogue groups a family's variants the same way: a card per family, saying how many variants it has, and Variant chips in its details to switch between them.
