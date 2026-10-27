@@ -2,7 +2,7 @@ import type { Draft } from "immer";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { useResolvedTheme } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { SkySchema, type TBackdrop, type TScene, type TSky } from "#/scene/schema";
 import { skyColorsAt, skyLookAt } from "#/scene/sky";
 
@@ -18,12 +18,6 @@ const BACKDROPS: { value: TBackdrop["kind"]; label: string }[] = [
 	{ value: "gradient", label: "A gradient" },
 	{ value: "greenScreen", label: "Green screen" },
 ];
-
-/** The theme's background (the backdrop's colours fall back to it), as #rrggbb. */
-const useThemeBackground = () => {
-	useResolvedTheme();
-	return getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#efede8";
-};
 
 const percent = (amount: number) => `${Math.round(amount * 100)}%`;
 
@@ -185,7 +179,8 @@ export const SkySection = () => {
 export const BackdropSection = () => {
 	const backdrop = useEditor((s) => s.scene.backdrop);
 	const commit = useEditor((s) => s.commit);
-	const themeBackground = useThemeBackground();
+	// The backdrop's colours fall back to the theme's background.
+	const themeBackground = useThemePalette().background;
 	const set = <K extends keyof TBackdrop>(key: K, value: TBackdrop[K], coalesce?: boolean) =>
 		commit(
 			(s: Draft<TScene>) => {

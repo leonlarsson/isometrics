@@ -7,6 +7,8 @@ export type TResolvedTheme = "light" | "dark";
  * (src/styles.css); three.js needs concrete values, so they are mirrored here.
  */
 export interface IScenePalette {
+	/** The page behind the world (`--bg` in styles.css), for colour maths: the title's ink, backdrops. */
+	background: string;
 	ground: string;
 	gridCell: string;
 	gridSection: string;
@@ -51,6 +53,7 @@ export interface IScenePalette {
 
 export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 	light: {
+		background: "#efede8",
 		ground: "#f4f3ee",
 		gridCell: "#dedbd3",
 		gridSection: "#c9c5bb",
@@ -89,6 +92,7 @@ export const scenePalettes: Record<TResolvedTheme, IScenePalette> = {
 		ambientIntensity: 0.35,
 	},
 	dark: {
+		background: "#1b1c19",
 		ground: "#3a3c36",
 		gridCell: "#45473f",
 		gridSection: "#55574e",
