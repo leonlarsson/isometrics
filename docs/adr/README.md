@@ -87,4 +87,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0081](0081-boat-wakes.md) | Boat wakes: foam behind boats on a route, and waves in Ultra | accepted |
 | [0082](0082-leaning-in-turns.md) | Vehicles lean in turns, as far as their kind does | accepted |
 | [0083](0083-templates-at-templates.md) | The templates are served at /templates | accepted |
-| [0084](0084-render-a-picture.md) | Render a picture: one still, drawn finer than a live view | proposed |
+| [0084](0084-render-a-picture.md) | Render a picture: one still, drawn finer than a live view | accepted |
