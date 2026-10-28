@@ -28,6 +28,7 @@ Chosen: **the React Compiler through Babel**, in `vite.config.ts`. Dragging an o
 
 - Good: components and hooks are memoised for us; the code stays as written.
 - Good: components must follow the Rules of React, which the compiler checks; one that breaks them is left as it was, not broken.
+- Bad: it treats a module's variables as unchanging inside components, effects included, and miscompiled code that kept a module variable's value before changing it (Render a picture never finished). Module state is changed in plain functions outside components; `PERFORMANCE.md` has the rule.
 - Bad: Babel runs over every component in development and builds, which is slower than the plain transform. The Rust port can replace it once it's stable.
 - Memoising by hand still has its place where it's about identity across a long list (the outliner's chunks, `EntityNode`'s props).
 

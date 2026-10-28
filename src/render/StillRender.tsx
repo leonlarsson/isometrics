@@ -145,6 +145,24 @@ export const viewPixelSize = () => {
 
 let waiting: { resolve: (picture: Blob) => void; reject: (error: Error) => void } | null = null;
 
+type TStillResult = { picture: Blob } | { error: Error };
+
+/**
+ * Hands the picture (or the error) to whoever asked for it. Out here, not in the component: the
+ * React Compiler treats a module's variables as unchanging inside components, and turned "keep
+ * the promise, clear `waiting`, settle the promise" into settling `waiting` after clearing it, so
+ * the picture never arrived (ADR-0093).
+ */
+const settle = (result: TStillResult) => {
+	const promise = waiting;
+	waiting = null;
+	if ("picture" in result) {
+		promise?.resolve(result.picture);
+	} else {
+		promise?.reject(result.error);
+	}
+};
+
 /** Renders the view as a PNG of `width` × `height`; one at a time. */
 export const renderStill = ({ width, height, smoothing, transparent, showsCards }: IStillRequest) =>
 	new Promise<Blob>((resolve, reject) => {
@@ -254,15 +272,9 @@ export const StillRender = () => {
 			get().setSize(before.width, before.height, before.top, before.left);
 			useEditor.setState({ stillRender: null });
 		};
-		const finish = (result: { picture: Blob } | { error: Error }) => {
-			const promise = waiting;
-			waiting = null;
+		const finish = (result: TStillResult) => {
 			putBack();
-			if ("picture" in result) {
-				promise?.resolve(result.picture);
-			} else {
-				promise?.reject(result.error);
-			}
+			settle(result);
 		};
 		// Right after a frame is drawn, while the canvas still holds it.
 		const stop = addAfterEffect(() => {
