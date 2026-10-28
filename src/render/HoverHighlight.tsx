@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { cornerTop } from "#/scene/areas";
 import { roadCenterlineOf } from "#/scene/roads";
 import type { TArea, TRoad } from "#/scene/schema";
 
@@ -47,8 +48,9 @@ const roadOutline = (road: TRoad, baseY: number): TPoint[][] => {
 };
 
 const areaOutline = (area: TArea, baseY: number): TPoint[][] => {
-	const y = baseY + area.height + LIFT;
-	const corners = area.points.map(([x, z]): TPoint => [x, y, z]);
+	const corners = area.points.map(
+		(point): TPoint => [point[0], baseY + cornerTop(area, point) + LIFT, point[1]],
+	);
 	return [[...corners, corners[0]]];
 };
 

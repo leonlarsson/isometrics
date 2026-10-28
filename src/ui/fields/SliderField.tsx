@@ -28,6 +28,8 @@ interface ISliderFieldProps extends INumberRangeProps {
 	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
+	/** Shown greyed out and can't be changed; say why in its hint. */
+	disabled?: boolean;
 	hint?: ReactNode;
 }
 
@@ -45,6 +47,7 @@ export const SliderField = ({
 	sliderMax = max,
 	inherit,
 	mixed,
+	disabled = false,
 	hint,
 }: ISliderFieldProps) => {
 	const id = useId();
@@ -59,6 +62,7 @@ export const SliderField = ({
 			step={step}
 			format={NUMBER_FORMAT}
 			locale={NUMBER_LOCALE}
+			disabled={disabled}
 			onValueChange={(next) => next !== null && onChange(next)}
 		>
 			<LabelRow
@@ -71,6 +75,7 @@ export const SliderField = ({
 
 			<div
 				className={styles.sliderRow}
+				data-disabled={disabled || undefined}
 				// Room for the unit, however many characters it has ("°", "mm", "°/s").
 				style={suffix ? ({ "--unit-chars": suffix.length } as CSSProperties) : undefined}
 			>
@@ -78,6 +83,7 @@ export const SliderField = ({
 					className={styles.slider}
 					// The thumb stops at the track's ends instead of overhanging them by half its width.
 					thumbAlignment="edge"
+					disabled={disabled}
 					value={Math.min(Math.max(value, sliderMin), sliderMax)}
 					min={sliderMin}
 					max={sliderMax}

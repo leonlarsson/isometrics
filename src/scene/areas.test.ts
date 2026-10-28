@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { isInsidePolygon, waterSeams } from "./areas";
+import {
+	areaTopAt,
+	cornerTop,
+	cornerWithLift,
+	isInsidePolygon,
+	isRaised,
+	liftForTop,
+	polygonArea,
+	takesCornerHeights,
+	triangulateOutline,
+	waterSeams,
+} from "./areas";
 import { AreaSchema } from "./schema";
 
 const area = (id: string, points: [number, number][], extra = {}) =>
@@ -44,5 +55,61 @@ describe("water seams (ADR-0075)", () => {
 		expect(waterSeams(pond, [pond, lawn])).toEqual([]);
 		const raised = area("raised", square(0, 0, 4), { height: 1 });
 		expect(waterSeams(raised, [raised, area("lake", square(-5, -5, 20))])).toEqual([]);
+	});
+});
+
+describe("area corners with their own heights (ADR-0096)", () => {
+	const covered = (points: [number, number][]) =>
+		triangulateOutline(points).reduce(
+			(sum, [a, b, c]) => sum + polygonArea([points[a], points[b], points[c]]),
+			0,
+		);
+
+	it("cuts an outline into triangles that cover it, turning its way, concave or not", () => {
+		const corner: [number, number][] = [
+			[0, 0],
+			[4, 0],
+			[4, 2],
+			[2, 2],
+			[2, 4],
+			[0, 4],
+		];
+		expect(triangulateOutline(corner)).toHaveLength(4);
+		expect(covered(corner)).toBeCloseTo(polygonArea(corner));
+		const reversed = [...corner].reverse();
+		expect(covered(reversed)).toBeCloseTo(polygonArea(reversed));
+	});
+
+	it("knows how high the top is anywhere inside: a ramp up to a lifted side", () => {
+		const ramp = AreaSchema.parse({
+			id: "ramp",
+			points: [
+				[0, 0],
+				[4, 0, 2],
+				[4, 4, 2],
+				[0, 4],
+			],
+		});
+		expect(isRaised(ramp)).toBe(true);
+		expect(areaTopAt(ramp, [2, 1])).toBeCloseTo(1);
+		expect(areaTopAt(ramp, [3, 3])).toBeCloseTo(1.5);
+		expect(areaTopAt(ramp, [6, 1])).toBeNull();
+	});
+
+	it("keeps a corner's top on the ground, and flat corners as [x, z]", () => {
+		const raised = { height: 1 };
+		expect(liftForTop(raised, -3)).toBe(-1);
+		expect(liftForTop(raised, 1)).toBe(0);
+		expect(cornerWithLift(1, 2, 0)).toEqual([1, 2]);
+		expect(cornerWithLift(1, 2, 0.5)).toEqual([1, 2, 0.5]);
+		expect(isRaised(AreaSchema.parse({ id: "low", points: square(0, 0, 2) }))).toBe(false);
+	});
+
+	it("keeps water level: its corners have no heights of their own, whatever they kept", () => {
+		const lake = area("lake", square(0, 0, 2));
+		expect(takesCornerHeights(lake)).toBe(false);
+		const tilted = area("tilted", [[0, 0, 2] as never, ...square(0, 0, 2).slice(1)], { height: 1 });
+		expect(cornerTop(tilted, tilted.points[0])).toBe(1);
+		expect(isRaised({ ...tilted, height: 0 })).toBe(false);
 	});
 });

@@ -494,6 +494,34 @@ describe("editor store", () => {
 		expect(s().scene.areas).toHaveLength(1);
 	});
 
+	it("gives area corners heights of their own, kept when moved and eased in when added", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addArea({
+			points: [
+				[0, 0],
+				[4, 0],
+				[4, 4],
+			],
+		});
+		s().setAreaCornerHeight(id, 1, 2);
+		expect(s().scene.areas[0].points[1]).toEqual([4, 0, 2]);
+		s().moveAreaPoint(id, 1, [5, 0]);
+		expect(s().scene.areas[0].points[1]).toEqual([5, 0, 2]);
+		// Between a corner at 0 and one at 2.
+		s().insertAreaPoint(id, 1, [2, 0]);
+		expect(s().scene.areas[0].points[1]).toEqual([2, 0, 1]);
+		// Back to the area's own height: no lift of its own.
+		s().setAreaCornerHeight(id, 2, 0);
+		expect(s().scene.areas[0].points[2]).toEqual([5, 0]);
+		// Water stays level.
+		s().updateArea(id, (area) => {
+			area.type = "water_01";
+		});
+		s().setAreaCornerHeight(id, 0, 3);
+		expect(s().scene.areas[0].points[0]).toEqual([0, 0]);
+	});
+
 	it("keeps area, road and entity selection mutually exclusive", () => {
 		const store = makeStore();
 		const s = () => store.getState();

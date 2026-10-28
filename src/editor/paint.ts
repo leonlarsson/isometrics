@@ -1,5 +1,5 @@
 import { getPart, resolveProps } from "#/parts/registry";
-import { isInsidePolygon } from "#/scene/areas";
+import { areaTopAt, isRaised } from "#/scene/areas";
 import { isHiddenRoute, pointWidth, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity, TEntityInput, TScene, TVec2 } from "#/scene/schema";
 
@@ -146,13 +146,13 @@ const roadPieces = (scene: TScene) =>
 			}));
 		});
 
-/** How high the ground stands at a point: the highest area there (raised land), else 0. */
+/** How high the ground stands at a point: the highest area's top there (raised land, slopes), else 0. */
 export const groundHeightAt = (scene: TScene, point: TVec2) =>
 	Math.max(
 		0,
 		...scene.areas
-			.filter((area) => !area.hidden && area.height > 0 && isInsidePolygon(point, area.points))
-			.map((area) => area.height),
+			.filter((area) => !area.hidden && isRaised(area))
+			.map((area) => areaTopAt(area, point) ?? 0),
 	);
 
 /** What a stamp of the brush lands on: the scene's objects in the way, and its roads. */

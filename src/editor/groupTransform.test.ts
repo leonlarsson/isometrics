@@ -140,3 +140,48 @@ describe("moving several points (ADR-0065)", () => {
 		expect(road().points[0][0]).toBe(8);
 	});
 });
+
+describe("area corners with their own heights (ADR-0096)", () => {
+	const area = () => useEditor.getState().scene.areas[0];
+
+	beforeEach(() => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				ground: { width: 20, depth: 20 },
+				areas: [
+					{
+						id: "hill",
+						height: 1,
+						points: [
+							[0, 0],
+							[4, 0, 2],
+							[4, 4],
+							[0, 4],
+						],
+					},
+				],
+			}),
+		);
+	});
+
+	it("lifts the selected corners, never below the ground, keeping the others flat", () => {
+		useEditor.getState().selectAreaPoint("hill", 0);
+		useEditor.getState().selectPoints([0, 1]);
+		transformSelectedPoints({ offset: [1, 0], lift: -2 });
+		expect(area().points).toEqual([
+			[1, 0, -1],
+			[5, 0],
+			[4, 4],
+			[0, 4],
+		]);
+	});
+
+	it("raises a whole area, its corners' own heights on top", () => {
+		useEditor.getState().selectItems([{ kind: "area", id: "hill" }]);
+		transformSelected({ offset: [1, 1], lift: 0.5 });
+		expect(area().height).toBe(1.5);
+		expect(area().points[1]).toEqual([5, 1, 2]);
+		expect(area().points[0]).toEqual([1, 1]);
+	});
+});

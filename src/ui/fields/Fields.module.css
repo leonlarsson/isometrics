@@ -184,6 +184,12 @@ button.sectionTrigger:hover .sectionIcon {
 	gap: 3px;
 }
 
+/* A field that can't be changed right now (its hint says why), like a disabled button. */
+.sliderRow[data-disabled] {
+	opacity: 0.4;
+	cursor: default;
+}
+
 .labelRow {
 	display: flex;
 	align-items: center;

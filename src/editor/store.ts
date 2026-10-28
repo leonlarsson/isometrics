@@ -5,7 +5,14 @@ import { create } from "zustand";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
-import { AREA_TYPE_LABELS, AREA_TYPES } from "#/scene/areas";
+import {
+	AREA_TYPE_LABELS,
+	AREA_TYPES,
+	cornerLift,
+	cornerWithLift,
+	liftForTop,
+	takesCornerHeights,
+} from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
@@ -549,6 +556,8 @@ export interface IEditorState {
 	insertAreaPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
 	/** Remove a corner (an area keeps at least three). */
 	removeAreaPoint: (id: string, index: number) => void;
+	/** Put an area corner's top at this height (ADR-0096), as a lift above the area's height. */
+	setAreaCornerHeight: (id: string, index: number, top: number, options?: ICommitOptions) => void;
 
 	startDrawing: (style: TRoadStyle) => void;
 	startAreaDrawing: (type: TAreaType) => void;
@@ -2003,8 +2012,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().updateArea(
 					id,
 					(area) => {
-						if (area.points[index]) {
-							area.points[index] = [round(point[0]), round(point[1])];
+						const corner = area.points[index];
+						if (corner) {
+							// It keeps its own height (ADR-0096).
+							area.points[index] = cornerWithLift(point[0], point[1], cornerLift(corner));
 						}
 					},
 					options,
@@ -2014,7 +2025,24 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().updateArea(
 					id,
 					(area) => {
-						area.points.splice(index, 0, [round(point[0]), round(point[1])]);
+						// Between its neighbours' heights, so a corner added on a slope doesn't dent it.
+						const before = area.points[(index - 1 + area.points.length) % area.points.length];
+						const after = area.points[index % area.points.length];
+						const lift = before && after ? (cornerLift(before) + cornerLift(after)) / 2 : 0;
+						area.points.splice(index, 0, cornerWithLift(point[0], point[1], lift));
+					},
+					options,
+				),
+
+			setAreaCornerHeight: (id, index, top, options) =>
+				get().updateArea(
+					id,
+					(area) => {
+						const corner = area.points[index];
+						// Water stays level (ADR-0096).
+						if (corner && takesCornerHeights(area)) {
+							area.points[index] = cornerWithLift(corner[0], corner[1], liftForTop(area, top));
+						}
 					},
 					options,
 				),

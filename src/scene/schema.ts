@@ -478,6 +478,13 @@ export const AreaTypeSchema = z
 		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
 	);
 
+// See docs/adr/0096-area-corner-heights.md.
+export const AreaPointSchema = z
+	.union([z.tuple([z.number(), z.number(), z.number().min(-30).max(30)]), Vec2Schema])
+	.describe(
+		"An area corner: [x, z], or [x, z, lift] to raise (or, negative, lower) the area's top at this corner by lift above its height: slopes, ramps and hills. The top never goes below the ground.",
+	);
+
 // See docs/adr/0021-free-form-areas.md.
 export const AreaSchema = z
 	.object({
@@ -485,15 +492,17 @@ export const AreaSchema = z
 		name: z.string().default("").describe("Shown in the editor."),
 		type: AreaTypeSchema.default("grass_01"),
 		points: z
-			.array(Vec2Schema)
+			.array(AreaPointSchema)
 			.min(3)
-			.describe("Outline corners as [x, z], in order; the outline always closes."),
+			.describe("Outline corners as [x, z] or [x, z, lift], in order; the outline always closes."),
 		height: z
 			.number()
 			.min(0)
 			.max(30)
 			.default(0)
-			.describe("0 = flat on the ground; above 0 = raised with cliff sides."),
+			.describe(
+				"0 = flat on the ground; above 0 = raised with cliff sides. Corners with a lift stand that much higher or lower.",
+			),
 		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Colour as #rrggbb; null = the type's default for the theme."),
@@ -1097,6 +1106,7 @@ export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
 export type TArea = z.output<typeof AreaSchema>;
 export type TAreaInput = z.input<typeof AreaSchema>;
 export type TAreaType = z.output<typeof AreaTypeSchema>;
+export type TAreaPoint = z.output<typeof AreaPointSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;

@@ -225,6 +225,40 @@ export const screenOf = (page: Page, point: [number, number, number]) =>
 export const groundSpot = (page: Page, [x, z]: readonly number[], height = 0.1) =>
 	screenOf(page, [x, height, z]);
 
+/**
+ * Where a transform gizmo's handle is on screen, for a gizmo at `centre` in a view of `span`
+ * (showView): `offset` is in the gizmo's own units, 64 pixels each, e.g. [0, 0.8, 0] for the
+ * middle of its green arrow, [0.35, 0, 0.35] for the square on the ground.
+ */
+export const gizmoSpot = async (
+	page: Page,
+	centre: [number, number, number],
+	offset: [number, number, number],
+	span: number,
+) => {
+	const box = await page.locator("canvas").boundingBox();
+	const units = (64 * span) / (box?.height ?? 800);
+	return screenOf(page, [
+		centre[0] + offset[0] * units,
+		centre[1] + offset[1] * units,
+		centre[2] + offset[2] * units,
+	]);
+};
+
+/** Press, drag by [dx, dy] pixels in steps, and let go. */
+export const dragBy = async (
+	page: Page,
+	from: { x: number; y: number },
+	dx: number,
+	dy: number,
+) => {
+	await page.mouse.move(from.x, from.y, { steps: 2 });
+	await page.mouse.down();
+	await page.mouse.move(from.x + dx / 2, from.y + dy / 2, { steps: 5 });
+	await page.mouse.move(from.x + dx, from.y + dy, { steps: 5 });
+	await page.mouse.up();
+};
+
 /** A menu item of any kind (plain, with a check, or a radio choice) by its text. */
 export const menuItem = (page: Page, name: string | RegExp) =>
 	page

@@ -5,6 +5,7 @@ import { clamp, round } from "#/lib/math";
 import { colorSettingOf } from "#/parts/colorModel";
 import { lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
+import { cornerLift, cornerWithLift } from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
 import { parseOrRepairScene } from "#/scene/repair";
@@ -560,7 +561,10 @@ const pasteThings = (
 			...area,
 			id: newId("area"),
 			name: areaName(area.name),
-			points: area.points.map(([x, z]) => place(x, z)),
+			points: area.points.map((point) => {
+				const [x, z] = place(point[0], point[1]);
+				return cornerWithLift(x, z, cornerLift(point));
+			}),
 		}),
 	);
 	const newEntities = entities.map((entity): TEntity => {

@@ -1,8 +1,13 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 
-import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
+import {
+	type IPointsStart,
+	pointsStart,
+	pointsStartOf,
+	transformPoints,
+} from "#/editor/groupTransform";
 import {
 	drawnModeOf,
 	isToggleClick,
@@ -12,10 +17,12 @@ import {
 } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
-import { segmentMidpoints } from "#/scene/roads";
+import { cornerTop, takesCornerHeights } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
+import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
+import { applyPointsDrag } from "./transforms";
 import { useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
 
@@ -26,7 +33,8 @@ const HANDLE_PX = 24;
 interface ICornerHandleProps {
 	areaId: string;
 	index: number;
-	point: TVec2;
+	point: readonly number[];
+	/** Where its handle stands: on the area's top at this corner. */
 	y: number;
 	selected: boolean;
 	/** Inside a selection box being drawn (ADR-0065): shown as it would be after letting go. */
@@ -180,6 +188,44 @@ const InsertHandle = ({
 	);
 };
 
+const CORNER_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y"];
+/** Water stays level: its corners only move along the ground (the Corner panel says why). */
+const LEVEL_CORNER_HANDLES: TGizmoHandle[] = ["x", "z", "xz"];
+
+/**
+ * The move gizmo on the selected corners (ADR-0065, ADR-0096), at their
+ * middle on the top: along the ground, and up or down with the green arrow.
+ */
+const CornersGizmo = ({ baseY }: { baseY: number }) => {
+	const start = useRef<IPointsStart | null>(null);
+	const area = useEditor(selectSelectedArea);
+	const indices = useEditor((s) => s.selectedPointIndices);
+	// From what it subscribes to, so it follows the corners it moves (ADR-0093).
+	const center = useMemo(
+		() => (area ? (pointsStartOf({ area }, indices)?.center ?? null) : null),
+		[area, indices],
+	);
+	if (!center) {
+		return null;
+	}
+
+	return (
+		<group position={[center[0], baseY + center[1], center[2]]}>
+			<TransformGizmo
+				handles={area && takesCornerHeights(area) ? CORNER_HANDLES : LEVEL_CORNER_HANDLES}
+				onStart={() => {
+					start.current = pointsStart();
+				}}
+				onDrag={(drag) => {
+					if (start.current) {
+						applyPointsDrag(start.current, drag);
+					}
+				}}
+			/>
+		</group>
+	);
+};
+
 /** Corner and insert handles for the selected area (edit mode only). */
 export const AreaHandles = () => {
 	const area = useEditor(selectSelectedArea);
@@ -196,20 +242,30 @@ export const AreaHandles = () => {
 	if (!area || several || mode !== "edit" || drawing || area.hidden || area.locked) {
 		return null;
 	}
-	const y = areaBaseY(Math.max(0, layer)) + area.height;
+	const baseY = areaBaseY(Math.max(0, layer));
+	// Each corner's handle stands on the top there; the dots between them halfway up the side.
+	const tops = area.points.map((point) => cornerTop(area, point));
 
 	return (
 		<group>
-			{segmentMidpoints(area.points, true).map(({ index, point }) => (
-				<InsertHandle
-					key={`insert-${index}`}
-					areaId={area.id}
-					index={index}
-					point={[point[0], point[1]]}
-					y={y}
-					visible={!dragging}
-				/>
-			))}
+			{area.points.map((point, index) => {
+				const next = (index + 1) % area.points.length;
+				const after = area.points[next];
+				return (
+					<InsertHandle
+						// biome-ignore lint/suspicious/noArrayIndexKey: one per side, by position
+						key={`insert-${index}`}
+						areaId={area.id}
+						index={index}
+						point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
+						y={baseY + (tops[index] + tops[next]) / 2}
+						visible={!dragging}
+					/>
+				);
+			})}
+
+			{/* Kept while dragging: the gizmo's own drag sets dragging, and unmounting it ends the drag. */}
+			{selectedPoints.length > 0 && <CornersGizmo baseY={baseY} />}
 
 			{area.points.map((point, index) => (
 				<CornerHandle
@@ -218,7 +274,7 @@ export const AreaHandles = () => {
 					areaId={area.id}
 					index={index}
 					point={point}
-					y={y}
+					y={baseY + tops[index]}
 					selected={
 						selectedPoints.includes(index) && !(boxDrag?.removing && boxDrag.points.includes(index))
 					}

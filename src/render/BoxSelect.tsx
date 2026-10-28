@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { ISceneItem } from "#/editor/framing";
 import { isItemSelected, useEditor } from "#/editor/store";
 import { getPart, resolveProps } from "#/parts/registry";
+import { cornerTop } from "#/scene/areas";
 import type { TScene } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -65,7 +66,11 @@ const itemsInBox = (
 		}
 	});
 	for (const area of scene.areas) {
-		if (!area.hidden && !area.locked && area.points.every(([x, z]) => inside(x, area.height, z))) {
+		if (
+			!area.hidden &&
+			!area.locked &&
+			area.points.every((point) => inside(point[0], cornerTop(area, point), point[1]))
+		) {
 			items.push({ kind: "area", id: area.id });
 		}
 	}
@@ -89,7 +94,7 @@ const pointsInBox = (
 	const area = scene.areas.find((a) => a.id === areaId);
 	const spots = road
 		? road.points.map(([x, z, height = 0]) => [x, roadBaseY(layer) + height, z])
-		: (area?.points.map(([x, z]) => [x, area.height, z]) ?? []);
+		: (area?.points.map((point) => [point[0], cornerTop(area, point), point[1]]) ?? []);
 	return spots.flatMap(([x, y, z], index) => {
 		projected.set(x, y, z).project(camera);
 		const left = canvas.left + ((projected.x + 1) / 2) * canvas.width;

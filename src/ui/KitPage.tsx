@@ -148,6 +148,17 @@ export const KitPage = () => {
 									}}
 								/>
 
+								<SliderField
+									label="Slider, disabled"
+									value={slider}
+									onChange={setSlider}
+									min={0.4}
+									max={8}
+									step={0.1}
+									disabled
+									hint="Says why it can't be changed, and where to go instead."
+								/>
+
 								<SelectField
 									label="Select"
 									value={choice}

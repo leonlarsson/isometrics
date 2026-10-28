@@ -3,7 +3,9 @@ import type { Page } from "@playwright/test";
 import {
 	act,
 	clickWith,
+	dragBy,
 	expect,
+	gizmoSpot,
 	groundSpot,
 	keys,
 	loadWorld,
@@ -157,6 +159,112 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		await keys(page, "Delete");
 		await expect(page.getByText("An area needs at least three corners")).toBeVisible();
 		expect(await read(page, (s) => s.scene.areas[0].points.length)).toBe(4);
+	});
+
+	test("a corner's own height: its Height field, then G then Y (ADR-0096)", async ({ page }) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "hill",
+					type: "grass_01",
+					height: 0,
+					points: [
+						[-3, -2],
+						[3, -2],
+						[3, 2],
+						[-3, 2],
+					],
+				},
+			],
+		});
+		// From close up, so the whole area's gizmo doesn't cover its corners.
+		await showView(page, [0, 0], 12);
+		// Its corner's handle stands on the top, where it's clicked.
+		await act(page, (s) => s.selectArea("hill"));
+		const corner = await groundSpot(page, [3, -2], 0.12);
+		await page.mouse.click(corner.x, corner.y);
+		expect(await read(page, (s) => s.selectedPointIndex)).toBe(1);
+		await page.getByRole("tab", { name: "Shape", exact: true }).click();
+		const height = page.getByRole("textbox", { name: "Height", exact: true });
+		await height.fill("3");
+		await height.press("Enter");
+		// A flat area turns solid where the corner rises.
+		expect(await read(page, (s) => s.scene.areas[0].points[1])).toEqual([3, -2, 3]);
+		await height.blur();
+		await page.mouse.move(corner.x - 200, corner.y + 100, { steps: 4 });
+		await keys(page, "g", "y", "1", "Enter");
+		expect(await read(page, (s) => s.scene.areas[0].points[1])).toEqual([3, -2, 4]);
+	});
+
+	test("the green arrows lift a flat area's corner, and the whole area (ADR-0096)", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "lawn",
+					type: "grass_01",
+					points: [
+						[-4, -3],
+						[4, -3],
+						[4, 3],
+						[-4, 3],
+					],
+				},
+			],
+		});
+		await showView(page, [0, 0], 14);
+		const settled = () =>
+			page.evaluate(() => ({
+				cursorHidden: document.documentElement.hasAttribute("data-cursor-hidden"),
+				dragging: globalThis.__editorStore.getState().dragging,
+			}));
+		// A corner's arrow: the corner rises, and the drag ends as it should.
+		await act(page, (s) => s.selectAreaPoint("lawn", 1));
+		const lift = () => read(page, (s) => s.scene.areas[0].points[1][2] ?? 0);
+		await dragBy(page, await gizmoSpot(page, [4, 0, -3], [0, 0.8, 0], 14), 0, -60);
+		await expect.poll(lift).toBeGreaterThan(0);
+		expect(await settled()).toEqual({ cursorHidden: false, dragging: false });
+		// The gizmo rose with it: grabbing its arrow where it is now lifts it again.
+		const first = await lift();
+		await dragBy(page, await gizmoSpot(page, [4, first, -3], [0, 0.8, 0], 14), 0, -60);
+		await expect.poll(lift).toBeGreaterThan(first);
+		// And along the ground: twice, from where its square is after the first move.
+		const corner = () => read(page, (s) => s.scene.areas[0].points[1]);
+		const lifted = await lift();
+		await dragBy(page, await gizmoSpot(page, [4, lifted, -3], [0.35, 0, 0.35], 14), 80, 0);
+		await expect.poll(async () => (await corner())[0]).not.toBe(4);
+		const [x, z] = await corner();
+		await dragBy(page, await gizmoSpot(page, [x, lifted, z], [0.35, 0, 0.35], 14), 80, 0);
+		await expect.poll(async () => (await corner())[0]).not.toBe(x);
+
+		// The whole area, with no corner selected: its arrow is Raised by, and its gizmo follows a move.
+		await act(page, (s) => {
+			s.clearSelection();
+			s.selectArea("lawn");
+		});
+		const height = () => read(page, (s) => s.scene.areas[0].height);
+		// Where the whole area's gizmo is: the middle of its corners, on its height.
+		const middle = () =>
+			read(page, (s): [number, number, number] => {
+				const { points, height } = s.scene.areas[0];
+				const xs = points.map((p) => p[0]);
+				const zs = points.map((p) => p[1]);
+				return [
+					(Math.min(...xs) + Math.max(...xs)) / 2,
+					height,
+					(Math.min(...zs) + Math.max(...zs)) / 2,
+				];
+			});
+		await dragBy(page, await gizmoSpot(page, await middle(), [0, 0.8, 0], 14), 0, -60);
+		await expect.poll(height).toBeGreaterThan(0);
+		expect(await settled()).toEqual({ cursorHidden: false, dragging: false });
+		const westmost = () => read(page, (s) => s.scene.areas[0].points[0][0]);
+		await dragBy(page, await gizmoSpot(page, await middle(), [0.35, 0, 0.35], 14), 80, 0);
+		await expect.poll(westmost).not.toBe(-4);
+		const moved = await westmost();
+		await dragBy(page, await gizmoSpot(page, await middle(), [0.35, 0, 0.35], 14), 80, 0);
+		await expect.poll(westmost).not.toBe(moved);
 	});
 
 	test("Raised by lifts the whole area", async ({ page }) => {

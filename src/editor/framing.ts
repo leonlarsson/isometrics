@@ -1,4 +1,5 @@
 import { getPart, resolveProps } from "#/parts/registry";
+import { cornerTop } from "#/scene/areas";
 import { roadCenterlineOf } from "#/scene/roads";
 import type { TScene, TVec3 } from "#/scene/schema";
 
@@ -47,7 +48,7 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 		const area = scene.areas.find((a) => a.id === item.id);
 		return area
 			? boxAround(
-					area.points.map(([x, z]) => [x, z, area.height]),
+					area.points.map((point) => [point[0], point[1], cornerTop(area, point)]),
 					0.5,
 				)
 			: null;

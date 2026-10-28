@@ -7,7 +7,14 @@ import { useGraphics } from "#/editor/graphics";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
-import { AREA_TYPES, areaColor, waterSeams } from "#/scene/areas";
+import {
+	AREA_TYPES,
+	areaColor,
+	cornerTop,
+	isRaised,
+	triangulateOutline,
+	waterSeams,
+} from "#/scene/areas";
 import type { TArea, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -37,6 +44,55 @@ const outlineShape = (points: TArea["points"]) => {
 	});
 	shape.closePath();
 	return shape;
+};
+
+/**
+ * A raised area as a solid (ADR-0096): its top cut into triangles between its
+ * corners, each corner at its own height, flat-shaded; its sides down to the
+ * ground (gone where both corners of a side are on the ground, so a corner at
+ * 0 makes a ramp); and a bottom, which shadows need. Two material groups like
+ * an extrusion's: the top, then the sides and bottom. Without its top for
+ * raised water, whose mirroring surface is drawn on its own.
+ */
+const solidGeometry = (area: Pick<TArea, "points" | "height" | "type">, withTop = true) => {
+	const { points } = area;
+	const tops = points.map((point) => cornerTop(area, point));
+	const top: number[] = [];
+	const rest: number[] = [];
+	const triangle = (list: number[], a: number[], b: number[], c: number[], up: boolean) => {
+		// Wound so its face looks the way it should (up for the top, down for the bottom).
+		const normalY = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+		list.push(...(normalY > 0 === up ? [...a, ...b, ...c] : [...a, ...c, ...b]));
+	};
+	const corner = (i: number, y: number) => [points[i][0], y, points[i][1]];
+	for (const [a, b, c] of triangulateOutline(points)) {
+		if (withTop) {
+			triangle(top, corner(a, tops[a]), corner(b, tops[b]), corner(c, tops[c]), true);
+		}
+		triangle(rest, corner(a, 0), corner(b, 0), corner(c, 0), false);
+	}
+	// Sides face out, whichever way the outline turns.
+	let turning = 0;
+	for (let i = 0; i < points.length; i++) {
+		const [x1, z1] = points[i];
+		const [x2, z2] = points[(i + 1) % points.length];
+		turning += x1 * z2 - x2 * z1;
+	}
+	for (let i = 0; i < points.length; i++) {
+		const j = (i + 1) % points.length;
+		if (tops[i] === 0 && tops[j] === 0) {
+			continue;
+		}
+		const [a, b, c, d] = [corner(i, 0), corner(j, 0), corner(j, tops[j]), corner(i, tops[i])];
+		const quad = turning > 0 ? [a, c, b, a, d, c] : [a, b, c, a, c, d];
+		rest.push(...quad.flat());
+	}
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute("position", new THREE.Float32BufferAttribute([...top, ...rest], 3));
+	geometry.addGroup(0, top.length / 3, 0);
+	geometry.addGroup(top.length / 3, rest.length / 3, 1);
+	geometry.computeVertexNormals();
+	return geometry;
 };
 
 type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick" | "onContextMenu">;
@@ -73,47 +129,63 @@ export const AreaBody = ({
 	waterSeams = NO_SEAMS,
 }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
-	const raised = area.height > 0;
-	const mirrors = reflective && !raised && area.type === "water_01";
+	const raised = isRaised(area);
+	// Water stays level (ADR-0096), so it mirrors raised too: its surface on top of cliff sides.
+	const mirrors = reflective && area.type === "water_01";
 	const geometry = useMemo(() => {
-		const shape = outlineShape(area.points);
-		const geo = raised
-			? new THREE.ExtrudeGeometry(shape, { depth: area.height, bevelEnabled: false })
-			: new THREE.ShapeGeometry(shape);
+		if (raised && !mirrors) {
+			return solidGeometry(area);
+		}
+		const geo = new THREE.ShapeGeometry(outlineShape(area.points));
 		// A reflector finds its mirror's plane from its mesh's turn, so a mirroring one is turned there.
 		if (!mirrors) {
 			geo.rotateX(-Math.PI / 2);
 		}
 		return geo;
-	}, [area.points, area.height, raised, mirrors]);
+	}, [area.points, area.height, area.type, raised, mirrors]);
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+	const sides = useMemo(
+		() => (raised && mirrors ? solidGeometry(area, false) : null),
+		[area.points, area.height, area.type, raised, mirrors],
+	);
+	useLayoutEffect(() => () => sides?.dispose(), [sides]);
 
-	const outline = useMemo(() => {
-		const top = y + area.height + 0.03;
-		return [...area.points, area.points[0]].map(
-			([x, z]) => [x, top, z] as [number, number, number],
-		);
-	}, [area.points, area.height, y]);
+	const outline = useMemo(
+		() =>
+			[...area.points, area.points[0]].map(
+				(point) =>
+					[point[0], y + cornerTop(area, point) + 0.03, point[1]] as [number, number, number],
+			),
+		[area.points, area.height, y],
+	);
 
 	const color = areaColor(area, palette);
 
 	return (
 		<group>
 			<mesh
+				// A new mesh when it turns solid or flat: swapping one material for a top and sides on the
+				// same mesh leaves its list of materials half-filled, which breaks drawing and clicks.
+				key={mirrors ? "mirror" : raised ? "solid" : "flat"}
 				geometry={geometry}
-				position={[0, y, 0]}
+				position={[0, y + (mirrors && raised ? area.height : 0), 0]}
 				// Set both ways: a prop that goes back to undefined keeps its last value in R3F.
 				rotation={mirrors ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}
 				receiveShadow
-				castShadow={raised}
+				castShadow={raised && !mirrors}
 				{...handlers}
 			>
-				{raised ? (
-					// ExtrudeGeometry has two material groups: the caps (top/bottom) and the sides.
+				{raised && !mirrors ? (
+					// Two material groups: the top, then the sides and bottom (solidGeometry).
 					<>
-						<meshStandardMaterial attach="material-0" color={color} roughness={0.95} />
+						<meshStandardMaterial attach="material-0" color={color} roughness={0.95} flatShading />
 
-						<meshStandardMaterial attach="material-1" color={palette.cliff} roughness={1} />
+						<meshStandardMaterial
+							attach="material-1"
+							color={palette.cliff}
+							roughness={1}
+							flatShading
+						/>
 					</>
 				) : mirrors ? (
 					<ReflectiveWaterMaterial
@@ -133,6 +205,20 @@ export const AreaBody = ({
 					/>
 				)}
 			</mesh>
+
+			{/* Raised water that mirrors: its cliff sides, under its surface. */}
+			{sides && (
+				<mesh geometry={sides} position={[0, y, 0]} receiveShadow castShadow {...handlers}>
+					<meshStandardMaterial attach="material-0" color={color} />
+
+					<meshStandardMaterial
+						attach="material-1"
+						color={palette.cliff}
+						roughness={1}
+						flatShading
+					/>
+				</mesh>
+			)}
 
 			{selected && <Line points={outline} color={palette.selection} lineWidth={3} />}
 		</group>

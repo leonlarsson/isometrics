@@ -227,7 +227,7 @@ export const KeyboardTransform = () => {
 				const areaLayer = areas.findIndex((a) => a.id === state.selectedAreaId);
 				const baseY =
 					areaLayer >= 0
-						? areaBaseY(areaLayer) + areas[areaLayer].height
+						? areaBaseY(areaLayer)
 						: roadBaseY(
 								Math.max(
 									0,

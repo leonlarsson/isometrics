@@ -3,7 +3,12 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-import { type IPointsStart, pointsStart, transformPoints } from "#/editor/groupTransform";
+import {
+	type IPointsStart,
+	pointsStart,
+	pointsStartOf,
+	transformPoints,
+} from "#/editor/groupTransform";
 import {
 	drawnModeOf,
 	type IJoinOffer,
@@ -315,7 +320,11 @@ const PointsGizmo = ({ baseY }: { baseY: number }) => {
 	const start = useRef<IPointsStart | null>(null);
 	const road = useEditor(selectSelectedRoad);
 	const indices = useEditor((s) => s.selectedPointIndices);
-	const center = useMemo(() => pointsStart()?.center ?? null, [road, indices]);
+	// From what it subscribes to, so it follows the points it moves (ADR-0093).
+	const center = useMemo(
+		() => (road ? (pointsStartOf({ road }, indices)?.center ?? null) : null),
+		[road, indices],
+	);
 	if (!center) {
 		return null;
 	}

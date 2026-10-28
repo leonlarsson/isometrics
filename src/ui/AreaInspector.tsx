@@ -2,7 +2,15 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { AREA_TYPE_LABELS, areaColor, polygonArea } from "#/scene/areas";
+import {
+	AREA_TYPE_LABELS,
+	areaColor,
+	cornerLift,
+	cornerTop,
+	MAX_CORNER_LIFT,
+	polygonArea,
+	takesCornerHeights,
+} from "#/scene/areas";
 import type { TArea, TAreaType } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
@@ -24,13 +32,14 @@ const TYPE_OPTIONS = (Object.keys(AREA_TYPE_LABELS) as TAreaType[]).map((value) 
 	label: AREA_TYPE_LABELS[value],
 }));
 
-/** Position of the selected corner, with delete. */
+/** Position and height of the selected corner, with delete. */
 const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 	const point = area.points[index];
 	if (!point) {
 		return null;
 	}
 	const store = () => useEditor.getState();
+	const liftable = takesCornerHeights(area);
 	return (
 		<Section
 			icon="pin"
@@ -56,6 +65,41 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 					});
 				}}
 			/>
+
+			<SliderField
+				label="Height"
+				value={cornerTop(area, point)}
+				min={0}
+				max={Math.min(15, area.height + MAX_CORNER_LIFT)}
+				step={0.25}
+				onChange={(top) =>
+					store().setAreaCornerHeight(area.id, index, top, {
+						coalesce: `${area.id}:corner:${index}:height`,
+					})
+				}
+				disabled={!liftable}
+				inherit={
+					liftable
+						? {
+								from: "area",
+								inherited: cornerLift(point) === 0,
+								onReset: () => store().setAreaCornerHeight(area.id, index, area.height),
+								value: String(area.height),
+							}
+						: undefined
+				}
+				hint={
+					liftable
+						? "Corners at different heights make slopes and ramps; a corner at 0 meets the ground."
+						: "Water stays level, so its corners have no heights of their own: raise all of it with Raised by, under Whole area."
+				}
+			/>
+
+			{liftable && (
+				<Hint>
+					Lift it with the green arrow, or press <Kbd>G</Kbd> then <Kbd>Y</Kbd>.
+				</Hint>
+			)}
 		</Section>
 	);
 };
@@ -76,8 +120,9 @@ const CornersPanel = ({ area, indices }: { area: TArea; indices: readonly number
 			}
 		>
 			<Hint>
-				Drag one of them to move them together, or press <Kbd>G</Kbd>. A <Kbd>Shift</Kbd>- or
-				<Kbd>Ctrl</Kbd>-click adds a corner or takes it out, and <Kbd>B</Kbd> boxes more.
+				Drag one of them to move them together, or press <Kbd>G</Kbd>. Lift them together with the
+				green arrow, or <Kbd>G</Kbd> then <Kbd>Y</Kbd>. A <Kbd>Shift</Kbd>- or <Kbd>Ctrl</Kbd>-click
+				adds a corner or takes it out, and <Kbd>B</Kbd> boxes more.
 			</Hint>
 		</Section>
 	);
@@ -164,7 +209,7 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				id="area.shape"
 				icon="spline"
 				title="Whole area"
-				keywords="shape corners raised height cliff"
+				keywords="shape corners raised height cliff slope ramp hill lift"
 			>
 				<SliderField
 					label="Raised by"
@@ -181,9 +226,10 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 
 				<Hint>
 					With no corner selected, the arrows at its middle (or G, R, S and the arrow keys) move,
-					turn and resize all of it. Drag corners to reshape, Shift- or Ctrl-click to select
+					lift, turn and resize all of it. Drag corners to reshape, Shift- or Ctrl-click to select
 					several, drag a small dot between two corners to add one, double-click a corner to remove
-					it. Above 0, the area becomes raised ground with cliff sides.
+					it. Above 0, the area becomes raised ground with cliff sides; select a corner to give it a
+					height of its own, for slopes and ramps.
 				</Hint>
 			</Section>
 		</>

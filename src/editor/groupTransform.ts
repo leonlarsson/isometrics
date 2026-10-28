@@ -1,5 +1,6 @@
 import { clamp, normalizeDegrees, round } from "#/lib/math";
-import type { TRoadPoint, TVec2 } from "#/scene/schema";
+import { cornerLift, cornerWithLift, MAX_CORNER_LIFT, takesCornerHeights } from "#/scene/areas";
+import type { TArea, TAreaPoint, TRoad, TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { type ICommitOptions, useEditor } from "./store";
 
@@ -8,6 +9,8 @@ export const MIN_SIZE = 0.1;
 export const MAX_SIZE = 10;
 /** The highest a road point may be lifted. */
 export const MAX_POINT_HEIGHT = 50;
+/** The highest an area may be raised. */
+export const MAX_AREA_HEIGHT = 30;
 
 /** A multi-selection's movable things when a group transform started (ADR-0064). */
 export interface IGroupStart {
@@ -18,7 +21,7 @@ export interface IGroupStart {
 	/** Driving vehicles: they move with their road, but take a resize. */
 	drivers: { id: string; scale: number }[];
 	roads: { id: string; points: TRoadPoint[] }[];
-	areas: { id: string; points: TVec2[] }[];
+	areas: { id: string; points: TAreaPoint[]; height: number }[];
 	/** The ground extent of what moves, to keep a moved group on the ground. */
 	bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -29,6 +32,18 @@ export interface IGroupStart {
  */
 export const groupStart = (): IGroupStart | null => {
 	const { scene, selectedItems } = useEditor.getState();
+	return groupStartOf(scene, selectedItems);
+};
+
+/**
+ * The same for a world and a selection given, for components (a gizmo
+ * following what it moves): they pass what they subscribe to, since the React
+ * Compiler keeps what a component works out from the store by itself (ADR-0093).
+ */
+export const groupStartOf = (
+	scene: TScene,
+	selectedItems: readonly { kind: string; id: string }[],
+): IGroupStart | null => {
 	const picked = <T extends { id: string; locked: boolean }>(list: T[], kind: string) =>
 		list.filter(
 			(thing) =>
@@ -48,7 +63,11 @@ export const groupStart = (): IGroupStart | null => {
 		.filter((entity) => entity.follow)
 		.map((entity) => ({ id: entity.id, scale: entity.scale }));
 	const roads = picked(scene.roads, "road").map((road) => ({ id: road.id, points: road.points }));
-	const areas = picked(scene.areas, "area").map((area) => ({ id: area.id, points: area.points }));
+	const areas = picked(scene.areas, "area").map(({ id, points, height }) => ({
+		id,
+		points,
+		height,
+	}));
 	const spots = [
 		...entities.map((entity) => entity.position),
 		...roads.flatMap((road) => road.points),
@@ -62,7 +81,12 @@ export const groupStart = (): IGroupStart | null => {
 	const bounds = spots.length
 		? { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) }
 		: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
-	const lowest = entities.length ? Math.min(...entities.map((entity) => entity.elevation)) : 0;
+	// Areas count by how high they're raised, so the gizmo of a raised one stands on its top.
+	const heights = [
+		...entities.map((entity) => entity.elevation),
+		...areas.map((area) => area.height),
+	];
+	const lowest = heights.length ? Math.min(...heights) : 0;
 	return {
 		center: [(bounds.minX + bounds.maxX) / 2, lowest, (bounds.minZ + bounds.maxZ) / 2],
 		entities,
@@ -90,7 +114,8 @@ const keepOn = (move: number, low: number, high: number, half: number) =>
  * on the ground as a whole when moved; turning and resizing go around its
  * centre, positions as well as headings and sizes, and keep every size within
  * the limits so the group keeps its proportions. Roads and areas move, turn
- * and resize with every point; lifting raises objects and road points.
+ * and resize with every point; lifting raises objects, road points and areas
+ * (their corners keep their own heights on top, ADR-0096).
  */
 export const transformGroup = (
 	from: IGroupStart,
@@ -156,7 +181,11 @@ export const transformGroup = (
 		for (const start of from.areas) {
 			const area = scene.areas.find((a) => a.id === start.id);
 			if (area) {
-				area.points = start.points.map(place);
+				area.points = start.points.map((point) => {
+					const [x, z] = place(point);
+					return cornerWithLift(x, z, cornerLift(point));
+				});
+				area.height = round(clamp(start.height + lift, 0, MAX_AREA_HEIGHT));
 			}
 		}
 	}, options);
@@ -176,7 +205,7 @@ export interface IPointsStart {
 	id: string;
 	/** Each selected point by its index, as it was. */
 	points: { index: number; point: readonly number[] }[];
-	/** Their middle on the ground, and their average height (road points). */
+	/** Their middle on the ground, and their average height (road points; area corners' tops). */
 	center: [number, number, number];
 	bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -186,6 +215,21 @@ export const pointsStart = (): IPointsStart | null => {
 	const { scene, selectedRoadId, selectedAreaId, selectedPointIndices } = useEditor.getState();
 	const road = scene.roads.find((r) => r.id === selectedRoadId);
 	const area = scene.areas.find((a) => a.id === selectedAreaId);
+	return road
+		? pointsStartOf({ road }, selectedPointIndices)
+		: area
+			? pointsStartOf({ area }, selectedPointIndices)
+			: null;
+};
+
+/**
+ * The same for a road's or an area's points given, for components (a gizmo
+ * following the points it moves): they pass what they subscribe to (ADR-0093).
+ */
+export const pointsStartOf = (
+	{ road, area }: { road?: TRoad; area?: TArea },
+	selectedPointIndices: readonly number[],
+): IPointsStart | null => {
 	const shape = road ?? area;
 	if (!shape || shape.locked || selectedPointIndices.length === 0) {
 		return null;
@@ -205,7 +249,8 @@ export const pointsStart = (): IPointsStart | null => {
 		minZ: Math.min(...zs),
 		maxZ: Math.max(...zs),
 	};
-	const height = points.reduce((sum, { point }) => sum + (point[2] ?? 0), 0) / points.length;
+	const lift = points.reduce((sum, { point }) => sum + (point[2] ?? 0), 0) / points.length;
+	const height = road ? lift : Math.max(0, (area?.height ?? 0) + lift);
 	return {
 		kind: road ? "road" : "area",
 		id: shape.id,
@@ -218,7 +263,7 @@ export const pointsStart = (): IPointsStart | null => {
 /**
  * Move the selected points or corners from where they started, as one commit
  * (ADR-0065): all by the same distance, staying on the ground together; road
- * points can also be lifted (never below the ground).
+ * points and area corners can also be lifted (never below the ground, ADR-0096).
  */
 export const transformPoints = (
 	from: IPointsStart,
@@ -247,7 +292,11 @@ export const transformPoints = (
 		const area = scene.areas.find((a) => a.id === from.id);
 		for (const { index, point } of area ? from.points : []) {
 			if (area?.points[index]) {
-				area.points[index] = [round(point[0] + dx), round(point[1] + dz)];
+				// Water stays level: its corners only move along the ground.
+				const raised = takesCornerHeights(area)
+					? clamp(cornerLift(point) + lift, -area.height, MAX_CORNER_LIFT)
+					: cornerLift(point);
+				area.points[index] = cornerWithLift(point[0] + dx, point[1] + dz, raised);
 			}
 		}
 	}, options);
