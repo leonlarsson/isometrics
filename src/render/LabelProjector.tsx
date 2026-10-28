@@ -56,14 +56,17 @@ const overGizmo = (element: HTMLElement, canvas: DOMRect, x: number, y: number) 
 	);
 };
 
-/** The UI over the canvas, and everything outside it, as boxes in canvas pixels. */
+/**
+ * The UI over the canvas, and what's above and below it, as boxes in canvas
+ * pixels. Not its sides: there cards slide under the side panels (the layer
+ * clips them at the canvas's edge) like the world does, instead of stepping
+ * inwards as a panel opens (ADR-0099).
+ */
 const readObstacles = (canvas: DOMRect): IRect[] => {
-	const { width, height } = canvas;
+	const { height } = canvas;
 	const boxes: IRect[] = [
 		{ left: -OFF_CANVAS, top: -OFF_CANVAS, right: OFF_CANVAS, bottom: 0 },
 		{ left: -OFF_CANVAS, top: height, right: OFF_CANVAS, bottom: OFF_CANVAS },
-		{ left: -OFF_CANVAS, top: -OFF_CANVAS, right: 0, bottom: OFF_CANVAS },
-		{ left: width, top: -OFF_CANVAS, right: OFF_CANVAS, bottom: OFF_CANVAS },
 	];
 	for (const element of document.querySelectorAll(OBSTACLES)) {
 		const box = element.getBoundingClientRect();
