@@ -50,6 +50,7 @@ const TransformControls = () => {
 	const road = useEditor(selectSelectedRoad);
 	const area = useEditor(selectSelectedArea);
 	const points = useEditor((s) => s.selectedPointIndices.length);
+	const peakSelected = useEditor((s) => s.selectedPeakIndex !== null);
 	const route = useRouteHint();
 
 	const update = useEditor.getState().updateTransform;
@@ -138,7 +139,9 @@ const TransformControls = () => {
 						? road
 							? "road point"
 							: "corner"
-						: shapeName;
+						: peakSelected
+							? "peak"
+							: shapeName;
 	const how = transform.axis
 		? ` ${(transform.mode === "rotate" ? TURN_AXIS_LABELS : AXIS_LABELS)[transform.axis]}`
 		: "";

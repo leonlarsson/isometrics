@@ -34,5 +34,6 @@ Chosen option: **1**.
 ### Consequences
 
 - Good: round hills, ridges (two or three peaks) and hollows, low-poly, with the tools corners have.
-- Bad: G and the arrow keys don't move a selected peak yet (its handle and gizmo do); box selection doesn't pick peaks.
+- Good: a selected peak moves like a corner: its handle and gizmo, G (G then Y lifts it, a typed distance moves it exactly) and the arrow keys.
+- Bad: only one peak is selected at a time, so box selection doesn't pick peaks.
 - Later: several peaks selected together; a smoother hill (more rings of points round a peak).

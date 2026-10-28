@@ -20,11 +20,14 @@ import type { IGizmoDrag, TGizmoHandle } from "./TransformGizmo";
 import {
 	applyEntityDrag,
 	applyGroupDrag,
+	applyPeakDrag,
 	applyPointsDrag,
 	applyRoadPointDrag,
 	entityStart,
 	headingAxis,
 	type IEntityStart,
+	type IPeakStart,
+	peakStart,
 	roadPointStart,
 	roadPointWorld,
 } from "./transforms";
@@ -34,7 +37,8 @@ type TTarget =
 	| { kind: "entity"; id: string; from: IEntityStart }
 	| { kind: "point"; roadId: string; index: number; from: TRoadPoint }
 	| { kind: "group"; from: IGroupStart }
-	| { kind: "points"; from: IPointsStart };
+	| { kind: "points"; from: IPointsStart }
+	| { kind: "peak"; areaId: string; index: number; from: IPeakStart };
 
 interface IContext {
 	target: TTarget;
@@ -208,6 +212,18 @@ export const KeyboardTransform = () => {
 			steps.push(drag("scale", { ratio }));
 		}
 
+		if (target.kind === "peak") {
+			// A peak only moves: across the ground, or up and down (ADR-0101).
+			if (session.mode === "grab") {
+				applyPeakDrag(
+					target.areaId,
+					target.index,
+					target.from,
+					session.axis === "y" ? steps[1] : steps[0],
+				);
+			}
+			return;
+		}
 		if (target.kind === "points") {
 			// Points only move: along the ground, or up (road points).
 			if (session.mode === "grab") {
@@ -264,6 +280,23 @@ export const KeyboardTransform = () => {
 			if (from) {
 				target = { kind: "entity", id: state.selectedId, from };
 				center = new THREE.Vector3(from.position[0], from.elevation, from.position[1]);
+			}
+		} else if (state.selectedAreaId && state.selectedPeakIndex !== null) {
+			// An area's selected peak (ADR-0101).
+			const from = peakStart(state.selectedAreaId, state.selectedPeakIndex);
+			const layer = state.scene.areas.findIndex((a) => a.id === state.selectedAreaId);
+			if (from) {
+				target = {
+					kind: "peak",
+					areaId: state.selectedAreaId,
+					index: state.selectedPeakIndex,
+					from,
+				};
+				center = new THREE.Vector3(
+					from.point[0],
+					areaBaseY(Math.max(0, layer)) + from.top,
+					from.point[1],
+				);
 			}
 		} else if (
 			state.selectedPointIndex !== null &&

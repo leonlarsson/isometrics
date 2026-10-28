@@ -11,20 +11,18 @@ import {
 import {
 	drawnModeOf,
 	isToggleClick,
-	SNAP_STEP,
 	selectSelectedArea,
 	selectSeveral,
 	useEditor,
 } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { snap } from "#/lib/math";
 import { isClick } from "#/lib/pointer";
 import { cornerTop, takesCornerHeights, topSurface } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
-import { applyPointsDrag } from "./transforms";
+import { applyPeakDrag, applyPointsDrag, type IPeakStart, peakStart } from "./transforms";
 import { useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
 
@@ -375,42 +373,17 @@ const PeakGizmo = ({
 	point: readonly number[];
 	y: number;
 }) => {
-	const start = useRef<{ point: TVec2; top: number } | null>(null);
+	const start = useRef<IPeakStart | null>(null);
 	return (
 		<group position={[point[0], y, point[1]]}>
 			<TransformGizmo
 				handles={PEAK_HANDLES}
 				onStart={() => {
-					const area = useEditor.getState().scene.areas.find((a) => a.id === areaId);
-					const peak = area?.peaks[index];
-					start.current =
-						area && peak ? { point: [peak[0], peak[1]], top: cornerTop(area, peak) } : null;
+					start.current = peakStart(areaId, index);
 				}}
 				onDrag={(drag) => {
-					const from = start.current;
-					if (!from) {
-						return;
-					}
-					const store = useEditor.getState();
-					const options = { coalesce: drag.token, gesture: true };
-					const step = (value: number, size: number) => (drag.free ? value : snap(value, size));
-					if (drag.handle === "y") {
-						store.setAreaPeakHeight(
-							areaId,
-							index,
-							Math.max(0, step(from.top + drag.lift, 0.25)),
-							options,
-						);
-					} else {
-						store.moveAreaPeak(
-							areaId,
-							index,
-							[
-								step(from.point[0] + drag.offset[0], SNAP_STEP),
-								step(from.point[1] + drag.offset[1], SNAP_STEP),
-							],
-							options,
-						);
+					if (start.current) {
+						applyPeakDrag(areaId, index, start.current, drag);
 					}
 				}}
 			/>

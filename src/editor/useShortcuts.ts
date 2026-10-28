@@ -80,7 +80,19 @@ export const useShortcuts = () => {
 		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s);
 		return shape !== null && !shape.hidden && !shape.locked;
 	});
-	const canNudgeAny = canNudge || nudgePoint;
+	// An area's selected peak that can be edited (ADR-0101): G and the arrows move it too.
+	const selectedPeak = useEditor((s) => {
+		const area = selectSelectedArea(s);
+		return (
+			s.mode === "edit" &&
+			s.selectedPeakIndex !== null &&
+			s.selectedItems.length === 1 &&
+			area !== null &&
+			!area.hidden &&
+			!area.locked
+		);
+	});
+	const canNudgeAny = canNudge || nudgePoint || selectedPeak;
 	// The arrows move the camera when they've nothing to nudge (ADR-0062), except ←/→ in View mode
 	// with viewpoints, which step through them (ui/ViewpointBar).
 	const transforming = useEditor((s) => s.transform !== null);
@@ -115,7 +127,7 @@ export const useShortcuts = () => {
 	});
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
 	// G on a vehicle following a road lifts it off to drop on another road or park it.
-	const canGrab = canTransform || (selectedPoint && !holdingRightButton);
+	const canGrab = canTransform || ((selectedPoint || selectedPeak) && !holdingRightButton);
 	const start = (mode: TTransformMode) => useEditor.getState().startTransform(mode);
 
 	const rotate = (degrees: number) => {
@@ -149,6 +161,23 @@ export const useShortcuts = () => {
 		}
 		if (state.selectedPointIndices.length > 1) {
 			transformSelectedPoints({ offset: [dx * step, dz * step] }, { coalesce: "nudge:points" });
+			return;
+		}
+		// An area's selected peak (ADR-0101).
+		const peakArea = selectSelectedArea(state);
+		const peak =
+			state.selectedPeakIndex === null ? undefined : peakArea?.peaks[state.selectedPeakIndex];
+		if (peakArea && peak && state.selectedPeakIndex !== null) {
+			const { width, depth } = state.scene.ground;
+			state.moveAreaPeak(
+				peakArea.id,
+				state.selectedPeakIndex,
+				[
+					clamp(peak[0] + dx * step, -width / 2, width / 2),
+					clamp(peak[1] + dz * step, -depth / 2, depth / 2),
+				],
+				{ coalesce: `nudge:${peakArea.id}:peak:${state.selectedPeakIndex}` },
+			);
 			return;
 		}
 		const index = state.selectedPointIndex;

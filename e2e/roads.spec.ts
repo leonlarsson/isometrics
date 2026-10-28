@@ -303,7 +303,21 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		await dragBy(page, await gizmoSpot(page, [0, 3, 0], [0, 0.8, 0], 16), 0, -50);
 		await expect.poll(async () => (await peak())?.[2] ?? 0).toBeGreaterThan(3);
 
-		await page.mouse.move(100, 500);
+		// G moves it across the ground, G then Y lifts it, the arrow keys nudge it (keys go to the view
+		// while the pointer is over it).
+		const view = await viewCentre(page);
+		await page.mouse.move(view.x + 250, view.y + 200, { steps: 4 });
+		const [px, pz] = (await peak()) ?? [0, 0];
+		await keys(page, "g");
+		await expect(page.getByText(/Moving peak/)).toBeVisible();
+		await keys(page, "2", "Enter");
+		expect((await peak())?.slice(0, 2)).toEqual([px + 2, pz]);
+		const lifted = (await peak())?.[2] ?? 0;
+		await keys(page, "g", "y", "1", "Enter");
+		expect((await peak())?.[2]).toBe(lifted + 1);
+		await keys(page, "ArrowRight");
+		expect((await peak())?.[0]).toBeGreaterThan(px + 2);
+
 		await keys(page, "Delete");
 		expect(await read(page, (s) => s.scene.areas[0].peaks.length)).toBe(0);
 		expect(await read(page, (s) => s.scene.areas.length)).toBe(1);

@@ -12,7 +12,7 @@ import {
 } from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
-import { groundHeightAt } from "#/scene/areas";
+import { cornerTop, groundHeightAt } from "#/scene/areas";
 import type { TRoadPoint, TVec2 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -175,6 +175,52 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 			);
 			return;
 		}
+	}
+};
+
+/** A peak of an area when a move started (ADR-0101): where it is, and its top's height. */
+export interface IPeakStart {
+	point: TVec2;
+	top: number;
+}
+
+export const peakStart = (areaId: string, index: number): IPeakStart | null => {
+	const area = useEditor.getState().scene.areas.find((a) => a.id === areaId);
+	const peak = area?.peaks[index];
+	return area && peak ? { point: [peak[0], peak[1]], top: cornerTop(area, peak) } : null;
+};
+
+/**
+ * Apply one step of a gizmo or keyboard move to a peak, measured from where
+ * it started: across the ground on the grid, or up and down in height steps
+ * (never below the ground).
+ */
+export const applyPeakDrag = (
+	areaId: string,
+	index: number,
+	from: IPeakStart,
+	drag: IGizmoDrag,
+) => {
+	const store = useEditor.getState();
+	const options = { coalesce: drag.token, gesture: true };
+	const step = stepper(drag);
+	if (drag.handle === "y") {
+		store.setAreaPeakHeight(
+			areaId,
+			index,
+			Math.max(0, step(from.top + drag.lift, POINT_HEIGHT_STEP)),
+			options,
+		);
+	} else if (drag.handle === "x" || drag.handle === "z" || drag.handle === "xz") {
+		store.moveAreaPeak(
+			areaId,
+			index,
+			onGround([
+				step(from.point[0] + drag.offset[0], SNAP_STEP),
+				step(from.point[1] + drag.offset[1], SNAP_STEP),
+			]),
+			options,
+		);
 	}
 };
 
