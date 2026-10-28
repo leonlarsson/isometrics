@@ -94,6 +94,6 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0088](0088-add-to-scene-for-many-parts.md) | Add to scene for many parts: category chips, families and a list | accepted |
 | [0089](0089-colours-are-named.md) | Colours are named, not only shown | accepted |
 | [0090](0090-see-through-colours.md) | See-through colours: a transparency setting for glass | accepted |
-| [0091](0091-painting-objects.md) | Painting objects with a brush | proposed |
-| [0092](0092-big-worlds-stay-fast.md) | Big worlds stay fast: what doesn't change costs nothing | proposed |
-| [0093](0093-react-compiler.md) | The React Compiler memoises components | proposed |
+| [0091](0091-painting-objects.md) | Painting objects with a brush | accepted |
+| [0092](0092-big-worlds-stay-fast.md) | Big worlds stay fast: what doesn't change costs nothing | accepted |
+| [0093](0093-react-compiler.md) | The React Compiler memoises components | accepted |

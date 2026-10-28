@@ -15,10 +15,6 @@ Guard tests, old-world fixtures, renamed/removed props and keeping unknown props
 - [ ] **Old worlds look the same:** render each old-world fixture before and after a change and compare the pictures (the thumbnails of ADR-0036 could do it), so a default that changes the look of existing worlds is caught too.
 - [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links.
 
-## Developer experience
-
-- [ ] **Try React Compiler, measured:** it memoizes components and JSX automatically, so a parent re-rendering (like the app shell did on every step of a running day) wouldn't re-render children whose props are the same. It doesn't help components that subscribe to something that changes themselves (fix those at the hook, as `usePalette` now does). Turn it on (Babel plugin for Vite, `babel-plugin-react-compiler`), and compare re-renders per second with a 10-second day cycle and while dragging an object, before and after (count commits and re-rendered components through `__REACT_DEVTOOLS_GLOBAL_HOOK__` in headless Chromium). Watch the 3D code: it mutates refs and three.js objects during render, which breaks the Rules of React the compiler relies on; Biome can't check those rules. Needs an ADR (a build dependency) if kept.
-
 ## Ideas backlog (2026-10-21)
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
