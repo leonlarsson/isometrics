@@ -517,9 +517,17 @@ export const EntityNode = memo(
 				>
 					<group
 						ref={inner}
-						// Heading, then nose up or down (vehicles face +X, so pitch turns about Z), as when driving.
+						// Heading, then pitch about its own Z (a vehicle's nose up or down, as when driving), then
+						// roll about its own X (ADR-0097).
 						rotation={
-							following ? undefined : [0, toRadians(entity.rotation), toRadians(entity.pitch)]
+							following
+								? undefined
+								: [
+										toRadians(entity.roll),
+										toRadians(entity.rotation),
+										toRadians(entity.pitch),
+										"YZX",
+									]
 						}
 						scale={entity.scale}
 						{...handlers}

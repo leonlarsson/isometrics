@@ -4,6 +4,7 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { normalizeDegrees, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
@@ -135,19 +136,41 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					/>
 				)}
 
-				<SliderField
-					label="Rotation"
-					value={entity.rotation}
-					min={0}
-					max={359}
-					step={15}
-					suffix="°"
-					onChange={(v) =>
-						edit("rotation", (e) => {
-							e.rotation = v;
-						})
-					}
-				/>
+				{/* X tips it (roll), Y turns it around the vertical, Z leans it (pitch), in degrees: applied
+				turn, pitch, roll (ADR-0097). A driving vehicle only turns around the vertical. */}
+				{following ? (
+					<SliderField
+						label="Rotation"
+						value={entity.rotation}
+						min={0}
+						max={359}
+						step={15}
+						suffix="°"
+						onChange={(v) =>
+							edit("rotation", (e) => {
+								e.rotation = v;
+							})
+						}
+					/>
+				) : (
+					<VectorField
+						label="Rotation (°)"
+						axes={["X", "Y", "Z"]}
+						values={[entity.roll, entity.rotation, entity.pitch]}
+						step={1}
+						onChange={(axis, v) =>
+							edit(`rotation.${axis}`, (e) => {
+								if (axis === 0) {
+									e.roll = wrapDegrees(v);
+								} else if (axis === 1) {
+									e.rotation = normalizeDegrees(v);
+								} else {
+									e.pitch = wrapDegrees(v);
+								}
+							})
+						}
+					/>
+				)}
 
 				<SliderField
 					label="Size"
@@ -166,8 +189,9 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				<SliderField
 					label="Lift"
 					value={entity.elevation}
-					min={0}
+					min={-30}
 					max={20}
+					sliderMin={-5}
 					step={0.1}
 					onChange={(v) =>
 						edit("elevation", (e) => {
@@ -178,8 +202,9 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 				{!following && (
 					<Hint>
-						Drag it or use the arrows in the scene · G move, R turn, S resize · Q/E to rotate · hold
-						Alt to place freely · Ctrl+drag or Shift+D moves a copy
+						Drag it or use the arrows in the scene · G move, R turn (then X, Y or Z for an axis), S
+						resize · Q/E to rotate · hold Alt to place freely · Ctrl+drag or Shift+D moves a copy ·
+						below 0 sinks it into the ground
 					</Hint>
 				)}
 			</Section>

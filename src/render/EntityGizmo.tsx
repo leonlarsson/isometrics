@@ -7,14 +7,15 @@ import { createVehicleRouteDrag, type IVehicleRouteDrag } from "./routeDrop";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyEntityDrag, entityStart, type IEntityStart } from "./transforms";
 
-const MOVE_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "scale"];
+const MOVE_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "rotateX", "rotateZ", "scale"];
 /**
  * A vehicle following a road gets its position from the road, so it has no axis arrows. The
- * square lifts it off its route to drop it on another road, or anywhere to park it.
+ * square lifts it off its route to drop it on another road, or anywhere to park it. The road tilts
+ * it, so it has no X and Z rings either.
  */
 const FOLLOWING_HANDLES: TGizmoHandle[] = ["xz", "y", "rotate", "scale"];
 
-/** The transform gizmo for the selected object: move, lift, turn and resize it. */
+/** The transform gizmo for the selected object: move, lift, turn (in all three axes) and resize it. */
 export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 	const start = useRef<IEntityStart | null>(null);
 	const route = useRef<IVehicleRouteDrag | null>(null);
@@ -22,6 +23,7 @@ export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 	return (
 		<TransformGizmo
 			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
+			heading={entity.rotation}
 			onStart={(token, handle, keys) => {
 				// Ctrl: an identical copy stays where it is, and this one moves (ADR-0067).
 				if (keys.copy) {

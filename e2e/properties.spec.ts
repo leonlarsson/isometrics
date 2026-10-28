@@ -29,8 +29,9 @@ test.describe("the properties editor (ADR-0054)", () => {
 		await page.getByLabel("Name").fill("Bakery");
 		expect((await entity(page, "a"))?.name).toBe("Bakery");
 
-		await box(page, "Rotation").fill("45");
-		await box(page, "Rotation").press("Enter");
+		// The turn around the vertical is Rotation's Y (X and Z tip it, ADR-0097).
+		await box(page, "Rotation (°) Y").fill("45");
+		await box(page, "Rotation (°) Y").press("Enter");
 		expect((await entity(page, "a"))?.rotation).toBe(45);
 
 		// Typing is one undo step.
@@ -90,7 +91,7 @@ test.describe("the properties editor (ADR-0054)", () => {
 		await page.getByRole("button", { name: "Search the settings" }).click();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("lift");
 		await expect(box(page, "Lift")).toBeVisible();
-		await expect(box(page, "Rotation")).toBeHidden();
+		await expect(box(page, "Rotation (°) Y")).toBeHidden();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("zzzz");
 		await expect(page.getByText(/No settings match/)).toBeVisible();
 	});

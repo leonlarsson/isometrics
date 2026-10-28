@@ -22,6 +22,7 @@ import {
 	applyPointsDrag,
 	applyRoadPointDrag,
 	entityStart,
+	headingAxis,
 	type IEntityStart,
 	roadPointStart,
 	roadPointWorld,
@@ -147,7 +148,25 @@ export const KeyboardTransform = () => {
 			}
 			steps.push(drag("xz", { offset }), drag("y", { lift }));
 		} else if (session.mode === "rotate") {
-			steps.push(drag("rotate", { turn: exact ? value : ctx.turn }));
+			// A single object turns around its own X or Z with that axis locked (ADR-0097): a typed angle
+			// exactly, the mouse round it on screen, the way its axis faces the viewer.
+			const tilt =
+				target.kind === "entity" && (session.axis === "x" || session.axis === "z")
+					? session.axis
+					: null;
+			if (tilt && target.kind === "entity") {
+				const facing =
+					headingAxis(target.from.rotation, tilt).dot(
+						camera.getWorldDirection(new THREE.Vector3()).negate(),
+					) >= 0
+						? 1
+						: -1;
+				steps.push(
+					drag(tilt === "x" ? "rotateX" : "rotateZ", { turn: exact ? value : ctx.turn * facing }),
+				);
+			} else {
+				steps.push(drag("rotate", { turn: exact ? value : ctx.turn }));
+			}
 		} else {
 			const fromDistance = toPx(ctx.from).distanceTo(ctx.centerPx);
 			const ratio = exact

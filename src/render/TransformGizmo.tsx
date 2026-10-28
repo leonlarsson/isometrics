@@ -11,7 +11,7 @@ import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
 
 /** The handles a gizmo can show. `xz` is the square that slides freely on the ground. */
-export type TGizmoHandle = "x" | "z" | "xz" | "y" | "rotate" | "scale";
+export type TGizmoHandle = "x" | "z" | "xz" | "y" | "rotate" | "rotateX" | "rotateZ" | "scale";
 
 /** One step of a gizmo drag, measured from where the drag started. */
 export interface IGizmoDrag {
@@ -20,7 +20,11 @@ export interface IGizmoDrag {
 	offset: TVec2;
 	/** Height change in world units (the up arrow). */
 	lift: number;
-	/** Turn around the vertical axis in degrees, counter-clockwise seen from above (the ring). */
+	/**
+	 * Turn in degrees: around the vertical, counter-clockwise seen from above (the
+	 * green ring); around the object's X or Z (the red and blue rings), by the
+	 * right-hand rule (ADR-0097).
+	 */
 	turn: number;
 	/** Size factor relative to the start (the size handle). */
 	ratio: number;
@@ -42,6 +46,8 @@ interface ITransformGizmoProps {
 	onDrag: (drag: IGizmoDrag) => void;
 	/** Called when a started drag ends: `completed` false when it was cancelled. */
 	onEnd?: (completed: boolean, token: string) => void;
+	/** How the object is turned around the vertical (degrees): the X and Z rings turn with it. */
+	heading?: number;
 }
 
 /** Gizmo size on screen: one gizmo unit is this many pixels at any zoom. */
@@ -49,6 +55,17 @@ const UNIT_PX = 64;
 const RING_RADIUS = 1.35;
 const SCALE_DISTANCE = 1.8;
 const RENDER_ORDER = 1000;
+/**
+ * The tilt arcs (ADR-0097): how much of a ring each is, and how they stand. A
+ * torus arc starts on its own +X and runs towards its +Y; each runs from 20° to
+ * 75° up: the red one in the object's YZ plane at its front (+Z), the blue one
+ * in its XY plane at its side (+X). Both rings pass over the top, so the arcs
+ * stop short of it rather than cross there.
+ */
+const TILT_ARC = (55 * Math.PI) / 180;
+const TILT_ARC_MIDDLE = (47.5 * Math.PI) / 180;
+const TILT_ARC_X: [number, number, number] = [0, -Math.PI / 2, TILT_ARC_MIDDLE - TILT_ARC / 2];
+const TILT_ARC_Z: [number, number, number] = [0, 0, TILT_ARC_MIDDLE - TILT_ARC / 2];
 /** Arrow hit areas run from 0.45 to 1.15 gizmo units out (the tip ends at 1.12). */
 const ARROW_HIT_CENTRE = 0.8;
 const ARROW_HIT_LENGTH = 0.7;
@@ -113,9 +130,22 @@ interface IDragSession {
 	/** Ring: the last pointer angle, and the turn accumulated so far (degrees). */
 	angle: number;
 	turn: number;
+	/**
+	 * The X and Z rings: the gizmo's middle on screen (client pixels), which the
+	 * pointer goes round, and 1 or −1 as the ring's axis points towards the
+	 * viewer or away, so a turn follows the pointer (ADR-0097).
+	 */
+	screen: { x: number; y: number; facing: number } | null;
 	/** The scene before the drag, for cancelling. */
 	before: TScene;
 }
+
+/** The angle of a pointer around a point on screen, counter-clockwise (screen y points down). */
+const screenAngleOf = (clientX: number, clientY: number, around: { x: number; y: number }) =>
+	(Math.atan2(-(clientY - around.y), clientX - around.x) * 180) / Math.PI;
+
+const ringAxis = new THREE.Vector3();
+const toViewer = new THREE.Vector3();
 
 const angleOf = (point: THREE.Vector3, center: THREE.Vector3) =>
 	(Math.atan2(-(point.z - center.z), point.x - center.x) * 180) / Math.PI;
@@ -232,12 +262,19 @@ const ArrowHit = ({ direction }: { direction: "x" | "y" | "z" }) => {
  * and commits them (with `{ coalesce: token, gesture: true }`). Esc or a right
  * click during a drag cancels it.
  */
-export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGizmoProps) => {
+export const TransformGizmo = ({
+	handles,
+	onStart,
+	onDrag,
+	onEnd,
+	heading = 0,
+}: ITransformGizmoProps) => {
 	const palette = usePalette();
 	const colors = palette.gizmo;
 	const camera = useThree((s) => s.camera);
 	const size = useThree((s) => s.size);
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+	const canvas = useThree((s) => s.gl.domElement);
 	const root = useRef<THREE.Group>(null);
 	const session = useRef<IDragSession | null>(null);
 	const [active, setActive] = useState<TGizmoHandle | null>(null);
@@ -322,8 +359,23 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			pixelsPerUnit: Math.max(1, up.y * pixelsPerUnitAt(camera, center, size.height)),
 			angle: 0,
 			turn: 0,
+			screen: null,
 			before: useEditor.getState().scene,
 		};
+		if (handle === "rotateX" || handle === "rotateZ") {
+			// Its axis as the ring stands (turned with the object), and whether it faces the viewer.
+			ringAxis
+				.set(handle === "rotateX" ? 1 : 0, 0, handle === "rotateZ" ? 1 : 0)
+				.applyAxisAngle(THREE.Object3D.DEFAULT_UP, THREE.MathUtils.degToRad(heading));
+			camera.getWorldDirection(toViewer).negate();
+			const onScreen = center.clone().project(camera);
+			const box = canvas.getBoundingClientRect();
+			session.current.screen = {
+				x: box.left + ((onScreen.x + 1) / 2) * box.width,
+				y: box.top + ((1 - onScreen.y) / 2) * box.height,
+				facing: ringAxis.dot(toViewer) >= 0 ? 1 : -1,
+			};
+		}
 		setActive(handle);
 		(e.target as unknown as Element).setPointerCapture(e.pointerId);
 		if (controls) {
@@ -352,7 +404,9 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			current.started = true;
 			current.anchor = anchor;
 			current.startY = e.nativeEvent.clientY;
-			current.angle = angleOf(anchor, current.center);
+			current.angle = current.screen
+				? screenAngleOf(e.nativeEvent.clientX, e.nativeEvent.clientY, current.screen)
+				: angleOf(anchor, current.center);
 			current.before = useEditor.getState().scene;
 			if (MOVE_HANDLES.has(current.handle)) {
 				setCursorHidden(true);
@@ -367,7 +421,10 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 		const dx = point.x - current.anchor.x;
 		const dz = point.z - current.anchor.z;
 		const { handle } = current;
-		const angle = angleOf(point, current.center);
+		// The X and Z rings follow the pointer round the gizmo on screen; the green one on the ground.
+		const angle = current.screen
+			? screenAngleOf(e.nativeEvent.clientX, e.nativeEvent.clientY, current.screen)
+			: angleOf(point, current.center);
 		current.turn += wrap(angle - current.angle);
 		current.angle = angle;
 		const startDistance = Math.hypot(
@@ -379,7 +436,7 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 			handle,
 			offset: handle === "x" ? [dx, 0] : handle === "z" ? [0, dz] : [dx, dz],
 			lift: (current.startY - e.nativeEvent.clientY) / current.pixelsPerUnit,
-			turn: current.turn,
+			turn: current.turn * (current.screen?.facing ?? 1),
 			ratio: startDistance > 1e-6 ? distance / startDistance : 1,
 			free: e.nativeEvent.altKey || !useEditor.getState().snapping,
 			token: current.token,
@@ -509,6 +566,57 @@ export const TransformGizmo = ({ handles, onStart, onDrag, onEnd }: ITransformGi
 					)}
 				</Handle>
 			)}
+
+			{/*
+			 * Tipping it: a short arc of the red ring around its X and of the blue ring around its Z,
+			 * standing up at its front and its side, turned with the object (ADR-0097). Arcs rather than
+			 * whole rings, which covered the object and the arrows.
+			 */}
+			<group rotation={[0, THREE.MathUtils.degToRad(heading), 0]}>
+				{has("rotateX") && (
+					<Handle
+						{...handleProps("rotateX")}
+						color={colors.x}
+						hitArea={
+							<mesh rotation={TILT_ARC_X}>
+								<torusGeometry args={[RING_RADIUS, 0.16, 6, 16, TILT_ARC]} />
+
+								<HitMaterial />
+							</mesh>
+						}
+					>
+						{(color) => (
+							<mesh rotation={TILT_ARC_X} renderOrder={RENDER_ORDER}>
+								<torusGeometry args={[RING_RADIUS, 0.045, 6, 24, TILT_ARC]} />
+
+								<GizmoMaterial color={color} />
+							</mesh>
+						)}
+					</Handle>
+				)}
+
+				{has("rotateZ") && (
+					<Handle
+						{...handleProps("rotateZ")}
+						color={colors.z}
+						hitArea={
+							<mesh rotation={TILT_ARC_Z}>
+								<torusGeometry args={[RING_RADIUS, 0.16, 6, 16, TILT_ARC]} />
+
+								<HitMaterial />
+							</mesh>
+						}
+					>
+						{(color) => (
+							<mesh rotation={TILT_ARC_Z} renderOrder={RENDER_ORDER}>
+								<torusGeometry args={[RING_RADIUS, 0.045, 6, 24, TILT_ARC]} />
+
+								<GizmoMaterial color={color} />
+							</mesh>
+						)}
+					</Handle>
+				)}
+			</group>
 
 			{has("scale") && (
 				<Handle

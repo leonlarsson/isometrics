@@ -12,6 +12,9 @@ export const snap = (value: number, step: number) =>
 /** Wrap any angle into [0, 360). */
 export const normalizeDegrees = (degrees: number) => ((degrees % 360) + 360) % 360;
 
+/** Degrees as −180–180 (a tilt either way). */
+export const wrapDegrees = (degrees: number) => ((((degrees + 180) % 360) + 360) % 360) - 180;
+
 /** Round to a fixed number of decimals, avoiding float noise in saved JSON. */
 export const round = (value: number, digits = 3) => {
 	const factor = 10 ** digits;

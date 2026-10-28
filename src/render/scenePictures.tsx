@@ -76,7 +76,13 @@ const startPose = (entity: TEntity, scene: TScene) => {
 	if (!part || !entity.follow || !road) {
 		return {
 			position: [entity.position[0], entity.elevation, entity.position[1]] as const,
-			rotation: [0, toRadians(entity.rotation), toRadians(entity.pitch)] as const,
+			// Heading, then pitch, then roll, as in the editor (ADR-0097).
+			rotation: [
+				toRadians(entity.roll),
+				toRadians(entity.rotation),
+				toRadians(entity.pitch),
+				"YZX",
+			] as const,
 		};
 	}
 	const props = resolveProps(part, entity.props);
@@ -88,7 +94,7 @@ const startPose = (entity: TEntity, scene: TScene) => {
 	}).at(entity.follow.offset);
 	return {
 		position: [sample.position[0], entity.elevation + sample.height, sample.position[1]] as const,
-		rotation: [0, sample.heading + toRadians(entity.rotation), sample.pitch] as const,
+		rotation: [0, sample.heading + toRadians(entity.rotation), sample.pitch, "YZX"] as const,
 	};
 };
 

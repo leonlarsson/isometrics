@@ -33,6 +33,13 @@ const AXIS_LABELS: Record<TTransformAxis, string> = {
 	z: "along Z",
 };
 
+/** Turning a single object with an axis locked (ADR-0097). */
+const TURN_AXIS_LABELS: Record<TTransformAxis, string> = {
+	x: "around its X",
+	y: "around the vertical",
+	z: "around its Z",
+};
+
 const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
 const TransformControls = () => {
@@ -56,6 +63,9 @@ const TransformControls = () => {
 		store.endTransform();
 	};
 	const cancel = () => useEditor.getState().cancelGesture?.();
+	// A single object standing on its own turns around any axis (ADR-0097); anything else around the vertical.
+	const turnsInAxes =
+		transform?.mode === "rotate" && entity !== null && count === 1 && !entity.follow;
 	const lockAxis = (axis: TTransformAxis) =>
 		update({ axis: useEditor.getState().transform?.axis === axis ? null : axis });
 
@@ -78,7 +88,7 @@ const TransformControls = () => {
 			callback: cancel,
 			options: { ignoreInputs: false, meta: { name: "Cancel transform" } },
 		},
-		...(transform?.mode === "grab"
+		...(transform?.mode === "grab" || turnsInAxes
 			? (["x", "y", "z"] as const).map((axis) => ({
 					hotkey: axis.toUpperCase() as "X" | "Y" | "Z",
 					callback: () => lockAxis(axis),
@@ -129,7 +139,9 @@ const TransformControls = () => {
 							? "road point"
 							: "corner"
 						: shapeName;
-	const how = transform.axis ? ` ${AXIS_LABELS[transform.axis]}` : "";
+	const how = transform.axis
+		? ` ${(transform.mode === "rotate" ? TURN_AXIS_LABELS : AXIS_LABELS)[transform.axis]}`
+		: "";
 	const value = typed ? `${typed}${UNITS[transform.mode]}` : null;
 	// A vehicle moved over a road snaps onto it (see render/routeDrop).
 	const routeHint = !route
@@ -157,6 +169,11 @@ const TransformControls = () => {
 				{transform.mode === "grab" ? (
 					<span className={styles.keys}>
 						<Kbd>X</Kbd> <Kbd>Y</Kbd> <Kbd>Z</Kbd> lock an axis · hold <Kbd>Alt</Kbd> to skip
+						snapping
+					</span>
+				) : turnsInAxes ? (
+					<span className={styles.keys}>
+						<Kbd>X</Kbd> <Kbd>Y</Kbd> <Kbd>Z</Kbd> turn around an axis · hold <Kbd>Alt</Kbd> to skip
 						snapping
 					</span>
 				) : (

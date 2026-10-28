@@ -274,7 +274,9 @@ export const EntitySchema = z
 		elevation: z
 			.number()
 			.default(0)
-			.describe("Height above the ground (e.g. on a raised area); 0 = on the ground."),
+			.describe(
+				"Height above the ground (e.g. on a raised area); 0 = on the ground, below 0 = sunk into it.",
+			),
 		rotation: z
 			.number()
 			.default(0)
@@ -283,11 +285,19 @@ export const EntitySchema = z
 			),
 		pitch: z
 			.number()
-			.min(-60)
-			.max(60)
+			.min(-180)
+			.max(180)
 			.default(0)
 			.describe(
-				"Nose up (positive) or down, in degrees, e.g. a vehicle parked on a sloped road (set when it's dropped on one). Ignored while it follows a road, which tilts it itself.",
+				"Degrees around its own z axis, after rotation: nose up (positive) or down for vehicles (which face +x), e.g. one parked on a sloped road (set when it's dropped on one); a sideways lean for things that face +z. Ignored while it follows a road, which tilts it itself.",
+			),
+		roll: z
+			.number()
+			.min(-180)
+			.max(180)
+			.default(0)
+			.describe(
+				"Degrees around its own x axis, after rotation and pitch: tips things that face +z forward or back, and rolls vehicles onto a side. Ignored while it follows a road.",
 			),
 		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
 		colors: z

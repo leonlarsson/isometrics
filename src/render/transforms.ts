@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
 	type IGroupStart,
 	type IPointsStart,
+	LOWEST_ELEVATION,
 	MAX_POINT_HEIGHT,
 	MAX_SIZE,
 	MIN_SIZE,
@@ -10,7 +11,7 @@ import {
 	transformPoints,
 } from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
-import { clamp, normalizeDegrees, round, snap } from "#/lib/math";
+import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
 import type { TRoadPoint, TVec2 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -27,6 +28,8 @@ export interface IEntityStart {
 	position: TVec2;
 	elevation: number;
 	rotation: number;
+	pitch: number;
+	roll: number;
 	scale: number;
 }
 
@@ -37,9 +40,43 @@ export const entityStart = (id: string): IEntityStart | null => {
 				position: entity.position,
 				elevation: entity.elevation,
 				rotation: entity.rotation,
+				pitch: entity.pitch,
+				roll: entity.roll,
 				scale: entity.scale,
 			}
 		: null;
+};
+
+/** An object's turn: around the vertical, then its own Z (pitch), then its own X (roll), in degrees. */
+export type TTurn = Pick<IEntityStart, "rotation" | "pitch" | "roll">;
+
+const turning = new THREE.Euler(0, 0, 0, "YZX");
+const turned = new THREE.Quaternion();
+const extra = new THREE.Quaternion();
+const axisNow = new THREE.Vector3();
+
+/** One of an object's own horizontal axes as it's turned around the vertical: X or Z (ADR-0097). */
+export const headingAxis = (rotation: number, axis: "x" | "z") =>
+	axisNow
+		.set(axis === "x" ? 1 : 0, 0, axis === "z" ? 1 : 0)
+		.applyAxisAngle(THREE.Object3D.DEFAULT_UP, THREE.MathUtils.degToRad(rotation));
+
+/**
+ * A turn of `degrees` around an object's X or Z axis as it faces (turned
+ * around the vertical, not tilted), put together with the turn it has, as the
+ * three angles again: rotation 0–360, pitch and roll −180–180 (ADR-0097).
+ */
+export const turnAbout = (from: TTurn, axis: "x" | "z", degrees: number): TTurn => {
+	const { degToRad, radToDeg } = THREE.MathUtils;
+	turning.set(degToRad(from.roll), degToRad(from.rotation), degToRad(from.pitch), "YZX");
+	turned.setFromEuler(turning);
+	extra.setFromAxisAngle(headingAxis(from.rotation, axis), degToRad(degrees));
+	turning.setFromQuaternion(turned.premultiply(extra), "YZX");
+	return {
+		rotation: round(normalizeDegrees(radToDeg(turning.y)), 1),
+		pitch: round(wrapDegrees(radToDeg(turning.z)), 1),
+		roll: round(wrapDegrees(radToDeg(turning.x)), 1),
+	};
 };
 
 const stepper = (drag: IGizmoDrag) => (value: number, size: number) =>
@@ -75,7 +112,8 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 			return;
 		}
 		case "y": {
-			const elevation = Math.max(0, step(from.elevation + drag.lift, LIFT_STEP));
+			// Objects may sink into the ground (ADR-0097).
+			const elevation = Math.max(LOWEST_ELEVATION, step(from.elevation + drag.lift, LIFT_STEP));
 			store.updateEntity(
 				id,
 				(entity) => {
@@ -91,6 +129,24 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 				id,
 				(entity) => {
 					entity.rotation = round(rotation, 1);
+				},
+				options,
+			);
+			return;
+		}
+		case "rotateX":
+		case "rotateZ": {
+			const turn = turnAbout(
+				from,
+				drag.handle === "rotateX" ? "x" : "z",
+				step(drag.turn, TURN_STEP),
+			);
+			store.updateEntity(
+				id,
+				(entity) => {
+					entity.rotation = turn.rotation;
+					entity.pitch = turn.pitch;
+					entity.roll = turn.roll;
 				},
 				options,
 			);

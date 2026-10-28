@@ -2,8 +2,10 @@ import type { Page } from "@playwright/test";
 
 import {
 	act,
+	dragBy,
 	entity,
 	expect,
+	gizmoSpot,
 	keys,
 	loadWorld,
 	openEditor,
@@ -57,6 +59,36 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		expect((await entity(page, "a"))?.rotation).toBe(90);
 		await keys(page, "s", "1", ".", "5", "Enter");
 		expect((await entity(page, "a"))?.scale).toBe(3);
+	});
+
+	test("R then X or Z tips it around its own axes; G Y sinks it below the ground (ADR-0097)", async ({
+		page,
+	}) => {
+		await keys(page, "r", "x");
+		await expect(page.getByText(/Turning House A around its X/)).toBeVisible();
+		await keys(page, "3", "0", "Enter");
+		expect((await entity(page, "a"))?.roll).toBe(30);
+		await keys(page, "r", "z", "-", "4", "5", "Enter");
+		expect((await entity(page, "a"))?.pitch).toBeCloseTo(-45, 0);
+		await keys(page, "g", "y", "-", "2", "Enter");
+		expect((await entity(page, "a"))?.elevation).toBe(-2);
+
+		// The Transform panel shows the three angles, X, Y and Z.
+		const x = page.getByRole("textbox", { name: "Rotation (°) X", exact: true });
+		await x.fill("0");
+		await x.press("Enter");
+		expect((await entity(page, "a"))?.roll).toBe(0);
+	});
+
+	test("the blue arc tips it around its Z, with the mouse (ADR-0097)", async ({ page }) => {
+		await showView(page, [0, 0], 14);
+		// The middle of the blue arc: 47.5° up the gizmo's ring (1.35 units) at the object's side (+X).
+		const up = (47.5 * Math.PI) / 180;
+		const arc = await gizmoSpot(page, [0, 0, 0], [1.35 * Math.cos(up), 1.35 * Math.sin(up), 0], 14);
+		await dragBy(page, arc, -50, -30);
+		await expect.poll(async () => (await entity(page, "a"))?.pitch ?? 0).not.toBe(0);
+		expect((await entity(page, "a"))?.roll).toBe(0);
+		expect(await read(page, (s) => s.dragging)).toBe(false);
 	});
 
 	test("Esc cancels a transform, and nothing changes", async ({ page }) => {

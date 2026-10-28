@@ -91,13 +91,15 @@ describe("group transforms (ADR-0064)", () => {
 		expect(entity("a")?.scale).toBe(5);
 	});
 
-	it("lifts objects and road points, never below the ground", () => {
+	it("lifts objects and road points; objects may sink into the ground, roads not (ADR-0097)", () => {
 		transformSelected({ lift: 2 });
 		expect(entity("a")?.elevation).toBe(2);
 		expect(road().points[0][2]).toBe(3);
 		transformSelected({ lift: -10 });
-		expect(entity("a")?.elevation).toBe(0);
+		expect(entity("a")?.elevation).toBe(-8);
 		expect(road().points[1][2]).toBe(0);
+		transformSelected({ lift: -100 });
+		expect(entity("a")?.elevation).toBe(-30);
 	});
 });
 

@@ -9,6 +9,8 @@ export const MIN_SIZE = 0.1;
 export const MAX_SIZE = 10;
 /** The highest a road point may be lifted. */
 export const MAX_POINT_HEIGHT = 50;
+/** How far below the ground an object may be sunk (ADR-0097). */
+export const LOWEST_ELEVATION = -30;
 /** The highest an area may be raised. */
 export const MAX_AREA_HEIGHT = 30;
 
@@ -156,7 +158,8 @@ export const transformGroup = (
 				continue;
 			}
 			entity.position = place(start.position);
-			entity.elevation = round(Math.max(0, start.elevation + lift));
+			// Objects may sink into the ground (ADR-0097).
+			entity.elevation = round(Math.max(LOWEST_ELEVATION, start.elevation + lift));
 			entity.rotation = round(normalizeDegrees(start.rotation + turn), 1);
 			entity.scale = round(start.scale * ratio, 2);
 		}
