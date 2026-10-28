@@ -79,13 +79,11 @@ const Beam = ({
 			beam.current.rotation.y = turns ? (motionClock.seconds / secondsPerTurn) * Math.PI * 2 : 0;
 		}
 	});
-	if (!light.on) {
-		return null;
-	}
 	return (
 		// Only its turn changes each frame, which is followed anyway; see-through, it's drawn on its own
-		// (ADR-0086), so it needs no notInstanced mark.
-		<group ref={beam}>
+		// (ADR-0086), so it needs no notInstanced mark. Hidden while the light is off, and kept, so the
+		// night doesn't compile its shader again (parts/lights.tsx).
+		<group ref={beam} visible={light.on}>
 			{[1, -1].map((side) => (
 				<mesh
 					key={side}

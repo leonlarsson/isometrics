@@ -47,7 +47,7 @@ const FULL_SCREEN_VERTEX = /* glsl */ `
  */
 class SceneAsOnCanvasPass extends Pass {
 	private readonly world: THREE.Scene;
-	private readonly view: THREE.Camera;
+	private view: THREE.Camera;
 	private readonly drawn: THREE.WebGLRenderTarget;
 
 	constructor(world: THREE.Scene, view: THREE.Camera, samples: number) {
@@ -88,6 +88,11 @@ class SceneAsOnCanvasPass extends Pass {
 		renderer.render(this.world, this.view);
 		renderer.setRenderTarget(this.renderToScreen ? null : output);
 		renderer.render(this.scene, this.camera);
+	}
+
+	/** The camera the world is drawn with (the composer's setMainCamera). */
+	override set mainCamera(camera: THREE.Camera) {
+		this.view = camera;
 	}
 
 	/** The scene's depth, for ambient occlusion: the composer's own buffers never see the scene. */
@@ -223,6 +228,7 @@ const composeFor = (
 	);
 	composer.addPass(scenePass);
 	let occlusion: N8AOPostPass | null = null;
+	let switchOcclusionTo = (_orthographic: boolean) => {};
 	if (graphics.ambientOcclusion !== "off") {
 		occlusion = new N8AOPostPass(scene, camera);
 		occlusion.setQualityMode("High");
@@ -235,6 +241,12 @@ const composeFor = (
 			// The last pass encodes the output.
 			gammaCorrection: false,
 		});
+		// Its compositer too for the diorama: n8ao builds it for perspective whatever the camera.
+		occlusion.configureEffectCompositer(
+			occlusion.configuration.depthBufferType,
+			isOrthographic(camera),
+		);
+		switchOcclusionTo = keepShadersForBothProjections(occlusion);
 		walkOnlyWhatIsDrawn(occlusion, scene);
 		composer.addPass(occlusion);
 	}
@@ -274,7 +286,133 @@ const composeFor = (
 	);
 	// After every pass is added: the composer hands passes the depth of its own buffers, empty here.
 	occlusion?.setDepthTexture(scenePass.sceneDepth);
-	return { composer, glowLayers, glow, blur: [across, up] as const, grade, drawnAt: "" };
+	return {
+		composer,
+		camera,
+		occlusion,
+		switchOcclusionTo,
+		glowLayers,
+		glow,
+		blur: [across, up] as const,
+		grade,
+		drawnAt: "",
+	};
+};
+
+type TComposed = ReturnType<typeof composeFor>;
+
+const isOrthographic = (camera: THREE.Camera) => camera instanceof THREE.OrthographicCamera;
+
+/** n8ao's shaders as built for one projection: the occlusion, the denoise (two kinds) and the compositer. */
+interface IOcclusionShaders {
+	occlusion: THREE.ShaderMaterial;
+	denoise: THREE.ShaderMaterial;
+	neuralDenoise: THREE.ShaderMaterial | null;
+	compositer: THREE.ShaderMaterial;
+}
+
+/**
+ * n8ao builds its three shaders for one projection (an ORTHO define) and
+ * disposes them when it builds them again, so each switch between the diorama
+ * and perspective compiled them anew: a hitch of three big compiles. This keeps
+ * the shaders built for each projection and puts them back on a switch; the
+ * first switch each way still builds them. n8ao building them itself (a setting
+ * changed) drops what was kept, as it's for the old settings. Returns the
+ * switch: give it whether the camera is orthographic now.
+ */
+const keepShadersForBothProjections = (occlusion: N8AOPostPass) => {
+	const kept = new Map<boolean, IOcclusionShaders>();
+	const current = (): IOcclusionShaders => ({
+		occlusion: occlusion.effectShaderQuad.material,
+		denoise: occlusion.standardDenoiseMaterial,
+		neuralDenoise: occlusion.neuralDenoiseMaterial,
+		compositer: occlusion.effectCompositerQuad.material,
+	});
+	const put = (shaders: IOcclusionShaders) => {
+		occlusion.effectShaderQuad.material = shaders.occlusion;
+		occlusion.standardDenoiseMaterial = shaders.denoise;
+		occlusion.neuralDenoiseMaterial = shaders.neuralDenoise;
+		occlusion.poissonBlurQuad.material = shaders.denoise;
+		occlusion.effectCompositerQuad.material = shaders.compositer;
+	};
+	const dropKept = () => {
+		for (const shaders of kept.values()) {
+			shaders.occlusion.dispose();
+			shaders.denoise.dispose();
+			shaders.neuralDenoise?.dispose();
+			shaders.compositer.dispose();
+		}
+		kept.clear();
+	};
+	const build = {
+		occlusion: occlusion.configureAOPass.bind(occlusion),
+		denoise: occlusion.configureDenoisePass.bind(occlusion),
+		compositer: occlusion.configureEffectCompositer.bind(occlusion),
+	};
+	occlusion.configureAOPass = (depth, orthographic) => {
+		dropKept();
+		build.occlusion(depth, orthographic);
+	};
+	occlusion.configureDenoisePass = (depth, orthographic) => {
+		dropKept();
+		build.denoise(depth, orthographic);
+	};
+	occlusion.configureEffectCompositer = (depth, orthographic) => {
+		dropKept();
+		build.compositer(depth, orthographic);
+	};
+	// Gone with the composer (a graphics setting changed): n8ao disposes only the shaders in use.
+	const dispose = occlusion.dispose.bind(occlusion);
+	occlusion.dispose = () => {
+		dropKept();
+		dispose();
+	};
+	let orthographic = isOrthographic(occlusion.camera);
+	return (toOrthographic: boolean) => {
+		if (toOrthographic === orthographic) {
+			return;
+		}
+		kept.set(orthographic, current());
+		orthographic = toOrthographic;
+		const back = kept.get(toOrthographic);
+		if (back) {
+			kept.delete(toOrthographic);
+			put(back);
+			occlusion.firstFrame();
+			return;
+		}
+		// n8ao disposes the shaders it replaces: stand-ins take their place, so the kept ones live on.
+		put({
+			occlusion: new THREE.ShaderMaterial(),
+			denoise: new THREE.ShaderMaterial(),
+			neuralDenoise: null,
+			compositer: new THREE.ShaderMaterial(),
+		});
+		const depth = occlusion.configuration.depthBufferType;
+		build.occlusion(depth, toOrthographic);
+		build.denoise(depth, toOrthographic);
+		build.compositer(depth, toOrthographic);
+	};
+};
+
+/**
+ * Points the composer at the camera the view draws with now. Switching between
+ * the diorama and perspective (render/CameraRig: ProjectionSwitch) swaps the
+ * camera object; the composer, its passes and their buffers stay, since nothing
+ * in them but n8ao depends on the camera, and n8ao only on its projection
+ * (keepShadersForBothProjections). Making the whole composer again instead
+ * froze the view for about half a second: twenty buffers and a dozen shaders.
+ */
+const aimAt = (made: TComposed, camera: THREE.Camera) => {
+	if (made.camera === camera) {
+		return;
+	}
+	made.camera = camera;
+	made.composer.setMainCamera(camera);
+	if (made.occlusion) {
+		made.occlusion.camera = camera;
+		made.switchOcclusionTo(isOrthographic(camera));
+	}
 };
 
 interface IEffectsProps {
@@ -292,9 +430,9 @@ interface IEffectsProps {
 export const Effects = ({ graphics }: IEffectsProps) => {
 	const gl = useThree((s) => s.gl);
 	const scene = useThree((s) => s.scene);
-	const camera = useThree((s) => s.camera);
+	const get = useThree((s) => s.get);
 	const tiltShiftShown = useTiltShiftShown();
-	const composed = useRef<ReturnType<typeof composeFor> | null>(null);
+	const composed = useRef<TComposed | null>(null);
 	const { ambientOcclusion, showGlowAfterDark, antiAliasing, useColorGrade } = graphics;
 
 	// Made in the effect, not during render: disposing a composer empties it, and React may clean up
@@ -303,7 +441,8 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 		// The composer clears its own buffers and turns the renderer's clearing off; R3F's own drawing
 		// needs it back once the composer is gone.
 		const autoClear = gl.autoClear;
-		const made = composeFor(gl, scene, camera, {
+		// With the camera of the moment; a frame points it at another (aimAt) rather than remaking it.
+		const made = composeFor(gl, scene, get().camera, {
 			ambientOcclusion,
 			showGlowAfterDark,
 			antiAliasing,
@@ -317,14 +456,15 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 				composed.current = null;
 			}
 		};
-	}, [gl, scene, camera, ambientOcclusion, showGlowAfterDark, antiAliasing, useColorGrade]);
+	}, [gl, scene, ambientOcclusion, showGlowAfterDark, antiAliasing, useColorGrade]);
 
-	useFrame(({ size }, delta) => {
+	useFrame(({ size, camera }, delta) => {
 		const made = composed.current;
 		if (!made) {
 			gl.render(scene, camera);
 			return;
 		}
+		aimAt(made, camera);
 		const { composer, glowLayers, glow, blur, grade } = made;
 		const at = `${size.width}×${size.height}@${gl.getPixelRatio()}`;
 		if (made.drawnAt !== at) {

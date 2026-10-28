@@ -8,9 +8,16 @@ import type { IResolvedLight } from "./types";
  * Drawing parts' lights (ADR-0052, ADR-0058): a part declares its lights,
  * `resolveLights` (lightModel.ts) works out each one's state, and these
  * helpers draw a resolved light where the part puts it: a glowing surface,
- * a lens, headlight beams, a pool on the ground, lit windows. Each draws its
+ * a lens, headlight beams, a pool on the ground, lit windows. Each shows its
  * light only while it's on, as bright as its `level`. All cheap: emissive or
  * unlit materials and additive discs, no real light sources.
+ *
+ * What a light draws stays mounted while it's off, hidden (`visible`), rather
+ * than coming and going with the dark: three compiles a material's shader on
+ * its first draw and deletes the program when its last material is disposed,
+ * so lights that unmounted by day had every night (a mood with a later hour, a
+ * viewpoint wearing one) compile their shaders, clone their textures and upload
+ * their geometries again, which showed as a hitch (PERFORMANCE.md).
  */
 
 type TV3 = [number, number, number];
@@ -61,15 +68,19 @@ const GroundGlow = ({
 	radius,
 	strength,
 	position,
+	visible,
 }: {
 	color: string;
 	radius: number;
 	strength: number;
 	position: TV3;
+	/** Hidden while its light is off, and kept. */
+	visible: boolean;
 }) => (
 	<mesh
 		position={position}
 		rotation={[-Math.PI / 2, 0, 0]}
+		visible={visible}
 		userData={{ lightOnTheGround: true }}
 		raycast={passThrough}
 	>
@@ -102,7 +113,8 @@ export const lightEmission = (light: IResolvedLight, intensity = 1) =>
 /**
  * A small light's lens (a rain light, a tail light): glowing in the light's
  * colour while it's on, unshaded and past tone mapping like headlights so it
- * keeps its colour; a dark lens in a shade of it while it's off.
+ * keeps its colour; a dark lens in a shade of it while it's off. Both looks
+ * are there, one shown at a time.
  */
 export const LightLens = ({
 	light,
@@ -118,15 +130,19 @@ export const LightLens = ({
 		[light.color],
 	);
 	return (
-		<mesh position={position}>
-			<boxGeometry args={size} />
+		<group position={position}>
+			<mesh visible={light.on}>
+				<boxGeometry args={size} />
 
-			{light.on ? (
 				<meshBasicMaterial color={light.color} toneMapped={false} fog={false} />
-			) : (
+			</mesh>
+
+			<mesh visible={!light.on}>
+				<boxGeometry args={size} />
+
 				<Mat color={lens} roughness={0.4} />
-			)}
-		</mesh>
+			</mesh>
+		</group>
 	);
 };
 
@@ -194,28 +210,27 @@ export const Headlights = ({
 				<LightLens key={side} light={light} size={[0.04, 0.07, 0.12]} position={[0, 0, side]} />
 			))}
 
-			{/* The beams on the road ahead, opening out from the lights, while they're on. */}
-			{light.on && (
-				<mesh
-					position={[light.reach / 2, -y + GLOW_HEIGHT, -z]}
-					rotation={[-Math.PI / 2, 0, 0]}
-					userData={{ lightOnTheGround: true }}
-					raycast={passThrough}
-				>
-					<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
+			{/* The beams on the road ahead, opening out from the lights, shown while they're on. */}
+			<mesh
+				position={[light.reach / 2, -y + GLOW_HEIGHT, -z]}
+				rotation={[-Math.PI / 2, 0, 0]}
+				visible={light.on}
+				userData={{ lightOnTheGround: true }}
+				raycast={passThrough}
+			>
+				<planeGeometry args={[light.reach, Math.max(BEAM_WIDTH, spread * 2)]} />
 
-					<meshBasicMaterial
-						color={light.color}
-						alphaMap={getBeam()}
-						transparent
-						opacity={0.6 * Math.min(light.level, 1.5)}
-						blending={THREE.AdditiveBlending}
-						depthWrite={false}
-						toneMapped={false}
-						fog={false}
-					/>
-				</mesh>
-			)}
+				<meshBasicMaterial
+					color={light.color}
+					alphaMap={getBeam()}
+					transparent
+					opacity={0.6 * Math.min(light.level, 1.5)}
+					blending={THREE.AdditiveBlending}
+					depthWrite={false}
+					toneMapped={false}
+					fog={false}
+				/>
+			</mesh>
 		</group>
 	);
 };
@@ -232,20 +247,16 @@ export const LightPool = ({
 }: {
 	light: IResolvedLight;
 	at?: [x: number, z: number];
-}) => {
-	if (!light.on) {
-		return null;
-	}
-	return (
-		<GroundGlow
-			color={light.color}
-			radius={light.reach}
-			// Eases off as it gets stronger, so a bright light glows wider rather than blowing out to white.
-			strength={1 - Math.exp(-1.1 * light.level)}
-			position={[x, GLOW_HEIGHT, z]}
-		/>
-	);
-};
+}) => (
+	<GroundGlow
+		color={light.color}
+		radius={light.reach}
+		// Eases off as it gets stronger, so a bright light glows wider rather than blowing out to white.
+		strength={1 - Math.exp(-1.1 * light.level)}
+		position={[x, GLOW_HEIGHT, z]}
+		visible={light.on}
+	/>
+);
 
 /**
  * The soft light a row of lit windows throws on the ground beside something
@@ -264,9 +275,6 @@ export const WindowGlowOnGround = ({
 	width: number;
 	share?: number;
 }) => {
-	if (!light.on) {
-		return null;
-	}
 	const pools = Math.max(1, Math.round(length / 1.2));
 	const radius = Math.min(0.9, (length / pools) * 0.75);
 	return (
@@ -279,6 +287,7 @@ export const WindowGlowOnGround = ({
 						radius={radius}
 						strength={1 - Math.exp(-1.1 * light.level * share)}
 						position={[x, GLOW_HEIGHT, side * (width / 2 + radius * 0.35)]}
+						visible={light.on}
 					/>
 				)),
 			)}
@@ -454,9 +463,9 @@ export const LitWindows = ({
 	return (
 		<group>
 			{lights.map((light, index) =>
-				light.on && faces[index] ? (
+				faces[index] ? (
 					// biome-ignore lint/suspicious/noArrayIndexKey: a part's window lights are fixed, in order
-					<group key={index}>
+					<group key={index} visible={light.on}>
 						{sides.map((side, i) => (
 							<mesh key={side.rotation} position={side.position} rotation={[0, side.rotation, 0]}>
 								<planeGeometry args={[side.size, height]} />

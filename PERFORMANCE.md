@@ -64,6 +64,11 @@ A drag's time is mostly React's development build rendering the properties of th
 16. **Components re-rendered with nothing new** (tab rails, tooltips, icons under a parent that rendered). *Now:* the React Compiler memoises components and hooks (ADR-0093).
 17. **Part names were worked out over the whole parts list per call.** *Now:* cached.
 
+### Per switch: the camera
+
+18. **Switching projection rebuilt the effects composer.** Going between the diorama and perspective (a viewpoint of each, P) swaps the camera object, and `render/Effects` made its composer again for it: about twenty buffers allocated and a dozen post-processing shaders compiled, which froze the view for about half a second on Nice and Ultra (Lantern Bay's Overview is the one orthographic viewpoint among perspective ones). *Now:* the composer stays and is pointed at the new camera (`aimAt`: `setMainCamera`, and n8ao's own camera). n8ao builds its three shaders for one projection (an ORTHO define) and disposes them when it rebuilds, so the shaders built for each projection are kept and put back on a switch (`keepShadersForBothProjections`): after the first switch each way, a switch compiles and allocates nothing. Measured in headless Chromium by counting `linkProgram`, `createFramebuffer` and `texImage2D` calls per viewpoint switch.
+19. **The lights came and went with the dark.** What a light draws (lit windows, a lamp's pool, headlight beams, a lens's glow) was mounted only while the light was on, so a mood with a later hour (a viewpoint wearing one, Lantern Bay's Harbour lanes to The pier) mounted them all again: three compiles a material's shader on its first draw and deletes the program when its last material is disposed, so each night compiled 5–9 shaders, cloned about 50 window textures and uploaded 300–470 geometries again, on Standard too. *Now:* they stay mounted and are hidden with `visible` while off (`parts/lights.tsx`, and the lighthouse's beam); after the first night, a switch compiles nothing (it still clones the window masks of lights whose lit panes changed with the dark, a couple of MB of small textures). A hidden mesh costs the renderer one check a frame.
+
 ## Rules
 
 **3D view**
@@ -73,6 +78,7 @@ A drag's time is mostly React's development build rendering the properties of th
 - Don't walk the scene each frame (`scene.traverse`). If you must, `traverseVisible`, and skip groups marked `batchedAway`.
 - Draws cost CPU per pass: Ultra draws the scene three times (shadows, reflections, the view). Before adding a mesh per object, ask whether it batches (a shared material, three's own geometry or `shareGeometryAs`, no transparency).
 - Keep Standard's cost as it is (ADR-0072); measure new effects with `scripts/shots.mjs`.
+- Never key a composer, pass, render target or shader on the camera object: it changes on every switch between the diorama and perspective. Point what exists at the new camera (`aimAt` in `render/Effects`), and remember that three compiles a material's shader on its first draw and deletes the program when its last material is disposed, so a mesh or pass that comes and goes compiles again each time it comes back.
 
 **React and the store**
 - A component drawn per object (thousands of times) must not subscribe to the store. Take what it needs as props from one parent that reads it once, and pass each instance only what concerns it, so `memo` can skip the rest. For the object itself, `useEntity(id)`.
