@@ -70,6 +70,15 @@ export const openContextMenuOnClick = (item: ISceneItem) => (event: ThreeEvent<M
 	openContextMenuUnlessDragged(item, event.nativeEvent, !isClick(event));
 };
 
+/** `onContextMenu` for an area: its menu, knowing the point clicked on it (for "Add a peak here"). */
+export const openAreaMenuOnClick = (id: string) => (event: ThreeEvent<MouseEvent>) => {
+	event.stopPropagation();
+	const point: TVec2 = [event.point.x, event.point.z];
+	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
+		useEditor.getState().openContextMenu({ kind: "area", id }, { x, y }, point),
+	);
+};
+
 /** `onContextMenu` for the ground: its menu (ui/GroundContextMenu) for the point clicked. */
 export const openGroundMenuOnClick = (event: ThreeEvent<MouseEvent>) => {
 	event.stopPropagation();

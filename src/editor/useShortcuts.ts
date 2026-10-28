@@ -172,7 +172,7 @@ export const useShortcuts = () => {
 		}
 	};
 
-	/** Delete the selected point if there is one, otherwise the selected object, road or area. */
+	/** Delete the selected point or peak if there is one, otherwise the selected object, road or area. */
 	const remove = () => {
 		const state = useEditor.getState();
 		const point = state.selectedPointIndex;
@@ -189,7 +189,9 @@ export const useShortcuts = () => {
 				state.removeRoad(state.selectedRoadId);
 			}
 		} else if (state.selectedAreaId) {
-			if (point !== null) {
+			if (state.selectedPeakIndex !== null) {
+				state.removeAreaPeak(state.selectedAreaId, state.selectedPeakIndex);
+			} else if (point !== null) {
 				state.removeAreaPoint(state.selectedAreaId, point);
 			} else {
 				state.removeArea(state.selectedAreaId);

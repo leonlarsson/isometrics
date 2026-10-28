@@ -8,11 +8,14 @@ import { getPart } from "#/parts/registry";
 import {
 	AREA_TYPE_LABELS,
 	AREA_TYPES,
+	areaTopAt,
 	cornerLift,
 	cornerWithLift,
 	elevationMovedTo,
 	groundHeightAt,
+	isInsidePolygon,
 	liftForTop,
+	middleOf,
 	takesCornerHeights,
 } from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
@@ -244,6 +247,8 @@ export interface IEditorState {
 	 * active one (`selectedPointIndex`) last. Setting the active point without it selects just that.
 	 */
 	selectedPointIndices: number[];
+	/** The selected peak of the selected area (ADR-0101): its index in `peaks`, or null. */
+	selectedPeakIndex: number | null;
 	drawing: IRoadDrawing | null;
 	/** The paint bar is open: a drag on the view paints (or erases) objects (ADR-0091). */
 	painting: boolean;
@@ -290,7 +295,8 @@ export interface IEditorState {
 	/** The item under the pointer in a list (outliner, Scene tab), highlighted in the world. */
 	hovered: ISceneItem | null;
 	/** The item whose context menu is open, and where (screen px). Runtime UI state. */
-	contextMenu: { item: ISceneItem; x: number; y: number } | null;
+	/** An item's right-click menu: where it opened, and the ground point clicked, for an area's "Add a peak here". */
+	contextMenu: { item: ISceneItem; x: number; y: number; point?: TVec2 } | null;
 	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
 	groundMenu: { point: TVec2; x: number; y: number } | null;
 	/** A viewpoint's menu, opened on its camera in the world: which one, and where (screen px). */
@@ -434,7 +440,7 @@ export interface IEditorState {
 	frameSelection: () => void;
 	setHovered: (item: ISceneItem | null) => void;
 	/** Select an item and open its context menu at a screen point, or close the menu (null). */
-	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }) => void;
+	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }, point?: TVec2) => void;
 	/** Open the ground's context menu for a ground point at a screen point (deselecting), or close it (null). */
 	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }) => void;
 	/** Open a viewpoint's menu at a screen point, or close it (null). */
@@ -577,6 +583,18 @@ export interface IEditorState {
 	insertAreaPoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
 	/** Remove a corner (an area keeps at least three). */
 	removeAreaPoint: (id: string, index: number) => void;
+	/** Select one of an area's peaks (ADR-0101). */
+	selectAreaPeak: (areaId: string, index: number) => void;
+	/**
+	 * Add a peak to an area, flush with its top there, and select it: at a
+	 * point inside it (a right-click, a double-click), else in its middle.
+	 */
+	addAreaPeak: (areaId: string, at?: TVec2) => void;
+	/** Move a peak across the ground, keeping its height. */
+	moveAreaPeak: (areaId: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	/** Put a peak's top at this height, as a lift above the area's height. */
+	setAreaPeakHeight: (areaId: string, index: number, top: number, options?: ICommitOptions) => void;
+	removeAreaPeak: (areaId: string, index: number) => void;
 	/** Put an area corner's top at this height (ADR-0096), as a lift above the area's height. */
 	setAreaCornerHeight: (id: string, index: number, top: number, options?: ICommitOptions) => void;
 
@@ -633,7 +651,11 @@ const validRoadSelection = (
 	scene: TScene,
 	state: Pick<
 		IEditorState,
-		"selectedRoadId" | "selectedAreaId" | "selectedPointIndex" | "selectedPointIndices"
+		| "selectedRoadId"
+		| "selectedAreaId"
+		| "selectedPointIndex"
+		| "selectedPointIndices"
+		| "selectedPeakIndex"
 	>,
 ) => {
 	const road = scene.roads.find((r) => r.id === state.selectedRoadId);
@@ -650,6 +672,10 @@ const validRoadSelection = (
 			points && state.selectedPointIndex !== null && state.selectedPointIndex < points.length
 				? state.selectedPointIndices.filter((index) => index < points.length)
 				: [],
+		selectedPeakIndex:
+			area && state.selectedPeakIndex !== null && state.selectedPeakIndex < area.peaks.length
+				? state.selectedPeakIndex
+				: null,
 	};
 };
 
@@ -719,6 +745,7 @@ const NOTHING_SELECTED = {
 	selectedRoadId: null,
 	selectedAreaId: null,
 	selectedPointIndex: null,
+	selectedPeakIndex: null,
 } as const;
 
 /** The scene's objects, roads or areas: the list an item of this kind is in. */
@@ -868,6 +895,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			...NOTHING_SELECTED,
 			selectedPointIndices: [],
+			selectedPeakIndex: null,
 			selectedItems: [],
 			boxSelect: null,
 			boxDrag: null,
@@ -1033,9 +1061,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 								...NOTHING_SELECTED,
 								selectedAreaId: id,
 								selectedPointIndex: id === state.selectedAreaId ? state.selectedPointIndex : null,
+								selectedPeakIndex: id === state.selectedAreaId ? state.selectedPeakIndex : null,
 								tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
 							}
-						: { selectedAreaId: null, selectedPointIndex: null },
+						: { selectedAreaId: null, selectedPointIndex: null, selectedPeakIndex: null },
 				),
 			selectAreaPoint: (areaId, index) =>
 				set((state) => ({
@@ -1053,6 +1082,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					return {
 						selectedPointIndex: indices.at(-1) ?? null,
 						selectedPointIndices: indices,
+						selectedPeakIndex: null,
 						tab: state.mode === "edit" && indices.length > 0 ? "shape" : state.tab,
 					};
 				}),
@@ -1062,6 +1092,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					return {
 						selectedPointIndex: unique.at(-1) ?? null,
 						selectedPointIndices: unique,
+						selectedPeakIndex: null,
 						tab: state.mode === "edit" && unique.length > 0 ? "shape" : state.tab,
 					};
 				}),
@@ -1230,6 +1261,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					copy.points = source.points.map((point) =>
 						cornerWithLift(point[0] + step, point[1] + step, cornerLift(point)),
 					);
+					copy.peaks = source.peaks.map(([x, z, lift]) => [round(x + step), round(z + step), lift]);
 					return copy;
 				});
 				const entities = picked(current.entities, "entity").map((source): TEntity => {
@@ -1401,7 +1433,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			setHovered: (item) => set({ hovered: item }),
 
-			openContextMenu: (item, at) => {
+			openContextMenu: (item, at, point) => {
 				if (!item || !at) {
 					set({ contextMenu: null });
 					return;
@@ -1411,7 +1443,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (state.selectedItems.length < 2 || !state.selectedItems.some(sameItem(item))) {
 					state.selectItems([item]);
 				}
-				set({ contextMenu: { item, ...at }, groundMenu: null, viewpointMenu: null });
+				set({ contextMenu: { item, ...at, point }, groundMenu: null, viewpointMenu: null });
 			},
 
 			openGroundMenu: (point, at) => {
@@ -2090,6 +2122,63 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					options,
 				),
 
+			selectAreaPeak: (areaId, index) =>
+				set((state) => ({
+					...NOTHING_SELECTED,
+					selectedAreaId: areaId,
+					selectedPeakIndex: index,
+					tab: state.mode === "edit" ? "shape" : state.tab,
+				})),
+
+			addAreaPeak: (areaId, at) => {
+				const area = get().scene.areas.find((a) => a.id === areaId);
+				if (!area || !takesCornerHeights(area)) {
+					return;
+				}
+				const middle = at && isInsidePolygon(at, area.points) ? at : middleOf(area.points);
+				// Flush with the top there: nothing changes until it's lifted (selected, its arrow ready).
+				const top = areaTopAt(area, middle) ?? area.height;
+				get().updateArea(areaId, (draft) => {
+					draft.peaks.push([round(middle[0]), round(middle[1]), liftForTop(draft, top)]);
+				});
+				get().selectAreaPeak(areaId, area.peaks.length);
+			},
+
+			moveAreaPeak: (areaId, index, point, options) =>
+				get().updateArea(
+					areaId,
+					(area) => {
+						const peak = area.peaks[index];
+						if (peak) {
+							area.peaks[index] = [round(point[0]), round(point[1]), peak[2]];
+						}
+					},
+					options,
+				),
+
+			setAreaPeakHeight: (areaId, index, top, options) =>
+				get().updateArea(
+					areaId,
+					(area) => {
+						const peak = area.peaks[index];
+						if (peak && takesCornerHeights(area)) {
+							area.peaks[index] = [peak[0], peak[1], liftForTop(area, top)];
+						}
+					},
+					options,
+				),
+
+			removeAreaPeak: (areaId, index) => {
+				get().updateArea(areaId, (area) => {
+					area.peaks.splice(index, 1);
+				});
+				set((state) =>
+					state.selectedAreaId === areaId && state.selectedPeakIndex !== null
+						? { selectedPeakIndex: null }
+						: state,
+				);
+			},
+
 			removeAreaPoint: (id, index) => {
 				get().updateArea(id, (area) => {
 					if (area.points.length > 3) {
@@ -2240,10 +2329,11 @@ export const isItemBoxed = (state: IEditorState, kind: ISceneItem["kind"], id: s
 
 /**
  * The selection moves, turns and resizes as a group (ADR-0064, ADR-0066): several things, or a
- * whole road or area (selected with none of its points).
+ * whole road or area (selected with none of its points, or peaks, ADR-0101).
  */
 export const selectMovesAsGroup = (state: IEditorState) =>
 	state.selectedItems.length > 1 ||
 	(state.selectedItems.length === 1 &&
 		state.selectedItems[0].kind !== "entity" &&
-		state.selectedPointIndex === null);
+		state.selectedPointIndex === null &&
+		state.selectedPeakIndex === null);

@@ -565,6 +565,7 @@ const pasteThings = (
 				const [x, z] = place(point[0], point[1]);
 				return cornerWithLift(x, z, cornerLift(point));
 			}),
+			peaks: area.peaks.map(([x, z, lift]) => [...place(x, z), lift]),
 		}),
 	);
 	const newEntities = entities.map((entity): TEntity => {

@@ -13,7 +13,7 @@ import {
 } from "#/scene/areas";
 import type { TArea, TAreaType } from "#/scene/schema";
 
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import {
 	ColorField,
 	Hint,
@@ -128,6 +128,54 @@ const CornersPanel = ({ area, indices }: { area: TArea; indices: readonly number
 	);
 };
 
+/** The selected peak (ADR-0101): where it is, how high, and delete. */
+const PeakPanel = ({ area, index }: { area: TArea; index: number }) => {
+	const peak = area.peaks[index];
+	if (!peak) {
+		return null;
+	}
+	const store = () => useEditor.getState();
+	const coalesce = (field: string) => ({ coalesce: `${area.id}:peak:${index}:${field}` });
+	return (
+		<Section
+			icon="pin"
+			title={`Peak ${index + 1} of ${area.peaks.length}`}
+			actions={
+				<IconButton
+					icon="trash"
+					label="Delete peak (Del)"
+					onClick={() => store().removeAreaPeak(area.id, index)}
+				/>
+			}
+		>
+			<VectorField
+				label="Position"
+				axes={["X", "Z"]}
+				values={[peak[0], peak[1]]}
+				onChange={(axis, value) => {
+					const next: [number, number] = [peak[0], peak[1]];
+					next[axis] = value;
+					store().moveAreaPeak(area.id, index, next, coalesce("position"));
+				}}
+			/>
+
+			<SliderField
+				label="Height"
+				value={cornerTop(area, peak)}
+				min={0}
+				max={Math.min(15, area.height + MAX_CORNER_LIFT)}
+				step={0.25}
+				onChange={(top) => store().setAreaPeakHeight(area.id, index, top, coalesce("height"))}
+				hint="The top rises to it from the corners round it: a hill, or a hollow below the area's height."
+			/>
+
+			<Hint>
+				Drag it to move it, lift it with the green arrow. <Kbd>Del</Kbd> removes it.
+			</Hint>
+		</Section>
+	);
+};
+
 /** Every edit coalesces per area+field so typing or sliding is one undo step. */
 const useAreaEdit = (area: TArea) => {
 	const updateArea = useEditor((s) => s.updateArea);
@@ -195,10 +243,14 @@ const AreaTab = ({ area }: { area: TArea }) => {
 const AreaShapeTab = ({ area }: { area: TArea }) => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
+	const selectedPeak = useEditor((s) => s.selectedPeakIndex);
 	const edit = useAreaEdit(area);
+	const liftable = takesCornerHeights(area);
 
 	return (
 		<>
+			{selectedPeak !== null && <PeakPanel area={area} index={selectedPeak} />}
+
 			{selectedPoints.length > 1 ? (
 				<CornersPanel area={area} indices={selectedPoints} />
 			) : (
@@ -209,7 +261,7 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				id="area.shape"
 				icon="spline"
 				title="Whole area"
-				keywords="shape corners raised height cliff slope ramp hill lift"
+				keywords="shape corners raised height cliff slope ramp hill lift peak hollow"
 			>
 				<SliderField
 					label="Raised by"
@@ -230,6 +282,23 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 					several, drag a small dot between two corners to add one, double-click a corner to remove
 					it. Above 0, the area becomes raised ground with cliff sides; select a corner to give it a
 					height of its own, for slopes and ramps.
+				</Hint>
+
+				<ButtonGroup>
+					<Button
+						size="sm"
+						icon="plus"
+						disabled={!liftable}
+						onClick={() => useEditor.getState().addAreaPeak(area.id)}
+					>
+						Add a peak
+					</Button>
+				</ButtonGroup>
+
+				<Hint>
+					{liftable
+						? "A peak is a point inside it with a height of its own: the top rises to it from the corners, for round hills (or dips, for hollows). Also: right-click the area, Add a peak here, or double-click it once it's selected."
+						: "Water stays level, so it has no peaks: raise all of it with Raised by."}
 				</Hint>
 			</Section>
 		</>

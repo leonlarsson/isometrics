@@ -513,6 +513,12 @@ export const AreaSchema = z
 			.describe(
 				"0 = flat on the ground; above 0 = raised with cliff sides. Corners with a lift stand that much higher or lower.",
 			),
+		peaks: z
+			.array(z.tuple([z.number(), z.number(), z.number().min(-30).max(30)]))
+			.default([])
+			.describe(
+				"Points inside the area with a height of their own, as [x, z, lift]: the top rises (or, negative, dips) to height + lift there, sloping to the corners, for round hills and hollows. Never below the ground. Water stays level and ignores them.",
+			),
 		color: HexColorSchema.nullable()
 			.default(null)
 			.describe("Colour as #rrggbb; null = the type's default for the theme."),

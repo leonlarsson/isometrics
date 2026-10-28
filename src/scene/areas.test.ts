@@ -10,6 +10,7 @@ import {
 	polygonArea,
 	takesCornerHeights,
 	triangulateOutline,
+	triangulateWithPoints,
 	waterSeams,
 } from "./areas";
 import { AreaSchema } from "./schema";
@@ -111,5 +112,31 @@ describe("area corners with their own heights (ADR-0096)", () => {
 		const tilted = area("tilted", [[0, 0, 2] as never, ...square(0, 0, 2).slice(1)], { height: 1 });
 		expect(cornerTop(tilted, tilted.points[0])).toBe(1);
 		expect(isRaised({ ...tilted, height: 0 })).toBe(false);
+	});
+});
+
+describe("peaks inside an area (ADR-0101)", () => {
+	const field = (peaks: [number, number, number][], type = "grass_01") =>
+		AreaSchema.parse({ id: "hill", type, points: square(0, 0, 4), peaks });
+
+	it("joins a peak in the middle to every corner, so a hill rises evenly", () => {
+		const triangles = triangulateWithPoints(square(0, 0, 4), [[2, 2]]);
+		expect(triangles).toHaveLength(4);
+		expect(triangles.every((triangle) => triangle.includes(4))).toBe(true);
+	});
+
+	it("knows the top's height round a peak, and leaves out points outside", () => {
+		const hill = field([[2, 2, 3]]);
+		expect(isRaised(hill)).toBe(true);
+		expect(areaTopAt(hill, [2, 2])).toBeCloseTo(3);
+		expect(areaTopAt(hill, [1, 1])).toBeCloseTo(1.5);
+		expect(areaTopAt(hill, [3, 1])).toBeCloseTo(1.5);
+		expect(triangulateWithPoints(square(0, 0, 4), [[9, 9]])).toHaveLength(2);
+	});
+
+	it("lets water stay level, whatever peaks it kept", () => {
+		const pond = field([[2, 2, 3]], "water_01");
+		expect(isRaised(pond)).toBe(false);
+		expect(areaTopAt(pond, [2, 2])).toBe(0);
 	});
 });

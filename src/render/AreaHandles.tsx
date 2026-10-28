@@ -11,13 +11,15 @@ import {
 import {
 	drawnModeOf,
 	isToggleClick,
+	SNAP_STEP,
 	selectSelectedArea,
 	selectSeveral,
 	useEditor,
 } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { snap } from "#/lib/math";
 import { isClick } from "#/lib/pointer";
-import { cornerTop, takesCornerHeights } from "#/scene/areas";
+import { cornerTop, takesCornerHeights, topSurface } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -226,6 +228,196 @@ const CornersGizmo = ({ baseY }: { baseY: number }) => {
 	);
 };
 
+const PEAK_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y"];
+
+/**
+ * A small triangle in the middle of each face of the top, like the dots
+ * between corners (ADR-0101): pressing it adds a peak there, flush with the
+ * top, selected so its green arrow lifts it; dragging places the new peak.
+ */
+const FaceHandle = ({
+	areaId,
+	point,
+	y,
+	visible,
+}: {
+	areaId: string;
+	point: TVec2;
+	y: number;
+	visible: boolean;
+}) => {
+	const palette = usePalette();
+	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Mesh>(HANDLE_PX, hovered ? 1.3 : 1);
+	const added = useRef<number | null>(null);
+	const drag = useGroundDrag({
+		planeY: y,
+		onStart: () => {
+			const store = useEditor.getState();
+			store.addAreaPeak(areaId, point);
+			added.current = useEditor.getState().selectedPeakIndex;
+			return true;
+		},
+		onMove: (next, token) => {
+			if (added.current !== null) {
+				useEditor.getState().moveAreaPeak(areaId, added.current, next, { coalesce: token });
+			}
+		},
+	});
+
+	return (
+		<mesh
+			position={[point[0], y + HANDLE_LIFT, point[1]]}
+			ref={handle}
+			visible={visible}
+			{...drag}
+			// The press already added the peak (onStart); a click is only that press.
+			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
+			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+				e.stopPropagation();
+				setHovered(true);
+				document.body.style.cursor = "copy";
+			}}
+			onPointerOut={() => {
+				setHovered(false);
+				document.body.style.cursor = "";
+			}}
+		>
+			<cylinderGeometry args={[0.24, 0.24, 0.05, 3]} />
+
+			<meshBasicMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
+		</mesh>
+	);
+};
+
+/**
+ * A peak inside the area (ADR-0101): a round handle on the top there, with a
+ * small cone on it so it reads as a peak, not a corner. Click to select it,
+ * drag to move it across the ground (keeping its height).
+ */
+const PeakHandle = ({
+	areaId,
+	index,
+	point,
+	y,
+	selected,
+}: {
+	areaId: string;
+	index: number;
+	point: readonly number[];
+	y: number;
+	selected: boolean;
+}) => {
+	const palette = usePalette();
+	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
+	const drag = useGroundDrag({
+		planeY: y,
+		onStart: () => {
+			useEditor.getState().selectAreaPeak(areaId, index);
+			return true;
+		},
+		onMove: (next, token) =>
+			useEditor.getState().moveAreaPeak(areaId, index, next, { coalesce: token }),
+	});
+
+	return (
+		<group
+			position={[point[0], y + HANDLE_LIFT, point[1]]}
+			ref={handle}
+			{...drag}
+			onClick={(e: ThreeEvent<MouseEvent>) => {
+				e.stopPropagation();
+				if (isClick(e)) {
+					useEditor.getState().selectAreaPeak(areaId, index);
+				}
+			}}
+			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+				e.stopPropagation();
+				setHovered(true);
+				document.body.style.cursor = "grab";
+			}}
+			onPointerOut={() => {
+				setHovered(false);
+				document.body.style.cursor = "";
+			}}
+		>
+			<mesh>
+				<cylinderGeometry args={[0.42, 0.42, 0.06, 20]} />
+
+				<meshBasicMaterial color={palette.selection} />
+			</mesh>
+
+			<mesh position={[0, 0.02, 0]}>
+				<cylinderGeometry args={[0.28, 0.28, 0.06, 20]} />
+
+				<meshBasicMaterial color={selected ? palette.selection : "#ffffff"} />
+			</mesh>
+
+			<mesh position={[0, 0.2, 0]}>
+				<coneGeometry args={[0.16, 0.3, 12]} />
+
+				<meshBasicMaterial color={palette.selection} />
+			</mesh>
+		</group>
+	);
+};
+
+/** The move gizmo on the selected peak: across the ground, and up or down with the green arrow. */
+const PeakGizmo = ({
+	areaId,
+	index,
+	point,
+	y,
+}: {
+	areaId: string;
+	index: number;
+	point: readonly number[];
+	y: number;
+}) => {
+	const start = useRef<{ point: TVec2; top: number } | null>(null);
+	return (
+		<group position={[point[0], y, point[1]]}>
+			<TransformGizmo
+				handles={PEAK_HANDLES}
+				onStart={() => {
+					const area = useEditor.getState().scene.areas.find((a) => a.id === areaId);
+					const peak = area?.peaks[index];
+					start.current =
+						area && peak ? { point: [peak[0], peak[1]], top: cornerTop(area, peak) } : null;
+				}}
+				onDrag={(drag) => {
+					const from = start.current;
+					if (!from) {
+						return;
+					}
+					const store = useEditor.getState();
+					const options = { coalesce: drag.token, gesture: true };
+					const step = (value: number, size: number) => (drag.free ? value : snap(value, size));
+					if (drag.handle === "y") {
+						store.setAreaPeakHeight(
+							areaId,
+							index,
+							Math.max(0, step(from.top + drag.lift, 0.25)),
+							options,
+						);
+					} else {
+						store.moveAreaPeak(
+							areaId,
+							index,
+							[
+								step(from.point[0] + drag.offset[0], SNAP_STEP),
+								step(from.point[1] + drag.offset[1], SNAP_STEP),
+							],
+							options,
+						);
+					}
+				}}
+			/>
+		</group>
+	);
+};
+
 /** Corner and insert handles for the selected area (edit mode only). */
 export const AreaHandles = () => {
 	const area = useEditor(selectSelectedArea);
@@ -233,6 +425,7 @@ export const AreaHandles = () => {
 	const several = useEditor(selectSeveral);
 	const layer = useEditor((s) => s.scene.areas.findIndex((a) => a.id === s.selectedAreaId));
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
+	const selectedPeak = useEditor((s) => s.selectedPeakIndex);
 	// A selection box being drawn over its corners (ADR-0065): what letting go would select.
 	const boxDrag = useEditor((s) => s.boxDrag);
 	const mode = useEditor(drawnModeOf);
@@ -245,6 +438,22 @@ export const AreaHandles = () => {
 	const baseY = areaBaseY(Math.max(0, layer));
 	// Each corner's handle stands on the top there; the dots between them halfway up the side.
 	const tops = area.points.map((point) => cornerTop(area, point));
+	// Water stays level: no peaks (ADR-0101).
+	const peaks = takesCornerHeights(area) ? area.peaks : [];
+	const peakAt = selectedPeak !== null ? peaks[selectedPeak] : undefined;
+	// The middle of each face of the top, on it, for a new peak (none for water, which stays level).
+	const surface = takesCornerHeights(area) ? topSurface(area) : null;
+	const faces = (surface?.triangles ?? []).map(([a, b, c]) => {
+		const corners = [a, b, c].map((i) => surface?.points[i] ?? [0, 0]);
+		const height = [a, b, c].reduce((sum, i) => sum + (surface?.tops[i] ?? 0), 0) / 3;
+		return {
+			point: [
+				(corners[0][0] + corners[1][0] + corners[2][0]) / 3,
+				(corners[0][1] + corners[1][1] + corners[2][1]) / 3,
+			] as TVec2,
+			height,
+		};
+	});
 
 	return (
 		<group>
@@ -266,6 +475,38 @@ export const AreaHandles = () => {
 
 			{/* Kept while dragging: the gizmo's own drag sets dragging, and unmounting it ends the drag. */}
 			{selectedPoints.length > 0 && <CornersGizmo baseY={baseY} />}
+
+			{faces.map((face, index) => (
+				<FaceHandle
+					// biome-ignore lint/suspicious/noArrayIndexKey: one per face, by position
+					key={`face-${index}`}
+					areaId={area.id}
+					point={face.point}
+					y={baseY + face.height}
+					visible={!dragging}
+				/>
+			))}
+
+			{peakAt && selectedPeak !== null && (
+				<PeakGizmo
+					areaId={area.id}
+					index={selectedPeak}
+					point={peakAt}
+					y={baseY + cornerTop(area, peakAt)}
+				/>
+			)}
+
+			{peaks.map((peak, index) => (
+				<PeakHandle
+					// biome-ignore lint/suspicious/noArrayIndexKey: handles are positional; keeping the instance during a drag matters
+					key={`peak-${index}`}
+					areaId={area.id}
+					index={index}
+					point={peak}
+					y={baseY + cornerTop(area, peak)}
+					selected={selectedPeak === index}
+				/>
+			))}
 
 			{area.points.map((point, index) => (
 				<CornerHandle

@@ -104,3 +104,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0098](0098-objects-stand-on-the-ground.md) | Objects stand on the ground under them | proposed |
 | [0099](0099-label-cards-slide-under-side-panels.md) | Label cards slide under the side panels | proposed |
 | [0100](0100-loading-screen.md) | A loading screen while a world opens | proposed |
+| [0101](0101-area-peaks.md) | Peaks inside areas: round hills and hollows | proposed |

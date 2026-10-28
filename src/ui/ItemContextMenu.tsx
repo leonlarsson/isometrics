@@ -11,9 +11,9 @@ import {
 import type { ISceneItem } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
 import { getPart, partNameOf } from "#/parts/registry";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
+import { AREA_TYPE_LABELS, takesCornerHeights } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TArea, TEntity, TRoad } from "#/scene/schema";
+import type { TArea, TEntity, TRoad, TVec2 } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
@@ -179,6 +179,28 @@ const RoadActions = ({ id }: { id: string }) => {
 				onClick={() => store().continueDrawing(road.id, "start")}
 			/>
 		</>
+	);
+};
+
+/** An area's own actions: a peak where it was right-clicked (ADR-0101). */
+const AreaActions = ({ id, point }: { id: string; point?: TVec2 }) => {
+	const area = useEditor((s) => s.scene.areas.find((a) => a.id === id));
+	if (!area || area.locked) {
+		return null;
+	}
+	const liftable = takesCornerHeights(area);
+	return (
+		<Menu.Item
+			icon="plus"
+			label="Add a peak here"
+			description={
+				liftable
+					? "A point with a height of its own, for a hill (also: double-click the area)"
+					: "Water stays level, so it has no peaks"
+			}
+			disabled={!liftable}
+			onClick={() => useEditor.getState().addAreaPeak(id, point)}
+		/>
 	);
 };
 
@@ -427,7 +449,9 @@ export const ItemContextMenu = () => {
 								<EntityActions id={item.id} />
 							) : item.kind === "road" ? (
 								<RoadActions id={item.id} />
-							) : null
+							) : (
+								<AreaActions id={item.id} point={menu?.point} />
+							)
 						}
 					/>
 				)}

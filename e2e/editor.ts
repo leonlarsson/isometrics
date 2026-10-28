@@ -119,6 +119,7 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			...area,
 			name: "",
 			height: 0,
+			peaks: [],
 			hidden: false,
 			locked: false,
 			...a,

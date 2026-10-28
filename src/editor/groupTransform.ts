@@ -39,7 +39,7 @@ export interface IGroupStart {
 	/** Driving vehicles: they move with their road, but take a resize. */
 	drivers: { id: string; scale: number }[];
 	roads: { id: string; points: TRoadPoint[] }[];
-	areas: { id: string; points: TAreaPoint[]; height: number }[];
+	areas: { id: string; points: TAreaPoint[]; peaks: TArea["peaks"]; height: number }[];
 	/** The ground extent of what moves, to keep a moved group on the ground. */
 	bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -82,9 +82,10 @@ export const groupStartOf = (
 		.filter((entity) => entity.follow)
 		.map((entity) => ({ id: entity.id, scale: entity.scale }));
 	const roads = picked(scene.roads, "road").map((road) => ({ id: road.id, points: road.points }));
-	const areas = picked(scene.areas, "area").map(({ id, points, height }) => ({
+	const areas = picked(scene.areas, "area").map(({ id, points, peaks, height }) => ({
 		id,
 		points,
+		peaks,
 		height,
 	}));
 	const spots = [
@@ -186,7 +187,8 @@ export const transformGroup = (
 			const [x, z] = place(point);
 			return cornerWithLift(x, z, cornerLift(point));
 		});
-		return { ...area, points, height: start.height };
+		const peaks = start.peaks.map((peak): [number, number, number] => [...place(peak), peak[2]]);
+		return { ...area, points, peaks, height: start.height };
 	});
 
 	store.commit((scene) => {
@@ -230,6 +232,8 @@ export const transformGroup = (
 					const [x, z] = place(point);
 					return cornerWithLift(x, z, cornerLift(point));
 				});
+				// Its peaks go with it, keeping their heights (ADR-0101).
+				area.peaks = start.peaks.map((peak) => [...place(peak), peak[2]]);
 				area.height = round(clamp(start.height + lift, 0, MAX_AREA_HEIGHT));
 			}
 		}

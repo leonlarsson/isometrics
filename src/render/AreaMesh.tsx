@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
-import { memo, useLayoutEffect, useMemo } from "react";
+import { memo, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { useGraphics } from "#/editor/graphics";
@@ -12,13 +12,15 @@ import {
 	areaColor,
 	cornerTop,
 	isRaised,
+	type TAreaShape,
+	topSurface,
 	triangulateOutline,
 	waterSeams,
 } from "#/scene/areas";
 import type { TArea, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
-import { openContextMenuOnClick } from "./contextMenu";
+import { openAreaMenuOnClick } from "./contextMenu";
 import { ReflectiveWaterMaterial } from "./Water";
 
 const NO_SEAMS: [number, number, number, number][] = [];
@@ -54,9 +56,11 @@ const outlineShape = (points: TArea["points"]) => {
  * an extrusion's: the top, then the sides and bottom. Without its top for
  * raised water, whose mirroring surface is drawn on its own.
  */
-const solidGeometry = (area: Pick<TArea, "points" | "height" | "type">, withTop = true) => {
+const solidGeometry = (area: TAreaShape, withTop = true) => {
 	const { points } = area;
 	const tops = points.map((point) => cornerTop(area, point));
+	// The top over its corners and its peaks inside (ADR-0101).
+	const surface = topSurface(area);
 	const top: number[] = [];
 	const rest: number[] = [];
 	const triangle = (list: number[], a: number[], b: number[], c: number[], up: boolean) => {
@@ -65,10 +69,13 @@ const solidGeometry = (area: Pick<TArea, "points" | "height" | "type">, withTop 
 		list.push(...(normalY > 0 === up ? [...a, ...b, ...c] : [...a, ...c, ...b]));
 	};
 	const corner = (i: number, y: number) => [points[i][0], y, points[i][1]];
-	for (const [a, b, c] of triangulateOutline(points)) {
-		if (withTop) {
-			triangle(top, corner(a, tops[a]), corner(b, tops[b]), corner(c, tops[c]), true);
+	const onTop = (i: number) => [surface.points[i][0], surface.tops[i], surface.points[i][1]];
+	if (withTop) {
+		for (const [a, b, c] of surface.triangles) {
+			triangle(top, onTop(a), onTop(b), onTop(c), true);
 		}
+	}
+	for (const [a, b, c] of triangulateOutline(points)) {
 		triangle(rest, corner(a, 0), corner(b, 0), corner(c, 0), false);
 	}
 	// Sides face out, whichever way the outline turns.
@@ -95,7 +102,7 @@ const solidGeometry = (area: Pick<TArea, "points" | "height" | "type">, withTop 
 	return geometry;
 };
 
-type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick" | "onContextMenu">;
+type TAreaHandlers = Pick<ThreeElements["mesh"], "onClick" | "onContextMenu" | "onDoubleClick">;
 
 interface IAreaBodyProps {
 	area: TArea;
@@ -142,7 +149,7 @@ export const AreaBody = ({
 			geo.rotateX(-Math.PI / 2);
 		}
 		return geo;
-	}, [area.points, area.height, area.type, raised, mirrors]);
+	}, [area.points, area.peaks, area.height, area.type, raised, mirrors]);
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 	const sides = useMemo(
 		() => (raised && mirrors ? solidGeometry(area, false) : null),
@@ -252,6 +259,9 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const selectArea = useEditor((s) => s.selectArea);
 
 	const editable = mode === "edit" && !drawing;
+	// Whether it was the one selected thing at each of the last two clicks: a double-click adds a peak
+	// only to an area already selected before it, not to one the double-click itself selects.
+	const clicks = useRef({ previous: false, last: false });
 	const handlers: TAreaHandlers = editable
 		? {
 				onClick: (e: ThreeEvent<MouseEvent>) => {
@@ -260,13 +270,25 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 					if (!isClick(e)) {
 						return;
 					}
+					const state = useEditor.getState();
+					clicks.current = {
+						previous: clicks.current.last,
+						last: state.selectedAreaId === area.id && state.selectedItems.length === 1,
+					};
 					if (isToggleClick(e.nativeEvent)) {
 						useEditor.getState().toggleSelected({ kind: "area", id: area.id });
 					} else {
 						selectArea(area.id);
 					}
 				},
-				onContextMenu: openContextMenuOnClick({ kind: "area", id: area.id }),
+				onContextMenu: openAreaMenuOnClick(area.id),
+				// Double-click the selected area: a peak there (ADR-0101).
+				onDoubleClick: (e: ThreeEvent<MouseEvent>) => {
+					e.stopPropagation();
+					if (clicks.current.previous && !area.locked) {
+						useEditor.getState().addAreaPeak(area.id, [e.point.x, e.point.z]);
+					}
+				},
 			}
 		: {};
 

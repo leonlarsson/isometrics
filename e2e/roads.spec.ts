@@ -9,6 +9,7 @@ import {
 	groundSpot,
 	keys,
 	loadWorld,
+	menuItem,
 	openEditor,
 	paletteTile,
 	read,
@@ -265,6 +266,81 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		const moved = await westmost();
 		await dragBy(page, await gizmoSpot(page, await middle(), [0.35, 0, 0.35], 14), 80, 0);
 		await expect.poll(westmost).not.toBe(moved);
+	});
+
+	test("a peak inside an area: add it, set its height, lift it, delete it (ADR-0101)", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "meadow",
+					type: "grass_01",
+					points: [
+						[-4, -4],
+						[4, -4],
+						[4, 4],
+						[-4, 4],
+					],
+				},
+			],
+		});
+		await showView(page, [0, 0], 16);
+		await act(page, (s) => s.selectArea("meadow"));
+		await page.getByRole("tab", { name: "Shape", exact: true }).click();
+		await page.getByRole("button", { name: "Add a peak" }).click();
+		const peak = () => read(page, (s) => s.scene.areas[0].peaks[0]);
+		expect((await peak())?.slice(0, 2)).toEqual([0, 0]);
+		await expect(page.getByText("Peak 1 of 1")).toBeVisible();
+
+		const height = page.getByRole("textbox", { name: "Height", exact: true });
+		await height.fill("3");
+		await height.press("Enter");
+		expect((await peak())?.[2]).toBe(3);
+		await height.blur();
+
+		// Its gizmo's green arrow lifts it further.
+		await dragBy(page, await gizmoSpot(page, [0, 3, 0], [0, 0.8, 0], 16), 0, -50);
+		await expect.poll(async () => (await peak())?.[2] ?? 0).toBeGreaterThan(3);
+
+		await page.mouse.move(100, 500);
+		await keys(page, "Delete");
+		expect(await read(page, (s) => s.scene.areas[0].peaks.length)).toBe(0);
+		expect(await read(page, (s) => s.scene.areas.length)).toBe(1);
+
+		// Without the Shape tab: right-click the area, Add a peak here; or double-click it.
+		const spot = await groundSpot(page, [2, 2], 0);
+		await page.mouse.click(spot.x, spot.y, { button: "right" });
+		await menuItem(page, /^Add a peak here/).click();
+		await expect.poll(() => read(page, (s) => s.scene.areas[0].peaks.length)).toBe(1);
+		const [x, z] = (await peak()) ?? [0, 0];
+		expect(Math.hypot(x - 2, z - 2)).toBeLessThan(0.6);
+		const other = await groundSpot(page, [-2, -2], 0);
+		await page.mouse.dblclick(other.x, other.y);
+		await expect.poll(() => read(page, (s) => s.scene.areas[0].peaks.length)).toBe(2);
+	});
+
+	test("a face's marker adds a peak in its middle (ADR-0101)", async ({ page }) => {
+		// A triangle has one face, its marker in its middle.
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "field",
+					type: "grass_01",
+					points: [
+						[-4, -3],
+						[4, -3],
+						[0, 3],
+					],
+				},
+			],
+		});
+		await showView(page, [0, 0], 14);
+		await act(page, (s) => s.selectArea("field"));
+		const marker = await groundSpot(page, [0, -1], 0.12);
+		await page.mouse.click(marker.x, marker.y);
+		await expect.poll(() => read(page, (s) => s.scene.areas[0].peaks.length)).toBe(1);
+		expect(await read(page, (s) => s.selectedPeakIndex)).toBe(0);
 	});
 
 	test("Raised by lifts the whole area", async ({ page }) => {
