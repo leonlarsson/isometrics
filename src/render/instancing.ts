@@ -2,6 +2,8 @@ import * as THREE from "three";
 
 import { keepOnHotReload } from "#/lib/hot";
 
+import { compilesPlainly } from "./weatherShading";
+
 /**
  * Objects that look the same are drawn together (ADR-0086): the meshes of
  * different objects with the same shape and material are drawn as one
@@ -14,7 +16,6 @@ import { keepOnHotReload } from "#/lib/hot";
 export const INSTANCED_ORIGINALS_LAYER = 1;
 
 const defaultOnBeforeRender = THREE.Object3D.prototype.onBeforeRender;
-const defaultOnBeforeCompile = THREE.Material.prototype.onBeforeCompile;
 
 const keyOfGeometry = (geometry: THREE.BufferGeometry) => {
 	if (typeof geometry.userData.shareKey === "string") {
@@ -71,8 +72,8 @@ export const materialKey = (material: THREE.Material): string | null => {
 	if (
 		!kind ||
 		material.transparent ||
-		material.onBeforeCompile !== defaultOnBeforeCompile ||
-		material.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey
+		// A shader of its own (text, the reflective water); the weather's shading is everyone's.
+		!compilesPlainly(material)
 	) {
 		return null;
 	}

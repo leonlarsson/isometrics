@@ -9,6 +9,7 @@ import {
 	loadWorld,
 	menuItem,
 	openEditor,
+	openPanel,
 	read,
 	test,
 } from "./editor";
@@ -85,10 +86,14 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 	test("the sky can be switched off and clouded over; the diorama's backdrop can be a green screen", async ({
 		page,
 	}) => {
-		await worldTab(page, "Sky & water");
+		// Clouds are set in the Weather tab (ADR-0102).
+		await worldTab(page, "Weather");
+		// Its panels start folded, the quick picks aside.
+		await openPanel(page, "Clouds");
 		await box(page, "Cloud cover").fill("80");
 		await box(page, "Cloud cover").press("Enter");
 		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(0.8);
+		await worldTab(page, "Sky & water");
 		await page.getByRole("switch", { name: "Show the sky in perspective" }).click();
 		expect(await read(page, (s) => s.scene.sky.showInPerspective)).toBe(false);
 
@@ -252,5 +257,31 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		>;
 		// It starts with the world's first value, to be changed in the fields below.
 		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data[0].key));
+	});
+});
+
+test.describe("weather (ADR-0102)", () => {
+	test("a quick pick sets the weather and the clouds; an amount set by hand; clear again", async ({
+		page,
+	}) => {
+		await worldTab(page, "Weather");
+		await page.getByRole("button", { name: "Storm", exact: true }).click();
+		expect(await read(page, (s) => s.scene.weather)).toMatchObject({
+			rainAmount: 0.95,
+			lightningRate: 0.6,
+		});
+		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(1);
+
+		await openPanel(page, "Rain and snow");
+		await box(page, "Snow").fill("40");
+		await box(page, "Snow").press("Enter");
+		expect(await read(page, (s) => s.scene.weather.snowAmount)).toBe(0.4);
+
+		await page.getByRole("button", { name: "Clear", exact: true }).click();
+		expect(await read(page, (s) => s.scene.weather)).toMatchObject({
+			rainAmount: 0,
+			snowAmount: 0,
+			lightningRate: 0,
+		});
 	});
 });

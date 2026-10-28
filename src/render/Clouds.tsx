@@ -4,6 +4,7 @@ import type * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { useOvercast } from "#/editor/weather";
 import { skyLookAt } from "#/scene/sky";
 
 import { ignoreRaycast } from "./SkyDome";
@@ -67,7 +68,7 @@ export const Clouds = () => {
 	const playing = useEditor((s) => s.playing);
 	const hour = useSceneHours();
 	const ring = useRef<THREE.Group>(null);
-	const look = skyLookAt(lighting, sky, hour);
+	const look = skyLookAt(lighting, sky, hour, useOvercast());
 	const count = Math.round(look.cloudCover * MAX_CLOUDS);
 	const clouds = useMemo(
 		() => cloudsFor(count, Math.max(ground.width, ground.depth)),

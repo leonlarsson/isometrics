@@ -903,6 +903,61 @@ export const WaterSchema = z
 	})
 	.describe("The world's water.");
 
+const amount = (meaning: string) => z.number().min(0).max(1).default(0).describe(meaning);
+
+// See docs/adr/0102-weather.md.
+export const WeatherSchema = z
+	.object({
+		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
+		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
+		fogDensity: amount(
+			"How thick the fog is: 0 = none, 1 = only what's near can be seen. In the diorama, it fogs from the far side.",
+		),
+		hazeAmount: amount(
+			"How hazy the distance is: 0 = clear, 1 = the far side fades into a pale haze (dust, smog, a hot day).",
+		),
+		lightningRate: amount(
+			"How often lightning flashes: 0 = never, 1 = every few seconds (with rain, a storm).",
+		),
+		groundWetness: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How wet the ground and everything on it look (darker, a little glossy): 0 = dry, 1 = soaked. null = following the rain.",
+			),
+		snowCover: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How much snow has settled on what faces up (roofs, grass, roads, treetops): 0 = none, 1 = all white. null = following the snowfall.",
+			),
+		showsSplashes: z
+			.boolean()
+			.default(true)
+			.describe("Small splashes open on the ground where raindrops land."),
+		softensLight: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Rain, snow and fog make it overcast: the sun dims, shadows soften and the sky greys, more as they grow. false = the light stays as set.",
+			),
+		data: z
+			.record(z.string(), DataBindingSchema)
+			.default({})
+			.describe(
+				'Data values that drive weather settings, by setting: "rainAmount", "snowAmount", "fogDensity", "hazeAmount" or "lightningRate", each as value ÷ valueAtFull (up to 1). Only the settings that follow data.',
+			),
+	})
+	.describe(
+		"The world's weather: what falls, fog and haze, lightning, and how it leaves the ground. Clouds are in `sky`.",
+	);
+
 // See docs/adr/0078-moods.md.
 export const MoodSchema = z
 	.object({
@@ -916,6 +971,9 @@ export const MoodSchema = z
 		),
 		water: WaterSchema.default(() => WaterSchema.parse({})).describe(
 			"The world's water with this mood (as `water`).",
+		),
+		weather: WeatherSchema.default(() => WeatherSchema.parse({})).describe(
+			"The world's weather with this mood (as `weather`).",
 		),
 		camera: CameraSettingsSchema.pick({
 			tiltShiftOn: true,
@@ -932,7 +990,7 @@ export const MoodSchema = z
 			.describe("The world's tilt-shift with this mood (as those settings in `camera`)."),
 	})
 	.describe(
-		"A named look of the world, like Golden hour or Night: its time of day, light, sky, water and tilt-shift, put on with one click or by going to a viewpoint that has it.",
+		"A named look of the world, like Golden hour or Night: its time of day, light, sky, water, weather and tilt-shift, put on with one click or by going to a viewpoint that has it.",
 	);
 
 export const BackdropSchema = z
@@ -1012,10 +1070,11 @@ export const SceneSchema = z
 			cloudSpeed: 1,
 		}),
 		water: WaterSchema.default({ rippleStrength: 0.5, reflectionStrength: 0.5 }),
+		weather: WeatherSchema.default(() => WeatherSchema.parse({})),
 		moods: z
 			.array(MoodSchema)
 			.default([])
-			.describe("Named looks of the world (time of day, light, sky, water, tilt-shift)."),
+			.describe("Named looks of the world (time of day, light, sky, water, weather, tilt-shift)."),
 		backdrop: BackdropSchema.default({
 			kind: "sky",
 			color: null,
@@ -1131,6 +1190,7 @@ export type TLighting = z.output<typeof LightingSchema>;
 export type TSky = z.output<typeof SkySchema>;
 export type TBackdrop = z.output<typeof BackdropSchema>;
 export type TWater = z.output<typeof WaterSchema>;
+export type TWeather = z.output<typeof WeatherSchema>;
 export type TMood = z.output<typeof MoodSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;

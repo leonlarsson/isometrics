@@ -4,7 +4,7 @@ import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
 import { SkySchema, type TBackdrop, type TScene, type TSky } from "#/scene/schema";
-import { skyColorsAt, skyLookAt } from "#/scene/sky";
+import { skyColorsAt } from "#/scene/sky";
 
 import { Button } from "./Button";
 import { ColorField, Hint, Section, SelectField, SliderField, SwitchField } from "./fields";
@@ -23,8 +23,9 @@ const percent = (amount: number) => `${Math.round(amount * 100)}%`;
 
 /**
  * The sky around the world in perspective (ADR-0070): whether it's drawn, its
- * colours (following the time of day until set), the sun and moon, stars and
- * clouds. Every setting shows Default / From time of day and offers Reset.
+ * colours (following the time of day until set), the sun and moon, and stars
+ * (clouds are in the Weather tab, ADR-0102). Every setting shows Default /
+ * From time of day and offers Reset.
  */
 export const SkySection = () => {
 	const sky = useEditor((s) => s.scene.sky);
@@ -34,7 +35,6 @@ export const SkySection = () => {
 	const hours = useSceneHours();
 	const classic = lighting.time === null && lighting.timeSource === "fixed";
 	const fromTime = skyColorsAt(hours);
-	const look = skyLookAt(lighting, { ...sky, cloudColor: null }, hours);
 	const set = <K extends keyof TSky>(key: K, value: TSky[K], coalesce?: boolean) =>
 		commit(
 			(s: Draft<TScene>) => {
@@ -50,7 +50,7 @@ export const SkySection = () => {
 		value,
 	});
 	/** A colour that follows the time of day (or the classic daylight) until it's set. */
-	const following = (key: "colorOverhead" | "colorAtHorizon" | "cloudColor", value: string) => ({
+	const following = (key: "colorOverhead" | "colorAtHorizon", value: string) => ({
 		from: classic ? "default" : "time of day",
 		inherited: sky[key] === null,
 		onReset: () => set(key, null),
@@ -117,38 +117,11 @@ export const SkySection = () => {
 						inherit={byDefault("starDensity", percent(SKY_DEFAULTS.starDensity))}
 					/>
 
-					<SliderField
-						label="Cloud cover"
-						value={Math.round(sky.cloudCover * 100)}
-						min={0}
-						max={100}
-						step={5}
-						suffix="%"
-						onChange={(value) => set("cloudCover", value / 100, true)}
-						inherit={byDefault("cloudCover", percent(SKY_DEFAULTS.cloudCover))}
-					/>
+					<Hint>Clouds, with rain, snow and fog, are in the Weather tab.</Hint>
 
-					{sky.cloudCover > 0 && (
-						<>
-							<ColorField
-								label="Cloud colour"
-								value={sky.cloudColor ?? look.cloudColor}
-								onChange={(color) => set("cloudColor", color, true)}
-								inherit={following("cloudColor", look.cloudColor)}
-							/>
-
-							<SliderField
-								label="Cloud speed"
-								value={sky.cloudSpeed}
-								min={0}
-								max={5}
-								step={0.1}
-								suffix="×"
-								onChange={(value) => set("cloudSpeed", value, true)}
-								inherit={byDefault("cloudSpeed", `${SKY_DEFAULTS.cloudSpeed}×`)}
-							/>
-						</>
-					)}
+					<Button size="sm" icon="rain" onClick={() => useEditor.getState().setTab("weather")}>
+						Open the Weather tab
+					</Button>
 
 					{!perspective && (
 						<>

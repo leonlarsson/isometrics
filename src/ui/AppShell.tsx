@@ -9,6 +9,7 @@ import { useEditor } from "#/editor/store";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
+import { useOvercast } from "#/editor/weather";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
 import { formatHour } from "#/scene/sun";
@@ -66,7 +67,7 @@ import styles from "./AppShell.module.css";
  */
 const useSky = (): CSSProperties => {
 	const lighting = useEditor((s) => s.scene.lighting);
-	const sky = dioramaSkyAt(lighting, useSceneHours());
+	const sky = dioramaSkyAt(lighting, useSceneHours(), useOvercast());
 	if (!sky) {
 		return {};
 	}

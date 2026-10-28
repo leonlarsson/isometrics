@@ -10,6 +10,7 @@ import { usePreferences } from "#/editor/preferences";
 import { drawnModeOf, includesItem, isToggleClick, useEditor } from "#/editor/store";
 import { useEntity } from "#/editor/useEntity";
 import { usePalette } from "#/editor/useTheme";
+import { weatherNow } from "#/editor/weather";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -54,6 +55,7 @@ import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
 import { WakeFieldStep } from "./WakeField";
+import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
 import { WorldReady } from "./WorldReady";
 
@@ -236,6 +238,20 @@ export const Viewport = () => {
 	const tiltShiftShown = useTiltShiftShown();
 	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
+	// What the weather draws (ADR-0102): each piece only while its amount is above nothing.
+	const weather = useEditor(
+		useShallow((s) => {
+			const now = weatherNow(s.scene.weather, s.scene.data);
+			return {
+				rain: now.rain > 0,
+				snow: now.snow > 0,
+				splashes: now.rain > 0 && now.showsSplashes,
+				lightning: now.lightning > 0,
+				shading: now.wetness > 0 || now.snowCover > 0,
+				fog: now.fog > 0 || now.haze > 0,
+			};
+		}),
+	);
 
 	return (
 		<Canvas
@@ -327,7 +343,18 @@ export const Viewport = () => {
 
 			{graphics.realLightCount > 0 && <RealLights count={graphics.realLightCount} />}
 
-			{graphics.showDistanceHaze && <DistanceHaze />}
+			{(graphics.showDistanceHaze || weather.fog) && (
+				<DistanceHaze viewerHaze={graphics.showDistanceHaze} />
+			)}
+
+			<Weather
+				rain={weather.rain}
+				snow={weather.snow}
+				splashes={weather.splashes}
+				lightning={weather.lightning}
+			/>
+
+			<WeatherShading on={weather.shading && !wireframe} />
 
 			{/* The boats' waves, which only reflective water shows (ADR-0081). */}
 			{graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections && <WakeFieldStep />}

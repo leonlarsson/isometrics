@@ -12,6 +12,7 @@ describe("moods (ADR-0078)", () => {
 			s.lighting.time = 18.3;
 			s.sky.cloudCover = 0.7;
 			s.water.rippleStrength = 0.1;
+			s.weather.rainAmount = 0.4;
 			s.camera.tiltShiftOn = true;
 		});
 		const golden = moodOf(scene, "golden", "Golden hour");
@@ -20,6 +21,7 @@ describe("moods (ADR-0078)", () => {
 		const night = produce(scene, (s) => {
 			s.lighting.time = 22;
 			s.sky.cloudCover = 0;
+			s.weather.rainAmount = 0;
 			s.camera.tiltShiftOn = false;
 		});
 		expect(wearsMood(night, golden)).toBe(false);
@@ -27,6 +29,7 @@ describe("moods (ADR-0078)", () => {
 		expect(wearsMood(back, golden)).toBe(true);
 		expect(back.lighting.time).toBe(18.3);
 		expect(back.camera.tiltShiftOn).toBe(true);
+		expect(back.weather.rainAmount).toBe(0.4);
 	});
 
 	it("leave the rest of the world alone", () => {

@@ -243,10 +243,37 @@ export interface ISkyLight {
 }
 
 /**
- * The light for a world at `hour` (null = the classic studio daylight), with
- * the world's own overrides on top (sun direction, colour, strength).
+ * The light under an overcast sky (weather, ADR-0102), `overcast` 0–1: the sun
+ * dims and the fill grows, so shadows soften, and the light and the sky behind
+ * the diorama grey, more as it grows. 0 changes nothing.
  */
-export const skyLightAt = (lighting: TLighting, hour: number | null): ISkyLight => {
+export const overcastLight = (light: ISkyLight, overcast: number): ISkyLight =>
+	overcast <= 0
+		? light
+		: {
+				...light,
+				strength: light.strength * (1 - 0.6 * overcast),
+				fill: light.fill * (1 + 0.45 * overcast),
+				color: mixColor(light.color, "#dfe3e8", 0.55 * overcast),
+				tint: mixColor(light.tint, "#c9ced4", 0.6 * overcast),
+				tintAmount: light.tintAmount * (1 - 0.6 * overcast),
+				sky: mixColor(
+					light.sky ?? "#c4cad1",
+					mixColor("#aab2bb", "#1c2028", light.night),
+					0.65 * overcast,
+				),
+			};
+
+/**
+ * The light for a world at `hour` (null = the classic studio daylight), with
+ * the world's own overrides on top (sun direction, colour, strength), under
+ * as much overcast as its weather makes (ADR-0102).
+ */
+export const skyLightAt = (lighting: TLighting, hour: number | null, overcast = 0): ISkyLight =>
+	overcastLight(clearSkyLightAt(lighting, hour), overcast);
+
+/** The light at `hour` with the world's overrides, before any weather. */
+const clearSkyLightAt = (lighting: TLighting, hour: number | null): ISkyLight => {
 	const base: ISkyLight =
 		hour === null
 			? {

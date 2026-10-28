@@ -24,6 +24,8 @@ import { openAreaMenuOnClick } from "./contextMenu";
 import { ReflectiveWaterMaterial } from "./Water";
 
 const NO_SEAMS: [number, number, number, number][] = [];
+/** Materials that the weather's snow and wetness leave alone (render/Weather). */
+const NO_WEATHER = { noWeather: true };
 
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
@@ -209,6 +211,8 @@ export const AreaBody = ({
 						roughness={AREA_TYPES[area.type].roughness}
 						polygonOffset
 						polygonOffsetFactor={-1}
+						// Water takes no snow or wetness (ADR-0102).
+						userData={area.type === "water_01" ? NO_WEATHER : undefined}
 					/>
 				)}
 			</mesh>

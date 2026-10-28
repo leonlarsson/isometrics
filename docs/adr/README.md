@@ -105,3 +105,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0099](0099-label-cards-slide-under-side-panels.md) | Label cards slide under the side panels | proposed |
 | [0100](0100-loading-screen.md) | A loading screen while a world opens | proposed |
 | [0101](0101-area-peaks.md) | Peaks inside areas: round hills and hollows | proposed |
+| [0102](0102-weather.md) | Weather: rain, snow, fog, haze, lightning, and what it does to the ground | proposed |

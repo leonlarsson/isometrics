@@ -70,11 +70,17 @@ export interface ISkyLook {
  * The sky for a world at an hour (null = classic daylight): its colours (set
  * ones by day, darkening at night; else the time of day's), the sun where the light comes from (Sun &
  * sky's direction and height count), the moon and stars as it gets dark, and
- * clouds tinted like the light.
+ * clouds tinted like the light. Weather's overcast (ADR-0102) greys the sky,
+ * hides the sun and stars and gathers more and greyer clouds.
  */
-export const skyLookAt = (lighting: TLighting, sky: TSky, hour: number | null): ISkyLook => {
+export const skyLookAt = (
+	lighting: TLighting,
+	sky: TSky,
+	hour: number | null,
+	overcast = 0,
+): ISkyLook => {
 	const colors = skyColorsAt(hour);
-	const light = skyLightAt(lighting, hour);
+	const light = skyLightAt(lighting, hour, overcast);
 	const sunNow = hour === null ? CLASSIC_SUN : sunPositionAt(hour);
 	const sun = {
 		azimuth: lighting.sunAzimuth ?? sunNow.azimuth,
@@ -85,17 +91,22 @@ export const skyLookAt = (lighting: TLighting, sky: TSky, hour: number | null): 
 	/** A colour set by hand is the sky's by day: it darkens towards the time of day's at night. */
 	const byNight = (set: string | null, fromTime: string) =>
 		set === null ? fromTime : mixColor(set, fromTime, darkness * 0.9);
+	/** A colour greyed by the overcast: towards a grey that darkens with the night. */
+	const greyed = (color: string, grey: string) =>
+		overcast <= 0 ? color : mixColor(color, mixColor(grey, "#1a1e26", darkness), 0.7 * overcast);
+	const cloudColor =
+		sky.cloudColor ??
+		mixColor(mixColor("#ffffff", light.tint, light.tintAmount), "#56608a", darkness * 0.8);
 	return {
-		colorOverhead: byNight(sky.colorOverhead, colors.colorOverhead),
-		colorAtHorizon: byNight(sky.colorAtHorizon, colors.colorAtHorizon),
-		sunDisc: sky.showSun && daylit ? { ...sun, color: light.color } : null,
-		moonDisc: sky.showMoon && darkness > 0.3 ? moonPositionFor(sun.azimuth) : null,
-		starBrightness: sky.starDensity * darkness,
-		cloudCover: sky.cloudCover,
-		// White clouds take on the light's colour, and a moonlit grey-blue at night.
-		cloudColor:
-			sky.cloudColor ??
-			mixColor(mixColor("#ffffff", light.tint, light.tintAmount), "#56608a", darkness * 0.8),
+		colorOverhead: greyed(byNight(sky.colorOverhead, colors.colorOverhead), "#9aa3ad"),
+		colorAtHorizon: greyed(byNight(sky.colorAtHorizon, colors.colorAtHorizon), "#c3c9cf"),
+		sunDisc: sky.showSun && daylit && overcast < 0.6 ? { ...sun, color: light.color } : null,
+		moonDisc:
+			sky.showMoon && darkness > 0.3 && overcast < 0.6 ? moonPositionFor(sun.azimuth) : null,
+		starBrightness: sky.starDensity * darkness * (1 - overcast),
+		cloudCover: Math.max(sky.cloudCover, 0.85 * overcast),
+		// White clouds take on the light's colour, and a moonlit grey-blue at night; greyer overcast.
+		cloudColor: overcast <= 0 ? cloudColor : mixColor(cloudColor, "#8a929c", 0.6 * overcast),
 		cloudSpeed: sky.cloudSpeed,
 	};
 };
@@ -122,13 +133,13 @@ export const backdropBackground = (backdrop: TBackdrop, themeBackground: string)
  * over the theme's background: none at noon, more as the light colours (dawn, golden hour),
  * almost all at dusk and night. Null with the classic daylight, which has no sky colour.
  */
-export const dioramaSkyAt = (lighting: TLighting, hour: number | null) => {
-	const light = skyLightAt(lighting, hour);
+export const dioramaSkyAt = (lighting: TLighting, hour: number | null, overcast = 0) => {
+	const light = skyLightAt(lighting, hour, overcast);
 	if (!light.sky) {
 		return null;
 	}
 	return {
 		color: light.sky,
-		weight: Math.min(0.9, 0.9 * Math.max(light.night, light.tintAmount * 1.2)),
+		weight: Math.min(0.9, 0.9 * Math.max(light.night, light.tintAmount * 1.2, overcast * 0.8)),
 	};
 };

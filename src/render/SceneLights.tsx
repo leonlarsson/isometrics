@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { advanceDayCycle, sceneHoursNow } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { weatherNowInWorld } from "#/editor/weather";
 import { tintColor } from "#/lib/color";
 import type { TLighting, TScene } from "#/scene/schema";
 import { type ISkyLight, skyLightAt, sunAndFillFactors } from "#/scene/sun";
@@ -155,7 +156,8 @@ const SunFollowingTheView = ({
 		if (lighting.timeSource === "cycle" && useEditor.getState().playing) {
 			advanceDayCycle(Math.min(delta, 0.1), lighting);
 		}
-		const sky = skyLightAt(lighting, sceneHoursNow());
+		// Under as much overcast as the weather makes (ADR-0102).
+		const sky = skyLightAt(lighting, sceneHoursNow(), weatherNowInWorld().overcast);
 		lights.sun = light.current;
 		lightFor(lights, sky, palette, lighting.sunShadeContrast);
 		sun.copy(sunDirectionOf(sky));

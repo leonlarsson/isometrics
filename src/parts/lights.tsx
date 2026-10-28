@@ -409,6 +409,23 @@ interface ILitWindowsProps {
  * its own panes' glow, so dark panes show the wall, and the lights turn on,
  * dim and change colour independently.
  */
+/**
+ * Fog for light added on top of what's behind (additive blending): the
+ * light fades out into the fog, rather than turning the fog's colour, which
+ * would add the fog's colour over everything the layer covers (a lit
+ * building's whole face glowed in fog, its dark panes too).
+ */
+const fadeIntoFog = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+	shader.fragmentShader = shader.fragmentShader.replace(
+		"#include <fog_fragment>",
+		THREE.ShaderChunk.fog_fragment.replace(
+			"mix( gl_FragColor.rgb, fogColor, fogFactor )",
+			"gl_FragColor.rgb * ( 1.0 - fogFactor )",
+		),
+	);
+};
+const fadesIntoFog = () => "fadesIntoFog";
+
 export const LitWindows = ({
 	lights,
 	width,
@@ -476,6 +493,8 @@ export const LitWindows = ({
 									transparent
 									blending={THREE.AdditiveBlending}
 									depthWrite={false}
+									onBeforeCompile={fadeIntoFog}
+									customProgramCacheKey={fadesIntoFog}
 								/>
 							</mesh>
 						))}

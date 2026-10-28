@@ -4,8 +4,8 @@ import type { TMood, TScene } from "./schema";
 
 /**
  * Moods (ADR-0078): named looks of a world, a snapshot of what makes its
- * look: the lighting (time of day included), the sky, the water and the
- * tilt-shift. Putting one on copies them back.
+ * look: the lighting (time of day included), the sky, the water, the weather
+ * (ADR-0102) and the tilt-shift. Putting one on copies them back.
  */
 
 /** The world's look now, as a mood called `name`. */
@@ -15,6 +15,7 @@ export const moodOf = (scene: TScene, id: string, name: string): TMood => ({
 	lighting: structuredClone(scene.lighting),
 	sky: structuredClone(scene.sky),
 	water: structuredClone(scene.water),
+	weather: structuredClone(scene.weather),
 	camera: {
 		tiltShiftOn: scene.camera.tiltShiftOn,
 		tiltShiftBlur: scene.camera.tiltShiftBlur,
@@ -23,11 +24,12 @@ export const moodOf = (scene: TScene, id: string, name: string): TMood => ({
 	},
 });
 
-/** Puts `mood` on the world: its lighting, sky, water and tilt-shift. */
+/** Puts `mood` on the world: its lighting, sky, water, weather and tilt-shift. */
 export const putOnMood = (scene: Draft<TScene>, mood: TMood) => {
 	scene.lighting = structuredClone(mood.lighting);
 	scene.sky = structuredClone(mood.sky);
 	scene.water = structuredClone(mood.water);
+	scene.weather = structuredClone(mood.weather);
 	Object.assign(scene.camera, mood.camera);
 };
 
@@ -40,6 +42,7 @@ export const wearsMood = (scene: TScene, mood: TMood) => {
 		sameJson(now.lighting, mood.lighting) &&
 		sameJson(now.sky, mood.sky) &&
 		sameJson(now.water, mood.water) &&
+		sameJson(now.weather, mood.weather) &&
 		sameJson(now.camera, mood.camera)
 	);
 };

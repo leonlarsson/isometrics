@@ -172,6 +172,16 @@ export const RoadBody = ({
 		[center, road.loops, road.supports, road.pillarSpacing, hidden],
 	);
 
+	// A road with traffic keeps clearer of snow (ADR-0102): its share, a uniform the shading reads.
+	const used = useEditor((s) =>
+		s.scene.entities.some((entity) => entity.follow?.roadId === road.id && !entity.hidden),
+	);
+	const snowFactor = useMemo(() => ({ value: 1 }), []);
+	const snowShare = useMemo(() => ({ snowFactor }), [snowFactor]);
+	useLayoutEffect(() => {
+		snowFactor.value = used ? USED_ROAD_SNOW : 1;
+	}, [used, snowFactor]);
+
 	const outline = useMemo(() => {
 		const pts = center.map(([x, z, h]) => [x, y + h + 0.03, z] as [number, number, number]);
 		if (road.loops && pts.length > 2) {
@@ -191,13 +201,17 @@ export const RoadBody = ({
 					// Invisible but still clickable, so hidden routes can be selected while editing.
 					<meshBasicMaterial transparent opacity={0} depthWrite={false} />
 				) : (
-					<meshStandardMaterial color={roadColor(road, palette)} roughness={0.95} />
+					<meshStandardMaterial
+						color={roadColor(road, palette)}
+						roughness={0.95}
+						userData={snowShare}
+					/>
 				)}
 			</mesh>
 
 			{ROAD_STYLES[road.style].centreLine && road.showMarkings && (
 				<mesh geometry={markings} receiveShadow>
-					<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
+					<meshStandardMaterial color={palette.roadMark} roughness={0.9} userData={snowShare} />
 				</mesh>
 			)}
 
@@ -262,6 +276,9 @@ interface IRoadMeshProps {
 	/** Draw order among roads; later roads sit on top at junctions. */
 	layer: number;
 }
+
+/** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
+const USED_ROAD_SNOW = 0.08;
 
 export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const palette = usePalette();

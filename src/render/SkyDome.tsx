@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { useOvercast } from "#/editor/weather";
 import { skyLookAt } from "#/scene/sky";
 
 import { directionOf } from "./viewpoints";
@@ -123,7 +124,7 @@ export const SkyDome = () => {
 	useEffect(() => () => material.dispose(), [material]);
 	const { uniforms } = material;
 
-	const look = skyLookAt(lighting, sky, hour);
+	const look = skyLookAt(lighting, sky, hour, useOvercast());
 	uniforms.colorOverhead.value.set(look.colorOverhead);
 	uniforms.colorAtHorizon.value.set(look.colorAtHorizon);
 	uniforms.showSun.value = look.sunDisc ? 1 : 0;

@@ -45,6 +45,7 @@ import {
 	type TArea,
 	type TAreaInput,
 	type TAreaType,
+	type TDataBinding,
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
@@ -82,6 +83,7 @@ export type TWorldTab =
 	| "moods"
 	| "light"
 	| "sky"
+	| "weather"
 	| "camera"
 	| "views"
 	| "traffic"
@@ -833,9 +835,32 @@ export const renameEntity = (entity: Pick<TEntity, "name" | "label">, name: stri
 	entity.name = name;
 };
 
+/** A map of settings that follow data values: the ones following `from` follow `to`, or stop. */
+const renameBindings = (
+	bindings: Record<string, TDataBinding>,
+	from: string,
+	to: string | null,
+) => {
+	for (const [setting, binding] of Object.entries(bindings)) {
+		if (binding.key !== from) {
+			continue;
+		}
+		if (to) {
+			binding.key = to;
+		} else {
+			delete bindings[setting];
+		}
+	}
+};
+
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
+	// The weather's settings that follow data (ADR-0102), its moods' too.
+	renameBindings(scene.weather.data, from, to);
+	for (const mood of scene.moods) {
+		renameBindings(mood.weather.data, from, to);
+	}
 	for (const entity of scene.entities) {
 		if (entity.label) {
 			entity.label.dataKeys = swap(entity.label.dataKeys);
@@ -848,16 +873,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 		}
 		// Settings that follow the value (lights, colours): renamed with it, or no longer following data.
 		for (const bindings of bindingMapsOf(entity)) {
-			for (const [setting, binding] of Object.entries(bindings)) {
-				if (binding.key !== from) {
-					continue;
-				}
-				if (to) {
-					binding.key = to;
-				} else {
-					delete bindings[setting];
-				}
-			}
+			renameBindings(bindings, from, to);
 		}
 		// Nothing left that differs from the part: no entry at all.
 		if (typeof entity.lights === "object") {

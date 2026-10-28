@@ -29,6 +29,7 @@ import { RailTabPanel, RailTabs } from "./RailTabs";
 import { roadTabs } from "./RoadInspector";
 import { SkyWaterTab } from "./SkySettings";
 import { ViewpointsSection } from "./ViewpointsSection";
+import { WeatherTab } from "./WeatherTab";
 import { TrafficTab, WorldTab } from "./WorldTabs";
 
 import styles from "./Inspector.module.css";
@@ -39,6 +40,7 @@ const WORLD_TABS: IInspectorTab[] = [
 	{ value: "moods", label: "Moods", icon: "palette", content: <MoodsSection /> },
 	{ value: "light", label: "Time & light", icon: "sun", content: <LightTab /> },
 	{ value: "sky", label: "Sky & water", icon: "cloud", content: <SkyWaterTab /> },
+	{ value: "weather", label: "Weather", icon: "rain", content: <WeatherTab /> },
 	{ value: "camera", label: "Camera", icon: "video", content: <CameraTab /> },
 	{ value: "views", label: "Viewpoints", icon: "camera", content: <ViewpointsSection /> },
 	{ value: "traffic", label: "Traffic", icon: "traffic", content: <TrafficTab /> },
