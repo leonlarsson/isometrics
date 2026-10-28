@@ -8,6 +8,7 @@ import type { TEntityColorChange, TEntityLightChange } from "#/scene/objectSetti
 import type { TDataEntry, TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+import { ChipGroup } from "./ChipGroup";
 import { DataDrivenField } from "./DataDrivenField";
 import {
 	ColorField,
@@ -93,16 +94,31 @@ export const PropField = ({
 	switch (spec.type) {
 		case "number":
 			return (
-				<SliderField
-					label={spec.label}
-					value={Number(value)}
-					min={spec.min}
-					max={spec.max}
-					step={spec.step}
-					onChange={onChange}
-					mixed={mixed}
-					hint={hint}
-				/>
+				<>
+					<SliderField
+						label={spec.label}
+						value={Number(value)}
+						min={spec.min}
+						max={spec.max}
+						step={spec.step}
+						onChange={onChange}
+						mixed={mixed}
+						hint={hint}
+					/>
+
+					{spec.presets && (
+						<ChipGroup
+							label={`${spec.label}: presets`}
+							size="sm"
+							value={mixed ? "" : String(value)}
+							onChange={(next) => onChange(Number(next))}
+							chips={spec.presets.map((preset) => ({
+								value: String(preset.value),
+								label: preset.label,
+							}))}
+						/>
+					)}
+				</>
 			);
 		case "boolean":
 			return (

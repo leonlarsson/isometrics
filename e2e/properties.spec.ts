@@ -40,6 +40,26 @@ test.describe("the properties editor (ADR-0054)", () => {
 		expect((await entity(page, "a"))?.rotation).toBe(0);
 	});
 
+	test("a length's presets set it in one click, the chosen one showing (shipping container)", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			entities: [{ id: "box", kind: "shipping_container_01", name: "Box", position: [0, 0] }],
+		});
+		await act(page, (s) => s.select("box"));
+		await tab(page, "Shape").click();
+		const presets = page.getByRole("group", { name: "Length: presets" });
+		await expect(presets.getByRole("button", { name: "Standard" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await presets.getByRole("button", { name: "Long", exact: true }).click();
+		expect((await entity(page, "box"))?.props.length).toBe(3.1);
+		await box(page, "Length").fill("2");
+		await box(page, "Length").press("Enter");
+		expect((await entity(page, "box"))?.props.length).toBe(2);
+	});
+
 	test("with nothing selected, the world's tabs show", async ({ page }) => {
 		await act(page, (s) => s.clearSelection());
 		await tab(page, "World").click();

@@ -154,6 +154,11 @@ export type TFieldSpec<K extends string = string> =
 			min: number;
 			max: number;
 			step: number;
+			/**
+			 * Values worth one click, shown as chips under the slider (the chip of
+			 * the value it has looks chosen), e.g. standard container lengths.
+			 */
+			presets?: { label: string; value: number }[];
 	  }
 	| { key: K; label: string; type: "boolean" }
 	| { key: K; label: string; type: "text"; placeholder?: string }
