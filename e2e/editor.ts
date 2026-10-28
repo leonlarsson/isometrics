@@ -13,10 +13,12 @@ import type { TArea, TEntity, TRoad, TViewPose } from "#/scene/schema";
 
 declare global {
 	var __editorStore: typeof useEditor;
-	/** Development only (render/PointerSpot): where a world point is on screen. */
+	/** Development only (render/PointerSpot): where a world point is on screen, the camera, draws. */
 	var __editorView: {
 		screenOf: (point: [number, number, number]) => { x: number; y: number };
 		pose: () => TViewPose | null;
+		/** Draw calls per frame (every render pass), averaged over `frames` frames. */
+		drawCalls: (frames?: number) => Promise<number>;
 	};
 }
 

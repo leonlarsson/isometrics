@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { pointerSpot } from "#/editor/pointerSpot";
 import type { TViewPose } from "#/scene/schema";
 
+import { drawCallsPerFrame } from "./drawCalls";
 import { currentView } from "./viewpoints";
 
 const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -20,6 +21,7 @@ const projected = new THREE.Vector3();
  */
 export const PointerSpot = () => {
 	const camera = useThree((s) => s.camera);
+	const gl = useThree((s) => s.gl);
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
@@ -49,11 +51,13 @@ export const PointerSpot = () => {
 		};
 		window.addEventListener("pointermove", onMove);
 		// Development: where a point in the world is on screen (client px), for the end-to-end tests
-		// to click handles and objects exactly, and where the camera is (e2e/, ADR-0069).
+		// to click handles and objects exactly, where the camera is (e2e/, ADR-0069), and how many
+		// draw calls a frame takes (PERFORMANCE.md).
 		const holder = globalThis as {
 			__editorView?: {
 				screenOf: (point: [number, number, number]) => { x: number; y: number };
 				pose: () => TViewPose | null;
+				drawCalls: (frames?: number) => Promise<number>;
 			};
 		};
 		if (import.meta.env.DEV) {
@@ -68,6 +72,8 @@ export const PointerSpot = () => {
 				},
 				// The camera as it is now (target, angles, span, projection), glides included.
 				pose: () => currentView.read?.() ?? null,
+				// Draw calls per frame, every pass's, averaged over some frames.
+				drawCalls: (frames) => drawCallsPerFrame(gl.getContext() as WebGL2RenderingContext, frames),
 			};
 		}
 		return () => {
@@ -75,7 +81,7 @@ export const PointerSpot = () => {
 			pointerSpot.read = null;
 			delete holder.__editorView;
 		};
-	}, [camera, element]);
+	}, [camera, element, gl]);
 
 	return null;
 };
