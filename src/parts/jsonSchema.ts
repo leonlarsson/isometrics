@@ -74,7 +74,11 @@ const describeLight = (light: ILightSpec) =>
 			? `weight ${light.weight ?? 1} (its part of the panes, against its other window lights')`
 			: "",
 		light.description ? `“${light.description}”` : "",
-		light.when === "driving" ? "on after dark only while driving" : "on after dark",
+		{
+			dark: "on after dark",
+			driving: "on after dark only while driving",
+			always: "on day and night",
+		}[light.when ?? "dark"],
 		`comes on ${{ atOnce: "at once", oneByOne: "one pane at a time", gradually: "gradually" }[light.comesOn ?? "atOnce"]}`,
 	]
 		.filter(Boolean)

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DataBindingSchema, EntityLightSchema, type TEntityLight } from "#/scene/schema";
 import { scenePalettes } from "#/scene/theme";
 
-import { type IPartLights, resolveLights } from "./lightModel";
+import { DAYLIGHT_LEVEL, type IPartLights, resolveLights } from "./lightModel";
 
 const night = { ...scenePalettes.light, night: 1 };
 const day = { ...scenePalettes.light, night: 0 };
@@ -82,6 +82,19 @@ describe("resolveLights (ADR-0058)", () => {
 			weight: 1,
 		});
 		expect(lights.rain.on).toBe(false);
+	});
+
+	it("keeps lights that are always on lit by day, dimmer, and glowing fully after dark", () => {
+		const signal: IPartLights = {
+			lights: [{ id: "red", name: "Red", shape: "lens", when: "always", strength: 2 }],
+		};
+		expect(resolveLights(signal, entity(), { palette: day, driving: false }).red).toMatchObject({
+			on: true,
+			level: 2 * DAYLIGHT_LEVEL,
+		});
+		expect(resolveLights(signal, entity(), { palette: night, driving: false }).red.level).toBe(2);
+		const off = entity({ red: setting({ whenOn: "off" }) });
+		expect(resolveLights(signal, off, { palette: night, driving: false }).red.on).toBe(false);
 	});
 
 	it("reads the one setting older worlds had for all of an object's lights", () => {

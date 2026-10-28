@@ -10,9 +10,10 @@ import { usePreferences } from "#/editor/preferences";
 import { drawnModeOf, includesItem, isToggleClick, useEditor } from "#/editor/store";
 import { useEntity } from "#/editor/useEntity";
 import { usePalette } from "#/editor/useTheme";
-import { getPart } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
 import type { TEntity, TScene } from "#/scene/schema";
+import { sunAt } from "#/scene/sun";
 
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
@@ -101,12 +102,26 @@ const followsData = (entity: TEntity) =>
 	(getPart(entity.kind)?.fields.some((field) => field.type === "dataKey") ?? false) ||
 	usesDataBindings(entity);
 
+/** Whether an object turns with the sun (solar panels tracking it): those follow the hour too. */
+const followsTheSun = (entity: TEntity) => {
+	const part = getPart(entity.kind);
+	return part?.followsTheSun?.(resolveProps(part, entity.props)) ?? false;
+};
+
 type TEntityNodeProps = Parameters<typeof EntityNode>[0];
 
 /** An object with a light on a schedule: it alone follows the world's hour, which steps often. */
 const EntityWithHour = (props: Omit<TEntityNodeProps, "hour">) => (
 	<EntityNode {...props} hour={useSceneHours()} />
 );
+
+/** An object that turns with the sun: the hour, and where the sun is at it. */
+const EntityWithSun = (props: Omit<TEntityNodeProps, "hour" | "sun">) => {
+	const hour = useSceneHours();
+	const sunAzimuth = useEditor((s) => s.scene.lighting.sunAzimuth);
+	const sunElevation = useEditor((s) => s.scene.lighting.sunElevation);
+	return <EntityNode {...props} hour={hour} sun={sunAt({ sunAzimuth, sunElevation }, hour)} />;
+};
 
 /**
  * One object: drawn again when it changes, and otherwise only when something that concerns it
@@ -119,7 +134,11 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 		return null;
 	}
 	const roadId = entity.follow?.roadId;
-	const Node = followsTheHour(entity) ? EntityWithHour : EntityNode;
+	const Node = followsTheSun(entity)
+		? EntityWithSun
+		: followsTheHour(entity)
+			? EntityWithHour
+			: EntityNode;
 	return (
 		<Node
 			entity={entity}

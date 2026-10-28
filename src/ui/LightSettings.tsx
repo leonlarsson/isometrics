@@ -154,7 +154,7 @@ export const LightSettings = ({
 	const needsData = hasData ? "" : " (no values yet)";
 
 	const turnsOnLabels: Record<TTurnsOn, string> = {
-		auto: "After dark",
+		auto: spec.when === "always" ? "Day and night" : "After dark",
 		on: "Always",
 		off: "Never",
 		schedule: "On a schedule",
@@ -216,15 +216,19 @@ export const LightSettings = ({
 					hint={
 						turnsOn === "auto" && spec.when === "driving"
 							? "Only while it drives along a road, like real headlights."
-							: turnsOn === "on"
-								? spec.when === "driving"
-									? "Day and night, even parked."
-									: "Day and night."
-								: undefined
+							: turnsOn === "auto" && spec.when === "always"
+								? "Like a traffic signal: lit by day, glowing after dark."
+								: turnsOn === "on"
+									? spec.when === "driving"
+										? "Day and night, even parked."
+										: spec.when === "always"
+											? "Glowing fully, by day too."
+											: "Day and night."
+									: undefined
 					}
 				/>
 
-				{(turnsOn === "auto" || turnsOn === "schedule") && (
+				{((turnsOn === "auto" && spec.when !== "always") || turnsOn === "schedule") && (
 					<SelectField<TComesOn>
 						label="Comes on"
 						value={comesOn}

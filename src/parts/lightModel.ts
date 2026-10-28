@@ -44,6 +44,13 @@ export interface ILightContext {
  */
 export const SWITCH_ON_DARKNESS = 0.3;
 
+/**
+ * Lights on day and night by themselves (`when: "always"`, a traffic signal):
+ * how bright they are by day, as a part of their strength; fully after dark.
+ * Lit in the sun, but not glowing in it.
+ */
+export const DAYLIGHT_LEVEL = 0.2;
+
 /** On a schedule, one by one or gradually: how long it takes to come fully on, and to go off, in hours. */
 const SCHEDULE_RAMP_HOURS = 1;
 
@@ -182,6 +189,9 @@ export const resolveLight = (
 					level = litPanes > 0 ? strength : 0;
 				}
 			}
+		} else if (spec.when === "always") {
+			// Day and night, glowing as it gets dark.
+			level = strength * (DAYLIGHT_LEVEL + (1 - DAYLIGHT_LEVEL) * palette.night);
 		} else if (spec.when === "driving" && !driving) {
 			level = 0;
 		} else if (comesOnOf(spec, setting) === "gradually") {

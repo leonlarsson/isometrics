@@ -97,3 +97,5 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0091](0091-painting-objects.md) | Painting objects with a brush | accepted |
 | [0092](0092-big-worlds-stay-fast.md) | Big worlds stay fast: what doesn't change costs nothing | accepted |
 | [0093](0093-react-compiler.md) | The React Compiler memoises components | accepted |
+| [0094](0094-lights-on-day-and-night.md) | Lights on day and night: traffic signals | proposed |
+| [0095](0095-parts-that-follow-the-sun.md) | Parts that follow the sun | proposed |

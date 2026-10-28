@@ -15,6 +15,7 @@ import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
 import type { TEntity, TRoad, TScene, TVec2 } from "#/scene/schema";
+import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
 import { BoatWake } from "./BoatWake";
@@ -133,8 +134,10 @@ export interface IEntityNodeProps {
 	road: TRoad | null;
 	/** The world's data, for objects that show values or follow them; otherwise undefined. */
 	data: TScene["data"] | undefined;
-	/** The world's hour, for objects with a light on a schedule; otherwise null. */
+	/** The world's hour, for objects with a light on a schedule or that follow the sun; otherwise null. */
 	hour: number | null;
+	/** Where the sun is now, for objects that follow it (a part's `followsTheSun`); otherwise undefined. */
+	sun?: ISunPosition;
 	/** Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064). */
 	selected: boolean;
 	alone: boolean;
@@ -150,7 +153,18 @@ export interface IEntityNodeProps {
  * renders only the objects it concerns, not thousands of subscriptions (ADR-0092).
  */
 export const EntityNode = memo(
-	({ entity, world, road, data, hour, selected, alone, boxed, listHovered }: IEntityNodeProps) => {
+	({
+		entity,
+		world,
+		road,
+		data,
+		hour,
+		sun,
+		selected,
+		alone,
+		boxed,
+		listHovered,
+	}: IEntityNodeProps) => {
 		const part = getPart(entity.kind);
 		const {
 			mode,
@@ -519,6 +533,7 @@ export const EntityNode = memo(
 								playing={playing}
 								lights={lights}
 								data={data}
+								sun={sun}
 							/>
 						</group>
 

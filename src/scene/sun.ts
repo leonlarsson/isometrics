@@ -25,6 +25,12 @@ const MOON_COLOR = "#9fb3ff";
 /** The classic studio daylight (no time of day): the sun as it always was. */
 export const CLASSIC_SUN = { azimuth: 326.3, elevation: 58.9 };
 
+/** Where the sun is in the sky, in degrees: below the horizon (elevation under 0) at night. */
+export interface ISunPosition {
+	azimuth: number;
+	elevation: number;
+}
+
 interface IKey {
 	hour: number;
 	/** Colour and strength (1 = full daylight) of the sun, or the moon at night. */
@@ -204,6 +210,18 @@ export const sunPositionAt = (hour: number) => {
 	return {
 		azimuth: 180 - 180 * night,
 		elevation: -MAX_ELEVATION * Math.sin(Math.PI * night),
+	};
+};
+
+/** Where the sun is in a world at `hour` (null = the classic studio daylight), with the world's own direction for it. */
+export const sunAt = (
+	lighting: Pick<TLighting, "sunAzimuth" | "sunElevation">,
+	hour: number | null,
+): ISunPosition => {
+	const base = hour === null ? CLASSIC_SUN : sunPositionAt(hour);
+	return {
+		azimuth: lighting.sunAzimuth ?? base.azimuth,
+		elevation: lighting.sunElevation ?? base.elevation,
 	};
 };
 

@@ -11,6 +11,7 @@ import {
 	SUNSET,
 	skyLightAt,
 	sunAndFillFactors,
+	sunAt,
 	sunPositionAt,
 } from "./sun";
 
@@ -25,6 +26,15 @@ describe("sun", () => {
 		expect(noon.azimuth).toBeCloseTo(270, 5);
 		expect(sunPositionAt(SUNSET).azimuth).toBeCloseTo(180, 5);
 		expect(sunPositionAt(1).elevation).toBeLessThan(0);
+	});
+
+	it("says where the sun is for things that follow it: below at night, and as the world sets it", () => {
+		expect(sunAt(lighting, null)).toEqual(CLASSIC_SUN);
+		expect(sunAt(lighting, 1).elevation).toBeLessThan(0);
+		expect(sunAt({ ...lighting, sunElevation: 20 }, 12)).toEqual({
+			azimuth: sunPositionAt(12).azimuth,
+			elevation: 20,
+		});
 	});
 
 	it("keeps the classic daylight without a time of day", () => {

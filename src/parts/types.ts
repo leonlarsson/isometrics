@@ -2,6 +2,7 @@ import type { FC } from "react";
 import type { z } from "zod";
 
 import type { TComesOn, TDataEntry } from "#/scene/schema";
+import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
 /**
@@ -58,8 +59,12 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	 * lights: pane after pane as it gets darker) or "gradually" (fading in).
 	 */
 	comesOn?: TComesOn;
-	/** When it's on by itself: "dark" (the default) after dark; "driving" after dark while it drives along a road. */
-	when?: "dark" | "driving";
+	/**
+	 * When it's on by itself: "dark" (the default) after dark; "driving" after
+	 * dark while it drives along a road; "always" day and night (a traffic
+	 * signal), dimmer by day so it doesn't glow in the sun.
+	 */
+	when?: "dark" | "driving" | "always";
 	/**
 	 * Settings older worlds kept elsewhere (props, the accent colour) before this
 	 * light had its own, used while the object's setting for it is unset.
@@ -181,6 +186,8 @@ export interface IPartRenderProps<P, C extends string = string> {
 	lights: Record<string, IResolvedLight>;
 	/** The world's data, for parts that show values (absent in previews and thumbnails). */
 	data?: TDataEntry[];
+	/** Where the sun is now, for parts that follow it (`followsTheSun`); undefined otherwise. */
+	sun?: ISunPosition;
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */
 	onReady?: () => void;
 }
@@ -268,6 +275,13 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * stand still are only placed when they change. A test checks parts using useFrame say so.
 	 */
 	movesOnItsOwn?: boolean;
+	/**
+	 * It turns with the sun (solar panels that track it), when this says so for
+	 * its props: it gets `sun` in its render props and draws again as the
+	 * world's hour moves on. Only such objects follow the hour, so it costs
+	 * nothing for the rest.
+	 */
+	followsTheSun?: (props: P) => boolean;
 	Component: FC<IPartRenderProps<P, C>>;
 }
 
