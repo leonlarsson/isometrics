@@ -40,9 +40,14 @@ export const openEditor = async (page: Page, path = "/") => {
 	await page.goto(path);
 	await page.locator("canvas").waitFor();
 	await page.waitForFunction(() => Boolean(globalThis.__editorStore));
+	await worldShown(page);
 	// The label cards are placed once the world has been drawn.
 	await page.waitForTimeout(1500);
 };
+
+/** Until the loading screen has gone: the world is ready to look at (ADR-0100). */
+export const worldShown = (page: Page) =>
+	page.locator("[data-loading-screen]").waitFor({ state: "detached", timeout: 20_000 });
 
 /** Read something from the editor's state. */
 export const read = <T>(page: Page, pick: (state: IEditorState) => T) =>
@@ -120,6 +125,7 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 		})) as typeof scene.areas;
 		state.loadScene(scene);
 	}, world);
+	await worldShown(page);
 	await page.waitForTimeout(300);
 };
 

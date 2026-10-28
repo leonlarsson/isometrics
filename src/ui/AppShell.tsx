@@ -27,6 +27,7 @@ import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
 import { LabelLayer } from "./LabelLayer";
+import { LoadingScreen } from "./LoadingScreen";
 import { NavigationGizmo } from "./NavigationGizmo";
 import { Outliner } from "./Outliner";
 import { PaintBar } from "./PaintBar";
@@ -316,6 +317,9 @@ export const AppShell = () => {
 							{ready && <NavigationGizmo />}
 
 							{ready && <LabelLayer />}
+
+							{/* Until the world is ready to look at (ADR-0100). */}
+							<LoadingScreen starting={!ready} />
 
 							<DrawingBar />
 

@@ -1,0 +1,211 @@
+/* Over the view, in the world's own sky (the stage's background), never taking the pointer. */
+.screen {
+	position: absolute;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+	background: inherit;
+	pointer-events: none;
+	opacity: 1;
+	transition: opacity 450ms ease;
+}
+
+.screen[data-phase="leaving"] {
+	opacity: 0;
+}
+
+.content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	max-width: min(440px, 100%);
+	padding: 28px 36px 26px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-panel);
+	text-align: center;
+	animation: rise 500ms ease both;
+}
+
+.title {
+	margin: 14px 0 0;
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+	color: var(--text);
+	overflow-wrap: anywhere;
+}
+
+.subtitle {
+	margin: 0;
+	font-size: 15px;
+	color: var(--text-muted);
+}
+
+.status {
+	display: grid;
+	margin: 12px 0 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+/* Its two lines in one cell: the widest sets the card's width, the other is there but unseen. */
+.status > span {
+	grid-area: 1 / 1;
+	opacity: 0;
+	transition: opacity 250ms ease;
+}
+
+.status > span[data-shown] {
+	opacity: 1;
+}
+
+/* A thin bar with a light running along it: busy, without pretending to know how far. */
+.progress {
+	position: relative;
+	width: 180px;
+	height: 3px;
+	margin-top: 10px;
+	overflow: hidden;
+	border-radius: 3px;
+	background: var(--surface-sunken);
+}
+
+.progress::after {
+	content: "";
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: 40%;
+	border-radius: inherit;
+	background: var(--accent);
+	animation: run 1.4s ease-in-out infinite;
+}
+
+/* The stack: three blocks at the isometric angle, dropping onto each other in turn, then fading. */
+.stack {
+	width: 44px;
+	height: auto;
+	overflow: visible;
+}
+
+.block {
+	--face: var(--brand-blue);
+	--size: 26px;
+	animation: drop 2.8s cubic-bezier(0.3, 0.7, 0.4, 1) infinite both;
+	animation-delay: calc(var(--level) * 0.28s);
+}
+
+.block[data-block="middle"] {
+	--face: var(--accent);
+}
+
+.block[data-block="roof"] {
+	--face: color-mix(in srgb, var(--text-muted) 45%, var(--surface-raised));
+}
+
+.top {
+	fill: color-mix(in srgb, var(--face), white 22%);
+}
+
+.left {
+	fill: var(--face);
+}
+
+.right {
+	fill: color-mix(in srgb, var(--face), black 22%);
+}
+
+/* The finish: the stack stands complete with a little settle, one block after another, and the bar fills. */
+.screen:is([data-phase="finishing"], [data-phase="leaving"]) .block {
+	animation: settle 380ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+	animation-delay: calc(var(--level) * 70ms);
+}
+
+.screen:is([data-phase="finishing"], [data-phase="leaving"]) .progress::after {
+	width: 100%;
+	translate: 0 0;
+	animation: none;
+	transition: width 300ms ease;
+}
+
+.screen:is([data-phase="finishing"], [data-phase="leaving"]) .status {
+	color: var(--text);
+}
+
+@keyframes settle {
+	0% {
+		opacity: 1;
+		translate: 0 -5px;
+	}
+	100% {
+		opacity: 1;
+		translate: 0 0;
+	}
+}
+
+@keyframes drop {
+	0% {
+		opacity: 0;
+		translate: 0 calc(var(--size) * -1.4);
+	}
+	14% {
+		opacity: 1;
+		translate: 0 0;
+	}
+	78% {
+		opacity: 1;
+		translate: 0 0;
+	}
+	92%,
+	100% {
+		opacity: 0;
+		translate: 0 0;
+	}
+}
+
+@keyframes run {
+	0% {
+		translate: -100% 0;
+	}
+	100% {
+		translate: 250% 0;
+	}
+}
+
+@keyframes rise {
+	from {
+		opacity: 0;
+		translate: 0 8px;
+	}
+	to {
+		opacity: 1;
+		translate: 0 0;
+	}
+}
+
+/* Without motion: the stack stands still and the bar breathes. */
+@media (prefers-reduced-motion: reduce) {
+	.block,
+	.content {
+		animation: none;
+	}
+
+	.progress::after {
+		width: 100%;
+		animation: breathe 1.6s ease-in-out infinite alternate;
+	}
+
+	@keyframes breathe {
+		from {
+			opacity: 0.35;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+}

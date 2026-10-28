@@ -55,6 +55,7 @@ import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
 import { WakeFieldStep } from "./WakeField";
 import { Wireframe } from "./Wireframe";
+import { WorldReady } from "./WorldReady";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
 const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
@@ -342,6 +343,9 @@ export const Viewport = () => {
 			<TrafficStep />
 
 			<StillRender />
+
+			{/* After the world's objects, so its effect runs once they're mounted (ADR-0100). */}
+			<WorldReady waitsForEffects={composed} />
 
 			<CameraFollow />
 

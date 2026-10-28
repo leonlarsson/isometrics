@@ -103,3 +103,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0097](0097-rotation-in-three-axes.md) | Objects turn in all three axes, and go below the ground | proposed |
 | [0098](0098-objects-stand-on-the-ground.md) | Objects stand on the ground under them | proposed |
 | [0099](0099-label-cards-slide-under-side-panels.md) | Label cards slide under the side panels | proposed |
+| [0100](0100-loading-screen.md) | A loading screen while a world opens | proposed |

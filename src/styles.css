@@ -29,6 +29,8 @@
 	--success: #2f9a58;
 	/* Behind pictures of parts at night (the parts catalogue), in both themes: a night sky. */
 	--picture-night: #1f2647;
+	/* The logo's blue, under its orange (the toolbar's mark, the loading screen's blocks). */
+	--brand-blue: #3d4fd6;
 
 	--radius-sm: 8px;
 	--radius-md: 12px;

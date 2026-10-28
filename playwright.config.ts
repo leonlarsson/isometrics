@@ -22,6 +22,8 @@ export default defineConfig({
 		viewport: { width: 1280, height: 800 },
 		trace: "retain-on-failure",
 		screenshot: "only-on-failure",
+		// Less motion: the loading screen goes as soon as a world is ready, without its finish (ADR-0100).
+		reducedMotion: "reduce",
 	},
 	projects: [
 		{

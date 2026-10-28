@@ -262,6 +262,12 @@ export interface IEditorState {
 	mode: TEditorMode;
 	tab: TInspectorTab;
 	dragging: boolean;
+	/**
+	 * A world being opened (at start, or loaded): which opening, until the view
+	 * has it ready to look at (render/WorldReady), and the loading screen covers
+	 * it till then; null once it's shown. Runtime only.
+	 */
+	openingWorld: number | null;
 	snapping: boolean;
 	playing: boolean;
 	/** How the camera shows the world: orthographic (the isometric diorama) or perspective. Runtime UI state. */
@@ -390,6 +396,8 @@ export interface IEditorState {
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
 	setDragging: (dragging: boolean) => void;
+	/** The view has this opening of a world ready to look at: the loading screen goes. */
+	worldShown: (opening: number) => void;
 	startPlacing: (kind: string) => void;
 	stopPlacing: () => void;
 	startTransform: (
@@ -876,6 +884,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			mode: "edit",
 			tab: "world",
 			dragging: false,
+			openingWorld: 1,
 			snapping: true,
 			playing: true,
 			projection: "orthographic",
@@ -937,7 +946,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			loadScene: (scene) => {
 				warnAboutUnknownParts(scene);
-				set({
+				set((state) => ({
+					// The loading screen covers it until the view has it ready (ADR-0100).
+					openingWorld: (state.openingWorld ?? 0) + 1,
 					scene,
 					past: [],
 					future: [],
@@ -949,7 +960,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					activeViewpointId: null,
 					flight: null,
 					cameraFollow: null,
-				});
+				}));
 			},
 
 			undo: () =>
@@ -1296,6 +1307,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				}),
 			setTab: (tab) => set({ tab }),
 			setDragging: (dragging) => set({ dragging }),
+			worldShown: (opening) =>
+				set((state) => (state.openingWorld === opening ? { openingWorld: null } : state)),
 			startPlacing: (kind) => set({ placingKind: kind, drawing: null, followOffer: null }),
 			stopPlacing: () => set({ placingKind: null }),
 			startTransform: (mode, session) =>
