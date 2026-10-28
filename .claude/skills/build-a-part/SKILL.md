@@ -38,7 +38,7 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
 ## 4. Geometry gotchas
 
 - **Draw with three's own shapes** (box, cylinder, cone, sphere, icosahedron, torus) so copies are drawn together (ADR-0086). A hand-built geometry gets a key with `shareGeometryAs(geometry, "shape:params")`.
-- **`useFrame`:** a mesh whose material or geometry you change each frame needs `userData={{ notInstanced: true }}` (a test checks the file mentions it; if only its turn or position changes, say so in a comment instead, as the lighthouse beam does).
+- **`useFrame`:** a mesh whose material or geometry you change each frame needs `userData={{ notInstanced: true }}` (a test checks the file mentions it; if only its turn or position changes, say so in a comment instead, as the lighthouse beam does). And the part says `movesOnItsOwn: true`: objects that stand still work out their matrices once, not every frame, so anything it turns or moves would freeze (ADR-0092; a test checks this too).
 - **Don't mix material looks under one key:** a `wireframe` material can batch with a solid one of the same colour. Avoid wireframes; build railings from posts and a rail.
 - **Faces in the same plane flicker:** a log's cut ends exactly on the bark's ends, a door exactly on a wall. Offset by a hair (0.003–0.02).
 - **Flat shapes are seen from the front only:** `ShapeGeometry` triangles (a greenhouse gable, a sail) and open-ended cylinders (a railing band) vanish from behind. Use `side={THREE.DoubleSide}` for single sheets (sails, gables), or build closed shapes.

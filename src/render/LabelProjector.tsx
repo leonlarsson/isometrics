@@ -100,6 +100,10 @@ export const LabelProjector = () => {
 	// The frame's own size, not one from the last render: a frame can be drawn right after a resize
 	// (InstantResize), before React has re-rendered.
 	useFrame(({ clock, size }, delta) => {
+		// No cards, nothing to lay out: skip reading the page's layout every frame for nothing.
+		if (labelElements.size === 0) {
+			return;
+		}
 		const now = clock.elapsedTime;
 		// Read everything first (sizes, obstacles), then write, so the browser never lays out mid-frame.
 		const canvas = gl.domElement.getBoundingClientRect();

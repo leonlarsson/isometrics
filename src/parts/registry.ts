@@ -136,8 +136,11 @@ export const PARTS: TAnyPart[] = [
 const byKind = new Map(PARTS.map((part) => [part.kind, part]));
 const KINDS = PARTS.map((part) => part.kind);
 
+const partNames = new Map(PARTS.map((part) => [part, variantName(part.kind, part.name, KINDS)]));
+
 /** What to call a part: "Office tower", or "Office tower 2" once its family has several variants. */
-export const partName = (part: TAnyPart) => variantName(part.kind, part.name, KINDS);
+export const partName = (part: TAnyPart) =>
+	partNames.get(part) ?? variantName(part.kind, part.name, KINDS);
 
 /** The same for a kind; undefined if no part has it. */
 export const partNameOf = (kind: string) => {

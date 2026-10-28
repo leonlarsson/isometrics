@@ -8,5 +8,8 @@
 
   "observability": {
     "enabled": true
-  }
+  },
+
+  // Pull requests get a preview build (wrangler preview); its settings follow the top level.
+  "previews": {}
 }

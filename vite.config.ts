@@ -1,6 +1,7 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
+import babel from "@rolldown/plugin-babel";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const config = defineConfig({
@@ -10,6 +11,8 @@ const config = defineConfig({
 
 		tanstackStart(),
 		viteReact(),
+		// React Compiler: components and hooks memoised for us, so what didn't change isn't drawn again.
+		babel({ presets: [reactCompilerPreset()] }),
 	],
 });
 

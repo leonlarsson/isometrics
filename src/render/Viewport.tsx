@@ -1,11 +1,18 @@
 import { SoftShadows } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { lazy, Suspense } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { lazy, memo, Suspense, useLayoutEffect, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 
+import { useSceneHours } from "#/editor/dayClock";
+import type { ISceneItem } from "#/editor/framing";
 import { drawsEffects, useGraphics } from "#/editor/graphics";
 import { usePreferences } from "#/editor/preferences";
-import { isToggleClick, useEditor } from "#/editor/store";
+import { drawnModeOf, includesItem, isToggleClick, useEditor } from "#/editor/store";
+import { useEntity } from "#/editor/useEntity";
 import { usePalette } from "#/editor/useTheme";
+import { getPart } from "#/parts/registry";
+import { usesDataBindings } from "#/scene/dataBindings";
+import type { TEntity, TScene } from "#/scene/schema";
 
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
@@ -18,7 +25,7 @@ import { CameraReadout } from "./CameraReadout";
 import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { Clouds } from "./Clouds";
 import { DistanceHaze } from "./DistanceHaze";
-import { EntityNode } from "./EntityNode";
+import { EntityNode, type IEntityWorld } from "./EntityNode";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { GroupGizmo } from "./GroupGizmo";
@@ -71,8 +78,134 @@ const Lights = () => {
 	);
 };
 
+const NO_ITEMS: ISceneItem[] = [];
+
+/** What objects share, read once in Entities, plus what EntityById picks out of it for its own. */
+interface IEntitiesShared {
+	world: IEntityWorld;
+	roads: TScene["roads"];
+	data: TScene["data"];
+	selectedItems: readonly ISceneItem[];
+	selectedId: string | null;
+	boxedItems: readonly ISceneItem[];
+	hovered: ISceneItem | null;
+}
+
+/** Whether an object has a light on a schedule: only those follow the world's hour. */
+const followsTheHour = (entity: TEntity) =>
+	typeof entity.lights === "object" &&
+	Object.values(entity.lights).some((light) => light.whenOn === "schedule");
+
+/** Whether an object shows values or has settings that follow them: only those follow the data. */
+const followsData = (entity: TEntity) =>
+	(getPart(entity.kind)?.fields.some((field) => field.type === "dataKey") ?? false) ||
+	usesDataBindings(entity);
+
+type TEntityNodeProps = Parameters<typeof EntityNode>[0];
+
+/** An object with a light on a schedule: it alone follows the world's hour, which steps often. */
+const EntityWithHour = (props: Omit<TEntityNodeProps, "hour">) => (
+	<EntityNode {...props} hour={useSceneHours()} />
+);
+
+/**
+ * One object: drawn again when it changes, and otherwise only when something that concerns it
+ * does. It hands EntityNode its own road, flags and (if it follows them) the data and the hour, so
+ * the node's props stay the same when only others' do.
+ */
+const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => {
+	const entity = useEntity(id);
+	if (!entity) {
+		return null;
+	}
+	const roadId = entity.follow?.roadId;
+	const Node = followsTheHour(entity) ? EntityWithHour : EntityNode;
+	return (
+		<Node
+			entity={entity}
+			world={shared.world}
+			road={roadId ? (shared.roads.find((road) => road.id === roadId) ?? null) : null}
+			data={followsData(entity) ? shared.data : undefined}
+			hour={null}
+			selected={includesItem(shared.selectedItems, "entity", id)}
+			alone={shared.selectedId === id && shared.selectedItems.length === 1}
+			boxed={includesItem(shared.boxedItems, "entity", id)}
+			listHovered={shared.hovered?.kind === "entity" && shared.hovered.id === id}
+		/>
+	);
+};
+
+/**
+ * Every object, with what they all read from the editor read once here (ADR-0092): thousands of
+ * objects each subscribing to a dozen things ran tens of thousands of selectors on every change. A
+ * change to one object (a drag, every frame) renders only that one; a change to the selection or
+ * the world renders the list, and each object's node only if its own props changed.
+ */
+const Entities = memo(() => {
+	const ids = useEditor(useShallow((s) => s.scene.entities.map((entity) => entity.id)));
+	const palette = usePalette();
+	const graphics = useGraphics();
+	const settings = useEditor(
+		useShallow((s) => ({
+			mode: drawnModeOf(s),
+			unboxing: s.boxDrag?.removing ?? false,
+			playing: s.playing,
+			ground: s.scene.ground,
+			driving: s.scene.drivingSide,
+			sceneTurns: s.scene.turnStyle,
+			sceneLeans: s.scene.leansInTurns,
+			drawing: s.drawing !== null,
+		})),
+	);
+	const picked = useEditor(
+		useShallow((s) => ({
+			roads: s.scene.roads,
+			data: s.scene.data,
+			selectedItems: s.selectedItems,
+			selectedId: s.selectedId,
+			boxedItems: s.boxDrag?.items ?? NO_ITEMS,
+			hovered: s.hovered,
+		})),
+	);
+	const world = useMemo(
+		(): IEntityWorld => ({ ...settings, palette, graphics }),
+		[settings, palette, graphics],
+	);
+	const shared = useMemo((): IEntitiesShared => ({ ...picked, world }), [picked, world]);
+	return ids.map((id) => <EntityById key={id} id={id} shared={shared} />);
+});
+
+/**
+ * Objects standing still cost nothing per frame (ADR-0092): three would walk every object in the
+ * scene each frame to work out world matrices (tens of thousands of nodes in a painted world), so
+ * the scene doesn't, and just before each render only what may have moved is brought up to date:
+ * everything but the objects that settled their own matrices (render/EntityNode's settleMatrices).
+ */
+const StillScene = () => {
+	const scene = useThree((s) => s.scene);
+	useLayoutEffect(() => {
+		scene.updateMatrix();
+		scene.matrixAutoUpdate = false;
+		scene.matrixWorldAutoUpdate = false;
+		const before = scene.onBeforeRender;
+		scene.onBeforeRender = (...args) => {
+			for (const child of scene.children) {
+				if (!child.userData.settled) {
+					child.updateMatrixWorld();
+				}
+			}
+			before.apply(scene, args);
+		};
+		return () => {
+			scene.matrixAutoUpdate = true;
+			scene.matrixWorldAutoUpdate = true;
+			scene.onBeforeRender = before;
+		};
+	}, [scene]);
+	return null;
+};
+
 export const Viewport = () => {
-	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
 	const graphics = useGraphics();
@@ -98,6 +231,8 @@ export const Viewport = () => {
 				}
 			}}
 		>
+			<StillScene />
+
 			<Lights />
 
 			<SkyDome />
@@ -113,9 +248,7 @@ export const Viewport = () => {
 
 			<AreaHandles />
 
-			{entities.map((entity) => (
-				<EntityNode key={entity.id} entity={entity} />
-			))}
+			<Entities />
 
 			<InstancedParts />
 

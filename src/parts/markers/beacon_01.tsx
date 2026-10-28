@@ -52,6 +52,8 @@ export const beacon01 = definePart({
 	kind: "beacon_01",
 	name: "Beacon",
 	category: "markers",
+	// Its ring pulses every frame.
+	movesOnItsOwn: true,
 	description: "Pulsing ring to highlight a live spot",
 	keywords: ["marker", "highlight", "pin", "ping"],
 	schema: BeaconSchema,
