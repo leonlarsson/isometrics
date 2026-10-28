@@ -1,5 +1,5 @@
 import { getPart, resolveProps } from "#/parts/registry";
-import { areaTopAt, isRaised } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/areas";
 import { isHiddenRoute, pointWidth, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity, TEntityInput, TScene, TVec2 } from "#/scene/schema";
 
@@ -146,15 +146,6 @@ const roadPieces = (scene: TScene) =>
 			}));
 		});
 
-/** How high the ground stands at a point: the highest area's top there (raised land, slopes), else 0. */
-export const groundHeightAt = (scene: TScene, point: TVec2) =>
-	Math.max(
-		0,
-		...scene.areas
-			.filter((area) => !area.hidden && isRaised(area))
-			.map((area) => areaTopAt(area, point) ?? 0),
-	);
-
 /** What a stamp of the brush lands on: the scene's objects in the way, and its roads. */
 const obstaclesOf = (scene: TScene) => ({
 	boxes: scene.entities
@@ -251,7 +242,7 @@ export const paintStamp = (
 			kind,
 			name: "",
 			position: point,
-			elevation: groundHeightAt(scene, point),
+			elevation: groundHeightAt(scene.areas, point),
 			rotation: Math.round(random() * 360) - 180,
 			props,
 		});

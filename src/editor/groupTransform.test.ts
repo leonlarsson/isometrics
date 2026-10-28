@@ -187,3 +187,74 @@ describe("area corners with their own heights (ADR-0096)", () => {
 		expect(area().points[0]).toEqual([1, 1]);
 	});
 });
+
+describe("objects stand on the ground under them (ADR-0098)", () => {
+	beforeEach(() => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				ground: { width: 40, depth: 40 },
+				areas: [
+					{
+						id: "plateau",
+						type: "raised_land_01",
+						height: 2,
+						points: [
+							[4, -4],
+							[12, -4],
+							[12, 4],
+							[4, 4],
+						],
+					},
+				],
+				entities: [
+					{ id: "house", kind: "house_01", position: [0, 0] },
+					{ id: "sign", kind: "house_01", position: [0, 6], elevation: 1 },
+					{ id: "onTop", kind: "house_01", position: [8, 0], elevation: 2 },
+				],
+			}),
+		);
+	});
+
+	it("placed freely, climbs onto raised land and keeps a lift of its own", () => {
+		const store = useEditor.getState();
+		const freely = { followGround: true };
+		store.moveEntity("house", [6, 0], undefined, freely);
+		expect(entity("house")?.elevation).toBe(2);
+		store.moveEntity("house", [-6, 0], undefined, freely);
+		expect(entity("house")?.elevation).toBe(0);
+		store.moveEntity("sign", [8, 2], undefined, freely);
+		expect(entity("sign")?.elevation).toBe(3);
+	});
+
+	it("moved exactly (an axis, a typed distance, the keys), keeps its height", () => {
+		useEditor.getState().moveEntity("house", [6, 0]);
+		expect(entity("house")?.elevation).toBe(0);
+	});
+
+	it("lands new objects on the ground where they're put", () => {
+		const id = useEditor.getState().addEntity({ kind: "house_01", position: [10, 0] });
+		expect(entity(id)?.elevation).toBe(2);
+	});
+
+	it("placed freely as a group, each lands on the ground there", () => {
+		useEditor.getState().selectItems([
+			{ kind: "entity", id: "house" },
+			{ kind: "entity", id: "sign" },
+		]);
+		transformSelected({ offset: [8, -3], followGround: true });
+		expect(entity("house")?.elevation).toBe(2);
+		expect(entity("sign")?.elevation).toBe(3);
+	});
+
+	it("moves with the land it stands on, lifted once", () => {
+		useEditor.getState().selectItems([
+			{ kind: "area", id: "plateau" },
+			{ kind: "entity", id: "onTop" },
+		]);
+		transformSelected({ offset: [-10, 0], lift: 1 });
+		expect(useEditor.getState().scene.areas[0].height).toBe(3);
+		expect(entity("onTop")?.elevation).toBe(3);
+		expect(entity("onTop")?.position).toEqual([-2, 0]);
+	});
+});

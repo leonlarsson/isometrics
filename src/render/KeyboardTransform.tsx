@@ -9,6 +9,7 @@ import {
 	pointsStart,
 } from "#/editor/groupTransform";
 import { type ITransformSession, selectMovesAsGroup, useEditor } from "#/editor/store";
+import { groundHeightAt } from "#/scene/areas";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -27,6 +28,7 @@ import {
 	roadPointStart,
 	roadPointWorld,
 } from "./transforms";
+import { surfaceHitOnRay } from "./useGroundDrag";
 
 type TTarget =
 	| { kind: "entity"; id: string; from: IEntityStart }
@@ -46,8 +48,16 @@ interface IContext {
 	/** Pointer when the transform started, and now (NDC). */
 	from: THREE.Vector2;
 	now: THREE.Vector2;
-	/** Ground point under the pointer at the start. */
+	/** Point under the pointer at the start, on the flat plane through the centre. */
 	fromHit: THREE.Vector3 | null;
+	/**
+	 * A single object: how high above the ground it stood, and the point under
+	 * the pointer at the start on the ground as it stands, lifted that much. G
+	 * with no axis places it freely there, raised land too (ADR-0098); other
+	 * moves keep its height, on the flat plane.
+	 */
+	above: number | null;
+	fromGroundHit: THREE.Vector3 | null;
 	pixelsPerUnit: number;
 	/** Screen angle of the pointer around the centre (degrees), and the turn so far. */
 	angle: number;
@@ -83,6 +93,27 @@ export const KeyboardTransform = () => {
 	const toPx = (ndc: THREE.Vector2) =>
 		new THREE.Vector2((ndc.x * size.width) / 2, (ndc.y * size.height) / 2);
 
+	/** Where the pointer meets the ground as it stands, lifted by `above` (ADR-0098). */
+	const surfaceHit = (ndc: THREE.Vector2, above: number) => {
+		raycaster.setFromCamera(ndc, camera);
+		return surfaceHitOnRay(raycaster.ray, useEditor.getState().scene.areas, above);
+	};
+
+	/**
+	 * How far the pointer moved, from where it started to where it is: on the
+	 * ground as it stands for a free move of a single object, on the flat plane
+	 * through the centre for anything else.
+	 */
+	const moved = (ctx: IContext, free: boolean): TVec2 => {
+		const onGround = free && ctx.above !== null && ctx.fromGroundHit;
+		const now =
+			onGround && ctx.above !== null
+				? surfaceHit(ctx.now, ctx.above)
+				: groundHit(ctx.now, ctx.center.y);
+		const from = onGround ? ctx.fromGroundHit : ctx.fromHit;
+		return now && from ? [now.x - from.x, now.z - from.z] : [0, 0];
+	};
+
 	const groundHit = (ndc: THREE.Vector2, y: number) => {
 		raycaster.setFromCamera(ndc, camera);
 		plane.constant = -y;
@@ -114,10 +145,9 @@ export const KeyboardTransform = () => {
 		if (session.mode === "grab" && route && target.kind === "entity") {
 			// A free move parks a vehicle on a road under it. An axis lock or a typed number asks for
 			// an exact move, so those leave the road (passing "Alt" makes it let go).
-			const hit = groundHit(ctx.now, ctx.center.y);
+			raycaster.setFromCamera(ctx.now, camera);
 			const ray = raycaster.ray.clone();
-			const offset: TVec2 =
-				hit && ctx.fromHit ? [hit.x - ctx.fromHit.x, hit.z - ctx.fromHit.z] : [0, 0];
+			const offset = moved(ctx, true);
 			const at: TVec2 = [target.from.position[0] + offset[0], target.from.position[1] + offset[1]];
 			const exactMove = exact || session.axis !== null;
 			if (route.move(ray, at, ctx.alt || exactMove, { coalesce: ctx.token, gesture: true })) {
@@ -125,6 +155,8 @@ export const KeyboardTransform = () => {
 			}
 		}
 		if (session.mode === "grab") {
+			// With no axis and nothing typed, it's placed freely: on the ground as it stands (ADR-0098).
+			const placesFreely = !exact && session.axis === null;
 			// Always set both the ground position and the height, so switching axis resets the other.
 			let offset: [number, number] = [0, 0];
 			let lift = 0;
@@ -139,14 +171,13 @@ export const KeyboardTransform = () => {
 			} else if (session.axis === "y") {
 				lift = ((ctx.now.y - ctx.from.y) * size.height) / 2 / ctx.pixelsPerUnit;
 			} else {
-				const hit = groundHit(ctx.now, ctx.center.y);
-				if (hit && ctx.fromHit) {
-					const dx = hit.x - ctx.fromHit.x;
-					const dz = hit.z - ctx.fromHit.z;
-					offset = session.axis === "x" ? [dx, 0] : session.axis === "z" ? [0, dz] : [dx, dz];
-				}
+				const [dx, dz] = moved(ctx, placesFreely);
+				offset = session.axis === "x" ? [dx, 0] : session.axis === "z" ? [0, dz] : [dx, dz];
 			}
-			steps.push(drag("xz", { offset }), drag("y", { lift }));
+			steps.push(
+				drag(placesFreely ? "xz" : session.axis === "z" ? "z" : "x", { offset }),
+				drag("y", { lift, followsGround: placesFreely }),
+			);
 		} else if (session.mode === "rotate") {
 			// A single object turns around its own X or Z with that axis locked (ADR-0097): a typed angle
 			// exactly, the mouse round it on screen, the way its axis faces the viewer.
@@ -277,6 +308,12 @@ export const KeyboardTransform = () => {
 		const from = pointer.clone();
 		const fromPx = toPx(from);
 		const centerPx = toPx(new THREE.Vector2(projected.x, projected.y));
+		// A single object follows the pointer on the ground as it stands (ADR-0098).
+		const above =
+			target.kind === "entity"
+				? target.from.elevation -
+					groundHeightAt(useEditor.getState().scene.areas, target.from.position)
+				: null;
 		context.current = {
 			target,
 			route,
@@ -287,6 +324,8 @@ export const KeyboardTransform = () => {
 			from,
 			now: from.clone(),
 			fromHit: groundHit(from, center.y),
+			above,
+			fromGroundHit: above === null ? null : surfaceHit(from, above),
 			pixelsPerUnit: Math.max(1, up.y * pixelsPerUnitAt(camera, center, size.height)),
 			angle: (Math.atan2(fromPx.y - centerPx.y, fromPx.x - centerPx.x) * 180) / Math.PI,
 			turn: 0,

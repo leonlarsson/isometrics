@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
-import type { TVec2 } from "#/scene/schema";
+import { cornerTop, groundHeightAt, isRaised } from "#/scene/areas";
+import type { TArea, TVec2 } from "#/scene/schema";
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -25,6 +26,82 @@ export const groundPointOnRay = (ray: THREE.Ray, altKey: boolean, planeY = 0): T
 	return [
 		clamp(place(hit.x), -scene.ground.width / 2, scene.ground.width / 2),
 		clamp(place(hit.z), -scene.ground.depth / 2, scene.ground.depth / 2),
+	];
+};
+
+const start = new THREE.Vector3();
+const end = new THREE.Vector3();
+const before = new THREE.Vector3();
+const along = new THREE.Vector3();
+/** Steps down the ray between the highest and the lowest the ground goes, then halvings at the crossing. */
+const MARCH_STEPS = 48;
+const BISECTIONS = 10;
+
+/**
+ * Where the ray first meets the ground as it stands, on raised land and slopes
+ * too (ADR-0098), or the surface `above` it (an object lifted or sunk that
+ * much stays under the pointer): walked down the ray from the highest the
+ * ground goes, then narrowed in where it crosses. Unsnapped; null when the
+ * ray never comes down to it.
+ */
+export const surfaceHitOnRay = (
+	ray: THREE.Ray,
+	areas: readonly TArea[],
+	above = 0,
+): THREE.Vector3 | null => {
+	const raised = areas.filter((area) => !area.hidden && isRaised(area));
+	const highest =
+		above + Math.max(0, ...raised.flatMap((area) => area.points.map((p) => cornerTop(area, p))));
+	plane.constant = -above;
+	if (!ray.intersectPlane(plane, end)) {
+		return null;
+	}
+	if (raised.length === 0) {
+		return end.clone();
+	}
+	plane.constant = -highest;
+	if (ray.origin.y <= highest || !ray.intersectPlane(plane, start)) {
+		start.copy(ray.origin);
+	}
+	const surfaceAt = (point: THREE.Vector3) => above + groundHeightAt(raised, [point.x, point.z]);
+	before.copy(start);
+	for (let i = 1; i <= MARCH_STEPS; i++) {
+		along.lerpVectors(start, end, i / MARCH_STEPS);
+		if (along.y <= surfaceAt(along)) {
+			// It crossed between the last step and this one: halve the gap to find where.
+			const low = along.clone();
+			const high = before.clone();
+			for (let j = 0; j < BISECTIONS; j++) {
+				const middle = low.clone().add(high).multiplyScalar(0.5);
+				if (middle.y <= surfaceAt(middle)) {
+					low.copy(middle);
+				} else {
+					high.copy(middle);
+				}
+			}
+			return low;
+		}
+		before.copy(along);
+	}
+	return end.clone();
+};
+
+/**
+ * The ground under the pointer as it stands (raised land and slopes), snapped
+ * to the grid unless snapping is off or `altKey` is held, and kept on the
+ * ground (ADR-0098).
+ */
+export const surfacePointOnRay = (ray: THREE.Ray, altKey: boolean): TVec2 | null => {
+	const { snapping, scene } = useEditor.getState();
+	const found = surfaceHitOnRay(ray, scene.areas);
+	if (!found) {
+		return null;
+	}
+	const free = altKey || !snapping;
+	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
+	return [
+		clamp(place(found.x), -scene.ground.width / 2, scene.ground.width / 2),
+		clamp(place(found.z), -scene.ground.depth / 2, scene.ground.depth / 2),
 	];
 };
 

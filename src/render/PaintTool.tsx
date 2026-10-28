@@ -4,12 +4,12 @@ import { nanoid } from "nanoid";
 import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
-import { groundHeightAt } from "#/editor/paint";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { groundHeightAt } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
-import { groundPointOnRay } from "./useGroundDrag";
+import { surfaceHitOnRay } from "./useGroundDrag";
 
 /** How far apart a stroke's stamps are, as a share of the brush's radius. */
 const STAMP_SPACING = 0.5;
@@ -69,14 +69,13 @@ export const PaintTool = () => {
 				-((event.clientY - rect.top) / rect.height) * 2 + 1,
 			);
 			raycaster.setFromCamera(pointer, camera);
-			const onGround = groundPointOnRay(raycaster.ray, true);
-			if (!onGround) {
+			// On the ground as it stands under the pointer: raised land and slopes (ADR-0098).
+			const found = surfaceHitOnRay(raycaster.ray, store().scene.areas);
+			if (!found) {
 				return null;
 			}
-			const height = groundHeightAt(store().scene, onGround);
-			const point =
-				height > 0 ? (groundPointOnRay(raycaster.ray, true, height) ?? onGround) : onGround;
-			return { point, height };
+			const point: TVec2 = [found.x, found.z];
+			return { point, height: groundHeightAt(store().scene.areas, point) };
 		};
 		const erasingFor = (event: PointerEvent) =>
 			store().paintBrush.mode === "erase" || event.shiftKey;

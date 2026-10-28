@@ -9,11 +9,12 @@ import { toRadians } from "#/lib/math";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
+import { groundHeightAt } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
 import { SelectionFrame } from "./EntityNode";
 import { findRouteDrop } from "./routeDrop";
-import { groundPointOnRay } from "./useGroundDrag";
+import { surfacePointOnRay } from "./useGroundDrag";
 
 const GHOST_OPACITY = 0.6;
 
@@ -139,9 +140,19 @@ export const PlacementPreview = () => {
 				};
 				return { placement, drop };
 			}
-			const point = groundPointOnRay(raycaster.ray, event.altKey);
+			// On the ground as it stands under the pointer, raised land too (ADR-0098).
+			const point = surfacePointOnRay(raycaster.ray, event.altKey);
 			return point
-				? { placement: { point, elevation: 0, rotation: 0, pitch: 0 }, drop: null }
+				? {
+						// On the ground there: on top of raised land (ADR-0098).
+						placement: {
+							point,
+							elevation: groundHeightAt(useEditor.getState().scene.areas, point),
+							rotation: 0,
+							pitch: 0,
+						},
+						drop: null,
+					}
 				: null;
 		};
 

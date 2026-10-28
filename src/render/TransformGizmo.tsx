@@ -5,10 +5,12 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
+import { groundHeightAt } from "#/scene/areas";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
+import { surfaceHitOnRay } from "./useGroundDrag";
 
 /** The handles a gizmo can show. `xz` is the square that slides freely on the ground. */
 export type TGizmoHandle = "x" | "z" | "xz" | "y" | "rotate" | "rotateX" | "rotateZ" | "scale";
@@ -30,6 +32,11 @@ export interface IGizmoDrag {
 	ratio: number;
 	/** Alt held: place freely, without snapping. */
 	free: boolean;
+	/**
+	 * A height step that goes with a free move (G with no axis): measured from
+	 * the ground where the object is now, which the move followed (ADR-0098).
+	 */
+	followsGround?: boolean;
 	/** Coalesce key shared by every step of this drag. */
 	token: string;
 	/** The pointer, for drags with the mouse (keyboard transforms have none). */
@@ -48,6 +55,12 @@ interface ITransformGizmoProps {
 	onEnd?: (completed: boolean, token: string) => void;
 	/** How the object is turned around the vertical (degrees): the X and Z rings turn with it. */
 	heading?: number;
+	/**
+	 * Its moves follow the pointer on the ground as it stands, raised land and
+	 * slopes, at the height above it the object had (ADR-0098); otherwise on the
+	 * flat plane through the gizmo (road points and corners keep their heights).
+	 */
+	followsGround?: boolean;
 }
 
 /** Gizmo size on screen: one gizmo unit is this many pixels at any zoom. */
@@ -136,6 +149,9 @@ interface IDragSession {
 	 * viewer or away, so a turn follows the pointer (ADR-0097).
 	 */
 	screen: { x: number; y: number; facing: number } | null;
+	/** Following the ground: how high above it the gizmo stood, and where the pointer met it first. */
+	above: number;
+	groundAnchor: THREE.Vector3 | null;
 	/** The scene before the drag, for cancelling. */
 	before: TScene;
 }
@@ -268,6 +284,7 @@ export const TransformGizmo = ({
 	onDrag,
 	onEnd,
 	heading = 0,
+	followsGround = false,
 }: ITransformGizmoProps) => {
 	const palette = usePalette();
 	const colors = palette.gizmo;
@@ -339,6 +356,10 @@ export const TransformGizmo = ({
 		return e.ray.intersectPlane(plane, hit) ? hit.clone() : null;
 	};
 
+	/** Where the pointer meets the ground as it stands, lifted as the object was (ADR-0098). */
+	const surfaceAt = (e: ThreeEvent<PointerEvent>, current: IDragSession) =>
+		surfaceHitOnRay(e.ray, useEditor.getState().scene.areas, current.above);
+
 	const start = (handle: TGizmoHandle) => (e: ThreeEvent<PointerEvent>) => {
 		if (e.nativeEvent.button !== 0 || !root.current) {
 			return;
@@ -360,6 +381,10 @@ export const TransformGizmo = ({
 			angle: 0,
 			turn: 0,
 			screen: null,
+			above: followsGround
+				? center.y - groundHeightAt(useEditor.getState().scene.areas, [center.x, center.z])
+				: 0,
+			groundAnchor: null,
 			before: useEditor.getState().scene,
 		};
 		if (handle === "rotateX" || handle === "rotateZ") {
@@ -403,6 +428,9 @@ export const TransformGizmo = ({
 			}
 			current.started = true;
 			current.anchor = anchor;
+			// Only the square places it freely on the ground as it stands; the arrows keep its height.
+			current.groundAnchor =
+				followsGround && current.handle === "xz" ? surfaceAt(e, current) : null;
 			current.startY = e.nativeEvent.clientY;
 			current.angle = current.screen
 				? screenAngleOf(e.nativeEvent.clientX, e.nativeEvent.clientY, current.screen)
@@ -418,8 +446,12 @@ export const TransformGizmo = ({
 		if (!point) {
 			return;
 		}
-		const dx = point.x - current.anchor.x;
-		const dz = point.z - current.anchor.z;
+		// Moves: on the ground as it stands for an object (ADR-0098), else on the gizmo's plane.
+		const onGround = current.groundAnchor ? surfaceAt(e, current) : null;
+		const moved = onGround && current.groundAnchor ? onGround : point;
+		const movedFrom = onGround && current.groundAnchor ? current.groundAnchor : current.anchor;
+		const dx = moved.x - movedFrom.x;
+		const dz = moved.z - movedFrom.z;
 		const { handle } = current;
 		// The X and Z rings follow the pointer round the gizmo on screen; the green one on the ground.
 		const angle = current.screen

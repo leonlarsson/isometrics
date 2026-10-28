@@ -5,7 +5,7 @@ import { clamp, round } from "#/lib/math";
 import { colorSettingOf } from "#/parts/colorModel";
 import { lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
-import { cornerLift, cornerWithLift } from "#/scene/areas";
+import { cornerLift, cornerWithLift, elevationMovedTo } from "#/scene/areas";
 import { bindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
 import { parseOrRepairScene } from "#/scene/repair";
@@ -572,10 +572,22 @@ const pasteThings = (
 		const roadExists =
 			roadId &&
 			(roadIds.has(entity.follow?.roadId ?? "") || current.roads.some((r) => r.id === roadId));
+		const position = place(entity.position[0], entity.position[1]);
 		const pasted: TEntity = {
 			...entity,
 			id: newId(entity.kind),
-			position: place(entity.position[0], entity.position[1]),
+			position,
+			// Pasted at a spot, placed there: as high above the ground as where it was copied, pasted
+			// areas included; a step over, at its height, like a copy (ADR-0098).
+			elevation: at
+				? elevationMovedTo(
+						[...current.areas, ...areas],
+						entity.elevation,
+						entity.position,
+						position,
+						[...current.areas, ...newAreas],
+					)
+				: entity.elevation,
 			// Driving a road that isn't here (from another world): parked where it was instead.
 			follow: entity.follow && roadId && roadExists ? { ...entity.follow, roadId } : null,
 		};

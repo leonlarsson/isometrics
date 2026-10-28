@@ -1,5 +1,11 @@
 import { clamp, normalizeDegrees, round } from "#/lib/math";
-import { cornerLift, cornerWithLift, MAX_CORNER_LIFT, takesCornerHeights } from "#/scene/areas";
+import {
+	cornerLift,
+	cornerWithLift,
+	groundHeightAt,
+	MAX_CORNER_LIFT,
+	takesCornerHeights,
+} from "#/scene/areas";
 import type { TArea, TAreaPoint, TRoad, TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { type ICommitOptions, useEditor } from "./store";
@@ -18,8 +24,18 @@ export const MAX_AREA_HEIGHT = 30;
 export interface IGroupStart {
 	/** What it turns and resizes around: the middle of what moves, at the lowest object's height. */
 	center: [number, number, number];
-	/** Objects standing on their own (not driving a road), with their transform. */
-	entities: { id: string; position: TVec2; elevation: number; rotation: number; scale: number }[];
+	/**
+	 * Objects standing on their own (not driving a road), with their transform,
+	 * and how high above the ground they stood (ADR-0098).
+	 */
+	entities: {
+		id: string;
+		position: TVec2;
+		elevation: number;
+		aboveGround: number;
+		rotation: number;
+		scale: number;
+	}[];
 	/** Driving vehicles: they move with their road, but take a resize. */
 	drivers: { id: string; scale: number }[];
 	roads: { id: string; points: TRoadPoint[] }[];
@@ -58,6 +74,7 @@ export const groupStartOf = (
 			id,
 			position,
 			elevation,
+			aboveGround: elevation - groundHeightAt(scene.areas, position),
 			rotation,
 			scale,
 		}));
@@ -102,6 +119,12 @@ export const groupStartOf = (
 /** A change to a group, from where it started: moved, lifted, turned (degrees) or resized. */
 export interface IGroupChange {
 	offset?: TVec2;
+	/**
+	 * Placed freely (the gizmo's square, dragging, G with no axis): objects keep
+	 * their height above the ground where they land (ADR-0098); otherwise their
+	 * height.
+	 */
+	followGround?: boolean;
 	lift?: number;
 	turn?: number;
 	ratio?: number;
@@ -121,7 +144,7 @@ const keepOn = (move: number, low: number, high: number, half: number) =>
  */
 export const transformGroup = (
 	from: IGroupStart,
-	{ offset = [0, 0], lift = 0, turn = 0, ratio: wanted = 1 }: IGroupChange,
+	{ offset = [0, 0], lift = 0, turn = 0, ratio: wanted = 1, followGround = false }: IGroupChange,
 	options?: ICommitOptions,
 ) => {
 	const store = useEditor.getState();
@@ -151,6 +174,21 @@ export const transformGroup = (
 		];
 	};
 
+	// The ground the objects land on: the world's areas, those that move with them where they go, as
+	// high as they were (their lift counts once, below).
+	const movedAreas = new Map(from.areas.map((start) => [start.id, start]));
+	const groundThen = store.scene.areas.map((area) => {
+		const start = movedAreas.get(area.id);
+		if (!start) {
+			return area;
+		}
+		const points = start.points.map((point) => {
+			const [x, z] = place(point);
+			return cornerWithLift(x, z, cornerLift(point));
+		});
+		return { ...area, points, height: start.height };
+	});
+
 	store.commit((scene) => {
 		for (const start of from.entities) {
 			const entity = scene.entities.find((e) => e.id === start.id);
@@ -158,8 +196,12 @@ export const transformGroup = (
 				continue;
 			}
 			entity.position = place(start.position);
-			// Objects may sink into the ground (ADR-0097).
-			entity.elevation = round(Math.max(LOWEST_ELEVATION, start.elevation + lift));
+			// Placed freely, as high above the ground there as it was (ADR-0098); lifted with the
+			// rest either way. Objects may sink into the ground (ADR-0097).
+			const height = followGround
+				? groundHeightAt(groundThen, entity.position) + start.aboveGround
+				: start.elevation;
+			entity.elevation = round(Math.max(LOWEST_ELEVATION, height + lift));
 			entity.rotation = round(normalizeDegrees(start.rotation + turn), 1);
 			entity.scale = round(start.scale * ratio, 2);
 		}

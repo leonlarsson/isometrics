@@ -10,6 +10,7 @@ import {
 	loadWorld,
 	openEditor,
 	read,
+	screenOf,
 	showView,
 	test,
 	viewCentre,
@@ -89,6 +90,31 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		await expect.poll(async () => (await entity(page, "a"))?.pitch ?? 0).not.toBe(0);
 		expect((await entity(page, "a"))?.roll).toBe(0);
 		expect(await read(page, (s) => s.dragging)).toBe(false);
+	});
+
+	test("a typed move onto raised land keeps its height: exact moves don't follow the ground (ADR-0098)", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			entities: [{ id: "a", kind: "house_01", name: "House A", position: [0, 0], scale: 2 }],
+			areas: [
+				{
+					id: "plateau",
+					type: "raised_land_01",
+					height: 2,
+					points: [
+						[4, -4],
+						[12, -4],
+						[12, 4],
+						[4, 4],
+					],
+				},
+			],
+		});
+		await act(page, (s) => s.select("a"));
+		await keys(page, "g", "8", "Enter");
+		expect((await entity(page, "a"))?.position).toEqual([8, 0]);
+		expect((await entity(page, "a"))?.elevation).toBe(0);
 	});
 
 	test("Esc cancels a transform, and nothing changes", async ({ page }) => {
@@ -221,5 +247,46 @@ test.describe("snapping", () => {
 		await page.mouse.click(x + 137, y + 133);
 		const [px] = (await entity(page, "a"))?.position ?? [0];
 		expect(px * 2).not.toBe(Math.round(px * 2));
+	});
+});
+
+test.describe("on raised land (ADR-0098)", () => {
+	test("dragged onto a plateau, it stays under the pointer and stands on top", async ({ page }) => {
+		await openEditor(page);
+		await loadWorld(page, {
+			entities: [{ id: "a", kind: "house_01", name: "House A", position: [0, 0], scale: 2 }],
+			areas: [
+				{
+					id: "plateau",
+					type: "raised_land_01",
+					height: 2,
+					points: [
+						[3, -10],
+						[16, -10],
+						[16, 10],
+						[3, 10],
+					],
+				},
+			],
+		});
+		await showView(page, [4, 0], 30);
+		await act(page, (s) => s.select("a"));
+		// Grab the roof, clear of the gizmo, and move the pointer as far as 9 along and 2 up on screen:
+		// the ground it points at is then the plateau's top, 9 further on.
+		const house = await screenOf(page, [0, 0, 0]);
+		const roof = { x: house.x - 50, y: house.y - 60 };
+		const there = await screenOf(page, [9, 2, 0]);
+		await page.mouse.move(roof.x, roof.y);
+		await page.mouse.down();
+		await page.mouse.move(roof.x + (there.x - house.x), roof.y + (there.y - house.y), {
+			steps: 12,
+		});
+		await page.mouse.up();
+		// Within a grid step (a drag measures from where it passed the threshold, a few pixels in); on a
+		// flat plane at the ground it would land some 2 units short.
+		const [px, pz] = (await entity(page, "a"))?.position ?? [0, 0];
+		expect(Math.abs(px - 9)).toBeLessThanOrEqual(0.5);
+		expect(Math.abs(pz)).toBeLessThanOrEqual(0.5);
+		expect((await entity(page, "a"))?.elevation).toBe(2);
 	});
 });

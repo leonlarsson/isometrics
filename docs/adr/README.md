@@ -101,3 +101,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0095](0095-parts-that-follow-the-sun.md) | Parts that follow the sun | proposed |
 | [0096](0096-area-corner-heights.md) | Area corners with their own heights: slopes and ramps | proposed |
 | [0097](0097-rotation-in-three-axes.md) | Objects turn in all three axes, and go below the ground | proposed |
+| [0098](0098-objects-stand-on-the-ground.md) | Objects stand on the ground under them | proposed |

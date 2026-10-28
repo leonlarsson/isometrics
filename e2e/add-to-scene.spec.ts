@@ -61,6 +61,40 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 		expect(tree?.position.map(Math.round)).toEqual([5, 5]);
 	});
 
+	test("a part dropped on raised land lands under the pointer, on top (ADR-0098)", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "plateau",
+					type: "raised_land_01",
+					height: 2,
+					points: [
+						[2, 2],
+						[9, 2],
+						[9, 9],
+						[2, 9],
+					],
+				},
+			],
+		});
+		await (await paletteTile(page, "Nature", "Round tree")).scrollIntoViewIfNeeded();
+		const box = await tile(page, "Round tree").boundingBox();
+		// A spot on the plateau's top, not on the ground beneath it.
+		const spot = await groundSpot(page, [5, 5], 2);
+		if (!box) {
+			throw new Error("no tile");
+		}
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(spot.x, spot.y, { steps: 12 });
+		await page.mouse.up();
+		const tree = await read(page, (s) => s.scene.entities.at(-1));
+		expect(tree?.position.map(Math.round)).toEqual([5, 5]);
+		expect(tree?.elevation).toBe(2);
+	});
+
 	test("chips show one category at a time, as a grid or a list, remembered (ADR-0088)", async ({
 		page,
 	}) => {

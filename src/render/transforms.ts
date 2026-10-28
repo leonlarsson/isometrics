@@ -12,6 +12,7 @@ import {
 } from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
+import { groundHeightAt } from "#/scene/areas";
 import type { TRoadPoint, TVec2 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -108,12 +109,23 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 				step(from.position[0] + drag.offset[0], SNAP_STEP),
 				step(from.position[1] + drag.offset[1], SNAP_STEP),
 			]);
-			store.moveEntity(id, position, options);
+			// The square places it freely, on the ground as it stands; an axis keeps its height (ADR-0098).
+			store.moveEntity(id, position, options, { followGround: drag.handle === "xz" });
 			return;
 		}
 		case "y": {
-			// Objects may sink into the ground (ADR-0097).
-			const elevation = Math.max(LOWEST_ELEVATION, step(from.elevation + drag.lift, LIFT_STEP));
+			// With a free move (G with no axis), from the ground where it is now, as high above it as it
+			// was plus the lift, so the step doesn't undo the climb onto raised land (ADR-0098); else
+			// from where it was. Objects may sink into the ground (ADR-0097).
+			const { scene } = store;
+			const now = scene.entities.find((entity) => entity.id === id)?.position ?? from.position;
+			const base = drag.followsGround
+				? groundHeightAt(scene.areas, now) - groundHeightAt(scene.areas, from.position)
+				: 0;
+			const elevation = Math.max(
+				LOWEST_ELEVATION,
+				base + step(from.elevation + drag.lift, LIFT_STEP),
+			);
 			store.updateEntity(
 				id,
 				(entity) => {
@@ -211,9 +223,13 @@ export const applyGroupDrag = (from: IGroupStart, drag: IGizmoDrag) => {
 		case "x":
 		case "z":
 		case "xz":
+			// The square places them freely on the ground as it stands; an axis keeps heights (ADR-0098).
 			transformGroup(
 				from,
-				{ offset: [step(drag.offset[0], SNAP_STEP), step(drag.offset[1], SNAP_STEP)] },
+				{
+					offset: [step(drag.offset[0], SNAP_STEP), step(drag.offset[1], SNAP_STEP)],
+					followGround: drag.handle === "xz",
+				},
 				options,
 			);
 			return;

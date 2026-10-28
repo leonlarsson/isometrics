@@ -12,6 +12,7 @@ import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
+import { groundHeightAt } from "#/scene/areas";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
 import type { TEntity, TRoad, TScene, TVec2 } from "#/scene/schema";
@@ -27,11 +28,17 @@ import { RealLightSource } from "./RealLights";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
+import { surfaceHitOnRay } from "./useGroundDrag";
 
-const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
 
 interface IDragState {
+	/**
+	 * How high above the ground it stood when the drag began: the pointer is
+	 * followed on the ground as it stands lifted that much, so the object stays
+	 * under it over raised land (ADR-0098).
+	 */
+	above: number;
 	dx: number;
 	dz: number;
 	token: string;
@@ -368,11 +375,14 @@ export const EntityNode = memo(
 				if (drawing || !selected || !editable || button !== 0 || shiftKey) {
 					return;
 				}
-				if (!e.ray.intersectPlane(groundPlane, hit)) {
+				const { areas } = useEditor.getState().scene;
+				const above = entity.elevation - groundHeightAt(areas, entity.position);
+				if (!surfaceHitOnRay(e.ray, areas, above)) {
 					return;
 				}
 				e.stopPropagation();
 				drag.current = {
+					above,
 					dx: 0,
 					dz: 0,
 					token: `${entity.id}:${performance.now()}`,
@@ -398,9 +408,12 @@ export const EntityNode = memo(
 				if (!state.moving && !pastDragThreshold(state.from, e.nativeEvent)) {
 					return;
 				}
-				if (!e.ray.intersectPlane(groundPlane, hit)) {
+				// Where the pointer is on the ground as it stands (ADR-0098).
+				const found = surfaceHitOnRay(e.ray, useEditor.getState().scene.areas, state.above);
+				if (!found) {
 					return;
 				}
+				hit.copy(found);
 				const options = { coalesce: `drag:${state.token}`, gesture: true };
 				if (!alone || state.copying) {
 					// One of several selected things: they all move together, by the distance dragged. A
@@ -451,7 +464,8 @@ export const EntityNode = memo(
 				if (x === entity.position[0] && z === entity.position[1]) {
 					return;
 				}
-				useEditor.getState().moveEntity(entity.id, [x, z], options);
+				// Placed freely: on the ground as it stands there (ADR-0098).
+				useEditor.getState().moveEntity(entity.id, [x, z], options, { followGround: true });
 			},
 			onPointerUp: endDrag,
 			onLostPointerCapture: endDrag,

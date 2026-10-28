@@ -10,6 +10,8 @@ import {
 	AREA_TYPES,
 	cornerLift,
 	cornerWithLift,
+	elevationMovedTo,
+	groundHeightAt,
 	liftForTop,
 	takesCornerHeights,
 } from "#/scene/areas";
@@ -510,7 +512,18 @@ export interface IEditorState {
 		change: TEntityColorChange,
 		options?: ICommitOptions,
 	) => void;
-	moveEntity: (id: string, position: TVec2, options?: ICommitOptions) => void;
+	/**
+	 * Move an object across the ground. Placing it freely (dragging it, the
+	 * gizmo's square, G with no axis) passes `followGround`: it keeps its height
+	 * above the ground, climbing onto raised land; exact moves keep its height
+	 * (ADR-0098).
+	 */
+	moveEntity: (
+		id: string,
+		position: TVec2,
+		options?: ICommitOptions,
+		how?: { followGround?: boolean },
+	) => void;
 	rotateEntity: (id: string, deltaDegrees: number) => void;
 	removeEntity: (id: string) => void;
 	duplicateEntity: (id: string) => string | null;
@@ -1202,7 +1215,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					const copy = structuredClone(source);
 					copy.id = newId("area");
 					copy.name = copyName("area", source.name);
-					copy.points = source.points.map(([x, z]): TVec2 => [round(x + step), round(z + step)]);
+					// Its corners keep their own heights (ADR-0096).
+					copy.points = source.points.map((point) =>
+						cornerWithLift(point[0] + step, point[1] + step, cornerLift(point)),
+					);
 					return copy;
 				});
 				const entities = picked(current.entities, "entity").map((source): TEntity => {
@@ -1598,6 +1614,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			addEntity: (input) => {
 				const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
+				// Without a height of its own, it stands on the ground where it's put (ADR-0098).
+				if (input.elevation === undefined) {
+					entity.elevation = groundHeightAt(get().scene.areas, entity.position);
+				}
 				get().commit((scene) => {
 					scene.entities.push(entity);
 				});
@@ -1673,11 +1693,21 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					options,
 				),
 
-			moveEntity: (id, position, options) =>
+			moveEntity: (id, position, options, how) =>
 				get().updateEntity(
 					id,
 					(entity) => {
-						entity.position = [round(position[0]), round(position[1])];
+						const to: TVec2 = [round(position[0]), round(position[1])];
+						// Placed freely, as high above the ground there as here (ADR-0098).
+						if (how?.followGround) {
+							entity.elevation = elevationMovedTo(
+								get().scene.areas,
+								entity.elevation,
+								entity.position,
+								to,
+							);
+						}
+						entity.position = to;
 					},
 					options,
 				),

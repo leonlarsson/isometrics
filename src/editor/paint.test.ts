@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { groundHeightAt } from "#/scene/areas";
 import { SceneSchema, type TScene } from "#/scene/schema";
 
-import { brushKinds, DEFAULT_BRUSH, eraseStamp, groundHeightAt, paintStamp } from "./paint";
+import { brushKinds, DEFAULT_BRUSH, eraseStamp, paintStamp } from "./paint";
 
 /** The same numbers every run. */
 const seeded = (seed: number) => {
@@ -89,8 +90,8 @@ describe("painting objects (ADR-0091)", () => {
 				},
 			],
 		});
-		expect(groundHeightAt(scene, [0, 0])).toBe(2);
-		expect(groundHeightAt(scene, [8, 8])).toBe(0);
+		expect(groundHeightAt(scene.areas, [0, 0])).toBe(2);
+		expect(groundHeightAt(scene.areas, [8, 8])).toBe(0);
 		const added = paintStamp(scene, { ...brush, size: 2 }, [0, 0], seeded(5));
 		expect(added.every((entity) => entity.elevation === 2)).toBe(true);
 	});

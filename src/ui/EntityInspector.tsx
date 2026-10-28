@@ -128,11 +128,14 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						label="Location"
 						axes={["X", "Z"]}
 						values={entity.position}
-						onChange={(i, v) =>
-							edit("position", (e) => {
-								e.position[i] = v;
-							})
-						}
+						onChange={(i, v) => {
+							// Through moveEntity, so it stands on the ground there (ADR-0098).
+							const next: [number, number] = [entity.position[0], entity.position[1]];
+							next[i] = v;
+							useEditor.getState().moveEntity(entity.id, next, {
+								coalesce: `${entity.id}:position`,
+							});
+						}}
 					/>
 				)}
 
