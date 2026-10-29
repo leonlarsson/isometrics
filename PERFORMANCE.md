@@ -55,6 +55,13 @@ Round two (2026-10-29: culling kept per camera, a shape's own batch drawn as ins
 
 Weather (ADR-0102) costs nothing in clear weather: the commit before it measured the same.
 
+Then the pointer (findings 25 and 26), the mouse moved over the 2,888 objects:
+
+| | Before | After |
+|---|---|---|
+| Edit, hovering | 12.0 ms median, 81 ms p90; restyling 2.7 s of 4 | 2.5–3.0 ms median, 7–8 ms p90; restyling 46 ms |
+| View, hovering | 3.4 ms median, 6.4 ms p90 | 1.5 ms median, 3.8 ms p90 |
+
 ## Findings, and what we did
 
 ### Per frame: the 3D view
@@ -89,6 +96,7 @@ Weather (ADR-0102) costs nothing in clear weather: the commit before it measured
 ### Per pointer move
 
 25. **Hovering an object restyled the whole page.** Objects, roads, handles, the gizmo and viewpoint markers set the cursor on the page's body as the pointer came over them and left. A cursor is inherited, so each change restyled every element on the page: 38,500 in Edit mode with a painted world's outliner, about 15 ms a time, many times a second across a wood (View mode has a few hundred elements, so it never showed). *Now:* `setViewCursor` (`render/viewCursor`) sets it on the view's stage, a couple of dozen elements, above the view's own element and canvas, so the tools' crosshairs set there still win.
+26. **Every pointer move tested every mesh.** r3f raycasts every object with pointer handlers on every move, and three moves each mesh's bounding sphere into the world to test it: about 10,000 meshes in the painted world. *Now:* an object's group raycasts within the object's bounds first (`raycastWithinBounds`, `render/raycastBounds`), and three leaves out the meshes of an object the ray misses. The bounds of an object standing still are worked out when the pointer first comes by after it renders; a moving one's meshes are always tested.
 
 ### Per switch: the camera
 
@@ -111,6 +119,7 @@ Weather (ADR-0102) costs nothing in clear weather: the commit before it measured
 
 **The pointer**
 - Never set a style on the page's body or root as the pointer moves (a hover cursor): an inherited style restyles every element on the page. Hover cursors go through `setViewCursor`; the body is for what reaches past the view (a part dragged in from the palette).
+- Something drawn per world object with pointer handlers raycasts within its bounds (`raycastWithinBounds`), or every pointer move tests every mesh in it.
 
 **React and the store**
 - A component drawn per object (thousands of times) must not subscribe to the store. Take what it needs as props from one parent that reads it once, and pass each instance only what concerns it, so `memo` can skip the rest. For the object itself, `useEntity(id)`.

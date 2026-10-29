@@ -25,6 +25,7 @@ import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { useInstancedPart } from "./InstancedParts";
 import { RealLightSource } from "./RealLights";
+import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
@@ -315,11 +316,13 @@ export const EntityNode = memo(
 		const partGroup = useRef<THREE.Group>(null);
 		useInstancedPart(partGroup, moving);
 
-		// Standing still, its matrices are worked out once per render, not every frame (ADR-0092).
+		// Standing still, its matrices are worked out once per render, not every frame (ADR-0092), and
+		// its bounds for the pointer when it first comes by (raycastWithinBounds).
 		useLayoutEffect(() => {
 			if (outer.current) {
 				settleMatrices(outer.current, !moving);
 			}
+			forgetBounds(inner.current, moving);
 		});
 
 		const editable = mode === "edit" && !entity.locked;
@@ -545,6 +548,7 @@ export const EntityNode = memo(
 									]
 						}
 						scale={entity.scale}
+						raycast={raycastWithinBounds}
 						{...handlers}
 					>
 						<group ref={partGroup}>
