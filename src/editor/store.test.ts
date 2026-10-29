@@ -520,6 +520,32 @@ describe("editor store", () => {
 		expect(s().scene.fences).toHaveLength(2);
 	});
 
+	it("shares out how much is built when a fence is split, and keeps its way when continued", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addFence({
+			points: [
+				[0, 0],
+				[4, 0],
+				[8, 0],
+			],
+			builtShare: 0.25,
+		});
+		const second = s().splitFence(id, 1);
+		expect(s().scene.fences.find((f) => f.id === id)?.builtShare).toBe(0.5);
+		expect(s().scene.fences.find((f) => f.id === second)?.builtShare).toBe(0);
+
+		s().continueFenceDrawing(id, "start");
+		s().addDrawingPoint([-4, 0]);
+		s().finishDrawing();
+		// The new point goes before its start, the rest the way it was drawn.
+		expect(s().scene.fences.find((f) => f.id === id)?.points).toEqual([
+			[-4, 0, 0],
+			[0, 0, 0],
+			[4, 0, 0],
+		]);
+	});
+
 	it("copies fences a step over, and follows data renames into their bindings", () => {
 		const store = makeStore();
 		const s = () => store.getState();

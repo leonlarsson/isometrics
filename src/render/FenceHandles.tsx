@@ -133,8 +133,9 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 					state.group = pointsStart();
 					setCursorHidden(true);
 				}
-				// Under the pointer on the ground as it stands, so it follows the pointer onto raised land.
-				const target = surfacePointFrom(e, point[2]);
+				// Under the pointer on the ground as it stands, so it follows the pointer onto raised land,
+				// at the height the handle is drawn (the fence's top), so it stays under the pointer.
+				const target = surfacePointFrom(e, point[2] + fenceHeightOf(fence));
 				const group = state.group;
 				const start = group?.points.find((p) => p.index === index)?.point;
 				if (!target || !group || !start) {

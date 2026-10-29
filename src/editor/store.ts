@@ -20,6 +20,7 @@ import {
 	takesCornerHeights,
 } from "#/scene/areas";
 import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
+import { fenceLength } from "#/scene/fences";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
@@ -184,6 +185,11 @@ export interface IRoadDrawing {
 	roadId?: string;
 	/** When continuing an existing fence: its id. Finishing replaces that fence's points. */
 	fenceId?: string;
+	/**
+	 * Continuing a fence from its start: the points are drawn reversed, and turned back when
+	 * finished, so its first point stays first (how much is built counts from it).
+	 */
+	reversed?: boolean;
 }
 
 export type TTransformMode = "grab" | "rotate" | "scale";
@@ -2266,16 +2272,28 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				if (index === 0 || index === fence.points.length - 1) {
 					return null; // nothing to cut at an end
 				}
+				// How much is built, shared out by length: the built part stays where it was. (One
+				// following data keeps following it in both, each built that share of its own length.)
+				const share = (part: TFencePoint[]) => fenceLength({ ...fence, points: part });
+				const [firstLength, total] = [share(fence.points.slice(0, index + 1)), share(fence.points)];
+				const builtLength = fence.builtShare * total;
 				const second = FenceSchema.parse({
 					...structuredClone(fence),
 					id: newId("fence"),
 					name: fence.name ? `${fence.name} (2)` : "",
 					points: fence.points.slice(index),
+					builtShare:
+						total - firstLength > 1e-6
+							? round(Math.max(0, (builtLength - firstLength) / (total - firstLength)))
+							: fence.builtShare,
 				});
 				get().commit((scene) => {
 					const first = scene.fences.find((f) => f.id === id);
 					if (first) {
 						first.points = first.points.slice(0, index + 1);
+						if (firstLength > 1e-6) {
+							first.builtShare = round(Math.min(1, builtLength / firstLength));
+						}
 						scene.fences.splice(scene.fences.indexOf(first) + 1, 0, second);
 					}
 				});
@@ -2312,6 +2330,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						fenceStyle: fence.style,
 						points,
 						fenceId,
+						reversed: end === "start",
 					},
 					...NOTHING_SELECTED,
 					joinOffer: null,
@@ -2526,7 +2545,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				}
 				const loops = Boolean(options.loops) && drawing.points.length > 2;
 				if (drawing.target === "fence") {
-					const points = drawing.points.map(([x, z, lift]) => fencePoint(x, z, lift));
+					const drawn = drawing.points.map(([x, z, lift]) => fencePoint(x, z, lift));
+					const points = drawing.reversed ? drawn.reverse() : drawn;
 					if (drawing.fenceId) {
 						const fenceId = drawing.fenceId;
 						get().updateFence(fenceId, (fence) => {

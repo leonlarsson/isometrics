@@ -57,12 +57,14 @@ const areaOutline = (area: TArea, baseY: number): TPoint[][] => {
 
 /** A fence's outline: along its posts' tops, the whole of it (ADR-0103). */
 const fenceOutline = (fence: TFence, areas: readonly TArea[]): TPoint[][] => {
-	const { posts } = layoutOfFence({ ...fence, builtShare: 1, data: {} }, areas, []);
+	const { posts, spans } = layoutOfFence({ ...fence, builtShare: 1, data: {} }, areas, []);
 	const top = fenceHeightOf(fence) + LIFT;
 	const line = posts.map(
 		(post): TPoint => [post.x, Math.max(post.baseBefore, post.baseAfter) + top, post.z],
 	);
-	return line.length > 1 ? [fence.loops ? [...line, line[0]] : line] : [];
+	// Closed only when it lays out as a loop (two points can't make one).
+	const closes = fence.loops && line.length > 2 && spans.length === line.length;
+	return line.length > 1 ? [closes ? [...line, line[0]] : line] : [];
 };
 
 /**

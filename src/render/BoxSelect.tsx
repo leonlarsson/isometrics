@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import type { ISceneItem } from "#/editor/framing";
 import { isItemSelected, useEditor } from "#/editor/store";
+import { fenceHeightOf } from "#/fences/fenceModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { cornerTop, groundHeightAt } from "#/scene/areas";
 import type { TScene } from "#/scene/schema";
@@ -106,7 +107,12 @@ const pointsInBox = (
 	const spots = road
 		? road.points.map(([x, z, height = 0]) => [x, roadBaseY(layer) + height, z])
 		: fence
-			? fence.points.map(([x, z, lift]) => [x, groundHeightAt(scene.areas, [x, z]) + lift, z])
+			? // Where their handles are drawn: on the fence's top (render/FenceHandles).
+				fence.points.map(([x, z, lift]) => [
+					x,
+					groundHeightAt(scene.areas, [x, z]) + lift + fenceHeightOf(fence),
+					z,
+				])
 			: (area?.points.map((point) => [point[0], cornerTop(area, point), point[1]]) ?? []);
 	return spots.flatMap(([x, y, z], index) => {
 		projected.set(x, y, z).project(camera);

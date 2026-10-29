@@ -94,16 +94,36 @@ export const fenceLayout = (
 		unit(line[i + 1][0] - line[i][0], line[i + 1][1] - line[i][1]);
 	const last = line.length - 1;
 
-	// Breaks: the ends (a loop's start, which is also its end) and the sharp corners.
+	// Breaks: the ends (a loop's start, which is also its end) and the corners sharper than
+	// CORNER_ANGLE, judged on the points as drawn (a rounded corner's curve turns a little at many
+	// places, which must not each get a post): at the corner itself, or the middle of its curve,
+	// the place on the line nearest it.
 	const cos = Math.cos((CORNER_ANGLE * Math.PI) / 180);
-	const breaks = [0];
-	for (let i = 1; i < last; i++) {
-		const [a, b] = [segmentDirection(i - 1), segmentDirection(i)];
-		if (a[0] * b[0] + a[1] * b[1] < cos) {
-			breaks.push(i);
+	const corners = fence.points.filter(
+		(p, i, all) => i === 0 || Math.hypot(p[0] - all[i - 1][0], p[1] - all[i - 1][1]) > 1e-9,
+	);
+	const breakSet = new Set([0, last]);
+	for (let i = closed ? 0 : 1; i < (closed ? corners.length : corners.length - 1); i++) {
+		const p = corners[i];
+		const before = corners[(i - 1 + corners.length) % corners.length];
+		const after = corners[(i + 1) % corners.length];
+		const a = unit(p[0] - before[0], p[1] - before[1]);
+		const b = unit(after[0] - p[0], after[1] - p[1]);
+		if (a[0] * b[0] + a[1] * b[1] >= cos) {
+			continue;
 		}
+		let nearest = 0;
+		for (let j = 1; j <= last; j++) {
+			if (
+				Math.hypot(line[j][0] - p[0], line[j][1] - p[1]) <
+				Math.hypot(line[nearest][0] - p[0], line[nearest][1] - p[1])
+			) {
+				nearest = j;
+			}
+		}
+		breakSet.add(nearest);
 	}
-	breaks.push(last);
+	const breaks = [...breakSet].sort((x, y) => x - y);
 
 	/** A point at a distance along the line: where it is, its lift, and the segment it's on. */
 	const pointAt = (distance: number) => {
@@ -149,8 +169,11 @@ export const fenceLayout = (
 		}
 	}
 
-	// Built only so far: the line ends at a post there.
+	// Built only so far: the line ends at a post there. Nothing built: not even a post.
 	const built = Math.min(1, Math.max(0, builtShare)) * total;
+	if (built < 1e-6) {
+		return { posts: [], spans: [], length: total };
+	}
 	const kept = stations.filter((station) => station.distance <= built + 1e-6);
 	if (kept.length > 0 && built - kept[kept.length - 1].distance > 1e-3) {
 		kept.push({ distance: built, vertex: null });
@@ -184,7 +207,8 @@ export const fenceLayout = (
 			const length = station.distance - previous.distance;
 			const samples = Math.max(1, Math.ceil(length / GROUND_SAMPLE));
 			let before = baseAt(previous.distance);
-			for (let s = 1; s < samples; s++) {
+			// Up to this post itself, so a step just before it is found too.
+			for (let s = 1; s <= samples; s++) {
 				const distance = previous.distance + (length * s) / samples;
 				const here = baseAt(distance);
 				if (Math.abs(here - before) > GROUND_STEP) {

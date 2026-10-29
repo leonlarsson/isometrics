@@ -116,3 +116,65 @@ describe("fenceLayout", () => {
 		expect(fenceLength(curved)).toBeGreaterThan(18);
 	});
 });
+
+describe("fenceLayout, at the edges", () => {
+	it("steps at a cliff just before a post", () => {
+		const { posts } = fenceLayout(
+			fence([
+				[0, 0, 0],
+				[10, 0, 0],
+			]),
+			10,
+			([x]) => (x > 9.9 ? 2 : 0),
+		);
+		const step = posts.find((post) => post.baseBefore !== post.baseAfter);
+		expect(step?.x).toBeGreaterThan(9.7);
+		expect(posts[0].baseAfter).toBe(0);
+	});
+
+	it("puts one post on a gently rounded corner, not one per bit of its curve", () => {
+		const { posts } = fenceLayout(
+			fence(
+				[
+					[0, 0, 0],
+					[10, 0, 0],
+					[10, 4, 0],
+				],
+				false,
+				0.3,
+			),
+			20,
+			() => 0,
+		);
+		expect(posts).toHaveLength(3);
+		const square = fenceLayout(
+			fence(
+				[
+					[0, 0, 0],
+					[4, 0, 0],
+					[4, 4, 0],
+					[0, 4, 0],
+				],
+				true,
+				1,
+			),
+			10,
+			() => 0,
+		);
+		expect(square.posts.length).toBeLessThanOrEqual(5);
+	});
+
+	it("draws nothing when none of it is built", () => {
+		expect(
+			fenceLayout(
+				fence([
+					[0, 0, 0],
+					[4, 0, 0],
+				]),
+				1,
+				() => 0,
+				0,
+			).posts,
+		).toEqual([]);
+	});
+});
