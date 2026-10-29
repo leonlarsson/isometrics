@@ -3,6 +3,15 @@ import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "rea
 import * as THREE from "three";
 
 import {
+	canDrawInstanced,
+	cullBatch,
+	disposeBatchCulling,
+	type IBatchCulling,
+	makeBatchCulling,
+	placeBounds,
+	startPlacing,
+} from "./batchCulling";
+import {
 	forgetInstancedRoot,
 	geometryKey,
 	type IInstancedRoot,
@@ -18,7 +27,8 @@ import {
  * where it is and in its own shape (ADR-0092: one draw per look, however many
  * shapes). three's BatchedMesh, not an InstancedMesh: it holds many shapes,
  * leaves out the instances outside each pass's camera (the view, the shadows,
- * reflections) and takes its matrices after its render hooks, where they're placed.
+ * reflections; render/batchCulling) and takes its matrices after its render
+ * hooks, where they're placed.
  */
 interface IBatch {
 	mesh: THREE.BatchedMesh;
@@ -39,6 +49,8 @@ interface IBatch {
 	stale: number[];
 	/** The frame its instances were last placed in, so each frame places them once. */
 	placedIn: number;
+	/** Each instance's bounds, and each camera's draw list. */
+	culling: IBatchCulling;
 }
 
 /**
@@ -74,6 +86,7 @@ const showOwnGroup = (root: IInstancedRoot) => {
 type TColoredMaterial = THREE.Material & { color: THREE.Color };
 
 const disposeBatch = (batch: IBatch) => {
+	disposeBatchCulling(batch.culling);
 	batch.mesh.dispose();
 	(batch.mesh.material as THREE.Material).dispose();
 };
@@ -158,17 +171,21 @@ export const InstancedParts = () => {
 			return;
 		}
 		batch.placedIn = frame.id;
-		const { mesh } = batch;
+		const { mesh, culling } = batch;
 		const placeAt = (i: number) => {
 			const original = batch.originals[i];
 			mesh.setMatrixAt(batch.instances[i], original.matrixWorld);
 			mesh.setVisibleAt(batch.instances[i], isShown(original));
+			placeBounds(culling, batch.instances[i], original);
 		};
 		const refresh = (i: number) => {
 			placeAt(i);
 			mesh.setColorAt(batch.instances[i], (batch.originals[i].material as TColoredMaterial).color);
 		};
 		const changed = !batch.settled || batch.stale.length > 0;
+		if (changed || batch.moving.length > 0) {
+			startPlacing(culling, !batch.settled);
+		}
 		if (!batch.settled) {
 			batch.settled = true;
 			for (let i = 0; i < batch.originals.length; i++) {
@@ -225,18 +242,24 @@ export const InstancedParts = () => {
 			settled: false,
 			stale: [],
 			placedIn: -1,
+			culling: makeBatchCulling(),
 		};
 		// The world's matrices are up to date by then: placed before the shadows, else before the
-		// view, then culled for that pass's camera as BatchedMesh does.
-		const cullForView = mesh.onBeforeRender.bind(mesh);
-		const cullForShadow = mesh.onBeforeShadow.bind(mesh);
-		mesh.onBeforeRender = (...args) => {
+		// view, then culled for that pass's camera.
+		mesh.onBeforeRender = (renderer, _scene, camera, geometry, material) => {
 			place(batch);
-			cullForView(...args);
+			cullBatch(mesh, batch.culling, camera, geometry, material, canDrawInstanced(renderer));
 		};
-		mesh.onBeforeShadow = (...args) => {
+		mesh.onBeforeShadow = (renderer, _object, _camera, shadowCamera, geometry, depthMaterial) => {
 			place(batch);
-			cullForShadow(...args);
+			cullBatch(
+				mesh,
+				batch.culling,
+				shadowCamera,
+				geometry,
+				depthMaterial,
+				canDrawInstanced(renderer),
+			);
 		};
 		return batch;
 	};
@@ -330,8 +353,8 @@ export const InstancedParts = () => {
 		batch.settled = false;
 		batch.stale = [];
 		batch.placedIn = -1;
-		// Culling instances one by one rewrites the batch's draw list for every pass of every frame:
-		// worth it for many instances spread over the world, not for a few.
+		// Culling instances one by one is worth it for many instances spread over the world, not for
+		// a few: each camera's draw list is made again whenever it moves.
 		mesh.perObjectFrustumCulled = originals.length >= CULL_ONE_BY_ONE_FROM;
 		mesh.frustumCulled = false;
 	};
