@@ -193,6 +193,15 @@ export const EntityLightSchema = z
 			.describe(
 				"For window lights: the part of its own panes that are lit, 0 (none) to 1 (all). null = the part's.",
 			),
+		weight: z
+			.number()
+			.min(0)
+			.max(100)
+			.nullable()
+			.default(null)
+			.describe(
+				"For window lights: how many of the building's panes are its, against its other window lights' weights (90 and 10: nine panes in ten are its). Changing it moves which panes are whose. null = the part's.",
+			),
 		data: z
 			.record(z.string(), DataBindingSchema)
 			.default({})

@@ -459,6 +459,68 @@ textarea.input {
 	transform: scale(1.15);
 }
 
+/* ---------------------------------------------------------------- split */
+
+/* One bar shared out between parts (SplitField): a segment each, a thumb on each divider. */
+.split {
+	min-width: 0;
+}
+
+.splitTrack {
+	position: relative;
+	width: 100%;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--border-strong);
+	overflow: visible;
+}
+
+.splitSegment {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: var(--split-start);
+	width: var(--split-width);
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.splitSegment:first-child {
+	border-radius: 999px 0 0 999px;
+}
+
+.splitSegment:nth-last-child(1 of .splitSegment) {
+	border-radius: 0 999px 999px 0;
+}
+
+.splitLegend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+.splitLegend li {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.splitLegend strong {
+	color: var(--text);
+	font-weight: 600;
+}
+
+.splitSwatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
 /* ---------------------------------------------------------------- vector */
 
 .vector {

@@ -206,7 +206,14 @@ export const resolveLight = (
 			level = palette.night >= SWITCH_ON_DARKNESS ? strength : 0;
 		}
 	}
-	return { on: level > 0, level, color, reach, litPanes, weight: defaults.weight };
+	return {
+		on: level > 0,
+		level,
+		color,
+		reach,
+		litPanes,
+		weight: setting?.weight ?? defaults.weight,
+	};
 };
 
 /** Every light of a part on an object, by id, as it is right now. */

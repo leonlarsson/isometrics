@@ -131,6 +131,29 @@ test.describe("the properties editor (ADR-0054)", () => {
 		const lamp = (await entity(page, "lamp"))?.lights as Record<string, { strength: number }>;
 		expect(lamp.lamp.strength).toBe(2);
 	});
+
+	test("a building's windows are split between its window lights with one bar, one undo step", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			entities: [{ id: "tower", kind: "office_tower_01", name: "Tower", position: [0, 0] }],
+		});
+		await act(page, (s) => s.select("tower"));
+		await tab(page, "Lights").click();
+		const divider = page.getByRole("slider", { name: "Between Windows and Screens" });
+		await expect(divider).toBeVisible();
+		const before = await divider.getAttribute("aria-valuenow");
+		await divider.focus();
+		await page.keyboard.press("ArrowLeft");
+		const lights = () =>
+			entity(page, "tower").then((e) => e?.lights as Record<string, { weight: number | null }>);
+		const after = await lights();
+		expect(after.windows.weight).toBe(Number(before) - 1);
+		expect((after.windows.weight ?? 0) + (after.screens.weight ?? 0)).toBe(100);
+		// One undo step for the whole split.
+		await act(page, (s) => s.undo());
+		expect((await lights())?.windows?.weight ?? null).toBeNull();
+	});
 });
 
 test.describe("several selected (ADR-0064)", () => {

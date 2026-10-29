@@ -29,6 +29,7 @@ export { SearchField } from "./SearchField";
 export { Section } from "./Section";
 export { SelectField } from "./SelectField";
 export { SliderField } from "./SliderField";
+export { type ISplitPart, SplitField } from "./SplitField";
 export { SwitchField } from "./SwitchField";
 export { SettingsSearchContext, useSearchMatch, useSettingsSearch } from "./settingsSearch";
 export { TextField } from "./TextField";
