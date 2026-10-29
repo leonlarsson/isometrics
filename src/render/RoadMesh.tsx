@@ -21,6 +21,7 @@ import type { TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
+import { setViewCursor } from "./viewCursor";
 
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
 const BASE_Y = 0.012;
@@ -310,10 +311,10 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 				},
 				onPointerOver: (e: ThreeEvent<PointerEvent>) => {
 					e.stopPropagation();
-					document.body.style.cursor = "pointer";
+					setViewCursor("pointer");
 				},
 				onPointerOut: () => {
-					document.body.style.cursor = "";
+					setViewCursor("");
 				},
 				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 			}

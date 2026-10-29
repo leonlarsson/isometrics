@@ -27,6 +27,7 @@ import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPointsDrag, applyRoadPointDrag, roadPointStart } from "./transforms";
 import { groundPointFrom, useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
+import { setViewCursor } from "./viewCursor";
 
 const HANDLE_LIFT = 0.12;
 /** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
@@ -210,11 +211,11 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "grab";
+				setViewCursor("grab");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<mesh>
@@ -268,11 +269,11 @@ const InsertHandle = ({ roadId, index, point, baseY, visible }: IInsertHandlePro
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "copy";
+				setViewCursor("copy");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<cylinderGeometry args={[0.2, 0.2, 0.05, 20]} />

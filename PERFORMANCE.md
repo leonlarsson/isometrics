@@ -86,6 +86,10 @@ Weather (ADR-0102) costs nothing in clear weather: the commit before it measured
 16. **Components re-rendered with nothing new** (tab rails, tooltips, icons under a parent that rendered). *Now:* the React Compiler memoises components and hooks (ADR-0093).
 17. **Part names were worked out over the whole parts list per call.** *Now:* cached.
 
+### Per pointer move
+
+25. **Hovering an object restyled the whole page.** Objects, roads, handles, the gizmo and viewpoint markers set the cursor on the page's body as the pointer came over them and left. A cursor is inherited, so each change restyled every element on the page: 38,500 in Edit mode with a painted world's outliner, about 15 ms a time, many times a second across a wood (View mode has a few hundred elements, so it never showed). *Now:* `setViewCursor` (`render/viewCursor`) sets it on the view's stage, a couple of dozen elements, above the view's own element and canvas, so the tools' crosshairs set there still win.
+
 ### Per switch: the camera
 
 18. **Switching projection rebuilt the effects composer.** Going between the diorama and perspective (a viewpoint of each, P) swaps the camera object, and `render/Effects` made its composer again for it: about twenty buffers allocated and a dozen post-processing shaders compiled, which froze the view for about half a second on Nice and Ultra (Lantern Bay's Overview is the one orthographic viewpoint among perspective ones). *Now:* the composer stays and is pointed at the new camera (`aimAt`: `setMainCamera`, and n8ao's own camera). n8ao builds its three shaders for one projection (an ORTHO define) and disposes them when it rebuilds, so the shaders built for each projection are kept and put back on a switch (`keepShadersForBothProjections`): after the first switch each way, a switch compiles and allocates nothing. Measured in headless Chromium by counting `linkProgram`, `createFramebuffer` and `texImage2D` calls per viewpoint switch.
@@ -104,6 +108,9 @@ Weather (ADR-0102) costs nothing in clear weather: the commit before it measured
 - A see-through material with two sides is drawn twice a frame and its shader looked up both times: give `forceSinglePass` to one whose look doesn't depend on drawing its back faces first (flat, or added light).
 - Keep Standard's cost as it is (ADR-0072); measure new effects with `scripts/shots.mjs`.
 - Never key a composer, pass, render target or shader on the camera object: it changes on every switch between the diorama and perspective. Point what exists at the new camera (`aimAt` in `render/Effects`), and remember that three compiles a material's shader on its first draw and deletes the program when its last material is disposed, so a mesh or pass that comes and goes compiles again each time it comes back.
+
+**The pointer**
+- Never set a style on the page's body or root as the pointer moves (a hover cursor): an inherited style restyles every element on the page. Hover cursors go through `setViewCursor`; the body is for what reaches past the view (a part dragged in from the palette).
 
 **React and the store**
 - A component drawn per object (thousands of times) must not subscribe to the store. Take what it needs as props from one parent that reads it once, and pass each instance only what concerns it, so `memo` can skip the rest. For the object itself, `useEntity(id)`.

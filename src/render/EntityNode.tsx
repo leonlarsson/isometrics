@@ -29,6 +29,7 @@ import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./rou
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
 import { surfaceHitOnRay } from "./useGroundDrag";
+import { setViewCursor } from "./viewCursor";
 
 const hit = new THREE.Vector3();
 
@@ -491,11 +492,11 @@ export const EntityNode = memo(
 				}
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = editable && selected ? "grab" : "pointer";
+				setViewCursor(editable && selected ? "grab" : "pointer");
 			},
 			onPointerOut: () => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			},
 			onContextMenu: openContextMenuOnClick({ kind: "entity", id: entity.id }),
 		};

@@ -11,6 +11,7 @@ import { DEG2RAD } from "#/lib/math";
 import type { TViewpoint } from "#/scene/schema";
 
 import { openViewpointMenuOnClick } from "./contextMenu";
+import { setViewCursor } from "./viewCursor";
 import { directionOf } from "./viewpoints";
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -165,11 +166,11 @@ const ViewpointMarker = ({ viewpoint, index, aspect }: IViewpointMarkerProps) =>
 					onPointerOver={(event) => {
 						event.stopPropagation();
 						setHovered(true);
-						document.body.style.cursor = "pointer";
+						setViewCursor("pointer");
 					}}
 					onPointerOut={() => {
 						setHovered(false);
-						document.body.style.cursor = "";
+						setViewCursor("");
 					}}
 				>
 					<sphereGeometry args={[1, 8, 6]} />

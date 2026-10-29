@@ -54,6 +54,7 @@ import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+import { ViewCursor } from "./viewCursor";
 import { WakeFieldStep } from "./WakeField";
 import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
@@ -317,6 +318,8 @@ export const Viewport = () => {
 			<PaintTool />
 
 			<PointerSpot />
+
+			<ViewCursor />
 
 			<CameraRig />
 

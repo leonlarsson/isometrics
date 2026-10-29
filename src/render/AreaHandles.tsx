@@ -25,6 +25,7 @@ import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPeakDrag, applyPointsDrag, type IPeakStart, peakStart } from "./transforms";
 import { useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
+import { setViewCursor } from "./viewCursor";
 
 const HANDLE_LIFT = 0.12;
 /** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
@@ -113,11 +114,11 @@ const CornerHandle = ({ areaId, index, point, y, selected, boxed }: ICornerHandl
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "grab";
+				setViewCursor("grab");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<mesh>
@@ -174,11 +175,11 @@ const InsertHandle = ({
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "copy";
+				setViewCursor("copy");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<cylinderGeometry args={[0.2, 0.2, 0.05, 20]} />
@@ -274,11 +275,11 @@ const FaceHandle = ({
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "copy";
+				setViewCursor("copy");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<cylinderGeometry args={[0.24, 0.24, 0.05, 3]} />
@@ -333,11 +334,11 @@ const PeakHandle = ({
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "grab";
+				setViewCursor("grab");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 		>
 			<mesh>

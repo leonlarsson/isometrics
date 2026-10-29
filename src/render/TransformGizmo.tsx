@@ -11,6 +11,7 @@ import type { TScene, TVec2 } from "#/scene/schema";
 import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
 import { surfaceHitOnRay } from "./useGroundDrag";
+import { setViewCursor } from "./viewCursor";
 
 /** The handles a gizmo can show. `xz` is the square that slides freely on the ground. */
 export type TGizmoHandle = "x" | "z" | "xz" | "y" | "rotate" | "rotateX" | "rotateZ" | "scale";
@@ -198,11 +199,11 @@ const Handle = ({ color, hoverColor, active, children, hitArea, ...events }: IHa
 			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
 				e.stopPropagation();
 				setHovered(true);
-				document.body.style.cursor = "grab";
+				setViewCursor("grab");
 			}}
 			onPointerOut={() => {
 				setHovered(false);
-				document.body.style.cursor = "";
+				setViewCursor("");
 			}}
 			{...events}
 		>
