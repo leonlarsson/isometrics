@@ -6,7 +6,7 @@ What makes the editor slow, what we did about it, and the rules that keep it fas
 
 ## Measuring
 
-`scripts/bench.mjs` opens the editor on a world and measures 4 seconds of frames: frame time (median and 90th percentile), the CPU time of each frame's callbacks, and draw calls per frame.
+`scripts/bench.mjs` opens the editor on a world and measures 4 seconds of frames: frame time (median and 90th percentile), the CPU and GPU time of each frame's callbacks, and draw calls per frame. When the GPU's time is about the frame's, the run waits on the GPU, and the CPU's time includes that wait (it shows inside the draws, like `multiDrawElementsWEBGL`, in a profile): look at what the GPU draws, not at the JavaScript.
 
 ```sh
 node.exe scripts/bench.mjs brightwater edit,view-ultra          # on WSL: Windows' node, the real GPU

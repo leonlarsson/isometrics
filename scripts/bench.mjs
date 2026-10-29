@@ -2,8 +2,9 @@
 /**
  * How fast the editor runs a world, and where the time goes (ADR-0092, PERFORMANCE.md). Opens the
  * editor, loads the world, then for each run sets the mode, graphics preset and view, waits for it
- * to settle and measures 4 s of frames: frame time (median, 90th percentile), the CPU time of each
- * frame's callbacks, and draw calls per frame.
+ * to settle and measures 4 s of frames: frame time (median, 90th percentile), the CPU and GPU time
+ * of each frame's callbacks, and draw calls per frame. The GPU's time (WebGL timer queries) says
+ * whether a run waits on the GPU: then the CPU's includes that wait, inside the draws.
  *
  *   node scripts/bench.mjs <world> [runs] [options]
  *
@@ -84,7 +85,15 @@ const runs = runList.split(",");
  * asked), and times each frame's callbacks on the CPU.
  */
 const instrument = () => {
-	const stats = { draws: 0, frames: [], cpu: [], drawsPerFrame: [], passes: null, passList: null };
+	const stats = {
+		draws: 0,
+		frames: [],
+		cpu: [],
+		gpu: [],
+		drawsPerFrame: [],
+		passes: null,
+		passList: null,
+	};
 	globalThis.__bench = stats;
 	const proto = WebGL2RenderingContext.prototype;
 	for (const name of [
@@ -157,11 +166,56 @@ const instrument = () => {
 		next(tick);
 	};
 	next(tick);
+	// The GPU's time for each frame's callbacks (they share its timestamp), added up as the queries
+	// come back a frame or two later.
+	let gl;
+	let timer;
+	const pending = [];
+	const gpuFrames = new Map();
+	const collect = () => {
+		while (
+			pending.length > 0 &&
+			gl.getQueryParameter(pending[0].query, gl.QUERY_RESULT_AVAILABLE)
+		) {
+			const { query, time } = pending.shift();
+			const frame = gpuFrames.get(time);
+			frame.ms += gl.getParameter(timer.GPU_DISJOINT_EXT)
+				? Number.NaN
+				: gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6;
+			frame.open -= 1;
+			gl.deleteQuery(query);
+		}
+		for (const [time, frame] of gpuFrames) {
+			if (frame.open === 0 && time < performance.now() - 100) {
+				if (!Number.isNaN(frame.ms)) {
+					stats.gpu.push(frame.ms);
+				}
+				gpuFrames.delete(time);
+			}
+		}
+	};
 	window.requestAnimationFrame = (callback) =>
 		next((time) => {
+			gl ??= document.querySelector("main canvas")?.getContext("webgl2") ?? undefined;
+			timer ??= gl?.getExtension("EXT_disjoint_timer_query_webgl2") ?? undefined;
+			const query = timer ? gl.createQuery() : null;
+			if (query) {
+				collect();
+				const frame = gpuFrames.get(time) ?? { ms: 0, open: 0 };
+				frame.open += 1;
+				gpuFrames.set(time, frame);
+				gl.beginQuery(timer.TIME_ELAPSED_EXT, query);
+			}
 			const start = performance.now();
-			callback(time);
-			stats.cpu.push(performance.now() - start);
+			try {
+				callback(time);
+			} finally {
+				stats.cpu.push(performance.now() - start);
+				if (query) {
+					gl.endQuery(timer.TIME_ELAPSED_EXT);
+					pending.push({ query, time });
+				}
+			}
 		});
 };
 
@@ -412,6 +466,7 @@ for (const run of runs) {
 	await page.evaluate(() => {
 		globalThis.__bench.frames.length = 0;
 		globalThis.__bench.cpu.length = 0;
+		globalThis.__bench.gpu.length = 0;
 		globalThis.__bench.drawsPerFrame.length = 0;
 		globalThis.__reactCounting = true;
 	});
@@ -420,12 +475,13 @@ for (const run of runs) {
 	const stats = await page.evaluate(() => ({
 		frames: globalThis.__bench.frames,
 		cpu: globalThis.__bench.cpu,
+		gpu: globalThis.__bench.gpu,
 		draws: globalThis.__bench.drawsPerFrame,
 		objects: globalThis.__editorStore.getState().scene.entities.length,
 	}));
 	const median = percentile(stats.frames, 0.5);
 	console.log(
-		`${run}: ${stats.objects} objects · frame ${median.toFixed(1)} ms median, ${percentile(stats.frames, 0.9).toFixed(1)} p90 (${(1000 / median).toFixed(0)} fps) · CPU in frame callbacks ${percentile(stats.cpu, 0.5).toFixed(2)} ms median · ${percentile(stats.draws, 0.5)} draws a frame`,
+		`${run}: ${stats.objects} objects · frame ${median.toFixed(1)} ms median, ${percentile(stats.frames, 0.9).toFixed(1)} p90 (${(1000 / median).toFixed(0)} fps) · CPU in frame callbacks ${percentile(stats.cpu, 0.5).toFixed(2)} ms median, GPU ${stats.gpu.length > 0 ? `${percentile(stats.gpu, 0.5).toFixed(2)} ms` : "not timed"} · ${percentile(stats.draws, 0.5)} draws a frame`,
 	);
 	if (countRenders) {
 		const { tally, why } = await page.evaluate(() => ({
