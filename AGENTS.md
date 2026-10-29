@@ -32,6 +32,7 @@ Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`, and 
 src/
   scene/      document model: Zod schema, parsing, road geometry, areas, path sampling, formatting, theme palettes (no React)
   parts/      procedural 3D parts, one file per part in a folder per palette category, + registry (definePart, PARTS)
+  fences/     fence styles, one file per style (defineFenceStyle), the builder that merges a fence's pieces by colour, + registry (FENCE_STYLES)
   templates/  starter scenes
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
@@ -43,7 +44,7 @@ e2e/          end-to-end tests (Playwright), one spec per area, and their shared
 docs/adr/     Architecture Decision Records
 ```
 
-Dependencies point downward: `ui` → `render` → `editor` → `parts` → `scene` → `lib`. `scene/` must stay free of React and three.js so it remains testable and reusable on a server.
+Dependencies point downward: `ui` → `render` → `editor` → `fences` → `parts` → `scene` → `lib`. `scene/` must stay free of React and three.js so it remains testable and reusable on a server.
 
 ## Conventions
 
@@ -90,6 +91,8 @@ Dependencies point downward: `ui` → `render` → `editor` → `parts` → `sce
 **Change the scene format:** edit `schema.ts` with defaults for new fields, and give each one a `.describe()` saying what it means (it's what `/schema.json` shows people and AIs writing worlds; ADR-0034). While the app is an experimental playground, change the schema in place: don't bump `SCENE_VERSION` or write migrations. Old saves and files are repaired on load instead (ADR-0026): invalid fields fall back to their defaults and unreadable items are left out, so give new fields sensible defaults. Renaming a field: add the old name to the renamed-field tables in `src/scene/legacy.ts` (ADR-0071), or it silently loses its value; renamed again, point every older name at the newest, oldest first; never remove an entry. Save an old world first (`pnpm fixture:old-world HEAD <template>`) and let `pnpm test` check it still opens with nothing lost (ADR-0056); a field without a default fails the tests unless it's added to the short allowlist in `scene/jsonSchema.test.ts`. Renaming a part kind, road style or area type is fine: add the old id to `src/scene/legacy.ts` so old worlds keep it (ADR-0053). Once worlds need a compatibility promise, breaking changes bump the version and migrate in `migrate.ts`, with a test. Write an ADR if the change is conceptual.
 
 **Add a setting to the properties:** put it in a panel (`Section` with an `id`, an icon and search `keywords`) in the tab it belongs to, or add a tab to `WORLD_TABS` in `Inspector.tsx` or to `entityTabs`/`roadTabs`/`areaTabs` (ADR-0054). Fields made from the kit are found by the settings search automatically. A part's own panels (its shape, colours and lights) are `ui/PartSettings`, shared with the parts catalogue (ADR-0087): they take an object's settings and an `onChange`, so keep the editor's store out of them.
+
+**Add a fence style** (ADR-0103): a file `src/fences/<style>_01.ts` with `defineFenceStyle({...})`: a name, a description and search keywords, its own `height` and `postSpacing` in world units, its `colors` (as parts list theirs, ADR-0060: stable ids, a name and a default each; a chain-link mesh's colour is `seeThrough`), and a `build` that adds pieces for the layout's posts and spans with the builder (`post`, `beam` along a span that follows the slope, `profile` for a flat shape like a picket, `block`, `lump`; `placesAlong` and `pointOnSpan` place things along a span, `randomAt` varies them repeatably), every piece in one of its colour ids. Add its id to `FenceStyleSchema` (`scene/schema.ts`) and the style to `FENCE_STYLE_LIST` in `fences/registry.ts`; Add to scene, the properties, the outliner, `/schema.json` and its picture pick it up, and `fences/registry.test.ts` checks it builds. A new look for an existing style is a variant with the next number (`hedge_02`). The layout itself (where posts stand, steps in the ground, how much is built) is `scene/fences.ts`, shared by every style.
 
 **Add a brush mix:** add it to `BRUSH_MIXES` in `editor/paint.ts` (part kinds with weights); the paint bar lists it (ADR-0091). Painted objects are plain objects, so nothing else changes.
 

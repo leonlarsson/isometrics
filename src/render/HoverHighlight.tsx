@@ -3,9 +3,10 @@ import { useMemo } from "react";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { fenceHeightOf, layoutOfFence } from "#/fences/fenceModel";
 import { cornerTop } from "#/scene/areas";
 import { roadCenterlineOf } from "#/scene/roads";
-import type { TArea, TRoad } from "#/scene/schema";
+import type { TArea, TFence, TRoad } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
 import { roadBaseY } from "./RoadMesh";
@@ -54,8 +55,18 @@ const areaOutline = (area: TArea, baseY: number): TPoint[][] => {
 	return [[...corners, corners[0]]];
 };
 
+/** A fence's outline: along its posts' tops, the whole of it (ADR-0103). */
+const fenceOutline = (fence: TFence, areas: readonly TArea[]): TPoint[][] => {
+	const { posts } = layoutOfFence({ ...fence, builtShare: 1, data: {} }, areas, []);
+	const top = fenceHeightOf(fence) + LIFT;
+	const line = posts.map(
+		(post): TPoint => [post.x, Math.max(post.baseBefore, post.baseAfter) + top, post.z],
+	);
+	return line.length > 1 ? [fence.loops ? [...line, line[0]] : line] : [];
+};
+
 /**
- * Outlines the road or area hovered in a list (the outliner or the Scene
+ * Outlines the road, area or fence hovered in a list (the outliner or the Scene
  * tab), so you can see which one a row is, and the roads and areas inside a
  * selection box being drawn (ADR-0064). Objects show their own frames
  * (EntityNode).
@@ -65,6 +76,7 @@ export const HoverHighlight = () => {
 	const boxed = useEditor((s) => s.boxDrag?.items);
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
+	const fences = useEditor((s) => s.scene.fences);
 	const mode = useEditor(drawnModeOf);
 	const palette = usePalette();
 
@@ -81,9 +93,13 @@ export const HoverHighlight = () => {
 				const area = areas[layer];
 				return area && !area.hidden ? areaOutline(area, areaBaseY(layer)) : [];
 			}
+			if (item.kind === "fence") {
+				const fence = fences.find((f) => f.id === item.id);
+				return fence && !fence.hidden ? fenceOutline(fence, areas) : [];
+			}
 			return [];
 		});
-	}, [hovered, boxed, roads, areas]);
+	}, [hovered, boxed, roads, areas, fences]);
 
 	if (mode !== "edit" || lines.length === 0) {
 		return null;

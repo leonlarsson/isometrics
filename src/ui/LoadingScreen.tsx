@@ -65,6 +65,7 @@ export const LoadingScreen = ({ starting }: { starting: boolean }) => {
 			entities: s.scene.entities.length,
 			roads: s.scene.roads.length,
 			areas: s.scene.areas.length,
+			fences: s.scene.fences.length,
 		})),
 	);
 	const loading = starting || opening;

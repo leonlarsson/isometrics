@@ -6,6 +6,7 @@ import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { COLOR_DATA, colorDefault, colorSettingOf, resolveTransparency } from "#/parts/colorModel";
 import { comesOnOf, lightDefaults, lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
@@ -50,7 +51,7 @@ const writeTo = (entities: readonly TEntity[]) => {
 	};
 };
 
-/** What an item is: its part, road style or area type. */
+/** What an item is: its part, road style, fence style or area type. */
 const kindNameOf = (scene: TScene, item: ISceneItem) => {
 	if (item.kind === "entity") {
 		const entity = scene.entities.find((e) => e.id === item.id);
@@ -59,6 +60,10 @@ const kindNameOf = (scene: TScene, item: ISceneItem) => {
 	if (item.kind === "road") {
 		const road = scene.roads.find((r) => r.id === item.id);
 		return road ? ROAD_STYLE_LABELS[road.style] : "";
+	}
+	if (item.kind === "fence") {
+		const fence = scene.fences.find((f) => f.id === item.id);
+		return fence ? FENCE_STYLE_LABELS[fence.style] : "";
 	}
 	const area = scene.areas.find((a) => a.id === item.id);
 	return area ? AREA_TYPE_LABELS[area.type] : "";

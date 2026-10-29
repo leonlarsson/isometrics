@@ -6,7 +6,16 @@ import {
 	MAX_CORNER_LIFT,
 	takesCornerHeights,
 } from "#/scene/areas";
-import type { TArea, TAreaPoint, TRoad, TRoadPoint, TScene, TVec2 } from "#/scene/schema";
+import type {
+	TArea,
+	TAreaPoint,
+	TFence,
+	TFencePoint,
+	TRoad,
+	TRoadPoint,
+	TScene,
+	TVec2,
+} from "#/scene/schema";
 
 import { type ICommitOptions, useEditor } from "./store";
 
@@ -39,6 +48,8 @@ export interface IGroupStart {
 	/** Driving vehicles: they move with their road, but take a resize. */
 	drivers: { id: string; scale: number }[];
 	roads: { id: string; points: TRoadPoint[] }[];
+	/** Fences: their points move like a road's, each keeping its lift above the ground. */
+	fences: { id: string; points: TFencePoint[] }[];
 	areas: { id: string; points: TAreaPoint[]; peaks: TArea["peaks"]; height: number }[];
 	/** The ground extent of what moves, to keep a moved group on the ground. */
 	bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
@@ -82,6 +93,10 @@ export const groupStartOf = (
 		.filter((entity) => entity.follow)
 		.map((entity) => ({ id: entity.id, scale: entity.scale }));
 	const roads = picked(scene.roads, "road").map((road) => ({ id: road.id, points: road.points }));
+	const fences = picked(scene.fences, "fence").map((fence) => ({
+		id: fence.id,
+		points: fence.points,
+	}));
 	const areas = picked(scene.areas, "area").map(({ id, points, peaks, height }) => ({
 		id,
 		points,
@@ -91,6 +106,7 @@ export const groupStartOf = (
 	const spots = [
 		...entities.map((entity) => entity.position),
 		...roads.flatMap((road) => road.points),
+		...fences.flatMap((fence) => fence.points),
 		...areas.flatMap((area) => area.points),
 	];
 	if (spots.length === 0 && drivers.length === 0) {
@@ -105,6 +121,10 @@ export const groupStartOf = (
 	const heights = [
 		...entities.map((entity) => entity.elevation),
 		...areas.map((area) => area.height),
+		// Fences by the ground they stand on (ADR-0103).
+		...fences.flatMap((fence) =>
+			fence.points.map((point) => groundHeightAt(scene.areas, [point[0], point[1]]) + point[2]),
+		),
 	];
 	const lowest = heights.length ? Math.min(...heights) : 0;
 	return {
@@ -112,6 +132,7 @@ export const groupStartOf = (
 		entities,
 		drivers,
 		roads,
+		fences,
 		areas,
 		bounds,
 	};
@@ -225,6 +246,15 @@ export const transformGroup = (
 				return width === undefined ? [x, z, height] : [x, z, height, width];
 			});
 		}
+		for (const start of from.fences) {
+			const fence = scene.fences.find((f) => f.id === start.id);
+			if (fence) {
+				fence.points = start.points.map((point) => [
+					...place(point),
+					round(clamp(point[2] + lift, 0, MAX_POINT_HEIGHT)),
+				]);
+			}
+		}
 		for (const start of from.areas) {
 			const area = scene.areas.find((a) => a.id === start.id);
 			if (area) {
@@ -248,9 +278,9 @@ export const transformSelected = (change: IGroupChange, options?: ICommitOptions
 	}
 };
 
-/** The selected points of a road, or corners of an area, when a move started (ADR-0065). */
+/** The selected points of a road or fence, or corners of an area, when a move started (ADR-0065). */
 export interface IPointsStart {
-	kind: "road" | "area";
+	kind: "road" | "area" | "fence";
 	id: string;
 	/** Each selected point by its index, as it was. */
 	points: { index: number; point: readonly number[] }[];
@@ -261,14 +291,12 @@ export interface IPointsStart {
 
 /** The selected points or corners as they are now, or null when there are none (or it's locked). */
 export const pointsStart = (): IPointsStart | null => {
-	const { scene, selectedRoadId, selectedAreaId, selectedPointIndices } = useEditor.getState();
+	const { scene, selectedRoadId, selectedAreaId, selectedFenceId, selectedPointIndices } =
+		useEditor.getState();
 	const road = scene.roads.find((r) => r.id === selectedRoadId);
 	const area = scene.areas.find((a) => a.id === selectedAreaId);
-	return road
-		? pointsStartOf({ road }, selectedPointIndices)
-		: area
-			? pointsStartOf({ area }, selectedPointIndices)
-			: null;
+	const fence = scene.fences.find((f) => f.id === selectedFenceId);
+	return road || area || fence ? pointsStartOf({ road, area, fence }, selectedPointIndices) : null;
 };
 
 /**
@@ -276,10 +304,10 @@ export const pointsStart = (): IPointsStart | null => {
  * following the points it moves): they pass what they subscribe to (ADR-0093).
  */
 export const pointsStartOf = (
-	{ road, area }: { road?: TRoad; area?: TArea },
+	{ road, area, fence }: { road?: TRoad; area?: TArea; fence?: TFence },
 	selectedPointIndices: readonly number[],
 ): IPointsStart | null => {
-	const shape = road ?? area;
+	const shape = road ?? area ?? fence;
 	if (!shape || shape.locked || selectedPointIndices.length === 0) {
 		return null;
 	}
@@ -299,9 +327,17 @@ export const pointsStartOf = (
 		maxZ: Math.max(...zs),
 	};
 	const lift = points.reduce((sum, { point }) => sum + (point[2] ?? 0), 0) / points.length;
-	const height = road ? lift : Math.max(0, (area?.height ?? 0) + lift);
+	// A fence's points stand on the ground: their middle is on the ground there, lifted.
+	const height = area
+		? Math.max(0, area.height + lift)
+		: fence
+			? groundHeightAt(useEditor.getState().scene.areas, [
+					(bounds.minX + bounds.maxX) / 2,
+					(bounds.minZ + bounds.maxZ) / 2,
+				]) + lift
+			: lift;
 	return {
-		kind: road ? "road" : "area",
+		kind: road ? "road" : fence ? "fence" : "area",
 		id: shape.id,
 		points,
 		center: [(bounds.minX + bounds.maxX) / 2, height, (bounds.minZ + bounds.maxZ) / 2],
@@ -334,6 +370,19 @@ export const transformPoints = (
 				const z = round(point[1] + dz);
 				if (road?.points[index]) {
 					road.points[index] = width === undefined ? [x, z, height] : [x, z, height, width];
+				}
+			}
+			return;
+		}
+		if (from.kind === "fence") {
+			const fence = scene.fences.find((f) => f.id === from.id);
+			for (const { index, point } of fence ? from.points : []) {
+				if (fence?.points[index]) {
+					fence.points[index] = [
+						round(point[0] + dx),
+						round(point[1] + dz),
+						round(clamp((point[2] ?? 0) + lift, 0, MAX_POINT_HEIGHT)),
+					];
 				}
 			}
 			return;

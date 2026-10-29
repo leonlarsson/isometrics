@@ -6,7 +6,7 @@ import { colorSettingOf } from "#/parts/colorModel";
 import { lightSettingsOf } from "#/parts/lightModel";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
 import { cornerLift, cornerWithLift, elevationMovedTo } from "#/scene/areas";
-import { bindingMapsOf } from "#/scene/dataBindings";
+import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
 import { parseOrRepairScene } from "#/scene/repair";
 import {
@@ -20,6 +20,7 @@ import {
 	type TEntity,
 	type TEntityColor,
 	type TEntityLight,
+	type TFence,
 	type TRoad,
 	type TVec2,
 } from "#/scene/schema";
@@ -30,7 +31,7 @@ import { type ICommitOptions, newId, renameEntity, useEditor } from "./store";
 import { notify } from "./toasts";
 
 /**
- * Copying and pasting (ADR-0068): things (objects, roads, areas) and a
+ * Copying and pasting (ADR-0068): things (objects, roads, areas, fences) and a
  * panel's settings travel as JSON on the system clipboard, marked as this
  * app's, so they move between worlds and tabs and an AI can write them. What
  * comes back is untrusted: things go through the scene's repair, settings
@@ -77,6 +78,7 @@ const ClipSchema = z.discriminatedUnion("type", [
 		entities: z.array(z.unknown()).default([]),
 		roads: z.array(z.unknown()).default([]),
 		areas: z.array(z.unknown()).default([]),
+		fences: z.array(z.unknown()).default([]),
 	}),
 	z.object({ app: z.literal(APP), type: z.literal("settings"), settings: CopiedSettingsSchema }),
 ]);
@@ -151,7 +153,7 @@ export const settingsOf = (
 export const settingsText = (settings: TCopiedSettings) =>
 	JSON.stringify({ app: APP, type: "settings", settings }, null, 2);
 
-/** The selected objects, roads and areas as clipboard text, or null when nothing is selected. */
+/** The selected objects, roads, areas and fences as clipboard text, or null when nothing is selected. */
 export const selectedThingsText = () => {
 	const { scene, selectedItems } = store();
 	const picked = <T extends { id: string }>(list: T[], kind: ISceneItem["kind"]) =>
@@ -161,18 +163,25 @@ export const selectedThingsText = () => {
 	const entities = picked(scene.entities, "entity");
 	const roads = picked(scene.roads, "road");
 	const areas = picked(scene.areas, "area");
-	if (entities.length + roads.length + areas.length === 0) {
+	const fences = picked(scene.fences, "fence");
+	if (entities.length + roads.length + areas.length + fences.length === 0) {
 		return null;
 	}
-	return JSON.stringify({ app: APP, type: "things", entities, roads, areas }, null, 2);
+	return JSON.stringify({ app: APP, type: "things", entities, roads, areas, fences }, null, 2);
 };
 
 /** "3 objects and a road": how many things of each kind, for messages. */
-export const describeThings = (counts: { entities: number; roads: number; areas: number }) => {
+export const describeThings = (counts: {
+	entities: number;
+	roads: number;
+	areas: number;
+	fences?: number;
+}) => {
 	const parts = (
 		[
 			[counts.entities, "an object", "objects"],
 			[counts.roads, "a road", "roads"],
+			[counts.fences ?? 0, "a fence", "fences"],
 			[counts.areas, "an area", "areas"],
 		] as const
 	).flatMap(([n, one, many]) => (n === 0 ? [] : [n === 1 ? one : `${n} ${many}`]));
@@ -483,7 +492,7 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
  * the ground.
  */
 const pasteThings = (
-	clip: { entities: unknown[]; roads: unknown[]; areas: unknown[] },
+	clip: { entities: unknown[]; roads: unknown[]; areas: unknown[]; fences: unknown[] },
 	at?: TVec2,
 ) => {
 	const state = store();
@@ -492,12 +501,13 @@ const pasteThings = (
 		entities: clip.entities,
 		roads: clip.roads,
 		areas: clip.areas,
+		fences: clip.fences,
 	});
-	const { entities, roads, areas } = repaired;
-	if (entities.length + roads.length + areas.length === 0) {
+	const { entities, roads, areas, fences } = repaired;
+	if (entities.length + roads.length + areas.length + fences.length === 0) {
 		notify(
 			"Nothing to paste",
-			"What was copied couldn't be read as objects, roads or areas.",
+			"What was copied couldn't be read as objects, roads, areas or fences.",
 			"error",
 		);
 		return;
@@ -507,12 +517,14 @@ const pasteThings = (
 		...entities.filter((e) => current.entities.some((c) => c.id === e.id)),
 		...roads.filter((r) => current.roads.some((c) => c.id === r.id)),
 		...areas.filter((a) => current.areas.some((c) => c.id === a.id)),
+		...fences.filter((f) => current.fences.some((c) => c.id === f.id)),
 	].length;
 	// Where to put them: centred on the clicked point, or a step over if the originals are here.
 	const spots = [
 		...entities.map((e) => e.position),
 		...roads.flatMap((r) => r.points),
 		...areas.flatMap((a) => a.points),
+		...fences.flatMap((f) => f.points),
 	];
 	const xs = spots.map((spot) => spot[0]);
 	const zs = spots.map((spot) => spot[1]);
@@ -538,6 +550,10 @@ const pasteThings = (
 	);
 	const areaName = copyNamer(
 		current.areas.map((area) => area.name),
+		style,
+	);
+	const fenceName = copyNamer(
+		current.fences.map((fence) => fence.name),
 		style,
 	);
 	const entityName = copyNamer(
@@ -566,6 +582,15 @@ const pasteThings = (
 				return cornerWithLift(x, z, cornerLift(point));
 			}),
 			peaks: area.peaks.map(([x, z, lift]) => [...place(x, z), lift]),
+		}),
+	);
+	// Each point keeps its lift above the ground where it lands (ADR-0103).
+	const newFences = fences.map(
+		(fence): TFence => ({
+			...fence,
+			id: newId("fence"),
+			name: fenceName(fence.name),
+			points: fence.points.map((point) => [...place(point[0], point[1]), point[2]]),
 		}),
 	);
 	const newEntities = entities.map((entity): TEntity => {
@@ -600,23 +625,33 @@ const pasteThings = (
 		scene.entities.push(...newEntities);
 		scene.roads.push(...newRoads);
 		scene.areas.push(...newAreas);
+		scene.fences.push(...newFences);
 	});
 	state.selectItems([
 		...newAreas.map((area): ISceneItem => ({ kind: "area", id: area.id })),
 		...newRoads.map((road): ISceneItem => ({ kind: "road", id: road.id })),
+		...newFences.map((fence): ISceneItem => ({ kind: "fence", id: fence.id })),
 		...newEntities.map((entity): ISceneItem => ({ kind: "entity", id: entity.id })),
 	]);
 	const dropped =
 		clip.entities.length +
 		clip.roads.length +
-		clip.areas.length -
-		(entities.length + roads.length + areas.length);
+		clip.areas.length +
+		clip.fences.length -
+		(entities.length + roads.length + areas.length + fences.length);
 	notify(
-		`Pasted ${describeThings({ entities: newEntities.length, roads: newRoads.length, areas: newAreas.length })}`,
+		`Pasted ${describeThings({ entities: newEntities.length, roads: newRoads.length, areas: newAreas.length, fences: newFences.length })}`,
 		dropped > 0 ? "Some of what was copied couldn't be read and was left out." : undefined,
 		"success",
 	);
-	warnAboutMissingData(missingDataKeys(newEntities.flatMap(dataKeysOf)));
+	warnAboutMissingData(
+		missingDataKeys([
+			...newEntities.flatMap(dataKeysOf),
+			...newFences.flatMap((fence) =>
+				fenceBindingMapsOf(fence).flatMap((map) => Object.values(map).map((b) => b.key)),
+			),
+		]),
+	);
 };
 
 /** What clipboard text holds, if it's something copied from this app (or written like it). */

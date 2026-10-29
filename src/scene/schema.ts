@@ -548,6 +548,95 @@ export const AreaSchema = z
 	})
 	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 
+export const FenceStyleSchema = z
+	.enum([
+		"picket_fence_01",
+		"rail_fence_01",
+		"chain_link_fence_01",
+		"stone_wall_01",
+		"hedge_01",
+		"railing_01",
+		"guard_rail_01",
+	])
+	.describe(
+		"What the fence looks like (numbered so each can get variants): picket_fence_01 = white garden pickets, rail_fence_01 = a farm's wooden rails, chain_link_fence_01 = a tall wire mesh on metal posts, stone_wall_01 = a low dry-stone wall, hedge_01 = a clipped hedge, railing_01 = a metal railing (quays, bridges), guard_rail_01 = a roadside crash barrier.",
+	);
+
+// See docs/adr/0103-fences.md.
+export const FencePointSchema = z
+	.union([
+		z.tuple([z.number(), z.number(), z.number().min(0).max(50)]),
+		z
+			.tuple([z.number(), z.number()])
+			.transform(([x, zPos]): [number, number, number] => [x, zPos, 0]),
+	])
+	.describe(
+		"A fence point: [x, z], or [x, z, lift] to raise the fence that far above the ground there (on a wall, along a bridge). The fence otherwise stands on the ground under it, raised land and slopes included.",
+	);
+
+// See docs/adr/0103-fences.md.
+export const FenceSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the fences."),
+		name: z.string().default("").describe("Shown in the editor."),
+		style: FenceStyleSchema.default("picket_fence_01"),
+		points: z
+			.array(FencePointSchema)
+			.min(2)
+			.describe("Points in drawing order; posts stand at each one and are spaced in between."),
+		loops: z.boolean().default(false).describe("Close it from the last point back to the first."),
+		cornerRadius: z
+			.number()
+			.min(0)
+			.max(50)
+			.default(0)
+			.describe("Radius of the curve at each corner; 0 = sharp corners."),
+		height: z
+			.number()
+			.min(0.1)
+			.max(10)
+			.nullable()
+			.default(null)
+			.describe("Height in grid units; null = the style's."),
+		postSpacing: z
+			.number()
+			.min(0.3)
+			.max(20)
+			.nullable()
+			.default(null)
+			.describe(
+				"The longest gap between two posts, in grid units (posts are spaced evenly between corners); null = the style's.",
+			),
+		colors: z
+			.record(z.string(), EntityColorSchema)
+			.default({})
+			.describe(
+				"Settings for the style's colours, by colour id (see the style's colours in the format guide); a colour not listed is the style's.",
+			),
+		builtShare: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(1)
+			.describe(
+				"How much of it is built, from its first point: 1 = all of it, 0.5 = the first half (a fence going up).",
+			),
+		data: z
+			.record(z.string(), DataBindingSchema)
+			.default({})
+			.describe(
+				'Settings that follow a data value: { "builtShare": { key, valueAtFull } } builds value ÷ valueAtFull of it.',
+			),
+		locked: z.boolean().default(false).describe("Its points can't be moved in the editor."),
+		hidden: z
+			.boolean()
+			.default(false)
+			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
+	})
+	.describe(
+		"A fence, wall, hedge or railing drawn as a line of points; it stands on the ground under it.",
+	);
+
 export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
@@ -1085,6 +1174,7 @@ export const SceneSchema = z
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
+		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
 		data: z
 			.array(DataEntrySchema)
 			.default([])
@@ -1149,6 +1239,11 @@ export const SceneSchema = z
 			"area id",
 		);
 		checkUnique(
+			scene.fences.map((f) => f.id),
+			["fences"],
+			"fence id",
+		);
+		checkUnique(
 			scene.data.map((d) => d.key),
 			["data"],
 			"data key",
@@ -1182,6 +1277,10 @@ export type TArea = z.output<typeof AreaSchema>;
 export type TAreaInput = z.input<typeof AreaSchema>;
 export type TAreaType = z.output<typeof AreaTypeSchema>;
 export type TAreaPoint = z.output<typeof AreaPointSchema>;
+export type TFence = z.output<typeof FenceSchema>;
+export type TFenceInput = z.input<typeof FenceSchema>;
+export type TFenceStyle = z.output<typeof FenceStyleSchema>;
+export type TFencePoint = z.output<typeof FencePointSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;

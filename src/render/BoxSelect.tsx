@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { ISceneItem } from "#/editor/framing";
 import { isItemSelected, useEditor } from "#/editor/store";
 import { getPart, resolveProps } from "#/parts/registry";
-import { cornerTop } from "#/scene/areas";
+import { cornerTop, groundHeightAt } from "#/scene/areas";
 import type { TScene } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -22,7 +22,7 @@ interface IScreenBox {
 
 /**
  * What a box on screen holds (ADR-0064): objects whose centre is inside it,
- * and roads and areas whose points all are, so a big area under a district
+ * and roads, areas and fences whose points all are, so a big area under a district
  * isn't picked by accident. Hidden and locked things are left out.
  */
 const itemsInBox = (
@@ -74,17 +74,27 @@ const itemsInBox = (
 			items.push({ kind: "area", id: area.id });
 		}
 	}
+	for (const fence of scene.fences) {
+		if (
+			!fence.hidden &&
+			!fence.locked &&
+			fence.points.every(([x, z, lift]) => inside(x, groundHeightAt(scene.areas, [x, z]) + lift, z))
+		) {
+			items.push({ kind: "fence", id: fence.id });
+		}
+	}
 	return items;
 };
 
 /**
- * The points of the selected road, or corners of the selected area, inside a
- * box on screen (ADR-0065), while one of them is selected.
+ * The points of the selected road or fence, or corners of the selected area,
+ * inside a box on screen (ADR-0065), while one of them is selected.
  */
 const pointsInBox = (
 	scene: TScene,
 	roadId: string | null,
 	areaId: string | null,
+	fenceId: string | null,
 	box: IScreenBox,
 	camera: THREE.Camera,
 	canvas: DOMRect,
@@ -92,9 +102,12 @@ const pointsInBox = (
 	const layer = scene.roads.findIndex((r) => r.id === roadId);
 	const road = scene.roads[layer];
 	const area = scene.areas.find((a) => a.id === areaId);
+	const fence = scene.fences.find((f) => f.id === fenceId);
 	const spots = road
 		? road.points.map(([x, z, height = 0]) => [x, roadBaseY(layer) + height, z])
-		: (area?.points.map((point) => [point[0], cornerTop(area, point), point[1]]) ?? []);
+		: fence
+			? fence.points.map(([x, z, lift]) => [x, groundHeightAt(scene.areas, [x, z]) + lift, z])
+			: (area?.points.map((point) => [point[0], cornerTop(area, point), point[1]]) ?? []);
 	return spots.flatMap(([x, y, z], index) => {
 		projected.set(x, y, z).project(camera);
 		const left = canvas.left + ((projected.x + 1) / 2) * canvas.width;
@@ -177,8 +190,16 @@ export const BoxSelect = () => {
 			const removing = state.boxSelect === "remove" || event.ctrlKey || event.metaKey;
 			const canvas = element.getBoundingClientRect();
 			if (state.selectedPointIndex !== null) {
-				const { scene, selectedRoadId, selectedAreaId } = state;
-				const inside = pointsInBox(scene, selectedRoadId, selectedAreaId, box, camera, canvas);
+				const { scene, selectedRoadId, selectedAreaId, selectedFenceId } = state;
+				const inside = pointsInBox(
+					scene,
+					selectedRoadId,
+					selectedAreaId,
+					selectedFenceId,
+					box,
+					camera,
+					canvas,
+				);
 				const points = removing
 					? inside.filter((index) => state.selectedPointIndices.includes(index))
 					: inside;

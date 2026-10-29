@@ -3,10 +3,12 @@ import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import {
 	selectSelectedArea,
 	selectSelectedEntity,
+	selectSelectedFence,
 	selectSelectedRoad,
 	type TInspectorTab,
 	useEditor,
 } from "#/editor/store";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
@@ -16,6 +18,7 @@ import { IconButton } from "./Button";
 import { CameraTab } from "./CameraTab";
 import { DataPanel } from "./DataPanel";
 import { entityTabs } from "./EntityInspector";
+import { fenceTabs } from "./FenceInspector";
 import { SearchField, SettingsSearchContext } from "./fields";
 import { groupTabs } from "./GroupInspector";
 import { Icon, type TIconName } from "./Icon";
@@ -65,6 +68,7 @@ const useSelection = (): ISelectionContext | null => {
 	const entity = useEditor(selectSelectedEntity);
 	const road = useEditor(selectSelectedRoad);
 	const area = useEditor(selectSelectedArea);
+	const fence = useEditor(selectSelectedFence);
 	const items = useEditor((s) => s.selectedItems);
 	const entities = useEditor((s) => s.scene.entities);
 
@@ -100,6 +104,13 @@ const useSelection = (): ISelectionContext | null => {
 			name: area.name || AREA_TYPE_LABELS[area.type],
 			icon: "area",
 			tabs: areaTabs(area),
+		};
+	}
+	if (fence) {
+		return {
+			name: fence.name || FENCE_STYLE_LABELS[fence.style],
+			icon: "fence",
+			tabs: fenceTabs(fence),
 		};
 	}
 	return null;

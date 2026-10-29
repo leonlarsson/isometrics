@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { sceneJsonSchema } from "#/scene/jsonSchema";
 import { isHiddenRoute, ROAD_STYLES } from "#/scene/roads";
@@ -32,6 +33,8 @@ Colours: each kind lists its colours by id in the catalogue (a house has roof an
 Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. loops: true makes a loop. Styles ${HIDDEN_STYLES} are invisible routes, e.g. a ferry line across water. A vehicle part drives along a road with follow: { roadId, speed, offset, reverse }; offset is the distance from the road's first point where it starts, and reverse drives it the other way (in the other lane).
 
 Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land with a height).
+
+Fences: fences, walls, hedges and railings, each a line of points ([x, z], or [x, z, lift] to raise it that far above the ground there) with a style; it stands on the ground under it, raised land included. Posts stand at every point and are spaced evenly in between (postSpacing, the style's by default). loops: true closes it; cornerRadius rounds its corners. colors works as for entities, by the style's colour ids (in fences.style's descriptions). builtShare (0–1) builds only the first part of it, and data: { "builtShare": { key, valueAtFull } } takes that from a data value, e.g. a site fence that grows with a project's progress.
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
@@ -126,6 +129,17 @@ export const worldJsonSchema = () => {
 			description: describePart(part),
 		})),
 	};
+	const fence = (schema.properties?.fences as { items?: TJsonSchema } | undefined)?.items;
+	if (fence?.properties) {
+		fence.properties.style = {
+			description: "What the fence looks like.",
+			oneOf: FENCE_STYLE_LIST.map((style) => ({
+				const: style.id,
+				title: FENCE_STYLE_LABELS[style.id],
+				description: `${style.description}. ${round(style.height)} tall, posts up to ${round(style.postSpacing)} apart by default. Colours (settings in colors, by id): ${style.colors.map(describeColor).join("; ")}.`,
+			})),
+		};
+	}
 	entity.allOf = PARTS.filter((part) => part.fields.length > 0).map((part) => ({
 		if: { properties: { kind: { const: part.kind } }, required: ["kind"] },
 		then: { properties: { props: propsSchema(part) } },

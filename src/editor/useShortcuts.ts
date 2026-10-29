@@ -18,6 +18,7 @@ import {
 	selectMovesAsGroup,
 	selectSelectedArea,
 	selectSelectedEntity,
+	selectSelectedFence,
 	selectSelectedRoad,
 	type TTransformMode,
 	useEditor,
@@ -38,7 +39,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Mod+D duplicate · Shift+D duplicate and move (ADR-0067) · Delete/Backspace remove (selected road point, else object or road)
  *   B / Shift+B: the next drag draws a box that adds to the selection, or takes from it (ADR-0064)
  *   Several selected: the keys that edit work on all of them, around their middle
- *   H hide or show the selection · Alt+H show everything hidden · F frame the selection
+ *   H hide or show the selection · Alt+H show everything hidden · F frame the selection · Shift+F draw a fence
  *   P perspective / diorama view · I isometric angle · 1–9 go to viewpoint 1–9 · Home back to the opening view
  *   Nothing selected: arrows pan the camera (Shift: turn and tilt) · + / − zoom (held: keeps going)
  *   View mode, or holding the right mouse button: W A S D move the camera, Q / E down and up
@@ -56,7 +57,10 @@ export const useShortcuts = () => {
 	const selectedLocked = useEditor((s) => selectSelectedEntity(s)?.locked === true);
 	const selectedFollows = useEditor((s) => Boolean(selectSelectedEntity(s)?.follow));
 	const roadOrAreaSelected = useEditor(
-		(s) => selectSelectedRoad(s) !== null || selectSelectedArea(s) !== null,
+		(s) =>
+			selectSelectedRoad(s) !== null ||
+			selectSelectedArea(s) !== null ||
+			selectSelectedFence(s) !== null,
 	);
 
 	const canEdit = mode === "edit" && objectSelected;
@@ -77,7 +81,7 @@ export const useShortcuts = () => {
 		if (s.mode !== "edit" || s.selectedPointIndex === null || s.selectedItems.length > 1) {
 			return false;
 		}
-		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s);
+		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s) ?? selectSelectedFence(s);
 		return shape !== null && !shape.hidden && !shape.locked;
 	});
 	// An area's selected peak that can be edited (ADR-0101): G and the arrows move it too.
@@ -182,7 +186,8 @@ export const useShortcuts = () => {
 		}
 		const index = state.selectedPointIndex;
 		const road = selectSelectedRoad(state);
-		const shape = road ?? selectSelectedArea(state);
+		const fence = selectSelectedFence(state);
+		const shape = road ?? fence ?? selectSelectedArea(state);
 		const point = index === null ? undefined : shape?.points[index];
 		if (!shape || index === null || !point) {
 			return;
@@ -196,6 +201,8 @@ export const useShortcuts = () => {
 		const options = { coalesce: `nudge:${shape.id}:${index}` };
 		if (road) {
 			state.moveRoadPoint(road.id, index, next, options);
+		} else if (fence) {
+			state.moveFencePoint(fence.id, index, next, options);
 		} else {
 			state.moveAreaPoint(shape.id, index, next, options);
 		}
@@ -216,6 +223,12 @@ export const useShortcuts = () => {
 				state.removeRoadPoint(state.selectedRoadId, point);
 			} else {
 				state.removeRoad(state.selectedRoadId);
+			}
+		} else if (state.selectedFenceId) {
+			if (point !== null) {
+				state.removeFencePoint(state.selectedFenceId, point);
+			} else {
+				state.removeFence(state.selectedFenceId);
 			}
 		} else if (state.selectedAreaId) {
 			if (state.selectedPeakIndex !== null) {
@@ -286,6 +299,8 @@ export const useShortcuts = () => {
 					state.selectRoadPoint(state.selectedRoadId, null);
 				} else if (state.selectedPointIndex !== null && state.selectedAreaId) {
 					state.selectAreaPoint(state.selectedAreaId, null);
+				} else if (state.selectedPointIndex !== null && state.selectedFenceId) {
+					state.selectFencePoint(state.selectedFenceId, null);
 				} else {
 					state.clearSelection();
 				}
@@ -417,6 +432,18 @@ export const useShortcuts = () => {
 			hotkey: "F",
 			callback: () => useEditor.getState().frameSelection(),
 			options: { enabled: canDelete, meta: { name: "Frame the selection" } },
+		},
+		{
+			hotkey: "Shift+F",
+			// Draw a fence in the look of the last one drawn, else a picket fence (ADR-0103).
+			callback: () => {
+				const state = useEditor.getState();
+				state.startFenceDrawing(state.scene.fences.at(-1)?.style ?? "picket_fence_01");
+			},
+			options: {
+				enabled: mode === "edit" && !transforming && !holdingRightButton,
+				meta: { name: "Draw a fence" },
+			},
 		},
 		{
 			hotkey: "G",

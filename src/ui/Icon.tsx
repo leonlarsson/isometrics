@@ -76,6 +76,8 @@ const PATHS = {
 	chart: "M3 20h18M6 16v-5M11 16V5M16 16V9M20 16v-3",
 	road: "M8 3 4.5 21M16 3l3.5 18M12 4v3M12 10.5v3M12 17v3",
 	area: "M5 8.5 12 4l8 5-2.5 10.5h-11z",
+	// Two pickets and their rails: fences (ADR-0103).
+	fence: "M6 21V7l2-3 2 3v14M14 21V7l2-3 2 3v14M3 10h18M3 16h18",
 	building: "M4 21V5l8-3v19M12 9h8v12M2 21h20M7.5 7.5h1M7.5 11.5h1M7.5 15.5h1M15.5 13h1M15.5 17h1",
 	tree: "M12 2 6 11h3l-4 6h14l-4-6h3zM12 17v5",
 	cone: "M10 3h4l4.5 15h-13zM4 21h16M8.6 9h6.8M7.4 13.5h9.2",

@@ -106,3 +106,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0100](0100-loading-screen.md) | A loading screen while a world opens | proposed |
 | [0101](0101-area-peaks.md) | Peaks inside areas: round hills and hollows | proposed |
 | [0102](0102-weather.md) | Weather: rain, snow, fog, haze, lightning, and what it does to the ground | proposed |
+| [0103](0103-fences.md) | Fences: drawn lines with styles, next to roads and areas | proposed |

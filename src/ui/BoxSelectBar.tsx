@@ -13,9 +13,9 @@ import boxStyles from "./SelectionBox.module.css";
 export const BoxSelectBar = () => {
 	const mode = useEditor((s) => s.boxSelect);
 	const drag = useEditor((s) => s.boxDrag);
-	// While a point or corner is selected, the box selects its road's points or area's corners.
+	// While a point or corner is selected, the box selects its road's or fence's points or area's corners.
 	const what = useEditor((s) =>
-		s.selectedPointIndex === null ? null : s.selectedRoadId ? "points" : "corners",
+		s.selectedPointIndex === null ? null : s.selectedAreaId ? "corners" : "points",
 	);
 	if (!mode) {
 		return null;

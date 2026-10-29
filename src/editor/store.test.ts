@@ -472,6 +472,89 @@ describe("editor store", () => {
 		expect(s().selectedAreaId).toBe(id);
 	});
 
+	it("draws a fence, edits its points like a road's, and keeps at least two (ADR-0103)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().startFenceDrawing("hedge_01");
+		s().addDrawingPoint([0, 0]);
+		s().addDrawingPoint([4, 0]);
+		s().addDrawingPoint([4, 4]);
+		const id = s().finishDrawing();
+		const fence = () => s().scene.fences.find((f) => f.id === id);
+		expect(fence()).toMatchObject({ style: "hedge_01", name: "Hedge 1", loops: false });
+		expect(fence()?.points).toEqual([
+			[0, 0, 0],
+			[4, 0, 0],
+			[4, 4, 0],
+		]);
+		expect(s().selectedFenceId).toBe(id);
+		expect(s().selectedItems).toEqual([{ kind: "fence", id }]);
+
+		if (!id) {
+			throw new Error("no fence");
+		}
+		s().setFencePointLift(id, 1, 1.5);
+		s().moveFencePoint(id, 1, [5, 1]);
+		expect(fence()?.points[1]).toEqual([5, 1, 1.5]);
+		s().insertFencePoint(id, 1, [2, 0, 0]);
+		expect(fence()?.points).toHaveLength(4);
+
+		// Split in the middle: two fences sharing the point, the second one selected.
+		const second = s().splitFence(id, 1);
+		expect(s().scene.fences).toHaveLength(2);
+		expect(s().selectedFenceId).toBe(second);
+		expect(fence()?.points).toHaveLength(2);
+
+		s().removeFencePoint(id, 0);
+		expect(fence()?.points).toHaveLength(2);
+
+		s().selectFencePoint(id, 0);
+		s().togglePoint(1);
+		s().removeSelectedPoints();
+		expect(fence()?.points).toHaveLength(2);
+
+		s().selectFence(id);
+		s().removeSelected();
+		expect(s().scene.fences).toHaveLength(1);
+		s().undo();
+		expect(s().scene.fences).toHaveLength(2);
+	});
+
+	it("copies fences a step over, and follows data renames into their bindings", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addFence({
+			style: "chain_link_fence_01",
+			points: [
+				[0, 0],
+				[4, 0, 1],
+			],
+			data: { builtShare: DataBindingSchema.parse({ key: "orders", valueAtFull: 10 }) },
+			colors: {
+				mesh: {
+					color: null,
+					transparency: null,
+					data: { color: DataBindingSchema.parse({ key: "orders" }) },
+				},
+			},
+		});
+		s().duplicateSelected();
+		const copy = s().scene.fences.find((f) => f.id !== id);
+		expect(copy?.points).toEqual([
+			[1, 1, 0],
+			[5, 1, 1],
+		]);
+		expect(s().selectedFenceId).toBe(copy?.id);
+
+		s().upsertData({ key: "parcels", label: "Orders", value: 3, unit: "" }, "orders");
+		const original = s().scene.fences.find((f) => f.id === id);
+		expect(original?.data.builtShare?.key).toBe("parcels");
+		expect(original?.colors.mesh?.data.color?.key).toBe("parcels");
+		s().removeData("parcels");
+		expect(s().scene.fences.find((f) => f.id === id)?.data).toEqual({});
+		expect(s().scene.fences.find((f) => f.id === id)?.colors).toEqual({});
+	});
+
 	it("edits area corners, keeps at least three, and undoes", () => {
 		const store = makeStore();
 		const s = () => store.getState();

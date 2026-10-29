@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { COLOR_DATA, colorDefault, colorSettingOf } from "#/parts/colorModel";
+import { COLOR_DATA, colorDefault, colorSettingOf, type IPartColors } from "#/parts/colorModel";
 import { lightDefaults, lightSettingsOf } from "#/parts/lightModel";
 import { partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec, TFieldSpec } from "#/parts/types";
@@ -228,7 +228,9 @@ export const PartColorsSection = ({
 	palette,
 	actions,
 	onChange,
-}: IPartSettingsProps & {
+}: Omit<IPartSettingsProps, "part"> & {
+	/** What has the colours: a part, or a fence's style (ADR-0103). */
+	part: IPartColors;
 	palette: IScenePalette;
 	actions?: ReactNode;
 	/** `coalesce` names the setting being dragged or typed, so it's one undo step. */

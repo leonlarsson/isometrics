@@ -2,6 +2,7 @@ import { type Draft, produce } from "immer";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
@@ -18,7 +19,7 @@ import {
 	middleOf,
 	takesCornerHeights,
 } from "#/scene/areas";
-import { bindingMapsOf } from "#/scene/dataBindings";
+import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
@@ -40,6 +41,7 @@ import {
 	EntityColorSchema,
 	EntityLightSchema,
 	EntitySchema,
+	FenceSchema,
 	FollowSchema,
 	RoadSchema,
 	type TArea,
@@ -49,6 +51,10 @@ import {
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
+	type TFence,
+	type TFenceInput,
+	type TFencePoint,
+	type TFenceStyle,
 	type TProjection,
 	type TRoad,
 	type TRoadInput,
@@ -131,6 +137,13 @@ const withPoint = (
 	return width === null || width === undefined ? [x, z, height] : [x, z, height, width];
 };
 
+/** A fence point at a spot, `lift` above the ground there (ADR-0103). */
+const fencePoint = (x: number, z: number, lift = 0): TFencePoint => [
+	round(x),
+	round(z),
+	round(Math.min(50, Math.max(0, lift))),
+];
+
 /** Grid step for dragging and nudging, in ground units. */
 export const SNAP_STEP = 0.5;
 /** Alt+arrow nudges by this much instead of a grid step, for lining things up by eye. */
@@ -156,17 +169,21 @@ export interface ICommitOptions {
 	gesture?: boolean;
 }
 
-/** A road or area being drawn point by point. Runtime UI state; never saved in the scene. */
+/** A road, area or fence being drawn point by point. Runtime UI state; never saved in the scene. */
 export interface IRoadDrawing {
 	/** What the points will become. */
-	target: "road" | "area";
+	target: "road" | "area" | "fence";
 	/** Road style (roads only). */
 	style: TRoadStyle;
 	/** Area type (areas only). */
 	areaType: TAreaType;
+	/** Fence style (fences only). */
+	fenceStyle?: TFenceStyle;
 	points: TRoadPoint[];
 	/** When continuing an existing road: its id. Finishing replaces that road's points. */
 	roadId?: string;
+	/** When continuing an existing fence: its id. Finishing replaces that fence's points. */
+	fenceId?: string;
 }
 
 export type TTransformMode = "grab" | "rotate" | "scale";
@@ -221,6 +238,7 @@ export interface IEditorState {
 	selectedId: string | null;
 	selectedRoadId: string | null;
 	selectedAreaId: string | null;
+	selectedFenceId: string | null;
 	/**
 	 * Everything selected, the active item last (ADR-0064). Setting the active item without it
 	 * selects just that item.
@@ -352,6 +370,9 @@ export interface IEditorState {
 	selectArea: (id: string | null) => void;
 	/** Select a corner of an area (also selects the area), or clear the point selection. */
 	selectAreaPoint: (areaId: string, index: number | null) => void;
+	selectFence: (id: string | null) => void;
+	/** Select a point of a fence (also selects the fence), or clear the point selection. */
+	selectFencePoint: (fenceId: string, index: number | null) => void;
 	/**
 	 * Shift/Ctrl-click a point of the selected road or a corner of the selected area: add it to the
 	 * selected points (it becomes the active one), or take it out (ADR-0065).
@@ -600,13 +621,42 @@ export interface IEditorState {
 	/** Put an area corner's top at this height (ADR-0096), as a lift above the area's height. */
 	setAreaCornerHeight: (id: string, index: number, top: number, options?: ICommitOptions) => void;
 
+	addFence: (input: Omit<TFenceInput, "id"> & { id?: string }) => string;
+	updateFence: (
+		id: string,
+		recipe: (fence: Draft<TFence>) => void,
+		options?: ICommitOptions,
+	) => void;
+	removeFence: (id: string) => void;
+	/** Move a fence point across the ground, keeping its lift. */
+	moveFencePoint: (id: string, index: number, point: TVec2, options?: ICommitOptions) => void;
+	/** Lift a fence point above the ground there (0: standing on it). */
+	setFencePointLift: (id: string, index: number, lift: number, options?: ICommitOptions) => void;
+	/** Insert a fence point before `index`. */
+	insertFencePoint: (
+		id: string,
+		index: number,
+		point: TFencePoint,
+		options?: ICommitOptions,
+	) => void;
+	/** Remove a fence point (a fence keeps at least two). */
+	removeFencePoint: (id: string, index: number) => void;
+	/**
+	 * Cut a fence at a point. An open fence becomes two that share that point
+	 * (returns the new fence's id); a loop opens there (returns its own id).
+	 */
+	splitFence: (id: string, index: number) => string | null;
+
 	startDrawing: (style: TRoadStyle) => void;
 	startAreaDrawing: (type: TAreaType) => void;
+	startFenceDrawing: (style: TFenceStyle) => void;
+	/** Continue drawing from one end of an existing open fence. */
+	continueFenceDrawing: (fenceId: string, end: TRoadEnd) => void;
 	/** Continue drawing from one end of an existing open road. */
 	continueDrawing: (roadId: string, end: TRoadEnd) => void;
 	addDrawingPoint: (point: TVec2) => void;
 	undoDrawingPoint: () => void;
-	/** Create the road (2+ points) or area (3+ points) from the drawn points. Returns its id. */
+	/** Create the road or fence (2+ points) or area (3+ points) from the drawn points. Returns its id. */
 	finishDrawing: (options?: { loops?: boolean }) => string | null;
 	cancelDrawing: () => void;
 }
@@ -655,6 +705,7 @@ const validRoadSelection = (
 		IEditorState,
 		| "selectedRoadId"
 		| "selectedAreaId"
+		| "selectedFenceId"
 		| "selectedPointIndex"
 		| "selectedPointIndices"
 		| "selectedPeakIndex"
@@ -662,10 +713,12 @@ const validRoadSelection = (
 ) => {
 	const road = scene.roads.find((r) => r.id === state.selectedRoadId);
 	const area = scene.areas.find((a) => a.id === state.selectedAreaId);
-	const points = road?.points ?? area?.points;
+	const fence = scene.fences.find((f) => f.id === state.selectedFenceId);
+	const points = road?.points ?? area?.points ?? fence?.points;
 	return {
 		selectedRoadId: road ? road.id : null,
 		selectedAreaId: area ? area.id : null,
+		selectedFenceId: fence ? fence.id : null,
 		selectedPointIndex:
 			points && state.selectedPointIndex !== null && state.selectedPointIndex < points.length
 				? state.selectedPointIndex
@@ -725,9 +778,9 @@ const warnAboutUnknownParts = (scene: TScene) => {
 	);
 };
 
-/** The selected object, road or area, if any. */
+/** The selected object, road, area or fence, if any. */
 const selectedItem = (
-	state: Pick<IEditorState, "selectedId" | "selectedRoadId" | "selectedAreaId">,
+	state: Pick<IEditorState, "selectedId" | "selectedRoadId" | "selectedAreaId" | "selectedFenceId">,
 ): ISceneItem | null =>
 	state.selectedId
 		? { kind: "entity", id: state.selectedId }
@@ -735,7 +788,9 @@ const selectedItem = (
 			? { kind: "road", id: state.selectedRoadId }
 			: state.selectedAreaId
 				? { kind: "area", id: state.selectedAreaId }
-				: null;
+				: state.selectedFenceId
+					? { kind: "fence", id: state.selectedFenceId }
+					: null;
 
 /** The viewpoint the world opens at, if it has one (an id no viewpoint has counts as none). */
 const openingViewpointOf = (scene: TScene) =>
@@ -746,16 +801,23 @@ const NOTHING_SELECTED = {
 	selectedId: null,
 	selectedRoadId: null,
 	selectedAreaId: null,
+	selectedFenceId: null,
 	selectedPointIndex: null,
 	selectedPeakIndex: null,
 } as const;
 
-/** The scene's objects, roads or areas: the list an item of this kind is in. */
-export const listOf = <T extends Pick<TScene, "entities" | "roads" | "areas">>(
+/** The scene's objects, roads, areas or fences: the list an item of this kind is in. */
+export const listOf = <T extends Pick<TScene, "entities" | "roads" | "areas" | "fences">>(
 	scene: T,
 	kind: ISceneItem["kind"],
-): T["entities"] | T["roads"] | T["areas"] =>
-	kind === "entity" ? scene.entities : kind === "road" ? scene.roads : scene.areas;
+): T["entities"] | T["roads"] | T["areas"] | T["fences"] =>
+	kind === "entity"
+		? scene.entities
+		: kind === "road"
+			? scene.roads
+			: kind === "area"
+				? scene.areas
+				: scene.fences;
 
 const sameItem = (a: ISceneItem) => (b: ISceneItem) => a.kind === b.kind && a.id === b.id;
 
@@ -765,6 +827,7 @@ const activeFields = (item: ISceneItem | null) => ({
 	selectedId: item?.kind === "entity" ? item.id : null,
 	selectedRoadId: item?.kind === "road" ? item.id : null,
 	selectedAreaId: item?.kind === "area" ? item.id : null,
+	selectedFenceId: item?.kind === "fence" ? item.id : null,
 });
 
 /** A selection of several items (ADR-0064): the last is the active one. */
@@ -820,7 +883,14 @@ const withSelectedItems = (
 	if ("selectedItems" in points) {
 		return points;
 	}
-	if (!("selectedId" in points || "selectedRoadId" in points || "selectedAreaId" in points)) {
+	if (
+		!(
+			"selectedId" in points ||
+			"selectedRoadId" in points ||
+			"selectedAreaId" in points ||
+			"selectedFenceId" in points
+		)
+	) {
 		return points;
 	}
 	const active = selectedItem({ ...state, ...points });
@@ -860,6 +930,17 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 	renameBindings(scene.weather.data, from, to);
 	for (const mood of scene.moods) {
 		renameBindings(mood.weather.data, from, to);
+	}
+	// Fences' colours and how much of them is built (ADR-0103).
+	for (const fence of scene.fences) {
+		for (const bindings of fenceBindingMapsOf(fence)) {
+			renameBindings(bindings, from, to);
+		}
+		for (const [id, color] of Object.entries(fence.colors)) {
+			if (isUnsetSetting(color)) {
+				delete fence.colors[id];
+			}
+		}
 	}
 	for (const entity of scene.entities) {
 		if (entity.label) {
@@ -1089,6 +1170,24 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					selectedPointIndex: index,
 					tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
 				})),
+			selectFence: (id) =>
+				set((state) =>
+					id
+						? {
+								...NOTHING_SELECTED,
+								selectedFenceId: id,
+								selectedPointIndex: id === state.selectedFenceId ? state.selectedPointIndex : null,
+								tab: state.mode === "edit" ? tabForSelection(state.tab) : state.tab,
+							}
+						: { selectedFenceId: null, selectedPointIndex: null },
+				),
+			selectFencePoint: (fenceId, index) =>
+				set((state) => ({
+					...NOTHING_SELECTED,
+					selectedFenceId: fenceId,
+					selectedPointIndex: index,
+					tab: state.mode === "edit" ? pointTab(state.tab, index) : state.tab,
+				})),
 			togglePoint: (index) =>
 				set((state) => {
 					const has = state.selectedPointIndices.includes(index);
@@ -1113,17 +1212,23 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					};
 				}),
 			removeSelectedPoints: () => {
-				const { selectedRoadId, selectedAreaId, selectedPointIndices, scene } = get();
+				const { selectedRoadId, selectedAreaId, selectedFenceId, selectedPointIndices, scene } =
+					get();
 				const road = scene.roads.find((r) => r.id === selectedRoadId);
 				const area = scene.areas.find((a) => a.id === selectedAreaId);
-				const points = road?.points ?? area?.points;
-				const fewest = road ? 2 : 3;
+				const fence = scene.fences.find((f) => f.id === selectedFenceId);
+				const points = road?.points ?? area?.points ?? fence?.points;
+				const fewest = area ? 3 : 2;
 				if (!points || selectedPointIndices.length === 0) {
 					return;
 				}
 				if (points.length - selectedPointIndices.length < fewest) {
 					notify(
-						road ? "A road needs at least two points" : "An area needs at least three corners",
+						road
+							? "A road needs at least two points"
+							: fence
+								? "A fence needs at least two points"
+								: "An area needs at least three corners",
 						"Select fewer to delete, or delete the whole thing.",
 					);
 					return;
@@ -1132,7 +1237,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().commit((draft) => {
 					const shape = road
 						? draft.roads.find((r) => r.id === road.id)
-						: draft.areas.find((a) => a.id === area?.id);
+						: fence
+							? draft.fences.find((f) => f.id === fence.id)
+							: draft.areas.find((a) => a.id === area?.id);
 					if (shape) {
 						shape.points = shape.points.filter(
 							(_, index) => !doomed.has(index),
@@ -1221,11 +1328,17 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const items = get().selectedItems;
 				const ids = (kind: ISceneItem["kind"]) =>
 					new Set(items.filter((item) => item.kind === kind).map((item) => item.id));
-				const [entities, roads, areas] = [ids("entity"), ids("road"), ids("area")];
+				const [entities, roads, areas, fences] = [
+					ids("entity"),
+					ids("road"),
+					ids("area"),
+					ids("fence"),
+				];
 				get().commit((scene) => {
 					scene.entities = scene.entities.filter((e) => !entities.has(e.id));
 					scene.roads = scene.roads.filter((r) => !roads.has(r.id));
 					scene.areas = scene.areas.filter((a) => !areas.has(a.id));
+					scene.fences = scene.fences.filter((f) => !fences.has(f.id));
 					// Vehicles that drove along a deleted road are parked where the road was.
 					for (const entity of scene.entities) {
 						if (entity.follow && roads.has(entity.follow.roadId)) {
@@ -1255,6 +1368,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						current.areas.map((a) => a.name),
 						style,
 					),
+					fence: copyNamer(
+						current.fences.map((f) => f.name),
+						style,
+					),
 				};
 				const copyName = (kind: ISceneItem["kind"], name: string) =>
 					leaveBehind ? name : namers[kind](name);
@@ -1280,6 +1397,15 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					copy.peaks = source.peaks.map(([x, z, lift]) => [round(x + step), round(z + step), lift]);
 					return copy;
 				});
+				const fences = picked(current.fences, "fence").map((source): TFence => {
+					const copy = structuredClone(source);
+					copy.id = newId("fence");
+					copy.name = copyName("fence", source.name);
+					copy.points = source.points.map((point) =>
+						fencePoint(point[0] + step, point[1] + step, point[2]),
+					);
+					return copy;
+				});
 				const entities = picked(current.entities, "entity").map((source): TEntity => {
 					const copy = structuredClone(source);
 					copy.id = newId(source.kind);
@@ -1295,7 +1421,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					}
 					return copy;
 				});
-				if (entities.length + roads.length + areas.length === 0) {
+				if (entities.length + roads.length + areas.length + fences.length === 0) {
 					return;
 				}
 				get().commit(
@@ -1303,6 +1429,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						scene.entities.push(...entities);
 						scene.roads.push(...roads);
 						scene.areas.push(...areas);
+						scene.fences.push(...fences);
 						// Left behind, the copies keep the names: the originals that move are the copies now.
 						if (leaveBehind) {
 							for (const item of selectedItems) {
@@ -1323,6 +1450,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().selectItems([
 					...areas.map((area): ISceneItem => ({ kind: "area", id: area.id })),
 					...roads.map((road): ISceneItem => ({ kind: "road", id: road.id })),
+					...fences.map((fence): ISceneItem => ({ kind: "fence", id: fence.id })),
 					...entities.map((entity): ISceneItem => ({ kind: "entity", id: entity.id })),
 				]);
 			},
@@ -1492,6 +1620,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					get().updateEntity(item.id, recipe);
 				} else if (item.kind === "road") {
 					get().updateRoad(item.id, recipe);
+				} else if (item.kind === "fence") {
+					get().updateFence(item.id, recipe);
 				} else {
 					get().updateArea(item.id, recipe);
 				}
@@ -1516,7 +1646,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 
 			revealAll: () =>
 				get().commit((scene) => {
-					for (const thing of [...scene.entities, ...scene.roads, ...scene.areas]) {
+					for (const thing of [
+						...scene.entities,
+						...scene.roads,
+						...scene.areas,
+						...scene.fences,
+					]) {
 						thing.hidden = false;
 					}
 				}),
@@ -2042,6 +2177,148 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				});
 			},
 
+			addFence: (input) => {
+				const fence = FenceSchema.parse({ ...input, id: input.id ?? newId("fence") });
+				get().commit((scene) => {
+					scene.fences.push(fence);
+				});
+				set({ ...NOTHING_SELECTED, selectedFenceId: fence.id, tab: "object" });
+				return fence.id;
+			},
+
+			updateFence: (id, recipe, options) =>
+				get().commit((scene) => {
+					const fence = scene.fences.find((f) => f.id === id);
+					if (fence) {
+						recipe(fence);
+					}
+				}, options),
+
+			removeFence: (id) => {
+				get().commit((scene) => {
+					scene.fences = scene.fences.filter((f) => f.id !== id);
+				});
+				if (get().selectedFenceId === id) {
+					set({ selectedFenceId: null, selectedPointIndex: null });
+				}
+			},
+
+			moveFencePoint: (id, index, point, options) =>
+				get().updateFence(
+					id,
+					(fence) => {
+						const current = fence.points[index];
+						if (current) {
+							fence.points[index] = fencePoint(point[0], point[1], current[2]);
+						}
+					},
+					options,
+				),
+
+			setFencePointLift: (id, index, lift, options) =>
+				get().updateFence(
+					id,
+					(fence) => {
+						const current = fence.points[index];
+						if (current) {
+							fence.points[index] = fencePoint(current[0], current[1], lift);
+						}
+					},
+					options,
+				),
+
+			insertFencePoint: (id, index, point, options) =>
+				get().updateFence(
+					id,
+					(fence) => {
+						fence.points.splice(index, 0, fencePoint(point[0], point[1], point[2]));
+					},
+					options,
+				),
+
+			removeFencePoint: (id, index) => {
+				get().updateFence(id, (fence) => {
+					if (fence.points.length > 2) {
+						fence.points.splice(index, 1);
+					}
+				});
+				set((state) =>
+					state.selectedFenceId === id && state.selectedPointIndex !== null
+						? { selectedPointIndex: null }
+						: state,
+				);
+			},
+
+			splitFence: (id, index) => {
+				const fence = get().scene.fences.find((f) => f.id === id);
+				if (!fence || index < 0 || index >= fence.points.length) {
+					return null;
+				}
+				if (fence.loops) {
+					// Open the loop at this point: it becomes both the start and the end.
+					get().updateFence(id, (f) => {
+						f.points = [...f.points.slice(index), ...f.points.slice(0, index + 1)];
+						f.loops = false;
+					});
+					set({ selectedPointIndex: 0 });
+					return id;
+				}
+				if (index === 0 || index === fence.points.length - 1) {
+					return null; // nothing to cut at an end
+				}
+				const second = FenceSchema.parse({
+					...structuredClone(fence),
+					id: newId("fence"),
+					name: fence.name ? `${fence.name} (2)` : "",
+					points: fence.points.slice(index),
+				});
+				get().commit((scene) => {
+					const first = scene.fences.find((f) => f.id === id);
+					if (first) {
+						first.points = first.points.slice(0, index + 1);
+						scene.fences.splice(scene.fences.indexOf(first) + 1, 0, second);
+					}
+				});
+				set({ ...NOTHING_SELECTED, selectedFenceId: second.id, selectedPointIndex: 0 });
+				return second.id;
+			},
+
+			startFenceDrawing: (fenceStyle) =>
+				set({
+					drawing: {
+						target: "fence",
+						style: "road_01",
+						areaType: "grass_01",
+						fenceStyle,
+						points: [],
+					},
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				}),
+
+			continueFenceDrawing: (fenceId, end) => {
+				const fence = get().scene.fences.find((f) => f.id === fenceId);
+				if (!fence || fence.loops) {
+					return;
+				}
+				// Orient the points so new ones are added after the chosen end.
+				const points = end === "end" ? [...fence.points] : [...fence.points].reverse();
+				set({
+					drawing: {
+						target: "fence",
+						style: "road_01",
+						areaType: "grass_01",
+						fenceStyle: fence.style,
+						points,
+						fenceId,
+					},
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				});
+			},
+
 			startDrawing: (style) =>
 				set({
 					drawing: { target: "road", style, areaType: "grass_01", points: [] },
@@ -2248,6 +2525,26 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					});
 				}
 				const loops = Boolean(options.loops) && drawing.points.length > 2;
+				if (drawing.target === "fence") {
+					const points = drawing.points.map(([x, z, lift]) => fencePoint(x, z, lift));
+					if (drawing.fenceId) {
+						const fenceId = drawing.fenceId;
+						get().updateFence(fenceId, (fence) => {
+							fence.points = points;
+							fence.loops = loops;
+						});
+						set({ ...NOTHING_SELECTED, selectedFenceId: fenceId, tab: "object" });
+						return fenceId;
+					}
+					const fenceStyle = drawing.fenceStyle ?? "picket_fence_01";
+					const count = scene.fences.filter((f) => f.style === fenceStyle).length;
+					return get().addFence({
+						name: `${FENCE_STYLE_LABELS[fenceStyle]} ${count + 1}`,
+						style: fenceStyle,
+						points,
+						loops,
+					});
+				}
 				if (drawing.roadId) {
 					const roadId = drawing.roadId;
 					get().updateRoad(roadId, (road) => {
@@ -2308,6 +2605,9 @@ export const selectSelectedRoad = (state: IEditorState) =>
 
 export const selectSelectedArea = (state: IEditorState) =>
 	state.scene.areas.find((a) => a.id === state.selectedAreaId) ?? null;
+
+export const selectSelectedFence = (state: IEditorState) =>
+	state.scene.fences.find((f) => f.id === state.selectedFenceId) ?? null;
 
 /** Whether an item is among the selected ones (ADR-0064), active or not. */
 /**

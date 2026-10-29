@@ -28,6 +28,8 @@ import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
 import { Clouds } from "./Clouds";
 import { DistanceHaze } from "./DistanceHaze";
 import { EntityNode, type IEntityWorld } from "./EntityNode";
+import { FenceHandles } from "./FenceHandles";
+import { FenceMesh } from "./FenceMesh";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { GroupGizmo } from "./GroupGizmo";
@@ -231,6 +233,7 @@ const StillScene = () => {
 export const Viewport = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
+	const fences = useEditor((s) => s.scene.fences);
 	const graphics = useGraphics();
 	// A still picture renders without wireframe, at its own pixel ratio (ADR-0084).
 	const rendering = useEditor((s) => s.stillRender !== null);
@@ -294,6 +297,10 @@ export const Viewport = () => {
 			)}
 
 			<RoadHandles />
+
+			{fences.map((fence) => (fence.hidden ? null : <FenceMesh key={fence.id} fence={fence} />))}
+
+			<FenceHandles />
 
 			<GroupGizmo />
 

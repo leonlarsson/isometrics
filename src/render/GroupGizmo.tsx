@@ -9,8 +9,8 @@ import { applyGroupDrag } from "./transforms";
 const HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y", "rotate", "scale"];
 
 /**
- * The transform gizmo for several selected things (ADR-0064), or a whole road
- * or area (ADR-0066), at the middle of what they move: it moves, lifts, turns
+ * The transform gizmo for several selected things (ADR-0064), or a whole road,
+ * area or fence (ADR-0066, ADR-0103), at the middle of what they move: it moves, lifts, turns
  * and resizes them together, around that middle.
  */
 export const GroupGizmo = () => {
@@ -27,7 +27,10 @@ export const GroupGizmo = () => {
 	);
 	// Nothing that stands on its own moves (only locked things or driving vehicles): no gizmo.
 	const movable =
-		group && group.entities.length + group.roads.length + group.areas.length > 0 ? group : null;
+		group &&
+		group.entities.length + group.roads.length + group.areas.length + group.fences.length > 0
+			? group
+			: null;
 
 	if (!several || !editing || !movable) {
 		return null;

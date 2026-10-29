@@ -4,11 +4,13 @@ import { useEffect } from "react";
 import {
 	selectSelectedArea,
 	selectSelectedEntity,
+	selectSelectedFence,
 	selectSelectedRoad,
 	type TTransformAxis,
 	type TTransformMode,
 	useEditor,
 } from "#/editor/store";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { partNameOf } from "#/parts/registry";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 
@@ -49,6 +51,7 @@ const TransformControls = () => {
 	// A whole road or area (ADR-0066), or several of its points (ADR-0065).
 	const road = useEditor(selectSelectedRoad);
 	const area = useEditor(selectSelectedArea);
+	const fence = useEditor(selectSelectedFence);
 	const points = useEditor((s) => s.selectedPointIndices.length);
 	const peakSelected = useEditor((s) => s.selectedPeakIndex !== null);
 	const route = useRouteHint();
@@ -126,8 +129,10 @@ const TransformControls = () => {
 		? roadName(road)
 		: area
 			? area.name || `${AREA_TYPE_LABELS[area.type].toLowerCase()} area`
-			: "";
-	const pointName = road ? "points" : "corners";
+			: fence
+				? fence.name || FENCE_STYLE_LABELS[fence.style].toLowerCase()
+				: "";
+	const pointName = area ? "corners" : "points";
 	const what =
 		count > 1
 			? `${count} things`
@@ -138,7 +143,9 @@ const TransformControls = () => {
 					: points === 1
 						? road
 							? "road point"
-							: "corner"
+							: fence
+								? "fence point"
+								: "corner"
 						: peakSelected
 							? "peak"
 							: shapeName;
