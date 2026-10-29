@@ -318,6 +318,10 @@ export const StillRender = () => {
 					(error: Error) => finish({ error }),
 				);
 			}, "image/png");
+			// toBlob copies the canvas as it's called, then encodes it: the view goes back now, or it
+			// draws the picture's tens of millions of pixels a frame for the seconds the encoding and
+			// shrinking take, and slows them down.
+			putBack();
 		});
 		// A card without room for it drops its WebGL context: say so, rather than leave a blank view.
 		const canvas = get().gl.domElement;
