@@ -254,21 +254,30 @@ export const LightSettings = ({
 					/>
 				)}
 
+				{/* Its periods by hand, or from a value holding times, like opening hours. */}
 				{turnsOn === "schedule" && (
-					<PeriodsField
-						label="On between"
-						periods={schedule}
-						mixed={mixed("schedule")}
-						newPeriod={NEW_PERIOD}
-						onChange={(periods) => onChange({ schedule: periods }, "schedule")}
-						hint={
-							schedule.length === 0
-								? "With no periods it's never on. Add the times it should be on, like a timer."
-								: hour === null
-									? "This world shows classic daylight, with no clock, so it stays off until you pick a time in the Time & light tab."
-									: `It's ${formatClock(hour)} in the world, so it's ${scheduledOn ? "on" : "off"} now.`
-						}
-					/>
+					<DataDrivenField
+						kind={LIGHT_DATA.schedule}
+						binding={bound.schedule}
+						mixed={mixed("data.schedule")}
+						data={data}
+						onBindingChange={onBindingChange("schedule")}
+					>
+						<PeriodsField
+							label="On between"
+							periods={schedule}
+							mixed={mixed("schedule")}
+							newPeriod={NEW_PERIOD}
+							onChange={(periods) => onChange({ schedule: periods }, "schedule")}
+							hint={
+								schedule.length === 0
+									? "With no periods it's never on. Add the times it should be on, like a timer."
+									: hour === null
+										? "This world shows classic daylight, with no clock, so it stays off until you pick a time in the Time & light tab."
+										: `It's ${formatClock(hour)} in the world, so it's ${scheduledOn ? "on" : "off"} now.`
+							}
+						/>
+					</DataDrivenField>
 				)}
 
 				{bound.on && (

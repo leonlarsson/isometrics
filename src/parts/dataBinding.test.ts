@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { DataBindingSchema } from "#/scene/schema";
 
-import { cssColor, readColor, readScale, readSwitch, switchesOn } from "./dataBinding";
+import {
+	cssColor,
+	periodsFromText,
+	readColor,
+	readScale,
+	readSwitch,
+	switchesOn,
+} from "./dataBinding";
 
 const data = [
 	{ key: "queue", label: "Queue", value: 60, unit: "" },
@@ -104,6 +111,27 @@ describe("cssColor", () => {
 			undefined,
 		]) {
 			expect(cssColor(value), String(value)).toBeNull();
+		}
+	});
+});
+
+describe("periodsFromText", () => {
+	it("reads opening hours and timetables as periods of the day", () => {
+		expect(periodsFromText("09:00-17:30")).toEqual([{ from: 9, until: 17.5 }]);
+		expect(periodsFromText("7-9, 16:30 – 19")).toEqual([
+			{ from: 7, until: 9 },
+			{ from: 16.5, until: 19 },
+		]);
+		expect(periodsFromText("22:00 to 02:00")).toEqual([{ from: 22, until: 2 }]);
+		expect(periodsFromText("1930-2300; 5-8")).toEqual([
+			{ from: 19.5, until: 23 },
+			{ from: 5, until: 8 },
+		]);
+	});
+
+	it("reads nothing from what isn't a list of times", () => {
+		for (const value of ["", "closed", "9", "9-", "25-26", "9-9", "9-12, later", 12, undefined]) {
+			expect(periodsFromText(value), String(value)).toBeUndefined();
 		}
 	});
 });

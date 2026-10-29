@@ -5,6 +5,7 @@ import {
 	colorScalePosition,
 	cssColor,
 	dataNumber,
+	readPeriods,
 	readScale,
 	switchesOn,
 	type TBindingKind,
@@ -12,7 +13,7 @@ import {
 import { formatEntry } from "#/scene/format";
 import type { TDataBinding, TDataEntry } from "#/scene/schema";
 
-import { ColorField, NumberField, SelectField } from "./fields";
+import { ColorField, formatClock, NumberField, SelectField } from "./fields";
 
 interface IDataBindingFieldsProps {
 	/** How the setting reads its value: switched on and off, a number, or a colour. */
@@ -58,20 +59,25 @@ export const DataBindingFields = ({
 	const color = entry ? cssColor(entry.value) : null;
 	const scale = colorScaleOf(binding);
 	const number = dataNumber(entry?.value);
+	const periods = readPeriods(binding, data);
 
 	const now = !entry
 		? `There's no data value called “${binding.key}” any more.`
 		: kind === "switch"
 			? `${name} is ${shownValue(entry)}, so it's ${switchesOn(entry.value, above) ? "on" : "off"} now. It's on while the value is a number above ${above}, or the text on, yes or true, day and night.`
-			: kind === "scale"
-				? reading === undefined
-					? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
-					: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
-				: color
-					? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
-					: Number.isFinite(number)
-						? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
-						: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
+			: kind === "periods"
+				? periods
+					? `${name} is ${shownValue(entry)}, so it's on ${periods.map(({ from, until }) => `${formatClock(from)}–${formatClock(until)}`).join(" and ")}.`
+					: `${name} is ${shownValue(entry)}, which isn't times of day like 09:00-17:30, so it keeps the periods set by hand.`
+				: kind === "scale"
+					? reading === undefined
+						? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
+						: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
+					: color
+						? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
+						: Number.isFinite(number)
+							? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
+							: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
 
 	return (
 		<>
@@ -87,7 +93,9 @@ export const DataBindingFields = ({
 				hint={
 					kind === "color"
 						? `A value holding a colour (red, #ff0000, rgb(), hsl()) is used as it is; a number mixes the low and high colours below. ${now}`
-						: undefined
+						: kind === "periods"
+							? `A value holding times of day, like opening hours: "09:00-17:30", or several, "7-9, 16:30-19". ${now}`
+							: undefined
 				}
 			/>
 

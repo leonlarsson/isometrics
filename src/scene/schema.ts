@@ -197,7 +197,7 @@ export const EntityLightSchema = z
 			.record(z.string(), DataBindingSchema)
 			.default({})
 			.describe(
-				'Data values that drive its settings, by setting: "on" (switches it on and off instead of whenOn, day and night), "strength" (value ÷ valueAtFull, up to 3), "litPanes" (window lights: value ÷ valueAtFull, up to 1) and "color" (a CSS colour, or a number on a colour scale). Only the settings that follow data.',
+				'Data values that drive its settings, by setting: "on" (switches it on and off instead of whenOn, day and night), "strength" (value ÷ valueAtFull, up to 3), "litPanes" (window lights: value ÷ valueAtFull, up to 1), "color" (a CSS colour, or a number on a colour scale) and "schedule" (with whenOn schedule: a text value of times of day, like opening hours, "09:00-17:30" or "7-9, 16:30-19", instead of the periods in schedule). Only the settings that follow data.',
 			),
 	})
 	.describe("An object's settings for one of its lights.");

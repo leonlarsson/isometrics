@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { TDataBinding, TDataEntry } from "#/scene/schema";
+import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
 
 /**
  * Settings driven by data (ADR-0058): a `TDataBinding` names a data value and
@@ -12,13 +12,15 @@ import type { TDataBinding, TDataEntry } from "#/scene/schema";
  * - `color`: any CSS colour (a name, #rgb or #rrggbb, rgb() or hsl()) as it
  *   is, or a number placed on a colour scale: `lowColor` at `low`, `highColor`
  *   at `high`, mixed in between (a heatmap).
+ * - `periods`: times of the day, as text like "09:00-17:30" or
+ *   "7-9, 16:30-19" (opening hours, a timetable).
  *
  * Each returns undefined when the value is missing or doesn't read as that
  * kind, so the setting keeps its own value. Making another setting follow data
  * is choosing its kind; nothing here is about lights in particular. No React.
  */
 
-export type TBindingKind = "switch" | "scale" | "color";
+export type TBindingKind = "switch" | "scale" | "color" | "periods";
 
 /** The entry a binding names, if the world still has it. */
 export const boundEntry = (
@@ -139,3 +141,42 @@ export const readColor = (
 	const asNumber = dataNumber(value);
 	return Number.isFinite(asNumber) ? colorOnScale(binding, asNumber) : undefined;
 };
+
+/** A time of day as text, "19:30", "1930", "19.30" or "19", in hours; null if it isn't one. */
+const readClock = (text: string) => {
+	const match = /^(\d{1,2})(?:[:.h]?(\d{2}))?$/.exec(text.trim());
+	if (!match) {
+		return null;
+	}
+	const hours = Number(match[1]);
+	const minutes = Number(match[2] ?? 0);
+	return minutes < 60 && hours * 60 + minutes <= 24 * 60 ? hours + minutes / 60 : null;
+};
+
+/**
+ * Times of the day from text, like opening hours: "09:00-17:30", or several
+ * separated by commas or semicolons ("7-9, 16:30-19"), each "from-until"
+ * (also with "–" or "to"); one that ends before it starts runs past midnight.
+ * Undefined unless every part reads as a period.
+ */
+export const periodsFromText = (value: number | string | undefined): TTimePeriod[] | undefined => {
+	if (typeof value !== "string" || value.trim() === "") {
+		return undefined;
+	}
+	const periods: TTimePeriod[] = [];
+	for (const part of value.split(/[,;]/)) {
+		const ends = part.split(/\s*(?:-|–|—|\bto\b)\s*/i).filter((end) => end.trim() !== "");
+		const [from, until] = ends.map(readClock);
+		if (ends.length !== 2 || from === null || until === null || from === until) {
+			return undefined;
+		}
+		periods.push({ from, until });
+	}
+	return periods;
+};
+
+/** A periods binding's reading: the times its value holds, or undefined if it doesn't read as times. */
+export const readPeriods = (
+	binding: TDataBinding | undefined,
+	data: readonly TDataEntry[] | undefined,
+) => periodsFromText(boundEntry(binding, data)?.value);
