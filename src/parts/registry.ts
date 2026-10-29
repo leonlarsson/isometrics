@@ -18,13 +18,20 @@ import { shop02 } from "./buildings/shop_02";
 import { terracedRow01 } from "./buildings/terraced_row_01";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
+import { bikeRack01 } from "./furniture/bike_rack_01";
 import { bin01 } from "./furniture/bin_01";
+import { bollard01 } from "./furniture/bollard_01";
+import { busStop01 } from "./furniture/bus_stop_01";
 import { cafeTable01 } from "./furniture/cafe_table_01";
 import { chair01 } from "./furniture/chair_01";
 import { flowerPot01 } from "./furniture/flower_pot_01";
 import { parasol01 } from "./furniture/parasol_01";
+import { phoneBox01 } from "./furniture/phone_box_01";
 import { picnicTable01 } from "./furniture/picnic_table_01";
 import { planter01 } from "./furniture/planter_01";
+import { postBox01 } from "./furniture/post_box_01";
+import { roundTable01 } from "./furniture/round_table_01";
+import { signpost01 } from "./furniture/signpost_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
 import { light01 } from "./infrastructure/light_01";
@@ -120,11 +127,18 @@ export const PARTS: TAnyPart[] = [
 	bench01,
 	picnicTable01,
 	cafeTable01,
+	roundTable01,
 	chair01,
 	parasol01,
 	flowerPot01,
 	planter01,
 	bin01,
+	bikeRack01,
+	bollard01,
+	busStop01,
+	phoneBox01,
+	postBox01,
+	signpost01,
 	zone01,
 	tunnel01,
 	streetLamp01,
