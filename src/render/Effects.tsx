@@ -37,6 +37,19 @@ const FULL_SCREEN_VERTEX = /* glsl */ `
 	}`;
 
 /**
+ * A buffer drawn into as the canvas is: flagged as an XR target, three tone-maps each material
+ * (the painted lights that opt out keep their colours) and writes sRGB only there and on the
+ * canvas, so a material keeps one shader for both. The flag changes nothing else for a half-float
+ * buffer.
+ */
+const drawnAsOnCanvas = (target: THREE.WebGLRenderTarget) => {
+	if (!(target as { isXRRenderTarget?: boolean }).isXRRenderTarget) {
+		Object.assign(target, { isXRRenderTarget: true });
+		target.texture.colorSpace = THREE.SRGBColorSpace;
+	}
+};
+
+/**
  * The scene drawn exactly as onto the canvas, so Standard's look stays, then
  * decoded into linear light, where the effects work (the last pass encodes it
  * for the canvas again). Into its own buffer, flagged as an XR target: three
@@ -56,8 +69,7 @@ class SceneAsOnCanvasPass extends Pass {
 		this.view = view;
 		this.drawn = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples });
 		this.drawn.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
-		Object.assign(this.drawn, { isXRRenderTarget: true });
-		this.drawn.texture.colorSpace = THREE.SRGBColorSpace;
+		drawnAsOnCanvas(this.drawn);
 		this.fullscreenMaterial = new THREE.ShaderMaterial({
 			name: "DecodeSRGB",
 			uniforms: { tDiffuse: { value: this.drawn.texture } },
@@ -171,11 +183,22 @@ const bandBlurPass = () =>
 		"tDiffuse",
 	);
 
+/** n8ao's buffers for its renders of the see-through things. */
+interface IOcclusionTransparency {
+	transparencyRenderTargetDWFalse?: THREE.WebGLRenderTarget | null;
+	transparencyRenderTargetDWTrue?: THREE.WebGLRenderTarget | null;
+}
+
 /**
  * n8ao walks the whole scene each frame: for see-through materials, and once it has found one,
  * four times more to hide and show every object around its two renders of them. In a big world
  * that's tens of thousands of objects, most in groups hidden because batches draw them (ADR-0092).
  * The same, visiting only what's drawn: found once per frame, as the frame starts.
+ *
+ * Its two renders of the see-through things also drew the sun's shadows again, of those alone,
+ * which the next frame's reflection was then drawn with; they keep the frame's shadows instead. And
+ * they draw into buffers set up like the scene pass's (it reads only how opaque each pixel is), so
+ * those materials keep the one shader they're drawn with, rather than switching twice a frame.
  */
 const walkOnlyWhatIsDrawn = (occlusion: N8AOPostPass, scene: THREE.Scene) => {
 	const drawn: THREE.Object3D[] = [];
@@ -196,16 +219,26 @@ const walkOnlyWhatIsDrawn = (occlusion: N8AOPostPass, scene: THREE.Scene) => {
 	};
 	const renderTransparency = occlusion.renderTransparency.bind(occlusion);
 	occlusion.renderTransparency = (renderer) => {
+		const { transparencyRenderTargetDWFalse, transparencyRenderTargetDWTrue } =
+			occlusion as unknown as IOcclusionTransparency;
+		for (const target of [transparencyRenderTargetDWFalse, transparencyRenderTargetDWTrue]) {
+			if (target) {
+				drawnAsOnCanvas(target);
+			}
+		}
 		const traverse = scene.traverse;
 		scene.traverse = (callback) => {
 			for (const object of drawn) {
 				callback(object);
 			}
 		};
+		const shadowsUpdate = renderer.shadowMap.autoUpdate;
+		renderer.shadowMap.autoUpdate = false;
 		try {
 			renderTransparency(renderer);
 		} finally {
 			scene.traverse = traverse;
+			renderer.shadowMap.autoUpdate = shadowsUpdate;
 		}
 	};
 };

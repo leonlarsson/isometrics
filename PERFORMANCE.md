@@ -39,6 +39,22 @@ Windows Chrome on the real GPU, React's development build, overview camera.
 
 A drag's time is mostly React's development build rendering the properties of the dragged object; a production build is several times faster.
 
+Round two (2026-10-29: culling kept per camera, a shape's own batch drawn as instances, n8ao's extra renders), measured the same way, before and after:
+
+| | Before | After |
+|---|---|---|
+| 2,888 objects, Edit, Standard | 3.1 ms (GPU 3.5) | 1.3 ms (GPU 0.9) |
+| 2,888 objects, View, Standard | 4.5 ms (GPU 4.2) | 0.9 ms (GPU 0.5) |
+| 2,888 objects, View, Ultra | 6.2 ms | 1.5 ms |
+| 2,888 objects, close up | 4.1 ms | 1.0 ms |
+| 2,888 objects, dragging an object | 19.8 ms | 15.5 ms |
+| Brightwater, View, Standard | 1.4 ms (GPU 0.9) | 1.3 ms (GPU 0.6) |
+| Brightwater, View, Nice | 5.0 ms | 3.5 ms |
+| Brightwater, View, Ultra | 5.5 ms, 300 draws | 3.8 ms, 283 draws |
+| Lantern Bay, View, Ultra | 3.6 ms | 2.8 ms |
+
+Weather (ADR-0102) costs nothing in clear weather: the commit before it measured the same.
+
 ## Findings, and what we did
 
 ### Per frame: the 3D view
@@ -55,6 +71,7 @@ A drag's time is mostly React's development build rendering the properties of th
 
 20. **Culling instances was most of a big world's frame.** three's culling works out each instance's bounds from its matrix and tests it, for every pass of every frame, and uploads the draw list again: about 2 ms of a 3.3 ms frame with 2,888 objects. *Now:* `render/batchCulling` does it instead: an instance's bounds are worked out when it's placed, and each camera (the view, the sun's shadows, the reflection) keeps its own draw list, drawn as it is while neither the camera nor the batch changes; when only some instances moved (traffic), only those are tested again, and the list is made again only if one left or entered the view.
 21. **A batch was one draw per instance.** WebGL's multi-draw, which BatchedMesh draws with, is carried out a draw at a time by Chrome on Windows (ANGLE over Direct3D): about 40,000 draws a frame in the painted world, which kept the GPU busy for 3–4 ms. *Now:* when every instance a camera draws has the same shape (a shape's own batch, 5: grass, logs, a kind of tree), its list is one draw of that shape, drawn as many times as there are instances (`multiDrawElementsInstancedWEBGL`). three's shaders find an instance by `gl_DrawID + gl_InstanceID` (its shader chunks are changed once), which is the same as before for every other list; the batch's render hook says which list is drawn as instances, and the context's multi-draw draws it so (`canDrawInstanced`). Without WEBGL_multi_draw three draws each instance on its own, so lists stay a draw per instance there.
+22. **n8ao drew the sun's shadows again, twice a frame.** Its two renders of the see-through things (finding 8) are whole renders: each drew the shadow map again, of those things alone, and the next frame's water reflection (drawn before the scene, with the shadow map as it was) had almost no shadows. And they drew into plain buffers, so every see-through material switched shaders twice a frame (three keys a material's shader on the buffer's colour space and tone mapping). *Now:* the shadow map is left as the frame drew it, and its buffers are set up like the scene pass's (`drawnAsOnCanvas`; it reads only how opaque each pixel is). The reflections' shading changes a little on Nice and Ultra, to what it should have been.
 
 ### Per change: the editor
 
@@ -81,6 +98,7 @@ A drag's time is mostly React's development build rendering the properties of th
 - Don't walk the scene each frame (`scene.traverse`). If you must, `traverseVisible`, and skip groups marked `batchedAway`.
 - Draws cost CPU per pass: Ultra draws the scene three times (shadows, reflections, the view). Before adding a mesh per object, ask whether it batches (a shared material, three's own geometry or `shareGeometryAs`, no transparency).
 - Batches are culled by `render/batchCulling` from bounds worked out when their instances are placed (`placeBounds` in InstancedParts' `place`), not by BatchedMesh: code that changes a batch's instances goes through `place`, or culling keeps the old bounds.
+- A render inside a pass (n8ao's, the water's reflection) turns `shadowMap.autoUpdate` off around it, or it draws the frame's shadow map again with only what it shows.
 - Keep Standard's cost as it is (ADR-0072); measure new effects with `scripts/shots.mjs`.
 - Never key a composer, pass, render target or shader on the camera object: it changes on every switch between the diorama and perspective. Point what exists at the new camera (`aimAt` in `render/Effects`), and remember that three compiles a material's shader on its first draw and deletes the program when its last material is disposed, so a mesh or pass that comes and goes compiles again each time it comes back.
 
