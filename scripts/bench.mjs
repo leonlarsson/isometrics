@@ -14,6 +14,8 @@
  *   standard|nice|ultra    the Graphics preset (default standard)
  *   close                  a close perspective view instead of the overview
  *   drag                   the first object selected and moved a little every frame, as a drag does
+ *   hover                  the mouse moved across the view and back, over the objects, no button held
+ *   pan                    a left-drag across the view and back from the sky above the ground: a pan
  *   e.g. edit-drag, view-ultra-close
  *
  * Options:
@@ -29,6 +31,11 @@
  * Playwright's Chromium on SwiftShader, whose times mean nothing. The dev server runs React's
  * development build: absolute times are higher than a production build's, so compare runs with
  * each other, before and after a change.
+ *
+ * Each run also says what the page's main thread did besides the frames (script, restyling, layout,
+ * and how many elements the page has): pointer events and style changes run outside the frame's
+ * callbacks, so a run can stutter with fast frames. The mouse runs send moves faster than a real
+ * mouse does (the browser lines those up with frames), so compare them with each other.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -378,6 +385,8 @@ for (const run of runs) {
 	const preset = words.find((word) => ["standard", "nice", "ultra"].includes(word)) ?? "standard";
 	const close = words.includes("close");
 	const dragging = words.includes("drag");
+	const hovering = words.includes("hover");
+	const panning = words.includes("pan");
 	const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 	await context.addInitScript(
 		({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
@@ -470,7 +479,35 @@ for (const run of runs) {
 		globalThis.__bench.drawsPerFrame.length = 0;
 		globalThis.__reactCounting = true;
 	});
-	await page.waitForTimeout(4000);
+	const metrics = await context.newCDPSession(page);
+	await metrics.send("Performance.enable");
+	const mainThread = async () =>
+		Object.fromEntries(
+			(await metrics.send("Performance.getMetrics")).metrics.map((m) => [m.name, m.value]),
+		);
+	const before = await mainThread();
+	if (hovering || panning) {
+		// Across the view and back for the whole run: over the objects, or (a pan) from the sky above
+		// the ground, where a press grabs no object.
+		const box = await page.locator("main canvas").first().boundingBox();
+		const y = panning ? box.y + 140 : box.y + box.height * 0.55;
+		const [left, right] = [box.x + box.width * 0.3, box.x + box.width * 0.7];
+		await page.mouse.move(left, y);
+		if (panning) {
+			await page.mouse.down();
+		}
+		const until = Date.now() + 4000;
+		for (let across = true; Date.now() < until; across = !across) {
+			await page.mouse.move(across ? right : left, y + (across ? 60 : 0), { steps: 60 });
+		}
+		if (panning) {
+			await page.mouse.up();
+		}
+	} else {
+		await page.waitForTimeout(4000);
+	}
+	const after = await mainThread();
+	const spent = (name) => `${((after[name] - before[name]) * 1000).toFixed(0)} ms`;
 	const profile = cdp ? (await cdp.send("Profiler.stop")).profile : null;
 	const stats = await page.evaluate(() => ({
 		frames: globalThis.__bench.frames,
@@ -482,6 +519,9 @@ for (const run of runs) {
 	const median = percentile(stats.frames, 0.5);
 	console.log(
 		`${run}: ${stats.objects} objects · frame ${median.toFixed(1)} ms median, ${percentile(stats.frames, 0.9).toFixed(1)} p90 (${(1000 / median).toFixed(0)} fps) · CPU in frame callbacks ${percentile(stats.cpu, 0.5).toFixed(2)} ms median, GPU ${stats.gpu.length > 0 ? `${percentile(stats.gpu, 0.5).toFixed(2)} ms` : "not timed"} · ${percentile(stats.draws, 0.5)} draws a frame`,
+	);
+	console.log(
+		`  main thread in all: script ${spent("ScriptDuration")}, restyling ${spent("RecalcStyleDuration")} (${after.RecalcStyleCount - before.RecalcStyleCount}×), layout ${spent("LayoutDuration")} · ${after.Nodes} elements`,
 	);
 	if (countRenders) {
 		const { tally, why } = await page.evaluate(() => ({

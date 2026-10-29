@@ -14,7 +14,8 @@ node.exe scripts/bench.mjs my-world.json edit-drag --profile edit-drag --react
 ```
 
 - **Worlds:** a template id (`brightwater`, `lantern_bay`, …) or a world file. Keep a big painted world around for this (thousands of objects); the numbers below are from one with 2,888 (1,174 tall grass, 945 logs, 328 birches, 178 pines…).
-- **Runs:** `edit` or `view`, then words: a Graphics preset (`standard`, `nice`, `ultra`), `close` (a close perspective view instead of the overview), `drag` (the first object selected and moved every frame, as a drag does).
+- **Runs:** `edit` or `view`, then words: a Graphics preset (`standard`, `nice`, `ultra`), `close` (a close perspective view instead of the overview), `drag` (the first object selected and moved every frame, as a drag does), `hover` (the mouse moved across the view and back over the objects), `pan` (a left-drag across the view from the sky, which pans).
+- **The main thread:** each run also says what the page's main thread did in all (script, restyling, layout) and how many elements the page has. Pointer events and style changes run outside the frame's callbacks, so a run can stutter while its frames are fast: hovering in Edit mode did. The mouse runs send moves faster than a real mouse (the browser lines those up with frames): compare them with each other.
 - **`--profile <run>`:** a CPU profile: self time by function, the app's own functions with what they call, and who makes React elements.
 - **`--react`:** which components rendered again, by time, and for the top-level ones which hook changed. The fastest way to find a component that re-renders for nothing.
 - **`--passes`:** one frame's draws by framebuffer (shadow map, reflections, the view, effects).
