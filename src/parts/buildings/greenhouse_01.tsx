@@ -71,11 +71,14 @@ export const greenhouse01 = definePart({
 		const posts = spread(bays + 1, p.length + p.length / bays);
 		// The glass glows in the grow lights' colour while they're on.
 		// The panes are thin boxes, seen from outside; a gable end is a flat triangle, so it's drawn
-		// from both sides, or one end would face away from whoever looks at it.
+		// from both sides, or one end would face away from whoever looks at it. In one pass: three
+		// draws see-through things of two sides twice otherwise, back faces first, which a flat
+		// triangle doesn't need (PERFORMANCE.md).
 		const glassOn = (side: THREE.Side) => (
 			<meshStandardMaterial
 				color={colors.glass}
 				transparent
+				forceSinglePass
 				opacity={1 - transparency.glass}
 				roughness={0.1}
 				emissive={lights.growLights.on ? lights.growLights.color : "#000000"}

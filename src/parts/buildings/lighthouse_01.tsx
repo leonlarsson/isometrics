@@ -100,6 +100,8 @@ const Beam = ({
 						blending={THREE.AdditiveBlending}
 						depthWrite={false}
 						side={THREE.DoubleSide}
+						// Added light comes out the same in any order: both sides in one pass (PERFORMANCE.md).
+						forceSinglePass
 						toneMapped={false}
 					/>
 				</mesh>

@@ -97,6 +97,8 @@ export const makeWaveMaterial = () =>
 		depthWrite: false,
 		transparent: true,
 		side: THREE.DoubleSide,
+		// Added up, so in any order: both sides in one pass (PERFORMANCE.md).
+		forceSinglePass: true,
 	});
 
 /** Draws the wave field each frame while Foam and waves is on. Mount once in the scene. */

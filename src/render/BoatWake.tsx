@@ -275,8 +275,10 @@ export const BoatWake = ({
 			<meshStandardMaterial
 				vertexColors
 				transparent
-				// Both faces, so no part of it can be left out where it twists.
+				// Both faces, so no part of it can be left out where it twists, in one pass: it lies flat
+				// on the water, so drawing the back faces first would change nothing (PERFORMANCE.md).
 				side={THREE.DoubleSide}
+				forceSinglePass
 				depthWrite={false}
 				roughness={1}
 				polygonOffset
