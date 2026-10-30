@@ -30,7 +30,6 @@ import { phoneBox01 } from "./furniture/phone_box_01";
 import { picnicTable01 } from "./furniture/picnic_table_01";
 import { planter01 } from "./furniture/planter_01";
 import { postBox01 } from "./furniture/post_box_01";
-import { roundTable01 } from "./furniture/round_table_01";
 import { signpost01 } from "./furniture/signpost_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
@@ -127,7 +126,6 @@ export const PARTS: TAnyPart[] = [
 	bench01,
 	picnicTable01,
 	cafeTable01,
-	roundTable01,
 	chair01,
 	parasol01,
 	flowerPot01,
