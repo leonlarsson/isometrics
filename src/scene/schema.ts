@@ -10,7 +10,9 @@ import { z } from "zod";
  * Field meanings live in `.describe()` text so they reach /schema.json, where
  * people and AIs writing worlds read them (ADR-0032); comments are for code.
  *
- * Bump SCENE_VERSION on breaking changes and add a migration in ./migrate.ts.
+ * Every world ever saved keeps opening (ADR-0106): add fields with defaults,
+ * rename or move them through legacy.ts, and never change what a field means.
+ * SCENE_VERSION moves only for what those can't do, with a step in ./migrate.ts.
  */
 export const SCENE_VERSION = 1;
 

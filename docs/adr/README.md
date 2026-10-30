@@ -109,3 +109,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0103](0103-fences.md) | Fences: drawn lines with styles, next to roads and areas | proposed |
 | [0104](0104-world-format-before-going-public.md) | The world format before going public: one name per idea, settings where they belong | proposed |
 | [0105](0105-every-setting-offers-reset.md) | Every setting offers Reset, and the kit makes sure of it | proposed |
+| [0106](0106-the-world-format-promise.md) | The world format's promise: every world keeps opening, and the version almost never moves | proposed |

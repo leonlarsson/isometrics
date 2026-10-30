@@ -13,7 +13,7 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 Guard tests, old-world fixtures, renamed/removed props and keeping unknown props are done (ADR-0056). Still open:
 
 - [ ] **Old worlds look the same:** render each old-world fixture before and after a change and compare the pictures (the thumbnails of ADR-0036 could do it), so a default that changes the look of existing worlds is caught too.
-- [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links.
+- [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links (ADR-0106).
 
 ## Ideas backlog (2026-10-21)
 
