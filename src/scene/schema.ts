@@ -351,17 +351,137 @@ export const EntitySchema = z
 	})
 	.describe("An object in the world: a building, vehicle, tree, marker…");
 
-export const DataEntrySchema = z
+/** A value as data holds it: a number or a short text. */
+const DataCellSchema = z.union([z.number(), z.string()]);
+
+/** A key that other things refer to: lowercase letters, numbers and underscores. */
+const DataKeySchema = z
+	.string()
+	.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores");
+
+/**
+ * Where a value or a table is read from (data study): one of the world's
+ * sources, and where in it. Null on the thing itself = typed by hand.
+ */
+export const DataSourceRefSchema = z
 	.object({
-		key: z
+		sourceId: z.string().describe("The id of one of the world's data sources."),
+		path: z
 			.string()
-			.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores")
-			.describe("Unique name that labels refer to: lowercase letters, numbers and underscores."),
-		name: z.string().default("").describe("Human-readable name shown next to the value."),
-		value: z.union([z.number(), z.string()]).describe("The value: a number or a short text."),
-		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+			.default("")
+			.describe(
+				'Where in the source: a JSON path for links and APIs ("totalUsers", "data.0.rank"; empty = the whole response), a cell for spreadsheets ("B2", "Sheet2!B2"), or a sheet for a table ("Sheet2"; empty = the first).',
+			),
 	})
-	.describe("A named value that cards and detail tiles show.");
+	.describe("Where a value or a table is read from.");
+
+/** One past value, for trends and sparklines (data study). */
+export const DataPointSchema = z
+	.object({
+		at: z
+			.string()
+			.describe(
+				'When, as an ISO 8601 date or date and time: "2026-10-30" or "2026-10-30T14:00:00Z".',
+			),
+		value: DataCellSchema.describe("The value then."),
+	})
+	.describe("A value at a moment.");
+
+export const DataValueSchema = z
+	.object({
+		key: DataKeySchema.describe(
+			"Unique name that cards, tiles and settings refer to: lowercase letters, numbers and underscores.",
+		),
+		name: z.string().default("").describe("Human-readable name shown next to the value."),
+		value: DataCellSchema.describe(
+			"The value: a number or a short text. Read from its source, it's the last value read.",
+		),
+		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+		source: DataSourceRefSchema.nullable()
+			.default(null)
+			.describe("Where it's read from; null = typed by hand."),
+		history: z
+			.array(DataPointSchema)
+			.default([])
+			.describe("Its past values, oldest first, for trends and sparklines; [] = none kept."),
+	})
+	.describe("A named value that cards, detail tiles and settings show or follow.");
+
+/** A table's column (data study). */
+export const DataColumnSchema = z
+	.object({
+		key: DataKeySchema.describe("The column's name in the rows and in settings that follow it."),
+		name: z.string().default("").describe("Human-readable name; empty = its key."),
+		unit: z.string().default("").describe('Shown after its values, e.g. "%".'),
+	})
+	.describe("A column of a table.");
+
+export const DataTableSchema = z
+	.object({
+		key: DataKeySchema.describe("Unique name that objects refer to, among the tables."),
+		name: z.string().default("").describe("Human-readable name."),
+		source: DataSourceRefSchema.nullable()
+			.default(null)
+			.describe("Where it's read from; null = typed by hand."),
+		keyColumn: z
+			.string()
+			.default("")
+			.describe("The column that names each row (an id, a name); empty = rows by their order."),
+		columns: z.array(DataColumnSchema).default([]).describe("Its columns, in order."),
+		rows: z
+			.array(z.record(z.string(), DataCellSchema.nullable()))
+			.default([])
+			.describe("Its rows, each by column key; read from its source, the last rows read."),
+	})
+	.describe("A table of rows: objects can each take one, and follow its columns.");
+
+export const DataSourceKindSchema = z
+	.enum(["file", "link", "api", "push"])
+	.describe(
+		"How it's read: file = a spreadsheet (CSV or Excel) imported by hand, read again by importing again; link = a CSV or JSON URL; api = a JSON API that may need keys; push = values sent to the world.",
+	);
+
+export const DataSourceSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the sources."),
+		name: z.string().default("").describe("Human-readable name."),
+		kind: DataSourceKindSchema,
+		url: z.string().nullable().default(null).describe("With kind link or api: where to read it."),
+		fileName: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe("With kind file: the file it was imported from."),
+		refreshSeconds: z
+			.number()
+			.min(10)
+			.nullable()
+			.default(null)
+			.describe(
+				"How often to read it again while the world is open, in seconds; null = only when asked.",
+			),
+		lastReadAt: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe("When its values and tables were last read, as an ISO 8601 date and time."),
+	})
+	.describe("Where some of the world's data comes from.");
+
+/** The world's data (data study): its values, tables and where they come from. */
+export const WorldDataSchema = z
+	.object({
+		values: z
+			.array(DataValueSchema)
+			.default([])
+			.describe("Named values cards, tiles and settings show or follow."),
+		tables: z.array(DataTableSchema).default([]).describe("Tables whose rows objects can take."),
+		sources: z
+			.array(DataSourceSchema)
+			.default([])
+			.describe("Where values and tables are read from."),
+	})
+	.describe("The world's data: values, tables and their sources.");
 
 // See docs/adr/0023-road-width-per-point.md for widths per point.
 export const RoadPointSchema = z
@@ -1167,10 +1287,7 @@ export const SceneSchema = z
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
 		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
-		data: z
-			.array(DataEntrySchema)
-			.default([])
-			.describe("Named values the world shows on cards and detail tiles."),
+		data: WorldDataSchema.default(() => WorldDataSchema.parse({})),
 		viewpoints: z
 			.array(ViewpointSchema)
 			.default([])
@@ -1213,9 +1330,19 @@ export const SceneSchema = z
 			"fence id",
 		);
 		checkUnique(
-			scene.data.map((d) => d.key),
-			["data"],
+			scene.data.values.map((d) => d.key),
+			["data", "values"],
 			"data key",
+		);
+		checkUnique(
+			scene.data.tables.map((t) => t.key),
+			["data", "tables"],
+			"table key",
+		);
+		checkUnique(
+			scene.data.sources.map((s) => s.id),
+			["data", "sources"],
+			"data source id",
 		);
 		checkUnique(
 			scene.viewpoints.map((v) => v.id),
@@ -1234,7 +1361,15 @@ export type TSceneInput = z.input<typeof SceneSchema>;
 export type TEntity = z.output<typeof EntitySchema>;
 export type TEntityInput = z.input<typeof EntitySchema>;
 export type TFollow = z.output<typeof FollowSchema>;
-export type TDataEntry = z.output<typeof DataEntrySchema>;
+export type TDataValue = z.output<typeof DataValueSchema>;
+export type TDataValueInput = z.input<typeof DataValueSchema>;
+/** Values as settings read them: each one's key and value, nothing else needed. */
+export type TReadableValues = readonly Pick<TDataValue, "key" | "value">[];
+export type TDataTable = z.output<typeof DataTableSchema>;
+export type TDataSource = z.output<typeof DataSourceSchema>;
+export type TDataSourceKind = z.output<typeof DataSourceKindSchema>;
+export type TDataPoint = z.output<typeof DataPointSchema>;
+export type TWorldData = z.output<typeof WorldDataSchema>;
 export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadKind = z.output<typeof RoadKindSchema>;

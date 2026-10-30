@@ -13,7 +13,7 @@ import {
 	DataBindingSchema,
 	type TComesOn,
 	type TDataBinding,
-	type TDataEntry,
+	type TDataValue,
 	type TEntityLight,
 	type TLightMode,
 } from "#/scene/schema";
@@ -39,7 +39,7 @@ interface ILightSettingsProps {
 	/** The object's settings for it (undefined: none yet). */
 	setting: TEntityLight | undefined;
 	/** The world's data, to drive its settings by a value. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** Window lights: its part of the part's windows (its weight against the others'), 0–1. */
 	windowShare?: number;
 	/** The world's hour now, for schedules; null without a time of day. */

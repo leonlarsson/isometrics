@@ -1,4 +1,4 @@
-import type { TDataEntry } from "./schema";
+import type { TDataValue } from "./schema";
 
 const plain = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const compact = new Intl.NumberFormat("en-US", {
@@ -17,7 +17,7 @@ export const formatValue = (value: number | string, unit = ""): string => {
 	return `${base}${unit}`;
 };
 
-export const formatEntry = (entry: TDataEntry | undefined): string => {
+export const formatEntry = (entry: TDataValue | undefined): string => {
 	if (!entry) {
 		return "—";
 	}

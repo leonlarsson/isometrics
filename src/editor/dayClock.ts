@@ -1,10 +1,11 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { keepOnHotReload } from "#/lib/hot";
-import type { TDataEntry, TLighting } from "#/scene/schema";
+import type { TLighting, TReadableValues } from "#/scene/schema";
 import { skyLightAt } from "#/scene/sun";
 
 import { useEditor } from "./store";
+import { useWorldData, worldDataNow } from "./worldData";
 
 /**
  * What time of day it is in the world, from its lighting settings: fixed, a
@@ -26,7 +27,7 @@ const local = (now: number) => {
 /** The world's hour for its settings, data, the time now and the cycle so far; null = classic daylight. */
 export const sceneHours = (
 	lighting: TLighting,
-	data: readonly TDataEntry[],
+	data: TReadableValues,
 	now: number,
 	cycled: number,
 ): number | null => {
@@ -98,8 +99,8 @@ export const restartDayCycle = () => {
 
 /** The world's hour right now, exactly (for the lights, every frame). */
 export const sceneHoursNow = () => {
-	const { lighting, data } = useEditor.getState().scene;
-	return sceneHours(lighting, data, Date.now(), cycle.seconds);
+	const { lighting } = useEditor.getState().scene;
+	return sceneHours(lighting, worldDataNow().values, Date.now(), cycle.seconds);
 };
 
 const subscribe = (listener: () => void) => {
@@ -117,7 +118,8 @@ const useFromSceneHours = <T extends number | null>(
 	select: (hours: number | null, lighting: TLighting) => T,
 ): T => {
 	const lighting = useEditor((s) => s.scene.lighting);
-	const data = useEditor((s) => (s.scene.lighting.timeSource === "data" ? s.scene.data : NO_DATA));
+	const values = useWorldData().values;
+	const data = lighting.timeSource === "data" ? values : NO_DATA;
 	const step = stepOf(lighting);
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {
@@ -147,7 +149,7 @@ const useFromSceneHours = <T extends number | null>(
 	);
 };
 
-const NO_DATA: readonly TDataEntry[] = [];
+const NO_DATA: TReadableValues = [];
 
 /**
  * The world's hour for React: exact for a set time, to the minute for the

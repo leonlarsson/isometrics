@@ -415,8 +415,14 @@ export const upgradeLegacyIds = (input: unknown): unknown => {
 	recordsIn(world.roads).forEach(upgradeRoad);
 	recordsIn(world.areas).forEach(upgradeArea);
 	recordsIn(world.fences).forEach(upgradeFence);
-	for (const entry of recordsIn(world.data)) {
-		renameFields(entry, { label: "name" });
+	// The data was a list of values before it had tables and sources (data study).
+	if (Array.isArray(world.data)) {
+		world.data = { values: world.data };
+	}
+	if (isRecord(world.data)) {
+		for (const entry of recordsIn(world.data.values)) {
+			renameFields(entry, { label: "name" });
+		}
 	}
 	recordsIn(world.viewpoints).forEach(upgradeViewpoint);
 	return world;

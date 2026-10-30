@@ -85,8 +85,8 @@ const contentsOf = (scene: TScene) => {
 	] as const;
 	const listed = things.filter(([count]) => count > 0).map(([count, one]) => plural(count, one));
 	return [
-		scene.data.length > 0 &&
-			`${plural(scene.data.length, "data value")} on ${plural(cards, "label card")}`,
+		scene.data.values.length > 0 &&
+			`${plural(scene.data.values.length, "data value")} on ${plural(cards, "label card")}`,
 		listed.length > 0 && listed.join(", ").replace(/, ([^,]*)$/, " and $1"),
 		scene.viewpoints.length > 0 && plural(scene.viewpoints.length, "saved viewpoint"),
 		`${scene.ground.width} × ${scene.ground.depth} ground`,

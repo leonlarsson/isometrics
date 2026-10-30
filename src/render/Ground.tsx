@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
@@ -40,7 +41,7 @@ const useGridCell = () => {
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();

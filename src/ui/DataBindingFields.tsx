@@ -11,7 +11,7 @@ import {
 	type TBindingKind,
 } from "#/parts/dataBinding";
 import { formatEntry } from "#/scene/format";
-import type { TDataBinding, TDataEntry } from "#/scene/schema";
+import type { TDataBinding, TDataValue } from "#/scene/schema";
 
 import { ColorField, formatClock, NumberField, SelectField } from "./fields";
 
@@ -19,7 +19,7 @@ interface IDataBindingFieldsProps {
 	/** How the setting reads its value: switched on and off, a number, or a colour. */
 	kind: TBindingKind;
 	binding: TDataBinding;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** The binding changed. `coalesce` names the option being typed, so it's one undo step. */
 	onChange: (binding: TDataBinding, coalesce?: string) => void;
 	/** Numbers: how a reading shows, e.g. as a percentage. */
@@ -29,7 +29,7 @@ interface IDataBindingFieldsProps {
 }
 
 /** A data value as the hints show it: numbers with their unit, text in quotes, so "null" reads as text. */
-const shownValue = (entry: TDataEntry) =>
+const shownValue = (entry: TDataValue) =>
 	typeof entry.value === "number"
 		? formatEntry(entry)
 		: entry.value.trim() === ""

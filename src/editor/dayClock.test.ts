@@ -24,12 +24,8 @@ describe("sceneHours", () => {
 			timeSource: "data" as const,
 			data: { time: DataBindingSchema.parse({ key: "hour" }) },
 		};
-		expect(sceneHours(fromData, [{ key: "hour", name: "", value: 18.5, unit: "" }], 0, 0)).toBe(
-			18.5,
-		);
-		expect(sceneHours(fromData, [{ key: "hour", name: "", value: "late", unit: "" }], 0, 0)).toBe(
-			9,
-		);
+		expect(sceneHours(fromData, [{ key: "hour", value: 18.5 }], 0, 0)).toBe(18.5);
+		expect(sceneHours(fromData, [{ key: "hour", value: "late" }], 0, 0)).toBe(9);
 		expect(sceneHours(fromData, [], 0, 0)).toBe(9);
 	});
 

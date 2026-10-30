@@ -2,10 +2,17 @@ import { useState } from "react";
 
 import { useEditor } from "#/editor/store";
 import { formatEntry, toDataKey } from "#/scene/format";
-import type { TDataEntry } from "#/scene/schema";
+import {
+	DataValueSchema,
+	type TDataSource,
+	type TDataSourceKind,
+	type TDataTable,
+	type TDataValue,
+} from "#/scene/schema";
 
 import { Button, IconButton } from "./Button";
 import { Hint, Input, Section } from "./fields";
+import { List, ListItem } from "./List";
 
 import styles from "./DataPanel.module.css";
 
@@ -18,11 +25,31 @@ const parseValue = (raw: string): number | string => {
 	return raw;
 };
 
-/** One value: its name, then value and unit side by side, then how it reads on a card. */
-const DataRow = ({ entry }: { entry: TDataEntry }) => {
+/** What each kind of source is called (data study). */
+const SOURCE_KIND_NAMES: Record<TDataSourceKind, string> = {
+	file: "Spreadsheet",
+	link: "Link",
+	api: "API",
+	push: "Pushed",
+};
+
+/** Where a value or table comes from, in words: typed by hand, or its source (and where in it). */
+const originOf = (source: TDataValue["source"], sources: readonly TDataSource[]): string => {
+	if (!source) {
+		return "typed by hand";
+	}
+	const found = sources.find((each) => each.id === source.sourceId);
+	const name = found ? found.name || SOURCE_KIND_NAMES[found.kind] : `${source.sourceId} (gone)`;
+	return source.path ? `from ${name}, ${source.path}` : `from ${name}`;
+};
+
+/** One value: its name, then value and unit side by side, then where it comes from and how it reads. */
+const DataRow = ({ entry, sources }: { entry: TDataValue; sources: readonly TDataSource[] }) => {
 	const upsertData = useEditor((s) => s.upsertData);
 	const removeData = useEditor((s) => s.removeData);
 	const [rawValue, setRawValue] = useState<string | null>(null);
+	const pastValues = entry.history.length;
+	const origin = `${originOf(entry.source, sources)}${pastValues > 0 ? ` · ${pastValues} past values` : ""}`;
 
 	return (
 		<li className={styles.row}>
@@ -58,49 +85,111 @@ const DataRow = ({ entry }: { entry: TDataEntry }) => {
 			</div>
 
 			<span className={styles.meta}>
-				<code>{entry.key}</code> · shows as <strong>{formatEntry(entry)}</strong>
+				<code>{entry.key}</code> · shows as <strong>{formatEntry(entry)}</strong> · {origin}
 			</span>
 		</li>
 	);
 };
 
+/** One table: its name, its size, and where it comes from. */
+const TableRow = ({ table, sources }: { table: TDataTable; sources: readonly TDataSource[] }) => (
+	<ListItem
+		label={table.name || table.key}
+		meta={`${table.rows.length} rows × ${table.columns.length} columns · ${originOf(table.source, sources)}`}
+		stacked
+	/>
+);
+
+/**
+ * The Data tab (data study, docs/data-study): the world's values, its tables
+ * and the sources they're read from. It edits what the world keeps; values
+ * that arrive while it's open show on cards and in the view, not here.
+ */
 export const DataPanel = () => {
-	const data = useEditor((s) => s.scene.data);
+	const { values, tables, sources } = useEditor((s) => s.scene.data);
 	const upsertData = useEditor((s) => s.upsertData);
 
 	const addValue = () => {
 		let key = toDataKey("new value");
 		let n = 1;
-		while (data.some((d) => d.key === key)) {
+		while (values.some((d) => d.key === key)) {
 			key = `new_value_${++n}`;
 		}
-		upsertData({ key, name: "New value", value: 0, unit: "" });
+		upsertData(DataValueSchema.parse({ key, name: "New value", value: 0 }));
 	};
 
 	return (
-		<Section
-			id="data.values"
-			icon="chart"
-			title="Values"
-			keywords="data numbers"
-			actions={
-				<Button size="sm" icon="plus" onClick={addValue}>
-					Add
-				</Button>
-			}
-		>
-			<Hint>
-				These numbers feed the labels and detail tiles. Units are added right after the value, so
-				type {"“ min”"} (with a space) or {"“%”"}.
-			</Hint>
+		<>
+			<Section
+				id="data.values"
+				icon="chart"
+				title="Values"
+				keywords="data numbers"
+				actions={
+					<Button size="sm" icon="plus" onClick={addValue}>
+						Add
+					</Button>
+				}
+			>
+				<Hint>
+					These numbers feed the labels and detail tiles. Units are added right after the value, so
+					type {"“ min”"} (with a space) or {"“%”"}.
+				</Hint>
 
-			{data.length > 0 && (
-				<ul className={styles.list}>
-					{data.map((entry) => (
-						<DataRow key={entry.key} entry={entry} />
-					))}
-				</ul>
-			)}
-		</Section>
+				{values.length > 0 && (
+					<ul className={styles.list}>
+						{values.map((entry) => (
+							<DataRow key={entry.key} entry={entry} sources={sources} />
+						))}
+					</ul>
+				)}
+			</Section>
+
+			<Section id="data.tables" icon="list" title="Tables" keywords="data rows columns table">
+				{tables.length > 0 ? (
+					<List>
+						{tables.map((table) => (
+							<TableRow key={table.key} table={table} sources={sources} />
+						))}
+					</List>
+				) : (
+					<Hint>
+						A table holds rows, like one per warehouse or player, and objects can each take one.
+						Tables come from a spreadsheet or an API.
+					</Hint>
+				)}
+			</Section>
+
+			<Section
+				id="data.sources"
+				icon="file"
+				title="Sources"
+				keywords="data import spreadsheet api link"
+			>
+				{sources.length > 0 ? (
+					<List>
+						{sources.map((source) => (
+							<ListItem
+								key={source.id}
+								label={source.name || SOURCE_KIND_NAMES[source.kind]}
+								meta={[
+									SOURCE_KIND_NAMES[source.kind],
+									source.url ?? source.fileName,
+									source.lastReadAt && `read ${new Date(source.lastReadAt).toLocaleString()}`,
+								]
+									.filter(Boolean)
+									.join(" · ")}
+								stacked
+							/>
+						))}
+					</List>
+				) : (
+					<Hint>
+						Values and tables can be read from a spreadsheet, a link to a sheet or CSV, or an API,
+						instead of typed by hand.
+					</Hint>
+				)}
+			</Section>
+		</>
 	);
 };

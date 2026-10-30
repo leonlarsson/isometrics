@@ -276,7 +276,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 	});
 
 	it("keeps data values' names and viewpoints' targets", () => {
-		expect(scene.data.map((entry) => entry.name)).toEqual(["Hour", "Rain", "Opening hours"]);
+		expect(scene.data.values.map((entry) => entry.name)).toEqual(["Hour", "Rain", "Opening hours"]);
 		expect(scene.viewpoints[0]).toMatchObject({
 			target: [1, 2],
 			targetAltitude: 1,

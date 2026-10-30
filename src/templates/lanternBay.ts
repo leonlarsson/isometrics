@@ -1033,15 +1033,17 @@ export const createLanternBayScene = (): TScene =>
 				moodId: "mood_night",
 			},
 		],
-		data: [
-			{ key: "evening_visitors", name: "Visitors tonight", value: 3400 },
-			{ key: "restaurants_open", name: "Restaurants open", value: 18 },
-			{ key: "offices_at_work", name: "Offices at work", value: 35, unit: "%" },
-			{ key: "berths", name: "Berths taken", value: "38 / 44" },
-			{ key: "boats_in", name: "Boats in tonight", value: 12 },
-			{ key: "ferry_next", name: "Next departure", value: 8, unit: " min" },
-			{ key: "ferry_passengers", name: "Passengers", value: 42 },
-		],
+		data: {
+			values: [
+				{ key: "evening_visitors", name: "Visitors tonight", value: 3400 },
+				{ key: "restaurants_open", name: "Restaurants open", value: 18 },
+				{ key: "offices_at_work", name: "Offices at work", value: 35, unit: "%" },
+				{ key: "berths", name: "Berths taken", value: "38 / 44" },
+				{ key: "boats_in", name: "Boats in tonight", value: 12 },
+				{ key: "ferry_next", name: "Next departure", value: 8, unit: " min" },
+				{ key: "ferry_passengers", name: "Passengers", value: 42 },
+			],
+		},
 		areas: AREAS,
 		roads: ROADS,
 		entities: [

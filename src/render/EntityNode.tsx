@@ -15,7 +15,7 @@ import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
-import type { TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
+import type { TDataValue, TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -142,7 +142,7 @@ export interface IEntityNodeProps {
 	/** The road it follows, if any. */
 	road: TRoad | null;
 	/** The world's data, for objects that show values or follow them; otherwise undefined. */
-	data: TScene["data"] | undefined;
+	data: readonly TDataValue[] | undefined;
 	/** The world's hour, for objects with a light on a schedule or that follow the sun; otherwise null. */
 	hour: number | null;
 	/** Where the sun is now, for objects that follow it (a part's `followsTheSun`); otherwise undefined. */

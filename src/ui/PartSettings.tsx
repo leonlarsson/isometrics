@@ -11,7 +11,7 @@ import { lightDefaults } from "#/parts/lightModel";
 import { partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec, TFieldSpec } from "#/parts/types";
 import type { TColorSettingChange, TEntityLightChange } from "#/scene/objectSettings";
-import type { TColorSetting, TDataEntry, TEntity } from "#/scene/schema";
+import type { TColorSetting, TDataValue, TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { ChipGroup } from "./ChipGroup";
@@ -61,7 +61,7 @@ const DataKeyField = ({
 }: {
 	label: string;
 	value: string;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	onChange: (key: string) => void;
 	mixed?: boolean;
 	hint?: ReactNode;
@@ -100,7 +100,7 @@ export const PropField = ({
 	/** The part's default for it, for Default / Reset (ADR-0105). */
 	fallback: unknown;
 	/** The world's data, for a field that picks a data value. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	onChange: (value: unknown) => void;
 	/** It differs between the selected objects (ADR-0064). */
 	mixed?: boolean;
@@ -198,7 +198,7 @@ interface IPartSettingsProps {
 	part: TAnyPart;
 	object: TPartSettingsOf;
 	/** The world's data, for settings that follow it (none in the parts catalogue). */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** Say under each setting what a world's file calls it (the parts catalogue). */
 	showFileNames?: boolean;
 	/** Panels folded each time they show, not remembered (the parts catalogue). */
@@ -264,7 +264,7 @@ export const ColorSettingFields = ({
 }: {
 	spec: IColorSpec;
 	setting: TColorSetting | undefined;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	palette: IScenePalette;
 	label?: string;
 	/** What a world's file calls it, shown under it (the parts catalogue). */

@@ -222,7 +222,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		});
 		await worldTab(page, "Data");
 		await page.getByRole("button", { name: "Add", exact: true }).click();
-		const key = await read(page, (s) => s.scene.data.at(-1)?.key ?? "");
+		const key = await read(page, (s) => s.scene.data.values.at(-1)?.key ?? "");
 		await page.getByRole("textbox", { name: "Name" }).last().fill("Orders");
 		await page.getByRole("textbox", { name: "Value" }).last().fill("42");
 		await page.getByRole("textbox", { name: "Value" }).last().press("Tab");
@@ -259,7 +259,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 			{ data: Record<string, { key: string }> }
 		>;
 		// It starts with the world's first value, to be changed in the fields below.
-		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data[0].key));
+		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data.values[0].key));
 	});
 });
 

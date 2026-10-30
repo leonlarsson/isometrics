@@ -10,6 +10,7 @@ import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
+import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
 import { formatHour } from "#/scene/sun";
@@ -111,9 +112,8 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	const hour = useSceneHours();
 	const editing = useEditor((s) => s.mode === "edit");
 	const lighting = useEditor((s) => s.scene.lighting);
-	const timeEntry = useEditor((s) =>
-		s.scene.data.find((entry) => entry.key === s.scene.lighting.data.time?.key),
-	);
+	const data = useWorldData().values;
+	const timeEntry = data.find((entry) => entry.key === lighting.data.time?.key);
 	const source =
 		lighting.timeSource === "cycle"
 			? `Day cycle, ${lighting.dayLength} s`

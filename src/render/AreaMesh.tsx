@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useGraphics } from "#/editor/graphics";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import {
@@ -17,7 +18,7 @@ import {
 	triangulateOutline,
 	waterSeams,
 } from "#/scene/areas";
-import type { TArea, TDataEntry, TWater } from "#/scene/schema";
+import type { TArea, TDataValue, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openAreaMenuOnClick } from "./contextMenu";
@@ -112,7 +113,7 @@ interface IAreaBodyProps {
 	layer: number;
 	palette: IScenePalette;
 	/** The world's data, for colours that follow it. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TAreaHandlers;
@@ -255,7 +256,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 		[reflective, area, areas],
 	);
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(

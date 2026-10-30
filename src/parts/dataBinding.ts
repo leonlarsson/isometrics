@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
+import type { TDataBinding, TReadableValues, TTimePeriod } from "#/scene/schema";
 
 /**
  * Settings driven by data (ADR-0058): a `TDataBinding` names a data value and
@@ -22,10 +22,10 @@ import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
 
 export type TBindingKind = "switch" | "scale" | "color" | "periods";
 
-/** The entry a binding names, if the world still has it. */
-export const boundEntry = (
+/** The entry a binding names, if the world still has it (as much of it as `data` holds). */
+export const boundEntry = <T extends TReadableValues[number]>(
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: readonly T[] | undefined,
 ) => (binding ? data?.find((entry) => entry.key === binding.key) : undefined);
 
 /** A data value as a number: numbers as they are, text that reads as one, else NaN. */
@@ -80,7 +80,7 @@ export const cssColor = (value: number | string | undefined): string | null => {
 /** A switch binding's reading: on or off, or undefined without a value. */
 export const readSwitch = (
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) => {
 	const entry = boundEntry(binding, data);
 	return entry && binding ? switchesOn(entry.value, binding.switchesOnAbove ?? 0) : undefined;
@@ -89,7 +89,7 @@ export const readSwitch = (
 /** A scale binding's reading: the value ÷ `full`, between `min` and `max`; undefined if it isn't a number. */
 export const readScale = (
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 	{ min = 0, max = Number.POSITIVE_INFINITY }: { min?: number; max?: number } = {},
 ) => {
 	const value = dataNumber(boundEntry(binding, data)?.value);
@@ -129,10 +129,7 @@ export const colorOnScale = (binding: TDataBinding, value: number) => {
  * A colour binding's reading, as #rrggbb: a value holding a CSS colour as it
  * is, a number on the colour scale; undefined for anything else.
  */
-export const readColor = (
-	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
-) => {
+export const readColor = (binding: TDataBinding | undefined, data: TReadableValues | undefined) => {
 	const value = boundEntry(binding, data)?.value;
 	const asColor = cssColor(value);
 	if (asColor || !binding) {
@@ -176,7 +173,5 @@ export const periodsFromText = (value: number | string | undefined): TTimePeriod
 };
 
 /** A periods binding's reading: the times its value holds, or undefined if it doesn't read as times. */
-export const readPeriods = (
-	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
-) => periodsFromText(boundEntry(binding, data)?.value);
+export const readPeriods = (binding: TDataBinding | undefined, data: TReadableValues | undefined) =>
+	periodsFromText(boundEntry(binding, data)?.value);

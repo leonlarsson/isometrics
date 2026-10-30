@@ -40,6 +40,7 @@ import {
 	AreaSchema,
 	CameraSettingsSchema,
 	ColorSettingSchema,
+	DataValueSchema,
 	EntityLightSchema,
 	EntitySchema,
 	FenceSchema,
@@ -49,7 +50,7 @@ import {
 	type TAreaInput,
 	type TAreaKind,
 	type TDataBinding,
-	type TDataEntry,
+	type TDataValueInput,
 	type TEntity,
 	type TEntityInput,
 	type TFence,
@@ -299,6 +300,8 @@ export interface IEditorState {
 	 * it till then; null once it's shown. Runtime only.
 	 */
 	openingWorld: number | null;
+	/** How many worlds have opened so far, this one included: which world data that arrives is for. Runtime only. */
+	openedWorldCount: number;
 	snapping: boolean;
 	playing: boolean;
 	/** How the camera shows the world: orthographic (the isometric diorama) or perspective. Runtime UI state. */
@@ -572,7 +575,8 @@ export interface IEditorState {
 	removeEntity: (id: string) => void;
 	duplicateEntity: (id: string) => string | null;
 
-	upsertData: (entry: TDataEntry, previousKey?: string) => void;
+	/** Adds or changes a value (missing fields get their defaults), renamed from `previousKey`. */
+	upsertData: (entry: TDataValueInput, previousKey?: string) => void;
 	removeData: (key: string) => void;
 
 	addRoad: (input: Omit<TRoadInput, "id"> & { id?: string }) => string;
@@ -1026,6 +1030,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			tab: "world",
 			dragging: false,
 			openingWorld: 1,
+			openedWorldCount: 1,
 			snapping: true,
 			playing: true,
 			projection: "orthographic",
@@ -1090,6 +1095,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				set((state) => ({
 					// The loading screen covers it until the view has it ready (ADR-0100).
 					openingWorld: (state.openingWorld ?? 0) + 1,
+					openedWorldCount: state.openedWorldCount + 1,
 					scene,
 					past: [],
 					future: [],
@@ -1945,30 +1951,32 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				return copy.id;
 			},
 
-			upsertData: (entry, previousKey) =>
+			upsertData: (input, previousKey) => {
+				const entry = DataValueSchema.parse(input);
 				get().commit(
 					(scene) => {
 						const lookup = previousKey ?? entry.key;
-						const index = scene.data.findIndex((d) => d.key === lookup);
+						const index = scene.data.values.findIndex((d) => d.key === lookup);
 						if (index === -1) {
-							scene.data.push(entry);
+							scene.data.values.push(entry);
 							return;
 						}
 						// Refuse to rename onto an existing key.
-						if (entry.key !== lookup && scene.data.some((d) => d.key === entry.key)) {
+						if (entry.key !== lookup && scene.data.values.some((d) => d.key === entry.key)) {
 							return;
 						}
-						scene.data[index] = entry;
+						scene.data.values[index] = entry;
 						if (entry.key !== lookup) {
 							renameDataReferences(scene, lookup, entry.key);
 						}
 					},
-					{ coalesce: `data:${previousKey ?? entry.key}` },
-				),
+					{ coalesce: `data:${previousKey ?? input.key}` },
+				);
+			},
 
 			removeData: (key) =>
 				get().commit((scene) => {
-					scene.data = scene.data.filter((d) => d.key !== key);
+					scene.data.values = scene.data.values.filter((d) => d.key !== key);
 					renameDataReferences(scene, key, null);
 				}),
 

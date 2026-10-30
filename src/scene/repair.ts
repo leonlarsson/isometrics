@@ -4,7 +4,9 @@ import { upgradeLegacyIds } from "./legacy";
 import { parseScene } from "./migrate";
 import {
 	AreaSchema,
-	DataEntrySchema,
+	DataSourceSchema,
+	DataTableSchema,
+	DataValueSchema,
 	EntitySchema,
 	FenceSchema,
 	MoodSchema,
@@ -39,6 +41,8 @@ export interface IRepairReport {
 		areas: number;
 		fences: number;
 		values: number;
+		tables: number;
+		sources: number;
 		viewpoints: number;
 		moods: number;
 	};
@@ -106,18 +110,43 @@ const repairValue = (
 	return null;
 };
 
+/** The world's lists, by where they are in it, each repaired item by item. */
 const LISTS = [
-	{ key: "entities", schema: EntitySchema, id: "id", counter: "objects" },
-	{ key: "roads", schema: RoadSchema, id: "id", counter: "roads" },
-	{ key: "areas", schema: AreaSchema, id: "id", counter: "areas" },
-	{ key: "fences", schema: FenceSchema, id: "id", counter: "fences" },
-	{ key: "data", schema: DataEntrySchema, id: "key", counter: "values" },
-	{ key: "viewpoints", schema: ViewpointSchema, id: "id", counter: "viewpoints" },
-	{ key: "moods", schema: MoodSchema, id: "id", counter: "moods" },
+	{ path: ["entities"], schema: EntitySchema, id: "id", counter: "objects" },
+	{ path: ["roads"], schema: RoadSchema, id: "id", counter: "roads" },
+	{ path: ["areas"], schema: AreaSchema, id: "id", counter: "areas" },
+	{ path: ["fences"], schema: FenceSchema, id: "id", counter: "fences" },
+	{ path: ["data", "values"], schema: DataValueSchema, id: "key", counter: "values" },
+	{ path: ["data", "tables"], schema: DataTableSchema, id: "key", counter: "tables" },
+	{ path: ["data", "sources"], schema: DataSourceSchema, id: "id", counter: "sources" },
+	{ path: ["viewpoints"], schema: ViewpointSchema, id: "id", counter: "viewpoints" },
+	{ path: ["moods"], schema: MoodSchema, id: "id", counter: "moods" },
 ] as const;
 
 type TSceneKey = keyof typeof SceneSchema.shape;
-const LIST_KEYS = new Set<string>(LISTS.map(({ key }) => key));
+/** Top-level fields that hold lists (or only groups of lists, like data). */
+const LIST_KEYS = new Set<string>(LISTS.map(({ path }) => path[0]));
+
+/** What's at a path in a record, if every step is a record. */
+const readPath = (record: Record<string, unknown>, path: readonly string[]): unknown =>
+	path.reduce<unknown>(
+		(at, key) =>
+			typeof at === "object" && at !== null && !Array.isArray(at)
+				? (at as Record<string, unknown>)[key]
+				: undefined,
+		record,
+	);
+
+/** Set what's at a path in a record, making the groups on the way. */
+const writePath = (record: Record<string, unknown>, path: readonly string[], value: unknown) => {
+	let at = record;
+	for (const key of path.slice(0, -1)) {
+		const next = at[key];
+		at[key] = typeof next === "object" && next !== null && !Array.isArray(next) ? next : {};
+		at = at[key] as Record<string, unknown>;
+	}
+	at[path[path.length - 1]] = value;
+};
 
 /**
  * Every other top-level field is a world setting, repaired on its own. Taken
@@ -136,12 +165,22 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 	// Old ids aren't broken, just renamed: upgrade them rather than reset them.
 	const raw = upgradeLegacyIds(input) as Record<string, unknown>;
 	const hasVersion = typeof raw.version === "number";
-	if (!hasVersion && !LISTS.some(({ key }) => Array.isArray(raw[key]))) {
+	if (!hasVersion && !LISTS.some(({ path }) => Array.isArray(readPath(raw, path)))) {
 		throw new Error("This doesn’t look like a world: it has no version, objects, roads or areas");
 	}
 
 	const report: IRepairReport = {
-		removed: { objects: 0, roads: 0, areas: 0, fences: 0, values: 0, viewpoints: 0, moods: 0 },
+		removed: {
+			objects: 0,
+			roads: 0,
+			areas: 0,
+			fences: 0,
+			values: 0,
+			tables: 0,
+			sources: 0,
+			viewpoints: 0,
+			moods: 0,
+		},
 		fixed: 0,
 		newerVersion: hasVersion && (raw.version as number) > SCENE_VERSION,
 		missingVersion: !hasVersion,
@@ -159,8 +198,8 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 		}
 	}
 
-	for (const { key, schema, id, counter } of LISTS) {
-		const items = raw[key];
+	for (const { path, schema, id, counter } of LISTS) {
+		const items = readPath(raw, path);
 		if (items !== undefined && !Array.isArray(items)) {
 			report.fixed += 1;
 		}
@@ -177,7 +216,7 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 			kept.push(repaired.value);
 			report.fixed += repaired.fixes;
 		}
-		cleaned[key] = kept;
+		writePath(cleaned, path, kept);
 	}
 
 	return { scene: SceneSchema.parse(cleaned), report };
@@ -201,17 +240,21 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 /** A short, plain description of what a repair changed, for the user. */
 export const describeRepairs = (report: IRepairReport) => {
-	const { objects, roads, areas, fences, values, viewpoints, moods } = report.removed;
+	const { objects, roads, areas, fences, values, tables, sources, viewpoints, moods } =
+		report.removed;
 	const removed = [
 		objects && plural(objects, "object", "objects"),
 		roads && plural(roads, "road", "roads"),
 		areas && plural(areas, "area", "areas"),
 		fences && plural(fences, "fence", "fences"),
 		values && plural(values, "data value", "data values"),
+		tables && plural(tables, "data table", "data tables"),
+		sources && plural(sources, "data source", "data sources"),
 		viewpoints && plural(viewpoints, "viewpoint", "viewpoints"),
 		moods && plural(moods, "mood", "moods"),
 	].filter((part): part is string => Boolean(part));
-	const removedCount = objects + roads + areas + fences + values + viewpoints + moods;
+	const removedCount =
+		objects + roads + areas + fences + values + tables + sources + viewpoints + moods;
 
 	const parts: string[] = [];
 	if (report.newerVersion) {

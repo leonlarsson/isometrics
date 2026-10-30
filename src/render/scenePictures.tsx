@@ -117,11 +117,11 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 		return null;
 	}
 	const { position, rotation } = startPose(entity, scene);
-	const colors = resolveColors(part, entity, palette, scene.data);
+	const colors = resolveColors(part, entity, palette, scene.data.values);
 	const lights = resolveLights(part, entity, {
 		palette,
 		driving: entity.follow !== null,
-		data: scene.data,
+		data: scene.data.values,
 		hour: scene.lighting.time,
 	});
 	const Component = part.Component;
@@ -135,7 +135,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 					palette={palette}
 					playing={false}
 					lights={lights}
-					data={scene.data}
+					data={scene.data.values}
 					onReady={part.rendersAsync ? onReady : undefined}
 				/>
 			</group>
@@ -199,7 +199,14 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 					receiveShadow
 				>
 					<meshStandardMaterial
-						color={colorOf(GROUND, scene.ground, "surface", palette, scene.data, palette.ground)}
+						color={colorOf(
+							GROUND,
+							scene.ground,
+							"surface",
+							palette,
+							scene.data.values,
+							palette.ground,
+						)}
 						roughness={0.95}
 					/>
 				</RoundedBox>
@@ -211,7 +218,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							area={area}
 							layer={index}
 							palette={palette}
-							data={scene.data}
+							data={scene.data.values}
 							selected={false}
 						/>
 					),
@@ -224,7 +231,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							road={road}
 							layer={index}
 							palette={palette}
-							data={scene.data}
+							data={scene.data.values}
 							ground={scene.ground}
 							editing={false}
 							selected={false}
@@ -239,7 +246,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							fence={fence}
 							palette={palette}
 							areas={scene.areas}
-							data={scene.data}
+							data={scene.data.values}
 							selected={false}
 						/>
 					),

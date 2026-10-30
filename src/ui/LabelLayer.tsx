@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
 import { getPart, partNameOf } from "#/parts/registry";
@@ -82,13 +83,13 @@ const measured = (id: string, part: TLabelPart) => (element: HTMLElement | null)
 
 const useLabelColor = (entity: TEntity) => {
 	const palette = useThemePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const part = getPart(entity.kind);
 	return part ? resolveLabelColor(part, entity, palette, data) : palette.selection;
 };
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
 	const entries = entity.label.dataKeys.map((key) => ({

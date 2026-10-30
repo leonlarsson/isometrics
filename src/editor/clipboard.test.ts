@@ -11,7 +11,7 @@ const load = () => {
 		SceneSchema.parse({
 			version: 1,
 			ground: { width: 40, depth: 40 },
-			data: [{ key: "alert", value: 1 }],
+			data: { values: [{ key: "alert", value: 1 }] },
 			entities: [
 				{
 					id: "a",

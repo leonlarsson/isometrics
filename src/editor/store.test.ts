@@ -16,7 +16,7 @@ const makeStore = () =>
 	createEditorStore(
 		SceneSchema.parse({
 			version: 1,
-			data: [{ key: "orders", name: "Orders", value: 3 }],
+			data: { values: [{ key: "orders", name: "Orders", value: 3 }] },
 			entities: [
 				{
 					id: "w",
@@ -137,7 +137,7 @@ describe("editor store", () => {
 			.getState()
 			.upsertData({ key: "orders_packed", name: "Orders", value: 3, unit: "" }, "orders");
 		const [entity] = store.getState().scene.entities;
-		expect(store.getState().scene.data[0].key).toBe("orders_packed");
+		expect(store.getState().scene.data.values[0].key).toBe("orders_packed");
 		expect(entity.label?.dataKeys).toEqual(["orders_packed"]);
 		expect(entity.details.dataKeys).toEqual(["orders_packed"]);
 		// A part's data key field (the text part's value) follows too.

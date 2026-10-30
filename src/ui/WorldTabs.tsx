@@ -1,5 +1,6 @@
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { GROUND } from "#/scene/ground";
 import { changeColorSetting } from "#/scene/objectSettings";
 import { TURN_STYLE_LABELS, TURN_STYLE_OPTIONS } from "#/scene/roads";
@@ -100,6 +101,7 @@ export const WorldTab = () => {
 	const commit = useEditor((s) => s.commit);
 	const resetView = useEditor((s) => s.resetView);
 	const palette = useThemePalette();
+	const data = useWorldData().values;
 
 	return (
 		<>
@@ -215,7 +217,7 @@ export const WorldTab = () => {
 				<ColorSettingFields
 					spec={GROUND.colors[0]}
 					setting={scene.ground.colors.surface}
-					data={scene.data}
+					data={data}
 					palette={palette}
 					onChange={(change, field) =>
 						commit(

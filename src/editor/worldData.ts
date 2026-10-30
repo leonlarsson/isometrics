@@ -1,0 +1,105 @@
+import { useMemo } from "react";
+import { create } from "zustand";
+
+import { keepOnHotReload } from "#/lib/hot";
+import type { TDataPoint, TDataTable, TWorldData } from "#/scene/schema";
+
+import { useEditor } from "./store";
+
+/**
+ * The world's data as it is now (data study, docs/data-study): what the world
+ * keeps (its snapshot, typed or last read) with what its sources sent since
+ * on top. Everything that shows or follows data reads it here, never from
+ * `scene.data` itself, so values that arrive while the world is open (a
+ * source read again, a live feed later) never make an undo step, never
+ * autosave on every tick, and never touch what the world keeps until asked.
+ */
+
+/** What sources sent since the world opened, by value key and table key. */
+interface IArrivedData {
+	/** Which world it arrived for (the store's `openedWorldCount`): another world's is ignored. */
+	forOpening: number | null;
+	values: ReadonlyMap<string, TDataPoint>;
+	tables: ReadonlyMap<string, TDataTable["rows"]>;
+}
+
+const NOTHING_ARRIVED: IArrivedData = { forOpening: null, values: new Map(), tables: new Map() };
+
+/** The most points a value's history keeps while the world is open. */
+const MOST_POINTS = 500;
+
+// Named as a hook: the React Compiler only treats `use…` calls as hooks, and caches anything else.
+const useArrived = keepOnHotReload("arrivedData", () =>
+	create<IArrivedData>(() => NOTHING_ARRIVED),
+);
+
+/**
+ * The world's data with what arrived on top; the kept data itself while
+ * nothing has (or what has was for a world opened before this one).
+ */
+export const mergeArrived = (
+	kept: TWorldData,
+	since: Omit<IArrivedData, "forOpening">,
+): TWorldData => {
+	if (since.values.size === 0 && since.tables.size === 0) {
+		return kept;
+	}
+	return {
+		...kept,
+		values: kept.values.map((entry) => {
+			const point = since.values.get(entry.key);
+			return point
+				? {
+						...entry,
+						value: point.value,
+						history: [...entry.history, point].slice(-MOST_POINTS),
+					}
+				: entry;
+		}),
+		tables: kept.tables.map((table) => {
+			const rows = since.tables.get(table.key);
+			return rows ? { ...table, rows } : table;
+		}),
+	};
+};
+
+/** The world's data now, for components: changes as the world or what arrived changes. */
+export const useWorldData = (): TWorldData => {
+	const kept = useEditor((s) => s.scene.data);
+	const opening = useEditor((s) => s.openedWorldCount);
+	const since = useArrived((s) => s);
+	// The same object until something changes, so selectors that use it stay settled.
+	return useMemo(
+		() => mergeArrived(kept, since.forOpening === opening ? since : NOTHING_ARRIVED),
+		[kept, since, opening],
+	);
+};
+
+/** The world's data now, for code outside components (each frame, the store's actions). */
+export const worldDataNow = (): TWorldData => {
+	const { scene, openedWorldCount } = useEditor.getState();
+	const since = useArrived.getState();
+	return mergeArrived(scene.data, since.forOpening === openedWorldCount ? since : NOTHING_ARRIVED);
+};
+
+/** What arrived so far for the world open now: none if it was for another. */
+const arrivedForThisWorld = (): IArrivedData => {
+	const opening = useEditor.getState().openedWorldCount;
+	const since = useArrived.getState();
+	return since.forOpening === opening ? since : { ...NOTHING_ARRIVED, forOpening: opening };
+};
+
+/** A value that arrived from a source, kept until the world closes or it's kept for good. */
+export const valueArrived = (key: string, point: TDataPoint) => {
+	const since = arrivedForThisWorld();
+	useArrived.setState({ ...since, values: new Map(since.values).set(key, point) });
+};
+
+/** A table's rows that arrived from a source. */
+export const tableArrived = (key: string, rows: TDataTable["rows"]) => {
+	const since = arrivedForThisWorld();
+	useArrived.setState({ ...since, tables: new Map(since.tables).set(key, rows) });
+};
+
+/** Forget what arrived: another world opened, or it was kept in the world. */
+export const clearArrived = () => useArrived.setState(NOTHING_ARRIVED);

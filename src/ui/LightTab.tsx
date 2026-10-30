@@ -1,5 +1,6 @@
 import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { useWorldData } from "#/editor/worldData";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { DataBindingSchema, LightingSchema, type TLighting } from "#/scene/schema";
 import { BALANCED_CONTRAST, formatHour, skyLightAt } from "#/scene/sun";
@@ -45,7 +46,7 @@ const LIGHTS_OPTIONS: { value: TLighting["whenLightsAreOn"]; label: string }[] =
  */
 export const LightTab = () => {
 	const lighting = useEditor((s) => s.scene.lighting);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const commit = useEditor((s) => s.commit);
 	const hours = useSceneHours();
 	// What the time of day gives each sun setting, shown while it isn't set by hand.

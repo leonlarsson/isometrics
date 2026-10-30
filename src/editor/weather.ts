@@ -1,8 +1,9 @@
 import { readScale } from "#/parts/dataBinding";
-import type { TDataEntry, TWeather } from "#/scene/schema";
+import type { TReadableValues, TWeather } from "#/scene/schema";
 import type { ISkyWeather } from "#/scene/sky";
 
 import { useEditor } from "./store";
+import { useWorldData, worldDataNow } from "./worldData";
 
 /**
  * The weather in effect (ADR-0102): each amount as set or from its data
@@ -40,7 +41,7 @@ export const WEATHER_DATA = [
 export type TWeatherDataTarget = (typeof WEATHER_DATA)[number];
 
 /** What it's like now, from the world's weather and its data. */
-export const weatherNow = (weather: TWeather, data?: readonly TDataEntry[]): IWeatherNow => {
+export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherNow => {
 	const amount = (key: TWeatherDataTarget) =>
 		readScale(weather.data[key], data, { max: 1 }) ?? weather[key];
 	const rain = amount("rainAmount");
@@ -65,17 +66,20 @@ export const weatherNow = (weather: TWeather, data?: readonly TDataEntry[]): IWe
 /** The world's weather in effect now, from the store, for code that runs each frame. */
 export const weatherNowInWorld = () => {
 	const { scene } = useEditor.getState();
-	return weatherNow(scene.weather, scene.data);
+	return weatherNow(scene.weather, worldDataNow().values);
 };
 
 /** How overcast the world's weather makes the light (0–1), for components: changes with the weather. */
-export const useOvercast = () =>
-	useEditor((s) => weatherNow(s.scene.weather, s.scene.data).overcast);
+export const useOvercast = () => {
+	const data = useWorldData().values;
+	return useEditor((s) => weatherNow(s.scene.weather, data).overcast);
+};
 
 /** What the world's weather brings to the sky now (its clouds, overcast), for components. */
 export const useSkyWeather = (): ISkyWeather => {
 	const overcast = useOvercast();
-	const cloudCover = useEditor((s) => weatherNow(s.scene.weather, s.scene.data).cloudCover);
+	const data = useWorldData().values;
+	const cloudCover = useEditor((s) => weatherNow(s.scene.weather, data).cloudCover);
 	const cloudColor = useEditor((s) => s.scene.weather.cloudColor);
 	const cloudSpeed = useEditor((s) => s.scene.weather.cloudSpeed);
 	return { cloudCover, cloudColor, cloudSpeed, overcast };

@@ -238,7 +238,7 @@ export const copySettings = (settings: TCopiedSettings | null) => {
 
 /** Data keys that settings or things use but this world doesn't have, to warn about. */
 const missingDataKeys = (keys: Iterable<string>) => {
-	const known = new Set(store().scene.data.map((entry) => entry.key));
+	const known = new Set(store().scene.data.values.map((entry) => entry.key));
 	return [...new Set(keys)].filter((key) => key && !known.has(key));
 };
 

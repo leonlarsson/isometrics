@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import {
@@ -18,7 +19,7 @@ import {
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
-import type { TDataEntry, TRoad, TRoadPoint } from "#/scene/schema";
+import type { TDataValue, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -78,7 +79,7 @@ const useDisposable = (geometry: THREE.BufferGeometry) => {
 };
 
 /** A road's surface colour as drawn now: from data, else as set, else its kind's (ADR-0104). */
-export const roadColor = (road: TRoad, palette: IScenePalette, data?: readonly TDataEntry[]) =>
+export const roadColor = (road: TRoad, palette: IScenePalette, data?: readonly TDataValue[]) =>
 	colorOf(ROAD_KINDS[road.kind], road, "surface", palette, data, palette.road);
 
 /** Height of the road surface above the ground plane for a given layer. */
@@ -95,7 +96,7 @@ interface IRoadBodyProps {
 	layer: number;
 	palette: IScenePalette;
 	/** The world's data, for colours that follow it. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	ground: { width: number; depth: number };
 	/** Hidden routes show as a dashed line while editing; otherwise they draw nothing. */
 	editing: boolean;
@@ -305,7 +306,7 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	const editable = mode === "edit" && !drawing;
 	const handlers: TRoadHandlers = editable

@@ -2,7 +2,7 @@ import type { FC } from "react";
 import type { z } from "zod";
 
 import type { IColorSpec, TColorDefault } from "#/scene/colors";
-import type { TComesOn, TDataEntry } from "#/scene/schema";
+import type { TComesOn, TDataValue } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -165,7 +165,7 @@ export interface IPartRenderProps<P, C extends string = string> {
 	 */
 	lights: Record<string, IResolvedLight>;
 	/** The world's data, for parts that show values (absent in previews and thumbnails). */
-	data?: TDataEntry[];
+	data?: readonly TDataValue[];
 	/** Where the sun is now, for parts that follow it (`followsTheSun`); undefined otherwise. */
 	sun?: ISunPosition;
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */

@@ -27,7 +27,8 @@ interface IRawWorld {
 	}[];
 	roads?: { points: unknown[] }[];
 	areas?: { points: unknown[] }[];
-	data?: unknown[];
+	/** A list of values in worlds from before the data study, else values, tables and sources. */
+	data?: unknown[] | { values?: unknown[] };
 	viewpoints?: unknown[];
 }
 
@@ -49,7 +50,8 @@ describe("worlds saved by earlier versions", () => {
 		expect(scene.entities).toHaveLength(raw.entities?.length ?? 0);
 		expect(scene.roads).toHaveLength(raw.roads?.length ?? 0);
 		expect(scene.areas).toHaveLength(raw.areas?.length ?? 0);
-		expect(scene.data).toHaveLength(raw.data?.length ?? 0);
+		const rawValues = Array.isArray(raw.data) ? raw.data : raw.data?.values;
+		expect(scene.data.values).toHaveLength(rawValues?.length ?? 0);
 		expect(scene.viewpoints).toHaveLength(raw.viewpoints?.length ?? 0);
 
 		scene.roads.forEach((road, i) => {

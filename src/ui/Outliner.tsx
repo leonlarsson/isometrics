@@ -6,6 +6,7 @@ import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
@@ -55,13 +56,13 @@ const keyOf = (item: ISceneItem) => `${item.kind}:${item.id}`;
  */
 const madeRows = new WeakMap<
 	object,
-	{ palette: IScenePalette; data: TScene["data"]; row: IOutlinerRow }
+	{ palette: IScenePalette; data: TScene["data"]["values"]; row: IOutlinerRow }
 >();
 
 const cachedRow = <T extends object>(
 	thing: T,
 	palette: IScenePalette,
-	data: TScene["data"],
+	data: TScene["data"]["values"],
 	make: (thing: T) => IOutlinerRow,
 ) => {
 	const made = madeRows.get(thing);
@@ -74,18 +75,21 @@ const cachedRow = <T extends object>(
 };
 
 /** Every object, road and area as a row, objects grouped by part category. */
-const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
+const rowsOf = (
+	scene: TScene,
+	palette: IScenePalette,
+	data: TScene["data"]["values"],
+): IOutlinerRow[] => {
 	const firstValue = (keys: string[]) => {
 		const key = keys[0];
-		return key ? formatEntry(scene.data.find((entry) => entry.key === key)) : null;
+		return key ? formatEntry(data.find((entry) => entry.key === key)) : null;
 	};
-	const { data } = scene;
 	return [
 		...scene.entities.map((each) =>
 			cachedRow(each, palette, data, (entity): IOutlinerRow => {
 				const part = getPart(entity.kind);
 				const { first, second } = part
-					? swatchColors(resolveColors(part, entity, palette, scene.data), part)
+					? swatchColors(resolveColors(part, entity, palette, data), part)
 					: { first: palette.selection, second: palette.selection };
 				return {
 					item: { kind: "entity", id: entity.id },
@@ -146,7 +150,7 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					group: FENCES,
 					name: fence.name,
 					fallback: FENCE_STYLE_LABELS[fence.kind],
-					swatch: fenceSwatch(fence, palette, scene.data),
+					swatch: fenceSwatch(fence, palette, data),
 					hidden: fence.isHidden,
 					locked: fence.isLocked,
 					value: null,
@@ -401,7 +405,8 @@ export const Outliner = () => {
 		meta: { name: "Rename the selection" },
 	});
 
-	const rows = useMemo(() => rowsOf(scene, palette), [scene, palette]);
+	const data = useWorldData().values;
+	const rows = useMemo(() => rowsOf(scene, palette, data), [scene, palette, data]);
 	const selectedRows = useMemo(() => new Set(selectedKeys.split(" ")), [selectedKeys]);
 	const shown = useMemo(
 		() =>

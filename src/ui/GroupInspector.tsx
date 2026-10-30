@@ -6,6 +6,7 @@ import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { round } from "#/lib/math";
 import {
@@ -296,7 +297,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 	const part = members[0].part;
 	const writeAll = writeTo(members.map((member) => member.entity));
 	const props = members.map((member) => resolveProps(part, member.entity.props));
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	return (
 		<Section
@@ -368,7 +369,7 @@ const lightsOf = (members: readonly IMember[]) => {
 /** The Look tab for several objects: every colour any of them has, saying which have it. */
 const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: number }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	return (
 		<>
@@ -479,7 +480,7 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 /** The Lights tab for several objects: a card for every light any of them has, saying which have it. */
 const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total: number }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const hour = useSceneHours();
 
 	return (

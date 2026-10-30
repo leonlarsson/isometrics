@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { TBindingKind } from "#/parts/dataBinding";
-import { DataBindingSchema, type TDataBinding, type TDataEntry } from "#/scene/schema";
+import { DataBindingSchema, type TDataBinding, type TDataValue } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
 import { resetToDefault, SelectField } from "./fields";
@@ -11,7 +11,7 @@ interface IDataDrivenFieldProps {
 	kind: TBindingKind;
 	/** Its binding while it follows data. */
 	binding: TDataBinding | undefined;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/**
 	 * Start following data (a binding), stop (null) or change the binding.
 	 * `coalesce` names the option being typed, so it's one undo step.

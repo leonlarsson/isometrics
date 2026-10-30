@@ -1,4 +1,4 @@
-import type { TComesOn, TDataEntry, TEntity, TEntityLight, TTimePeriod } from "#/scene/schema";
+import type { TComesOn, TEntity, TEntityLight, TReadableValues, TTimePeriod } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { readColor, readPeriods, readScale, readSwitch, type TBindingKind } from "./dataBinding";
@@ -24,7 +24,7 @@ export interface ILightContext {
 	/** It drives along a road (lights with `when: "driving"` are only on then). */
 	driving: boolean;
 	/** The world's data, for lights switched or dimmed by a value. */
-	data?: readonly TDataEntry[];
+	data?: TReadableValues;
 	/** The world's hour (null without a time of day), for lights on a schedule. */
 	hour?: number | null;
 }

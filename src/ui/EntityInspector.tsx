@@ -4,6 +4,7 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
@@ -52,7 +53,7 @@ const KeyPicker = ({
 	selected: string[];
 	onChange: (keys: string[]) => void;
 }) => {
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	if (data.length === 0) {
 		return <Hint>Add values in the Data tab to show them here.</Hint>;
 	}
@@ -268,7 +269,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Shape tab: the part's own settings (floors, width, text…). */
 const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setEntityProp = useEditor((s) => s.setEntityProp);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	return (
 		<PartShapeSection
@@ -295,7 +296,7 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
  */
 const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const setEntityColor = useEditor((s) => s.setEntityColor);
 
 	return (
@@ -354,7 +355,7 @@ export const LightCopyPasteMenu = ({ entity, spec }: { entity: TEntity; spec: IL
 /** The Lights tab (ADR-0058): a card for each of the part's lights, in the order the part lists them. */
 const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const lighting = useEditor((s) => s.scene.lighting);
 	const setEntityLight = useEditor((s) => s.setEntityLight);
 	const hour = useSceneHours();
