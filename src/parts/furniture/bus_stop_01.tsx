@@ -19,7 +19,7 @@ export const busStop01 = definePart({
 	name: "Bus stop",
 	category: "furniture",
 	description:
-		"A bus shelter with a glass back, a bench, a light under its roof and a stop sign on a pole; you wait facing +Z",
+		"A bus shelter with a glass back, a bench, a lit advert, a light under its roof and a stop sign on a pole; you wait facing +Z",
 	keywords: ["shelter", "bus", "tram", "stop", "public transport", "street furniture"],
 	schema: BusStopSchema,
 	fields: [{ key: "showSidePanel", label: "Show the side panel", type: "boolean" }],
@@ -33,7 +33,8 @@ export const busStop01 = definePart({
 		{
 			id: "lamp",
 			name: "Shelter light",
-			description: "A light strip under the roof, lighting the bench and the pavement.",
+			description:
+				"A light strip under the roof and a lit advert at its end, lighting the bench and the pavement.",
 			shape: "glow",
 			color: "#f2f4ff",
 			realLight: () => ({ at: [0, metres(SHELTER.height - 0.3), metres(0.4)], reach: 1.2 }),
@@ -98,6 +99,21 @@ export const busStop01 = definePart({
 						{glass}
 					</mesh>
 				)}
+
+				{/* A lit advert at the open end, facing in (the light under the roof is out of sight from above). */}
+				<Box
+					size={[0.08, 1.5, SHELTER.depth - 0.35]}
+					position={[-half + 0.05, 1.15, 0]}
+					color={colors.frame}
+				/>
+
+				<Box
+					size={[0.02, 1.36, SHELTER.depth - 0.5]}
+					position={[-half + 0.1, 1.15, 0]}
+					color="#e9eef2"
+					castShadow={false}
+					{...lightEmission(lights.lamp, 1.1)}
+				/>
 
 				{/* A bench along the back. */}
 				<Box size={[1.8, 0.05, 0.36]} position={[-0.3, 0.46, back + 0.24]} color={colors.bench} />
