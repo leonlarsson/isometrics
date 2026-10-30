@@ -25,6 +25,9 @@ const PATHS = {
 	shadeWire:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c-3.5 3-3.5 15 0 18M12 3c3.5 3 3.5 15 0 18",
 	shadeStandard: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+	// Clay: the orb with a thumbprint smoothed across it, one colour all over.
+	shadeClay:
+		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM7.5 14.5c2.5-2 6.5-2 9 0M9 10.5c1.8-1.2 4.2-1.2 6 0",
 	shadeNice: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11",
 	shadeUltra:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11M14 15a7.5 7.5 0 0 0 2.5-4M8.5 8.5h.01",
