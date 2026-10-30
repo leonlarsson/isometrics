@@ -1,9 +1,9 @@
-import { useLayoutEffect, useMemo } from "react";
-import * as THREE from "three";
 import { z } from "zod";
 
-import { Box, Mat, shareGeometryAs } from "../primitives";
+import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
+
+import { Insulator, Wire } from "./powerLineKit";
 
 const PowerPoleSchema = z.object({
 	height: z.number().min(1.2).max(5).default(2.4),
@@ -14,61 +14,6 @@ const PowerPoleSchema = z.object({
 /** The crossarm near the top, across the line (along Z), and how far out its insulators sit. */
 const CROSSARM = { length: 0.84, below: 0.14 };
 const INSULATOR_OUT = 0.36;
-
-/** How far a wire sags in the middle, as a part of its span. */
-const SAG = 0.045;
-
-/**
- * A wire from an insulator to the same one on the next pole along +X,
- * `span` away, sagging between them; drawn as one thin tube, shared by every
- * wire of the same span.
- */
-const Wire = ({
-	span,
-	position,
-	color,
-}: {
-	span: number;
-	position: [number, number, number];
-	color: string;
-}) => {
-	const geometry = useMemo(() => {
-		const curve = new THREE.QuadraticBezierCurve3(
-			new THREE.Vector3(0, 0, 0),
-			// A quadratic curve's middle sags half as far as its control point.
-			new THREE.Vector3(span / 2, -2 * SAG * span, 0),
-			new THREE.Vector3(span, 0, 0),
-		);
-		return shareGeometryAs(new THREE.TubeGeometry(curve, 16, 0.01, 4, false), `wire:${span}`);
-	}, [span]);
-
-	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
-
-	return (
-		<mesh geometry={geometry} position={position} castShadow>
-			<Mat color={color} roughness={0.6} />
-		</mesh>
-	);
-};
-
-/** An insulator: a stack of porcelain discs, the wire held on top. */
-const Insulator = ({ position, color }: { position: [number, number, number]; color: string }) => (
-	<group position={position}>
-		{[0, 1, 2].map((i) => (
-			<mesh key={i} position={[0, 0.02 + i * 0.03, 0]}>
-				<cylinderGeometry args={[0.026, 0.026, 0.018, 10]} />
-
-				<Mat color={color} roughness={0.35} />
-			</mesh>
-		))}
-
-		<mesh position={[0, 0.045, 0]}>
-			<cylinderGeometry args={[0.009, 0.009, 0.09, 6]} />
-
-			<Mat color={color} roughness={0.35} />
-		</mesh>
-	</group>
-);
 
 export const powerPole01 = definePart({
 	kind: "power_pole_01",

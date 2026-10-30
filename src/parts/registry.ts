@@ -33,9 +33,12 @@ import { postBox01 } from "./furniture/post_box_01";
 import { signpost01 } from "./furniture/signpost_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
+import { gantryCrane01 } from "./infrastructure/gantry_crane_01";
 import { light01 } from "./infrastructure/light_01";
+import { mobileCrane01 } from "./infrastructure/mobile_crane_01";
 import { parcelStack01 } from "./infrastructure/parcel_stack_01";
 import { powerPole01 } from "./infrastructure/power_pole_01";
+import { pylon01 } from "./infrastructure/pylon_01";
 import { shippingContainer01 } from "./infrastructure/shipping_container_01";
 import { solarPanels01 } from "./infrastructure/solar_panels_01";
 import { streetLamp01 } from "./infrastructure/street_lamp_01";
@@ -43,6 +46,7 @@ import { streetLamp02 } from "./infrastructure/street_lamp_02";
 import { streetLamp03 } from "./infrastructure/street_lamp_03";
 import { streetLamp04 } from "./infrastructure/street_lamp_04";
 import { stringLights01 } from "./infrastructure/string_lights_01";
+import { substation01 } from "./infrastructure/substation_01";
 import { towerCrane01 } from "./infrastructure/tower_crane_01";
 import { trafficLight01 } from "./infrastructure/traffic_light_01";
 import { tunnel01 } from "./infrastructure/tunnel_01";
@@ -168,7 +172,11 @@ export const PARTS: TAnyPart[] = [
 	parcelStack01,
 	shippingContainer01,
 	towerCrane01,
+	mobileCrane01,
+	gantryCrane01,
 	powerPole01,
+	pylon01,
+	substation01,
 	windTurbine01,
 	solarPanels01,
 	beacon01,
