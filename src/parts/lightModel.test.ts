@@ -233,6 +233,16 @@ describe("lit panes", () => {
 			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 10 }) } }) })[0],
 		).toBe(1);
 	});
+	it("splits the windows by the object's weights, else the part's", () => {
+		const weights = (lights: Record<string, TEntityLight>) => {
+			const resolved = resolveLights(tower, entity(lights), { palette: night, driving: false });
+			return [resolved.windows.weight, resolved.screens.weight];
+		};
+		expect(weights({})).toEqual([1, 1]);
+		expect(weights({ windows: setting({ weight: 70 }), screens: setting({ weight: 30 }) })).toEqual(
+			[70, 30],
+		);
+	});
 });
 
 describe("when lights come on", () => {
@@ -298,6 +308,30 @@ describe("when lights come on", () => {
 		expect(resolveLights(car, empty, { palette: night, driving: false, hour: 6 }).rain.on).toBe(
 			false,
 		);
+	});
+
+	it("takes its schedule from a value holding times, like opening hours, else its own", () => {
+		const shop = (value: string) =>
+			resolveLights(
+				car,
+				entity({
+					rain: setting({
+						whenOn: "schedule",
+						schedule: [{ from: 20, until: 22 }],
+						data: { schedule: bind("hours") },
+					}),
+				}),
+				{
+					palette: day,
+					driving: false,
+					hour: 10,
+					data: [{ key: "hours", label: "Opening hours", value, unit: "" }],
+				},
+			).rain.on;
+		expect(shop("09:00-17:30")).toBe(true);
+		expect(shop("7-9, 16:30-19")).toBe(false);
+		// Not times: its own periods (20–22, so off at 10).
+		expect(shop("closed today")).toBe(false);
 	});
 
 	it("on a schedule at once, switches exactly at its times", () => {

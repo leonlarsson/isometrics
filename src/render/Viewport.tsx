@@ -25,9 +25,12 @@ import { CameraFollow } from "./CameraFollow";
 import { CameraMemory } from "./CameraMemory";
 import { CameraReadout } from "./CameraReadout";
 import { CameraRig, FieldOfViewFollow, ProjectionSwitch } from "./CameraRig";
+import { Clay } from "./Clay";
 import { Clouds } from "./Clouds";
 import { DistanceHaze } from "./DistanceHaze";
 import { EntityNode, type IEntityWorld } from "./EntityNode";
+import { FenceHandles } from "./FenceHandles";
+import { FenceMesh } from "./FenceMesh";
 import { Ground } from "./Ground";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { GroupGizmo } from "./GroupGizmo";
@@ -231,11 +234,14 @@ const StillScene = () => {
 export const Viewport = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
+	const fences = useEditor((s) => s.scene.fences);
 	const graphics = useGraphics();
 	// A still picture renders without wireframe, at its own pixel ratio (ADR-0084).
 	const rendering = useEditor((s) => s.stillRender !== null);
 	const stillPixelRatio = useEditor((s) => s.stillRender?.pixelRatio ?? null);
 	const wireframe = usePreferences().showWireframe && !rendering;
+	// Clay keeps the light and shadows, but not snow and wet ground, which colour things.
+	const clay = usePreferences().showClay && !rendering;
 	const tiltShiftShown = useTiltShiftShown();
 	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
@@ -294,6 +300,10 @@ export const Viewport = () => {
 			)}
 
 			<RoadHandles />
+
+			{fences.map((fence) => (fence.hidden ? null : <FenceMesh key={fence.id} fence={fence} />))}
+
+			<FenceHandles />
 
 			<GroupGizmo />
 
@@ -357,12 +367,14 @@ export const Viewport = () => {
 				lightning={weather.lightning}
 			/>
 
-			<WeatherShading on={weather.shading && !wireframe} />
+			<WeatherShading on={weather.shading && !wireframe && !clay} />
 
 			{/* The boats' waves, which only reflective water shows (ADR-0081). */}
 			{graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections && <WakeFieldStep />}
 
 			{wireframe && <Wireframe />}
+
+			{clay && !wireframe && <Clay />}
 
 			<CameraReadout />
 

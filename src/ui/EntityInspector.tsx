@@ -359,7 +359,12 @@ const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 						entity.id,
 						lightId,
 						change,
-						field ? { coalesce: `${entity.id}:light:${lightId}:${field}` } : undefined,
+						// The windows' split changes every window light at once: one undo step for all of them.
+						field?.startsWith("split")
+							? { coalesce: `${entity.id}:lights:${field}` }
+							: field
+								? { coalesce: `${entity.id}:light:${lightId}:${field}` }
+								: undefined,
 					)
 				}
 			/>
@@ -454,6 +459,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 			<Section
 				id="label.details"
+				defaultClosed
 				icon="info"
 				title="Details in View mode"
 				keywords="description stat tiles"

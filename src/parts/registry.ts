@@ -18,31 +18,43 @@ import { shop02 } from "./buildings/shop_02";
 import { terracedRow01 } from "./buildings/terraced_row_01";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
+import { bikeRack01 } from "./furniture/bike_rack_01";
 import { bin01 } from "./furniture/bin_01";
+import { bollard01 } from "./furniture/bollard_01";
+import { busStop01 } from "./furniture/bus_stop_01";
 import { cafeTable01 } from "./furniture/cafe_table_01";
 import { chair01 } from "./furniture/chair_01";
 import { flowerPot01 } from "./furniture/flower_pot_01";
 import { fountain01 } from "./furniture/fountain_01";
 import { parasol01 } from "./furniture/parasol_01";
+import { phoneBox01 } from "./furniture/phone_box_01";
 import { picnicTable01 } from "./furniture/picnic_table_01";
 import { planter01 } from "./furniture/planter_01";
+import { postBox01 } from "./furniture/post_box_01";
+import { signpost01 } from "./furniture/signpost_01";
 import { slide01 } from "./furniture/slide_01";
 import { statue01 } from "./furniture/statue_01";
 import { swings01 } from "./furniture/swings_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
+import { gantryCrane01 } from "./infrastructure/gantry_crane_01";
 import { light01 } from "./infrastructure/light_01";
+import { mobileCrane01 } from "./infrastructure/mobile_crane_01";
 import { parcelStack01 } from "./infrastructure/parcel_stack_01";
 import { powerPole01 } from "./infrastructure/power_pole_01";
+import { pylon01 } from "./infrastructure/pylon_01";
 import { shippingContainer01 } from "./infrastructure/shipping_container_01";
 import { solarPanels01 } from "./infrastructure/solar_panels_01";
 import { streetLamp01 } from "./infrastructure/street_lamp_01";
 import { streetLamp02 } from "./infrastructure/street_lamp_02";
 import { streetLamp03 } from "./infrastructure/street_lamp_03";
+import { streetLamp04 } from "./infrastructure/street_lamp_04";
 import { stringLights01 } from "./infrastructure/string_lights_01";
+import { substation01 } from "./infrastructure/substation_01";
 import { towerCrane01 } from "./infrastructure/tower_crane_01";
 import { trafficLight01 } from "./infrastructure/traffic_light_01";
 import { tunnel01 } from "./infrastructure/tunnel_01";
+import { wallLantern01 } from "./infrastructure/wall_lantern_01";
 import { windTurbine01 } from "./infrastructure/wind_turbine_01";
 import { zone01 } from "./infrastructure/zone_01";
 import { beacon01 } from "./markers/beacon_01";
@@ -56,17 +68,24 @@ import { fruitTree01 } from "./nature/fruit_tree_01";
 import { log01 } from "./nature/log_01";
 import { palmTree01 } from "./nature/palm_tree_01";
 import { pineTree01 } from "./nature/pine_tree_01";
+import { pineTree02 } from "./nature/pine_tree_02";
+import { reeds01 } from "./nature/reeds_01";
 import { rocks01 } from "./nature/rocks_01";
 import { roundTree01 } from "./nature/round_tree_01";
 import { roundTree02 } from "./nature/round_tree_02";
 import { tallGrass01 } from "./nature/tall_grass_01";
+import { waterLilies01 } from "./nature/water_lilies_01";
 import type { IPartDefinition, TPartCategory } from "./types";
+import { ambulance01 } from "./vehicles/ambulance_01";
 import { bicycle01 } from "./vehicles/bicycle_01";
 import { bus01 } from "./vehicles/bus_01";
 import { car01 } from "./vehicles/car_01";
+import { cargoShip01 } from "./vehicles/cargo_ship_01";
 import { deliveryVan01 } from "./vehicles/delivery_van_01";
 import { ferry01 } from "./vehicles/ferry_01";
+import { fireEngine01 } from "./vehicles/fire_engine_01";
 import { forklift01 } from "./vehicles/forklift_01";
+import { motorbike01 } from "./vehicles/motorbike_01";
 import { raceCar01 } from "./vehicles/race_car_01";
 import { sailingBoat01 } from "./vehicles/sailing_boat_01";
 import { tractor01 } from "./vehicles/tractor_01";
@@ -100,17 +119,22 @@ export const PARTS: TAnyPart[] = [
 	truck01,
 	car01,
 	bus01,
+	fireEngine01,
+	ambulance01,
 	tram01,
 	tractor01,
 	forklift01,
 	bicycle01,
+	motorbike01,
 	raceCar01,
 	yacht01,
 	sailingBoat01,
 	ferry01,
+	cargoShip01,
 	roundTree01,
 	roundTree02,
 	pineTree01,
+	pineTree02,
 	birch01,
 	cypress01,
 	palmTree01,
@@ -119,6 +143,8 @@ export const PARTS: TAnyPart[] = [
 	bush01,
 	flowerBed01,
 	tallGrass01,
+	reeds01,
+	waterLilies01,
 	rocks01,
 	log01,
 	bench01,
@@ -133,11 +159,19 @@ export const PARTS: TAnyPart[] = [
 	statue01,
 	slide01,
 	swings01,
+	bikeRack01,
+	bollard01,
+	busStop01,
+	phoneBox01,
+	postBox01,
+	signpost01,
 	zone01,
 	tunnel01,
 	streetLamp01,
 	streetLamp02,
 	streetLamp03,
+	streetLamp04,
+	wallLantern01,
 	bollardLight01,
 	floodlight01,
 	stringLights01,
@@ -146,7 +180,11 @@ export const PARTS: TAnyPart[] = [
 	parcelStack01,
 	shippingContainer01,
 	towerCrane01,
+	mobileCrane01,
+	gantryCrane01,
 	powerPole01,
+	pylon01,
+	substation01,
 	windTurbine01,
 	solarPanels01,
 	beacon01,

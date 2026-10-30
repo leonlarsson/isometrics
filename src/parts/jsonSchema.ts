@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { sceneJsonSchema } from "#/scene/jsonSchema";
 import { isHiddenRoute, ROAD_STYLES } from "#/scene/roads";
@@ -33,9 +34,11 @@ Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height abov
 
 Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land with a height).
 
+Fences: fences, walls, hedges and railings, each a line of points ([x, z], or [x, z, lift] to raise it that far above the ground there) with a style; it stands on the ground under it, raised land included. Posts stand at every point and are spaced evenly in between (postSpacing, the style's by default); hedges and walls show no posts, so for them postSpacing is the longest straight section. loops: true closes it; cornerRadius rounds its corners. colors works as for entities, by the style's colour ids (in fences.style's descriptions). builtShare (0–1) builds only the first part of it, and data: { "builtShare": { key, valueAtFull } } takes that from a data value, e.g. a site fence that grows with a project's progress.
+
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
-Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: whenOn (auto = after dark, on = always, off = never, schedule = during the periods in schedule, like a timer: [{ "from": 5, "until": 8 }, { "from": 19, "until": 24 }] in hours, a period ending before it starts runs past midnight; needs a time of day), comesOn (after dark or on a schedule: atOnce = fully once it's dark enough or for the whole period, oneByOne = window lights' panes one after another as it gets darker or over a period's first hour and going dark over its last, gradually = fading in and out the same way; each kind's default is in the catalogue), color, strength, reach (beams and pools), litPanes (window lights: the part of its own panes that are lit, 0–1; a building's panes are split between its window lights, so each lights only its own), and data: settings that follow a data value, by setting, each { key, onAbove, valueAtFull }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above onAbove (0 by default) or the text on, yes or true, day and night, instead of whenOn; "strength" is the value divided by valueAtFull (up to 3); "litPanes" is the value divided by valueAtFull (up to 1, all panes), e.g. lit windows following occupancy; "color" reads its value like a colour's data (above). A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
+Lights: each kind lists its lights by id (windows, headlights, lamp…). An entity's lights holds settings only for the ones that differ, by id: whenOn (auto = after dark, on = always, off = never, schedule = during the periods in schedule, like a timer: [{ "from": 5, "until": 8 }, { "from": 19, "until": 24 }] in hours, a period ending before it starts runs past midnight; needs a time of day), comesOn (after dark or on a schedule: atOnce = fully once it's dark enough or for the whole period, oneByOne = window lights' panes one after another as it gets darker or over a period's first hour and going dark over its last, gradually = fading in and out the same way; each kind's default is in the catalogue), color, strength, reach (beams and pools), litPanes (window lights: the part of its own panes that are lit, 0–1; a building's panes are split between its window lights, so each lights only its own), and data: settings that follow a data value, by setting, each { key, onAbove, valueAtFull }, where key is the key of an entry in the world's data: "on" turns it on while the value is a number above onAbove (0 by default) or the text on, yes or true, day and night, instead of whenOn; "strength" is the value divided by valueAtFull (up to 3); "litPanes" is the value divided by valueAtFull (up to 1, all panes), e.g. lit windows following occupancy; "color" reads its value like a colour's data (above); "schedule" (with whenOn schedule) takes its periods from a text value of times of day, like opening hours, "09:00-17:30" or "7-9, 16:30-19". A value that's missing or doesn't read that way leaves the setting as it is. Only list what differs from the kind's defaults (in the catalogue). The light_01 kind is a light on its own. Example: a lamp that glows red while an alert value is above 0, brighter with a queue, white headlights that reach further:
 "lights": { "lamp": { "color": "#ff3b3b", "data": { "on": { "key": "alert" }, "strength": { "key": "queue", "valueAtFull": 50 } } } }
 "lights": { "headlights": { "color": "#ffffff", "reach": 5 } }
 
@@ -126,6 +129,17 @@ export const worldJsonSchema = () => {
 			description: describePart(part),
 		})),
 	};
+	const fence = (schema.properties?.fences as { items?: TJsonSchema } | undefined)?.items;
+	if (fence?.properties) {
+		fence.properties.style = {
+			description: "What the fence looks like.",
+			oneOf: FENCE_STYLE_LIST.map((style) => ({
+				const: style.id,
+				title: FENCE_STYLE_LABELS[style.id],
+				description: `${style.description}. ${round(style.height)} tall, ${style.showsPosts === false ? "in straight sections up to" : "posts up to"} ${round(style.postSpacing)} apart by default. Colours (settings in colors, by id): ${style.colors.map(describeColor).join("; ")}.`,
+			})),
+		};
+	}
 	entity.allOf = PARTS.filter((part) => part.fields.length > 0).map((part) => ({
 		if: { properties: { kind: { const: part.kind } }, required: ["kind"] },
 		then: { properties: { props: propsSchema(part) } },

@@ -1,6 +1,7 @@
 import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
 import { useEditor } from "#/editor/store";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { AREA_TYPE_LABELS } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
 
@@ -19,12 +20,12 @@ const DrawingControls = () => {
 		{
 			hotkey: "Enter",
 			callback: () => finishDrawing(),
-			options: { meta: { name: "Finish road" } },
+			options: { meta: { name: "Finish drawing" } },
 		},
 		{
 			hotkey: "Escape",
 			callback: () => cancelDrawing(),
-			options: { meta: { name: "Cancel road" } },
+			options: { meta: { name: "Cancel drawing" } },
 		},
 		{
 			hotkey: "Backspace",
@@ -50,7 +51,9 @@ const DrawingControls = () => {
 					: "Keep clicking to add points. Click the first point to make a loop.";
 	const what = isArea
 		? `${AREA_TYPE_LABELS[drawing.areaType].toLowerCase()} area`
-		: ROAD_STYLE_LABELS[drawing.style].toLowerCase();
+		: drawing.target === "fence"
+			? FENCE_STYLE_LABELS[drawing.fenceStyle ?? "picket_fence_01"].toLowerCase()
+			: ROAD_STYLE_LABELS[drawing.style].toLowerCase();
 
 	return (
 		<div className={styles.bar} data-label-obstacle="" role="status">

@@ -13,6 +13,7 @@ import type { TEntity, TScene } from "#/scene/schema";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { AreaBody } from "./AreaMesh";
+import { FenceBody } from "./FenceMesh";
 import { RoadBody } from "./RoadMesh";
 import { SceneLights } from "./SceneLights";
 import { frameBoxIn } from "./thumbnails";
@@ -210,6 +211,19 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							palette={palette}
 							ground={scene.ground}
 							editing={false}
+							selected={false}
+						/>
+					),
+				)}
+
+				{scene.fences.map((fence) =>
+					fence.hidden ? null : (
+						<FenceBody
+							key={fence.id}
+							fence={fence}
+							palette={palette}
+							areas={scene.areas}
+							data={scene.data}
 							selected={false}
 						/>
 					),

@@ -68,6 +68,8 @@ test.describe("Time & light (ADR-0052, ADR-0061)", () => {
 		page,
 	}) => {
 		await worldTab(page, "Time & light");
+		// The Sun panel starts folded: the time of day sets the sun until it's set by hand.
+		await openPanel(page, "Sun");
 		const contrast = box(page, "Sun and shade contrast");
 		await expect(contrast).toHaveValue("75");
 		await contrast.fill("60");
@@ -97,6 +99,7 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 		await page.getByRole("switch", { name: "Show the sky in perspective" }).click();
 		expect(await read(page, (s) => s.scene.sky.showInPerspective)).toBe(false);
 
+		await openPanel(page, "Backdrop");
 		await choose(page, "Behind the world", "Green screen");
 		expect(await read(page, (s) => s.scene.backdrop.kind)).toBe("greenScreen");
 		// The stage fades to it.

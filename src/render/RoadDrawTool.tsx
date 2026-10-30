@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
+import { groundHeightAt } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
-import { groundPointFrom } from "./useGroundDrag";
+import { groundPointFrom, surfacePointFrom } from "./useGroundDrag";
 
 const PREVIEW_Y = 0.15;
 /** Clicking within this distance of the first point closes the loop. */
@@ -27,6 +28,7 @@ const toV3 = (p: readonly number[]): [number, number, number] => [
 export const RoadDrawTool = () => {
 	const drawing = useEditor((s) => s.drawing);
 	const ground = useEditor((s) => s.scene.ground);
+	const areas = useEditor((s) => s.scene.areas);
 	const palette = usePalette();
 	const canvas = useThree((s) => s.gl.domElement);
 	const [cursor, setCursor] = useState<TVec2 | null>(null);
@@ -47,6 +49,12 @@ export const RoadDrawTool = () => {
 	const first = points[0];
 	// New points continue at the last point's height, so the cursor works on that plane.
 	const drawHeight = points.at(-1)?.[2] ?? 0;
+	const isFence = drawing.target === "fence";
+	const pointAt = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
+		isFence ? surfacePointFrom(e, drawHeight) : groundPointFrom(e, drawHeight);
+	// A fence's points stand on the ground (ADR-0103): picked and drawn on the ground under them.
+	const at = (p: readonly number[]) =>
+		isFence ? toV3([p[0], p[1], groundHeightAt(areas, [p[0], p[1]]) + (p[2] ?? 0)]) : toV3(p);
 	const cursorPoint: readonly number[] | null = cursor ? [cursor[0], cursor[1], drawHeight] : null;
 	const nearFirst =
 		cursor !== null &&
@@ -63,7 +71,7 @@ export const RoadDrawTool = () => {
 			<mesh
 				rotation={[-Math.PI / 2, 0, 0]}
 				position={[0, 0.001, 0]}
-				onPointerMove={(e: ThreeEvent<PointerEvent>) => setCursor(groundPointFrom(e, drawHeight))}
+				onPointerMove={(e: ThreeEvent<PointerEvent>) => setCursor(pointAt(e))}
 				onPointerOut={() => setCursor(null)}
 				onClick={(e: ThreeEvent<MouseEvent>) => {
 					// A drag is a camera orbit, not a click.
@@ -75,7 +83,7 @@ export const RoadDrawTool = () => {
 						useEditor.getState().finishDrawing({ loops: true });
 						return;
 					}
-					const point = groundPointFrom(e, drawHeight);
+					const point = pointAt(e);
 					if (point) {
 						useEditor.getState().addDrawingPoint(point);
 					}
@@ -92,7 +100,7 @@ export const RoadDrawTool = () => {
 
 			{preview.length > 1 && (
 				<Line
-					points={preview.map(toV3)}
+					points={preview.map(at)}
 					color={palette.selection}
 					lineWidth={3}
 					dashed
@@ -105,7 +113,7 @@ export const RoadDrawTool = () => {
 				<mesh
 					// biome-ignore lint/suspicious/noArrayIndexKey: drawn points are positional
 					key={i}
-					position={toV3(point)}
+					position={at(point)}
 					scale={i === 0 && nearFirst ? 1.6 : 1}
 				>
 					<cylinderGeometry args={[0.22, 0.22, 0.05, 20]} />
@@ -115,7 +123,7 @@ export const RoadDrawTool = () => {
 			))}
 
 			{cursorPoint && !nearFirst && (
-				<mesh position={toV3(cursorPoint)}>
+				<mesh position={at(cursorPoint)}>
 					<cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
 
 					<meshBasicMaterial color={palette.selection} transparent opacity={0.6} />

@@ -137,7 +137,7 @@ describe("parseOrRepairScene", () => {
 describe("describeRepairs", () => {
 	it("says what was left out and reset", () => {
 		const text = describeRepairs({
-			removed: { objects: 2, roads: 1, areas: 0, values: 0, viewpoints: 0 },
+			removed: { objects: 2, roads: 1, areas: 0, fences: 0, values: 0, viewpoints: 0 },
 			fixed: 1,
 			newerVersion: false,
 			missingVersion: false,

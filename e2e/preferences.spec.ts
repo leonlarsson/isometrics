@@ -109,7 +109,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		}).toPass({ timeout: 5000 });
 	});
 
-	test("the toolbar's shading switcher: a preset a click away, wireframe, and the Graphics settings (ADR-0080)", async ({
+	test("the toolbar's shading switcher: a preset a click away, wireframe, clay, and the Graphics settings (ADR-0080)", async ({
 		page,
 	}) => {
 		const ultra = page.getByRole("button", { name: /^Ultra:/ });
@@ -119,8 +119,14 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await wireframe.click();
 		await expect(wireframe).toHaveAttribute("aria-pressed", "true");
 		await expect(ultra).toHaveAttribute("aria-pressed", "false");
+		// Clay takes over from wireframe: one at a time.
+		const clay = page.getByRole("button", { name: /^Clay:/ });
+		await clay.click();
+		await expect(clay).toHaveAttribute("aria-pressed", "true");
+		await expect(wireframe).toHaveAttribute("aria-pressed", "false");
 		await page.getByRole("button", { name: /^Standard:/ }).click();
 		await expect(wireframe).toHaveAttribute("aria-pressed", "false");
+		await expect(clay).toHaveAttribute("aria-pressed", "false");
 		// The ▾ opens Preferences on the Graphics page, which shows the preset picked.
 		await page.getByRole("button", { name: "Graphics settings…" }).click();
 		await expect(preferences(page).getByRole("combobox", { name: "Preset" })).toContainText(

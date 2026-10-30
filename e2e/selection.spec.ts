@@ -126,6 +126,7 @@ test.describe("selecting (ADR-0028, ADR-0035, ADR-0064)", () => {
 							strength: null,
 							reach: null,
 							litPanes: null,
+							weight: null,
 							data: {},
 						},
 					},

@@ -2,6 +2,7 @@ import { createRoot, extend, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { FENCE_STYLE_LIST } from "#/fences/registry";
 import { resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { PARTS, resolveProps, type TAnyPart } from "#/parts/registry";
@@ -10,9 +11,11 @@ import {
 	NO_OBJECT_SETTINGS,
 	type TObjectSettings,
 } from "#/scene/objectSettings";
+import { FenceSchema, type TFenceStyle } from "#/scene/schema";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { VIEW_DIRECTION } from "./CameraRig";
+import { FenceBody } from "./FenceMesh";
 
 /**
  * Pictures of every part, rendered in the browser from the parts themselves:
@@ -196,6 +199,68 @@ interface IShot {
 	look: IPictureLook;
 }
 
+/** A short fence with a corner, for a style's picture (ADR-0103). */
+const fenceForPicture = (style: TFenceStyle) =>
+	FenceSchema.parse({
+		id: "picture",
+		style,
+		points: [
+			[-1.6, 1],
+			[-1.6, -0.6],
+			[1.6, -0.6],
+		],
+	});
+
+/** A fence style's picture in a look, for its tile in Add to scene. */
+const FenceShot = ({
+	style,
+	look,
+	size,
+	onShot,
+}: {
+	style: TFenceStyle;
+	look: IPictureLook;
+	size: IPictureSize;
+	onShot: (url: string) => void;
+}) => {
+	const gl = useThree((s) => s.gl);
+	const scene = useThree((s) => s.scene);
+	const camera = useThree((s) => s.camera);
+	const group = useRef<THREE.Group>(null);
+	const palette = pictureLookPalette(look);
+
+	useEffect(() => {
+		if (!group.current || !(camera instanceof THREE.OrthographicCamera)) {
+			return;
+		}
+		frameBoxIn(camera, partBounds(group.current, box), size, FILL);
+		gl.render(scene, camera);
+		onShot(gl.domElement.toDataURL("image/png"));
+	}, []);
+
+	return (
+		<>
+			<PartLights palette={palette} />
+
+			<group ref={group}>
+				<FenceBody
+					fence={fenceForPicture(style)}
+					palette={palette}
+					areas={NO_AREAS}
+					data={NO_DATA}
+					selected={false}
+				/>
+			</group>
+		</>
+	);
+};
+
+const NO_AREAS: never[] = [];
+const NO_DATA: never[] = [];
+
+/** The key a fence style's picture is kept under, next to the parts' kinds. */
+export const fencePictureKey = (style: TFenceStyle) => `fence:${style}`;
+
 interface IShotProps extends IShot {
 	size: IPictureSize;
 	onShot: (url: string) => void;
@@ -260,7 +325,10 @@ let shots = 0;
 /** Take pictures with one offscreen canvas (one WebGL context), which goes away afterwards. */
 const withPictureCanvas = async (
 	size: IPictureSize,
-	use: (take: (shot: IShot) => Promise<string>) => Promise<void>,
+	use: (
+		take: (shot: IShot) => Promise<string>,
+		takeFence: (style: TFenceStyle, look: IPictureLook) => Promise<string>,
+	) => Promise<void>,
 ) => {
 	// <Canvas> teaches R3F three's classes; a root of our own, maybe before any canvas, needs it too.
 	extend(THREE as unknown as Parameters<typeof extend>[0]);
@@ -281,6 +349,13 @@ const withPictureCanvas = async (
 					shots += 1;
 					root.render(<Shot key={shots} {...shot} size={size} onShot={resolve} />);
 				}),
+			(style, look) =>
+				new Promise<string>((resolve) => {
+					shots += 1;
+					root.render(
+						<FenceShot key={shots} style={style} look={look} size={size} onShot={resolve} />,
+					);
+				}),
 		);
 	} finally {
 		root.unmount();
@@ -291,10 +366,17 @@ const withPictureCanvas = async (
 const renderSet = (set: IPictureSet) => {
 	const key = keyOf(set);
 	const pictures: Record<string, string> = {};
-	return withPictureCanvas(set.size, async (take) => {
+	return withPictureCanvas(set.size, async (take, takeFence) => {
 		for (const part of PARTS) {
 			await idle();
 			pictures[part.kind] = await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look });
+			cache.set(key, { ...pictures });
+			notify();
+		}
+		// The fence styles too (ADR-0103), under keys of their own.
+		for (const style of FENCE_STYLE_LIST) {
+			await idle();
+			pictures[fencePictureKey(style.id)] = await takeFence(style.id, set.look);
 			cache.set(key, { ...pictures });
 			notify();
 		}

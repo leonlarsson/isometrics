@@ -2,7 +2,7 @@ import { RoundedBox } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-type TV3 = [number, number, number];
+export type TV3 = [number, number, number];
 
 /**
  * Names a geometry built by hand by its shape (`userData.shareKey`), so objects
@@ -252,4 +252,41 @@ export const spread = (count: number, span: number) =>
 export const jitter = (i: number) => {
 	const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
 	return x - Math.floor(x);
+};
+
+const STRUT_X = new THREE.Vector3(1, 0, 0);
+const strutTurn = new THREE.Quaternion();
+const strutEuler = new THREE.Euler();
+
+/**
+ * A square bar from one point to another, anywhere: a lattice's legs and
+ * braces (a pylon, a crane). Its geometry is a box of its length, so bars of
+ * the same length are drawn together.
+ */
+export const Strut = ({
+	from,
+	to,
+	color,
+	thickness = 0.03,
+	castShadow = true,
+}: {
+	from: TV3;
+	to: TV3;
+	color: string;
+	thickness?: number;
+	castShadow?: boolean;
+}) => {
+	const along = new THREE.Vector3(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+	const length = along.length();
+	strutTurn.setFromUnitVectors(STRUT_X, along.normalize());
+	strutEuler.setFromQuaternion(strutTurn);
+	return (
+		<Box
+			size={[Math.round(length * 1000) / 1000, thickness, thickness]}
+			position={[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2]}
+			rotation={[strutEuler.x, strutEuler.y, strutEuler.z]}
+			color={color}
+			castShadow={castShadow}
+		/>
+	);
 };

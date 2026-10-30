@@ -118,6 +118,14 @@ export const CameraTab = () => {
 					hint="P switches between them. Like the rest of where you’re looking, it’s remembered for this world in this browser, and a viewpoint keeps its own."
 				/>
 
+				<SwitchField
+					label="Keep the isometric angle"
+					checked={camera.keepsIsometricAngle}
+					onChange={(v) => set("keepsIsometricAngle", v)}
+					inherit={byDefault("keepsIsometricAngle", "off")}
+					hint="Like a classic isometric game: the view keeps its tilt and turns a quarter at a time, between the four diagonals (right-drag, the compass, Shift+← →). Viewpoints still show their own angle. Free camera control (Preferences) leaves it aside."
+				/>
+
 				<FieldOfViewField
 					value={camera.fieldOfView}
 					onChange={(v) => set("fieldOfView", v)}
@@ -278,6 +286,11 @@ export const CameraTab = () => {
 					checked={camera.turntableOn}
 					onChange={(v) => set("turntableOn", v)}
 					inherit={byDefault("turntableOn", "off")}
+					hint={
+						camera.keepsIsometricAngle
+							? "It doesn’t circle while the world keeps the isometric angle (in the View panel), which turns only a quarter at a time."
+							: undefined
+					}
 				/>
 
 				<SliderField

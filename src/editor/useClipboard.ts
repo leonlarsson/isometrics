@@ -39,6 +39,7 @@ export const useClipboard = () => {
 				entities: count("entity"),
 				roads: count("road"),
 				areas: count("area"),
+				fences: count("fence"),
 			});
 			if (cut) {
 				state.removeSelected();

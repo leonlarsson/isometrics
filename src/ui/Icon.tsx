@@ -25,6 +25,9 @@ const PATHS = {
 	shadeWire:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c-3.5 3-3.5 15 0 18M12 3c3.5 3 3.5 15 0 18",
 	shadeStandard: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+	// Clay: the orb with a thumbprint smoothed across it, one colour all over.
+	shadeClay:
+		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM7.5 14.5c2.5-2 6.5-2 9 0M9 10.5c1.8-1.2 4.2-1.2 6 0",
 	shadeNice: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11",
 	shadeUltra:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11M14 15a7.5 7.5 0 0 0 2.5-4M8.5 8.5h.01",
@@ -76,6 +79,8 @@ const PATHS = {
 	chart: "M3 20h18M6 16v-5M11 16V5M16 16V9M20 16v-3",
 	road: "M8 3 4.5 21M16 3l3.5 18M12 4v3M12 10.5v3M12 17v3",
 	area: "M5 8.5 12 4l8 5-2.5 10.5h-11z",
+	// Two pickets and their rails: fences (ADR-0103).
+	fence: "M6 21V7l2-3 2 3v14M14 21V7l2-3 2 3v14M3 10h18M3 16h18",
 	building: "M4 21V5l8-3v19M12 9h8v12M2 21h20M7.5 7.5h1M7.5 11.5h1M7.5 15.5h1M15.5 13h1M15.5 17h1",
 	tree: "M12 2 6 11h3l-4 6h14l-4-6h3zM12 17v5",
 	cone: "M10 3h4l4.5 15h-13zM4 21h16M8.6 9h6.8M7.4 13.5h9.2",

@@ -198,6 +198,7 @@ export const LightTab = () => {
 
 			<Section
 				id="light.sun"
+				defaultClosed
 				icon="sun"
 				title="Sun"
 				keywords="light shadow shade contrast fill flat overcast"

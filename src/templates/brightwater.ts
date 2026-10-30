@@ -3,6 +3,7 @@ import {
 	SceneSchema,
 	type TAreaInput,
 	type TEntityInput,
+	type TFenceInput,
 	type TRoadInput,
 	type TScene,
 	type TVec2,
@@ -26,6 +27,9 @@ import { paint } from "./paint";
  *   Roads: ring road (loop), bridge over the river, a flyover that climbs onto
  *          the hill, an embankment trail, a road through a tunnel that widens
  *          at the quay, and a hidden ferry route across the sea
+ *   Fences: a railing along the marina, a chain-link fence round the logistics
+ *          yard, a stone wall at the lookout, a hedge by the park and a
+ *          paddock's rail fence
  *   Data:  labels and detail sheets on the city hall, stadium, ring road traffic,
  *          distribution centre, park, marina and ferry
  */
@@ -370,6 +374,71 @@ const ROADS: TRoadInput[] = [
 			[-34, 15.4],
 			[-41.4, 15.4],
 			[-41.4, -11.4],
+		],
+	},
+];
+
+// ---------------------------------------------------------------- fences
+
+const FENCES: TFenceInput[] = [
+	{
+		// Along the marina's edge of the water, behind the moored yachts.
+		id: "marina_railing",
+		name: "Marina railing",
+		style: "railing_01",
+		points: [
+			[40, 5.4],
+			[30, 5.4],
+			[24, 6.2],
+			[21, 6.8],
+			[19.3, 8.4],
+			[17.4, 9.5],
+		],
+	},
+	{
+		id: "yard_fence",
+		name: "Yard fence",
+		style: "chain_link_fence_01",
+		points: [
+			[13, -16.7],
+			[28.7, -16.7],
+			[28.7, -4.2],
+		],
+	},
+	{
+		// Just inside the hill's edge, by the lookout: it stands on the hilltop.
+		id: "lookout_wall",
+		name: "Lookout wall",
+		style: "stone_wall_01",
+		points: [
+			[-2.6, -23.6],
+			[-2.9, -19.7],
+			[-5.8, -16.2],
+		],
+	},
+	// Along the park's edge by Civic Square, with a way in between the two.
+	...[
+		[-20.2, -17.2],
+		[-14.2, -11.4],
+	].map(([from, to], i) => ({
+		id: `park_hedge_${i + 1}`,
+		name: `Park hedge ${i + 1}`,
+		style: "hedge_01" as const,
+		points: [
+			[from, -0.25],
+			[to, -0.25],
+		] as TVec2[],
+	})),
+	{
+		id: "paddock_fence",
+		name: "Paddock fence",
+		style: "rail_fence_01",
+		loops: true,
+		points: [
+			[-40.3, 3.9],
+			[-35.3, 3.9],
+			[-35.3, 14.1],
+			[-40.3, 14.1],
 		],
 	},
 ];
@@ -1160,6 +1229,7 @@ export const createBrightwaterScene = (): TScene => {
 		],
 		areas: AREAS,
 		roads: ROADS,
+		fences: FENCES,
 		entities: [
 			...civic,
 			...towers,

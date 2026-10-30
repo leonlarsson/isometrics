@@ -10,10 +10,11 @@ import {
 } from "#/editor/clipboard";
 import type { ISceneItem } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partNameOf } from "#/parts/registry";
 import { AREA_TYPE_LABELS, takesCornerHeights } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TArea, TEntity, TRoad, TVec2 } from "#/scene/schema";
+import type { TArea, TEntity, TFence, TRoad, TVec2 } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
@@ -28,7 +29,12 @@ const copySelection = () => {
 	if (text) {
 		void copyToClipboard(
 			text,
-			describeThings({ entities: count("entity"), roads: count("road"), areas: count("area") }),
+			describeThings({
+				entities: count("entity"),
+				roads: count("road"),
+				areas: count("area"),
+				fences: count("fence"),
+			}),
 			"Paste with Ctrl+V where the mouse points, here or in another world.",
 		);
 	}
@@ -182,6 +188,30 @@ const RoadActions = ({ id }: { id: string }) => {
 	);
 };
 
+/** Actions only fences have, as roads: carry on drawing from either open end (ADR-0103). */
+const FenceActions = ({ id }: { id: string }) => {
+	const fence = useEditor((s) => s.scene.fences.find((f) => f.id === id));
+	const store = () => useEditor.getState();
+	if (!fence || fence.loops || fence.locked) {
+		return null;
+	}
+	return (
+		<>
+			<Menu.Item
+				icon="edit"
+				label="Continue from its end"
+				onClick={() => store().continueFenceDrawing(fence.id, "end")}
+			/>
+
+			<Menu.Item
+				icon="edit"
+				label="Continue from its start"
+				onClick={() => store().continueFenceDrawing(fence.id, "start")}
+			/>
+		</>
+	);
+};
+
 /** An area's own actions: a peak where it was right-clicked (ADR-0101). */
 const AreaActions = ({ id, point }: { id: string; point?: TVec2 }) => {
 	const area = useEditor((s) => s.scene.areas.find((a) => a.id === id));
@@ -204,28 +234,21 @@ const AreaActions = ({ id, point }: { id: string; point?: TVec2 }) => {
 	);
 };
 
-/** The object, road or area itself (the same object until it changes, so selecting it is stable). */
+/** The object, road, area or fence itself (the same object until it changes, so selecting it is stable). */
 const useItem = (item: ISceneItem | undefined) =>
-	useEditor((s) => {
-		if (!item) {
-			return undefined;
-		}
-		const list =
-			item.kind === "entity"
-				? s.scene.entities
-				: item.kind === "road"
-					? s.scene.roads
-					: s.scene.areas;
-		return list.find((thing) => thing.id === item.id);
-	});
+	useEditor((s): TEntity | TRoad | TArea | TFence | undefined =>
+		item ? listOf(s.scene, item.kind).find((thing) => thing.id === item.id) : undefined,
+	);
 
-/** What an item is called without a name: its part, road style or area type. */
-const kindName = (item: ISceneItem, thing: TEntity | TRoad | TArea) =>
+/** What an item is called without a name: its part, road style, area type or fence style. */
+const kindName = (item: ISceneItem, thing: TEntity | TRoad | TArea | TFence) =>
 	item.kind === "entity"
 		? (partNameOf((thing as TEntity).kind) ?? (thing as TEntity).kind)
 		: item.kind === "road"
 			? ROAD_STYLE_LABELS[(thing as TRoad).style]
-			: AREA_TYPE_LABELS[(thing as TArea).type];
+			: item.kind === "fence"
+				? FENCE_STYLE_LABELS[(thing as TFence).style]
+				: AREA_TYPE_LABELS[(thing as TArea).type];
 
 interface IItemMenuProps {
 	item: ISceneItem;
@@ -245,6 +268,8 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 			state.removeEntity(item.id);
 		} else if (item.kind === "road") {
 			state.removeRoad(item.id);
+		} else if (item.kind === "fence") {
+			state.removeFence(item.id);
 		} else {
 			state.removeArea(item.id);
 		}
@@ -302,6 +327,7 @@ export const describeItems = (items: readonly ISceneItem[]) => {
 		[
 			["entity", "object", "objects"],
 			["road", "road", "roads"],
+			["fence", "fence", "fences"],
 			["area", "area", "areas"],
 		] as const
 	).flatMap(([kind, one, many]) => {
@@ -449,6 +475,8 @@ export const ItemContextMenu = () => {
 								<EntityActions id={item.id} />
 							) : item.kind === "road" ? (
 								<RoadActions id={item.id} />
+							) : item.kind === "fence" ? (
+								<FenceActions id={item.id} />
 							) : (
 								<AreaActions id={item.id} point={menu?.point} />
 							)

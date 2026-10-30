@@ -24,6 +24,8 @@ describe("sceneJsonSchema", () => {
 			"roads.points",
 			"areas.id",
 			"areas.points",
+			"fences.id",
+			"fences.points",
 			"data.key",
 			"data.value",
 			"viewpoints.id",

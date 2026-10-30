@@ -28,11 +28,26 @@ const PRESETS: { preset: TGraphicsPreset; icon: TIconName; name: string; drawn: 
 ];
 
 const WIREFRAME = { name: "Wireframe", drawn: "every surface as lines" };
+const CLAY = {
+	name: "Clay",
+	drawn: "every surface in one matte colour: only shapes, light and shadow",
+};
 
-/** Shows the view in a preset, out of wireframe. */
+/** Shows the view in a preset, out of wireframe and clay. */
 const pickPreset = (preset: TGraphicsPreset) => {
 	setPreference("showWireframe", false);
+	setPreference("showClay", false);
 	setPreference("graphicsPreset", preset);
+};
+
+/** Wireframe or clay, on or off; one at a time. */
+const toggleWireframe = (on: boolean) => {
+	setPreference("showClay", false);
+	setPreference("showWireframe", on);
+};
+const toggleClay = (on: boolean) => {
+	setPreference("showWireframe", false);
+	setPreference("showClay", on);
 };
 
 const openGraphicsSettings = () => useEditor.getState().setPreferencesOpen(true, "graphics");
@@ -41,13 +56,14 @@ const openRenderDialog = () => useEditor.getState().setRenderDialogOpen(true);
 
 /**
  * The toolbar's shading switcher (ADR-0080), like Blender's viewport shading:
- * wireframe, or a Graphics preset (ADR-0072) a click away, and the button to
+ * wireframe, clay, or a Graphics preset (ADR-0072) a click away, and the button to
  * the Graphics settings. The presets are the Graphics page's preset, so the
  * choice is this browser's, for every world.
  */
 export const ShadingSwitcher = () => {
 	const preferences = usePreferences();
 	const wireframe = preferences.showWireframe;
+	const clay = preferences.showClay && !wireframe;
 	// The tooltip says so when the current preset's settings were changed on the Graphics page.
 	const changed = changedFromPreset(preferences) > 0;
 
@@ -59,7 +75,16 @@ export const ShadingSwitcher = () => {
 				icon="shadeWire"
 				label={`${WIREFRAME.name}: ${WIREFRAME.drawn}`}
 				pressed={wireframe}
-				onClick={() => setPreference("showWireframe", !wireframe)}
+				onClick={() => toggleWireframe(!wireframe)}
+			/>
+
+			<IconButton
+				size="md"
+				tooltipSide="bottom"
+				icon="shadeClay"
+				label={`${CLAY.name}: ${CLAY.drawn}`}
+				pressed={clay}
+				onClick={() => toggleClay(!clay)}
 			/>
 
 			{PRESETS.map(({ preset, icon, name, drawn }) => {
@@ -75,7 +100,7 @@ export const ShadingSwitcher = () => {
 								? `${label} (some settings changed)`
 								: label
 						}
-						pressed={!wireframe && preferences.graphicsPreset === preset}
+						pressed={!wireframe && !clay && preferences.graphicsPreset === preset}
 						onClick={() => pickPreset(preset)}
 					/>
 				);
@@ -104,6 +129,7 @@ export const ShadingSwitcher = () => {
 export const ShadingMenuGroup = () => {
 	const preferences = usePreferences();
 	const wireframe = preferences.showWireframe;
+	const clay = preferences.showClay && !wireframe;
 
 	return (
 		<Menu.Group label="Shading">
@@ -111,7 +137,14 @@ export const ShadingMenuGroup = () => {
 				icon="shadeWire"
 				label={WIREFRAME.name}
 				checked={wireframe}
-				onCheckedChange={() => setPreference("showWireframe", !wireframe)}
+				onCheckedChange={() => toggleWireframe(!wireframe)}
+			/>
+
+			<Menu.CheckboxItem
+				icon="shadeClay"
+				label={CLAY.name}
+				checked={clay}
+				onCheckedChange={() => toggleClay(!clay)}
 			/>
 
 			{PRESETS.map(({ preset, icon, name }) => (
@@ -119,7 +152,7 @@ export const ShadingMenuGroup = () => {
 					key={preset}
 					icon={icon}
 					label={name}
-					checked={!wireframe && preferences.graphicsPreset === preset}
+					checked={!wireframe && !clay && preferences.graphicsPreset === preset}
 					onCheckedChange={() => pickPreset(preset)}
 				/>
 			))}

@@ -91,9 +91,9 @@ export const surfaceHitOnRay = (
  * to the grid unless snapping is off or `altKey` is held, and kept on the
  * ground (ADR-0098).
  */
-export const surfacePointOnRay = (ray: THREE.Ray, altKey: boolean): TVec2 | null => {
+export const surfacePointOnRay = (ray: THREE.Ray, altKey: boolean, above = 0): TVec2 | null => {
 	const { snapping, scene } = useEditor.getState();
-	const found = surfaceHitOnRay(ray, scene.areas);
+	const found = surfaceHitOnRay(ray, scene.areas, above);
 	if (!found) {
 		return null;
 	}
@@ -114,6 +114,13 @@ export const groundPointFrom = (
 	event: ThreeEvent<PointerEvent | MouseEvent>,
 	planeY = 0,
 ): TVec2 | null => groundPointOnRay(event.ray, event.nativeEvent.altKey, planeY);
+
+/**
+ * The ground under the pointer as it stands, or the surface `above` it (a
+ * fence point lifted that much, ADR-0103), snapped as `groundPointFrom` is.
+ */
+export const surfacePointFrom = (event: ThreeEvent<PointerEvent | MouseEvent>, above = 0) =>
+	surfacePointOnRay(event.ray, event.nativeEvent.altKey, above);
 
 interface IGroundDragOptions {
 	/** Height of the plane to drag on (default: the ground). */

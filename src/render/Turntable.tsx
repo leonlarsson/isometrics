@@ -28,7 +28,10 @@ export const Turntable = () => {
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
-	const enabled = useEditor((s) => s.mode === "view" && s.scene.camera.turntableOn);
+	// Not while the world keeps the isometric angle, which turns only a quarter at a time.
+	const enabled = useEditor(
+		(s) => s.mode === "view" && s.scene.camera.turntableOn && !s.scene.camera.keepsIsometricAngle,
+	);
 	// When there was last any input (performance.now() ms), and how long it has been turning.
 	const lastInput = useRef(performance.now());
 	const turning = useRef(0);

@@ -3,8 +3,9 @@ import { type PointerEvent, useEffect, useRef } from "react";
 import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { DEG2RAD } from "#/lib/math";
+import { keepsIsometricAngle } from "#/render/isometricLock";
 import { cameraCommands, liveCamera } from "#/render/liveCamera";
-import { currentView } from "#/render/viewpoints";
+import { currentView, isometricPoseOf } from "#/render/viewpoints";
 
 import { Tooltip } from "./Tooltip";
 
@@ -24,12 +25,25 @@ const POINTS = [
 	{ letter: "W", name: "west", azimuth: 180 },
 ] as const;
 
-/** Glide to the view as it is, changed by `change`. */
+/**
+ * Glide to the view as it is, changed by `change`. While the world keeps the
+ * isometric angle, to the diagonal nearest the way asked for, at that angle;
+ * it doesn't look straight down then.
+ */
 const glide = (change: { azimuth?: number; elevation?: number }) => {
 	const pose = currentView.read?.();
-	if (pose) {
-		useEditor.getState().glideTo({ ...pose, ...change });
+	if (!pose) {
+		return;
 	}
+	if (keepsIsometricAngle()) {
+		if (change.azimuth !== undefined) {
+			useEditor
+				.getState()
+				.glideTo({ ...isometricPoseOf({ ...pose, ...change }), projection: pose.projection });
+		}
+		return;
+	}
+	useEditor.getState().glideTo({ ...pose, ...change });
 };
 
 /**

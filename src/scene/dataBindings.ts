@@ -1,4 +1,4 @@
-import type { TDataBinding, TEntity } from "./schema";
+import type { TDataBinding, TEntity, TFence } from "./schema";
 
 /**
  * Every place an object keeps data bindings (ADR-0058, ADR-0060): each
@@ -17,3 +17,11 @@ export const bindingMapsOf = (
 /** Whether any of an object's settings follow a data value. */
 export const usesDataBindings = (entity: Pick<TEntity, "lights" | "colors">) =>
 	bindingMapsOf(entity).some((map) => Object.keys(map).length > 0);
+
+/** Every place a fence keeps data bindings (ADR-0103): its colours' and its own (`builtShare`). */
+export const fenceBindingMapsOf = (
+	fence: Pick<TFence, "colors" | "data">,
+): Record<string, TDataBinding>[] => [
+	fence.data,
+	...Object.values(fence.colors).map((color) => color.data),
+];

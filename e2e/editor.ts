@@ -1,7 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
 import type { IEditorState, useEditor } from "#/editor/store";
-import type { TArea, TEntity, TRoad, TViewPose } from "#/scene/schema";
+import type { TArea, TEntity, TFence, TRoad, TViewPose } from "#/scene/schema";
 
 /**
  * Shared helpers for the end-to-end tests (ADR-0069). Each test gets a fresh
@@ -75,6 +75,7 @@ export interface ITestWorld {
 	entities?: Partial<TEntity>[];
 	roads?: Partial<TRoad>[];
 	areas?: Partial<TArea>[];
+	fences?: Partial<TFence>[];
 }
 
 /**
@@ -126,6 +127,21 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			locked: false,
 			...a,
 		})) as typeof scene.areas;
+		scene.fences = (world.fences ?? []).map((f) => ({
+			name: "",
+			style: "picket_fence_01",
+			loops: false,
+			cornerRadius: 0,
+			height: null,
+			postSpacing: null,
+			colors: {},
+			builtShare: 1,
+			data: {},
+			hidden: false,
+			locked: false,
+			...f,
+			points: (f.points ?? []).map(([x, z, lift]) => [x, z, lift ?? 0]),
+		})) as typeof scene.fences;
 		state.loadScene(scene);
 	}, world);
 	await worldShown(page);
