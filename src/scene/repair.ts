@@ -7,6 +7,7 @@ import {
 	DataEntrySchema,
 	EntitySchema,
 	FenceSchema,
+	MoodSchema,
 	RoadSchema,
 	SCENE_VERSION,
 	SceneSchema,
@@ -21,7 +22,7 @@ import {
  * read. Rather than refuse the whole world over one bad value, keep
  * everything that is still valid:
  *
- * - each object, road, area and data value is checked on its own;
+ * - each object, road, area, fence, data value, viewpoint and mood is checked on its own;
  * - an invalid field is removed so its default applies;
  * - an invalid entry in a list (one road point, one data key) is dropped;
  * - an item that still can't be read (e.g. it has no id) is removed;
@@ -39,6 +40,7 @@ export interface IRepairReport {
 		fences: number;
 		values: number;
 		viewpoints: number;
+		moods: number;
 	};
 	/** Invalid fields reset to their default, or invalid list entries dropped. */
 	fixed: number;
@@ -111,6 +113,7 @@ const LISTS = [
 	{ key: "fences", schema: FenceSchema, id: "id", counter: "fences" },
 	{ key: "data", schema: DataEntrySchema, id: "key", counter: "values" },
 	{ key: "viewpoints", schema: ViewpointSchema, id: "id", counter: "viewpoints" },
+	{ key: "moods", schema: MoodSchema, id: "id", counter: "moods" },
 ] as const;
 
 type TSceneKey = keyof typeof SceneSchema.shape;
@@ -138,7 +141,7 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 	}
 
 	const report: IRepairReport = {
-		removed: { objects: 0, roads: 0, areas: 0, fences: 0, values: 0, viewpoints: 0 },
+		removed: { objects: 0, roads: 0, areas: 0, fences: 0, values: 0, viewpoints: 0, moods: 0 },
 		fixed: 0,
 		newerVersion: hasVersion && (raw.version as number) > SCENE_VERSION,
 		missingVersion: !hasVersion,
@@ -198,7 +201,7 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 /** A short, plain description of what a repair changed, for the user. */
 export const describeRepairs = (report: IRepairReport) => {
-	const { objects, roads, areas, fences, values, viewpoints } = report.removed;
+	const { objects, roads, areas, fences, values, viewpoints, moods } = report.removed;
 	const removed = [
 		objects && plural(objects, "object", "objects"),
 		roads && plural(roads, "road", "roads"),
@@ -206,8 +209,9 @@ export const describeRepairs = (report: IRepairReport) => {
 		fences && plural(fences, "fence", "fences"),
 		values && plural(values, "data value", "data values"),
 		viewpoints && plural(viewpoints, "viewpoint", "viewpoints"),
+		moods && plural(moods, "mood", "moods"),
 	].filter((part): part is string => Boolean(part));
-	const removedCount = objects + roads + areas + fences + values + viewpoints;
+	const removedCount = objects + roads + areas + fences + values + viewpoints + moods;
 
 	const parts: string[] = [];
 	if (report.newerVersion) {

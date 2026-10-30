@@ -91,6 +91,20 @@ describe("parseOrRepairScene", () => {
 		expect(report.removed.objects).toBe(3);
 	});
 
+	it("repairs moods one at a time: a bad setting is reset, duplicate ids keep the first", () => {
+		const { scene, report } = parseOrRepairScene({
+			version: 1,
+			moods: [
+				{ id: "a", name: "Golden hour", lighting: { time: 99, sunStrength: 1.5 } },
+				{ id: "b", name: "Night" },
+				{ id: "a", name: "Golden hour again" },
+			],
+		});
+		expect(scene.moods.map((m) => m.name)).toEqual(["Golden hour", "Night"]);
+		expect(scene.moods[0].lighting).toMatchObject({ time: null, sunStrength: 1.5 });
+		expect(report?.removed.moods).toBe(1);
+	});
+
 	it("resets a broken nested value such as a label's card offset", () => {
 		const { scene } = repairScene({
 			version: 1,
@@ -137,7 +151,7 @@ describe("parseOrRepairScene", () => {
 describe("describeRepairs", () => {
 	it("says what was left out and reset", () => {
 		const text = describeRepairs({
-			removed: { objects: 2, roads: 1, areas: 0, fences: 0, values: 0, viewpoints: 0 },
+			removed: { objects: 2, roads: 1, areas: 0, fences: 0, values: 0, viewpoints: 0, moods: 0 },
 			fixed: 1,
 			newerVersion: false,
 			missingVersion: false,
