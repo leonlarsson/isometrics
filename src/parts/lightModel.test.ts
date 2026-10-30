@@ -310,6 +310,30 @@ describe("when lights come on", () => {
 		);
 	});
 
+	it("takes its schedule from a value holding times, like opening hours, else its own", () => {
+		const shop = (value: string) =>
+			resolveLights(
+				car,
+				entity({
+					rain: setting({
+						whenOn: "schedule",
+						schedule: [{ from: 20, until: 22 }],
+						data: { schedule: bind("hours") },
+					}),
+				}),
+				{
+					palette: day,
+					driving: false,
+					hour: 10,
+					data: [{ key: "hours", label: "Opening hours", value, unit: "" }],
+				},
+			).rain.on;
+		expect(shop("09:00-17:30")).toBe(true);
+		expect(shop("7-9, 16:30-19")).toBe(false);
+		// Not times: its own periods (20–22, so off at 10).
+		expect(shop("closed today")).toBe(false);
+	});
+
 	it("on a schedule at once, switches exactly at its times", () => {
 		const evening = entity({
 			rain: setting({ whenOn: "schedule", schedule: [{ from: 18, until: 23 }] }),

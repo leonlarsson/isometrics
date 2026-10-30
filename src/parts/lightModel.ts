@@ -8,7 +8,7 @@ import type {
 } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
-import { readColor, readScale, readSwitch, type TBindingKind } from "./dataBinding";
+import { readColor, readPeriods, readScale, readSwitch, type TBindingKind } from "./dataBinding";
 import type { ILightSpec, IResolvedLight, TColorDefault } from "./types";
 
 /**
@@ -101,6 +101,7 @@ export const LIGHT_DATA = {
 	strength: "scale",
 	color: "color",
 	litPanes: "scale",
+	schedule: "periods",
 } as const satisfies Record<string, TBindingKind>;
 
 export type TLightDataTarget = keyof typeof LIGHT_DATA;
@@ -174,7 +175,8 @@ export const resolveLight = (
 		} else if (mode === "schedule") {
 			// Like a timer: on during its periods (off without a time of day), coming on as set.
 			const comesOn = comesOnOf(spec, setting);
-			const periods = setting?.schedule ?? [];
+			// From a data value holding times (opening hours) while it reads as them.
+			const periods = readPeriods(bound.schedule, data) ?? setting?.schedule ?? [];
 			if (hour === null) {
 				level = 0;
 			} else if (comesOn === "atOnce") {
