@@ -35,7 +35,8 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 
 	test("the search narrows the parts, and says when nothing matches", async ({ page }) => {
 		await palette(page).getByRole("searchbox", { name: "Search parts" }).fill("tree");
-		await expect(tile(page, "Pine tree")).toBeVisible();
+		// A tree with one look: a family with several lists each in a search ("Pine tree 1", ADR-0050).
+		await expect(tile(page, "Birch")).toBeVisible();
 		await expect(tile(page, "House")).toBeHidden();
 	});
 
