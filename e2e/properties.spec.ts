@@ -72,7 +72,8 @@ test.describe("the properties editor (ADR-0054)", () => {
 	}) => {
 		await tab(page, "Look").click();
 		const roof = page.locator("fieldset").filter({ hasText: /^Roof/ });
-		await expect(roof.getByText("Default")).toBeVisible();
+		// Its Source (by hand) and its colour, both as the part has them (ADR-0105).
+		await expect(roof.getByText("Default")).toHaveCount(2);
 		await roof.getByRole("button", { name: "Colour" }).click();
 		// The presets are named, not only shown (ADR-0089): picked by name, then the field says it.
 		await page.getByRole("button", { name: /^Use teal green/ }).click();
@@ -86,6 +87,7 @@ test.describe("the properties editor (ADR-0054)", () => {
 		expect((await entity(page, "a"))?.colors.roof?.color).toBeTruthy();
 		await roof.getByRole("button", { name: "Reset" }).click();
 		expect((await entity(page, "a"))?.colors.roof ?? null).toBeNull();
+		await expect(roof.getByText("Default")).toHaveCount(2);
 	});
 
 	test("see-through glass has a Transparency setting under its colour (ADR-0090)", async ({
@@ -109,7 +111,7 @@ test.describe("the properties editor (ADR-0054)", () => {
 
 	test("the settings search finds a setting, and says when nothing matches", async ({ page }) => {
 		await page.getByRole("button", { name: "Search the settings" }).click();
-		await page.getByRole("searchbox", { name: "Search the settings" }).fill("lift");
+		await page.getByRole("searchbox", { name: "Search the settings" }).fill("altitude");
 		await expect(box(page, "Altitude")).toBeVisible();
 		await expect(box(page, "Rotation (°) Y")).toBeHidden();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("zzzz");

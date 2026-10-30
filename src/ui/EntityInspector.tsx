@@ -449,15 +449,19 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 									e.label.isShown = on;
 								})
 							}
-							inherit={resetToDefault(
-								entity.label.isShown,
-								false,
-								() =>
-									edit("label", (e) => {
-										e.label.isShown = false;
-									}),
-								"hidden",
-							)}
+							// In the panel's header: a Reset icon once it's shown, no Default tag.
+							inherit={{
+								...resetToDefault(
+									entity.label.isShown,
+									false,
+									() =>
+										edit("label", (e) => {
+											e.label.isShown = false;
+										}),
+									"hidden",
+								),
+								isCompact: true,
+							}}
 						/>
 					</>
 				}

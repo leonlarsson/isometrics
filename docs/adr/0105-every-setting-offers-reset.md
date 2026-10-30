@@ -28,6 +28,7 @@ Chosen option: **2**.
 - `resetToDefault(value, fallback, onReset, shown?)` makes the usual one: Default while the value equals its default, Reset otherwise, the default in words for Reset's tooltip (on / off, a number, a list) unless `shown` says better. `resetsAgainst(thing, defaults, write)` makes them for a record's settings against a new one's: `inherit={reset("cornerRadius")}`.
 - Defaults are what a new thing has (its schema's defaults, a part's prop defaults, a new world's settings), or what it depends on: an object's altitude goes back to standing on the ground under it (ADR-0098), a road's width to its kind's, a raised area's height to its kind's starting height, a corner or peak to the area's height (From area).
 - `hasNoDefault`: positions, a thing's kind (what it is, chosen when drawn: Reset would turn a lake into grass), which data value a binding follows, and the worlds list's search.
+- In a tight spot (a bar, a panel's header) the inherit says `isCompact`: no Default tag, and Reset as its icon with its tooltip (the paint bar; the label card's Show switch).
 - Filters, modes and shortcuts (chip groups for categories, Paint / Erase, a slider's presets) aren't settings and have no Reset.
 
 ### Consequences

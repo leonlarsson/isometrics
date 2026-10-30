@@ -100,12 +100,15 @@ const PaintControls = () => {
 						value={brush.brushId}
 						groups={BRUSH_GROUPS}
 						onChange={(brushId) => setPaintBrush({ brushId })}
-						inherit={resetToDefault(
-							brush.brushId,
-							DEFAULT_BRUSH.brushId,
-							() => setPaintBrush({ brushId: DEFAULT_BRUSH.brushId }),
-							BRUSH_MIXES.find((mix) => mix.id === DEFAULT_BRUSH.brushId)?.name,
-						)}
+						inherit={{
+							...resetToDefault(
+								brush.brushId,
+								DEFAULT_BRUSH.brushId,
+								() => setPaintBrush({ brushId: DEFAULT_BRUSH.brushId }),
+								BRUSH_MIXES.find((mix) => mix.id === DEFAULT_BRUSH.brushId)?.name,
+							),
+							isCompact: true,
+						}}
 						placeholder="Search parts and mixes…"
 					/>
 				</div>
@@ -118,9 +121,12 @@ const PaintControls = () => {
 						max={PAINT_SIZE.max}
 						step={0.5}
 						onChange={(size) => setPaintBrush({ size })}
-						inherit={resetToDefault(brush.size, DEFAULT_BRUSH.size, () =>
-							setPaintBrush({ size: DEFAULT_BRUSH.size }),
-						)}
+						inherit={{
+							...resetToDefault(brush.size, DEFAULT_BRUSH.size, () =>
+								setPaintBrush({ size: DEFAULT_BRUSH.size }),
+							),
+							isCompact: true,
+						}}
 					/>
 				</div>
 
@@ -132,9 +138,12 @@ const PaintControls = () => {
 						max={PAINT_DENSITY.max}
 						step={0.5}
 						onChange={(density) => setPaintBrush({ density })}
-						inherit={resetToDefault(brush.density, DEFAULT_BRUSH.density, () =>
-							setPaintBrush({ density: DEFAULT_BRUSH.density }),
-						)}
+						inherit={{
+							...resetToDefault(brush.density, DEFAULT_BRUSH.density, () =>
+								setPaintBrush({ density: DEFAULT_BRUSH.density }),
+							),
+							isCompact: true,
+						}}
 					/>
 				</div>
 			</div>

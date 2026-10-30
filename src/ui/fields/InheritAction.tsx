@@ -18,6 +18,11 @@ export interface IInherit {
 	onReset: () => void;
 	/** The inherited value in words, for Reset's tooltip, e.g. "smoothly" or "2.4". */
 	value?: string;
+	/**
+	 * In a tight spot (a bar, a panel's header): no Default / From… tag while
+	 * inherited, and Reset as just its icon (its tooltip says what it does).
+	 */
+	isCompact?: boolean;
 }
 
 /**
@@ -32,7 +37,10 @@ export type TResettable =
 
 /** The label row's right side: "Default" / "From scene" while inherited, Reset once overridden. */
 export const InheritAction = ({ inherit }: { inherit: IInherit }) => {
-	const { from, inherited, onReset, value } = inherit;
+	const { from, inherited, onReset, value, isCompact = false } = inherit;
+	if (inherited && isCompact) {
+		return null;
+	}
 	if (inherited) {
 		return (
 			<span className={styles.inheritTag}>{from === "default" ? "Default" : `From ${from}`}</span>
@@ -44,7 +52,7 @@ export const InheritAction = ({ inherit }: { inherit: IInherit }) => {
 			<button type="button" className={styles.reset} aria-label="Reset" onClick={onReset}>
 				<Icon name="reset" size={13} />
 
-				<span className={styles.resetText}>Reset</span>
+				{!isCompact && <span className={styles.resetText}>Reset</span>}
 			</button>
 		</Tooltip>
 	);
