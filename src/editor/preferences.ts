@@ -85,6 +85,8 @@ export const PreferencesSchema = z.object({
 	namesOfCopies: z.enum(["copy", "numbered"]).catch("copy"),
 	/** The view drawn as wireframe (ADR-0080): every surface as lines in its colour, with Standard's look. */
 	showWireframe: z.boolean().catch(false),
+	/** The view in clay: every surface one matte colour, only shapes, light and shadow (ADR-0080). */
+	showClay: z.boolean().catch(false),
 	/** The Graphics page's preset (ADR-0072); the graphics settings below follow it while null. */
 	graphicsPreset: z.enum(GRAPHICS_PRESETS).catch("standard"),
 	/** Darkening where things meet: off, at half or at full resolution. null = the preset's. */
