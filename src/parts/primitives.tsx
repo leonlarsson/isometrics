@@ -2,7 +2,7 @@ import { RoundedBox } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-type TV3 = [number, number, number];
+export type TV3 = [number, number, number];
 
 /**
  * Names a geometry built by hand by its shape (`userData.shareKey`), so objects

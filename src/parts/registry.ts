@@ -57,12 +57,16 @@ import { roundTree01 } from "./nature/round_tree_01";
 import { roundTree02 } from "./nature/round_tree_02";
 import { tallGrass01 } from "./nature/tall_grass_01";
 import type { IPartDefinition, TPartCategory } from "./types";
+import { ambulance01 } from "./vehicles/ambulance_01";
 import { bicycle01 } from "./vehicles/bicycle_01";
 import { bus01 } from "./vehicles/bus_01";
 import { car01 } from "./vehicles/car_01";
+import { cargoShip01 } from "./vehicles/cargo_ship_01";
 import { deliveryVan01 } from "./vehicles/delivery_van_01";
 import { ferry01 } from "./vehicles/ferry_01";
+import { fireEngine01 } from "./vehicles/fire_engine_01";
 import { forklift01 } from "./vehicles/forklift_01";
+import { motorbike01 } from "./vehicles/motorbike_01";
 import { raceCar01 } from "./vehicles/race_car_01";
 import { sailingBoat01 } from "./vehicles/sailing_boat_01";
 import { tractor01 } from "./vehicles/tractor_01";
@@ -96,14 +100,18 @@ export const PARTS: TAnyPart[] = [
 	truck01,
 	car01,
 	bus01,
+	fireEngine01,
+	ambulance01,
 	tram01,
 	tractor01,
 	forklift01,
 	bicycle01,
+	motorbike01,
 	raceCar01,
 	yacht01,
 	sailingBoat01,
 	ferry01,
+	cargoShip01,
 	roundTree01,
 	roundTree02,
 	pineTree01,
