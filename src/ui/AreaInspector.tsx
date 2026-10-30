@@ -16,7 +16,16 @@ import type { TArea, TAreaKind } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { FollowDataNote } from "./FollowDataNote";
-import { Hint, Kbd, Section, SelectField, SliderField, TextField, VectorField } from "./fields";
+import {
+	Hint,
+	Kbd,
+	resetToDefault,
+	Section,
+	SelectField,
+	SliderField,
+	TextField,
+	VectorField,
+} from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
 import { RipplesNote } from "./WaterSettings";
@@ -48,6 +57,7 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 			}
 		>
 			<VectorField
+				hasNoDefault
 				label="Position"
 				axes={["X", "Z"]}
 				values={[point[0], point[1]]}
@@ -72,16 +82,13 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 					})
 				}
 				disabled={!liftable}
-				inherit={
-					liftable
-						? {
-								from: "area",
-								inherited: cornerLift(point) === 0,
-								onReset: () => store().setAreaCornerHeight(area.id, index, area.height),
-								value: String(area.height),
-							}
-						: undefined
-				}
+				// Water's corners always stand at the area's height (ADR-0096).
+				inherit={{
+					from: "area",
+					inherited: !liftable || cornerLift(point) === 0,
+					onReset: () => store().setAreaCornerHeight(area.id, index, area.height),
+					value: String(area.height),
+				}}
 				hint={
 					liftable
 						? "Corners at different heights make slopes and ramps; a corner at 0 meets the ground."
@@ -143,6 +150,7 @@ const PeakPanel = ({ area, index }: { area: TArea; index: number }) => {
 			}
 		>
 			<VectorField
+				hasNoDefault
 				label="Position"
 				axes={["X", "Z"]}
 				values={[peak[0], peak[1]]}
@@ -154,6 +162,12 @@ const PeakPanel = ({ area, index }: { area: TArea; index: number }) => {
 			/>
 
 			<SliderField
+				inherit={{
+					from: "area",
+					inherited: peak[2] === 0,
+					onReset: () => store().setAreaPeakHeight(area.id, index, area.height),
+					value: `${area.height}`,
+				}}
 				label="Altitude"
 				value={cornerTop(area, peak)}
 				min={0}
@@ -205,6 +219,15 @@ const AreaTab = ({ area }: { area: TArea }) => {
 			}
 		>
 			<TextField
+				inherit={resetToDefault(
+					area.name,
+					"",
+					() =>
+						edit("name", (a) => {
+							a.name = "";
+						}),
+					AREA_KIND_LABELS[area.kind],
+				)}
 				label="Name"
 				value={area.name}
 				placeholder={AREA_KIND_LABELS[area.kind]}
@@ -216,6 +239,7 @@ const AreaTab = ({ area }: { area: TArea }) => {
 			/>
 
 			<SelectField<TAreaKind>
+				hasNoDefault
 				label="Kind"
 				value={area.kind}
 				options={TYPE_OPTIONS}
@@ -258,6 +282,11 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				keywords="shape corners raised height cliff slope ramp hill lift peak hollow"
 			>
 				<SliderField
+					inherit={resetToDefault(area.height, AREA_KINDS[area.kind].startHeight, () =>
+						edit("height", (a) => {
+							a.height = AREA_KINDS[a.kind].startHeight;
+						}),
+					)}
 					label="Height"
 					value={area.height}
 					min={0}

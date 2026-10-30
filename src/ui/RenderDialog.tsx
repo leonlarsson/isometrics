@@ -7,7 +7,7 @@ import { drawingLimits, renderStill, smoothingFor, viewPixelSize } from "#/rende
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
-import { Hint, SelectField, SwitchField } from "./fields";
+import { Hint, resetToDefault, SelectField, SwitchField } from "./fields";
 import { viewpointName } from "./ViewpointsSection";
 
 import styles from "./RenderDialog.module.css";
@@ -52,6 +52,10 @@ const nextFrames = () =>
 		requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
 	);
 
+/** The picture's size and smoothing as the dialog opens, for Default / Reset (ADR-0105). */
+const DEFAULT_SIZE: TSizeChoice = "1920x1080";
+const DEFAULT_SMOOTHING: TSmoothingChoice = "2";
+
 /**
  * Render a picture… (ADR-0084): one still of the view or a viewpoint (the
  * world's cameras), drawn with the render's graphics (Ultra and beyond) and
@@ -67,8 +71,8 @@ export const RenderDialog = () => {
 	// A viewpoint deleted since it was picked: back to the view now.
 	const camera = viewpoints.some((v) => v.id === chosenCamera) ? chosenCamera : "view";
 	const [showsCards, setShowsCards] = useState<boolean | null>(null);
-	const [size, setSize] = useState<TSizeChoice>("1920x1080");
-	const [smoothing, setSmoothing] = useState<TSmoothingChoice>("2");
+	const [size, setSize] = useState<TSizeChoice>(DEFAULT_SIZE);
+	const [smoothing, setSmoothing] = useState<TSmoothingChoice>(DEFAULT_SMOOTHING);
 	const [transparent, setTransparent] = useState(false);
 	const [rendering, setRendering] = useState(false);
 	const [picture, setPicture] = useState<{
@@ -167,6 +171,7 @@ export const RenderDialog = () => {
 							})),
 						]}
 						onChange={pickCamera}
+						inherit={resetToDefault(camera, "view", () => pickCamera("view"), "the view now")}
 						hint="A viewpoint is one of the world's cameras: the picture is taken from it, with its mood if it has one and you let viewpoints put theirs on."
 					/>
 
@@ -183,6 +188,7 @@ export const RenderDialog = () => {
 							};
 						})}
 						onChange={setSize}
+						inherit={resetToDefault(size, DEFAULT_SIZE, () => setSize(DEFAULT_SIZE))}
 						hint={size === "view" ? `${width} × ${height}` : undefined}
 					/>
 
@@ -191,6 +197,12 @@ export const RenderDialog = () => {
 						value={smoothing}
 						options={SMOOTHING.map((choice) => ({ value: choice.value, label: choice.label }))}
 						onChange={setSmoothing}
+						inherit={resetToDefault(
+							smoothing,
+							DEFAULT_SMOOTHING,
+							() => setSmoothing(DEFAULT_SMOOTHING),
+							`${DEFAULT_SMOOTHING} ×`,
+						)}
 						hint={
 							smoothed < 1.05 && Number(smoothing) > 1
 								? "No smoothing at this size: it's as big as the browser draws in one go (about 33 million pixels). A smaller size can be smoothed."

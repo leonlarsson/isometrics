@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Icon } from "../Icon";
 
 import { Field } from "./Field";
-import type { IInherit } from "./InheritAction";
+import type { TResettable } from "./InheritAction";
 
 import styles from "./Fields.module.css";
 
@@ -14,7 +14,6 @@ interface ISelectFieldProps<TValue extends string> {
 	/** A disabled option is shown but can't be picked; say why near the field. */
 	options: { value: TValue; label: string; disabled?: boolean }[];
 	onChange: (value: TValue) => void;
-	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	hint?: ReactNode;
@@ -29,7 +28,7 @@ export const SelectField = <TValue extends string>({
 	inherit,
 	mixed,
 	hint,
-}: ISelectFieldProps<TValue>) => {
+}: ISelectFieldProps<TValue> & TResettable) => {
 	return (
 		<Field label={label} inherit={inherit} mixed={mixed} hint={hint}>
 			{(id) => (

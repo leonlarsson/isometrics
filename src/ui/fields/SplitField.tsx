@@ -2,7 +2,7 @@ import { Slider } from "@base-ui/react/slider";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Hint } from "./Hint";
-import { type IInherit, InheritAction } from "./InheritAction";
+import { InheritAction, type TResettable } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { useSearchMatch } from "./settingsSearch";
 
@@ -22,7 +22,6 @@ interface ISplitFieldProps {
 	weights: readonly number[];
 	/** Each part's share as a percentage, adding up to 100. */
 	onChange: (percentages: number[]) => void;
-	inherit?: IInherit;
 	hint?: ReactNode;
 }
 
@@ -58,7 +57,7 @@ export const SplitField = ({
 	onChange,
 	inherit,
 	hint,
-}: ISplitFieldProps) => {
+}: ISplitFieldProps & TResettable) => {
 	const percentages = toPercentages(weights);
 	const dividers = dividersOf(percentages);
 	return (

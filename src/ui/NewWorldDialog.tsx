@@ -8,7 +8,7 @@ import { createEmptyScene, TEMPLATES } from "#/templates";
 
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
-import { Hint, RadioGroupField, SelectField, TextField } from "./fields";
+import { Hint, RadioGroupField, resetToDefault, SelectField, TextField } from "./fields";
 
 import styles from "./NewWorldDialog.module.css";
 
@@ -181,7 +181,13 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 				/>
 
 				<div className={styles.details}>
-					<TextField label="Name" value={name} placeholder={defaultName} onChange={setName} />
+					<TextField
+						label="Name"
+						value={name}
+						placeholder={defaultName}
+						onChange={setName}
+						inherit={resetToDefault(name, "", () => setName(""), defaultName)}
+					/>
 
 					{/*
 						Every card's details are laid out on top of each other and only the picked one
@@ -202,6 +208,12 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 									return { value: preset, label: name, meta: `${width} × ${depth} · ${fits}` };
 								})}
 								onChange={(groundPreset) => update({ groundPreset })}
+								inherit={resetToDefault(
+									choices.groundPreset,
+									DEFAULT_CHOICES.groundPreset,
+									() => update({ groundPreset: DEFAULT_CHOICES.groundPreset }),
+									GROUND_PRESETS[DEFAULT_CHOICES.groundPreset].name,
+								)}
 							/>
 
 							<SelectField<TThemePreference>
@@ -213,6 +225,12 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 									{ value: "dark", label: "Dark" },
 								]}
 								onChange={(theme) => update({ theme })}
+								inherit={resetToDefault(
+									choices.theme,
+									DEFAULT_CHOICES.theme,
+									() => update({ theme: DEFAULT_CHOICES.theme }),
+									"match device",
+								)}
 							/>
 
 							<SelectField<TDrivingSide>
@@ -223,6 +241,9 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 									{ value: "left", label: "Left" },
 								]}
 								onChange={(drivingSide) => update({ drivingSide })}
+								inherit={resetToDefault(choices.drivingSide, DEFAULT_CHOICES.drivingSide, () =>
+									update({ drivingSide: DEFAULT_CHOICES.drivingSide }),
+								)}
 							/>
 
 							<Hint>

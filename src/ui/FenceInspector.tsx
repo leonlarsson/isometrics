@@ -14,6 +14,7 @@ import { FollowDataNote } from "./FollowDataNote";
 import {
 	Hint,
 	Kbd,
+	resetToDefault,
 	Section,
 	SelectField,
 	SliderField,
@@ -78,6 +79,15 @@ const FenceTab = ({ fence }: { fence: TFence }) => {
 			}
 		>
 			<TextField
+				inherit={resetToDefault(
+					fence.name,
+					"",
+					() =>
+						edit("name", (f) => {
+							f.name = "";
+						}),
+					FENCE_STYLE_LABELS[fence.kind],
+				)}
 				label="Name"
 				value={fence.name}
 				placeholder={FENCE_STYLE_LABELS[fence.kind]}
@@ -89,6 +99,7 @@ const FenceTab = ({ fence }: { fence: TFence }) => {
 			/>
 
 			<SelectField<TFenceKind>
+				hasNoDefault
 				label="Kind"
 				value={fence.kind}
 				options={STYLE_OPTIONS}
@@ -133,6 +144,7 @@ const FencePointPanel = ({ fence, index }: { fence: TFence; index: number }) => 
 			}
 		>
 			<VectorField
+				hasNoDefault
 				label="Position"
 				axes={["X", "Z"]}
 				values={[point[0], point[1]]}
@@ -144,6 +156,12 @@ const FencePointPanel = ({ fence, index }: { fence: TFence; index: number }) => 
 			/>
 
 			<SliderField
+				inherit={resetToDefault(
+					point[2],
+					0,
+					() => store().setFencePointLift(fence.id, index, 0),
+					"on the ground",
+				)}
 				label="Lift"
 				value={point[2]}
 				min={0}
@@ -202,6 +220,18 @@ const FencePointsPanel = ({ fence, indices }: { fence: TFence; indices: readonly
 			}
 		>
 			<SliderField
+				inherit={resetToDefault(
+					lifts.size === 1 && last[2] === 0,
+					true,
+					() => {
+						for (const index of indices) {
+							store().setFencePointLift(fence.id, index, 0, {
+								coalesce: `${fence.id}:points:${indices.join(",")}:lift`,
+							});
+						}
+					},
+					"on the ground",
+				)}
 				label="Lift"
 				value={last[2]}
 				mixed={lifts.size > 1}
@@ -326,6 +356,11 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 				/>
 
 				<SwitchField
+					inherit={resetToDefault(fence.loops, false, () =>
+						edit("loops", (f) => {
+							f.loops = false;
+						}),
+					)}
 					label="Loop (join the ends)"
 					checked={fence.loops}
 					onChange={(v) =>
@@ -366,6 +401,15 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 					}
 				>
 					<SliderField
+						inherit={resetToDefault(
+							fence.builtShare,
+							1,
+							() =>
+								edit("builtShare", (f) => {
+									f.builtShare = 1;
+								}),
+							"100%",
+						)}
 						label="Built"
 						value={Math.round(fence.builtShare * 100)}
 						min={0}

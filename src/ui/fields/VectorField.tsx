@@ -3,6 +3,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import { Icon } from "../Icon";
 
 import { Field } from "./Field";
+import type { TResettable } from "./InheritAction";
 import { NUMBER_FORMAT, NUMBER_LOCALE, NumberBox } from "./NumberBox";
 
 import styles from "./Fields.module.css";
@@ -50,9 +51,16 @@ interface IVectorFieldProps {
 }
 
 /** Two or three numbers on one row (X / Y / Z); each axis letter scrubs its value. */
-export const VectorField = ({ label, axes, values, onChange, step = 0.5 }: IVectorFieldProps) => {
+export const VectorField = ({
+	label,
+	axes,
+	values,
+	onChange,
+	step = 0.5,
+	inherit,
+}: IVectorFieldProps & TResettable) => {
 	return (
-		<Field label={label}>
+		<Field label={label} inherit={inherit}>
 			{(id) => (
 				<div className={styles.vector} data-axes={axes.length}>
 					{axes.map((axis, i) => (

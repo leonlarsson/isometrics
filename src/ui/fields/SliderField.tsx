@@ -4,7 +4,7 @@ import { type CSSProperties, type ReactNode, useId } from "react";
 
 import { ClockInput } from "./ClockInput";
 import { Hint } from "./Hint";
-import { type IInherit, InheritAction } from "./InheritAction";
+import { InheritAction, type TResettable } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { type INumberRangeProps, NUMBER_FORMAT, NUMBER_LOCALE, NumberBox } from "./NumberBox";
 import { useSearchMatch } from "./settingsSearch";
@@ -25,7 +25,6 @@ interface ISliderFieldProps extends INumberRangeProps {
 	 */
 	sliderMin?: number;
 	sliderMax?: number;
-	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	/** Shown greyed out and can't be changed; say why in its hint. */
@@ -49,7 +48,7 @@ export const SliderField = ({
 	mixed,
 	disabled = false,
 	hint,
-}: ISliderFieldProps) => {
+}: ISliderFieldProps & TResettable) => {
 	const id = useId();
 	return (
 		<BaseNumberField.Root

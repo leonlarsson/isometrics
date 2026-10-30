@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Icon } from "../Icon";
 
 import { Field } from "./Field";
+import type { TResettable } from "./InheritAction";
 
 import styles from "./Fields.module.css";
 
@@ -41,11 +42,12 @@ export const ComboboxField = <TValue extends string>({
 	onChange,
 	placeholder = "Type to search…",
 	hint,
-}: IComboboxFieldProps<TValue>) => {
+	inherit,
+}: IComboboxFieldProps<TValue> & TResettable) => {
 	const items = groups.map((group) => ({ value: group.label, items: group.options }));
 	const selected = groups.flatMap((group) => group.options).find((o) => o.value === value) ?? null;
 	return (
-		<Field label={label} hint={hint}>
+		<Field label={label} hint={hint} inherit={inherit}>
 			{(id) => (
 				<Combobox.Root
 					items={items}

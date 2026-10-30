@@ -90,6 +90,8 @@ export const DataBindingFields = ({
 					...data.map((item) => ({ value: item.key, label: item.name || item.key })),
 				]}
 				onChange={(key) => onChange({ ...binding, key })}
+				// Which value it follows: there's no default one.
+				hasNoDefault
 				hint={
 					kind === "color"
 						? `A value holding a colour (red, #ff0000, rgb(), hsl()) is used as it is; a number mixes the low and high colours below. ${now}`

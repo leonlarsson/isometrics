@@ -1,13 +1,16 @@
 import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
-import { DataBindingSchema, type TLighting } from "#/scene/schema";
+import { DataBindingSchema, LightingSchema, type TLighting } from "#/scene/schema";
 import { BALANCED_CONTRAST, formatHour, skyLightAt } from "#/scene/sun";
 
 import { FollowDataNote } from "./FollowDataNote";
-import { ColorField, Hint, Section, SelectField, SliderField } from "./fields";
+import { ColorField, Hint, resetToDefault, Section, SelectField, SliderField } from "./fields";
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
+
+/** A new world's time and light, for Default / Reset (ADR-0105). */
+const LIGHTING_DEFAULTS = LightingSchema.parse({});
 
 /** Times of day a click away. */
 const PRESETS: { label: string; hour: number }[] = [
@@ -123,6 +126,12 @@ export const LightTab = () => {
 							: source,
 					)}
 					onChange={(timeSource) => set("timeSource", timeSource)}
+					inherit={resetToDefault(
+						lighting.timeSource,
+						LIGHTING_DEFAULTS.timeSource,
+						() => set("timeSource", LIGHTING_DEFAULTS.timeSource),
+						"a fixed time",
+					)}
 				/>
 
 				{(lighting.timeSource === "fixed" || lighting.timeSource === "cycle") && (
@@ -159,6 +168,12 @@ export const LightTab = () => {
 						step={5}
 						suffix="s"
 						onChange={(dayLength) => set("dayLength", dayLength, "dayLength")}
+						inherit={resetToDefault(
+							lighting.dayLength,
+							LIGHTING_DEFAULTS.dayLength,
+							() => set("dayLength", LIGHTING_DEFAULTS.dayLength),
+							`${LIGHTING_DEFAULTS.dayLength} s`,
+						)}
 						hint="Days pass while motion plays (Space). Pick a time above to jump there."
 					/>
 				)}
@@ -181,6 +196,15 @@ export const LightTab = () => {
 									}
 								})
 							}
+							inherit={resetToDefault(
+								lighting.data.time?.key ?? "",
+								"",
+								() =>
+									commit((s) => {
+										delete s.lighting.data.time;
+									}),
+								"none",
+							)}
 							hint="Its value is the hour, 0–24 (e.g. 18.5 = 18:30)."
 						/>
 

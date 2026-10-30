@@ -2,7 +2,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import { type ReactNode, useId } from "react";
 
 import { Hint } from "./Hint";
-import { type IInherit, InheritAction } from "./InheritAction";
+import { InheritAction, type TResettable } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { type INumberRangeProps, NUMBER_FORMAT, NUMBER_LOCALE, NumberBox } from "./NumberBox";
 import { useSearchMatch } from "./settingsSearch";
@@ -12,7 +12,6 @@ import styles from "./Fields.module.css";
 interface INumberFieldProps extends INumberRangeProps {
 	label: string;
 	suffix?: string;
-	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	hint?: ReactNode;
@@ -30,7 +29,7 @@ export const NumberField = ({
 	inherit,
 	mixed,
 	hint,
-}: INumberFieldProps) => {
+}: INumberFieldProps & TResettable) => {
 	const id = useId();
 	return (
 		<BaseNumberField.Root

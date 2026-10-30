@@ -20,6 +20,16 @@ export interface IInherit {
 	value?: string;
 }
 
+/**
+ * What every setting field is given (ADR-0105): `inherit`, its way back to the
+ * default (Default while there, Reset once changed), or `hasNoDefault` for a
+ * value that is only ever its own (where something stands, a value in the
+ * data), with nothing to go back to. Required, so no field forgets its Reset.
+ */
+export type TResettable =
+	| { inherit: IInherit; hasNoDefault?: never }
+	| { inherit?: never; hasNoDefault: true };
+
 /** The label row's right side: "Default" / "From scene" while inherited, Reset once overridden. */
 export const InheritAction = ({ inherit }: { inherit: IInherit }) => {
 	const { from, inherited, onReset, value } = inherit;

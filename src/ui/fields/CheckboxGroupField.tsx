@@ -4,6 +4,7 @@ import { useId } from "react";
 
 import { Icon } from "../Icon";
 
+import { InheritAction, type TResettable } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { useSearchMatch } from "./settingsSearch";
 
@@ -22,12 +23,13 @@ export const CheckboxGroupField = ({
 	options,
 	value,
 	onChange,
-}: ICheckboxGroupFieldProps) => {
+	inherit,
+}: ICheckboxGroupFieldProps & TResettable) => {
 	const id = useId();
 	return (
 		// Stacked: the checkboxes need the panel's width, not just the control column.
 		<div className={styles.field} data-stacked="" data-search-match={useSearchMatch(label)}>
-			<LabelRow label={label} id={id} />
+			<LabelRow label={label} id={id} action={inherit && <InheritAction inherit={inherit} />} />
 
 			<CheckboxGroup
 				aria-labelledby={id}

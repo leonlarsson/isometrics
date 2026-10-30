@@ -4,6 +4,7 @@ import { Button, IconButton } from "../Button";
 
 import { ClockInput } from "./ClockInput";
 import { Field } from "./Field";
+import type { TResettable } from "./InheritAction";
 import { dragPeriods, type ITimePeriod, periodSpans, type TPeriodDrag } from "./periods";
 
 import styles from "./Fields.module.css";
@@ -33,7 +34,8 @@ export const PeriodsField = ({
 	newPeriod = { from: 18, until: 23 },
 	hint,
 	mixed,
-}: IPeriodsFieldProps) => {
+	inherit,
+}: IPeriodsFieldProps & TResettable) => {
 	const change = (index: number, next: Partial<ITimePeriod>) =>
 		onChange(periods.map((period, i) => (i === index ? { ...period, ...next } : period)));
 	const strip = useRef<HTMLDivElement>(null);
@@ -74,7 +76,7 @@ export const PeriodsField = ({
 		onChange(next);
 	};
 	return (
-		<Field label={label} hint={hint} mixed={mixed} stacked>
+		<Field label={label} hint={hint} mixed={mixed} stacked inherit={inherit}>
 			{(id) => (
 				<div className={styles.periods} id={id}>
 					{periods.map((period, index) => (

@@ -3,7 +3,7 @@ import { pointWidth, ROAD_KIND_LABELS, roadEnds, type TRoadEnd } from "#/scene/r
 import type { TRoad } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton } from "./Button";
-import { GroupLabel, Hint, Kbd, Section, SliderField, VectorField } from "./fields";
+import { GroupLabel, Hint, Kbd, resetToDefault, Section, SliderField, VectorField } from "./fields";
 
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
@@ -62,6 +62,7 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 			}
 		>
 			<VectorField
+				hasNoDefault
 				label="Position"
 				axes={["X", "Z"]}
 				values={[point[0], point[1]]}
@@ -73,6 +74,12 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 			/>
 
 			<SliderField
+				inherit={resetToDefault(
+					point[2],
+					0,
+					() => store().setRoadPointHeight(road.id, index, 0),
+					"on the ground",
+				)}
 				label="Altitude"
 				value={point[2]}
 				min={0}
@@ -176,6 +183,16 @@ export const RoadPointsPanel = ({ road, indices }: { road: TRoad; indices: reado
 			}
 		>
 			<SliderField
+				inherit={resetToDefault(
+					points.every((point) => point[2] === 0),
+					true,
+					() => {
+						for (const index of indices) {
+							store().setRoadPointHeight(road.id, index, 0, coalesce("height"));
+						}
+					},
+					"on the ground",
+				)}
 				label="Altitude"
 				value={last[2]}
 				mixed={differ(points.map((point) => point[2]))}

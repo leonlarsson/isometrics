@@ -4,7 +4,7 @@ import type { TBindingKind } from "#/parts/dataBinding";
 import { DataBindingSchema, type TDataBinding, type TDataEntry } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
-import { SelectField } from "./fields";
+import { resetToDefault, SelectField } from "./fields";
 
 interface IDataDrivenFieldProps {
 	/** How the setting reads a data value: switched on and off, a number, or a colour. */
@@ -66,6 +66,12 @@ export const DataDrivenField = ({
 						source === "data" ? DataBindingSchema.parse({ key: data[0]?.key ?? "" }) : null,
 					)
 				}
+				inherit={resetToDefault(
+					binding ? "data" : "hand",
+					"hand",
+					() => onBindingChange(null),
+					"by hand",
+				)}
 			/>
 
 			{binding ? (

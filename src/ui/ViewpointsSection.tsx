@@ -5,7 +5,7 @@ import { currentView } from "#/render/viewpoints";
 
 import { Button, IconButton, IconButtonGroup } from "./Button";
 import { FieldOfViewField } from "./FieldOfViewField";
-import { Hint, Section, SelectField, TextField } from "./fields";
+import { Hint, resetToDefault, Section, SelectField, TextField } from "./fields";
 import { List, ListItem } from "./List";
 import { moodName } from "./MoodsSection";
 
@@ -132,6 +132,15 @@ export const ViewpointsSection = () => {
 							{ coalesce: `viewpoint:${active.id}:description` },
 						)
 					}
+					inherit={resetToDefault(
+						active.description,
+						"",
+						() =>
+							store().updateViewpoint(active.id, (v) => {
+								v.description = "";
+							}),
+						"none",
+					)}
 				/>
 			)}
 

@@ -7,6 +7,7 @@ import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
+import { round } from "#/lib/math";
 import {
 	COLOR_DATA,
 	colorSettingOf,
@@ -16,7 +17,7 @@ import {
 import { comesOnOf, lightDefaults } from "#/parts/lightModel";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
-import { AREA_KIND_LABELS } from "#/scene/areas";
+import { AREA_KIND_LABELS, groundHeightAt } from "#/scene/areas";
 import type { TColorSettingChange } from "#/scene/objectSettings";
 import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -26,7 +27,7 @@ import { CopyPasteMenu } from "./CopyPasteMenu";
 import { DataDrivenField } from "./DataDrivenField";
 import { LightCopyPasteMenu } from "./EntityInspector";
 import { FollowDataNote } from "./FollowDataNote";
-import { ColorField, FieldGroup, Hint, Kbd, Section, SliderField } from "./fields";
+import { ColorField, FieldGroup, Hint, Kbd, resetToDefault, Section, SliderField } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { LightSettings, type TLightSettingKey } from "./LightSettings";
 import { List, ListItem } from "./List";
@@ -192,6 +193,10 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 	const writeAll = writeTo(entities);
 	const edit = (field: string, recipe: (entity: Draft<TEntity>) => void) =>
 		writeAll((id, options) => useEditor.getState().updateEntity(id, recipe, options), field);
+	const areas = useEditor((s) => s.scene.areas);
+	/** Where an object stands on the ground under it, its altitude's default (ADR-0098). */
+	const onTheGround = (entity: Pick<TEntity, "position">) =>
+		round(groundHeightAt(areas, entity.position));
 
 	return (
 		<Section
@@ -217,6 +222,15 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 								e.rotation = [e.rotation[0], v, e.rotation[2]];
 							})
 						}
+						inherit={resetToDefault(
+							entities.every((entity) => entity.rotation[1] === 0),
+							true,
+							() =>
+								edit("rotation", (e) => {
+									e.rotation = [e.rotation[0], 0, e.rotation[2]];
+								}),
+							"0°",
+						)}
 					/>
 
 					<SliderField
@@ -232,6 +246,15 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 								e.scale = v;
 							})
 						}
+						inherit={resetToDefault(
+							entities.every((entity) => entity.scale === 1),
+							true,
+							() =>
+								edit("scale", (e) => {
+									e.scale = 1;
+								}),
+							"1×",
+						)}
 					/>
 
 					<SliderField
@@ -242,10 +265,19 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 						max={20}
 						step={0.1}
 						onChange={(v) =>
-							edit("elevation", (e) => {
+							edit("altitude", (e) => {
 								e.altitude = v;
 							})
 						}
+						inherit={resetToDefault(
+							entities.every((entity) => round(entity.altitude) === onTheGround(entity)),
+							true,
+							() =>
+								edit("altitude", (e) => {
+									e.altitude = onTheGround(e);
+								}),
+							"on the ground",
+						)}
 					/>
 				</>
 			)}
@@ -287,6 +319,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 					key={spec.key}
 					spec={spec}
 					value={props.at(-1)?.[spec.key]}
+					fallback={(part.schema.parse({}) as Record<string, unknown>)[spec.key]}
 					mixed={differ(props.map((values) => values[spec.key]))}
 					data={data}
 					onChange={(v) =>

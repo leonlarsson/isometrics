@@ -1,13 +1,19 @@
 import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
-import { BRUSH_MIXES, PAINT_DENSITY, PAINT_SIZE, type TPaintMode } from "#/editor/paint";
+import {
+	BRUSH_MIXES,
+	DEFAULT_BRUSH,
+	PAINT_DENSITY,
+	PAINT_SIZE,
+	type TPaintMode,
+} from "#/editor/paint";
 import { useEditor } from "#/editor/store";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 
 import { Button } from "./Button";
 import { ChipGroup } from "./ChipGroup";
-import { ComboboxField, type IComboboxGroup, Kbd, SliderField } from "./fields";
+import { ComboboxField, type IComboboxGroup, Kbd, resetToDefault, SliderField } from "./fields";
 
 import styles from "./PaintBar.module.css";
 
@@ -94,6 +100,12 @@ const PaintControls = () => {
 						value={brush.brushId}
 						groups={BRUSH_GROUPS}
 						onChange={(brushId) => setPaintBrush({ brushId })}
+						inherit={resetToDefault(
+							brush.brushId,
+							DEFAULT_BRUSH.brushId,
+							() => setPaintBrush({ brushId: DEFAULT_BRUSH.brushId }),
+							BRUSH_MIXES.find((mix) => mix.id === DEFAULT_BRUSH.brushId)?.name,
+						)}
 						placeholder="Search parts and mixes…"
 					/>
 				</div>
@@ -106,6 +118,9 @@ const PaintControls = () => {
 						max={PAINT_SIZE.max}
 						step={0.5}
 						onChange={(size) => setPaintBrush({ size })}
+						inherit={resetToDefault(brush.size, DEFAULT_BRUSH.size, () =>
+							setPaintBrush({ size: DEFAULT_BRUSH.size }),
+						)}
 					/>
 				</div>
 
@@ -117,6 +132,9 @@ const PaintControls = () => {
 						max={PAINT_DENSITY.max}
 						step={0.5}
 						onChange={(density) => setPaintBrush({ density })}
+						inherit={resetToDefault(brush.density, DEFAULT_BRUSH.density, () =>
+							setPaintBrush({ density: DEFAULT_BRUSH.density }),
+						)}
 					/>
 				</div>
 			</div>

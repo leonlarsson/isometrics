@@ -266,6 +266,12 @@ export const LightSettings = ({
 							mixed={mixed("schedule")}
 							newPeriod={NEW_PERIOD}
 							onChange={(periods) => onChange({ schedule: periods }, "schedule")}
+							inherit={{
+								from: "default",
+								inherited: setting?.schedule == null,
+								onReset: () => onChange({ schedule: null }),
+								value: "none: never on",
+							}}
 							hint={
 								schedule.length === 0
 									? "With no periods it's never on. Add the times it should be on, like a timer."

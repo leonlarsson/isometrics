@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Field } from "./Field";
+import type { TResettable } from "./InheritAction";
 import { Input } from "./Input";
 
 import styles from "./Fields.module.css";
@@ -24,9 +25,10 @@ export const TextField = ({
 	multiline = false,
 	hint,
 	mixed,
-}: ITextFieldProps) => {
+	inherit,
+}: ITextFieldProps & TResettable) => {
 	return (
-		<Field label={label} hint={hint} mixed={mixed} stacked={multiline}>
+		<Field label={label} hint={hint} mixed={mixed} stacked={multiline} inherit={inherit}>
 			{(id) =>
 				multiline ? (
 					<textarea

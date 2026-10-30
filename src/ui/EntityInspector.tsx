@@ -4,10 +4,11 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { normalizeDegrees, wrapDegrees } from "#/lib/math";
+import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
+import { groundHeightAt } from "#/scene/areas";
 import {
 	polylineLength,
 	ROAD_KIND_LABELS,
@@ -17,7 +18,10 @@ import {
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 } from "#/scene/roads";
-import type { TEntity, TTurnStyle, TVec3 } from "#/scene/schema";
+import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
+
+/** A vehicle's driving as a new one has it, for Default / Reset. */
+const FOLLOW_DEFAULTS = FollowSchema.parse({ roadId: "" });
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
@@ -27,6 +31,7 @@ import {
 	CheckboxGroupField,
 	formatClock,
 	Hint,
+	resetToDefault,
 	Section,
 	SelectField,
 	SliderField,
@@ -57,6 +62,7 @@ const KeyPicker = ({
 			options={data.map((entry) => ({ value: entry.key, label: entry.name || entry.key }))}
 			value={selected}
 			onChange={onChange}
+			inherit={resetToDefault(selected, [], () => onChange([]), "none")}
 		/>
 	);
 };
@@ -76,6 +82,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const duplicateEntity = useEditor((s) => s.duplicateEntity);
 	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
+	const areas = useEditor((s) => s.scene.areas);
 
 	return (
 		<>
@@ -114,6 +121,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							e.name = v;
 						})
 					}
+					inherit={resetToDefault(
+						entity.name,
+						"",
+						() =>
+							edit("name", (e) => {
+								e.name = "";
+							}),
+						partName(part),
+					)}
 				/>
 			</Section>
 
@@ -136,6 +152,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 								coalesce: `${entity.id}:position`,
 							});
 						}}
+						hasNoDefault
 					/>
 				)}
 
@@ -154,6 +171,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 								e.rotation = [e.rotation[0], v, e.rotation[2]];
 							})
 						}
+						inherit={resetToDefault(
+							entity.rotation[1],
+							0,
+							() =>
+								edit("rotation", (e) => {
+									e.rotation = [e.rotation[0], 0, e.rotation[2]];
+								}),
+							"0°",
+						)}
 					/>
 				) : (
 					<VectorField
@@ -168,6 +194,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 								e.rotation = next;
 							})
 						}
+						inherit={resetToDefault(
+							entity.rotation,
+							[0, 0, 0],
+							() =>
+								edit("rotation", (e) => {
+									e.rotation = [0, 0, 0];
+								}),
+							"upright, facing +z",
+						)}
 					/>
 				)}
 
@@ -183,6 +218,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							e.scale = v;
 						})
 					}
+					inherit={resetToDefault(
+						entity.scale,
+						1,
+						() =>
+							edit("scale", (e) => {
+								e.scale = 1;
+							}),
+						"1×",
+					)}
 				/>
 
 				<SliderField
@@ -193,10 +237,20 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					sliderMin={-5}
 					step={0.1}
 					onChange={(v) =>
-						edit("elevation", (e) => {
+						edit("altitude", (e) => {
 							e.altitude = v;
 						})
 					}
+					// Its default is standing on the ground under it (ADR-0098).
+					inherit={resetToDefault(
+						round(entity.altitude),
+						round(groundHeightAt(areas, entity.position)),
+						() =>
+							edit("altitude", (e) => {
+								e.altitude = round(groundHeightAt(areas, e.position));
+							}),
+						"on the ground",
+					)}
 				/>
 
 				{!following && (
@@ -395,6 +449,15 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 									e.label.isShown = on;
 								})
 							}
+							inherit={resetToDefault(
+								entity.label.isShown,
+								false,
+								() =>
+									edit("label", (e) => {
+										e.label.isShown = false;
+									}),
+								"hidden",
+							)}
 						/>
 					</>
 				}
@@ -410,6 +473,15 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 									e.label.title = v;
 								})
 							}
+							inherit={resetToDefault(
+								entity.label.title,
+								"",
+								() =>
+									edit("label.title", (e) => {
+										e.label.title = "";
+									}),
+								"the object's name",
+							)}
 						/>
 
 						<KeyPicker
@@ -431,6 +503,15 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 									e.label.offset[i] = v;
 								})
 							}
+							inherit={resetToDefault(
+								entity.label.offset,
+								NO_LABEL.offset,
+								() =>
+									edit("label.offset", (e) => {
+										e.label.offset = [...NO_LABEL.offset];
+									}),
+								NO_LABEL.offset.join(", "),
+							)}
 						/>
 					</>
 				) : (
@@ -454,6 +535,15 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							e.details.description = v;
 						})
 					}
+					inherit={resetToDefault(
+						entity.details.description,
+						"",
+						() =>
+							edit("details.description", (e) => {
+								e.details.description = "";
+							}),
+						"none",
+					)}
 				/>
 
 				<KeyPicker
@@ -521,6 +611,15 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 							: null;
 					})
 				}
+				inherit={resetToDefault(
+					entity.follow?.roadId ?? "",
+					"",
+					() =>
+						edit("follow", (e) => {
+							e.follow = null;
+						}),
+					"parked",
+				)}
 			/>
 
 			{entity.follow && (
@@ -538,6 +637,17 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 								}
 							})
 						}
+						inherit={resetToDefault(
+							entity.follow.speed,
+							FOLLOW_DEFAULTS.speed,
+							() =>
+								edit("follow.speed", (e) => {
+									if (e.follow) {
+										e.follow.speed = FOLLOW_DEFAULTS.speed;
+									}
+								}),
+							`${FOLLOW_DEFAULTS.speed}`,
+						)}
 					/>
 
 					<SliderField
@@ -547,24 +657,46 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 						max={followedRoadLength}
 						step={0.5}
 						onChange={(v) =>
-							edit("follow.offset", (e) => {
+							edit("follow.startDistance", (e) => {
 								if (e.follow) {
 									e.follow.startDistance = v;
 								}
 							})
 						}
+						inherit={resetToDefault(
+							entity.follow.startDistance,
+							0,
+							() =>
+								edit("follow.startDistance", (e) => {
+									if (e.follow) {
+										e.follow.startDistance = 0;
+									}
+								}),
+							"the road's first point",
+						)}
 					/>
 
 					<SwitchField
 						label="Drive the other way"
 						checked={entity.follow.drivesTheOtherWay}
 						onChange={(v) =>
-							edit("follow.reverse", (e) => {
+							edit("follow.drivesTheOtherWay", (e) => {
 								if (e.follow) {
 									e.follow.drivesTheOtherWay = v;
 								}
 							})
 						}
+						inherit={resetToDefault(
+							entity.follow.drivesTheOtherWay,
+							false,
+							() =>
+								edit("follow.drivesTheOtherWay", (e) => {
+									if (e.follow) {
+										e.follow.drivesTheOtherWay = false;
+									}
+								}),
+							"off",
+						)}
 					/>
 
 					<SelectField<TTurnStyle>

@@ -61,7 +61,14 @@ export const WorldsDialog = ({ open, onOpenChange }: IWorldsDialogProps) => {
 			>
 				<StorageMeter />
 
-				<TextField label="Search" value={query} onChange={setQuery} placeholder="Search by title" />
+				{/* What to look for, not a setting: nothing to go back to. */}
+				<TextField
+					label="Search"
+					value={query}
+					onChange={setQuery}
+					placeholder="Search by title"
+					hasNoDefault
+				/>
 
 				{shown.length === 0 ? (
 					<Hint>{needle ? `No world matches “${query.trim()}”.` : "No saved worlds yet."}</Hint>

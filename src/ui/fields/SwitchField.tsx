@@ -2,7 +2,7 @@ import { Switch } from "@base-ui/react/switch";
 import type { ReactNode } from "react";
 
 import { Hint } from "./Hint";
-import { type IInherit, InheritAction } from "./InheritAction";
+import { InheritAction, type TResettable } from "./InheritAction";
 import { MixedTag } from "./MixedTag";
 import { useSearchMatch } from "./settingsSearch";
 
@@ -12,8 +12,6 @@ interface ISwitchFieldProps {
 	label: string;
 	checked: boolean;
 	onChange: (checked: boolean) => void;
-	/** Default / Reset at the row's end (ADR-0027). */
-	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	hint?: ReactNode;
@@ -27,7 +25,7 @@ export const SwitchField = ({
 	inherit,
 	mixed,
 	hint,
-}: ISwitchFieldProps) => {
+}: ISwitchFieldProps & TResettable) => {
 	const match = useSearchMatch(label);
 	const wrapped = Boolean(inherit || mixed || hint);
 	const field = (

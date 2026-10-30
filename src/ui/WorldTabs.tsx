@@ -2,9 +2,11 @@ import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
 import { GROUND } from "#/scene/ground";
 import { changeColorSetting } from "#/scene/objectSettings";
-import { TURN_STYLE_OPTIONS } from "#/scene/roads";
+import { TURN_STYLE_LABELS, TURN_STYLE_OPTIONS } from "#/scene/roads";
 import {
 	OnScreenSchema,
+	SCENE_VERSION,
+	SceneSchema,
 	type TDrivingSide,
 	type TOnScreen,
 	type TThemePreference,
@@ -12,11 +14,22 @@ import {
 } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
-import { Hint, Section, SelectField, SliderField, SwitchField, TextField } from "./fields";
+import {
+	Hint,
+	resetToDefault,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { ColorSettingFields } from "./PartSettings";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
 const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
+
+/** A new world's settings, for Default / Reset (ADR-0105). */
+const WORLD_DEFAULTS = SceneSchema.parse({ version: SCENE_VERSION });
 
 const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
 	{ key: "showsTitle", label: "Show the title" },
@@ -92,6 +105,11 @@ export const WorldTab = () => {
 		<>
 			<Section id="world.world" icon="globe" title="World" keywords="name heading">
 				<TextField
+					inherit={resetToDefault(scene.meta.title, WORLD_DEFAULTS.meta.title, () =>
+						commit((s) => {
+							s.meta.title = WORLD_DEFAULTS.meta.title;
+						}),
+					)}
 					label="Title"
 					value={scene.meta.title}
 					onChange={(v) =>
@@ -105,6 +123,15 @@ export const WorldTab = () => {
 				/>
 
 				<TextField
+					inherit={resetToDefault(
+						scene.meta.subtitle,
+						"",
+						() =>
+							commit((s) => {
+								s.meta.subtitle = "";
+							}),
+						"none",
+					)}
 					label="Subtitle"
 					value={scene.meta.subtitle}
 					onChange={(v) =>
@@ -118,6 +145,15 @@ export const WorldTab = () => {
 				/>
 
 				<SelectField<TThemePreference>
+					inherit={resetToDefault(
+						scene.theme,
+						WORLD_DEFAULTS.theme,
+						() =>
+							commit((s) => {
+								s.theme = WORLD_DEFAULTS.theme;
+							}),
+						"match device",
+					)}
 					label="Theme"
 					value={scene.theme}
 					options={[
@@ -135,6 +171,11 @@ export const WorldTab = () => {
 
 			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
 				<SliderField
+					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
+						commit((s) => {
+							s.ground.width = WORLD_DEFAULTS.ground.width;
+						}),
+					)}
 					label="Width"
 					value={scene.ground.width}
 					min={8}
@@ -151,6 +192,11 @@ export const WorldTab = () => {
 				/>
 
 				<SliderField
+					inherit={resetToDefault(scene.ground.depth, WORLD_DEFAULTS.ground.depth, () =>
+						commit((s) => {
+							s.ground.depth = WORLD_DEFAULTS.ground.depth;
+						}),
+					)}
 					label="Depth"
 					value={scene.ground.depth}
 					min={8}
@@ -206,6 +252,11 @@ export const TrafficTab = () => {
 			keywords="vehicles cars driving roads"
 		>
 			<SelectField<TDrivingSide>
+				inherit={resetToDefault(scene.traffic.drivingSide, WORLD_DEFAULTS.traffic.drivingSide, () =>
+					commit((s) => {
+						s.traffic.drivingSide = WORLD_DEFAULTS.traffic.drivingSide;
+					}),
+				)}
 				label="Vehicles drive on the"
 				value={scene.traffic.drivingSide}
 				options={[
@@ -220,6 +271,15 @@ export const TrafficTab = () => {
 			/>
 
 			<SelectField<TTurnStyle>
+				inherit={resetToDefault(
+					scene.traffic.turnStyle,
+					WORLD_DEFAULTS.traffic.turnStyle,
+					() =>
+						commit((s) => {
+							s.traffic.turnStyle = WORLD_DEFAULTS.traffic.turnStyle;
+						}),
+					TURN_STYLE_LABELS[WORLD_DEFAULTS.traffic.turnStyle].toLowerCase(),
+				)}
 				label="Vehicles turn"
 				value={scene.traffic.turnStyle}
 				options={TURN_STYLE_OPTIONS}
@@ -252,6 +312,11 @@ export const TrafficTab = () => {
 			/>
 
 			<SwitchField
+				inherit={resetToDefault(scene.traffic.keepsDistance, true, () =>
+					commit((s) => {
+						s.traffic.keepsDistance = true;
+					}),
+				)}
 				label="Keep distance"
 				checked={scene.traffic.keepsDistance}
 				onChange={(v) =>
@@ -263,6 +328,11 @@ export const TrafficTab = () => {
 
 			{scene.traffic.keepsDistance ? (
 				<SwitchField
+					inherit={resetToDefault(scene.traffic.overtakes, true, () =>
+						commit((s) => {
+							s.traffic.overtakes = true;
+						}),
+					)}
 					label="Overtake slower vehicles"
 					checked={scene.traffic.overtakes}
 					onChange={(v) =>

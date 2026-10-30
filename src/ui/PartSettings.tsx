@@ -20,6 +20,8 @@ import {
 	ColorField,
 	FieldGroup,
 	Hint,
+	type IInherit,
+	resetToDefault,
 	Section,
 	SelectField,
 	SliderField,
@@ -55,6 +57,7 @@ const DataKeyField = ({
 	onChange,
 	mixed,
 	hint,
+	inherit,
 }: {
 	label: string;
 	value: string;
@@ -62,12 +65,14 @@ const DataKeyField = ({
 	onChange: (key: string) => void;
 	mixed?: boolean;
 	hint?: ReactNode;
+	inherit: IInherit;
 }) => {
 	return (
 		<SelectField
 			label={label}
 			value={value}
 			mixed={mixed}
+			inherit={inherit}
 			options={[
 				{ value: "", label: "None" },
 				...data.map((entry) => ({ value: entry.key, label: entry.name || entry.key })),
@@ -84,6 +89,7 @@ const DataKeyField = ({
 export const PropField = ({
 	spec,
 	value,
+	fallback,
 	data,
 	onChange,
 	mixed,
@@ -91,6 +97,8 @@ export const PropField = ({
 }: {
 	spec: TFieldSpec;
 	value: unknown;
+	/** The part's default for it, for Default / Reset (ADR-0105). */
+	fallback: unknown;
 	/** The world's data, for a field that picks a data value. */
 	data: readonly TDataEntry[];
 	onChange: (value: unknown) => void;
@@ -98,6 +106,14 @@ export const PropField = ({
 	mixed?: boolean;
 	hint?: ReactNode;
 }) => {
+	const inherit = resetToDefault(
+		value,
+		fallback,
+		() => onChange(fallback),
+		spec.type === "select"
+			? spec.options.find((option) => option.value === fallback)?.label.toLowerCase()
+			: undefined,
+	);
 	switch (spec.type) {
 		case "number":
 			return (
@@ -111,6 +127,7 @@ export const PropField = ({
 						onChange={onChange}
 						mixed={mixed}
 						hint={hint}
+						inherit={inherit}
 					/>
 
 					{spec.presets && (
@@ -135,6 +152,7 @@ export const PropField = ({
 					onChange={onChange}
 					mixed={mixed}
 					hint={hint}
+					inherit={inherit}
 				/>
 			);
 		case "text":
@@ -146,6 +164,7 @@ export const PropField = ({
 					onChange={onChange}
 					mixed={mixed}
 					hint={hint}
+					inherit={inherit}
 				/>
 			);
 		case "dataKey":
@@ -157,6 +176,7 @@ export const PropField = ({
 					onChange={onChange}
 					mixed={mixed}
 					hint={hint}
+					inherit={inherit}
 				/>
 			);
 		case "select":
@@ -168,6 +188,7 @@ export const PropField = ({
 					onChange={onChange}
 					mixed={mixed}
 					hint={hint}
+					inherit={inherit}
 				/>
 			);
 	}
@@ -199,6 +220,7 @@ export const PartShapeSection = ({
 	onChange: (key: string, value: unknown) => void;
 }) => {
 	const props = resolveProps(part, object.props);
+	const defaults = part.schema.parse({}) as Record<string, unknown>;
 	return (
 		<Section
 			id="shape.part"
@@ -214,6 +236,7 @@ export const PartShapeSection = ({
 					key={spec.key}
 					spec={spec}
 					value={props[spec.key]}
+					fallback={defaults[spec.key]}
 					data={data}
 					onChange={(value) => onChange(spec.key, value)}
 					hint={showFileNames ? <FileName name={spec.key} /> : undefined}

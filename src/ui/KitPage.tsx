@@ -20,6 +20,7 @@ import {
 	NumberField,
 	PeriodsField,
 	RadioGroupField,
+	resetToDefault,
 	Section,
 	SelectField,
 	SliderField,
@@ -39,35 +40,51 @@ import { TooltipProvider } from "./Tooltip";
 
 import styles from "./KitPage.module.css";
 
+/** What the demos start at: their defaults, so each shows Default and, once changed, Reset (ADR-0105). */
+const START = {
+	text: "Brightwater",
+	number: 12.5,
+	slider: 2.4,
+	size: "blocks",
+	periods: [
+		{ from: 5, until: 8 },
+		{ from: 19, until: 24 },
+	] as ITimePeriod[],
+	split: [60, 30, 10],
+	vector: [4, -2, 1],
+	choice: "pillars" as "pillars" | "embankment",
+	comboValue: "birch",
+	on: true,
+	keys: ["population"],
+	color: "#4a64e0",
+};
+
 /**
  * Every shared component on one page, in both themes (ADR-0025). Dev only:
  * open /kit while `pnpm dev` runs to check a change to the kit at a glance.
  */
 export const KitPage = () => {
 	const [dark, setDark] = useState(false);
-	const [text, setText] = useState("Brightwater");
-	const [number, setNumber] = useState(12.5);
-	const [slider, setSlider] = useState(2.4);
+	const [text, setText] = useState(START.text);
+	const [number, setNumber] = useState(START.number);
+	const [slider, setSlider] = useState(START.slider);
 	const [ticked, setTicked] = useState(true);
 	const [startFrom, setStartFrom] = useState("blank");
-	const [size, setSize] = useState("blocks");
+	const [size, setSize] = useState(START.size);
 	const [sectionOpen, setSectionOpen] = useState(true);
-	const [periods, setPeriods] = useState<ITimePeriod[]>([
-		{ from: 5, until: 8 },
-		{ from: 19, until: 24 },
-	]);
-	const [split, setSplit] = useState<number[]>([60, 30, 10]);
-	const [vector, setVector] = useState([4, -2, 1]);
-	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
+	const [periods, setPeriods] = useState<ITimePeriod[]>(START.periods);
+	const [split, setSplit] = useState<number[]>(START.split);
+	const [vector, setVector] = useState(START.vector);
+	const [choice, setChoice] = useState<"pillars" | "embankment">(START.choice);
 	const [chip, setChip] = useState("all");
-	const [comboValue, setComboValue] = useState("birch");
-	const [on, setOn] = useState(true);
+	const [comboValue, setComboValue] = useState(START.comboValue);
+	const [on, setOn] = useState(START.on);
 	const [rowName, setRowName] = useState("Harbour depot");
 	const [renaming, setRenaming] = useState(false);
 	const [rowHidden, setRowHidden] = useState(false);
 	const [order, setOrder] = useState(["Overview", "Harbour", "Stadium"]);
-	const [keys, setKeys] = useState(["population"]);
-	const [color, setColor] = useState("#4a64e0");
+	const [keys, setKeys] = useState(START.keys);
+	const [color, setColor] = useState(START.color);
 	const [tab, setTab] = useState<"one" | "two">("one");
 	const [railTab, setRailTab] = useState<"world" | "sky" | "object">("world");
 	const [selected, setSelected] = useState("ring");
@@ -86,7 +103,12 @@ export const KitPage = () => {
 					<header className={styles.header}>
 						<h1>UI kit</h1>
 
-						<SwitchField label="Dark theme" checked={dark} onChange={setDark} />
+						<SwitchField
+							inherit={resetToDefault(dark, false, () => setDark(false))}
+							label="Dark theme"
+							checked={dark}
+							onChange={setDark}
+						/>
 					</header>
 
 					<div className={styles.columns}>
@@ -104,13 +126,19 @@ export const KitPage = () => {
 								}
 							>
 								<TextField
+									inherit={resetToDefault(text, START.text, () => setText(START.text))}
 									label="Text"
 									value={text}
 									onChange={setText}
 									hint="A hint under a field."
 								/>
 
-								<NumberField label="Number (drag the label)" value={number} onChange={setNumber} />
+								<NumberField
+									inherit={resetToDefault(number, START.number, () => setNumber(START.number))}
+									label="Number (drag the label)"
+									value={number}
+									onChange={setNumber}
+								/>
 
 								<SliderField
 									label="Slider"
@@ -128,6 +156,7 @@ export const KitPage = () => {
 								/>
 
 								<VectorField
+									inherit={resetToDefault(vector, START.vector, () => setVector(START.vector))}
 									label="Vector"
 									axes={["X", "Y", "Z"]}
 									values={vector}
@@ -151,6 +180,7 @@ export const KitPage = () => {
 								/>
 
 								<SliderField
+									inherit={resetToDefault(slider, START.slider, () => setSlider(START.slider))}
 									label="Slider, disabled"
 									value={slider}
 									onChange={setSlider}
@@ -162,6 +192,7 @@ export const KitPage = () => {
 								/>
 
 								<SelectField
+									inherit={resetToDefault(choice, START.choice, () => setChoice(START.choice))}
 									label="Select"
 									value={choice}
 									options={[
@@ -171,7 +202,12 @@ export const KitPage = () => {
 									onChange={setChoice}
 								/>
 
-								<SwitchField label="Switch" checked={on} onChange={setOn} />
+								<SwitchField
+									inherit={resetToDefault(on, START.on, () => setOn(START.on))}
+									label="Switch"
+									checked={on}
+									onChange={setOn}
+								/>
 
 								<SwitchField
 									label="Switch with a default"
@@ -187,6 +223,7 @@ export const KitPage = () => {
 								/>
 
 								<CheckboxGroupField
+									inherit={resetToDefault(keys, START.keys, () => setKeys(START.keys))}
 									label="Checkbox group"
 									options={[
 										{ value: "population", label: "Population" },
@@ -231,9 +268,19 @@ export const KitPage = () => {
 								>
 									<RailTabPanel value={railTab}>
 										<Section id="kit.foldable" icon="palette" title="Foldable panel">
-											<ColorField label="Colour" value={color} onChange={setColor} />
+											<ColorField
+												inherit={resetToDefault(color, START.color, () => setColor(START.color))}
+												label="Colour"
+												value={color}
+												onChange={setColor}
+											/>
 
-											<SwitchField label="A switch" checked={on} onChange={setOn} />
+											<SwitchField
+												inherit={resetToDefault(on, START.on, () => setOn(START.on))}
+												label="A switch"
+												checked={on}
+												onChange={setOn}
+											/>
 
 											<SwitchField
 												label="A switch with a default"
@@ -255,6 +302,9 @@ export const KitPage = () => {
 										<Section icon="bulb" title="Field groups">
 											<FieldGroup title="Brightness">
 												<SliderField
+													inherit={resetToDefault(slider, START.slider, () =>
+														setSlider(START.slider),
+													)}
 													label="Level"
 													value={slider}
 													min={0}
@@ -263,10 +313,18 @@ export const KitPage = () => {
 													onChange={setSlider}
 												/>
 
-												<SwitchField label="Inside a group" checked={on} onChange={setOn} />
+												<SwitchField
+													inherit={resetToDefault(on, START.on, () => setOn(START.on))}
+													label="Inside a group"
+													checked={on}
+													onChange={setOn}
+												/>
 											</FieldGroup>
 
 											<PeriodsField
+												inherit={resetToDefault(periods, START.periods, () =>
+													setPeriods(START.periods),
+												)}
 												label="On between"
 												periods={periods}
 												onChange={setPeriods}
@@ -274,6 +332,7 @@ export const KitPage = () => {
 											/>
 
 											<SplitField
+												inherit={resetToDefault(split, START.split, () => setSplit(START.split))}
 												label="Split between"
 												parts={[
 													{ id: "windows", label: "Windows", color: "#ffd88a" },
@@ -444,6 +503,9 @@ export const KitPage = () => {
 										/>
 
 										<ComboboxField
+											inherit={resetToDefault(comboValue, START.comboValue, () =>
+												setComboValue(START.comboValue),
+											)}
 											label="Combobox (with a search)"
 											value={comboValue}
 											onChange={setComboValue}
@@ -492,6 +554,7 @@ export const KitPage = () => {
 
 									<Section title="Radio group">
 										<RadioGroupField
+											inherit={resetToDefault(size, START.size, () => setSize(START.size))}
 											label="Ground"
 											value={size}
 											options={[
@@ -598,13 +661,23 @@ export const KitPage = () => {
 										rows: [
 											{
 												id: "switch",
-												field: <SwitchField label="A switch" checked={on} onChange={setOn} />,
+												field: (
+													<SwitchField
+														inherit={resetToDefault(on, START.on, () => setOn(START.on))}
+														label="A switch"
+														checked={on}
+														onChange={setOn}
+													/>
+												),
 											},
 											{
 												id: "slider",
 												keywords: "number",
 												field: (
 													<SliderField
+														inherit={resetToDefault(slider, START.slider, () =>
+															setSlider(START.slider),
+														)}
 														label="A slider"
 														value={slider}
 														min={0}
@@ -630,7 +703,16 @@ export const KitPage = () => {
 										rows: [
 											{
 												id: "colour",
-												field: <ColorField label="Colour" value={color} onChange={setColor} />,
+												field: (
+													<ColorField
+														inherit={resetToDefault(color, START.color, () =>
+															setColor(START.color),
+														)}
+														label="Colour"
+														value={color}
+														onChange={setColor}
+													/>
+												),
 											},
 										],
 									},

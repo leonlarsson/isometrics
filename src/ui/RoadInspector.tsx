@@ -8,17 +8,34 @@ import {
 	pointWidth,
 	polylineLength,
 	ROAD_KIND_LABELS,
+	ROAD_KIND_WIDTH,
 	ROAD_KINDS,
 	roadCenterlineOf,
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 	widthForStyle,
 } from "#/scene/roads";
-import type { TDrivingLane, TRoad, TRoadHeldUpBy, TRoadKind, TTurnStyle } from "#/scene/schema";
+import {
+	RoadSchema,
+	type TDrivingLane,
+	type TRoad,
+	type TRoadHeldUpBy,
+	type TRoadKind,
+	type TTurnStyle,
+} from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import { FollowDataNote } from "./FollowDataNote";
-import { Hint, Section, SelectField, SliderField, SwitchField, TextField } from "./fields";
+import {
+	Hint,
+	resetsAgainst,
+	resetToDefault,
+	Section,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextField,
+} from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
@@ -33,6 +50,25 @@ const useRoadEdit = (road: TRoad) => {
 	const updateRoad = useEditor((s) => s.updateRoad);
 	return (field: string, recipe: (r: Draft<TRoad>) => void) =>
 		updateRoad(road.id, recipe, { coalesce: `${road.id}:${field}` });
+};
+
+/** A new road's settings, for Default / Reset (ADR-0105). */
+const ROAD_DEFAULTS = RoadSchema.parse({
+	id: "road",
+	points: [
+		[0, 0],
+		[1, 0],
+	],
+});
+
+/** Default / Reset for one of the road's settings, against a new road's. */
+const useRoadReset = (road: TRoad) => {
+	const edit = useRoadEdit(road);
+	return resetsAgainst(road, ROAD_DEFAULTS, (key, value) =>
+		edit(String(key), (r) => {
+			Object.assign(r, { [key]: value });
+		}),
+	);
 };
 
 /**
@@ -81,6 +117,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
 	const driving = useEditor((s) => s.scene.traffic.drivingSide);
 	const edit = useRoadEdit(road);
+	const reset = useRoadReset(road);
 	const length = polylineLength(roadCenterlineOf(road), road.loops);
 
 	return (
@@ -110,6 +147,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 				}
 			>
 				<TextField
+					inherit={reset("name", ROAD_KIND_LABELS[road.kind])}
 					label="Name"
 					value={road.name}
 					placeholder={ROAD_KIND_LABELS[road.kind]}
@@ -121,6 +159,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 				/>
 
 				<SelectField<TRoadKind>
+					hasNoDefault
 					label="Kind"
 					value={road.kind}
 					options={STYLE_OPTIONS}
@@ -136,6 +175,15 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
 				{!isHiddenRoute(road.kind) && (
 					<SelectField<TDrivingLane>
+						inherit={resetToDefault(
+							road.traffic.drivingLane,
+							"side",
+							() =>
+								edit("lane", (r) => {
+									r.traffic.drivingLane = "side";
+								}),
+							"in lanes",
+						)}
 						label="Vehicles drive"
 						value={road.traffic.drivingLane}
 						options={[
@@ -203,6 +251,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	const edit = useRoadEdit(road);
+	const reset = useRoadReset(road);
 	const elevated = road.points.some((p) => p[2] > 0);
 	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
 
@@ -221,6 +270,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				keywords="shape width curves loop points"
 			>
 				<SliderField
+					inherit={reset("width", undefined, ROAD_KIND_WIDTH[road.kind])}
 					label="Width"
 					value={road.width}
 					min={0.4}
@@ -242,6 +292,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				)}
 
 				<SliderField
+					inherit={reset("cornerRadius")}
 					label="Curves"
 					value={road.cornerRadius}
 					min={0}
@@ -255,6 +306,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				/>
 
 				<SwitchField
+					inherit={reset("loops")}
 					label="Loop (join the ends)"
 					checked={road.loops}
 					onChange={(v) =>
@@ -282,6 +334,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 					{elevated ? (
 						<>
 							<SelectField<TRoadHeldUpBy>
+								inherit={reset("heldUpBy")}
 								label="Held up by"
 								value={road.heldUpBy}
 								options={[
@@ -298,6 +351,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 
 							{road.heldUpBy === "pillars" && (
 								<SliderField
+									inherit={reset("pillarSpacing")}
 									label="Pillar spacing"
 									value={road.pillarSpacing}
 									min={1}
@@ -314,6 +368,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 							{road.heldUpBy === "embankment" && (
 								<>
 									<SliderField
+										inherit={reset("embankmentAngle", `${ROAD_DEFAULTS.embankmentAngle}°`)}
 										label="Embankment slope"
 										value={road.embankmentAngle}
 										min={10}
@@ -329,6 +384,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 									/>
 
 									<SliderField
+										inherit={reset("embankmentWidth", `${ROAD_DEFAULTS.embankmentWidth * 100}%`)}
 										label="Embankment width"
 										value={Math.round(road.embankmentWidth * 100)}
 										min={5}
@@ -348,6 +404,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 							)}
 
 							<SwitchField
+								inherit={reset("showsRailings")}
 								label="Railings"
 								checked={road.showsRailings}
 								onChange={(v) =>
@@ -372,6 +429,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 /** The Look tab: the road's surface colour (by hand or from data) and markings. */
 const RoadLookTab = ({ road }: { road: TRoad }) => {
 	const edit = useRoadEdit(road);
+	const reset = useRoadReset(road);
 
 	return (
 		<>
@@ -390,6 +448,7 @@ const RoadLookTab = ({ road }: { road: TRoad }) => {
 
 				{ROAD_KINDS[road.kind].centreLine && (
 					<SwitchField
+						inherit={reset("showsCentreLine")}
 						label="Centre line"
 						checked={road.showsCentreLine}
 						onChange={(v) =>

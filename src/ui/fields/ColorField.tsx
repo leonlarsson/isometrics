@@ -8,7 +8,7 @@ import { Icon } from "../Icon";
 import { Tooltip } from "../Tooltip";
 
 import { Field } from "./Field";
-import type { IInherit } from "./InheritAction";
+import type { TResettable } from "./InheritAction";
 
 import styles from "./Fields.module.css";
 
@@ -16,8 +16,6 @@ interface IColorFieldProps {
 	label: string;
 	value: string;
 	onChange: (value: string) => void;
-	/** Colours usually default to the part's or theme's colour until changed. */
-	inherit?: IInherit;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	hint?: ReactNode;
@@ -36,7 +34,14 @@ const colorName = (hex: string) => {
  * free colour picker in a popover. Colours are always named, not only shown:
  * not everyone can tell them apart by sight.
  */
-export const ColorField = ({ label, value, onChange, inherit, mixed, hint }: IColorFieldProps) => {
+export const ColorField = ({
+	label,
+	value,
+	onChange,
+	inherit,
+	mixed,
+	hint,
+}: IColorFieldProps & TResettable) => {
 	const name = colorName(value);
 	return (
 		<Field label={label} inherit={inherit} mixed={mixed} hint={hint}>

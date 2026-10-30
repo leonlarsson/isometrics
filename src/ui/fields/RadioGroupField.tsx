@@ -3,6 +3,7 @@ import { RadioGroup } from "@base-ui/react/radio-group";
 import { type ReactNode, useId } from "react";
 
 import { Hint } from "./Hint";
+import { InheritAction, type TResettable } from "./InheritAction";
 import { LabelRow } from "./LabelRow";
 import { useSearchMatch } from "./settingsSearch";
 
@@ -24,11 +25,12 @@ export const RadioGroupField = <TValue extends string>({
 	value,
 	onChange,
 	hint,
-}: IRadioGroupFieldProps<TValue>) => {
+	inherit,
+}: IRadioGroupFieldProps<TValue> & TResettable) => {
 	const id = useId();
 	return (
 		<div className={styles.field} data-search-match={useSearchMatch(label)}>
-			<LabelRow label={label} id={id} />
+			<LabelRow label={label} id={id} action={inherit && <InheritAction inherit={inherit} />} />
 
 			<RadioGroup
 				aria-labelledby={id}
