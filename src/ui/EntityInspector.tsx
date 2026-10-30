@@ -459,6 +459,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 			<Section
 				id="label.details"
+				defaultClosed
 				icon="info"
 				title="Details in View mode"
 				keywords="description stat tiles"

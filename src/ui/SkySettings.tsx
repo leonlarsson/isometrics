@@ -171,6 +171,7 @@ export const BackdropSection = () => {
 	return (
 		<Section
 			id="sky.backdrop"
+			defaultClosed
 			icon="layers"
 			title="Backdrop"
 			keywords="background diorama isometric green screen chroma key gradient colour video"
