@@ -233,6 +233,16 @@ describe("lit panes", () => {
 			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 10 }) } }) })[0],
 		).toBe(1);
 	});
+	it("splits the windows by the object's weights, else the part's", () => {
+		const weights = (lights: Record<string, TEntityLight>) => {
+			const resolved = resolveLights(tower, entity(lights), { palette: night, driving: false });
+			return [resolved.windows.weight, resolved.screens.weight];
+		};
+		expect(weights({})).toEqual([1, 1]);
+		expect(weights({ windows: setting({ weight: 70 }), screens: setting({ weight: 30 }) })).toEqual(
+			[70, 30],
+		);
+	});
 });
 
 describe("when lights come on", () => {
