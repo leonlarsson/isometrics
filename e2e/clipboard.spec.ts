@@ -33,6 +33,7 @@ const lampsAndHouse = async (page: Page) => {
 						strength: 2.5,
 						reach: null,
 						litPanes: null,
+						weight: null,
 						data: {},
 					},
 				},

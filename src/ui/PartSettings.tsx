@@ -17,6 +17,7 @@ import {
 	Section,
 	SelectField,
 	SliderField,
+	SplitField,
 	SwitchField,
 	TextField,
 } from "./fields";
@@ -321,11 +322,51 @@ export const PartLightCards = ({
 	/** `coalesce` names the setting being dragged or typed, so it's one undo step. */
 	onChange: (lightId: string, change: TEntityLightChange, coalesce?: string) => void;
 }) => {
-	// Window lights split the part's windows between them by weight.
-	const windowWeights = (part.lights ?? [])
-		.filter((light) => light.shape === "windows")
-		.reduce((sum, light) => sum + (light.weight ?? 1), 0);
-	return (part.lights ?? []).map((spec) => {
+	// Window lights split the part's windows between them by weight: the object's, else the part's.
+	const windowLights = (part.lights ?? []).filter((light) => light.shape === "windows");
+	const weightOf = (spec: ILightSpec) =>
+		lightSettingsOf(part, object.lights, spec.id).setting?.weight ?? spec.weight ?? 1;
+	const windowWeights = windowLights.reduce((sum, light) => sum + weightOf(light), 0) || 1;
+	const split = windowLights.length > 1 && (
+		<Section
+			key="split"
+			id="lights.split"
+			defaultClosed={startsFolded}
+			remembersOpen={!startsFolded}
+			icon="layers"
+			title="Windows"
+			keywords="split share weight windows panes screens"
+		>
+			<SplitField
+				label="Split between"
+				parts={windowLights.map((spec) => ({
+					id: spec.id,
+					label: spec.name,
+					color: lightDefaults(spec, object, palette).color,
+				}))}
+				weights={windowLights.map(weightOf)}
+				onChange={(percentages) =>
+					windowLights.forEach((spec, i) => {
+						onChange(spec.id, { weight: percentages[i] }, "split");
+					})
+				}
+				inherit={{
+					from: "default",
+					inherited: windowLights.every(
+						(spec) => lightSettingsOf(part, object.lights, spec.id).setting?.weight == null,
+					),
+					onReset: () => {
+						const reset = `split:reset:${performance.now()}`;
+						for (const spec of windowLights) {
+							onChange(spec.id, { weight: null }, reset);
+						}
+					},
+				}}
+				hint={`How the building's windows are shared out between its window lights. Each light's Lit panes is a share of its own. Changing the split moves which panes are whose.${showFileNames ? " In a world's file: weight, on each light." : ""}`}
+			/>
+		</Section>
+	);
+	const cards = (part.lights ?? []).map((spec) => {
 		const { setting, objectMode } = lightSettingsOf(part, object.lights, spec.id);
 		return (
 			<LightSettings
@@ -336,7 +377,7 @@ export const PartLightCards = ({
 				inheritedMode={objectMode}
 				data={data}
 				hour={hour}
-				windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
+				windowShare={spec.shape === "windows" ? weightOf(spec) / windowWeights : undefined}
 				menu={menu?.(spec)}
 				fileName={showFileNames ? <FileName name={spec.id} /> : undefined}
 				startsFolded={startsFolded}
@@ -344,4 +385,5 @@ export const PartLightCards = ({
 			/>
 		);
 	});
+	return split ? [split, ...cards] : cards;
 };

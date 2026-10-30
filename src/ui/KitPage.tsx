@@ -23,6 +23,7 @@ import {
 	Section,
 	SelectField,
 	SliderField,
+	SplitField,
 	SwitchField,
 	TextField,
 	VectorField,
@@ -55,6 +56,7 @@ export const KitPage = () => {
 		{ from: 5, until: 8 },
 		{ from: 19, until: 24 },
 	]);
+	const [split, setSplit] = useState<number[]>([60, 30, 10]);
 	const [vector, setVector] = useState([4, -2, 1]);
 	const [choice, setChoice] = useState<"pillars" | "embankment">("pillars");
 	const [chip, setChip] = useState("all");
@@ -269,6 +271,18 @@ export const KitPage = () => {
 												periods={periods}
 												onChange={setPeriods}
 												hint="Like a timer; a period may run past midnight."
+											/>
+
+											<SplitField
+												label="Split between"
+												parts={[
+													{ id: "windows", label: "Windows", color: "#ffd88a" },
+													{ id: "screens", label: "Screens", color: "#9fd3ff" },
+													{ id: "signs", label: "Signs", color: "#ff9a8a" },
+												]}
+												weights={split}
+												onChange={setSplit}
+												hint="One bar shared out: drag a divider, or use the arrow keys on it."
 											/>
 										</Section>
 									</RailTabPanel>
