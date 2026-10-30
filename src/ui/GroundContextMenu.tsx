@@ -1,6 +1,7 @@
 import { pasteFromClipboard } from "#/editor/clipboard";
 import { rememberUsed } from "#/editor/paletteMemory";
 import { spotOnGrid, useEditor } from "#/editor/store";
+import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { round } from "#/lib/math";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
@@ -20,7 +21,7 @@ const describePoint = ([x, z]: TVec2) => `x ${round(x, 1)}, z ${round(z, 1)}`.re
 
 /**
  * The right-click menu for empty ground (Edit mode): add a part right there,
- * start a road or area from that point, or move the camera. Opened through
+ * start a road, area or fence from that point, or move the camera. Opened through
  * the store (`openGroundMenu`) by render/contextMenu.
  */
 export const GroundContextMenu = () => {
@@ -94,11 +95,24 @@ export const GroundContextMenu = () => {
 				))}
 			</Menu.Submenu>
 
+			<Menu.Submenu icon="fence" label="Draw a fence from here">
+				{FENCE_STYLE_LIST.map((style) => (
+					<Menu.Item
+						key={style.id}
+						label={FENCE_STYLE_LABELS[style.id]}
+						onClick={() => {
+							draw(() => store().startFenceDrawing(style.id));
+							rememberUsed(`fence:${style.id}`);
+						}}
+					/>
+				))}
+			</Menu.Submenu>
+
 			<Menu.Item
 				icon="paste"
 				label="Paste here"
 				shortcut="Ctrl+V"
-				description="Objects, roads or areas copied here or in another world"
+				description="Objects, roads, areas or fences copied here or in another world"
 				onClick={() => pasteFromClipboard({ at: spot() })}
 			/>
 

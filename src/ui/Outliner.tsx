@@ -6,6 +6,7 @@ import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
@@ -22,7 +23,7 @@ import type { TIconName } from "./Icon";
 import { CATEGORY_ICONS } from "./inspectorTabs";
 import { List, ListItem } from "./List";
 import { PaneHeader } from "./PaneHeader";
-import { areaSwatch, roadSwatch } from "./swatches";
+import { areaSwatch, fenceSwatch, roadSwatch } from "./swatches";
 import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./Outliner.module.css";
@@ -43,6 +44,7 @@ interface IOutlinerRow {
 
 const ROADS = "Roads";
 const AREAS = "Areas";
+const FENCES = "Fences";
 const OTHER = "Other";
 
 const keyOf = (item: ISceneItem) => `${item.kind}:${item.id}`;
@@ -131,14 +133,32 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 				}),
 			),
 		),
+		...scene.fences.map((each) =>
+			cachedRow(
+				each,
+				palette,
+				data,
+				(fence): IOutlinerRow => ({
+					item: { kind: "fence", id: fence.id },
+					group: FENCES,
+					name: fence.name,
+					fallback: FENCE_STYLE_LABELS[fence.style],
+					swatch: fenceSwatch(fence, palette, scene.data),
+					hidden: fence.hidden,
+					locked: fence.locked,
+					value: null,
+				}),
+			),
+		),
 	];
 };
 
-/** Groups in palette order, then roads and areas. */
+/** Groups in palette order, then roads, fences and areas. */
 const GROUP_ORDER = [
 	...partsByCategory().map(([category]) => CATEGORY_LABELS[category]),
 	OTHER,
 	ROADS,
+	FENCES,
 	AREAS,
 ];
 
@@ -153,6 +173,7 @@ const GROUP_ICONS: Record<string, TIconName> = {
 	[OTHER]: "cube",
 	[ROADS]: "road",
 	[AREAS]: "area",
+	[FENCES]: "fence",
 };
 
 /** Every word of the query must appear in the row's name, kind or group. */
@@ -302,7 +323,9 @@ export const Outliner = () => {
 				? `road:${s.selectedRoadId}`
 				: s.selectedAreaId
 					? `area:${s.selectedAreaId}`
-					: null,
+					: s.selectedFenceId
+						? `fence:${s.selectedFenceId}`
+						: null,
 	);
 	// Every selected row, the active one included (ADR-0064), as one string so it only changes with them.
 	const selectedKeys = useEditor((s) => s.selectedItems.map(keyOf).join(" "));
@@ -343,6 +366,8 @@ export const Outliner = () => {
 			state.select(item.id);
 		} else if (item.kind === "road") {
 			state.selectRoad(item.id);
+		} else if (item.kind === "fence") {
+			state.selectFence(item.id);
 		} else {
 			state.selectArea(item.id);
 		}

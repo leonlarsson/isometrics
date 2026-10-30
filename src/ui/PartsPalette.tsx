@@ -13,11 +13,12 @@ import { findFreeSpot } from "#/editor/placement";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
+import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolvePartColors, swatchColors } from "#/parts/colorModel";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
-import { usePartThumbnails } from "#/render/thumbnails";
+import { fencePictureKey, usePartThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
 import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
 import { ROAD_STYLE_LABELS } from "#/scene/roads";
@@ -66,6 +67,7 @@ const SECTION_ICONS: Record<string, TIconName> = {
 	recent: "clock",
 	Roads: "road",
 	Areas: "area",
+	Fences: "fence",
 	...Object.fromEntries(
 		(Object.keys(CATEGORY_LABELS) as TPartCategory[]).map((category) => [
 			CATEGORY_LABELS[category],
@@ -84,13 +86,14 @@ const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaType[]).map((type) => ({
 	...AREA_TOOL_INFO[type],
 }));
 
-/** What the chips choose between: roads, areas, then the parts' categories. */
-type TPaletteCategory = "roads" | "areas" | TPartCategory;
+/** What the chips choose between: roads, areas, fences, then the parts' categories. */
+type TPaletteCategory = "roads" | "areas" | "fences" | TPartCategory;
 
 /** Without icons, so they take few rows in the narrow panel; the section's heading has one. */
 const CHIPS: IChip<TPaletteCategory>[] = [
 	{ value: "roads", label: "Roads" },
 	{ value: "areas", label: "Areas" },
+	{ value: "fences", label: "Fences" },
 	...partsByCategory().map(([category]) => ({ value: category, label: CATEGORY_LABELS[category] })),
 ];
 
@@ -171,6 +174,10 @@ export const PartsPalette = () => {
 	const addEntity = useEditor((s) => s.addEntity);
 	const drawingStyle = useEditor((s) => (s.drawing?.target === "road" ? s.drawing.style : null));
 	const drawingArea = useEditor((s) => (s.drawing?.target === "area" ? s.drawing.areaType : null));
+	const drawingFence = useEditor((s) =>
+		s.drawing?.target === "fence" ? (s.drawing.fenceStyle ?? null) : null,
+	);
+	const startFenceDrawing = useEditor((s) => s.startFenceDrawing);
 	const startDrawing = useEditor((s) => s.startDrawing);
 	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
 	const palette = useThemePalette();
@@ -246,6 +253,25 @@ export const PartsPalette = () => {
 			pressed: drawingArea === type,
 			onSelect: () => startAreaDrawing(type),
 		})),
+		...FENCE_STYLE_LIST.map((style) => {
+			const [first, second] = style.colors.map((spec) =>
+				typeof spec.default === "string" ? spec.default : spec.default(palette),
+			);
+			return {
+				key: `fence:${style.id}`,
+				category: "fences" as const,
+				group: "Fences",
+				name: FENCE_STYLE_LABELS[style.id],
+				familyName: style.name,
+				description: style.description,
+				tooltip: `${style.description}. Click points on the ground; Enter to finish.`,
+				searchText: `${style.description} ${(style.keywords ?? []).join(" ")} fence wall`,
+				swatch: `repeating-linear-gradient(90deg, ${first} 0 6px, ${second ?? first} 6px 9px)`,
+				thumbnail: thumbnails[fencePictureKey(style.id)],
+				pressed: drawingFence === style.id,
+				onSelect: () => startFenceDrawing(style.id),
+			};
+		}),
 		...partsByCategory().flatMap(([category, parts]) =>
 			parts.map((part) => {
 				const { first, second } = swatchColors(resolvePartColors(part, palette), part);

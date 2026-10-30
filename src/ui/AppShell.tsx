@@ -208,7 +208,9 @@ export const AppShell = () => {
 	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
 	// selected or a tab is picked, and folds down to its tab bar when the selection is cleared.
 	const [sheetOpen, setSheetOpen] = useState(false);
-	const selection = useEditor((s) => s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId);
+	const selection = useEditor(
+		(s) => s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId ?? s.selectedFenceId,
+	);
 	useEffect(() => {
 		setSheetOpen(selection !== null);
 	}, [selection]);

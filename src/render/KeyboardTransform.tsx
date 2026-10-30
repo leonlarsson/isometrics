@@ -300,23 +300,26 @@ export const KeyboardTransform = () => {
 			}
 		} else if (
 			state.selectedPointIndex !== null &&
-			(state.selectedPointIndices.length > 1 || state.selectedAreaId)
+			(state.selectedPointIndices.length > 1 || state.selectedAreaId || state.selectedFenceId)
 		) {
-			// Several points, or an area's corners: they move together (ADR-0065).
+			// Several points, an area's corners or a fence's points: they move together (ADR-0065).
 			const from = pointsStart();
 			if (from) {
 				target = { kind: "points", from };
 				const { roads, areas } = state.scene;
 				const areaLayer = areas.findIndex((a) => a.id === state.selectedAreaId);
+				// A fence's points are measured from the ground they stand on (ADR-0103).
 				const baseY =
 					areaLayer >= 0
 						? areaBaseY(areaLayer)
-						: roadBaseY(
-								Math.max(
-									0,
-									roads.findIndex((r) => r.id === state.selectedRoadId),
-								),
-							);
+						: state.selectedFenceId
+							? 0
+							: roadBaseY(
+									Math.max(
+										0,
+										roads.findIndex((r) => r.id === state.selectedRoadId),
+									),
+								);
 				center = new THREE.Vector3(from.center[0], baseY + from.center[1], from.center[2]);
 			}
 		} else if (state.selectedRoadId && state.selectedPointIndex !== null) {

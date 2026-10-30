@@ -81,6 +81,7 @@ const contentsOf = (scene: TScene) => {
 		[scene.entities.length, "object"],
 		[scene.roads.length, "road"],
 		[scene.areas.length, "area"],
+		[scene.fences.length, "fence"],
 	] as const;
 	const listed = things.filter(([count]) => count > 0).map(([count, one]) => plural(count, one));
 	return [

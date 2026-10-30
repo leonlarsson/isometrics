@@ -1,3 +1,4 @@
+import { fenceHeightOf, layoutOfFence } from "#/fences/fenceModel";
 import { getPart, resolveProps } from "#/parts/registry";
 import { cornerTop } from "#/scene/areas";
 import { roadCenterlineOf } from "#/scene/roads";
@@ -11,7 +12,7 @@ export interface IFrameBox {
 
 /** Something in the scene, by kind and id: what the outliner lists and hovers. */
 export interface ISceneItem {
-	kind: "entity" | "road" | "area";
+	kind: "entity" | "road" | "area" | "fence";
 	id: string;
 }
 
@@ -52,6 +53,17 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 					0.5,
 				)
 			: null;
+	}
+	if (item.kind === "fence") {
+		const fence = scene.fences.find((f) => f.id === item.id);
+		if (!fence) {
+			return null;
+		}
+		const posts = layoutOfFence({ ...fence, builtShare: 1, data: {} }, scene.areas, []).posts;
+		return boxAround(
+			posts.map((post) => [post.x, post.z, Math.max(post.baseBefore, post.baseAfter)]),
+			fenceHeightOf(fence),
+		);
 	}
 	const entity = scene.entities.find((e) => e.id === item.id);
 	if (!entity) {
