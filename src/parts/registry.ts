@@ -22,9 +22,13 @@ import { bin01 } from "./furniture/bin_01";
 import { cafeTable01 } from "./furniture/cafe_table_01";
 import { chair01 } from "./furniture/chair_01";
 import { flowerPot01 } from "./furniture/flower_pot_01";
+import { fountain01 } from "./furniture/fountain_01";
 import { parasol01 } from "./furniture/parasol_01";
 import { picnicTable01 } from "./furniture/picnic_table_01";
 import { planter01 } from "./furniture/planter_01";
+import { slide01 } from "./furniture/slide_01";
+import { statue01 } from "./furniture/statue_01";
+import { swings01 } from "./furniture/swings_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
 import { light01 } from "./infrastructure/light_01";
@@ -125,6 +129,10 @@ export const PARTS: TAnyPart[] = [
 	flowerPot01,
 	planter01,
 	bin01,
+	fountain01,
+	statue01,
+	slide01,
+	swings01,
 	zone01,
 	tunnel01,
 	streetLamp01,
