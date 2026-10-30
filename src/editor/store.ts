@@ -933,6 +933,12 @@ const renameBindings = (
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
+	// The time of day from data (ADR-0052), its moods' too.
+	for (const lighting of [scene.lighting, ...scene.moods.map((mood) => mood.lighting)]) {
+		if (lighting.timeKey === from) {
+			lighting.timeKey = to;
+		}
+	}
 	// The weather's settings that follow data (ADR-0102), its moods' too.
 	renameBindings(scene.weather.data, from, to);
 	for (const mood of scene.moods) {

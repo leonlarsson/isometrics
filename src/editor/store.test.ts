@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DataBindingSchema, SceneSchema, type TEntityLight, type TScene } from "#/scene/schema";
+import {
+	DataBindingSchema,
+	MoodSchema,
+	SceneSchema,
+	type TEntityLight,
+	type TScene,
+} from "#/scene/schema";
 
 import { resetPreferences, setPreference } from "./preferences";
 import { createEditorStore, selectMovesAsGroup, unknownPartKinds } from "./store";
@@ -136,6 +142,23 @@ describe("editor store", () => {
 		// A part's data key field (the text part's value) follows too.
 		const text = store.getState().scene.entities.find((e) => e.id === textId);
 		expect(text?.props.dataKey).toBe("orders_packed");
+	});
+
+	it("renames and removes the data key the time of day comes from, in moods too", () => {
+		const store = makeStore();
+		store.getState().upsertData({ key: "hour", label: "Hour", value: 18, unit: "" });
+		store.getState().commit((scene) => {
+			scene.lighting.timeSource = "data";
+			scene.lighting.timeKey = "hour";
+			scene.moods.push(MoodSchema.parse({ id: "m", lighting: { timeKey: "hour" } }));
+		});
+		store.getState().upsertData({ key: "local_hour", label: "Hour", value: 18, unit: "" }, "hour");
+		expect(store.getState().scene.lighting.timeKey).toBe("local_hour");
+		expect(store.getState().scene.moods[0].lighting.timeKey).toBe("local_hour");
+
+		store.getState().removeData("local_hour");
+		expect(store.getState().scene.lighting.timeKey).toBeNull();
+		expect(store.getState().scene.moods[0].lighting.timeKey).toBeNull();
 	});
 
 	it("removes deleted data keys from labels and parts", () => {
