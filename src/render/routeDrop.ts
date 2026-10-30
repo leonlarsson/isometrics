@@ -6,7 +6,7 @@ import { DEG2RAD, normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, type IRoadProjection, projectOntoRoad } from "#/scene/routes";
-import type { TRoad, TVec2 } from "#/scene/schema";
+import type { TRoad, TVec2, TVec3 } from "#/scene/schema";
 
 /** How far beyond a road's edge a drop still counts as on the road. */
 const DROP_MARGIN = 0.3;
@@ -23,17 +23,17 @@ const pointAtHeight = (ray: THREE.Ray, y: number): TVec2 | null => {
 /** A spot on a road where a dragged vehicle would park, ready to drive along it. */
 export interface IRouteDrop {
 	roadId: string;
-	/** Distance along the road (FollowSchema `offset`). */
-	offset: number;
-	/** Drive it the other way (FollowSchema `reverse`). */
-	reverse: boolean;
-	/** Where the vehicle stands: in its lane at `offset`. */
+	/** Distance along the road (a follow's `startDistance`). */
+	startDistance: number;
+	/** Whether it would drive the road the other way (a follow's `drivesTheOtherWay`). */
+	drivesTheOtherWay: boolean;
+	/** Where the vehicle stands: in its lane at `startDistance`. */
 	position: TVec2;
-	/** Height of the road there, for the vehicle's elevation. */
-	height: number;
-	/** Facing the way it would drive, in degrees (an entity's `rotation`). */
-	rotation: number;
-	/** Nose up or down with the road's slope there, in degrees (an entity's `pitch`). */
+	/** The road's altitude there, for the vehicle's. */
+	altitude: number;
+	/** Facing the way it would drive, in degrees around the vertical (its rotation's y). */
+	heading: number;
+	/** Nose up or down with the road's slope there, in degrees (its rotation's z). */
 	pitch: number;
 }
 
@@ -57,7 +57,7 @@ export const findRouteDrop = (
 	const { scene, snapping } = useEditor.getState();
 	let best: { road: TRoad; projection: IRoadProjection } | null = null;
 	for (const road of scene.roads) {
-		if (road.hidden) {
+		if (road.isHidden) {
 			continue;
 		}
 		// Find where the ray crosses the road's own height: start on the ground, then refine.
@@ -87,11 +87,11 @@ export const findRouteDrop = (
 
 	const { road, projection } = best;
 	// Driving on the right, the forward lane is right of the road's direction.
-	const reverse = projection.side * (scene.drivingSide === "right" ? 1 : -1) < 0;
-	const sampler = createRouteSampler(road, scene.drivingSide, {
+	const reverse = projection.side * (scene.traffic.drivingSide === "right" ? 1 : -1) < 0;
+	const sampler = createRouteSampler(road, scene.traffic.drivingSide, {
 		reverse,
 		smoothing: turnSmoothing(
-			resolveTurnStyle(scene.turnStyle, road.turnStyle, null),
+			resolveTurnStyle(scene.traffic.turnStyle, road.traffic.turnStyle, null),
 			vehicleLength,
 		),
 	});
@@ -102,31 +102,30 @@ export const findRouteDrop = (
 	const sample = sampler.at(offset);
 	return {
 		roadId: road.id,
-		offset: round(offset),
-		reverse,
+		startDistance: round(offset),
+		drivesTheOtherWay: reverse,
 		position: [round(sample.position[0]), round(sample.position[1])],
-		height: round(sample.height),
-		rotation: round(normalizeDegrees(sample.heading / DEG2RAD)),
+		altitude: round(sample.height),
+		heading: round(normalizeDegrees(sample.heading / DEG2RAD)),
 		pitch: round(sample.pitch / DEG2RAD, 1),
 	};
 };
 
-/** Where a vehicle stands, as an entity's position, elevation, rotation and pitch. */
+/** Where a vehicle stands, as an entity's position, altitude and rotation. */
 export interface IVehiclePose {
 	position: TVec2;
-	elevation: number;
-	rotation: number;
-	pitch?: number;
+	altitude: number;
+	rotation: TVec3;
 }
 
 const down = new THREE.Vector3(0, -1, 0);
 const above = new THREE.Vector3();
 
 /** Whether a vehicle stands on a road: one under it, at its height. */
-const standsOnRoad = (position: TVec2, elevation: number, vehicleLength: number) => {
+const standsOnRoad = (position: TVec2, altitude: number, vehicleLength: number) => {
 	above.set(position[0], 100, position[1]);
 	const drop = findRouteDrop(new THREE.Ray(above, down), { vehicleLength });
-	return drop !== null && Math.abs(drop.height - elevation) < 0.05;
+	return drop !== null && Math.abs(drop.altitude - altitude) < 0.05;
 };
 
 /**
@@ -185,8 +184,8 @@ export const createVehicleRouteDrag = (
 	// a road (parked on a bridge, or driving) goes back down to the ground instead of hovering.
 	const start = pose ?? entity;
 	const { rotation } = start;
-	const elevation =
-		follow || standsOnRoad(start.position, start.elevation, vehicleLength) ? 0 : start.elevation;
+	const altitude =
+		follow || standsOnRoad(start.position, start.altitude, vehicleLength) ? 0 : start.altitude;
 	let drop: IRouteDrop | null = null;
 
 	return {
@@ -202,9 +201,8 @@ export const createVehicleRouteDrag = (
 				(draft) => {
 					draft.follow = null;
 					draft.position = pose.position;
-					draft.elevation = pose.elevation;
+					draft.altitude = pose.altitude;
 					draft.rotation = pose.rotation;
-					draft.pitch = pose.pitch ?? 0;
 				},
 				options,
 			);
@@ -219,17 +217,16 @@ export const createVehicleRouteDrag = (
 			const next = ground ? findRouteDrop(shifted, { vehicleLength }) : null;
 			const store = useEditor.getState();
 			if (next) {
-				if (drop?.roadId !== next.roadId || drop?.reverse !== next.reverse) {
-					store.setRoutePreview({ roadId: next.roadId, reverse: next.reverse });
+				if (drop?.roadId !== next.roadId || drop?.drivesTheOtherWay !== next.drivesTheOtherWay) {
+					store.setRoutePreview({ roadId: next.roadId, drivesTheOtherWay: next.drivesTheOtherWay });
 				}
 				drop = next;
 				store.updateEntity(
 					entityId,
 					(draft) => {
 						draft.position = next.position;
-						draft.rotation = next.rotation;
-						draft.elevation = next.height;
-						draft.pitch = next.pitch;
+						draft.rotation = [draft.rotation[0], next.heading, next.pitch];
+						draft.altitude = next.altitude;
 					},
 					options,
 				);
@@ -241,10 +238,9 @@ export const createVehicleRouteDrag = (
 				store.updateEntity(
 					entityId,
 					(draft) => {
-						draft.rotation = rotation;
-						draft.elevation = elevation;
 						// Off the road the ground is flat.
-						draft.pitch = 0;
+						draft.rotation = [rotation[0], rotation[1], 0];
+						draft.altitude = altitude;
 					},
 					options,
 				);
@@ -256,21 +252,20 @@ export const createVehicleRouteDrag = (
 			store.setRoutePreview(null);
 			store.setRerouting(false);
 			if (completed && drop && follow) {
-				const { roadId, offset, reverse } = drop;
+				const { roadId, startDistance, drivesTheOtherWay } = drop;
 				// It was driving: carry on from here, keeping its speed, turns and own height and turn.
 				store.updateEntity(
 					entityId,
 					(draft) => {
-						draft.follow = { ...follow, roadId, offset, reverse };
-						draft.elevation = entity.elevation;
-						draft.rotation = entity.rotation;
-						draft.pitch = 0;
+						draft.follow = { ...follow, roadId, startDistance, drivesTheOtherWay };
+						draft.altitude = entity.altitude;
+						draft.rotation = [entity.rotation[0], entity.rotation[1], 0];
 					},
 					options,
 				);
 			} else if (completed && drop) {
-				const { roadId, offset, reverse, position } = drop;
-				store.setFollowOffer({ entityId, roadId, offset, reverse, position });
+				const { roadId, startDistance, drivesTheOtherWay, position } = drop;
+				store.setFollowOffer({ entityId, roadId, startDistance, drivesTheOtherWay, position });
 			}
 			drop = null;
 		},

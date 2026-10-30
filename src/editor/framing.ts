@@ -79,8 +79,8 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 	// Turned parts take up their diagonal; close enough for framing.
 	const reach = Math.hypot(width, depth) * entity.scale;
 	return {
-		center: [entity.position[0], entity.elevation + height / 2, entity.position[1]],
-		size: [reach, entity.elevation + height, reach],
+		center: [entity.position[0], entity.altitude + height / 2, entity.position[1]],
+		size: [reach, entity.altitude + height, reach],
 	};
 };
 

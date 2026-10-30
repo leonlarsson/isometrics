@@ -12,15 +12,15 @@ import {
 } from "./dataBinding";
 
 const data = [
-	{ key: "queue", label: "Queue", value: 60, unit: "" },
-	{ key: "status", label: "Status", value: "Green", unit: "" },
-	{ key: "word", label: "Word", value: "null", unit: "" },
+	{ key: "queue", name: "Queue", value: 60, unit: "" },
+	{ key: "status", name: "Status", value: "Green", unit: "" },
+	{ key: "word", name: "Word", value: "null", unit: "" },
 ];
 
 const bind = (
 	key: string,
 	options: {
-		onAbove?: number;
+		switchesOnAbove?: number;
 		valueAtFull?: number;
 		valueAtLowColor?: number;
 		valueAtHighColor?: number;
@@ -32,8 +32,8 @@ const bind = (
 describe("data bindings (ADR-0058)", () => {
 	it("switches on above a threshold (0 by default), and off without the value", () => {
 		expect(readSwitch(bind("queue"), data)).toBe(true);
-		expect(readSwitch(bind("queue", { onAbove: 50 }), data)).toBe(true);
-		expect(readSwitch(bind("queue", { onAbove: 60 }), data)).toBe(false);
+		expect(readSwitch(bind("queue", { switchesOnAbove: 50 }), data)).toBe(true);
+		expect(readSwitch(bind("queue", { switchesOnAbove: 60 }), data)).toBe(false);
 		expect(readSwitch(bind("word"), data)).toBe(false);
 		expect(readSwitch(bind("gone"), data)).toBeUndefined();
 	});

@@ -20,7 +20,7 @@ const pose: TViewPose = {
 	span: 24,
 	projection: "orthographic" as const,
 	fieldOfView: null,
-	targetHeight: 0,
+	targetAltitude: 0,
 };
 
 describe("viewpoints", () => {
@@ -81,13 +81,13 @@ describe("viewpoints", () => {
 
 	it("keeps a view that looks up at the sky, with the height of what it looks at", () => {
 		const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.1, 2000);
-		const up = { ...pose, projection: "perspective" as const, elevation: -30, targetHeight: 12 };
+		const up = { ...pose, projection: "perspective" as const, elevation: -30, targetAltitude: 12 };
 		const target = placeCamera(camera, up, 600, 40);
 		expect(target.y).toBe(12);
 		expect(camera.position.y).toBeLessThan(12);
 		const back = poseOf(camera, target, 600, "perspective", 40);
 		expect(back.elevation).toBeCloseTo(-30, 1);
-		expect(back.targetHeight).toBeCloseTo(12, 1);
+		expect(back.targetAltitude).toBeCloseTo(12, 1);
 		expect(back.target).toEqual(pose.target);
 	});
 

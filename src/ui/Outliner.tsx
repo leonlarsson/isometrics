@@ -10,9 +10,9 @@ import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
+import { AREA_KIND_LABELS } from "#/scene/areas";
 import { formatEntry } from "#/scene/format";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TScene } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -93,9 +93,12 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					name: entity.name,
 					fallback: part ? partName(part) : entity.kind,
 					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
-					hidden: entity.hidden,
-					locked: entity.locked,
-					value: firstValue(entity.label?.dataKeys ?? entity.details.dataKeys),
+					hidden: entity.isHidden,
+					locked: entity.isLocked,
+					// The card's first value, else its detail tiles' (ADR-0104: every object has card settings).
+					value: firstValue(
+						entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
+					),
 				};
 			}),
 		),
@@ -108,10 +111,10 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					item: { kind: "road", id: road.id },
 					group: ROADS,
 					name: road.name,
-					fallback: ROAD_STYLE_LABELS[road.style],
+					fallback: ROAD_KIND_LABELS[road.kind],
 					swatch: roadSwatch(road, palette),
-					hidden: road.hidden,
-					locked: road.locked,
+					hidden: road.isHidden,
+					locked: road.isLocked,
 					value: null,
 				}),
 			),
@@ -125,10 +128,10 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					item: { kind: "area", id: area.id },
 					group: AREAS,
 					name: area.name,
-					fallback: AREA_TYPE_LABELS[area.type],
+					fallback: AREA_KIND_LABELS[area.kind],
 					swatch: areaSwatch(area, palette),
-					hidden: area.hidden,
-					locked: area.locked,
+					hidden: area.isHidden,
+					locked: area.isLocked,
 					value: null,
 				}),
 			),
@@ -142,10 +145,10 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					item: { kind: "fence", id: fence.id },
 					group: FENCES,
 					name: fence.name,
-					fallback: FENCE_STYLE_LABELS[fence.style],
+					fallback: FENCE_STYLE_LABELS[fence.kind],
 					swatch: fenceSwatch(fence, palette, scene.data),
-					hidden: fence.hidden,
-					locked: fence.locked,
+					hidden: fence.isHidden,
+					locked: fence.isLocked,
 					value: null,
 				}),
 			),
@@ -232,14 +235,14 @@ const OutlinerRowItem = memo(
 							icon={row.hidden ? "eyeOff" : "eye"}
 							label={row.hidden ? `Show ${label} (H)` : `Hide ${label} (H)`}
 							pressed={row.hidden}
-							onClick={() => store().setItemFlag(row.item, "hidden", !row.hidden)}
+							onClick={() => store().setItemFlag(row.item, "isHidden", !row.hidden)}
 						/>
 
 						<IconButton
 							icon={row.locked ? "lock" : "unlock"}
 							label={row.locked ? `Unlock ${label}` : `Lock ${label}`}
 							pressed={row.locked}
-							onClick={() => store().setItemFlag(row.item, "locked", !row.locked)}
+							onClick={() => store().setItemFlag(row.item, "isLocked", !row.locked)}
 						/>
 					</IconButtonGroup>
 				}

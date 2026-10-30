@@ -407,8 +407,8 @@ for (const run of runs) {
 		async ({ text, template }) => {
 			const store = globalThis.__editorStore.getState();
 			if (text) {
-				const { parseOrRepairScene } = await import("/src/scene/repair.ts");
-				store.loadScene(parseOrRepairScene(JSON.parse(text)).scene);
+				const { readWorld } = await import("/src/parts/readWorld.ts");
+				store.loadScene(readWorld(JSON.parse(text)).scene);
 				return;
 			}
 			const { TEMPLATES } = await import("/src/templates/index.ts");
@@ -428,7 +428,7 @@ for (const run of runs) {
 				close
 					? {
 							target: [0, 0],
-							targetHeight: 0,
+							targetAltitude: 0,
 							azimuth: 315,
 							elevation: 22,
 							span: 10,
@@ -437,7 +437,7 @@ for (const run of runs) {
 						}
 					: {
 							target: [0, 0],
-							targetHeight: 0,
+							targetAltitude: 0,
 							azimuth: 315,
 							elevation: 32.47,
 							span: 46,

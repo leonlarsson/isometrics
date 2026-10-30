@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** Its bare branches: where each leaves the trunk, which way it points and how far it leans out. */
 const BRANCHES = [
@@ -17,13 +17,12 @@ export const deadTree01 = definePart({
 	category: "nature",
 	description: "Bare tree without leaves, for winter or a spooky corner",
 	keywords: ["bare", "winter", "leafless", "spooky", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [{ id: "wood", name: "Wood", default: "#7a6a5c", legacy: "color" }],
-	footprint: (p) => [0.8 * p.size, 0.8 * p.size],
-	height: (p) => 1.2 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.8, 0.8],
+	height: () => 1.2,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.5, 0]} castShadow>
 				<cylinderGeometry args={[0.04, 0.09, 1, 7]} />
 

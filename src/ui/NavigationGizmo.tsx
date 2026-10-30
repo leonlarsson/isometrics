@@ -136,7 +136,7 @@ export const NavigationGizmo = () => {
 					type="button"
 					className={styles.centre}
 					aria-label="Look straight down"
-					onClick={() => glide({ elevation: useEditor.getState().scene.camera.steepestElevation })}
+					onClick={() => glide({ elevation: useEditor.getState().scene.camera.highestElevation })}
 				/>
 			</Tooltip>
 

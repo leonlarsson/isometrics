@@ -1,9 +1,15 @@
 /**
- * Ids from before the numbered variants of ADR-0050, and what they are now.
- * Worlds saved before the rename get the new ids on load (ADR-0053), so their
- * objects keep their parts and their roads and areas keep their look.
+ * Worlds as earlier versions saved them, brought up to date on load: old ids
+ * (ADR-0050, ADR-0053), renamed fields (ADR-0071) and fields that moved
+ * (ADR-0104). Framework-free; what needs the parts (old colours, one lights
+ * mode for all, renamed props) is `parts/readWorld.ts`, which runs this first.
+ *
+ * Every entry is kept for good: saved worlds may still use it. Renamed again:
+ * point every older name at the newest, oldest first (a world holding several
+ * keeps the latest one's value). A value under the new name always wins.
  */
 
+/** Ids from before the numbered variants of ADR-0050, and what they are now. */
 export const LEGACY_PART_KINDS: Readonly<Record<string, string>> = {
 	warehouse: "warehouse_01",
 	tower: "office_tower_01",
@@ -25,13 +31,13 @@ export const LEGACY_PART_KINDS: Readonly<Record<string, string>> = {
 	text: "text_01",
 };
 
-export const LEGACY_ROAD_STYLES: Readonly<Record<string, string>> = {
+export const LEGACY_ROAD_KINDS: Readonly<Record<string, string>> = {
 	asphalt: "road_01",
 	dirt: "dirt_path_01",
 	hidden: "hidden_route_01",
 };
 
-export const LEGACY_AREA_TYPES: Readonly<Record<string, string>> = {
+export const LEGACY_AREA_KINDS: Readonly<Record<string, string>> = {
 	water: "water_01",
 	grass: "grass_01",
 	sand: "sand_01",
@@ -39,198 +45,379 @@ export const LEGACY_AREA_TYPES: Readonly<Record<string, string>> = {
 	land: "raised_land_01",
 };
 
-const LISTS = [
-	{ key: "entities", field: "kind", ids: LEGACY_PART_KINDS },
-	{ key: "roads", field: "style", ids: LEGACY_ROAD_STYLES },
-	{ key: "areas", field: "type", ids: LEGACY_AREA_TYPES },
-] as const;
+type TRecord = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+const isRecord = (value: unknown): value is TRecord =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The record under `key`, made if it isn't one (a missing group, say). */
+const groupOf = (record: TRecord, key: string): TRecord => {
+	const group = record[key];
+	if (isRecord(group)) {
+		return group;
+	}
+	const made: TRecord = {};
+	record[key] = made;
+	return made;
+};
+
+/** Each record in a list. */
+const recordsIn = (list: unknown): TRecord[] => (Array.isArray(list) ? list.filter(isRecord) : []);
+
+/** Each record among a record's values (settings by id or by setting). */
+const recordValues = (record: unknown): TRecord[] =>
+	isRecord(record) ? Object.values(record).filter(isRecord) : [];
+
+/**
+ * Old field names replaced by their new ones, in place. A value under the new
+ * name wins; of several old names for it, the latest listed.
+ */
+const renameFields = (record: unknown, names: Readonly<Record<string, string>>) => {
+	if (!isRecord(record)) {
+		return;
+	}
+	const kept = new Set(
+		Object.keys(names)
+			.map((from) => names[from])
+			.filter((to) => to in record),
+	);
+	for (const [from, to] of Object.entries(names)) {
+		if (!Object.hasOwn(record, from)) {
+			continue;
+		}
+		if (!kept.has(to)) {
+			record[to] = record[from];
+		}
+		delete record[from];
+	}
+};
+
+/** Fields moved from a record into one of its groups (old name → name there), in place. */
+const moveInto = (record: TRecord, groupKey: string, names: Readonly<Record<string, string>>) => {
+	const moving = Object.keys(names).filter((from) => Object.hasOwn(record, from));
+	if (moving.length === 0) {
+		return;
+	}
+	const group = groupOf(record, groupKey);
+	const kept = new Set(moving.map((from) => names[from]).filter((to) => to in group));
+	for (const from of moving) {
+		if (!kept.has(names[from])) {
+			group[names[from]] = record[from];
+		}
+		delete record[from];
+	}
+};
+
+/** A colour once kept in its own field, now the colour setting under `id` in `colors`. */
+const moveColor = (record: TRecord, field: string, id: string) => {
+	if (!Object.hasOwn(record, field)) {
+		return;
+	}
+	const value = record[field];
+	delete record[field];
+	if (typeof value !== "string") {
+		return;
+	}
+	const colors = groupOf(record, "colors");
+	const setting = groupOf(colors, id);
+	setting.color ??= value;
+};
+
+/** A group once kept as a switch with its settings beside it (`turntableOn`): one record with `isOn`. */
+const gatherGroup = (
+	record: TRecord,
+	groupKey: string,
+	names: Readonly<Record<string, string>>,
+) => {
+	const old = record[groupKey];
+	if (typeof old === "boolean") {
+		// The switch's oldest name was the group's own (`turntable: true`).
+		record[groupKey] = { isOn: old };
+	}
+	moveInto(record, groupKey, names);
+};
+
+const RENAMED_BINDING_FIELDS = {
+	above: "switchesOnAbove",
+	onAbove: "switchesOnAbove",
+	full: "valueAtFull",
+	low: "valueAtLowColor",
+	high: "valueAtHighColor",
+};
+
+/** Each binding in a map of data bindings by setting, with its old field names replaced. */
+const upgradeBindings = (bindings: unknown) => {
+	for (const binding of recordValues(bindings)) {
+		renameFields(binding, RENAMED_BINDING_FIELDS);
+	}
+};
+
+/** Each colour setting's bindings in a `colors` map. */
+const upgradeColors = (colors: unknown) => {
+	for (const setting of recordValues(colors)) {
+		upgradeBindings(setting.data);
+	}
+};
+
+const RENAMED_LIGHT_FIELDS = {
+	mode: "whenOn",
+	litPanes: "litPaneShare",
+	weight: "paneWeight",
+};
+const RENAMED_LIGHT_SETTINGS = { litPanes: "litPaneShare" };
+
+const RENAMED_LOCK_FIELDS = { locked: "isLocked", hidden: "isHidden" };
+
+const RENAMED_ON_SCREEN_FIELDS = {
+	title: "showsTitle",
+	showTitle: "showsTitle",
+	subtitle: "showsSubtitle",
+	showSubtitle: "showsSubtitle",
+	timeOfDay: "showsTimeOfDay",
+	showTimeOfDay: "showsTimeOfDay",
+	labelCards: "showsLabelCards",
+	showLabelCards: "showsLabelCards",
+	details: "showsDetails",
+	showDetails: "showsDetails",
+	viewpointBar: "showsViewpointBar",
+	showViewpointBar: "showsViewpointBar",
+};
+
+const RENAMED_SKY_FIELDS = {
+	showInPerspective: "showsInPerspective",
+	showSun: "showsSun",
+	showMoon: "showsMoon",
+};
+/** Clouds were the sky's before they were weather (ADR-0104). */
+const CLOUD_FIELDS = {
+	cloudCover: "cloudCover",
+	cloudColor: "cloudColor",
+	cloudSpeed: "cloudSpeed",
+};
+
+const TILT_SHIFT_FIELDS = {
+	tiltShiftOn: "isOn",
+	tiltShiftBlur: "blurStrength",
+	tiltShiftFocus: "sharpBandHeight",
+	tiltShiftPosition: "sharpBandPosition",
+};
+
+/** The time of day, its old `lights` and its one-off `timeKey`, now `data.time`. */
+const upgradeLighting = (lighting: unknown) => {
+	if (!isRecord(lighting)) {
+		return;
+	}
+	renameFields(lighting, { lights: "whenLightsAreOn" });
+	if (Object.hasOwn(lighting, "timeKey")) {
+		const key = lighting.timeKey;
+		delete lighting.timeKey;
+		if (typeof key === "string" && key !== "") {
+			const data = groupOf(lighting, "data");
+			data.time ??= { key };
+		}
+	}
+	upgradeBindings(lighting.data);
+};
+
+/** A world's or a mood's look: the sky's renamed fields, and its clouds moved into the weather. */
+const upgradeLook = (look: TRecord) => {
+	upgradeLighting(look.lighting);
+	const sky = look.sky;
+	if (isRecord(sky)) {
+		renameFields(sky, RENAMED_SKY_FIELDS);
+		const clouds = Object.keys(CLOUD_FIELDS).filter((field) => Object.hasOwn(sky, field));
+		if (clouds.length > 0) {
+			const weather = groupOf(look, "weather");
+			for (const field of clouds) {
+				if (!(field in weather)) {
+					weather[field] = sky[field];
+				}
+				delete sky[field];
+			}
+		}
+	}
+	if (isRecord(look.weather)) {
+		upgradeBindings(look.weather.data);
+	}
+};
+
+const upgradeCamera = (camera: unknown) => {
+	if (!isRecord(camera)) {
+		return;
+	}
+	renameFields(camera, {
+		keepOverGround: "keepsOverGround",
+		steepestElevation: "highestElevation",
+	});
+	gatherGroup(camera, "turntable", {
+		turntableOn: "isOn",
+		turntableSpeed: "speed",
+		turntableDelay: "delay",
+	});
+	gatherGroup(camera, "tiltShift", TILT_SHIFT_FIELDS);
+};
+
+const upgradeMood = (mood: TRecord) => {
+	upgradeLook(mood);
+	// A mood kept the camera's tilt-shift settings under their camera names.
+	if (isRecord(mood.camera)) {
+		const camera = mood.camera;
+		delete mood.camera;
+		gatherGroup(camera, "tiltShift", TILT_SHIFT_FIELDS);
+		if (isRecord(camera.tiltShift) && !isRecord(mood.tiltShift)) {
+			mood.tiltShift = camera.tiltShift;
+		}
+	}
+};
+
+/** Numbers of an object's old turn (`rotation`), `pitch` and `roll`: one rotation, [x, y, z]. */
+const upgradeRotation = (entity: TRecord) => {
+	const { rotation, pitch, roll } = entity;
+	if (
+		Array.isArray(rotation) ||
+		(rotation === undefined && pitch === undefined && roll === undefined)
+	) {
+		delete entity.pitch;
+		delete entity.roll;
+		return;
+	}
+	const degrees = (value: unknown) => (typeof value === "number" ? value : 0);
+	entity.rotation = [degrees(roll), degrees(rotation), degrees(pitch)];
+	delete entity.pitch;
+	delete entity.roll;
+};
+
+const upgradeEntity = (entity: TRecord) => {
+	renameFields(entity, { elevation: "altitude", ...RENAMED_LOCK_FIELDS });
+	upgradeRotation(entity);
+	// No card was `label: null`; now the label's settings are always there (ADR-0104).
+	if (entity.label === null) {
+		delete entity.label;
+	}
+	renameFields(entity.label, { enabled: "isShown" });
+	renameFields(entity.follow, {
+		turns: "turnStyle",
+		offset: "startDistance",
+		reverse: "drivesTheOtherWay",
+	});
+	for (const light of recordValues(entity.lights)) {
+		renameFields(light, RENAMED_LIGHT_FIELDS);
+		renameFields(light.data, RENAMED_LIGHT_SETTINGS);
+		upgradeBindings(light.data);
+	}
+	upgradeColors(entity.colors);
+};
+
+const upgradeRoad = (road: TRecord) => {
+	renameFields(road, {
+		style: "kind",
+		closed: "loops",
+		markings: "showsCentreLine",
+		showMarkings: "showsCentreLine",
+		railings: "showsRailings",
+		showRailings: "showsRailings",
+		supports: "heldUpBy",
+		lane: "drivingLane",
+		turns: "turnStyle",
+		...RENAMED_LOCK_FIELDS,
+	});
+	moveInto(road, "traffic", {
+		drivingLane: "drivingLane",
+		turnStyle: "turnStyle",
+		leansInTurns: "leansInTurns",
+	});
+	moveColor(road, "color", "surface");
+	moveColor(road, "embankmentColor", "embankment");
+	upgradeColors(road.colors);
+	upgradeId(road, LEGACY_ROAD_KINDS);
+};
+
+const upgradeArea = (area: TRecord) => {
+	renameFields(area, { type: "kind", ...RENAMED_LOCK_FIELDS });
+	moveColor(area, "color", "surface");
+	upgradeColors(area.colors);
+	moveInto(area, "water", {
+		rippleStrength: "rippleStrength",
+		reflectionStrength: "reflectionStrength",
+	});
+	upgradeId(area, LEGACY_AREA_KINDS);
+};
+
+const upgradeFence = (fence: TRecord) => {
+	renameFields(fence, { style: "kind", ...RENAMED_LOCK_FIELDS });
+	upgradeColors(fence.colors);
+	upgradeBindings(fence.data);
+};
+
+/** An old `kind` replaced by its numbered id. */
+const upgradeId = (item: TRecord, ids: Readonly<Record<string, string>>) => {
+	const kind = item.kind;
+	if (typeof kind === "string" && Object.hasOwn(ids, kind)) {
+		item.kind = ids[kind];
+	}
+};
 
 /**
  * Viewpoints saved before projections were a choice said `perspective: true`
  * or `false`; they get `projection` instead. Briefly the flat one was called
  * "diorama"; it's "orthographic".
  */
-const upgradeViewpoints = (input: Record<string, unknown>): Record<string, unknown> => {
-	const viewpoints = input.viewpoints;
-	if (!Array.isArray(viewpoints)) {
+const upgradeViewpoint = (viewpoint: TRecord) => {
+	if (viewpoint.projection === "diorama") {
+		viewpoint.projection = "orthographic";
+	}
+	if (typeof viewpoint.perspective === "boolean") {
+		viewpoint.projection ??= viewpoint.perspective ? "perspective" : "orthographic";
+		delete viewpoint.perspective;
+	}
+	renameFields(viewpoint, { targetHeight: "targetAltitude" });
+};
+
+/** The world's own settings: their renamed fields, and the vehicle settings gathered in `traffic`. */
+const upgradeSettings = (world: TRecord) => {
+	renameFields(world, { driving: "drivingSide", turns: "turnStyle" });
+	moveInto(world, "traffic", {
+		drivingSide: "drivingSide",
+		turnStyle: "turnStyle",
+		leansInTurns: "leansInTurns",
+	});
+	renameFields(world.traffic, {
+		spacing: "keepsDistance",
+		keepSpacing: "keepsDistance",
+		overtaking: "overtakes",
+		allowOvertaking: "overtakes",
+	});
+	renameFields(world.onScreen, RENAMED_ON_SCREEN_FIELDS);
+	upgradeLook(world);
+	upgradeCamera(world.camera);
+	if (isRecord(world.ground)) {
+		moveColor(world.ground, "color", "surface");
+		upgradeColors(world.ground.colors);
+	}
+};
+
+/**
+ * A world as saved by an earlier version, with what changed name or place
+ * brought up to date. Leaves the input untouched (callers keep it as a backup)
+ * and returns a copy. Anything that doesn't look like a world passes through.
+ */
+export const upgradeLegacyIds = (input: unknown): unknown => {
+	if (!isRecord(input)) {
 		return input;
 	}
-	let changed = false;
-	const next = viewpoints.map((viewpoint) => {
-		if (isRecord(viewpoint) && viewpoint.projection === "diorama") {
-			changed = true;
-			return { ...viewpoint, projection: "orthographic" };
-		}
-		if (!isRecord(viewpoint) || typeof viewpoint.perspective !== "boolean") {
-			return viewpoint;
-		}
-		changed = true;
-		const { perspective, ...rest } = viewpoint;
-		return { projection: perspective ? "perspective" : "orthographic", ...rest };
-	});
-	return changed ? { ...input, viewpoints: next } : input;
-};
-
-/** Old part kinds, road styles and area types: their current ids. */
-const upgradeIds = (input: Record<string, unknown>): Record<string, unknown> => {
-	let upgraded: Record<string, unknown> | null = null;
-	for (const { key, field, ids } of LISTS) {
-		const items = input[key];
-		if (!Array.isArray(items)) {
-			continue;
-		}
-		let changed = false;
-		const next = items.map((item) => {
-			const id = isRecord(item) ? item[field] : undefined;
-			if (typeof id !== "string" || !Object.hasOwn(ids, id)) {
-				return item;
-			}
-			changed = true;
-			return { ...(item as Record<string, unknown>), [field]: ids[id] };
-		});
-		if (changed) {
-			upgraded ??= { ...input };
-			upgraded[key] = next;
-		}
+	const world = structuredClone(input);
+	upgradeSettings(world);
+	recordsIn(world.moods).forEach(upgradeMood);
+	for (const entity of recordsIn(world.entities)) {
+		upgradeEntity(entity);
+		upgradeId(entity, LEGACY_PART_KINDS);
 	}
-	return upgraded ?? input;
-};
-
-/**
- * Fields renamed so their names say what they hold (ADR-0071), old name → new,
- * by where they are. Never remove an entry: saved worlds may still use it.
- * Renamed again: point every older name at the newest, oldest first (a world
- * holding several keeps the latest one's value), e.g. `{ title: "x", showTitle: "x" }`.
- */
-const RENAMED_WORLD_FIELDS = { driving: "drivingSide", turns: "turnStyle" };
-const RENAMED_SETTINGS_FIELDS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-	onScreen: {
-		title: "showTitle",
-		subtitle: "showSubtitle",
-		timeOfDay: "showTimeOfDay",
-		labelCards: "showLabelCards",
-		details: "showDetails",
-		viewpointBar: "showViewpointBar",
-	},
-	lighting: { lights: "whenLightsAreOn" },
-	traffic: { spacing: "keepSpacing", overtaking: "allowOvertaking" },
-	camera: { turntable: "turntableOn", tiltShift: "tiltShiftOn" },
-};
-const RENAMED_ROAD_FIELDS = {
-	closed: "loops",
-	markings: "showMarkings",
-	railings: "showRailings",
-	lane: "drivingLane",
-	turns: "turnStyle",
-};
-const RENAMED_FOLLOW_FIELDS = { turns: "turnStyle" };
-const RENAMED_LIGHT_FIELDS = { mode: "whenOn" };
-const RENAMED_BINDING_FIELDS = {
-	above: "onAbove",
-	full: "valueAtFull",
-	low: "valueAtLowColor",
-	high: "valueAtHighColor",
-};
-
-/**
- * The record with its old field names replaced, or the same record when it has
- * none. A value under the new name wins; of several old names, the latest listed.
- */
-const renameFields = <T>(value: T, names: Readonly<Record<string, string>>): T => {
-	if (!isRecord(value) || !Object.keys(names).some((from) => Object.hasOwn(value, from))) {
-		return value;
+	recordsIn(world.roads).forEach(upgradeRoad);
+	recordsIn(world.areas).forEach(upgradeArea);
+	recordsIn(world.fences).forEach(upgradeFence);
+	for (const entry of recordsIn(world.data)) {
+		renameFields(entry, { label: "name" });
 	}
-	const next: Record<string, unknown> = { ...value };
-	for (const [from, to] of Object.entries(names)) {
-		if (!Object.hasOwn(value, from)) {
-			continue;
-		}
-		if (!Object.hasOwn(value, to)) {
-			next[to] = value[from];
-		}
-		delete next[from];
-	}
-	return next as T;
+	recordsIn(world.viewpoints).forEach(upgradeViewpoint);
+	return world;
 };
-
-/** Each entry of a record (by id or by setting) passed through `upgrade`, or the same record. */
-const mapValues = (value: unknown, upgrade: (entry: unknown) => unknown): unknown => {
-	if (!isRecord(value)) {
-		return value;
-	}
-	let changed = false;
-	const next = Object.fromEntries(
-		Object.entries(value).map(([key, entry]) => {
-			const upgraded = upgrade(entry);
-			changed ||= upgraded !== entry;
-			return [key, upgraded];
-		}),
-	);
-	return changed ? next : value;
-};
-
-/** A light's or a colour's settings, with its data bindings' old field names replaced. */
-const upgradeBindings = (settings: unknown): unknown => {
-	if (!isRecord(settings)) {
-		return settings;
-	}
-	const data = mapValues(settings.data, (binding) => renameFields(binding, RENAMED_BINDING_FIELDS));
-	return data === settings.data ? settings : { ...settings, data };
-};
-
-const upgradeEntity = (entity: unknown): unknown => {
-	if (!isRecord(entity)) {
-		return entity;
-	}
-	const follow = renameFields(entity.follow, RENAMED_FOLLOW_FIELDS);
-	const lights = mapValues(entity.lights, (light) =>
-		upgradeBindings(renameFields(light, RENAMED_LIGHT_FIELDS)),
-	);
-	const colors = mapValues(entity.colors, upgradeBindings);
-	return follow === entity.follow && lights === entity.lights && colors === entity.colors
-		? entity
-		: { ...entity, follow, lights, colors };
-};
-
-/** Every list item passed through `upgrade`, or the same list. */
-const mapItems = (items: unknown, upgrade: (item: unknown) => unknown): unknown => {
-	if (!Array.isArray(items)) {
-		return items;
-	}
-	const next = items.map(upgrade);
-	return next.some((item, i) => item !== items[i]) ? next : items;
-};
-
-/** Renamed fields (ADR-0071): their values under their new names. */
-const upgradeFieldNames = (input: Record<string, unknown>): Record<string, unknown> => {
-	const next = renameFields(input, RENAMED_WORLD_FIELDS);
-	const changes: Record<string, unknown> = {};
-	for (const [key, names] of Object.entries(RENAMED_SETTINGS_FIELDS)) {
-		const upgraded = renameFields(next[key], names);
-		if (upgraded !== next[key]) {
-			changes[key] = upgraded;
-		}
-	}
-	const roads = mapItems(next.roads, (road) => renameFields(road, RENAMED_ROAD_FIELDS));
-	if (roads !== next.roads) {
-		changes.roads = roads;
-	}
-	const entities = mapItems(next.entities, upgradeEntity);
-	if (entities !== next.entities) {
-		changes.entities = entities;
-	}
-	return next === input && Object.keys(changes).length === 0 ? input : { ...next, ...changes };
-};
-
-/**
- * A world as saved by an earlier version, with what changed name brought up to
- * date: old ids replaced by their numbered ones, and renamed fields. Leaves the
- * input untouched (callers keep it as a backup) and returns it as it is when
- * there is nothing to replace. Anything that doesn't look like a world passes
- * through.
- */
-export const upgradeLegacyIds = (input: unknown): unknown =>
-	isRecord(input) ? upgradeFieldNames(upgradeIds(upgradeViewpoints(input))) : input;

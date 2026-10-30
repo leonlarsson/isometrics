@@ -1,11 +1,4 @@
-import type {
-	TComesOn,
-	TDataEntry,
-	TEntity,
-	TEntityLight,
-	TLightMode,
-	TTimePeriod,
-} from "#/scene/schema";
+import type { TComesOn, TDataEntry, TEntity, TEntityLight, TTimePeriod } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { readColor, readPeriods, readScale, readSwitch, type TBindingKind } from "./dataBinding";
@@ -19,10 +12,9 @@ import type { ILightSpec, IResolvedLight, TColorDefault } from "./types";
  * dataBinding.ts. No React here.
  */
 
-/** What a part needs for its lights: their specs, and lights whose id changed. */
+/** What a part needs for its lights: their specs. */
 export interface IPartLights {
 	lights?: readonly ILightSpec[];
-	renamedLights?: Readonly<Record<string, string>>;
 }
 
 /** The world around a light right now. */
@@ -100,63 +92,37 @@ export const LIGHT_DATA = {
 	on: "switch",
 	strength: "scale",
 	color: "color",
-	litPanes: "scale",
+	litPaneShare: "scale",
 	schedule: "periods",
 } as const satisfies Record<string, TBindingKind>;
 
 export type TLightDataTarget = keyof typeof LIGHT_DATA;
 
-/**
- * The object's settings for one light: its own entry (or the one under the
- * light's old id), and, for worlds from before per-light settings, the one
- * mode they had for all its lights.
- */
-export const lightSettingsOf = (
-	part: IPartLights,
-	stored: TEntity["lights"],
-	id: string,
-): { setting: TEntityLight | undefined; objectMode: TLightMode } => {
-	if (typeof stored === "string") {
-		return { setting: undefined, objectMode: stored };
-	}
-	const oldId = Object.entries(part.renamedLights ?? {}).find(([, to]) => to === id)?.[0];
-	return {
-		setting: stored[id] ?? (oldId === undefined ? undefined : stored[oldId]),
-		objectMode: "auto",
-	};
-};
-
-/** What a light is like before the world (darkness, driving, data) comes in: its settings in effect. */
-export const lightDefaults = (
-	spec: ILightSpec,
-	entity: Pick<TEntity, "props" | "accent">,
-	palette: IScenePalette,
-) => {
-	const legacy = spec.legacy?.({ props: entity.props, accent: entity.accent }) ?? {};
-	return {
-		color: legacy.color ?? resolveColor(spec.color ?? palette.lamplight, palette),
-		strength: legacy.strength ?? spec.strength ?? 1,
-		reach: legacy.reach ?? spec.reach ?? 1,
-		litPanes: spec.litPanes ?? 1,
-		weight: spec.weight ?? 1,
-	};
-};
+/** What a light is like before the world (darkness, driving, data) comes in: as its part has it. */
+export const lightDefaults = (spec: ILightSpec, palette: IScenePalette) => ({
+	color: resolveColor(spec.color ?? palette.lamplight, palette),
+	strength: spec.strength ?? 1,
+	reach: spec.reach ?? 1,
+	litPaneShare: spec.litPaneShare ?? 1,
+	paneWeight: spec.paneWeight ?? 1,
+});
 
 /** One light as it is right now. */
 export const resolveLight = (
 	spec: ILightSpec,
-	part: IPartLights,
-	entity: Pick<TEntity, "props" | "accent" | "lights">,
+	entity: Pick<TEntity, "lights">,
 	{ palette, driving, data, hour = null }: ILightContext,
 ): IResolvedLight => {
-	const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
-	const defaults = lightDefaults(spec, entity, palette);
+	const setting = entity.lights[spec.id];
+	const defaults = lightDefaults(spec, palette);
 	// Settings that follow data take the value when it reads as one; otherwise their own.
 	const bound = setting?.data ?? {};
 	const color = readColor(bound.color, data) ?? setting?.color ?? defaults.color;
 	const reach = setting?.reach ?? defaults.reach;
-	let litPanes =
-		readScale(bound.litPanes, data, { max: 1 }) ?? setting?.litPanes ?? defaults.litPanes;
+	let litPaneShare =
+		readScale(bound.litPaneShare, data, { max: 1 }) ??
+		setting?.litPaneShare ??
+		defaults.litPaneShare;
 	const strength =
 		readScale(bound.strength, data, { max: MAX_STRENGTH }) ??
 		setting?.strength ??
@@ -167,7 +133,7 @@ export const resolveLight = (
 		// Switched by a value: on while it says so, day and night (off without the value).
 		level = readSwitch(bound.on, data) ? strength : 0;
 	} else {
-		const mode = setting?.whenOn ?? objectMode;
+		const mode = setting?.whenOn ?? "auto";
 		if (mode === "off") {
 			level = 0;
 		} else if (mode === "on") {
@@ -187,8 +153,8 @@ export const resolveLight = (
 				if (comesOn === "gradually") {
 					level = strength * ramp;
 				} else {
-					litPanes *= ramp;
-					level = litPanes > 0 ? strength : 0;
+					litPaneShare *= ramp;
+					level = litPaneShare > 0 ? strength : 0;
 				}
 			}
 		} else if (spec.when === "always") {
@@ -201,8 +167,8 @@ export const resolveLight = (
 			level = palette.night * strength;
 		} else if (comesOnOf(spec, setting) === "oneByOne") {
 			// Pane after pane: more of its panes light up as it gets darker, each fully.
-			litPanes *= panesLitByDark(palette.night);
-			level = litPanes > 0 ? strength : 0;
+			litPaneShare *= panesLitByDark(palette.night);
+			level = litPaneShare > 0 ? strength : 0;
 		} else {
 			// At once when it's dark enough.
 			level = palette.night >= SWITCH_ON_DARKNESS ? strength : 0;
@@ -213,21 +179,21 @@ export const resolveLight = (
 		level,
 		color,
 		reach,
-		litPanes,
-		weight: setting?.weight ?? defaults.weight,
+		litPaneShare,
+		paneWeight: setting?.paneWeight ?? defaults.paneWeight,
 	};
 };
 
 /** Every light of a part on an object, by id, as it is right now. */
 export const resolveLights = (
 	part: IPartLights,
-	entity: Pick<TEntity, "props" | "accent" | "lights">,
+	entity: Pick<TEntity, "lights">,
 	context: ILightContext,
 ): Record<string, IResolvedLight> =>
 	Object.fromEntries(
-		(part.lights ?? []).map((spec) => [spec.id, resolveLight(spec, part, entity, context)]),
+		(part.lights ?? []).map((spec) => [spec.id, resolveLight(spec, entity, context)]),
 	);
 
 /** A part's lights with no object around them (previews, thumbnails): as the part has them, parked. */
 export const resolvePartLights = (part: IPartLights, palette: IScenePalette) =>
-	resolveLights(part, { props: {}, accent: null, lights: {} }, { palette, driving: false });
+	resolveLights(part, { lights: {} }, { palette, driving: false });

@@ -52,7 +52,7 @@ export const DistanceHaze = ({ viewerHaze }: { viewerHaze: boolean }) => {
 		const { lighting, sky } = useEditor.getState().scene;
 		const hours = sceneHoursNow();
 		const weather = weatherNowInWorld();
-		const look = skyLookAt(lighting, sky, hours, weather.overcast);
+		const look = skyLookAt(lighting, sky, hours, weather);
 		const night = skyLightAt(lighting, hours).night;
 		target.copy(controls?.target ?? target.set(0, 0, 0));
 		const distance = camera.position.distanceTo(target);

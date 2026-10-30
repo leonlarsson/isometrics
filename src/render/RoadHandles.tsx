@@ -362,7 +362,7 @@ export const RoadHandles = () => {
 	const dragging = useEditor((s) => s.dragging);
 	const palette = usePalette();
 
-	if (!road || several || mode !== "edit" || drawing || road.hidden || road.locked) {
+	if (!road || several || mode !== "edit" || drawing || road.isHidden || road.isLocked) {
 		return null;
 	}
 	const baseY = roadBaseY(Math.max(0, layer));

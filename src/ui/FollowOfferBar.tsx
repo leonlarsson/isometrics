@@ -1,13 +1,13 @@
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
 import { Button } from "./Button";
 
 import styles from "./DrawingBar.module.css";
 
-export const roadName = (road: TRoad) => road.name || ROAD_STYLE_LABELS[road.style];
+export const roadName = (road: TRoad) => road.name || ROAD_KIND_LABELS[road.kind];
 
 /**
  * While a vehicle is being moved by hand: the road it's snapped onto (if any),

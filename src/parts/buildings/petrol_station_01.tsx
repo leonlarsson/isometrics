@@ -6,7 +6,7 @@ import { definePart } from "../types";
 
 const PetrolStationSchema = z.object({
 	pumpCount: z.number().int().min(1).max(4).default(2),
-	showShop: z.boolean().default(true),
+	showsShop: z.boolean().default(true),
 });
 
 const CANOPY = { height: 1.15, depth: 2, thickness: 0.18 };
@@ -20,9 +20,10 @@ export const petrolStation01 = definePart({
 	description: "Filling station: pump islands under a lit canopy, with a small shop behind (-Z)",
 	keywords: ["gas station", "fuel", "garage", "service station", "pumps", "filling station"],
 	schema: PetrolStationSchema,
+	renamedProps: { showShop: "showsShop" },
 	fields: [
 		{ key: "pumpCount", label: "Number of pump islands", type: "number", min: 1, max: 4, step: 1 },
-		{ key: "showShop", label: "Show the shop", type: "boolean" },
+		{ key: "showsShop", label: "Show the shop", type: "boolean" },
 	],
 	colors: [
 		{ id: "brand", name: "Canopy band and pumps", default: "#d83a2e", legacy: "color" },
@@ -43,7 +44,7 @@ export const petrolStation01 = definePart({
 	],
 	footprint: (p) => [
 		Math.max(2.6, p.pumpCount * ISLAND_SPACING + 0.6),
-		CANOPY.depth + (p.showShop ? 1.6 : 0),
+		CANOPY.depth + (p.showsShop ? 1.6 : 0),
 	],
 	height: () => CANOPY.height + CANOPY.thickness,
 	Component: ({ props: p, colors, palette, lights }) => {
@@ -91,7 +92,7 @@ export const petrolStation01 = definePart({
 					</group>
 				))}
 
-				{p.showShop && (
+				{p.showsShop && (
 					<group position={[0, 0, -CANOPY.depth / 2 - 0.8]}>
 						<Box size={[width * 0.7, 0.9, 1.2]} position={[0, 0.45, 0]} color={colors.shop} />
 

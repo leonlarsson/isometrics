@@ -160,7 +160,7 @@ test.describe("viewpoints (ADR-0039)", () => {
 		await act(page, (s) => {
 			s.addViewpoint({
 				target: [0, 0],
-				targetHeight: 0,
+				targetAltitude: 0,
 				azimuth: 315,
 				elevation: 32,
 				span: 40,
@@ -169,7 +169,7 @@ test.describe("viewpoints (ADR-0039)", () => {
 			});
 			s.addViewpoint({
 				target: [10, 10],
-				targetHeight: 0,
+				targetAltitude: 0,
 				azimuth: 45,
 				elevation: 40,
 				span: 30,
@@ -210,10 +210,10 @@ test.describe("the Camera tab (ADR-0062)", () => {
 		await expect(page.getByRole("tab", { name: "Camera", selected: true })).toBeVisible();
 		await openPanel(page, "Turntable");
 		await page.getByRole("switch", { name: "Circle the view in View mode" }).click();
-		expect(await read(page, (s) => s.scene.camera.turntableOn)).toBe(true);
+		expect(await read(page, (s) => s.scene.camera.turntable.isOn)).toBe(true);
 		await openPanel(page, "Tilt-shift");
 		await page.getByRole("switch", { name: "Miniature blur in View mode" }).click();
-		expect(await read(page, (s) => s.scene.camera.tiltShiftOn)).toBe(true);
+		expect(await read(page, (s) => s.scene.camera.tiltShift.isOn)).toBe(true);
 	});
 
 	test("the opening projection can be perspective", async ({ page }) => {

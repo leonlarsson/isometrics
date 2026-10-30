@@ -177,9 +177,9 @@ const Entities = memo(() => {
 			unboxing: s.boxDrag?.removing ?? false,
 			playing: s.playing,
 			ground: s.scene.ground,
-			driving: s.scene.drivingSide,
-			sceneTurns: s.scene.turnStyle,
-			sceneLeans: s.scene.leansInTurns,
+			driving: s.scene.traffic.drivingSide,
+			sceneTurns: s.scene.traffic.turnStyle,
+			sceneLeans: s.scene.traffic.leansInTurns,
 			drawing: s.drawing !== null,
 		})),
 	);
@@ -286,7 +286,7 @@ export const Viewport = () => {
 
 			{/* Hidden items keep their index: it's their draw layer. */}
 			{areas.map((area, index) =>
-				area.hidden ? null : <AreaMesh key={area.id} area={area} layer={index} />,
+				area.isHidden ? null : <AreaMesh key={area.id} area={area} layer={index} />,
 			)}
 
 			<AreaHandles />
@@ -296,12 +296,12 @@ export const Viewport = () => {
 			<InstancedParts />
 
 			{roads.map((road, index) =>
-				road.hidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,
+				road.isHidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,
 			)}
 
 			<RoadHandles />
 
-			{fences.map((fence) => (fence.hidden ? null : <FenceMesh key={fence.id} fence={fence} />))}
+			{fences.map((fence) => (fence.isHidden ? null : <FenceMesh key={fence.id} fence={fence} />))}
 
 			<FenceHandles />
 

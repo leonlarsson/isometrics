@@ -5,7 +5,7 @@ import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
 
 const MotorbikeSchema = z.object({
-	showRider: z.boolean().default(true),
+	showsRider: z.boolean().default(true),
 });
 
 /** Its wheels: how far apart, how big, how fat the tyre. */
@@ -41,7 +41,8 @@ export const motorbike01 = definePart({
 	description: "Motorbike with a rider in a helmet; can ride along a road",
 	keywords: ["motorcycle", "scooter", "moped", "bike", "rider", "courier", "vehicle"],
 	schema: MotorbikeSchema,
-	fields: [{ key: "showRider", label: "Show the rider", type: "boolean" }],
+	renamedProps: { showRider: "showsRider" },
+	fields: [{ key: "showsRider", label: "Show the rider", type: "boolean" }],
 	colors: [
 		{ id: "body", name: "Tank and fairing", default: "#2b59c3", legacy: "color" },
 		{ id: "riderTop", name: "Rider's jacket", default: "#2b2b2f", legacy: "accent" },
@@ -52,7 +53,7 @@ export const motorbike01 = definePart({
 	canFollowPath: true,
 	turnLean: { degreesPerAcceleration: 9, maxDegrees: 22 },
 	footprint: () => [WHEEL.apart + WHEEL.radius * 2 + 0.04, 0.2],
-	height: (p) => (p.showRider ? 0.8 : 0.48),
+	height: (p) => (p.showsRider ? 0.8 : 0.48),
 	Component: ({ props: p, colors, palette, lights }) => {
 		const front: [number, number] = [WHEEL.apart / 2, WHEEL.radius];
 		const rear: [number, number] = [-WHEEL.apart / 2, WHEEL.radius];
@@ -95,7 +96,7 @@ export const motorbike01 = definePart({
 				/>
 
 				{/* The rider: legs to the footpegs, a body leaning to the bars, arms, a helmet. */}
-				{p.showRider && (
+				{p.showsRider && (
 					<group>
 						{[0.07, -0.07].map((z) => (
 							<group key={z} position={[0, 0, z]}>

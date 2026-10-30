@@ -49,7 +49,7 @@ export const surfaceHitOnRay = (
 	areas: readonly TArea[],
 	above = 0,
 ): THREE.Vector3 | null => {
-	const raised = areas.filter((area) => !area.hidden && isRaised(area));
+	const raised = areas.filter((area) => !area.isHidden && isRaised(area));
 	const highest =
 		above + Math.max(0, ...raised.flatMap((area) => area.points.map((p) => cornerTop(area, p))));
 	plane.constant = -above;

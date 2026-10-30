@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 
-import { COLOR_DATA, colorDefault, colorSettingOf, type IPartColors } from "#/parts/colorModel";
-import { lightDefaults, lightSettingsOf } from "#/parts/lightModel";
+import {
+	COLOR_DATA,
+	colorSettingOf,
+	type IPartColors,
+	type IStoredColors,
+	resolveColorDefault,
+} from "#/parts/colorModel";
+import { lightDefaults } from "#/parts/lightModel";
 import { partName, resolveProps, type TAnyPart } from "#/parts/registry";
-import type { ILightSpec, TFieldSpec } from "#/parts/types";
-import type { TEntityColorChange, TEntityLightChange } from "#/scene/objectSettings";
-import type { TDataEntry, TEntity } from "#/scene/schema";
+import type { IColorSpec, ILightSpec, TFieldSpec } from "#/parts/types";
+import type { TColorSettingChange, TEntityLightChange } from "#/scene/objectSettings";
+import type { TColorSetting, TDataEntry, TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { ChipGroup } from "./ChipGroup";
@@ -32,7 +38,7 @@ import { LightSettings } from "./LightSettings";
  */
 
 /** What the panels read of an object: what a world's file stores for its part. */
-export type TPartSettingsOf = Pick<TEntity, "props" | "colors" | "color" | "accent" | "lights">;
+export type TPartSettingsOf = Pick<TEntity, "props" | "colors" | "lights">;
 
 /** How a setting is called in a world's file, under its field (the parts catalogue). */
 const FileName = ({ name }: { name: string }) => (
@@ -64,7 +70,7 @@ const DataKeyField = ({
 			mixed={mixed}
 			options={[
 				{ value: "", label: "None" },
-				...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
+				...data.map((entry) => ({ value: entry.key, label: entry.name || entry.key })),
 			]}
 			onChange={onChange}
 			hint={
@@ -219,6 +225,74 @@ export const PartShapeSection = ({
 	);
 };
 
+/**
+ * One colour's setting (ADR-0060): set by hand or from data, and how see-through
+ * it is for glass (ADR-0090). Inside the colours panel, and on its own for a
+ * road's, an area's or the ground's colour (ADR-0104).
+ */
+export const ColorSettingFields = ({
+	spec,
+	setting,
+	data,
+	palette,
+	label = "Colour",
+	fileName,
+	onChange,
+}: {
+	spec: IColorSpec;
+	setting: TColorSetting | undefined;
+	data: readonly TDataEntry[];
+	palette: IScenePalette;
+	label?: string;
+	/** What a world's file calls it, shown under it (the parts catalogue). */
+	fileName?: string;
+	/** `coalesce` names the setting being dragged or typed, so it's one undo step. */
+	onChange: (change: TColorSettingChange, coalesce?: string) => void;
+}) => (
+	<>
+		<DataDrivenField
+			kind={COLOR_DATA.color}
+			binding={setting?.data.color}
+			data={data}
+			onBindingChange={(binding, field) =>
+				onChange({ data: { color: binding } }, field && `data.${field}`)
+			}
+		>
+			<ColorField
+				label={label}
+				value={setting?.color ?? resolveColorDefault(spec.default, palette)}
+				onChange={(color) => onChange({ color }, "color")}
+				inherit={{
+					from: "default",
+					inherited: setting?.color == null,
+					onReset: () => onChange({ color: null }),
+				}}
+				hint={fileName ? <FileName name={fileName} /> : undefined}
+			/>
+		</DataDrivenField>
+
+		{/* Glass and the like: how see-through it is (ADR-0090). */}
+		{spec.seeThrough && (
+			<SliderField
+				label="Transparency"
+				value={Math.round((setting?.transparency ?? spec.seeThrough.transparency) * 100)}
+				min={0}
+				max={100}
+				step={1}
+				suffix="%"
+				onChange={(value) => onChange({ transparency: value / 100 }, "transparency")}
+				inherit={{
+					from: "default",
+					inherited: setting?.transparency == null,
+					onReset: () => onChange({ transparency: null }),
+					value: `${Math.round(spec.seeThrough.transparency * 100)}%`,
+				}}
+				hint="0% is solid, 100% clear."
+			/>
+		)}
+	</>
+);
+
 /** A group per colour of the part (ADR-0060), in the part's order, each set by hand or from data. */
 export const PartColorsSection = ({
 	part,
@@ -229,13 +303,15 @@ export const PartColorsSection = ({
 	palette,
 	actions,
 	onChange,
-}: Omit<IPartSettingsProps, "part"> & {
-	/** What has the colours: a part, or a fence's style (ADR-0103). */
+}: Omit<IPartSettingsProps, "part" | "object"> & {
+	/** What has the colours: a part, or a fence's kind (ADR-0103). */
 	part: IPartColors;
+	/** What keeps settings for them: an object or a fence. */
+	object: IStoredColors;
 	palette: IScenePalette;
 	actions?: ReactNode;
 	/** `coalesce` names the setting being dragged or typed, so it's one undo step. */
-	onChange: (colorId: string, change: TEntityColorChange, coalesce?: string) => void;
+	onChange: (colorId: string, change: TColorSettingChange, coalesce?: string) => void;
 }) => {
 	return (
 		<Section
@@ -247,57 +323,18 @@ export const PartColorsSection = ({
 			keywords="colors paint data scale heatmap"
 			actions={actions}
 		>
-			{part.colors.map((spec) => {
-				const setting = colorSettingOf(object, spec.id);
-				const change = (colorChange: TEntityColorChange, field?: string) =>
-					onChange(spec.id, colorChange, field);
-				// An older world's colour counts as set here, so Reset goes back to the part's.
-				const fromOlderWorld = spec.legacy ? object[spec.legacy] : null;
-				return (
-					<FieldGroup key={spec.id} title={spec.name}>
-						<DataDrivenField
-							kind={COLOR_DATA.color}
-							binding={setting?.data.color}
-							data={data}
-							onBindingChange={(binding, field) =>
-								change({ data: { color: binding } }, field && `data.${field}`)
-							}
-						>
-							<ColorField
-								label="Colour"
-								value={setting?.color ?? colorDefault(spec, object, palette)}
-								onChange={(color) => change({ color }, "color")}
-								inherit={{
-									from: "default",
-									inherited: (setting?.color ?? fromOlderWorld) === null,
-									onReset: () => change({ color: null }),
-								}}
-								hint={showFileNames ? <FileName name={spec.id} /> : undefined}
-							/>
-						</DataDrivenField>
-
-						{/* Glass and the like: how see-through it is (ADR-0090). */}
-						{spec.seeThrough && (
-							<SliderField
-								label="Transparency"
-								value={Math.round((setting?.transparency ?? spec.seeThrough.transparency) * 100)}
-								min={0}
-								max={100}
-								step={1}
-								suffix="%"
-								onChange={(value) => change({ transparency: value / 100 }, "transparency")}
-								inherit={{
-									from: "default",
-									inherited: setting?.transparency == null,
-									onReset: () => change({ transparency: null }),
-									value: `${Math.round(spec.seeThrough.transparency * 100)}%`,
-								}}
-								hint="0% is solid, 100% clear."
-							/>
-						)}
-					</FieldGroup>
-				);
-			})}
+			{part.colors.map((spec) => (
+				<FieldGroup key={spec.id} title={spec.name}>
+					<ColorSettingFields
+						spec={spec}
+						setting={colorSettingOf(object, spec.id)}
+						data={data}
+						palette={palette}
+						fileName={showFileNames ? spec.id : undefined}
+						onChange={(change, field) => onChange(spec.id, change, field)}
+					/>
+				</FieldGroup>
+			))}
 
 			{part.colors.length === 0 && <Hint>It has no colours to change.</Hint>}
 		</Section>
@@ -326,8 +363,7 @@ export const PartLightCards = ({
 }) => {
 	// Window lights split the part's windows between them by weight: the object's, else the part's.
 	const windowLights = (part.lights ?? []).filter((light) => light.shape === "windows");
-	const weightOf = (spec: ILightSpec) =>
-		lightSettingsOf(part, object.lights, spec.id).setting?.weight ?? spec.weight ?? 1;
+	const weightOf = (spec: ILightSpec) => object.lights[spec.id]?.paneWeight ?? spec.paneWeight ?? 1;
 	const windowWeights = windowLights.reduce((sum, light) => sum + weightOf(light), 0) || 1;
 	const split = windowLights.length > 1 && (
 		<Section
@@ -344,39 +380,36 @@ export const PartLightCards = ({
 				parts={windowLights.map((spec) => ({
 					id: spec.id,
 					label: spec.name,
-					color: lightDefaults(spec, object, palette).color,
+					color: lightDefaults(spec, palette).color,
 				}))}
 				weights={windowLights.map(weightOf)}
 				onChange={(percentages) =>
 					windowLights.forEach((spec, i) => {
-						onChange(spec.id, { weight: percentages[i] }, "split");
+						onChange(spec.id, { paneWeight: percentages[i] }, "split");
 					})
 				}
 				inherit={{
 					from: "default",
-					inherited: windowLights.every(
-						(spec) => lightSettingsOf(part, object.lights, spec.id).setting?.weight == null,
-					),
+					inherited: windowLights.every((spec) => object.lights[spec.id]?.paneWeight == null),
 					onReset: () => {
 						const reset = `split:reset:${performance.now()}`;
 						for (const spec of windowLights) {
-							onChange(spec.id, { weight: null }, reset);
+							onChange(spec.id, { paneWeight: null }, reset);
 						}
 					},
 				}}
-				hint={`How the building's windows are shared out between its window lights. Each light's Lit panes is a share of its own. Changing the split moves which panes are whose.${showFileNames ? " In a world's file: weight, on each light." : ""}`}
+				hint={`How the building's windows are shared out between its window lights. Each light's Lit panes is a share of its own. Changing the split moves which panes are whose.${showFileNames ? " In a world's file: paneWeight, on each light." : ""}`}
 			/>
 		</Section>
 	);
 	const cards = (part.lights ?? []).map((spec) => {
-		const { setting, objectMode } = lightSettingsOf(part, object.lights, spec.id);
+		const setting = object.lights[spec.id];
 		return (
 			<LightSettings
 				key={spec.id}
 				spec={spec}
-				defaults={lightDefaults(spec, object, palette)}
+				defaults={lightDefaults(spec, palette)}
 				setting={setting}
-				inheritedMode={objectMode}
 				data={data}
 				hour={hour}
 				windowShare={spec.shape === "windows" ? weightOf(spec) / windowWeights : undefined}

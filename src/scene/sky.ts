@@ -66,18 +66,39 @@ export interface ISkyLook {
 	cloudSpeed: number;
 }
 
+/** What the weather brings to the sky (ADR-0102): its clouds, and how overcast it is (0–1). */
+export interface ISkyWeather {
+	cloudCover: number;
+	cloudColor: string | null;
+	cloudSpeed: number;
+	overcast: number;
+}
+
+/** A world's weather as it comes: a few white clouds drifting, nothing overcast. */
+export const DEFAULT_SKY_WEATHER: ISkyWeather = {
+	cloudCover: 0.3,
+	cloudColor: null,
+	cloudSpeed: 1,
+	overcast: 0,
+};
+
 /**
  * The sky for a world at an hour (null = classic daylight): its colours (set
  * ones by day, darkening at night; else the time of day's), the sun where the light comes from (Sun &
  * sky's direction and height count), the moon and stars as it gets dark, and
- * clouds tinted like the light. Weather's overcast (ADR-0102) greys the sky,
- * hides the sun and stars and gathers more and greyer clouds.
+ * the weather's clouds tinted like the light. Weather's overcast (ADR-0102)
+ * greys the sky, hides the sun and stars and gathers more and greyer clouds.
  */
 export const skyLookAt = (
 	lighting: TLighting,
 	sky: TSky,
 	hour: number | null,
-	overcast = 0,
+	{
+		cloudCover,
+		cloudColor: setCloudColor,
+		cloudSpeed,
+		overcast,
+	}: ISkyWeather = DEFAULT_SKY_WEATHER,
 ): ISkyLook => {
 	const colors = skyColorsAt(hour);
 	const light = skyLightAt(lighting, hour, overcast);
@@ -95,19 +116,19 @@ export const skyLookAt = (
 	const greyed = (color: string, grey: string) =>
 		overcast <= 0 ? color : mixColor(color, mixColor(grey, "#1a1e26", darkness), 0.7 * overcast);
 	const cloudColor =
-		sky.cloudColor ??
+		setCloudColor ??
 		mixColor(mixColor("#ffffff", light.tint, light.tintAmount), "#56608a", darkness * 0.8);
 	return {
 		colorOverhead: greyed(byNight(sky.colorOverhead, colors.colorOverhead), "#9aa3ad"),
 		colorAtHorizon: greyed(byNight(sky.colorAtHorizon, colors.colorAtHorizon), "#c3c9cf"),
-		sunDisc: sky.showSun && daylit && overcast < 0.6 ? { ...sun, color: light.color } : null,
+		sunDisc: sky.showsSun && daylit && overcast < 0.6 ? { ...sun, color: light.color } : null,
 		moonDisc:
-			sky.showMoon && darkness > 0.3 && overcast < 0.6 ? moonPositionFor(sun.azimuth) : null,
+			sky.showsMoon && darkness > 0.3 && overcast < 0.6 ? moonPositionFor(sun.azimuth) : null,
 		starBrightness: sky.starDensity * darkness * (1 - overcast),
-		cloudCover: Math.max(sky.cloudCover, 0.85 * overcast),
+		cloudCover: Math.max(cloudCover, 0.85 * overcast),
 		// White clouds take on the light's colour, and a moonlit grey-blue at night; greyer overcast.
 		cloudColor: overcast <= 0 ? cloudColor : mixColor(cloudColor, "#8a929c", 0.6 * overcast),
-		cloudSpeed: sky.cloudSpeed,
+		cloudSpeed,
 	};
 };
 

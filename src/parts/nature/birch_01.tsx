@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The dark marks on its bark, by height. */
 const MARKS = [0.18, 0.34, 0.52, 0.7];
@@ -13,16 +13,15 @@ export const birch01 = definePart({
 	category: "nature",
 	description: "Slender tree with a white trunk and light leaves",
 	keywords: ["tree", "silver birch", "plant", "nature", "park", "forest"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: "#9bc76b", legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: "#ece8df", legacy: "accent" },
 	],
-	footprint: (p) => [0.7 * p.size, 0.7 * p.size],
-	height: (p) => 1.66 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.7, 0.7],
+	height: () => 1.66,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.55, 0]} castShadow>
 				<cylinderGeometry args={[0.04, 0.055, 1.1, 8]} />
 

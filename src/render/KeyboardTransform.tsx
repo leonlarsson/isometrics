@@ -191,7 +191,7 @@ export const KeyboardTransform = () => {
 					: null;
 			if (tilt && target.kind === "entity") {
 				const facing =
-					headingAxis(target.from.rotation, tilt).dot(
+					headingAxis(target.from.rotation[1], tilt).dot(
 						camera.getWorldDirection(new THREE.Vector3()).negate(),
 					) >= 0
 						? 1
@@ -279,7 +279,7 @@ export const KeyboardTransform = () => {
 			const from = entityStart(state.selectedId);
 			if (from) {
 				target = { kind: "entity", id: state.selectedId, from };
-				center = new THREE.Vector3(from.position[0], from.elevation, from.position[1]);
+				center = new THREE.Vector3(from.position[0], from.altitude, from.position[1]);
 			}
 		} else if (state.selectedAreaId && state.selectedPeakIndex !== null) {
 			// An area's selected peak (ADR-0101).
@@ -347,7 +347,7 @@ export const KeyboardTransform = () => {
 		// A single object follows the pointer on the ground as it stands (ADR-0098).
 		const above =
 			target.kind === "entity"
-				? target.from.elevation -
+				? target.from.altitude -
 					groundHeightAt(useEditor.getState().scene.areas, target.from.position)
 				: null;
 		context.current = {

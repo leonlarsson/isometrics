@@ -34,14 +34,14 @@ export const FREE_TILT: IPolarLimits = {
  * ground, as in Blender; both stop as short of straight as STRAIGHT_DOWN_MARGIN.
  */
 export const polarLimits = (
-	camera: { lowestElevation: number; steepestElevation: number },
+	camera: { lowestElevation: number; highestElevation: number },
 	free: boolean,
 ): IPolarLimits => {
 	if (free) {
 		return FREE_TILT;
 	}
-	const low = Math.max(0, Math.min(camera.lowestElevation, camera.steepestElevation));
-	const steep = Math.max(camera.lowestElevation, camera.steepestElevation, low);
+	const low = Math.max(0, Math.min(camera.lowestElevation, camera.highestElevation));
+	const steep = Math.max(camera.lowestElevation, camera.highestElevation, low);
 	const min = Math.max(STRAIGHT_DOWN_MARGIN, (90 - steep) * DEG2RAD);
 	return { min, max: Math.max(min, (90 - low) * DEG2RAD) };
 };

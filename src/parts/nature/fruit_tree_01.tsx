@@ -1,7 +1,7 @@
 import { jitter, Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The crown's middle and size. */
 const CROWN = { y: 0.75, radius: 0.38 };
@@ -18,17 +18,16 @@ export const fruitTree01 = definePart({
 	category: "nature",
 	description: "Small round tree hung with fruit",
 	keywords: ["apple", "orange", "cherry", "orchard", "garden", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: "#6fae5c", legacy: "color" },
 		{ id: "fruit", name: "Fruit", default: "#d9412e", legacy: "accent" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk },
 	],
-	footprint: (p) => [0.8 * p.size, 0.8 * p.size],
-	height: (p) => 1.15 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.8, 0.8],
+	height: () => 1.15,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.25, 0]} castShadow>
 				<cylinderGeometry args={[0.05, 0.07, 0.5, 8]} />
 

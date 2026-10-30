@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DataBindingSchema, FenceSchema, FenceStyleSchema } from "#/scene/schema";
+import { DataBindingSchema, FenceKindSchema, FenceSchema } from "#/scene/schema";
 
 import { buildFence } from "./fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "./registry";
@@ -14,9 +14,9 @@ const sources = import.meta.glob("./*_[0-9][0-9].ts", {
 describe("fence styles", () => {
 	it("has a style for every id in the format, and each id once", () => {
 		expect(FENCE_STYLE_LIST.map((style) => style.id).sort()).toEqual(
-			[...FenceStyleSchema.options].sort(),
+			[...FenceKindSchema.options].sort(),
 		);
-		for (const id of FenceStyleSchema.options) {
+		for (const id of FenceKindSchema.options) {
 			expect(FENCE_STYLES[id].id).toBe(id);
 			expect(FENCE_STYLE_LABELS[id]).toBeTruthy();
 		}
@@ -24,14 +24,14 @@ describe("fence styles", () => {
 
 	it("keeps each style in a file named for it (ADR-0043)", () => {
 		const files = Object.keys(sources).map((path) => path.replace(/^\.\/|\.ts$/g, ""));
-		expect(files.sort()).toEqual([...FenceStyleSchema.options].sort());
+		expect(files.sort()).toEqual([...FenceKindSchema.options].sort());
 	});
 
 	it("builds every style, with pieces only in the colours it lists", () => {
 		for (const style of FENCE_STYLE_LIST) {
 			const fence = FenceSchema.parse({
 				id: "f",
-				style: style.id,
+				kind: style.id,
 				points: [
 					[0, 0],
 					[6, 0],
@@ -63,7 +63,7 @@ describe("fence styles", () => {
 	it("stands on raised land, and partly built fences draw less", () => {
 		const fence = FenceSchema.parse({
 			id: "f",
-			style: "rail_fence_01",
+			kind: "rail_fence_01",
 			points: [
 				[0, 0],
 				[8, 0],
@@ -72,7 +72,7 @@ describe("fence styles", () => {
 		const plateau = {
 			id: "a",
 			name: "",
-			type: "raised_land_01" as const,
+			kind: "raised_land_01" as const,
 			points: [
 				[-1, -1],
 				[9, -1],
@@ -81,11 +81,10 @@ describe("fence styles", () => {
 			] as [number, number][],
 			height: 2,
 			peaks: [],
-			color: null,
-			locked: false,
-			hidden: false,
-			rippleStrength: null,
-			reflectionStrength: null,
+			colors: {},
+			water: { rippleStrength: null, reflectionStrength: null },
+			isLocked: false,
+			isHidden: false,
 		};
 		const lowest = (geometries: ReturnType<typeof buildFence>) =>
 			Math.min(
@@ -100,7 +99,7 @@ describe("fence styles", () => {
 			...fence,
 			data: { builtShare: DataBindingSchema.parse({ key: "progress", valueAtFull: 100 }) },
 		};
-		const data = [{ key: "progress", label: "", value: 50, unit: "%" }];
+		const data = [{ key: "progress", name: "", value: 50, unit: "%" }];
 		expect(count(buildFence(half, [], data))).toBeLessThan(count(buildFence(fence, [], [])));
 	});
 });

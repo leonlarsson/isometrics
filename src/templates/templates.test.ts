@@ -23,11 +23,11 @@ const bodiesOf = (entity: TEntity) => {
 		return [];
 	}
 	const props = resolveProps(part, entity.props);
-	const turn = (entity.rotation * Math.PI) / 180;
+	const turn = (entity.rotation[1] * Math.PI) / 180;
 	// Vehicles face +X; a turn of r degrees about Y takes +X to (cos r, -sin r).
 	const along: [number, number] = [Math.cos(turn), -Math.sin(turn)];
 	const across: [number, number] = [Math.sin(turn), Math.cos(turn)];
-	const top = entity.elevation + part.height(props) * entity.scale;
+	const top = entity.altitude + part.height(props) * entity.scale;
 	const body = ([width, depth]: [number, number], bottom: number) => ({
 		centre: entity.position,
 		axes: [along, across] as const,
@@ -38,10 +38,10 @@ const bodiesOf = (entity: TEntity) => {
 	const overhang = part.overhang?.(props);
 	return overhang
 		? [
-				body(overhang.foot, entity.elevation),
-				body(part.footprint(props), entity.elevation + overhang.from * entity.scale),
+				body(overhang.foot, entity.altitude),
+				body(part.footprint(props), entity.altitude + overhang.from * entity.scale),
 			]
-		: [body(part.footprint(props), entity.elevation)];
+		: [body(part.footprint(props), entity.altitude)];
 };
 
 /** How far two outlines overlap, the least along any of their axes (0 or less: they don't). */
@@ -68,7 +68,7 @@ describe("templates", () => {
 	it.each(templates)("%s has no objects inside each other", (_, create) => {
 		const standing = create().entities.filter((entity) => {
 			const part = getPart(entity.kind);
-			return !entity.follow && !entity.hidden && !part?.flat && part?.category !== "markers";
+			return !entity.follow && !entity.isHidden && !part?.flat && part?.category !== "markers";
 		});
 		const clashes: string[] = [];
 		standing.forEach((a, i) => {

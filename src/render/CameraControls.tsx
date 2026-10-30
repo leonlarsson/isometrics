@@ -291,7 +291,7 @@ const useOrbitAroundCursor = () => {
 
 /**
  * Keep the view's centre over the ground, so panning or zooming can't lose the
- * world, unless the world turns that off (scene.camera.keepOverGround).
+ * world, unless the world turns that off (scene.camera.keepsOverGround).
  */
 const useKeepTargetOnGround = () => {
 	const camera = useThree((s) => s.camera);
@@ -309,7 +309,7 @@ const useKeepTargetOnGround = () => {
 			// when you let go (useRightButtonHold).
 			const { cameraFollow, scene, holdingRightButton } = useEditor.getState();
 			const free = readPreferences().cameraControl === "free";
-			if (cameraFollow || free || holdingRightButton || !scene.camera.keepOverGround) {
+			if (cameraFollow || free || holdingRightButton || !scene.camera.keepsOverGround) {
 				return;
 			}
 			const { target } = controls;
@@ -429,7 +429,7 @@ const useRevealSelection = () => {
 		}
 		// Where the object will be once the view offset has settled: the target sits in the middle
 		// of the visible area, and the orthographic view moves everything by the same offset.
-		const object = new THREE.Vector3(entity.position[0], entity.elevation, entity.position[1]);
+		const object = new THREE.Vector3(entity.position[0], entity.altitude, entity.position[1]);
 		const onScreen = object.clone().project(camera);
 		const target = controls.target.clone().project(camera);
 		const visible = size.height - inset;

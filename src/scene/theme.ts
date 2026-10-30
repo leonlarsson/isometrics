@@ -27,7 +27,7 @@ export interface IScenePalette {
 	deck: string;
 	railing: string;
 	embankment: string;
-	/** Default colours per area type (see AreaTypeSchema). */
+	/** Default colours per area type (see AreaKindSchema). */
 	areas: { water: string; grass: string; sand: string; plaza: string; land: string };
 	/** Cliff sides of raised areas. */
 	cliff: string;

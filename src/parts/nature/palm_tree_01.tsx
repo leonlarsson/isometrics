@@ -1,7 +1,7 @@
 import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The trunk: segments stacked up a gentle curve, each [x, y, lean]. */
 const SEGMENTS = [0, 1, 2, 3, 4].map((i) => ({
@@ -25,16 +25,15 @@ export const palmTree01 = definePart({
 	category: "nature",
 	description: "Tall palm with a curved trunk and drooping fronds",
 	keywords: ["tree", "coconut", "beach", "tropical", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "fronds", name: "Fronds", default: "#4f9a4a", legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: "#9b7b55", legacy: "accent" },
 	],
-	footprint: (p) => [1.3 * p.size, 1.3 * p.size],
-	height: (p) => 1.75 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [1.3, 1.3],
+	height: () => 1.75,
+	Component: ({ colors }) => (
+		<group>
 			{SEGMENTS.map(({ x, y, lean }) => (
 				<mesh key={y} position={[x, y, 0]} rotation={[0, 0, lean]} castShadow>
 					<cylinderGeometry args={[0.06, 0.075, 0.32, 7]} />

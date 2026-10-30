@@ -125,8 +125,8 @@ test.describe("selecting (ADR-0028, ADR-0035, ADR-0064)", () => {
 							color: null,
 							strength: null,
 							reach: null,
-							litPanes: null,
-							weight: null,
+							litPaneShare: null,
+							paneWeight: null,
 							data: {},
 						},
 					},
@@ -160,15 +160,15 @@ test.describe("the outliner's other powers (ADR-0035)", () => {
 		page,
 	}) => {
 		await outliner(page).getByRole("button", { name: "Hide House A (H)" }).click();
-		expect(await read(page, (s) => s.scene.entities[0].hidden)).toBe(true);
+		expect(await read(page, (s) => s.scene.entities[0].isHidden)).toBe(true);
 		await outliner(page).getByRole("button", { name: "Lock House B" }).click();
-		expect(await read(page, (s) => s.scene.entities[1].locked)).toBe(true);
+		expect(await read(page, (s) => s.scene.entities[1].isLocked)).toBe(true);
 
 		await row(page, "House C").click();
 		await page.keyboard.press("h");
-		expect(await read(page, (s) => s.scene.entities[2].hidden)).toBe(true);
+		expect(await read(page, (s) => s.scene.entities[2].isHidden)).toBe(true);
 		await page.keyboard.press("Alt+h");
-		expect(await read(page, (s) => s.scene.entities.some((e) => e.hidden))).toBe(false);
+		expect(await read(page, (s) => s.scene.entities.some((e) => e.isHidden))).toBe(false);
 	});
 
 	test("right-click a row: its menu acts on it; on one of several, on all of them", async ({

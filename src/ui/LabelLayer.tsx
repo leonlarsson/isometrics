@@ -91,10 +91,6 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	const data = useEditor((s) => s.scene.data);
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
-	if (!entity.label) {
-		return null;
-	}
-
 	const entries = entity.label.dataKeys.map((key) => ({
 		key,
 		entry: data.find((d) => d.key === key),
@@ -148,7 +144,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 				) : (
 					entries.map(({ key, entry }) => (
 						<span key={key} className={styles.row}>
-							<span className={styles.rowLabel}>{entry?.label || key}</span>
+							<span className={styles.rowLabel}>{entry?.name || key}</span>
 
 							<span className={styles.rowValue}>{formatEntry(entry)}</span>
 						</span>
@@ -194,14 +190,14 @@ export const LabelLayer = () => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	// The world can hide every card from View mode (World tab → Shown in View mode); Edit mode still
 	// shows them, faded, so they can be worked on.
-	const cardsInView = useEditor((s) => s.scene.onScreen.showLabelCards);
+	const cardsInView = useEditor((s) => s.scene.onScreen.showsLabelCards);
 	const editing = useEditor((s) => drawnModeOf(s) === "edit");
 	// A picture with its cards (ADR-0084) shows them even where the world hides them in View mode.
 	const cardsInPicture = useEditor((s) => s.stillRender?.showsCards ?? false);
 	const rendering = useEditor((s) => s.stillRender !== null);
 	const labelled =
 		cardsInView || editing || cardsInPicture
-			? entities.filter((entity) => entity.label?.enabled && !entity.hidden)
+			? entities.filter((entity) => entity.label.isShown && !entity.isHidden)
 			: [];
 
 	return (

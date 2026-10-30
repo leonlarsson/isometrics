@@ -3,7 +3,9 @@ import { z } from "zod";
 /**
  * The scene document is the single source of truth for a world.
  * The renderer, editor, persistence and (future) AI generation all read and
- * write this shape. See docs/adr/0003-scene-as-json-document.md.
+ * write this shape. See docs/adr/0003-scene-as-json-document.md, and
+ * docs/adr/0104-world-format-before-going-public.md for how fields are named
+ * and grouped.
  *
  * Field meanings live in `.describe()` text so they reach /schema.json, where
  * people and AIs writing worlds read them (ADR-0032); comments are for code.
@@ -19,7 +21,7 @@ export const HexColorSchema = z
 
 /** [x, z] on the ground plane, in grid units. */
 export const Vec2Schema = z.tuple([z.number(), z.number()]);
-/** [x, y, z] in world units. */
+/** [x, y, z] in grid units, y up. */
 export const Vec3Schema = z.tuple([z.number(), z.number(), z.number()]);
 
 export const TurnStyleSchema = z
@@ -37,7 +39,7 @@ export const TurnStyleSchema = z
 export const DataBindingSchema = z
 	.object({
 		key: z.string().describe("The data value's key."),
-		onAbove: z
+		switchesOnAbove: z
 			.number()
 			.nullable()
 			.default(null)
@@ -79,15 +81,20 @@ export const DataBindingSchema = z
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
 
+/** Settings that follow data, by setting (ADR-0058), described with what each one reads. */
+const dataBindings = (meaning: string) =>
+	z.record(z.string(), DataBindingSchema).default({}).describe(meaning);
+
 /**
- * An object's setting for one of its part's colours (ADR-0060): null while
- * it's as the part has it (ADR-0027).
+ * A setting for one of a thing's colours (ADR-0060): an object's part's, a
+ * fence's, a road's, an area's or the ground's, by the colour's id. Each field
+ * is null while it's as the thing has it (ADR-0027).
  */
-export const EntityColorSchema = z
+export const ColorSettingSchema = z
 	.object({
 		color: HexColorSchema.nullable()
 			.default(null)
-			.describe("The colour as #rrggbb; null = the part's default for the theme."),
+			.describe("The colour as #rrggbb; null = its default for the theme."),
 		transparency: z
 			.number()
 			.min(0)
@@ -95,27 +102,30 @@ export const EntityColorSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"For see-through colours (glass), how see-through it is: 0 = solid, 1 = clear. null = the part's. Ignored for colours that aren't see-through.",
+				"For see-through colours (glass), how see-through it is: 0 = solid, 1 = clear. null = its default. Ignored for colours that aren't see-through.",
 			),
-		data: z
-			.record(z.string(), DataBindingSchema)
-			.default({})
-			.describe(
-				'A data value that sets it: { "color": { key, valueAtLowColor, valueAtHighColor, lowColor, highColor } }. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number mixes lowColor (at valueAtLowColor) and highColor (at valueAtHighColor), like a heatmap. A value that is neither leaves the colour as set.',
-			),
+		data: dataBindings(
+			'A data value that sets it: { "color": { key, valueAtLowColor, valueAtHighColor, lowColor, highColor } }. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number mixes lowColor (at valueAtLowColor) and highColor (at valueAtHighColor), like a heatmap. A value that is neither leaves the colour as set.',
+		),
 	})
-	.describe("An object's setting for one of its part's colours.");
+	.describe("A setting for one colour.");
 
-export type TEntityColor = z.output<typeof EntityColorSchema>;
+export type TColorSetting = z.output<typeof ColorSettingSchema>;
+
+/** A thing's colours, by id, holding only what differs from its defaults. */
+const colorSettings = (example: string) =>
+	z
+		.record(z.string(), ColorSettingSchema)
+		.default({})
+		.describe(
+			`Settings for its colours, keyed by the colour's id, holding only what differs from its defaults, e.g. ${example}.`,
+		);
 
 /**
  * When a light is on: auto = as its part has it (after dark; some only while
  * driving), on = always, off = never, schedule = during its schedule's periods.
  */
 export const LightModeSchema = z.enum(["auto", "on", "off", "schedule"]);
-
-/** The one setting worlds from before per-light settings had for all an object's lights. */
-const OlderLightModeSchema = z.enum(["auto", "on", "off"]);
 
 /**
  * How a light comes on after dark (ADR-0061): atOnce = fully, once it's dark
@@ -184,30 +194,27 @@ export const EntityLightSchema = z
 			.describe(
 				"How far its light reaches on the ground, in grid units, for beams and pools. null = the part's.",
 			),
-		litPanes: z
+		litPaneShare: z
 			.number()
 			.min(0)
 			.max(1)
 			.nullable()
 			.default(null)
 			.describe(
-				"For window lights: the part of its own panes that are lit, 0 (none) to 1 (all). null = the part's.",
+				"For window lights: the share of its own panes that are lit, 0 (none) to 1 (all). null = the part's.",
 			),
-		weight: z
+		paneWeight: z
 			.number()
 			.min(0)
 			.max(100)
 			.nullable()
 			.default(null)
 			.describe(
-				"For window lights: how many of the building's panes are its, against its other window lights' weights (90 and 10: nine panes in ten are its). Changing it moves which panes are whose. null = the part's.",
+				"For window lights: how many of the building's panes are its, against its other window lights' paneWeight (90 and 10: nine panes in ten are its). Changing it moves which panes are whose. null = the part's.",
 			),
-		data: z
-			.record(z.string(), DataBindingSchema)
-			.default({})
-			.describe(
-				'Data values that drive its settings, by setting: "on" (switches it on and off instead of whenOn, day and night), "strength" (value ÷ valueAtFull, up to 3), "litPanes" (window lights: value ÷ valueAtFull, up to 1), "color" (a CSS colour, or a number on a colour scale) and "schedule" (with whenOn schedule: a text value of times of day, like opening hours, "09:00-17:30" or "7-9, 16:30-19", instead of the periods in schedule). Only the settings that follow data.',
-			),
+		data: dataBindings(
+			'Data values that drive its settings, by setting: "on" (switches it on and off instead of whenOn, day and night), "strength" (value ÷ valueAtFull, up to 3), "litPaneShare" (window lights: value ÷ valueAtFull, up to 1), "color" (a CSS colour, or a number on a colour scale) and "schedule" (with whenOn schedule: a text value of times of day, like opening hours, "09:00-17:30" or "7-9, 16:30-19", instead of the periods in schedule). Only the settings that follow data.',
+		),
 	})
 	.describe("An object's settings for one of its lights.");
 
@@ -216,7 +223,10 @@ export type TEntityLight = z.output<typeof EntityLightSchema>;
 
 export const LabelSchema = z
 	.object({
-		enabled: z.boolean().default(true).describe("Show the card."),
+		isShown: z
+			.boolean()
+			.default(true)
+			.describe("Whether the card shows; false keeps its settings while it's hidden."),
 		title: z.string().default("").describe("Heading on the card."),
 		dataKeys: z
 			.array(z.string())
@@ -225,36 +235,43 @@ export const LabelSchema = z
 				"Keys of entries in the world's data list. One key shows as a big number, several as rows.",
 			),
 		offset: Vec3Schema.default([0, 2, 0]).describe(
-			"Where the card floats, as [x, y, z] from the top of the part.",
+			"Where the card floats, as [x, y, z] in grid units from the top of the part.",
 		),
 	})
 	.describe("A floating card above the object showing data values.");
+
+export type TLabel = z.output<typeof LabelSchema>;
+
+/** The label settings of an object that has never had a card. */
+export const NO_LABEL: TLabel = { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] };
 
 export const FollowSchema = z
 	.object({
 		roadId: z.string().describe("Id of the road (or hidden route) to drive along."),
 		speed: z.number().min(0).max(50).default(2).describe("Grid units per second."),
-		offset: z
+		startDistance: z
 			.number()
 			.default(0)
 			.describe(
-				"Where it starts: the distance along the road from its first point (also when reversed).",
+				"Where it starts: the distance along the road from its first point, in grid units (also when it drives the other way).",
 			),
-		reverse: z
+		drivesTheOtherWay: z
 			.boolean()
 			.default(false)
 			.describe(
-				"Drive the road the other way: against the order of its points, in the opposite lane. Loops go round the other way; open roads set off backwards.",
+				"Whether it drives the road the other way: against the order of its points, in the opposite lane. Loops go round the other way; open roads set off backwards.",
 			),
 		turnStyle: TurnStyleSchema.nullable()
 			.default(null)
-			.describe("How this vehicle takes corners; null = the road's setting, else the world's."),
+			.describe(
+				"How this vehicle takes corners; null = the road's (traffic.turnStyle), else the world's.",
+			),
 		leansInTurns: z
 			.boolean()
 			.nullable()
 			.default(null)
 			.describe(
-				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's setting, else the world's.",
+				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's (traffic.leansInTurns), else the world's.",
 			),
 	})
 	.describe(
@@ -271,6 +288,20 @@ export const DetailsSchema = z
 	})
 	.describe("What view mode shows when someone clicks the object.");
 
+const isLocked = (what: string) =>
+	z.boolean().default(false).describe(`Whether ${what} can't be moved in the editor.`);
+
+const isHidden = (extra = "") =>
+	z
+		.boolean()
+		.default(false)
+		.describe(
+			`Whether it isn't drawn${extra} (it's still listed in the editor's outliner, and kept in the file).`,
+		);
+
+/** Degrees around one axis, kept within half a turn either way. */
+const HalfTurnSchema = z.number().min(-180).max(180);
+
 export const EntitySchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the objects."),
@@ -280,73 +311,41 @@ export const EntitySchema = z
 		position: Vec2Schema.default([0, 0]).describe(
 			"Where the part stands: [x, z] in grid units, the centre of its footprint. Ignored while it follows a road.",
 		),
-		elevation: z
+		altitude: z
 			.number()
 			.default(0)
 			.describe(
-				"Height above the ground (e.g. on a raised area); 0 = on the ground, below 0 = sunk into it.",
+				"How high above the base ground it stands, in grid units: 0 = on the ground slab, above 0 on raised land or floating, below 0 sunk into the ground.",
 			),
 		rotation: z
-			.number()
-			.default(0)
+			.tuple([HalfTurnSchema, z.number(), HalfTurnSchema])
+			.default([0, 0, 0])
 			.describe(
-				"Degrees around the vertical axis, counter-clockwise seen from above. At 0 the front faces +z and vehicles face +x. While following a road it turns the vehicle relative to the road.",
-			),
-		pitch: z
-			.number()
-			.min(-180)
-			.max(180)
-			.default(0)
-			.describe(
-				"Degrees around its own z axis, after rotation: nose up (positive) or down for vehicles (which face +x), e.g. one parked on a sloped road (set when it's dropped on one); a sideways lean for things that face +z. Ignored while it follows a road, which tilts it itself.",
-			),
-		roll: z
-			.number()
-			.min(-180)
-			.max(180)
-			.default(0)
-			.describe(
-				"Degrees around its own x axis, after rotation and pitch: tips things that face +z forward or back, and rolls vehicles onto a side. Ignored while it follows a road.",
+				"Degrees around its axes, as [x, y, z]: first y (the vertical: counter-clockwise seen from above), then z, then x, each about the object's own axes after the turns before. At [0, 0, 0] the front faces +z and vehicles face +x, so z tips a vehicle's nose up (positive) or down and leans other things sideways, and x rolls a vehicle onto a side and tips other things forward or back. While it follows a road only y counts, turning it relative to the road.",
 			),
 		scale: z.number().min(0.1).max(10).default(1).describe("Size factor for the whole part."),
-		colors: z
-			.record(z.string(), EntityColorSchema)
-			.default({})
-			.describe(
-				'Its part\'s colours (see each kind\'s colours in the catalogue), keyed by the colour\'s id, holding only what differs from the part, e.g. { "roof": { "color": "#c0392b" } }.',
-			),
-		color: HexColorSchema.nullable()
-			.default(null)
-			.describe(
-				"Older worlds: its first colour as #rrggbb, read when colors doesn't set it. Write colors instead.",
-			),
-		accent: HexColorSchema.nullable()
-			.default(null)
-			.describe(
-				"Older worlds: its second colour as #rrggbb, read when colors doesn't set it. Write colors instead.",
-			),
+		colors: colorSettings(
+			'{ "roof": { "color": "#c0392b" } } (see each kind\'s colours in its description)',
+		),
 		props: z
 			.record(z.string(), z.unknown())
 			.default({})
 			.describe("The part's own parameters (see its kind); missing ones use their defaults."),
-		label: LabelSchema.nullable()
-			.default(null)
-			.describe("A floating card with data values above it; null = no card."),
+		label: LabelSchema.default(NO_LABEL).describe(
+			"A floating card with data values above it, shown while isShown.",
+		),
 		follow: FollowSchema.nullable()
 			.default(null)
 			.describe("The road it drives along (vehicles); null = parked where it stands."),
 		details: DetailsSchema.default({ description: "", dataKeys: [] }),
 		lights: z
-			.union([OlderLightModeSchema, z.record(z.string(), EntityLightSchema)])
+			.record(z.string(), EntityLightSchema)
 			.default({})
 			.describe(
-				'Settings for its part\'s lights (see each kind\'s lights in the catalogue), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }. Worlds from before per-light settings have one value for all its lights instead: auto, on or off.',
+				'Settings for its part\'s lights (see each kind\'s lights in its description), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }.',
 			),
-		locked: z.boolean().default(false).describe("Can't be moved in the editor."),
-		hidden: z
-			.boolean()
-			.default(false)
-			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
+		isLocked: isLocked("it"),
+		isHidden: isHidden(),
 	})
 	.describe("An object in the world: a building, vehicle, tree, marker…");
 
@@ -356,7 +355,7 @@ export const DataEntrySchema = z
 			.string()
 			.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores")
 			.describe("Unique name that labels refer to: lowercase letters, numbers and underscores."),
-		label: z.string().default("").describe("Human-readable name shown next to the value."),
+		name: z.string().default("").describe("Human-readable name shown next to the value."),
 		value: z.union([z.number(), z.string()]).describe("The value: a number or a short text."),
 		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
 	})
@@ -372,16 +371,16 @@ export const RoadPointSchema = z
 			.transform(([x, zPos]): [number, number, number] => [x, zPos, 0]),
 	])
 	.describe(
-		"A road control point: [x, z], [x, z, height] or [x, z, height, width]. A height above 0 lifts the road there (bridges, flyovers); a width there overrides the road's width, easing in from the neighbouring points.",
+		"A road control point: [x, z], [x, z, altitude] or [x, z, altitude, width], in grid units. An altitude above 0 lifts the road there above the base ground (bridges, flyovers); a width there overrides the road's width, easing in from the neighbouring points.",
 	);
 
-export const RoadSupportsSchema = z
+export const RoadHeldUpBySchema = z
 	.enum(["pillars", "embankment", "none"])
 	.describe(
-		"What holds up elevated sections: pillars (other roads can pass underneath), a sloped bank, or nothing (the deck floats, e.g. a road on raised land or a bridge between cliffs).",
+		"What holds up elevated sections: pillars (other roads can pass underneath), an embankment (a sloped bank), or nothing (the deck floats, e.g. a road on raised land or a bridge between cliffs).",
 	);
 
-export const RoadStyleSchema = z
+export const RoadKindSchema = z
 	.enum(["road_01", "dirt_path_01", "hidden_route_01"])
 	.describe(
 		"Numbered so each can get variants. road_01 = paved road with markings, dirt_path_01 = path, hidden_route_01 = invisible route that only vehicles use (ferry lines, forklift paths).",
@@ -394,41 +393,64 @@ export const DrivingLaneSchema = z
 		"Where vehicles drive: in a lane on the world's driving side, or down the centre (one-way roads, race tracks).",
 	);
 
+/** How vehicles behave on one road: its own settings, and the world's `traffic` ones it overrides. */
+export const RoadTrafficSchema = z
+	.object({
+		drivingLane: DrivingLaneSchema.default("side"),
+		turnStyle: TurnStyleSchema.nullable()
+			.default(null)
+			.describe("How vehicles on this road take corners; null = the world's (traffic.turnStyle)."),
+		leansInTurns: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether vehicles on this road lean in turns; null = the world's (traffic.leansInTurns).",
+			),
+	})
+	.describe("How vehicles drive on this road.");
+
 // See docs/adr/0017-drawable-roads.md and 0018-elevated-roads-and-road-editing.md.
 export const RoadSchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the roads; vehicles refer to it."),
+		kind: RoadKindSchema.default("road_01"),
 		name: z.string().default("").describe("Shown in the editor."),
-		style: RoadStyleSchema.default("road_01"),
 		points: z
 			.array(RoadPointSchema)
 			.min(2)
 			.describe(
 				"Control points in drawing order; the road passes through the first and last (unless it loops). This order is a vehicle's forward direction.",
 			),
-		loops: z.boolean().default(false).describe("Loop back from the last point to the first."),
+		loops: z
+			.boolean()
+			.default(false)
+			.describe("Whether it loops back from the last point to the first."),
 		width: z.number().min(0.4).max(20).default(2.4).describe("Width in grid units."),
 		cornerRadius: z
 			.number()
 			.min(0)
 			.max(50)
 			.default(3)
-			.describe("Radius of the curve at each corner; 0 = sharp corners."),
-		showMarkings: z.boolean().default(true).describe("Centre-line markings (asphalt only)."),
-		supports: RoadSupportsSchema.default("pillars"),
+			.describe("Radius of the curve at each corner, in grid units; 0 = sharp corners."),
+		showsCentreLine: z
+			.boolean()
+			.default(true)
+			.describe("Whether it shows a centre line (kinds with markings only)."),
+		heldUpBy: RoadHeldUpBySchema.default("pillars"),
 		pillarSpacing: z
 			.number()
 			.min(1)
 			.max(40)
 			.default(4)
-			.describe("Distance between pillars along elevated sections, in grid units."),
+			.describe("With heldUpBy pillars: the distance between pillars, in grid units."),
 		embankmentAngle: z
 			.number()
 			.min(10)
 			.max(90)
 			.default(45)
 			.describe(
-				"Steepness of the embankment's sides in degrees: 45 = a sloped bank, 90 = straight walls (the road sits on a solid raised block).",
+				"With heldUpBy embankment: the steepness of its sides in degrees; 45 = a sloped bank, 90 = straight walls (the road sits on a solid raised block).",
 			),
 		embankmentWidth: z
 			.number()
@@ -436,34 +458,20 @@ export const RoadSchema = z
 			.max(1)
 			.default(1)
 			.describe(
-				"Width of the embankment's top as a share of the road's width: 1 = as wide as the road, less = a narrower bank or wall under the middle of the road.",
+				"With heldUpBy embankment: the width of its top as a share of the road's width; 1 = as wide as the road, less = a narrower bank or wall under the middle of the road.",
 			),
-		embankmentColor: HexColorSchema.nullable()
-			.default(null)
-			.describe("Embankment colour as #rrggbb; null = the theme's default."),
-		showRailings: z
+		showsRailings: z
 			.boolean()
 			.default(true)
-			.describe("Low barriers along the edges of elevated sections."),
-		drivingLane: DrivingLaneSchema.default("side"),
-		turnStyle: TurnStyleSchema.nullable()
-			.default(null)
-			.describe("How vehicles on this road take corners; null = the world's setting."),
-		leansInTurns: z
-			.boolean()
-			.nullable()
-			.default(null)
-			.describe("Whether vehicles on this road lean in turns; null = the world's setting."),
-		color: HexColorSchema.nullable()
-			.default(null)
-			.describe("Surface colour as #rrggbb; null = the style's default for the theme."),
-		locked: z.boolean().default(false).describe("Its points can't be moved in the editor."),
-		hidden: z
-			.boolean()
-			.default(false)
-			.describe(
-				"Not drawn, and vehicles can't be dropped onto it; vehicles already on it keep driving (it's still listed in the editor's outliner, and kept in the file).",
-			),
+			.describe("Whether elevated sections have low barriers along their edges."),
+		traffic: RoadTrafficSchema.default(() => RoadTrafficSchema.parse({})),
+		colors: colorSettings(
+			'{ "surface": { "color": "#3a3a3a" } }; its colours are surface and embankment',
+		),
+		isLocked: isLocked("its points"),
+		isHidden: isHidden(
+			", and vehicles can't be dropped onto it; vehicles already on it keep driving",
+		),
 	})
 	.describe(
 		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
@@ -476,22 +484,34 @@ export const DrivingSideSchema = z
 // See docs/adr/0042-traffic-following-and-passing.md.
 export const TrafficSchema = z
 	.object({
-		keepSpacing: z
+		drivingSide: DrivingSideSchema.default("right"),
+		turnStyle: TurnStyleSchema.default("smooth").describe(
+			"How vehicles take corners, unless a road or vehicle says otherwise.",
+		),
+		leansInTurns: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Vehicles on the same road keep their distance behind slower ones; false = each drives at its own speed, through the others.",
+				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
 			),
-		allowOvertaking: z
+		keepsDistance: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Vehicles overtake slower ones when the way is clear (only with keepSpacing on); false = they queue behind.",
+				"Whether vehicles on the same road keep their distance behind slower ones; false = each drives at its own speed, through the others.",
+			),
+		overtakes: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether vehicles overtake slower ones when the way is clear (only with keepsDistance); false = they queue behind.",
 			),
 	})
-	.describe("How vehicles on the same road deal with each other.");
+	.describe(
+		"How vehicles drive and deal with each other. A road's traffic and a vehicle's follow can override some.",
+	);
 
-export const AreaTypeSchema = z
+export const AreaKindSchema = z
 	.enum(["water_01", "grass_01", "sand_01", "plaza_01", "raised_land_01"])
 	.describe(
 		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
@@ -504,12 +524,36 @@ export const AreaPointSchema = z
 		"An area corner: [x, z], or [x, z, lift] to raise (or, negative, lower) the area's top at this corner by lift above its height: slopes, ramps and hills. The top never goes below the ground.",
 	);
 
+/** A water area's own water, overriding the world's `water` (ADR-0075). */
+export const AreaWaterSchema = z
+	.object({
+		rippleStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How rippled its surface is, 0 = mirror-calm, 1 = choppy (seen where the viewer's graphics settings show water reflections). null = the world's (water.rippleStrength).",
+			),
+		reflectionStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How strongly it mirrors the world, 0 = not at all (only its ripples catch the lights), 1 = fully (seen where the viewer's graphics settings show water reflections). null = the world's (water.reflectionStrength).",
+			),
+	})
+	.describe("With kind water_01: its own water, where it differs from the world's.");
+
 // See docs/adr/0021-free-form-areas.md.
 export const AreaSchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the areas."),
+		kind: AreaKindSchema.default("grass_01"),
 		name: z.string().default("").describe("Shown in the editor."),
-		type: AreaTypeSchema.default("grass_01"),
 		points: z
 			.array(AreaPointSchema)
 			.min(3)
@@ -520,7 +564,7 @@ export const AreaSchema = z
 			.max(30)
 			.default(0)
 			.describe(
-				"0 = flat on the ground; above 0 = raised with cliff sides. Corners with a lift stand that much higher or lower.",
+				"How high its top stands above the base ground, in grid units: 0 = flat on the ground, above 0 = raised with cliff sides. Corners with a lift stand that much higher or lower.",
 			),
 		peaks: z
 			.array(z.tuple([z.number(), z.number(), z.number().min(-30).max(30)]))
@@ -528,36 +572,14 @@ export const AreaSchema = z
 			.describe(
 				"Points inside the area with a height of their own, as [x, z, lift]: the top rises (or, negative, dips) to height + lift there, sloping to the corners, for round hills and hollows. Never below the ground. Water stays level and ignores them.",
 			),
-		color: HexColorSchema.nullable()
-			.default(null)
-			.describe("Colour as #rrggbb; null = the type's default for the theme."),
-		locked: z.boolean().default(false).describe("Its corners can't be moved in the editor."),
-		hidden: z
-			.boolean()
-			.default(false)
-			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
-		rippleStrength: z
-			.number()
-			.min(0)
-			.max(1)
-			.nullable()
-			.default(null)
-			.describe(
-				"With type water_01: how rippled its surface is, 0 = mirror-calm, 1 = choppy (seen where the viewer's graphics settings show water reflections). null = the world's (water.rippleStrength).",
-			),
-		reflectionStrength: z
-			.number()
-			.min(0)
-			.max(1)
-			.nullable()
-			.default(null)
-			.describe(
-				"With type water_01: how strongly it mirrors the world, 0 = not at all (only its ripples catch the lights), 1 = fully (seen where the viewer's graphics settings show water reflections). null = the world's (water.reflectionStrength).",
-			),
+		colors: colorSettings('{ "surface": { "color": "#4f9a55" } }; its colour is surface'),
+		water: AreaWaterSchema.default(() => AreaWaterSchema.parse({})),
+		isLocked: isLocked("its corners"),
+		isHidden: isHidden(),
 	})
 	.describe("A free-form area on the ground (water, lawn, beach, square…) or raised land.");
 
-export const FenceStyleSchema = z
+export const FenceKindSchema = z
 	.enum([
 		"picket_fence_01",
 		"rail_fence_01",
@@ -587,26 +609,29 @@ export const FencePointSchema = z
 export const FenceSchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the fences."),
+		kind: FenceKindSchema.default("picket_fence_01"),
 		name: z.string().default("").describe("Shown in the editor."),
-		style: FenceStyleSchema.default("picket_fence_01"),
 		points: z
 			.array(FencePointSchema)
 			.min(2)
 			.describe("Points in drawing order; posts stand at each one and are spaced in between."),
-		loops: z.boolean().default(false).describe("Close it from the last point back to the first."),
+		loops: z
+			.boolean()
+			.default(false)
+			.describe("Whether it closes from the last point back to the first."),
 		cornerRadius: z
 			.number()
 			.min(0)
 			.max(50)
 			.default(0)
-			.describe("Radius of the curve at each corner; 0 = sharp corners."),
+			.describe("Radius of the curve at each corner, in grid units; 0 = sharp corners."),
 		height: z
 			.number()
 			.min(0.1)
 			.max(10)
 			.nullable()
 			.default(null)
-			.describe("Height in grid units; null = the style's."),
+			.describe("How tall it is, in grid units; null = its kind's."),
 		postSpacing: z
 			.number()
 			.min(0.3)
@@ -614,14 +639,11 @@ export const FenceSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"The longest gap between two posts, in grid units (posts are spaced evenly between corners); null = the style's.",
+				"The longest gap between two posts, in grid units (posts are spaced evenly between corners); null = its kind's.",
 			),
-		colors: z
-			.record(z.string(), EntityColorSchema)
-			.default({})
-			.describe(
-				"Settings for the style's colours, by colour id (see the style's colours in the format guide); a colour not listed is the style's.",
-			),
+		colors: colorSettings(
+			'{ "leaves": { "color": "#3f7a32" } } (see each kind\'s colours in its description)',
+		),
 		builtShare: z
 			.number()
 			.min(0)
@@ -630,17 +652,11 @@ export const FenceSchema = z
 			.describe(
 				"How much of it is built, from its first point: 1 = all of it, 0.5 = the first half (a fence going up).",
 			),
-		data: z
-			.record(z.string(), DataBindingSchema)
-			.default({})
-			.describe(
-				'Settings that follow a data value: { "builtShare": { key, valueAtFull } } builds value ÷ valueAtFull of it.',
-			),
-		locked: z.boolean().default(false).describe("Its points can't be moved in the editor."),
-		hidden: z
-			.boolean()
-			.default(false)
-			.describe("Not drawn (it's still listed in the editor's outliner, and kept in the file)."),
+		data: dataBindings(
+			'Settings that follow a data value: { "builtShare": { key, valueAtFull } } builds value ÷ valueAtFull of it.',
+		),
+		isLocked: isLocked("its points"),
+		isHidden: isHidden(),
 	})
 	.describe(
 		"A fence, wall, hedge or railing drawn as a line of points; it stands on the ground under it.",
@@ -650,9 +666,7 @@ export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
-		color: HexColorSchema.nullable()
-			.default(null)
-			.describe("Colour as #rrggbb; null = the theme's ground colour."),
+		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
 	})
 	.describe("The slab everything stands on, centred on the origin.");
 
@@ -678,6 +692,12 @@ export const ViewpointSchema = z
 		target: Vec2Schema.default([0, 0]).describe(
 			"The ground point [x, z] in the middle of the view.",
 		),
+		targetAltitude: z
+			.number()
+			.default(0)
+			.describe(
+				"How high above the base ground the point in the middle of the view is, in grid units; above 0 for a view that looks up (elevation below 0).",
+			),
 		azimuth: z
 			.number()
 			.default(315)
@@ -691,12 +711,6 @@ export const ViewpointSchema = z
 			.default(32.5)
 			.describe(
 				"Degrees above the ground: 90 looks straight down, 0 looks level across the world, below 0 looks up (free camera control). The default view is 32.5.",
-			),
-		targetHeight: z
-			.number()
-			.default(0)
-			.describe(
-				"Height of the point in the middle of the view; 0 = on the ground. Above 0 for a view that looks up (elevation below 0).",
 			),
 		span: z
 			.number()
@@ -717,12 +731,61 @@ export const ViewpointSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"The id of a mood (moods) that going to this view also puts on: its time of day, light, sky, water and tilt-shift. null = the view leaves the look as it is.",
+				"The id of a mood (moods) that going to this view also puts on: its time of day, light, sky, water, weather and tilt-shift. null = the view leaves the look as it is.",
 			),
 	})
 	.describe("A saved camera view: jump to it in the editor, or step through them in View mode.");
 
 // See docs/adr/0062-camera-settings.md.
+export const TurntableSchema = z
+	.object({
+		isOn: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether View mode slowly circles the view after a while without input, like a model on a turntable; any input stops it.",
+			),
+		speed: z
+			.number()
+			.min(-30)
+			.max(30)
+			.default(4)
+			.describe(
+				"Degrees per second the view circles; positive turns the world anticlockwise seen from above, negative clockwise.",
+			),
+		delay: z
+			.number()
+			.min(1)
+			.max(300)
+			.default(10)
+			.describe("Seconds without input in View mode before it starts."),
+	})
+	.describe("The turntable: View mode circling the view on its own.");
+
+export const TiltShiftSchema = z
+	.object({
+		isOn: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether View mode blurs the top and bottom of the view and keeps a band across it sharp, which makes the world look like a miniature (tilt-shift photography).",
+			),
+		blurStrength: z.number().min(0).max(1).default(0.5).describe("How strong the blur is, 0–1."),
+		sharpBandHeight: z
+			.number()
+			.min(0.05)
+			.max(1)
+			.default(0.3)
+			.describe("How much of the view's height the sharp band takes, 0–1."),
+		sharpBandPosition: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe("Where the sharp band is, from the bottom of the view (0) to the top (1)."),
+	})
+	.describe("Tilt-shift: a miniature's blur above and below a sharp band.");
+
 export const CameraSettingsSchema = z
 	.object({
 		openingViewpointId: z
@@ -763,94 +826,59 @@ export const CameraSettingsSchema = z
 			.describe(
 				"How low the camera can tilt, in degrees above the ground: 0 = level with it. Simple camera control never goes below 0.",
 			),
-		steepestElevation: z
+		highestElevation: z
 			.number()
 			.min(0)
 			.max(90)
 			.default(87)
 			.describe(
-				"How steeply the camera can look down, in degrees above the ground (90 = straight down).",
+				"How high the camera can tilt, in degrees above the ground: 90 = looking straight down.",
 			),
-		keepOverGround: z
+		keepsOverGround: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Keep the middle of the view over the ground, so panning and zooming can't lose the world.",
+				"Whether the middle of the view stays over the ground, so panning and zooming can't lose the world.",
 			),
 		keepsIsometricAngle: z
 			.boolean()
 			.default(false)
 			.describe(
-				"Keep the camera at the isometric angle, like a classic isometric game: the tilt stays put and the view turns a quarter at a time, between the four diagonals.",
+				"Whether the camera keeps the isometric angle, like a classic isometric game: the tilt stays put and the view turns a quarter at a time, between the four diagonals.",
 			),
-		turntableOn: z
-			.boolean()
-			.default(false)
-			.describe(
-				"In View mode, slowly circle the view after a while without input, like a model on a turntable; any input stops it.",
-			),
-		turntableSpeed: z
-			.number()
-			.min(-30)
-			.max(30)
-			.default(4)
-			.describe(
-				"With turntableOn: degrees per second the view circles; positive turns the world anticlockwise seen from above, negative clockwise.",
-			),
-		turntableDelay: z
-			.number()
-			.min(1)
-			.max(300)
-			.default(10)
-			.describe("With turntableOn: seconds without input in View mode before it starts."),
-		tiltShiftOn: z
-			.boolean()
-			.default(false)
-			.describe(
-				"In View mode, blur the top and bottom of the view and keep a band across it sharp, which makes the world look like a miniature (tilt-shift photography).",
-			),
-		tiltShiftBlur: z
-			.number()
-			.min(0)
-			.max(1)
-			.default(0.5)
-			.describe("With tiltShiftOn: how strong the blur is, 0–1."),
-		tiltShiftFocus: z
-			.number()
-			.min(0.05)
-			.max(1)
-			.default(0.3)
-			.describe("With tiltShiftOn: how much of the view's height stays sharp, 0–1."),
-		tiltShiftPosition: z
-			.number()
-			.min(0)
-			.max(1)
-			.default(0.5)
-			.describe(
-				"With tiltShiftOn: where the sharp band is, from the bottom of the view (0) to the top (1).",
-			),
+		turntable: TurntableSchema.default(() => TurntableSchema.parse({})),
+		tiltShift: TiltShiftSchema.default(() => TiltShiftSchema.parse({})),
 	})
 	.describe("How the camera behaves in this world.");
 
 export const OnScreenSchema = z
 	.object({
-		showTitle: z.boolean().default(true).describe("The world's title, in the top-left corner."),
-		showSubtitle: z.boolean().default(true).describe("The subtitle under the title."),
-		showTimeOfDay: z.boolean().default(true).describe("The time of day under the title."),
-		showLabelCards: z
+		showsTitle: z
+			.boolean()
+			.default(true)
+			.describe("Whether the world's title shows, in the top-left corner."),
+		showsSubtitle: z
+			.boolean()
+			.default(true)
+			.describe("Whether the subtitle shows under the title."),
+		showsTimeOfDay: z
+			.boolean()
+			.default(true)
+			.describe("Whether the time of day shows under the title."),
+		showsLabelCards: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Objects' label cards. false hides every card in View mode, whatever each object says.",
+				"Whether objects' label cards show. false hides every card in View mode, whatever each object says.",
 			),
-		showDetails: z
+		showsDetails: z
 			.boolean()
 			.default(true)
-			.describe("The panel with an object's values that opens when it's clicked."),
-		showViewpointBar: z
+			.describe("Whether clicking an object opens the panel with its values."),
+		showsViewpointBar: z
 			.boolean()
 			.default(true)
-			.describe("The bar that steps through the viewpoints."),
+			.describe("Whether the bar that steps through the viewpoints shows."),
 	})
 	.describe(
 		"What viewers see over the world in View mode. Edit mode always shows everything, faded where View mode won't.",
@@ -876,7 +904,7 @@ export const LightingSchema = z
 			.enum(["fixed", "cycle", "clock", "data"])
 			.default("fixed")
 			.describe(
-				"Where the time comes from: fixed = `time`; cycle = days pass while motion plays, starting at `time`; clock = the viewer's own local time; data = the value of the data entry `timeKey` (hours, 0–24).",
+				"Where the time comes from: fixed = `time`; cycle = days pass while motion plays, starting at `time`; clock = the viewer's own local time; data = the data value in `data.time` (hours, 0–24).",
 			),
 		dayLength: z
 			.number()
@@ -884,11 +912,6 @@ export const LightingSchema = z
 			.max(3600)
 			.default(120)
 			.describe("With timeSource cycle: how many seconds a whole day takes."),
-		timeKey: z
-			.string()
-			.nullable()
-			.default(null)
-			.describe("With timeSource data: the key of the data entry that holds the time (hours)."),
 		sunAzimuth: z
 			.number()
 			.min(0)
@@ -929,17 +952,20 @@ export const LightingSchema = z
 			.describe(
 				"The world's lit windows, lamps, cabins and headlights: auto = after dark (headlights only while driving), on = always, off = never. A light's own `whenOn` setting other than auto overrides this.",
 			),
+		data: dataBindings(
+			'Settings that follow a data value: { "time": { key } } (with timeSource data) takes the hour from the value, 0–24.',
+		),
 	})
 	.describe("The time of day, the sun, and when the world's lights are on.");
 
 // See docs/adr/0070-sky.md. Colours left null follow the time of day (or the theme).
 export const SkySchema = z
 	.object({
-		showInPerspective: z
+		showsInPerspective: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Draw the sky around the world in perspective. false shows the backdrop there too (e.g. a green screen).",
+				"Whether the sky is drawn around the world in perspective. false shows the backdrop there too (e.g. a green screen).",
 			),
 		colorOverhead: HexColorSchema.nullable()
 			.default(null)
@@ -951,38 +977,23 @@ export const SkySchema = z
 			.describe(
 				"The sky's colour at the horizon, as #rrggbb: its colour by day, darkening at night. null = from the time of day.",
 			),
-		showSun: z
+		showsSun: z
 			.boolean()
 			.default(true)
-			.describe("Show the sun in the sky by day, where the sunlight comes from."),
-		showMoon: z
+			.describe("Whether the sun shows in the sky by day, where the sunlight comes from."),
+		showsMoon: z
 			.boolean()
 			.default(true)
-			.describe("Show the moon in the sky at night, opposite the sun."),
+			.describe("Whether the moon shows in the sky at night, opposite the sun."),
 		starDensity: z
 			.number()
 			.min(0)
 			.max(1)
 			.default(0.6)
 			.describe("How many stars come out at night: 0 = none, 1 = a full starry sky."),
-		cloudCover: z
-			.number()
-			.min(0)
-			.max(1)
-			.default(0.3)
-			.describe("How cloudy it is: 0 = clear, 1 = many low-poly clouds around the world."),
-		cloudColor: HexColorSchema.nullable()
-			.default(null)
-			.describe("The clouds' colour, as #rrggbb. null = white, tinted by the time of day."),
-		cloudSpeed: z
-			.number()
-			.min(0)
-			.max(5)
-			.default(1)
-			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
 	})
 	.describe(
-		"The sky around the world in perspective: its colours, the sun and moon, stars and clouds. The isometric diorama shows the backdrop instead.",
+		"The sky around the world in perspective: its colours, the sun and moon, and the stars. The isometric diorama shows the backdrop instead. Clouds are in `weather`.",
 	);
 
 // See docs/adr/0075-reflective-water.md. Each water area can set its own.
@@ -1007,11 +1018,25 @@ export const WaterSchema = z
 	})
 	.describe("The world's water.");
 
-const amount = (meaning: string) => z.number().min(0).max(1).default(0).describe(meaning);
+const amount = (meaning: string, fallback = 0) =>
+	z.number().min(0).max(1).default(fallback).describe(meaning);
 
 // See docs/adr/0102-weather.md.
 export const WeatherSchema = z
 	.object({
+		cloudCover: amount(
+			"How cloudy it is: 0 = clear, 1 = many low-poly clouds around the world.",
+			0.3,
+		),
+		cloudColor: HexColorSchema.nullable()
+			.default(null)
+			.describe("The clouds' colour, as #rrggbb. null = white, tinted by the time of day."),
+		cloudSpeed: z
+			.number()
+			.min(0)
+			.max(5)
+			.default(1)
+			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
 		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
 		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
 		fogDensity: amount(
@@ -1044,22 +1069,19 @@ export const WeatherSchema = z
 		showsSplashes: z
 			.boolean()
 			.default(true)
-			.describe("Small splashes open on the ground where raindrops land."),
+			.describe("Whether small splashes open on the ground where raindrops land."),
 		softensLight: z
 			.boolean()
 			.default(true)
 			.describe(
-				"Rain, snow and fog make it overcast: the sun dims, shadows soften and the sky greys, more as they grow. false = the light stays as set.",
+				"Whether rain, snow and fog make it overcast: the sun dims, shadows soften and the sky greys, more as they grow. false = the light stays as set.",
 			),
-		data: z
-			.record(z.string(), DataBindingSchema)
-			.default({})
-			.describe(
-				'Data values that drive weather settings, by setting: "rainAmount", "snowAmount", "fogDensity", "hazeAmount" or "lightningRate", each as value ÷ valueAtFull (up to 1). Only the settings that follow data.',
-			),
+		data: dataBindings(
+			'Data values that drive weather settings, by setting: "cloudCover", "rainAmount", "snowAmount", "fogDensity", "hazeAmount" or "lightningRate", each as value ÷ valueAtFull (up to 1). Only the settings that follow data.',
+		),
 	})
 	.describe(
-		"The world's weather: what falls, fog and haze, lightning, and how it leaves the ground. Clouds are in `sky`.",
+		"The world's weather: clouds, what falls, fog and haze, lightning, and how it leaves the ground.",
 	);
 
 // See docs/adr/0078-moods.md.
@@ -1079,19 +1101,9 @@ export const MoodSchema = z
 		weather: WeatherSchema.default(() => WeatherSchema.parse({})).describe(
 			"The world's weather with this mood (as `weather`).",
 		),
-		camera: CameraSettingsSchema.pick({
-			tiltShiftOn: true,
-			tiltShiftBlur: true,
-			tiltShiftFocus: true,
-			tiltShiftPosition: true,
-		})
-			.default(() => ({
-				tiltShiftOn: false,
-				tiltShiftBlur: 0.5,
-				tiltShiftFocus: 0.3,
-				tiltShiftPosition: 0.5,
-			}))
-			.describe("The world's tilt-shift with this mood (as those settings in `camera`)."),
+		tiltShift: TiltShiftSchema.default(() => TiltShiftSchema.parse({})).describe(
+			"The world's tilt-shift with this mood (as `camera.tiltShift`).",
+		),
 	})
 	.describe(
 		"A named look of the world, like Golden hour or Night: its time of day, light, sky, water, weather and tilt-shift, put on with one click or by going to a viewpoint that has it.",
@@ -1138,54 +1150,17 @@ export const SceneSchema = z
 			.default({ title: "Untitled world", subtitle: "" })
 			.describe("The world's title and subtitle."),
 		theme: ThemeSchema.default("system"),
-		ground: GroundSchema.default({ width: 40, depth: 30, color: null }),
-		drivingSide: DrivingSideSchema.default("right"),
-		turnStyle: TurnStyleSchema.default("smooth").describe(
-			"How vehicles take corners, unless a road or vehicle says otherwise.",
-		),
-		leansInTurns: z
-			.boolean()
-			.default(true)
-			.describe(
-				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
-			),
-		traffic: TrafficSchema.default({ keepSpacing: true, allowOvertaking: true }),
-		lighting: LightingSchema.default({
-			time: null,
-			timeSource: "fixed",
-			dayLength: 120,
-			timeKey: null,
-			sunAzimuth: null,
-			sunElevation: null,
-			sunColor: null,
-			sunStrength: null,
-			sunShadeContrast: 0.5,
-			whenLightsAreOn: "auto",
-		}),
-		sky: SkySchema.default({
-			showInPerspective: true,
-			colorOverhead: null,
-			colorAtHorizon: null,
-			showSun: true,
-			showMoon: true,
-			starDensity: 0.6,
-			cloudCover: 0.3,
-			cloudColor: null,
-			cloudSpeed: 1,
-		}),
-		water: WaterSchema.default({ rippleStrength: 0.5, reflectionStrength: 0.5 }),
+		ground: GroundSchema.default(() => GroundSchema.parse({})),
+		traffic: TrafficSchema.default(() => TrafficSchema.parse({})),
+		lighting: LightingSchema.default(() => LightingSchema.parse({})),
+		sky: SkySchema.default(() => SkySchema.parse({})),
+		water: WaterSchema.default(() => WaterSchema.parse({})),
 		weather: WeatherSchema.default(() => WeatherSchema.parse({})),
 		moods: z
 			.array(MoodSchema)
 			.default([])
 			.describe("Named looks of the world (time of day, light, sky, water, weather, tilt-shift)."),
-		backdrop: BackdropSchema.default({
-			kind: "sky",
-			color: null,
-			gradientStart: null,
-			gradientEnd: null,
-			gradientAngle: 180,
-		}),
+		backdrop: BackdropSchema.default(() => BackdropSchema.parse({})),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
@@ -1198,32 +1173,8 @@ export const SceneSchema = z
 			.array(ViewpointSchema)
 			.default([])
 			.describe("Saved camera views, in the order View mode steps through them."),
-		onScreen: OnScreenSchema.default({
-			showTitle: true,
-			showSubtitle: true,
-			showTimeOfDay: true,
-			showLabelCards: true,
-			showDetails: true,
-			showViewpointBar: true,
-		}),
-		camera: CameraSettingsSchema.default({
-			openingViewpointId: null,
-			openingProjection: "orthographic",
-			fieldOfView: 40,
-			closestSpan: 2,
-			farthestSpan: null,
-			lowestElevation: 15,
-			steepestElevation: 87,
-			keepOverGround: true,
-			keepsIsometricAngle: false,
-			turntableOn: false,
-			turntableSpeed: 4,
-			turntableDelay: 10,
-			tiltShiftOn: false,
-			tiltShiftBlur: 0.5,
-			tiltShiftFocus: 0.3,
-			tiltShiftPosition: 0.5,
-		}),
+		onScreen: OnScreenSchema.default(() => OnScreenSchema.parse({})),
+		camera: CameraSettingsSchema.default(() => CameraSettingsSchema.parse({})),
 	})
 	.superRefine((scene, ctx) => {
 		const checkUnique = (values: string[], path: (string | number)[], what: string) => {
@@ -1280,41 +1231,48 @@ export type TScene = z.output<typeof SceneSchema>;
 export type TSceneInput = z.input<typeof SceneSchema>;
 export type TEntity = z.output<typeof EntitySchema>;
 export type TEntityInput = z.input<typeof EntitySchema>;
-export type TLabel = z.output<typeof LabelSchema>;
 export type TFollow = z.output<typeof FollowSchema>;
 export type TDataEntry = z.output<typeof DataEntrySchema>;
 export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
-export type TRoadStyle = z.output<typeof RoadStyleSchema>;
+export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
-export type TRoadSupports = z.output<typeof RoadSupportsSchema>;
+export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
+export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
 export type TArea = z.output<typeof AreaSchema>;
 export type TAreaInput = z.input<typeof AreaSchema>;
-export type TAreaType = z.output<typeof AreaTypeSchema>;
+export type TAreaKind = z.output<typeof AreaKindSchema>;
 export type TAreaPoint = z.output<typeof AreaPointSchema>;
+export type TAreaWater = z.output<typeof AreaWaterSchema>;
 export type TFence = z.output<typeof FenceSchema>;
 export type TFenceInput = z.input<typeof FenceSchema>;
-export type TFenceStyle = z.output<typeof FenceStyleSchema>;
+export type TFenceKind = z.output<typeof FenceKindSchema>;
 export type TFencePoint = z.output<typeof FencePointSchema>;
+export type TGround = z.output<typeof GroundSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
 export type TThemePreference = z.output<typeof ThemeSchema>;
 export type TLighting = z.output<typeof LightingSchema>;
+export type TLightingInput = z.input<typeof LightingSchema>;
 export type TSky = z.output<typeof SkySchema>;
 export type TBackdrop = z.output<typeof BackdropSchema>;
 export type TWater = z.output<typeof WaterSchema>;
 export type TWeather = z.output<typeof WeatherSchema>;
 export type TMood = z.output<typeof MoodSchema>;
+export type TMoodInput = z.input<typeof MoodSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
+export type TTurntable = z.output<typeof TurntableSchema>;
+export type TTiltShift = z.output<typeof TiltShiftSchema>;
+export type TTiltShiftInput = z.input<typeof TiltShiftSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;
 export type TViewpoint = z.output<typeof ViewpointSchema>;
 export type TProjection = z.output<typeof ProjectionSchema>;
 /** Where a viewpoint puts the camera: everything but its id, name and description. */
 export type TViewPose = Pick<
 	TViewpoint,
-	"target" | "targetHeight" | "azimuth" | "elevation" | "span" | "projection" | "fieldOfView"
+	"target" | "targetAltitude" | "azimuth" | "elevation" | "span" | "projection" | "fieldOfView"
 >;
 export type TVec2 = z.output<typeof Vec2Schema>;
 export type TVec3 = z.output<typeof Vec3Schema>;

@@ -9,7 +9,7 @@ const WarehouseSchema = z.object({
 	depth: z.number().min(2).max(30).default(5),
 	height: z.number().min(1).max(10).default(3),
 	doorCount: z.number().int().min(0).max(8).default(3),
-	showSolarPanels: z.boolean().default(true),
+	showsSolarPanels: z.boolean().default(true),
 });
 
 export const warehouse01 = definePart({
@@ -31,13 +31,17 @@ export const warehouse01 = definePart({
 	description: "Large hall with loading doors and solar roof",
 	keywords: ["factory", "hall", "storage", "logistics", "industrial"],
 	schema: WarehouseSchema,
-	renamedProps: { doors: "doorCount", solar: "showSolarPanels" },
+	renamedProps: {
+		doors: "doorCount",
+		solar: "showsSolarPanels",
+		showSolarPanels: "showsSolarPanels",
+	},
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 2, max: 30, step: 0.5 },
 		{ key: "depth", label: "Depth", type: "number", min: 2, max: 30, step: 0.5 },
 		{ key: "height", label: "Height", type: "number", min: 1, max: 10, step: 0.25 },
 		{ key: "doorCount", label: "Number of doors", type: "number", min: 0, max: 8, step: 1 },
-		{ key: "showSolarPanels", label: "Show solar panels", type: "boolean" },
+		{ key: "showsSolarPanels", label: "Show solar panels", type: "boolean" },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#3d4fd6", legacy: "color" },
@@ -56,7 +60,7 @@ export const warehouse01 = definePart({
 
 				<Box size={[w + 0.2, 0.22, d + 0.2]} position={[0, h + 0.11, 0]} color={colors.roof} />
 
-				{p.showSolarPanels &&
+				{p.showsSolarPanels &&
 					spread(cols, w - 0.8).flatMap((x) =>
 						spread(rows, d - 0.8).map((z) => (
 							<Box

@@ -42,8 +42,8 @@ const makeTranslucent = (group: THREE.Object3D) => {
 /** Where the dragged part would land: on the ground, or parked on a road (vehicles). */
 interface IPlacement {
 	point: TVec2;
-	elevation: number;
-	rotation: number;
+	altitude: number;
+	heading: number;
 	/** Nose up or down on a sloped road (degrees). */
 	pitch: number;
 }
@@ -54,8 +54,8 @@ const samePlacement = (a: IPlacement | null, b: IPlacement | null) =>
 		b !== null &&
 		a.point[0] === b.point[0] &&
 		a.point[1] === b.point[1] &&
-		a.elevation === b.elevation &&
-		a.rotation === b.rotation &&
+		a.altitude === b.altitude &&
+		a.heading === b.heading &&
 		a.pitch === b.pitch);
 
 const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => {
@@ -78,8 +78,8 @@ const Ghost = ({ kind, placement }: { kind: string; placement: IPlacement }) => 
 
 	return (
 		<group
-			position={[placement.point[0], placement.elevation, placement.point[1]]}
-			rotation={[0, toRadians(placement.rotation), toRadians(placement.pitch)]}
+			position={[placement.point[0], placement.altitude, placement.point[1]]}
+			rotation={[0, toRadians(placement.heading), toRadians(placement.pitch)]}
 		>
 			<group ref={group}>
 				<Component
@@ -134,8 +134,8 @@ export const PlacementPreview = () => {
 			if (drop) {
 				const placement: IPlacement = {
 					point: drop.position,
-					elevation: drop.height,
-					rotation: drop.rotation,
+					altitude: drop.altitude,
+					heading: drop.heading,
 					pitch: drop.pitch,
 				};
 				return { placement, drop };
@@ -147,8 +147,8 @@ export const PlacementPreview = () => {
 						// On the ground there: on top of raised land (ADR-0098).
 						placement: {
 							point,
-							elevation: groundHeightAt(useEditor.getState().scene.areas, point),
-							rotation: 0,
+							altitude: groundHeightAt(useEditor.getState().scene.areas, point),
+							heading: 0,
 							pitch: 0,
 						},
 						drop: null,
@@ -168,8 +168,11 @@ export const PlacementPreview = () => {
 			);
 			const preview = useEditor.getState().routePreview;
 			const drop = next?.drop ?? null;
-			if (preview?.roadId !== drop?.roadId || preview?.reverse !== drop?.reverse) {
-				setRoutePreview(drop && { roadId: drop.roadId, reverse: drop.reverse });
+			if (
+				preview?.roadId !== drop?.roadId ||
+				preview?.drivesTheOtherWay !== drop?.drivesTheOtherWay
+			) {
+				setRoutePreview(drop && { roadId: drop.roadId, drivesTheOtherWay: drop.drivesTheOtherWay });
 			}
 		};
 
@@ -179,13 +182,25 @@ export const PlacementPreview = () => {
 			if (!at) {
 				return;
 			}
-			const { point, elevation, rotation, pitch } = at.placement;
+			const { point, altitude, heading, pitch } = at.placement;
 			const state = useEditor.getState();
-			const id = state.addEntity({ kind, name: "", position: point, elevation, rotation, pitch });
+			const id = state.addEntity({
+				kind,
+				name: "",
+				position: point,
+				altitude,
+				rotation: [0, heading, pitch],
+			});
 			rememberUsed(`part:${kind}`);
 			if (at.drop) {
-				const { roadId, offset, reverse } = at.drop;
-				state.setFollowOffer({ entityId: id, roadId, offset, reverse, position: point });
+				const { roadId, startDistance, drivesTheOtherWay } = at.drop;
+				state.setFollowOffer({
+					entityId: id,
+					roadId,
+					startDistance,
+					drivesTheOtherWay,
+					position: point,
+				});
 			}
 		};
 

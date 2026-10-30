@@ -27,6 +27,7 @@ export const gantryCrane01 = definePart({
 		"A port's ship-to-shore crane on four legs, its boom reaching out over the water (+X) with a trolley and a spreader to lift containers",
 	keywords: ["container crane", "port", "harbour", "quay", "ship to shore", "dock", "shipping"],
 	schema: GantryCraneSchema,
+	renamedLights: { warningLamp: "warningLight" },
 	fields: [
 		{ key: "isBoomRaised", label: "Boom raised", type: "boolean" },
 		{
@@ -54,8 +55,8 @@ export const gantryCrane01 = definePart({
 			realLight: () => ({ at: [BOOM.out * 0.4, LEGS.height - 0.3, 0] }),
 		},
 		{
-			id: "warningLamp",
-			name: "Warning lamp",
+			id: "warningLight",
+			name: "Warning light",
 			description: "A red lamp on the top, for aircraft, lit after dark.",
 			shape: "lens",
 			color: "#ff3b30",
@@ -184,7 +185,7 @@ export const gantryCrane01 = definePart({
 				))}
 
 				<LightLens
-					light={lights.warningLamp}
+					light={lights.warningLight}
 					size={[0.08, 0.08, 0.08]}
 					position={[0, top + APEX + 0.06, 0]}
 				/>

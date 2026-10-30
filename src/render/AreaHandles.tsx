@@ -406,7 +406,7 @@ export const AreaHandles = () => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
 
-	if (!area || several || mode !== "edit" || drawing || area.hidden || area.locked) {
+	if (!area || several || mode !== "edit" || drawing || area.isHidden || area.isLocked) {
 		return null;
 	}
 	const baseY = areaBaseY(Math.max(0, layer));

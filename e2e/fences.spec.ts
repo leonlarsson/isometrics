@@ -23,7 +23,7 @@ const fence = (page: Page) => read(page, (s) => s.scene.fences[0]);
 /** A picket fence along z = 2, from x = −4 to 4 through 0. */
 const PICKETS = {
 	id: "pickets",
-	style: "picket_fence_01" as const,
+	kind: "picket_fence_01" as const,
 	points: [
 		[-4, 2, 0],
 		[0, 2, 0],
@@ -48,7 +48,7 @@ test.describe("fences (ADR-0103)", () => {
 		}
 		await keys(page, "Enter");
 		const drawn = await fence(page);
-		expect(drawn?.style).toBe("hedge_01");
+		expect(drawn?.kind).toBe("hedge_01");
 		expect(drawn?.points).toHaveLength(3);
 		expect(await read(page, (s) => s.selectedFenceId)).toBe(drawn?.id);
 		await expect(outlinerRow(page, "Hedge 1")).toBeVisible();
@@ -89,8 +89,8 @@ test.describe("fences (ADR-0103)", () => {
 	test("its style, height, and how much is built are set in the properties", async ({ page }) => {
 		await loadWorld(page, { fences: [PICKETS] });
 		await page.evaluate(() => globalThis.__editorStore.getState().selectFence("pickets"));
-		await choose(page, "Style", "Stone wall");
-		expect((await fence(page))?.style).toBe("stone_wall_01");
+		await choose(page, "Kind", "Stone wall");
+		expect((await fence(page))?.kind).toBe("stone_wall_01");
 
 		await page.getByRole("tab", { name: "Shape" }).click();
 		await page.getByRole("textbox", { name: "Height", exact: true }).fill("0.8");

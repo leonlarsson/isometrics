@@ -1,35 +1,41 @@
 import { clamp, round } from "#/lib/math";
 
-import type { TArea, TAreaPoint, TAreaType, TVec2 } from "./schema";
+import type { IColorSpec } from "./colors";
+import type { TArea, TAreaKind, TAreaPoint, TVec2 } from "./schema";
 import type { IScenePalette } from "./theme";
 import { variantName } from "./variants";
 
 /** Free-form areas: water, lawns, beaches, squares and raised land. See docs/adr/0021. */
 
+interface IAreaKind {
+	/** Its colours (ADR-0060): what an area's `colors` keeps settings for, by id. */
+	colors: readonly IColorSpec[];
+	startHeight: number;
+	roughness: number;
+	staysLevel: boolean;
+}
+
+/** An area kind's one colour, its surface, as the theme has it. */
+const surface = (of: keyof IScenePalette["areas"]): readonly IColorSpec[] => [
+	{ id: "surface", name: "Surface", default: (palette) => palette.areas[of] },
+];
+
 /**
- * What each area type looks like. Ids are numbered so a type can get variants
+ * What each area kind looks like. Ids are numbered so a kind can get variants
  * (water_02…); code asks these, never the id. `startHeight`: raised land is for
  * rocks and plateaus. `staysLevel`: its corners can't have heights of their own
  * (ADR-0096), so water stays a level surface that can mirror the world.
  */
-export const AREA_TYPES: Record<
-	TAreaType,
-	{
-		surface: keyof IScenePalette["areas"];
-		startHeight: number;
-		roughness: number;
-		staysLevel: boolean;
-	}
-> = {
-	water_01: { surface: "water", startHeight: 0, roughness: 0.4, staysLevel: true },
-	grass_01: { surface: "grass", startHeight: 0, roughness: 0.95, staysLevel: false },
-	sand_01: { surface: "sand", startHeight: 0, roughness: 0.95, staysLevel: false },
-	plaza_01: { surface: "plaza", startHeight: 0, roughness: 0.95, staysLevel: false },
-	raised_land_01: { surface: "land", startHeight: 1.5, roughness: 0.95, staysLevel: false },
+export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
+	water_01: { colors: surface("water"), startHeight: 0, roughness: 0.4, staysLevel: true },
+	grass_01: { colors: surface("grass"), startHeight: 0, roughness: 0.95, staysLevel: false },
+	sand_01: { colors: surface("sand"), startHeight: 0, roughness: 0.95, staysLevel: false },
+	plaza_01: { colors: surface("plaza"), startHeight: 0, roughness: 0.95, staysLevel: false },
+	raised_land_01: { colors: surface("land"), startHeight: 1.5, roughness: 0.95, staysLevel: false },
 };
 
 /** Each type's family name; variants of a family are told apart by number (scene/variants). */
-const AREA_TYPE_NAMES: Record<TAreaType, string> = {
+const AREA_KIND_NAMES: Record<TAreaKind, string> = {
 	water_01: "Water",
 	grass_01: "Grass",
 	sand_01: "Sand",
@@ -37,14 +43,11 @@ const AREA_TYPE_NAMES: Record<TAreaType, string> = {
 	raised_land_01: "Raised land",
 };
 
-const AREA_TYPE_IDS = Object.keys(AREA_TYPE_NAMES) as TAreaType[];
+const AREA_KIND_IDS = Object.keys(AREA_KIND_NAMES) as TAreaKind[];
 
-export const AREA_TYPE_LABELS = Object.fromEntries(
-	AREA_TYPE_IDS.map((type) => [type, variantName(type, AREA_TYPE_NAMES[type], AREA_TYPE_IDS)]),
-) as Record<TAreaType, string>;
-
-export const areaColor = (area: Pick<TArea, "type" | "color">, palette: IScenePalette) =>
-	area.color ?? palette.areas[AREA_TYPES[area.type].surface];
+export const AREA_KIND_LABELS = Object.fromEntries(
+	AREA_KIND_IDS.map((type) => [type, variantName(type, AREA_KIND_NAMES[type], AREA_KIND_IDS)]),
+) as Record<TAreaKind, string>;
 
 /** An outline's corners: [x, z], maybe followed by more (an area corner's lift). */
 type TOutline = readonly (readonly number[])[];
@@ -88,17 +91,17 @@ export const cornerWithLift = (x: number, z: number, lift: number): TAreaPoint =
 	lift === 0 ? [round(x), round(z)] : [round(x), round(z), round(lift)];
 
 /** An area's shape as far as its top goes: its outline, height, type, and peaks inside (ADR-0101). */
-export type TAreaShape = Pick<TArea, "height" | "points" | "type"> & { peaks?: TArea["peaks"] };
+export type TAreaShape = Pick<TArea, "height" | "points" | "kind"> & { peaks?: TArea["peaks"] };
 
 /**
  * How high the area's top stands at one of its corners: level at its height
  * for types that stay level (water), whatever lift a corner kept from before.
  */
-export const cornerTop = (area: Pick<TArea, "height" | "type">, point: readonly number[]) =>
-	Math.max(0, area.height + (AREA_TYPES[area.type].staysLevel ? 0 : cornerLift(point)));
+export const cornerTop = (area: Pick<TArea, "height" | "kind">, point: readonly number[]) =>
+	Math.max(0, area.height + (AREA_KINDS[area.kind].staysLevel ? 0 : cornerLift(point)));
 
 /** Whether its corners can have heights of their own: not for types that stay level (water). */
-export const takesCornerHeights = (area: Pick<TArea, "type">) => !AREA_TYPES[area.type].staysLevel;
+export const takesCornerHeights = (area: Pick<TArea, "kind">) => !AREA_KINDS[area.kind].staysLevel;
 
 /** The lift that puts a corner's top at `top` (the ground at least), for an area this high. */
 export const liftForTop = (area: Pick<TArea, "height">, top: number) =>
@@ -342,7 +345,7 @@ export const areaTopAt = (area: TAreaShape, point: TVec2) => {
 };
 
 /** What the ground is made of: the areas, as far as their heights go. */
-type TGround = TAreaShape & Pick<TArea, "hidden">;
+type TGround = TAreaShape & Pick<TArea, "isHidden">;
 
 /**
  * How high the ground stands at a point: the highest top of the areas there
@@ -352,7 +355,7 @@ export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 	Math.max(
 		0,
 		...areas
-			.filter((area) => !area.hidden && isRaised(area))
+			.filter((area) => !area.isHidden && isRaised(area))
 			.map((area) => areaTopAt(area, point) ?? 0),
 	);
 
@@ -361,7 +364,7 @@ export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
  * ground there as it was here, so it climbs onto raised land and follows slopes,
  * and one lifted or sunk on purpose keeps that (ADR-0098).
  */
-export const elevationMovedTo = (
+export const altitudeMovedTo = (
 	areas: readonly TGround[],
 	elevation: number,
 	from: TVec2,
@@ -387,10 +390,10 @@ export const MAX_WATER_SEAMS = 64;
 export const waterSeams = (area: TArea, areas: TArea[]) => {
 	const others = areas.filter(
 		(other) =>
-			other.id !== area.id && other.type === "water_01" && !isRaised(other) && !other.hidden,
+			other.id !== area.id && other.kind === "water_01" && !isRaised(other) && !other.isHidden,
 	);
 	const seams: [number, number, number, number][] = [];
-	if (area.type !== "water_01" || isRaised(area) || others.length === 0) {
+	if (area.kind !== "water_01" || isRaised(area) || others.length === 0) {
 		return seams;
 	}
 	const { points } = area;

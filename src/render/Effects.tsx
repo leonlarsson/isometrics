@@ -510,7 +510,11 @@ export const Effects = ({ graphics }: IEffectsProps) => {
 			glowLayers[1].intensity = GLOW_HALO_AT_NIGHT * night;
 			glow.enabled = night > 0.01;
 		}
-		const settings = bandBlurSettings(useEditor.getState().scene.camera, size.width, size.height);
+		const settings = bandBlurSettings(
+			useEditor.getState().scene.camera.tiltShift,
+			size.width,
+			size.height,
+		);
 		for (const [pass, direction] of [
 			[blur[0], settings.across],
 			[blur[1], settings.up],

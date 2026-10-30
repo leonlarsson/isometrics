@@ -283,7 +283,7 @@ export const FenceHandles = () => {
 	const dragging = useEditor((s) => s.dragging);
 	const top = fence ? fenceHeightOf(fence) : 0;
 
-	if (!fence || several || mode !== "edit" || drawing || fence.hidden || fence.locked) {
+	if (!fence || several || mode !== "edit" || drawing || fence.isHidden || fence.isLocked) {
 		return null;
 	}
 

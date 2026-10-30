@@ -7,9 +7,9 @@ import { useGraphics } from "#/editor/graphics";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
+import { colorOf } from "#/parts/colorModel";
 import {
-	AREA_TYPES,
-	areaColor,
+	AREA_KINDS,
 	cornerTop,
 	isRaised,
 	type TAreaShape,
@@ -17,7 +17,7 @@ import {
 	triangulateOutline,
 	waterSeams,
 } from "#/scene/areas";
-import type { TArea, TWater } from "#/scene/schema";
+import type { TArea, TDataEntry, TWater } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openAreaMenuOnClick } from "./contextMenu";
@@ -111,6 +111,8 @@ interface IAreaBodyProps {
 	/** Draw order among areas; later areas sit on top where they overlap. */
 	layer: number;
 	palette: IScenePalette;
+	/** The world's data, for colours that follow it. */
+	data: readonly TDataEntry[];
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TAreaHandlers;
@@ -131,6 +133,7 @@ export const AreaBody = ({
 	area,
 	layer,
 	palette,
+	data,
 	selected,
 	handlers = {},
 	reflective = false,
@@ -140,7 +143,7 @@ export const AreaBody = ({
 	const y = areaBaseY(layer);
 	const raised = isRaised(area);
 	// Water stays level (ADR-0096), so it mirrors raised too: its surface on top of cliff sides.
-	const mirrors = reflective && area.type === "water_01";
+	const mirrors = reflective && area.kind === "water_01";
 	const geometry = useMemo(() => {
 		if (raised && !mirrors) {
 			return solidGeometry(area);
@@ -151,11 +154,11 @@ export const AreaBody = ({
 			geo.rotateX(-Math.PI / 2);
 		}
 		return geo;
-	}, [area.points, area.peaks, area.height, area.type, raised, mirrors]);
+	}, [area.points, area.peaks, area.height, area.kind, raised, mirrors]);
 	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 	const sides = useMemo(
 		() => (raised && mirrors ? solidGeometry(area, false) : null),
-		[area.points, area.height, area.type, raised, mirrors],
+		[area.points, area.height, area.kind, raised, mirrors],
 	);
 	useLayoutEffect(() => () => sides?.dispose(), [sides]);
 
@@ -168,7 +171,7 @@ export const AreaBody = ({
 		[area.points, area.height, y],
 	);
 
-	const color = areaColor(area, palette);
+	const color = colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
 
 	return (
 		<group>
@@ -199,20 +202,20 @@ export const AreaBody = ({
 				) : mirrors ? (
 					<ReflectiveWaterMaterial
 						color={color}
-						roughness={AREA_TYPES[area.type].roughness}
+						roughness={AREA_KINDS[area.kind].roughness}
 						world={worldWater}
 						seams={waterSeams}
-						rippleStrength={area.rippleStrength ?? worldWater.rippleStrength}
-						reflectionStrength={area.reflectionStrength ?? worldWater.reflectionStrength}
+						rippleStrength={area.water.rippleStrength ?? worldWater.rippleStrength}
+						reflectionStrength={area.water.reflectionStrength ?? worldWater.reflectionStrength}
 					/>
 				) : (
 					<meshStandardMaterial
 						color={color}
-						roughness={AREA_TYPES[area.type].roughness}
+						roughness={AREA_KINDS[area.kind].roughness}
 						polygonOffset
 						polygonOffsetFactor={-1}
 						// Water takes no snow or wetness (ADR-0102).
-						userData={area.type === "water_01" ? NO_WEATHER : undefined}
+						userData={area.kind === "water_01" ? NO_WEATHER : undefined}
 					/>
 				)}
 			</mesh>
@@ -248,10 +251,11 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const worldWater = useEditor((s) => s.scene.water);
 	const areas = useEditor((s) => s.scene.areas);
 	const seams = useMemo(
-		() => (reflective && area.type === "water_01" ? waterSeams(area, areas) : NO_SEAMS),
+		() => (reflective && area.kind === "water_01" ? waterSeams(area, areas) : NO_SEAMS),
 		[reflective, area, areas],
 	);
 	const palette = usePalette();
+	const data = useEditor((s) => s.scene.data);
 	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
@@ -289,7 +293,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 				// Double-click the selected area: a peak there (ADR-0101).
 				onDoubleClick: (e: ThreeEvent<MouseEvent>) => {
 					e.stopPropagation();
-					if (clicks.current.previous && !area.locked) {
+					if (clicks.current.previous && !area.isLocked) {
 						useEditor.getState().addAreaPeak(area.id, [e.point.x, e.point.z]);
 					}
 				},
@@ -301,6 +305,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			area={area}
 			layer={layer}
 			palette={palette}
+			data={data}
 			selected={selected && mode === "edit"}
 			handlers={handlers}
 			reflective={reflective}

@@ -307,16 +307,16 @@ const FINE_CELL = 20;
  * white where its panes are lit and black elsewhere, so each light draws its
  * own panes in exactly its colour. `weights` decide whose each pane is (relative
  * to each other: 9 and 1 give nine panes in ten to the first); each light then
- * lights `litPanes` of its own panes, on the busiest floors first, so more
+ * lights `litPaneShare` of its own panes, on the busiest floors first, so more
  * lit panes only ever adds panes and never moves another light's.
  */
 const windowMasks = new Map<string, THREE.CanvasTexture[]>();
 const getWindowMasks = (
 	weights: readonly number[],
-	litPanes: readonly number[],
+	litPaneShare: readonly number[],
 	paneSize: readonly [number, number] | undefined,
 ) => {
-	const cacheKey = `${weights.join(",")}|${litPanes.map((part) => part.toFixed(3)).join(",")}|${paneSize?.join(",") ?? "whole"}`;
+	const cacheKey = `${weights.join(",")}|${litPaneShare.map((part) => part.toFixed(3)).join(",")}|${paneSize?.join(",") ?? "whole"}`;
 	const cached = windowMasks.get(cacheKey);
 	if (cached || typeof document === "undefined") {
 		return cached ?? null;
@@ -353,7 +353,7 @@ const getWindowMasks = (
 			// Fully lit, so the pane is exactly its light's colour (variety is more lights, not shading).
 			ctx.fillStyle = "#ffffff";
 			const lit = [...own].sort((a, b) => a.score - b.score);
-			for (const { cell } of lit.slice(0, Math.round((litPanes[index] ?? 1) * own.length))) {
+			for (const { cell } of lit.slice(0, Math.round((litPaneShare[index] ?? 1) * own.length))) {
 				ctx.fillRect(
 					(cell % PATTERN) * cellSize + inset[0],
 					Math.floor(cell / PATTERN) * cellSize + inset[1],
@@ -381,7 +381,7 @@ interface ILitWindowsProps {
 	/**
 	 * Its window lights (ADR-0058), each lighting its own panes in exactly its
 	 * colour, e.g. warm room lights and cool screens. Each light's `weight` says
-	 * how many panes are its and `litPanes` how many of those are lit. Keep the
+	 * how many panes are its and `litPaneShare` how many of those are lit. Keep the
 	 * order and weights fixed: changing them moves which panes are whose.
 	 */
 	lights: readonly IResolvedLight[];
@@ -438,8 +438,8 @@ export const LitWindows = ({
 	paneSize,
 }: ILitWindowsProps) => {
 	const masks = getWindowMasks(
-		lights.map((light) => light.weight),
-		lights.map((light) => light.litPanes),
+		lights.map((light) => light.paneWeight),
+		lights.map((light) => light.litPaneShare),
 		paneSize,
 	);
 	// Each face of each light its own copy (sharing the image), repeated to one cell per window.

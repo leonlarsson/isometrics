@@ -112,7 +112,7 @@ const boxOf = (entity: TEntity) => {
 		return null;
 	}
 	const [width, depth] = part.footprint(resolveProps(part, entity.props));
-	const turn = (entity.rotation * Math.PI) / 180;
+	const turn = (entity.rotation[1] * Math.PI) / 180;
 	const cos = Math.abs(Math.cos(turn));
 	const sin = Math.abs(Math.sin(turn));
 	return {
@@ -136,7 +136,7 @@ const distanceToSegment = ([px, pz]: TVec2, [ax, az]: TVec2, [bx, bz]: TVec2) =>
 /** The roads as pieces of ground to keep off: each centreline segment and its half width. */
 const roadPieces = (scene: TScene) =>
 	scene.roads
-		.filter((road) => !road.hidden && !isHiddenRoute(road.style))
+		.filter((road) => !road.isHidden && !isHiddenRoute(road.kind))
 		.flatMap((road) => {
 			const line = roadCenterlineOf(road);
 			return line.slice(1).map((point, i) => ({
@@ -149,7 +149,7 @@ const roadPieces = (scene: TScene) =>
 /** What a stamp of the brush lands on: the scene's objects in the way, and its roads. */
 const obstaclesOf = (scene: TScene) => ({
 	boxes: scene.entities
-		.filter((entity) => !entity.follow && !entity.hidden && !getPart(entity.kind)?.flat)
+		.filter((entity) => !entity.follow && !entity.isHidden && !getPart(entity.kind)?.flat)
 		.map(boxOf)
 		.filter((box) => box !== null),
 	roads: roadPieces(scene),
@@ -207,17 +207,12 @@ export const paintStamp = (
 			hundredths(center[1] + Math.sin(angle) * distance),
 		];
 		const kind = pick();
-		const part = getPart(kind);
-		if (!part) {
+		if (!getPart(kind)) {
 			continue;
 		}
-		const defaults = part.schema.parse({}) as Record<string, unknown>;
-		// Sizes vary a little where the part has a size (trees, bushes).
-		const props =
-			typeof defaults.size === "number"
-				? { size: hundredths(defaults.size * (0.8 + random() * 0.4)) }
-				: {};
-		const candidate = { kind, props, scale: 1 };
+		// Sizes vary a little, as trees and bushes do.
+		const scale = hundredths(0.8 + random() * 0.4);
+		const candidate = { kind, props: {}, scale };
 		const reach = reachOf(candidate);
 		const free =
 			Math.abs(point[0]) + reach <= halfWidth &&
@@ -242,9 +237,9 @@ export const paintStamp = (
 			kind,
 			name: "",
 			position: point,
-			elevation: groundHeightAt(scene.areas, point),
-			rotation: Math.round(random() * 360) - 180,
-			props,
+			altitude: groundHeightAt(scene.areas, point),
+			rotation: [0, Math.round(random() * 360) - 180, 0],
+			scale,
 		});
 	}
 	return added;
@@ -256,7 +251,7 @@ export const eraseStamp = (scene: TScene, brush: IPaintBrush, center: TVec2) => 
 	return scene.entities
 		.filter(
 			(entity) =>
-				!entity.locked &&
+				!entity.isLocked &&
 				!entity.follow &&
 				kinds.some(([kind]) => kind === entity.kind) &&
 				Math.hypot(entity.position[0] - center[0], entity.position[1] - center[1]) <= brush.size,

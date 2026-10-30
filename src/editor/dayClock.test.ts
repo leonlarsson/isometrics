@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SceneSchema } from "#/scene/schema";
+import { DataBindingSchema, SceneSchema } from "#/scene/schema";
 
 import { sceneHours, shownHours } from "./dayClock";
 
@@ -18,11 +18,16 @@ describe("sceneHours", () => {
 	});
 
 	it("takes the time from a data value, or the set time without one", () => {
-		const fromData = { ...base, time: 9, timeSource: "data" as const, timeKey: "hour" };
-		expect(sceneHours(fromData, [{ key: "hour", label: "", value: 18.5, unit: "" }], 0, 0)).toBe(
+		const fromData = {
+			...base,
+			time: 9,
+			timeSource: "data" as const,
+			data: { time: DataBindingSchema.parse({ key: "hour" }) },
+		};
+		expect(sceneHours(fromData, [{ key: "hour", name: "", value: 18.5, unit: "" }], 0, 0)).toBe(
 			18.5,
 		);
-		expect(sceneHours(fromData, [{ key: "hour", label: "", value: "late", unit: "" }], 0, 0)).toBe(
+		expect(sceneHours(fromData, [{ key: "hour", name: "", value: "late", unit: "" }], 0, 0)).toBe(
 			9,
 		);
 		expect(sceneHours(fromData, [], 0, 0)).toBe(9);

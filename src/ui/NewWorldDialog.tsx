@@ -76,7 +76,7 @@ const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "
 
 /** What a starter comes with, data first (it's what worlds are for, ADR-0019); zero counts are left out. */
 const contentsOf = (scene: TScene) => {
-	const cards = scene.entities.filter((entity) => entity.label?.enabled).length;
+	const cards = scene.entities.filter((entity) => entity.label.isShown).length;
 	const things = [
 		[scene.entities.length, "object"],
 		[scene.roads.length, "road"],

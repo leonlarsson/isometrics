@@ -91,20 +91,17 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 		scene.entities = (world.entities ?? []).map((e) => ({
 			...template,
 			name: "",
-			rotation: 0,
+			altitude: 0,
+			rotation: [0, 0, 0],
 			scale: 1,
-			elevation: 0,
-			pitch: 0,
 			props: {},
 			colors: {},
 			lights: {},
-			label: null,
+			label: { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] },
 			details: { description: "", dataKeys: [] },
 			follow: null,
-			hidden: false,
-			locked: false,
-			color: null,
-			accent: null,
+			isHidden: false,
+			isLocked: false,
 			...e,
 		})) as typeof scene.entities;
 		const road = scene.roads[0];
@@ -112,9 +109,10 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			...road,
 			name: "",
 			loops: false,
-			hidden: false,
-			locked: false,
-			turnStyle: null,
+			colors: {},
+			traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+			isHidden: false,
+			isLocked: false,
 			...r,
 		})) as typeof scene.roads;
 		const area = scene.areas[0];
@@ -123,13 +121,15 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			name: "",
 			height: 0,
 			peaks: [],
-			hidden: false,
-			locked: false,
+			colors: {},
+			water: { rippleStrength: null, reflectionStrength: null },
+			isHidden: false,
+			isLocked: false,
 			...a,
 		})) as typeof scene.areas;
 		scene.fences = (world.fences ?? []).map((f) => ({
 			name: "",
-			style: "picket_fence_01",
+			kind: "picket_fence_01",
 			loops: false,
 			cornerRadius: 0,
 			height: null,
@@ -137,8 +137,8 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			colors: {},
 			builtShare: 1,
 			data: {},
-			hidden: false,
-			locked: false,
+			isHidden: false,
+			isLocked: false,
 			...f,
 			points: (f.points ?? []).map(([x, z, lift]) => [x, z, lift ?? 0]),
 		})) as typeof scene.fences;
@@ -196,7 +196,7 @@ export const showView = async (page: Page, target: [number, number], span: numbe
 		([target, span]) =>
 			globalThis.__editorStore.getState().showOpeningView({
 				target,
-				targetHeight: 0,
+				targetAltitude: 0,
 				azimuth: 315,
 				elevation: 32.47,
 				span,

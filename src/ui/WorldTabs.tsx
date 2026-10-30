@@ -1,5 +1,7 @@
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { GROUND } from "#/scene/ground";
+import { changeColorSetting } from "#/scene/objectSettings";
 import { TURN_STYLE_OPTIONS } from "#/scene/roads";
 import {
 	OnScreenSchema,
@@ -10,36 +12,28 @@ import {
 } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
-import {
-	ColorField,
-	Hint,
-	Section,
-	SelectField,
-	SliderField,
-	SwitchField,
-	TextField,
-} from "./fields";
+import { Hint, Section, SelectField, SliderField, SwitchField, TextField } from "./fields";
+import { ColorSettingFields } from "./PartSettings";
 
-/** The World tab (ADR-0054): the world's title and theme, its ground, and what shows on screen. */
 /** Each On screen switch as a new world has it, for Default / Reset. */
 const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
 
 const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
-	{ key: "showTitle", label: "Show the title" },
-	{ key: "showSubtitle", label: "Show the subtitle" },
-	{ key: "showTimeOfDay", label: "Show the time of day" },
+	{ key: "showsTitle", label: "Show the title" },
+	{ key: "showsSubtitle", label: "Show the subtitle" },
+	{ key: "showsTimeOfDay", label: "Show the time of day" },
 	{
-		key: "showLabelCards",
+		key: "showsLabelCards",
 		label: "Show label cards",
 		hint: "Every object's card. One object's card is switched in its Label tab.",
 	},
 	{
-		key: "showDetails",
+		key: "showsDetails",
 		label: "Show details on click",
 		hint: "An object's values when it's clicked.",
 	},
 	{
-		key: "showViewpointBar",
+		key: "showsViewpointBar",
 		label: "Show the viewpoint bar",
 		hint: "← and → still step through the viewpoints without it.",
 	},
@@ -87,6 +81,7 @@ const OnScreenSection = () => {
 	);
 };
 
+/** The World tab (ADR-0054): the world's title and theme, its ground, and what shows on screen. */
 export const WorldTab = () => {
 	const scene = useEditor((s) => s.scene);
 	const commit = useEditor((s) => s.commit);
@@ -171,25 +166,19 @@ export const WorldTab = () => {
 					}
 				/>
 
-				<ColorField
-					label="Colour"
-					value={scene.ground.color ?? palette.ground}
-					onChange={(v) =>
+				<ColorSettingFields
+					spec={GROUND.colors[0]}
+					setting={scene.ground.colors.surface}
+					data={scene.data}
+					palette={palette}
+					onChange={(change, field) =>
 						commit(
 							(s) => {
-								s.ground.color = v;
+								changeColorSetting(s.ground.colors, "surface", change);
 							},
-							{ coalesce: "ground.color" },
+							field ? { coalesce: `ground.color.${field}` } : undefined,
 						)
 					}
-					inherit={{
-						from: "default",
-						inherited: scene.ground.color === null,
-						onReset: () =>
-							commit((s) => {
-								s.ground.color = null;
-							}),
-					}}
 				/>
 
 				<ButtonGroup>
@@ -218,25 +207,25 @@ export const TrafficTab = () => {
 		>
 			<SelectField<TDrivingSide>
 				label="Vehicles drive on the"
-				value={scene.drivingSide}
+				value={scene.traffic.drivingSide}
 				options={[
 					{ value: "right", label: "Right" },
 					{ value: "left", label: "Left" },
 				]}
 				onChange={(v) =>
 					commit((s) => {
-						s.drivingSide = v;
+						s.traffic.drivingSide = v;
 					})
 				}
 			/>
 
 			<SelectField<TTurnStyle>
 				label="Vehicles turn"
-				value={scene.turnStyle}
+				value={scene.traffic.turnStyle}
 				options={TURN_STYLE_OPTIONS}
 				onChange={(v) =>
 					commit((s) => {
-						s.turnStyle = v;
+						s.traffic.turnStyle = v;
 					})
 				}
 				hint="Smoothly eases through corners; sharply snaps to each new direction. Roads and vehicles can override this."
@@ -244,18 +233,18 @@ export const TrafficTab = () => {
 
 			<SwitchField
 				label="Lean in turns"
-				checked={scene.leansInTurns}
+				checked={scene.traffic.leansInTurns}
 				onChange={(v) =>
 					commit((s) => {
-						s.leansInTurns = v;
+						s.traffic.leansInTurns = v;
 					})
 				}
 				inherit={{
 					from: "default",
-					inherited: scene.leansInTurns,
+					inherited: scene.traffic.leansInTurns,
 					onReset: () =>
 						commit((s) => {
-							s.leansInTurns = true;
+							s.traffic.leansInTurns = true;
 						}),
 					value: "on",
 				}}
@@ -264,21 +253,21 @@ export const TrafficTab = () => {
 
 			<SwitchField
 				label="Keep distance"
-				checked={scene.traffic.keepSpacing}
+				checked={scene.traffic.keepsDistance}
 				onChange={(v) =>
 					commit((s) => {
-						s.traffic.keepSpacing = v;
+						s.traffic.keepsDistance = v;
 					})
 				}
 			/>
 
-			{scene.traffic.keepSpacing ? (
+			{scene.traffic.keepsDistance ? (
 				<SwitchField
 					label="Overtake slower vehicles"
-					checked={scene.traffic.allowOvertaking}
+					checked={scene.traffic.overtakes}
 					onChange={(v) =>
 						commit((s) => {
-							s.traffic.allowOvertaking = v;
+							s.traffic.overtakes = v;
 						})
 					}
 				/>

@@ -3,6 +3,7 @@ import {
 	SceneSchema,
 	type TDrivingSide,
 	type TScene,
+	type TSceneInput,
 	type TThemePreference,
 } from "#/scene/schema";
 
@@ -24,7 +25,7 @@ export const createEmptyScene = ({
 	SceneSchema.parse({
 		version: SCENE_VERSION,
 		meta: { title },
-		...(ground && { ground: { ...ground, color: null } }),
+		...(ground && { ground }),
 		...(theme && { theme }),
-		...(drivingSide && { drivingSide }),
-	});
+		...(drivingSide && { traffic: { drivingSide } }),
+	} satisfies TSceneInput);

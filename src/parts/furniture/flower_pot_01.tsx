@@ -6,7 +6,7 @@ import { definePart } from "../types";
 import { metres, UNITS_PER_METRE } from "./furnitureSize";
 
 const FlowerPotSchema = z.object({
-	showFlowers: z.boolean().default(true),
+	showsFlowers: z.boolean().default(true),
 });
 
 /** Soil, under the plant. */
@@ -28,7 +28,8 @@ export const flowerPot01 = definePart({
 	description: "Terracotta pot with a flowering plant",
 	keywords: ["plant", "flowers", "planter", "garden", "street furniture"],
 	schema: FlowerPotSchema,
-	fields: [{ key: "showFlowers", label: "Show the flowers", type: "boolean" }],
+	renamedProps: { showFlowers: "showsFlowers" },
+	fields: [{ key: "showsFlowers", label: "Show the flowers", type: "boolean" }],
 	colors: [
 		{ id: "pot", name: "Pot", default: "#c46a3f", legacy: "color" },
 		{ id: "flowers", name: "Flowers", default: "#e9578a", legacy: "accent" },
@@ -64,7 +65,7 @@ export const flowerPot01 = definePart({
 			</mesh>
 
 			{/* Flowers dotted over the upper half of the plant. */}
-			{p.showFlowers &&
+			{p.showsFlowers &&
 				FLOWERS.map(({ angle, up }) => {
 					const across = Math.sqrt(1 - up * up) * PLANT.radius;
 					return (

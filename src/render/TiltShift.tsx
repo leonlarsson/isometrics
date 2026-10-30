@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
-import type { TScene } from "#/scene/schema";
+import type { TTiltShift } from "#/scene/schema";
 
 /**
  * The world's tilt-shift (scene.camera.tiltShift, ADR-0062): the top and
@@ -59,13 +59,13 @@ export const BandBlurShader = {
  * The blur's settings for a view `width` × `height` CSS px: one step between
  * samples in UV for each direction, and the sharp band.
  */
-export const bandBlurSettings = (camera: TScene["camera"], width: number, height: number) => {
-	const reach = MAX_SAMPLE_STEP_PX * camera.tiltShiftBlur;
+export const bandBlurSettings = (tiltShift: TTiltShift, width: number, height: number) => {
+	const reach = MAX_SAMPLE_STEP_PX * tiltShift.blurStrength;
 	return {
 		across: [reach / width, 0] as const,
 		up: [0, reach / height] as const,
-		centre: camera.tiltShiftPosition,
-		halfHeight: camera.tiltShiftFocus / 2,
+		centre: tiltShift.sharpBandPosition,
+		halfHeight: tiltShift.sharpBandHeight / 2,
 		// The blur reaches full strength a fifth of the view's height beyond the band.
 		soft: 0.2,
 	};
@@ -73,4 +73,6 @@ export const bandBlurSettings = (camera: TScene["camera"], width: number, height
 
 /** Whether the world's tilt-shift shows: in View mode, and in Edit mode while previewing it. */
 export const useTiltShiftShown = () =>
-	useEditor((s) => s.scene.camera.tiltShiftOn && (drawnModeOf(s) === "view" || s.previewTiltShift));
+	useEditor(
+		(s) => s.scene.camera.tiltShift.isOn && (drawnModeOf(s) === "view" || s.previewTiltShift),
+	);

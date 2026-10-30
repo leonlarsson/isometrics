@@ -2,17 +2,11 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import {
-	builtShareOf,
-	fenceColorSettings,
-	fenceHeightOf,
-	fenceSpacingOf,
-	layoutOfFence,
-} from "#/fences/fenceModel";
+import { builtShareOf, fenceHeightOf, fenceSpacingOf, layoutOfFence } from "#/fences/fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "#/fences/registry";
-import { applySettingChange, isUnsetSetting } from "#/scene/objectSettings";
+import { changeColorSetting } from "#/scene/objectSettings";
 import { roadEnds, type TRoadEnd } from "#/scene/roads";
-import { EntityColorSchema, type TFence, type TFenceStyle } from "#/scene/schema";
+import type { TFence, TFenceKind } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { DataDrivenField } from "./DataDrivenField";
@@ -56,21 +50,21 @@ const FenceTab = ({ fence }: { fence: TFence }) => {
 	const data = useEditor((s) => s.scene.data);
 	const edit = useFenceEdit(fence);
 	const layout = layoutOfFence(fence, areas, data);
-	const style = FENCE_STYLES[fence.style];
+	const style = FENCE_STYLES[fence.kind];
 
 	return (
 		<Section
 			icon="fence"
-			title={FENCE_STYLE_LABELS[fence.style]}
+			title={FENCE_STYLE_LABELS[fence.kind]}
 			actions={
 				<IconButtonGroup>
 					<IconButton
-						icon={fence.locked ? "lock" : "unlock"}
-						label={fence.locked ? "Unlock" : "Lock its shape"}
-						pressed={fence.locked}
+						icon={fence.isLocked ? "lock" : "unlock"}
+						label={fence.isLocked ? "Unlock" : "Lock its shape"}
+						pressed={fence.isLocked}
 						onClick={() =>
 							edit("locked", (f) => {
-								f.locked = !f.locked;
+								f.isLocked = !f.isLocked;
 							})
 						}
 					/>
@@ -86,7 +80,7 @@ const FenceTab = ({ fence }: { fence: TFence }) => {
 			<TextField
 				label="Name"
 				value={fence.name}
-				placeholder={FENCE_STYLE_LABELS[fence.style]}
+				placeholder={FENCE_STYLE_LABELS[fence.kind]}
 				onChange={(v) =>
 					edit("name", (f) => {
 						f.name = v;
@@ -94,13 +88,13 @@ const FenceTab = ({ fence }: { fence: TFence }) => {
 				}
 			/>
 
-			<SelectField<TFenceStyle>
-				label="Style"
-				value={fence.style}
+			<SelectField<TFenceKind>
+				label="Kind"
+				value={fence.kind}
 				options={STYLE_OPTIONS}
 				onChange={(v) =>
 					edit("style", (f) => {
-						f.style = v;
+						f.kind = v;
 					})
 				}
 				hint={style.description}
@@ -237,7 +231,7 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	const data = useEditor((s) => s.scene.data);
 	const edit = useFenceEdit(fence);
-	const style = FENCE_STYLES[fence.style];
+	const style = FENCE_STYLES[fence.kind];
 	const showsPosts = style.showsPosts !== false;
 	const built = builtShareOf(fence, data);
 
@@ -410,21 +404,13 @@ const FenceLookTab = ({ fence }: { fence: TFence }) => {
 			</FollowDataNote>
 
 			<PartColorsSection
-				part={FENCE_STYLES[fence.style]}
-				object={fenceColorSettings(fence)}
+				part={FENCE_STYLES[fence.kind]}
+				object={fence}
 				data={data}
 				palette={palette}
 				onChange={(colorId, change, field) =>
 					edit(`color:${colorId}:${field ?? performance.now()}`, (f) => {
-						const next = applySettingChange(
-							f.colors[colorId] ?? EntityColorSchema.parse({}),
-							change,
-						);
-						if (isUnsetSetting(next)) {
-							delete f.colors[colorId];
-						} else {
-							f.colors[colorId] = next;
-						}
+						changeColorSetting(f.colors, colorId, change);
 					})
 				}
 			/>

@@ -5,16 +5,16 @@ import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { round } from "#/lib/math";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TAreaType, TRoadStyle, TVec2 } from "#/scene/schema";
+import { AREA_KIND_LABELS } from "#/scene/areas";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
+import type { TAreaKind, TRoadKind, TVec2 } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
 import { useLastNonNull } from "./useLastNonNull";
 import { saveCurrentView } from "./ViewpointsMenu";
 
-const ROAD_STYLES = Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[];
-const AREA_TYPES = Object.keys(AREA_TYPE_LABELS) as TAreaType[];
+const ROAD_KINDS = Object.keys(ROAD_KIND_LABELS) as TRoadKind[];
+const AREA_KINDS = Object.keys(AREA_KIND_LABELS) as TAreaKind[];
 
 /** "x 12, z −4.5": where on the ground the menu is for. */
 const describePoint = ([x, z]: TVec2) => `x ${round(x, 1)}, z ${round(z, 1)}`.replaceAll("-", "−");
@@ -70,10 +70,10 @@ export const GroundContextMenu = () => {
 			</Menu.Submenu>
 
 			<Menu.Submenu icon="edit" label="Draw a road from here">
-				{ROAD_STYLES.map((style) => (
+				{ROAD_KINDS.map((style) => (
 					<Menu.Item
 						key={style}
-						label={ROAD_STYLE_LABELS[style]}
+						label={ROAD_KIND_LABELS[style]}
 						onClick={() => {
 							draw(() => store().startDrawing(style));
 							rememberUsed(`road:${style}`);
@@ -83,10 +83,10 @@ export const GroundContextMenu = () => {
 			</Menu.Submenu>
 
 			<Menu.Submenu icon="layers" label="Draw an area from here">
-				{AREA_TYPES.map((type) => (
+				{AREA_KINDS.map((type) => (
 					<Menu.Item
 						key={type}
-						label={AREA_TYPE_LABELS[type]}
+						label={AREA_KIND_LABELS[type]}
 						onClick={() => {
 							draw(() => store().startAreaDrawing(type));
 							rememberUsed(`area:${type}`);

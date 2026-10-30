@@ -31,6 +31,7 @@ export const pylon01 = definePart({
 		"Steel lattice tower for high-voltage lines, with two crossarms; its wires run along +X to the next pylon, a wire span away",
 	keywords: ["power line", "transmission tower", "electricity", "grid", "high voltage", "wires"],
 	schema: PylonSchema,
+	renamedLights: { warningLamp: "warningLight" },
 	fields: [
 		{ key: "height", label: "Height", type: "number", min: 3, max: 12, step: 0.1 },
 		{
@@ -49,8 +50,8 @@ export const pylon01 = definePart({
 	],
 	lights: [
 		{
-			id: "warningLamp",
-			name: "Warning lamp",
+			id: "warningLight",
+			name: "Warning light",
 			description: "A red lamp on the top, for aircraft, lit after dark.",
 			shape: "lens",
 			color: "#ff3b30",
@@ -173,7 +174,7 @@ export const pylon01 = definePart({
 				{p.wireSpan > 0 && <Wire span={p.wireSpan} position={[0, h, 0]} color={colors.wires} />}
 
 				<LightLens
-					light={lights.warningLamp}
+					light={lights.warningLight}
 					size={[0.07, 0.07, 0.07]}
 					position={[0, h + 0.05, 0]}
 				/>

@@ -4,9 +4,10 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import { toRadians } from "#/lib/math";
-import { resolveColors, resolveTransparencies } from "#/parts/colorModel";
+import { colorOf, resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
+import { GROUND } from "#/scene/ground";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -76,26 +77,30 @@ const startPose = (entity: TEntity, scene: TScene) => {
 		: undefined;
 	if (!part || !entity.follow || !road) {
 		return {
-			position: [entity.position[0], entity.elevation, entity.position[1]] as const,
+			position: [entity.position[0], entity.altitude, entity.position[1]] as const,
 			// Heading, then pitch, then roll, as in the editor (ADR-0097).
 			rotation: [
-				toRadians(entity.roll),
-				toRadians(entity.rotation),
-				toRadians(entity.pitch),
+				toRadians(entity.rotation[0]),
+				toRadians(entity.rotation[1]),
+				toRadians(entity.rotation[2]),
 				"YZX",
 			] as const,
 		};
 	}
 	const props = resolveProps(part, entity.props);
 	const length = part.footprint(props)[0] * entity.scale;
-	const turns = resolveTurnStyle(scene.turnStyle, road.turnStyle, entity.follow.turnStyle);
-	const sample = createRouteSampler(road, scene.drivingSide, {
-		reverse: entity.follow.reverse,
+	const turns = resolveTurnStyle(
+		scene.traffic.turnStyle,
+		road.traffic.turnStyle,
+		entity.follow.turnStyle,
+	);
+	const sample = createRouteSampler(road, scene.traffic.drivingSide, {
+		reverse: entity.follow.drivesTheOtherWay,
 		smoothing: turnSmoothing(turns, length),
-	}).at(entity.follow.offset);
+	}).at(entity.follow.startDistance);
 	return {
-		position: [sample.position[0], entity.elevation + sample.height, sample.position[1]] as const,
-		rotation: [0, sample.heading + toRadians(entity.rotation), sample.pitch, "YZX"] as const,
+		position: [sample.position[0], entity.altitude + sample.height, sample.position[1]] as const,
+		rotation: [0, sample.heading + toRadians(entity.rotation[1]), sample.pitch, "YZX"] as const,
 	};
 };
 
@@ -151,7 +156,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const camera = useThree((s) => s.camera);
 	const group = useRef<THREE.Group>(null);
 	const shot = useRef(false);
-	const entities = scene.entities.filter((entity) => !entity.hidden);
+	const entities = scene.entities.filter((entity) => !entity.isHidden);
 	const waiting = useRef(entities.filter((entity) => getPart(entity.kind)?.rendersAsync).length);
 
 	const shoot = () => {
@@ -193,22 +198,33 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 					position={[0, -0.5, 0]}
 					receiveShadow
 				>
-					<meshStandardMaterial color={scene.ground.color ?? palette.ground} roughness={0.95} />
+					<meshStandardMaterial
+						color={colorOf(GROUND, scene.ground, "surface", palette, scene.data, palette.ground)}
+						roughness={0.95}
+					/>
 				</RoundedBox>
 
 				{scene.areas.map((area, index) =>
-					area.hidden ? null : (
-						<AreaBody key={area.id} area={area} layer={index} palette={palette} selected={false} />
+					area.isHidden ? null : (
+						<AreaBody
+							key={area.id}
+							area={area}
+							layer={index}
+							palette={palette}
+							data={scene.data}
+							selected={false}
+						/>
 					),
 				)}
 
 				{scene.roads.map((road, index) =>
-					road.hidden ? null : (
+					road.isHidden ? null : (
 						<RoadBody
 							key={road.id}
 							road={road}
 							layer={index}
 							palette={palette}
+							data={scene.data}
 							ground={scene.ground}
 							editing={false}
 							selected={false}
@@ -217,7 +233,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 				)}
 
 				{scene.fences.map((fence) =>
-					fence.hidden ? null : (
+					fence.isHidden ? null : (
 						<FenceBody
 							key={fence.id}
 							fence={fence}

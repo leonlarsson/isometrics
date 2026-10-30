@@ -29,9 +29,9 @@ const DataRow = ({ entry }: { entry: TDataEntry }) => {
 			<div className={styles.nameRow}>
 				<Input
 					ariaLabel="Name"
-					value={entry.label}
+					value={entry.name}
 					placeholder="Name"
-					onChange={(label) => upsertData({ ...entry, label })}
+					onChange={(name) => upsertData({ ...entry, name })}
 				/>
 
 				<IconButton icon="trash" label="Remove value" onClick={() => removeData(entry.key)} />
@@ -74,7 +74,7 @@ export const DataPanel = () => {
 		while (data.some((d) => d.key === key)) {
 			key = `new_value_${++n}`;
 		}
-		upsertData({ key, label: "New value", value: 0, unit: "" });
+		upsertData({ key, name: "New value", value: 0, unit: "" });
 	};
 
 	return (

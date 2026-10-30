@@ -9,7 +9,7 @@ import { AWNING_SLOPE, Awning } from "./shopKit";
 const CafeSchema = z.object({
 	width: z.number().min(1.2).max(8).default(2.2),
 	depth: z.number().min(1).max(6).default(1.6),
-	showStringLights: z.boolean().default(true),
+	showsStringLights: z.boolean().default(true),
 });
 
 const HEIGHT = 1.2;
@@ -31,10 +31,11 @@ export const cafe01 = definePart({
 		"Single-storey café with tall windows, a striped awning and a string of lights; its front faces +Z",
 	keywords: ["coffee", "bistro", "restaurant", "bakery", "terrace", "awning"],
 	schema: CafeSchema,
+	renamedProps: { showStringLights: "showsStringLights" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1.2, max: 8, step: 0.1 },
 		{ key: "depth", label: "Depth", type: "number", min: 1, max: 6, step: 0.1 },
-		{ key: "showStringLights", label: "Show the string of lights", type: "boolean" },
+		{ key: "showsStringLights", label: "Show the string of lights", type: "boolean" },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#f3e3c3", legacy: "color" },
@@ -103,7 +104,7 @@ export const cafe01 = definePart({
 				/>
 
 				{/* Bulbs along the awning's edge, glowing after dark. */}
-				{p.showStringLights &&
+				{p.showsStringLights &&
 					spread(bulbs, p.width - 0.2).map((x, i) => (
 						<mesh key={x} position={[x, STRING.y - (i % 2) * 0.03, front + STRING.out]}>
 							<sphereGeometry args={[0.04, 8, 6]} />

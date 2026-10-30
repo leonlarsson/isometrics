@@ -8,7 +8,7 @@ import { Insulator } from "./powerLineKit";
 
 const SubstationSchema = z.object({
 	transformerCount: z.number().int().min(1).max(4).default(2),
-	showFence: z.boolean().default(true),
+	showsFence: z.boolean().default(true),
 });
 
 /** The yard: how wide (x) and deep (z). */
@@ -26,9 +26,10 @@ export const substation01 = definePart({
 		"Electricity substation: transformers in a fenced yard, a gantry the lines come in on, and a control hut; its gate faces +Z",
 	keywords: ["electricity", "power", "grid", "transformer", "utility", "energy", "industrial"],
 	schema: SubstationSchema,
+	renamedProps: { showFence: "showsFence" },
 	fields: [
 		{ key: "transformerCount", label: "Transformers", type: "number", min: 1, max: 4, step: 1 },
-		{ key: "showFence", label: "Show the fence", type: "boolean" },
+		{ key: "showsFence", label: "Show the fence", type: "boolean" },
 	],
 	colors: [
 		{ id: "transformers", name: "Transformers", default: "#8b9298", legacy: "color" },
@@ -170,7 +171,7 @@ export const substation01 = definePart({
 				<LightPool light={lights.yardLight} at={[hut.x - 0.5, hut.z - 0.4]} />
 
 				{/* A tall fence round the yard, open at the gate in front of the hut. */}
-				{p.showFence &&
+				{p.showsFence &&
 					[
 						{ from: [-halfW, -halfD], to: [halfW, -halfD] },
 						{ from: [halfW, -halfD], to: [halfW, halfD] },

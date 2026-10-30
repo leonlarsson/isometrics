@@ -90,10 +90,10 @@ export const CameraFollow = () => {
 		// Where it is right now: driving vehicles move every frame, parked ones stand still.
 		const pose = livePoses.get(entity.id)?.() ?? {
 			position: entity.position,
-			elevation: entity.elevation,
+			altitude: entity.altitude,
 			rotation: entity.rotation,
 		};
-		at.set(pose.position[0], pose.elevation, pose.position[1]);
+		at.set(pose.position[0], pose.altitude, pose.position[1]);
 		const step = Math.min(delta, 0.1);
 
 		if (!follow.ride) {
@@ -107,7 +107,7 @@ export const CameraFollow = () => {
 		}
 
 		// Behind and above, looking ahead along its heading (vehicles face +X when unturned).
-		const heading = pose.rotation * DEG2RAD;
+		const heading = pose.rotation[1] * DEG2RAD;
 		forward.set(Math.cos(heading), 0, -Math.sin(heading));
 		const back = Math.max(2.8, length * 2.6);
 		goal

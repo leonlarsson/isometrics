@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { useOvercast } from "#/editor/weather";
+import { useSkyWeather } from "#/editor/weather";
 import { skyLookAt } from "#/scene/sky";
 
 import { directionOf } from "./viewpoints";
@@ -31,9 +31,9 @@ const fragmentShader = /* glsl */ `
 	uniform vec3 colorAtHorizon;
 	uniform vec3 sunDirection;
 	uniform vec3 sunColor;
-	uniform float showSun;
+	uniform float showsSun;
 	uniform vec3 moonDirection;
-	uniform float showMoon;
+	uniform float showsMoon;
 	uniform float starBrightness;
 	varying vec3 vDirection;
 
@@ -63,13 +63,13 @@ const fragmentShader = /* glsl */ `
 		}
 
 		// The sun: a bright disc with a soft glow around it, in the sunlight's colour.
-		if (showSun > 0.5) {
+		if (showsSun > 0.5) {
 			float facing = max(dot(d, sunDirection), 0.0);
 			colour += sunColor * (smoothstep(0.9994, 0.9997, facing) * 1.5 + pow(facing, 400.0) * 0.6 + pow(facing, 12.0) * 0.12);
 		}
 
 		// The moon: a pale disc with a faint halo.
-		if (showMoon > 0.5) {
+		if (showsMoon > 0.5) {
 			float facing = max(dot(d, moonDirection), 0.0);
 			colour = mix(colour, vec3(0.92, 0.94, 1.0), smoothstep(0.99986, 0.99993, facing));
 			colour += vec3(0.6, 0.65, 0.9) * pow(facing, 1500.0) * 0.25;
@@ -113,9 +113,9 @@ export const SkyDome = () => {
 					colorAtHorizon: { value: new THREE.Color() },
 					sunDirection: { value: new THREE.Vector3() },
 					sunColor: { value: new THREE.Color() },
-					showSun: { value: 0 },
+					showsSun: { value: 0 },
 					moonDirection: { value: new THREE.Vector3() },
-					showMoon: { value: 0 },
+					showsMoon: { value: 0 },
 					starBrightness: { value: 0 },
 				},
 			}),
@@ -124,15 +124,15 @@ export const SkyDome = () => {
 	useEffect(() => () => material.dispose(), [material]);
 	const { uniforms } = material;
 
-	const look = skyLookAt(lighting, sky, hour, useOvercast());
+	const look = skyLookAt(lighting, sky, hour, useSkyWeather());
 	uniforms.colorOverhead.value.set(look.colorOverhead);
 	uniforms.colorAtHorizon.value.set(look.colorAtHorizon);
-	uniforms.showSun.value = look.sunDisc ? 1 : 0;
+	uniforms.showsSun.value = look.sunDisc ? 1 : 0;
 	if (look.sunDisc) {
 		uniforms.sunDirection.value.copy(directionOf(look.sunDisc.azimuth, look.sunDisc.elevation));
 		uniforms.sunColor.value.set(look.sunDisc.color);
 	}
-	uniforms.showMoon.value = look.moonDisc ? 1 : 0;
+	uniforms.showsMoon.value = look.moonDisc ? 1 : 0;
 	if (look.moonDisc) {
 		uniforms.moonDirection.value.copy(directionOf(look.moonDisc.azimuth, look.moonDisc.elevation));
 	}
@@ -148,7 +148,7 @@ export const SkyDome = () => {
 		dome.scale.setScalar((camera as THREE.PerspectiveCamera).far * FAR_SHARE);
 	});
 
-	if (!perspective || !sky.showInPerspective || skyless) {
+	if (!perspective || !sky.showsInPerspective || skyless) {
 		return null;
 	}
 	return (

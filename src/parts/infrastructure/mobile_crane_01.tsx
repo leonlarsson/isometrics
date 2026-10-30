@@ -7,7 +7,7 @@ import { definePart } from "../types";
 const MobileCraneSchema = z.object({
 	boomAngle: z.number().min(0).max(80).default(50),
 	boomLength: z.number().min(2).max(9).default(4),
-	showOutriggers: z.boolean().default(true),
+	showsOutriggers: z.boolean().default(true),
 });
 
 /** The carrier: how long and wide, how high its deck stands. */
@@ -27,10 +27,12 @@ export const mobileCrane01 = definePart({
 		"Truck crane with a telescopic boom over its back and outriggers to stand on; can drive along a road (it drives towards +X)",
 	keywords: ["crane", "truck crane", "lift", "construction", "site", "boom", "vehicle"],
 	schema: MobileCraneSchema,
+	renamedLights: { warningLamp: "warningLight" },
+	renamedProps: { showOutriggers: "showsOutriggers" },
 	fields: [
 		{ key: "boomAngle", label: "Boom angle (°)", type: "number", min: 0, max: 80, step: 1 },
 		{ key: "boomLength", label: "Boom length", type: "number", min: 2, max: 9, step: 0.1 },
-		{ key: "showOutriggers", label: "Outriggers down", type: "boolean" },
+		{ key: "showsOutriggers", label: "Outriggers down", type: "boolean" },
 	],
 	colors: [
 		{ id: "body", name: "Carrier and cab", default: "#e8b83a", legacy: "color" },
@@ -47,8 +49,8 @@ export const mobileCrane01 = definePart({
 			realLight: () => ({ at: [CARRIER.length / 2 + 0.7, 0.36, 0] }),
 		},
 		{
-			id: "warningLamp",
-			name: "Warning lamp",
+			id: "warningLight",
+			name: "Warning light",
 			description: "An amber lamp on the cab's roof.",
 			shape: "lens",
 			color: "#ffae1a",
@@ -103,7 +105,7 @@ export const mobileCrane01 = definePart({
 				/>
 
 				<LightLens
-					light={lights.warningLamp}
+					light={lights.warningLight}
 					size={[0.06, 0.05, 0.06]}
 					position={[CAB.x, CARRIER.deck + CAB.height + 0.03, CARRIER.width * 0.25]}
 				/>
@@ -169,7 +171,7 @@ export const mobileCrane01 = definePart({
 				/>
 
 				{/* Outriggers out to both sides, front and back, each on a pad. */}
-				{p.showOutriggers &&
+				{p.showsOutriggers &&
 					[half - 0.35, -half + 0.3].flatMap((x) =>
 						[1, -1].map((side) => (
 							<group key={`${x}:${side}`}>

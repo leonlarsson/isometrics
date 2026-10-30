@@ -30,7 +30,8 @@ export const Turntable = () => {
 	);
 	// Not while the world keeps the isometric angle, which turns only a quarter at a time.
 	const enabled = useEditor(
-		(s) => s.mode === "view" && s.scene.camera.turntableOn && !s.scene.camera.keepsIsometricAngle,
+		(s) =>
+			s.mode === "view" && s.scene.camera.turntable.isOn && !s.scene.camera.keepsIsometricAngle,
 	);
 	// When there was last any input (performance.now() ms), and how long it has been turning.
 	const lastInput = useRef(performance.now());
@@ -63,7 +64,7 @@ export const Turntable = () => {
 		}
 		const { scene, cameraFollow } = useEditor.getState();
 		const idle = (performance.now() - lastInput.current) / 1000;
-		if (idle < scene.camera.turntableDelay || cameraFollow || runningCameraMoves.size > 0) {
+		if (idle < scene.camera.turntable.delay || cameraFollow || runningCameraMoves.size > 0) {
 			return;
 		}
 		const step = Math.min(delta, 0.1);
@@ -71,7 +72,7 @@ export const Turntable = () => {
 		const ease = Math.min(1, turning.current / EASE_IN_SECONDS);
 		const orbit = controls as unknown as IControls;
 		// The camera goes round the other way to the world.
-		const turn = -THREE.MathUtils.degToRad(scene.camera.turntableSpeed) * step * ease * ease;
+		const turn = -THREE.MathUtils.degToRad(scene.camera.turntable.speed) * step * ease * ease;
 		pivot.copy(orbit.target);
 		orbitAround(
 			camera.position,

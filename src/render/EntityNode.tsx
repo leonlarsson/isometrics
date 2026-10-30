@@ -15,7 +15,7 @@ import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
-import type { TEntity, TRoad, TScene, TVec2 } from "#/scene/schema";
+import type { TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -128,9 +128,9 @@ export interface IEntityWorld {
 	unboxing: boolean;
 	playing: boolean;
 	ground: TScene["ground"];
-	driving: TScene["drivingSide"];
-	sceneTurns: TScene["turnStyle"];
-	sceneLeans: TScene["leansInTurns"];
+	driving: TScene["traffic"]["drivingSide"];
+	sceneTurns: TScene["traffic"]["turnStyle"];
+	sceneLeans: TScene["traffic"]["leansInTurns"];
 	drawing: boolean;
 	palette: IScenePalette;
 	graphics: TDrawnGraphics;
@@ -207,12 +207,12 @@ export const EntityNode = memo(
 		);
 		// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
 		const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
-		const turns = resolveTurnStyle(sceneTurns, road?.turnStyle, entity.follow?.turnStyle);
-		const reverse = entity.follow?.reverse ?? false;
+		const turns = resolveTurnStyle(sceneTurns, road?.traffic.turnStyle, entity.follow?.turnStyle);
+		const reverse = entity.follow?.drivesTheOtherWay ?? false;
 		// How it leans in turns (ADR-0082), if its kind does and the settings let it.
 		const turnLean = resolveLeansInTurns(
 			sceneLeans,
-			road?.leansInTurns,
+			road?.traffic.leansInTurns,
 			entity.follow?.leansInTurns,
 		)
 			? part?.turnLean
@@ -239,7 +239,7 @@ export const EntityNode = memo(
 
 		// Join the traffic while driving (hidden vehicles don't); driving again later starts from its
 		// start point, not from how far it had got.
-		const inTraffic = following && !entity.hidden;
+		const inTraffic = following && !entity.isHidden;
 		useEffect(() => {
 			if (!inTraffic || !sampler || !entity.follow) {
 				return;
@@ -247,7 +247,7 @@ export const EntityNode = memo(
 			const entry: IDrivingVehicle = {
 				roadId: entity.follow.roadId,
 				sampler,
-				offset: entity.follow.offset,
+				offset: entity.follow.startDistance,
 				speed: entity.follow.speed,
 				length: vehicleLength,
 				travelled: 0,
@@ -269,18 +269,18 @@ export const EntityNode = memo(
 			if (current) {
 				current.roadId = entity.follow.roadId;
 				current.sampler = sampler;
-				current.offset = entity.follow.offset;
+				current.offset = entity.follow.startDistance;
 				current.speed = entity.follow.speed;
 				current.length = vehicleLength;
 			}
-			const sample = sampler.at(entity.follow.offset, current?.travelled ?? 0);
+			const sample = sampler.at(entity.follow.startDistance, current?.travelled ?? 0);
 			// Out towards the overtaking line, leaning into the lane change.
 			const state = current?.state;
 			const out = state ? state.shift * passOffset : 0;
 			const lean = state ? Math.atan2(state.shiftRate * passOffset, Math.max(state.speed, 0.5)) : 0;
 			const x = sample.position[0] + Math.sin(sample.heading) * out;
 			const z = sample.position[1] + Math.cos(sample.heading) * out;
-			outer.current.position.set(x, entity.elevation + sample.height, z);
+			outer.current.position.set(x, entity.altitude + sample.height, z);
 			// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
 			// Leaning in a turn (ADR-0082), eased in and out.
 			let roll = 0;
@@ -288,7 +288,7 @@ export const EntityNode = memo(
 				const wanted = turnLeanDegrees(
 					sampler,
 					{
-						offset: entity.follow.offset,
+						offset: entity.follow.startDistance,
 						travelled: current?.travelled ?? 0,
 						length: vehicleLength,
 						speed: playing ? (state?.speed ?? entity.follow.speed) : 0,
@@ -302,7 +302,7 @@ export const EntityNode = memo(
 			inner.current.rotation.order = "YZX";
 			inner.current.rotation.set(
 				roll,
-				sample.heading - lean + toRadians(entity.rotation),
+				sample.heading - lean + toRadians(entity.rotation[1]),
 				sample.pitch,
 			);
 		});
@@ -325,7 +325,7 @@ export const EntityNode = memo(
 			forgetBounds(inner.current, moving);
 		});
 
-		const editable = mode === "edit" && !entity.locked;
+		const editable = mode === "edit" && !entity.isLocked;
 
 		/** Where a driving vehicle is on screen right now (the scene only knows where it started). */
 		const currentPose = () => {
@@ -337,9 +337,12 @@ export const EntityNode = memo(
 			}
 			return {
 				position: [round(position.x), round(position.z)] as TVec2,
-				elevation: round(position.y),
-				rotation: round(normalizeDegrees(heading / DEG2RAD), 1),
-				pitch: round(tilt / DEG2RAD, 1),
+				altitude: round(position.y),
+				rotation: [
+					entity.rotation[0],
+					round(normalizeDegrees(heading / DEG2RAD), 1),
+					round(tilt / DEG2RAD, 1),
+				] as TVec3,
 			};
 		};
 
@@ -380,7 +383,7 @@ export const EntityNode = memo(
 					return;
 				}
 				const { areas } = useEditor.getState().scene;
-				const above = entity.elevation - groundHeightAt(areas, entity.position);
+				const above = entity.altitude - groundHeightAt(areas, entity.position);
 				if (!surfaceHitOnRay(e.ray, areas, above)) {
 					return;
 				}
@@ -504,12 +507,12 @@ export const EntityNode = memo(
 			onContextMenu: openContextMenuOnClick({ kind: "entity", id: entity.id }),
 		};
 
-		if (entity.hidden) {
+		if (entity.isHidden) {
 			return null;
 		}
 		if (!part) {
 			return (
-				<group position={[entity.position[0], entity.elevation, entity.position[1]]} {...handlers}>
+				<group position={[entity.position[0], entity.altitude, entity.position[1]]} {...handlers}>
 					<UnknownPart />
 				</group>
 			);
@@ -530,7 +533,7 @@ export const EntityNode = memo(
 				<group
 					ref={outer}
 					position={
-						following ? undefined : [entity.position[0], entity.elevation, entity.position[1]]
+						following ? undefined : [entity.position[0], entity.altitude, entity.position[1]]
 					}
 				>
 					<group
@@ -541,9 +544,9 @@ export const EntityNode = memo(
 							following
 								? undefined
 								: [
-										toRadians(entity.roll),
-										toRadians(entity.rotation),
-										toRadians(entity.pitch),
+										toRadians(entity.rotation[0]),
+										toRadians(entity.rotation[1]),
+										toRadians(entity.rotation[2]),
 										"YZX",
 									]
 						}
@@ -596,11 +599,11 @@ export const EntityNode = memo(
 						)}
 					</group>
 
-					{mode === "edit" && alone && !entity.locked && !drawing && (
+					{mode === "edit" && alone && !entity.isLocked && !drawing && (
 						<EntityGizmo entity={entity} />
 					)}
 
-					{entity.label?.enabled && (
+					{entity.label.isShown && (
 						<EntityLabel
 							entity={entity}
 							anchorY={anchorY}
@@ -613,12 +616,12 @@ export const EntityNode = memo(
 				{wake && sampler && entity.follow && (
 					<BoatWake
 						sampler={sampler}
-						offset={entity.follow.offset}
+						offset={entity.follow.startDistance}
 						vehicle={vehicle}
 						width={wake.width * entity.scale}
 						behind={wake.behind * entity.scale}
 						length={vehicleLength}
-						elevation={entity.elevation}
+						elevation={entity.altitude}
 						makesWaves={makesWaves}
 					/>
 				)}

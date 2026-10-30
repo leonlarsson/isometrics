@@ -6,7 +6,7 @@ import { definePart } from "../types";
 
 const BarnSchema = z.object({
 	width: z.number().min(1.5).max(8).default(2.4),
-	length: z.number().min(2).max(10).default(3.2),
+	depth: z.number().min(2).max(10).default(3.2),
 });
 
 const WALL_HEIGHT = 1.3;
@@ -21,9 +21,10 @@ export const barn01 = definePart({
 	description: "Red farm barn with big crossed doors and a lamp over them at the front (+Z)",
 	keywords: ["farm", "stable", "shed", "countryside", "agriculture", "rural"],
 	schema: BarnSchema,
+	renamedProps: { length: "depth" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1.5, max: 8, step: 0.1 },
-		{ key: "length", label: "Length", type: "number", min: 2, max: 10, step: 0.1 },
+		{ key: "depth", label: "Depth", type: "number", min: 2, max: 10, step: 0.1 },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#b23a2e", legacy: "color" },
@@ -36,20 +37,20 @@ export const barn01 = definePart({
 			name: "Lamp over the doors",
 			shape: "pool",
 			reach: 1.2,
-			realLight: (p) => ({ at: [0, LAMP.height - 0.12, p.length / 2 + LAMP.reach] }),
+			realLight: (p) => ({ at: [0, LAMP.height - 0.12, p.depth / 2 + LAMP.reach] }),
 		},
 	],
-	footprint: (p) => [p.width + 0.3, p.length + 0.3],
+	footprint: (p) => [p.width + 0.3, p.depth + 0.3],
 	height: (p) => WALL_HEIGHT + p.width * 0.55,
 	Component: ({ props: p, colors, lights }) => {
-		const front = p.length / 2;
+		const front = p.depth / 2;
 		const door = { width: Math.min(1.2, p.width * 0.5), height: WALL_HEIGHT * 0.8 };
 		const diagonal = Math.hypot(door.width / 2, door.height);
 		const lean = Math.atan2(door.width / 2, door.height);
 		return (
 			<group>
 				<Box
-					size={[p.width, WALL_HEIGHT, p.length]}
+					size={[p.width, WALL_HEIGHT, p.depth]}
 					position={[0, WALL_HEIGHT / 2, 0]}
 					color={colors.walls}
 				/>
@@ -57,7 +58,7 @@ export const barn01 = definePart({
 				{/* Its ridge runs back from the front, so the gable faces the doors. */}
 				<group position={[0, WALL_HEIGHT, 0]} rotation={[0, Math.PI / 2, 0]}>
 					<GableRoof
-						width={p.length + 0.3}
+						width={p.depth + 0.3}
 						depth={p.width + 0.3}
 						height={p.width * 0.55}
 						color={colors.roof}

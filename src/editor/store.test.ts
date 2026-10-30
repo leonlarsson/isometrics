@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	AreaSchema,
 	DataBindingSchema,
 	MoodSchema,
 	SceneSchema,
@@ -15,7 +16,7 @@ const makeStore = () =>
 	createEditorStore(
 		SceneSchema.parse({
 			version: 1,
-			data: [{ key: "orders", label: "Orders", value: 3 }],
+			data: [{ key: "orders", name: "Orders", value: 3 }],
 			entities: [
 				{
 					id: "w",
@@ -114,7 +115,7 @@ describe("editor store", () => {
 	it("rotates within 0–360", () => {
 		const store = makeStore();
 		store.getState().rotateEntity("w", -15);
-		expect(store.getState().scene.entities[0].rotation).toBe(345);
+		expect(store.getState().scene.entities[0].rotation[1]).toBe(345);
 	});
 
 	it("duplicates with a new id and offset", () => {
@@ -134,7 +135,7 @@ describe("editor store", () => {
 			.addEntity({ kind: "text_01", props: { text: "Orders", dataKey: "orders" } });
 		store
 			.getState()
-			.upsertData({ key: "orders_packed", label: "Orders", value: 3, unit: "" }, "orders");
+			.upsertData({ key: "orders_packed", name: "Orders", value: 3, unit: "" }, "orders");
 		const [entity] = store.getState().scene.entities;
 		expect(store.getState().scene.data[0].key).toBe("orders_packed");
 		expect(entity.label?.dataKeys).toEqual(["orders_packed"]);
@@ -146,19 +147,37 @@ describe("editor store", () => {
 
 	it("renames and removes the data key the time of day comes from, in moods too", () => {
 		const store = makeStore();
-		store.getState().upsertData({ key: "hour", label: "Hour", value: 18, unit: "" });
+		store.getState().upsertData({ key: "hour", name: "Hour", value: 18, unit: "" });
 		store.getState().commit((scene) => {
 			scene.lighting.timeSource = "data";
-			scene.lighting.timeKey = "hour";
-			scene.moods.push(MoodSchema.parse({ id: "m", lighting: { timeKey: "hour" } }));
+			scene.lighting.data.time = DataBindingSchema.parse({ key: "hour" });
+			scene.moods.push(
+				MoodSchema.parse({ id: "m", lighting: { data: { time: { key: "hour" } } } }),
+			);
+			scene.areas.push(
+				AreaSchema.parse({
+					id: "zone",
+					points: [
+						[0, 0],
+						[2, 0],
+						[2, 2],
+					],
+					colors: { surface: { data: { color: { key: "hour" } } } },
+				}),
+			);
 		});
-		store.getState().upsertData({ key: "local_hour", label: "Hour", value: 18, unit: "" }, "hour");
-		expect(store.getState().scene.lighting.timeKey).toBe("local_hour");
-		expect(store.getState().scene.moods[0].lighting.timeKey).toBe("local_hour");
+		store.getState().upsertData({ key: "local_hour", name: "Hour", value: 18, unit: "" }, "hour");
+		const { scene } = store.getState();
+		expect(scene.lighting.data.time?.key).toBe("local_hour");
+		expect(scene.moods[0].lighting.data.time?.key).toBe("local_hour");
+		expect(scene.areas[0].colors.surface.data.color?.key).toBe("local_hour");
 
 		store.getState().removeData("local_hour");
-		expect(store.getState().scene.lighting.timeKey).toBeNull();
-		expect(store.getState().scene.moods[0].lighting.timeKey).toBeNull();
+		const after = store.getState().scene;
+		expect(after.lighting.data).toEqual({});
+		expect(after.moods[0].lighting.data).toEqual({});
+		// Nothing left that differs from the area kind's colour: no entry at all.
+		expect(after.areas[0].colors).toEqual({});
 	});
 
 	it("removes deleted data keys from labels and parts", () => {
@@ -192,7 +211,7 @@ describe("editor store", () => {
 		s().undoDrawingPoint();
 		const id = s().finishDrawing();
 		const road = s().scene.roads.find((r) => r.id === id);
-		expect(road).toMatchObject({ style: "dirt_path_01", name: "Dirt path 1", loops: false });
+		expect(road).toMatchObject({ kind: "dirt_path_01", name: "Dirt path 1", loops: false });
 		expect(road?.points).toEqual([
 			[0, 0, 0],
 			[4, 0, 0],
@@ -233,11 +252,11 @@ describe("editor store", () => {
 		expect(s().scene.entities.find((e) => e.id === id)?.props.floorCount).toBe(9);
 	});
 
-	it("sets one light's settings, turning an older world's single setting into each light's", () => {
+	it("sets one light's settings, and leaves none once they're all the part's again", () => {
 		const store = makeStore();
 		const s = () => store.getState();
-		const lamp = s().addEntity({ kind: "street_lamp_01", lights: "off" });
-		s().setEntityLight(lamp, "lamp", { color: "#ff0000" });
+		const lamp = s().addEntity({ kind: "street_lamp_01" });
+		s().setEntityLight(lamp, "lamp", { whenOn: "off", color: "#ff0000" });
 		expect(s().scene.entities.find((e) => e.id === lamp)?.lights).toEqual({
 			lamp: expect.objectContaining({ whenOn: "off", color: "#ff0000", strength: null }),
 		});
@@ -255,7 +274,7 @@ describe("editor store", () => {
 			data: { on: binding, strength: { ...binding, valueAtFull: 10 } },
 		});
 		s().setEntityColor(lamp, "post", { data: { color: binding } });
-		s().upsertData({ key: "sales", label: "Orders", value: 3, unit: "" }, "orders");
+		s().upsertData({ key: "sales", name: "Orders", value: 3, unit: "" }, "orders");
 		const entity = () => s().scene.entities.find((e) => e.id === lamp);
 		const lights = () => entity()?.lights as Record<string, TEntityLight>;
 		expect(lights().lamp.data).toEqual({
@@ -269,22 +288,21 @@ describe("editor store", () => {
 		expect(entity()?.colors).toEqual({});
 	});
 
-	it("sets an object's colours by id, taking over an older world's colour so Reset goes back to the part's", () => {
+	it("sets an object's colours by id, and leaves none once they're the part's again", () => {
 		const store = makeStore();
 		const s = () => store.getState();
-		const house = s().addEntity({ kind: "house_01", color: "#123456", accent: "#654321" });
+		const house = s().addEntity({ kind: "house_01" });
 		const entity = () => s().scene.entities.find((e) => e.id === house);
 		s().setEntityColor(house, "roof", {
+			color: "#123456",
 			data: { color: DataBindingSchema.parse({ key: "heat" }) },
 		});
-		// The old main colour is now the roof's setting; the accent (the door) is untouched.
-		expect(entity()?.colors.roof.color).toBe("#123456");
-		expect(entity()?.color).toBeNull();
-		expect(entity()?.accent).toBe("#654321");
+		expect(entity()?.colors.roof).toMatchObject({
+			color: "#123456",
+			data: { color: { key: "heat" } },
+		});
 		s().setEntityColor(house, "roof", { color: null, data: { color: null } });
 		expect(entity()?.colors).toEqual({});
-		s().setEntityColor(house, "door", { color: null });
-		expect(entity()?.accent).toBeNull();
 	});
 
 	it("opens the selection's tabs: the one you were on, Object from a world tab, Shape for a point", () => {
@@ -486,7 +504,7 @@ describe("editor store", () => {
 		s().addDrawingPoint([4, 4]);
 		const id = s().finishDrawing();
 		const area = s().scene.areas.find((a) => a.id === id);
-		expect(area).toMatchObject({ type: "raised_land_01", name: "Raised land 1", height: 1.5 });
+		expect(area).toMatchObject({ kind: "raised_land_01", name: "Raised land 1", height: 1.5 });
 		expect(area?.points).toEqual([
 			[0, 0],
 			[4, 0],
@@ -504,7 +522,7 @@ describe("editor store", () => {
 		s().addDrawingPoint([4, 4]);
 		const id = s().finishDrawing();
 		const fence = () => s().scene.fences.find((f) => f.id === id);
-		expect(fence()).toMatchObject({ style: "hedge_01", name: "Hedge 1", loops: false });
+		expect(fence()).toMatchObject({ kind: "hedge_01", name: "Hedge 1", loops: false });
 		expect(fence()?.points).toEqual([
 			[0, 0, 0],
 			[4, 0, 0],
@@ -573,7 +591,7 @@ describe("editor store", () => {
 		const store = makeStore();
 		const s = () => store.getState();
 		const id = s().addFence({
-			style: "chain_link_fence_01",
+			kind: "chain_link_fence_01",
 			points: [
 				[0, 0],
 				[4, 0, 1],
@@ -595,7 +613,7 @@ describe("editor store", () => {
 		]);
 		expect(s().selectedFenceId).toBe(copy?.id);
 
-		s().upsertData({ key: "parcels", label: "Orders", value: 3, unit: "" }, "orders");
+		s().upsertData({ key: "parcels", name: "Orders", value: 3, unit: "" }, "orders");
 		const original = s().scene.fences.find((f) => f.id === id);
 		expect(original?.data.builtShare?.key).toBe("parcels");
 		expect(original?.colors.mesh?.data.color?.key).toBe("parcels");
@@ -648,7 +666,7 @@ describe("editor store", () => {
 		expect(s().scene.areas[0].points[2]).toEqual([5, 0]);
 		// Water stays level.
 		s().updateArea(id, (area) => {
-			area.type = "water_01";
+			area.kind = "water_01";
 		});
 		s().setAreaCornerHeight(id, 0, 3);
 		expect(s().scene.areas[0].points[0]).toEqual([0, 0]);
@@ -736,44 +754,60 @@ describe("editor store", () => {
 				[10, 0],
 			],
 		});
-		const id = store
-			.getState()
-			.addEntity({ kind: "delivery_van_01", position: [4, -0.5], elevation: 0.2, rotation: 180 });
-		store
-			.getState()
-			.setFollowOffer({ entityId: id, roadId, offset: 4, reverse: true, position: [4, -0.5] });
+		const id = store.getState().addEntity({
+			kind: "delivery_van_01",
+			position: [4, -0.5],
+			altitude: 0.2,
+			rotation: [0, 180, 0],
+		});
+		store.getState().setFollowOffer({
+			entityId: id,
+			roadId,
+			startDistance: 4,
+			drivesTheOtherWay: true,
+			position: [4, -0.5],
+		});
 
 		store.getState().select("w");
 		expect(store.getState().followOffer).toBeNull();
 
-		store
-			.getState()
-			.setFollowOffer({ entityId: id, roadId, offset: 4, reverse: true, position: [4, -0.5] });
+		store.getState().setFollowOffer({
+			entityId: id,
+			roadId,
+			startDistance: 4,
+			drivesTheOtherWay: true,
+			position: [4, -0.5],
+		});
 		store.getState().acceptFollowOffer();
 		const van = store.getState().scene.entities.find((e) => e.id === id);
-		expect(van?.follow).toMatchObject({ roadId, offset: 4, reverse: true, speed: 2 });
-		expect(van?.elevation).toBe(0);
-		expect(van?.rotation).toBe(0);
+		expect(van?.follow).toMatchObject({
+			roadId,
+			startDistance: 4,
+			drivesTheOtherWay: true,
+			speed: 2,
+		});
+		expect(van?.altitude).toBe(0);
+		expect(van?.rotation).toEqual([0, 0, 0]);
 		expect(store.getState().followOffer).toBeNull();
 
 		store.getState().undo();
 		const parked = store.getState().scene.entities.find((e) => e.id === id);
 		expect(parked?.follow).toBeNull();
-		expect(parked?.rotation).toBe(180);
+		expect(parked?.rotation[1]).toBe(180);
 	});
 
 	it("toggles the selection's visibility, shows everything again, and locks items", () => {
 		const store = makeStore();
 		store.getState().select("w");
 		store.getState().toggleSelectedHidden();
-		expect(store.getState().scene.entities[0].hidden).toBe(true);
+		expect(store.getState().scene.entities[0].isHidden).toBe(true);
 		expect(store.getState().selectedId).toBe("w");
 		store.getState().toggleSelectedHidden();
-		expect(store.getState().scene.entities[0].hidden).toBe(false);
+		expect(store.getState().scene.entities[0].isHidden).toBe(false);
 
 		store.getState().toggleSelectedHidden();
 		store.getState().revealAll();
-		expect(store.getState().scene.entities[0].hidden).toBe(false);
+		expect(store.getState().scene.entities[0].isHidden).toBe(false);
 
 		const roadId = store.getState().addRoad({
 			points: [
@@ -781,10 +815,10 @@ describe("editor store", () => {
 				[10, 0],
 			],
 		});
-		store.getState().setItemFlag({ kind: "road", id: roadId }, "locked", true);
-		expect(store.getState().scene.roads[0].locked).toBe(true);
+		store.getState().setItemFlag({ kind: "road", id: roadId }, "isLocked", true);
+		expect(store.getState().scene.roads[0].isLocked).toBe(true);
 		store.getState().undo();
-		expect(store.getState().scene.roads[0].locked).toBe(false);
+		expect(store.getState().scene.roads[0].isLocked).toBe(false);
 	});
 
 	it("frames the selection, and re-centres on the whole ground", () => {
@@ -807,7 +841,7 @@ describe("editor store", () => {
 			span: 40,
 			projection: "orthographic" as const,
 			fieldOfView: null,
-			targetHeight: 0,
+			targetAltitude: 0,
 		};
 		const a = store.getState().addViewpoint(pose);
 		const b = store.getState().addViewpoint({ ...pose, span: 20 });
@@ -824,18 +858,19 @@ describe("editor store", () => {
 		const store = makeStore();
 		store.getState().commit((scene) => {
 			scene.camera.fieldOfView = 90;
-			scene.camera.steepestElevation = 60;
-			scene.camera.keepOverGround = false;
-			scene.camera.turntableOn = true;
-			scene.camera.tiltShiftOn = true;
-			scene.camera.tiltShiftBlur = 0.9;
+			scene.camera.highestElevation = 60;
+			scene.camera.keepsOverGround = false;
+			scene.camera.turntable.isOn = true;
+			scene.camera.tiltShift.isOn = true;
+			scene.camera.tiltShift.blurStrength = 0.9;
 		});
 		store.getState().toggleProjection();
 		const nonce = store.getState().viewNonce;
 		store.getState().resetCamera();
 		const { camera } = store.getState().scene;
-		expect(camera).toMatchObject({ fieldOfView: 40, steepestElevation: 87, keepOverGround: true });
-		expect(camera).toMatchObject({ turntableOn: true, tiltShiftOn: true, tiltShiftBlur: 0.9 });
+		expect(camera).toMatchObject({ fieldOfView: 40, highestElevation: 87, keepsOverGround: true });
+		expect(camera.turntable.isOn).toBe(true);
+		expect(camera.tiltShift).toMatchObject({ isOn: true, blurStrength: 0.9 });
 		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 		store.getState().undo();
@@ -851,7 +886,7 @@ describe("editor store", () => {
 			span: 12,
 			projection: "perspective" as const,
 			fieldOfView: null,
-			targetHeight: 0,
+			targetAltitude: 0,
 		};
 		const nonce = store.getState().viewNonce;
 		store.getState().showOpeningView(null);
@@ -928,7 +963,7 @@ describe("selecting several things (ADR-0064)", () => {
 				areas: [
 					{
 						id: "lake",
-						type: "water_01",
+						kind: "water_01",
 						points: [
 							[0, 0],
 							[2, 0],
@@ -1023,7 +1058,7 @@ describe("selecting several things (ADR-0064)", () => {
 		expect(road.points[0].slice(0, 2)).toEqual([1, 6]);
 		const car = scene.entities.find((e) => e.kind === "car_01" && e.id !== "car");
 		expect(car?.follow?.roadId).toBe(road.id);
-		expect(car?.follow?.offset).toBe(0);
+		expect(car?.follow?.startDistance).toBe(0);
 		expect(selectedItems).toHaveLength(3);
 		expect(selectedItems.some((item) => item.id === "a")).toBe(false);
 		expect(store.getState().past).toHaveLength(1);
@@ -1036,11 +1071,11 @@ describe("selecting several things (ADR-0064)", () => {
 			{ kind: "area", id: "lake" },
 		]);
 		store.getState().toggleSelectedHidden();
-		expect(store.getState().scene.entities[0].hidden).toBe(true);
-		expect(store.getState().scene.areas[0].hidden).toBe(true);
-		expect(store.getState().scene.entities[1].hidden).toBe(false);
-		store.getState().setSelectedFlag("locked", true);
-		expect(store.getState().scene.areas[0].locked).toBe(true);
+		expect(store.getState().scene.entities[0].isHidden).toBe(true);
+		expect(store.getState().scene.areas[0].isHidden).toBe(true);
+		expect(store.getState().scene.entities[1].isHidden).toBe(false);
+		store.getState().setSelectedFlag("isLocked", true);
+		expect(store.getState().scene.areas[0].isLocked).toBe(true);
 		expect(store.getState().past).toHaveLength(2);
 	});
 
@@ -1077,7 +1112,7 @@ describe("selecting several points (ADR-0065)", () => {
 				areas: [
 					{
 						id: "lake",
-						type: "water_01",
+						kind: "water_01",
 						points: [
 							[0, 0],
 							[2, 0],

@@ -7,6 +7,8 @@ import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
+import { colorOf } from "#/parts/colorModel";
+import { GROUND } from "#/scene/ground";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { openGroundMenuOnClick } from "./contextMenu";
@@ -38,6 +40,7 @@ const useGridCell = () => {
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
+	const data = useEditor((s) => s.scene.data);
 	const mode = useEditor(drawnModeOf);
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
@@ -68,7 +71,7 @@ export const Ground = () => {
 					win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
 				*/}
 				<meshStandardMaterial
-					color={ground.color ?? palette.ground}
+					color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
 					roughness={0.95}
 					polygonOffset
 					polygonOffsetFactor={1}

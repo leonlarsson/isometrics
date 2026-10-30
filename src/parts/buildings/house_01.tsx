@@ -9,7 +9,7 @@ const HouseSchema = z.object({
 	depth: z.number().min(1).max(8).default(2.2),
 	height: z.number().min(0.6).max(5).default(1.3),
 	roofHeight: z.number().min(0.2).max(4).default(0.9),
-	showChimney: z.boolean().default(true),
+	showsChimney: z.boolean().default(true),
 });
 
 export const house01 = definePart({
@@ -31,13 +31,13 @@ export const house01 = definePart({
 	description: "Small house with a pitched roof",
 	keywords: ["home", "cottage", "villa", "residential"],
 	schema: HouseSchema,
-	renamedProps: { chimney: "showChimney" },
+	renamedProps: { chimney: "showsChimney", showChimney: "showsChimney" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 8, step: 0.1 },
 		{ key: "depth", label: "Depth", type: "number", min: 1, max: 8, step: 0.1 },
 		{ key: "height", label: "Wall height", type: "number", min: 0.6, max: 5, step: 0.1 },
 		{ key: "roofHeight", label: "Roof height", type: "number", min: 0.2, max: 4, step: 0.1 },
-		{ key: "showChimney", label: "Show the chimney", type: "boolean" },
+		{ key: "showsChimney", label: "Show the chimney", type: "boolean" },
 	],
 	colors: [
 		{ id: "roof", name: "Roof", default: "#f07b4f", legacy: "color" },
@@ -77,7 +77,7 @@ export const house01 = definePart({
 				{...lightEmission(lights.windows, 1.4)}
 			/>
 
-			{p.showChimney && (
+			{p.showsChimney && (
 				<Box
 					size={[0.28, p.roofHeight * 0.9, 0.28]}
 					position={[p.width * 0.28, p.height + p.roofHeight * 0.55, -p.depth * 0.15]}

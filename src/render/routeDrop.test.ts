@@ -10,7 +10,7 @@ const load = (road: Partial<TRoadInput>, driving: "right" | "left" = "right") =>
 	useEditor.getState().loadScene(
 		SceneSchema.parse({
 			version: 1,
-			drivingSide: driving,
+			traffic: { drivingSide: driving },
 			roads: [
 				{
 					id: "r",
@@ -39,36 +39,41 @@ describe("findRouteDrop", () => {
 	it("picks the direction of the lane under the pointer", () => {
 		// Driving on the right: going +X, the lane is on the +Z side.
 		const forward = findRouteDrop(down(5.2, 0.6), { vehicleLength: 1 });
-		expect(forward).toMatchObject({ roadId: "r", reverse: false, offset: 5, rotation: 0 });
+		expect(forward).toMatchObject({
+			roadId: "r",
+			drivesTheOtherWay: false,
+			startDistance: 5,
+			heading: 0,
+		});
 		expect(forward?.position[1]).toBeGreaterThan(0);
 
 		const back = findRouteDrop(down(5.2, -0.6), { vehicleLength: 1 });
-		expect(back).toMatchObject({ reverse: true, offset: 5, rotation: 180 });
+		expect(back).toMatchObject({ drivesTheOtherWay: true, startDistance: 5, heading: 180 });
 		expect(back?.position[1]).toBeLessThan(0);
 	});
 
 	it("ignores hidden roads", () => {
-		load({ hidden: true });
+		load({ isHidden: true });
 		expect(findRouteDrop(down(5.2, 0.6), { vehicleLength: 1 })).toBeNull();
 	});
 
 	it("swaps lanes when driving on the left", () => {
 		load({}, "left");
-		expect(findRouteDrop(down(5, 0.6), { vehicleLength: 1 })?.reverse).toBe(true);
+		expect(findRouteDrop(down(5, 0.6), { vehicleLength: 1 })?.drivesTheOtherWay).toBe(true);
 	});
 
 	it("picks the direction by the half of the road on roads without lanes too", () => {
 		for (const road of [
-			{ drivingLane: "centre" as const },
-			{ style: "hidden_route_01" as const },
+			{ traffic: { drivingLane: "centre" as const } },
+			{ kind: "hidden_route_01" as const },
 		]) {
 			load(road);
 			const forward = findRouteDrop(down(5, 0.3), { vehicleLength: 1 });
-			expect(forward).toMatchObject({ reverse: false, rotation: 0 });
+			expect(forward).toMatchObject({ drivesTheOtherWay: false, heading: 0 });
 			expect(forward?.position[1]).toBeCloseTo(0);
 			expect(findRouteDrop(down(5, -0.3), { vehicleLength: 1 })).toMatchObject({
-				reverse: true,
-				rotation: 180,
+				drivesTheOtherWay: true,
+				heading: 180,
 			});
 		}
 	});
@@ -99,7 +104,7 @@ describe("findRouteDrop", () => {
 			new THREE.Vector3(5, 13, 10.6),
 			new THREE.Vector3(0, -1, -1).normalize(),
 		);
-		expect(findRouteDrop(slanted, { vehicleLength: 1 })).toMatchObject({ height: 3 });
+		expect(findRouteDrop(slanted, { vehicleLength: 1 })).toMatchObject({ altitude: 3 });
 	});
 });
 
@@ -131,8 +136,8 @@ describe("createVehicleRouteDrag", () => {
 					{
 						id: "van",
 						kind: "delivery_van_01",
-						rotation: 0,
-						follow: { roadId: "a", speed: 4, offset: 2 },
+						rotation: [0, 0, 0],
+						follow: { roadId: "a", speed: 4, startDistance: 2 },
 					},
 				],
 			}),
@@ -140,7 +145,11 @@ describe("createVehicleRouteDrag", () => {
 	};
 	const van = () => useEditor.getState().scene.entities.find((e) => e.id === "van");
 	const options = { coalesce: "drag:test", gesture: true };
-	const pose = { position: [3, 0.5] as [number, number], elevation: 0, rotation: 0 };
+	const pose = {
+		position: [3, 0.5] as [number, number],
+		altitude: 0,
+		rotation: [0, 0, 0] as [number, number, number],
+	};
 
 	beforeEach(loadWithDriver);
 
@@ -157,12 +166,17 @@ describe("createVehicleRouteDrag", () => {
 
 		expect(drag?.move(down(7, 6.6), [7, 6.6], false, options)).toBe(true);
 		drag?.end(true, options);
-		expect(van()?.follow).toMatchObject({ roadId: "b", offset: 7, reverse: false, speed: 4 });
+		expect(van()?.follow).toMatchObject({
+			roadId: "b",
+			startDistance: 7,
+			drivesTheOtherWay: false,
+			speed: 4,
+		});
 		expect(useEditor.getState().followOffer).toBeNull();
 		expect(useEditor.getState().rerouting).toBe(false);
 
 		useEditor.getState().undo();
-		expect(van()?.follow).toMatchObject({ roadId: "a", offset: 2 });
+		expect(van()?.follow).toMatchObject({ roadId: "a", startDistance: 2 });
 	});
 
 	it("parks a driving vehicle dropped off the roads", () => {
@@ -193,12 +207,12 @@ describe("createVehicleRouteDrag", () => {
 		const drag = createVehicleRouteDrag("van");
 		drag?.start(options);
 		drag?.move(down(5, 0.6), [5, 0.6], false, options);
-		expect(van()?.pitch).toBeGreaterThan(5);
-		expect(van()?.elevation).toBeGreaterThan(0.5);
+		expect(van()?.rotation[2]).toBeGreaterThan(5);
+		expect(van()?.altitude).toBeGreaterThan(0.5);
 		// Off the road again.
 		drag?.move(down(5, 6), [5, 6], false, options);
-		expect(van()?.pitch).toBe(0);
-		expect(van()?.elevation).toBe(0);
+		expect(van()?.rotation[2]).toBe(0);
+		expect(van()?.altitude).toBe(0);
 	});
 
 	it("offers to drive a parked vehicle dropped on a road", () => {
@@ -210,6 +224,6 @@ describe("createVehicleRouteDrag", () => {
 		drag?.move(down(7, 6.6), [7, 6.6], false, options);
 		drag?.end(true, options);
 		expect(van()?.follow).toBeNull();
-		expect(useEditor.getState().followOffer).toMatchObject({ roadId: "b", offset: 7 });
+		expect(useEditor.getState().followOffer).toMatchObject({ roadId: "b", startDistance: 7 });
 	});
 });

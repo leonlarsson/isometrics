@@ -43,17 +43,18 @@ export const raceCar01 = definePart({
 	description: "Modern open-wheel race car (2022 on, with the halo); can drive along a road",
 	keywords: ["f1", "formula", "racing", "vehicle", "modern", "halo"],
 	schema: z.object({}),
+	renamedLights: { rain: "rainLight" },
 	fields: [],
 	colors: [
 		{ id: "livery", name: "Livery", default: "#d5232f", legacy: "color" },
-		{ id: "details", name: "Wings & details", default: "#1f1f24", legacy: "accent" },
+		{ id: "details", name: "Wings and details", default: "#1f1f24", legacy: "accent" },
 	],
 	canFollowPath: true,
 	// No headlights, like a real F1 car: a red rain light at the back, on while it races after dark,
 	// with a glow on the road behind it.
 	lights: [
 		{
-			id: "rain",
+			id: "rainLight",
 			name: "Rain light",
 			shape: "lens",
 			color: RAIN_RED,
@@ -164,7 +165,7 @@ export const raceCar01 = definePart({
 							color={carbon}
 						/>
 
-						<RainLight light={lights.rain} position={[-0.98, 0.13, 0]} />
+						<RainLight light={lights.rainLight} position={[-0.98, 0.13, 0]} />
 
 						{/* Cockpit opening, driver and halo. */}
 						<Box
@@ -279,7 +280,7 @@ export const raceCar01 = definePart({
 				</group>
 
 				{/* The rain light's glow on the road just behind the car, as far as it reaches. */}
-				<LightPool light={lights.rain} at={[-0.98 * CAR_SCALE - 0.15, 0]} />
+				<LightPool light={lights.rainLight} at={[-0.98 * CAR_SCALE - 0.15, 0]} />
 			</group>
 		);
 	},

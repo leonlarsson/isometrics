@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { orbitAround, polarLimits, settleTarget } from "./orbit";
 
-const limits = polarLimits({ lowestElevation: 15, steepestElevation: 87 }, false);
+const limits = polarLimits({ lowestElevation: 15, highestElevation: 87 }, false);
 
 /** An orthographic camera looking from `position` at `target`, like the editor's. */
 const cameraAt = (position: THREE.Vector3, target: THREE.Vector3) => {
@@ -40,7 +40,7 @@ describe("orbitAround", () => {
 	});
 
 	it("tilts all the way to straight down and level, without losing which way it faces", () => {
-		const full = polarLimits({ lowestElevation: 0, steepestElevation: 90 }, false);
+		const full = polarLimits({ lowestElevation: 0, highestElevation: 90 }, false);
 		const position = new THREE.Vector3(80, 70, 80);
 		const target = new THREE.Vector3(0, 0, 0);
 		orbitAround(position, target, new THREE.Vector3(), 0, -5, full);
@@ -53,7 +53,7 @@ describe("orbitAround", () => {
 	});
 
 	it("stays above level with simple control, and goes anywhere with free control", () => {
-		const sky = { lowestElevation: -60, steepestElevation: 87 };
+		const sky = { lowestElevation: -60, highestElevation: 87 };
 		expect(polarLimits(sky, false).max).toBeCloseTo(Math.PI / 2, 5);
 		expect(polarLimits(sky, true).min).toBeGreaterThan(0);
 		expect(polarLimits(sky, true).max).toBeGreaterThan((179 * Math.PI) / 180);
@@ -76,8 +76,8 @@ describe("orbitAround", () => {
 	});
 
 	it("reads the limits either way round", () => {
-		expect(polarLimits({ lowestElevation: 80, steepestElevation: 30 }, false)).toEqual(
-			polarLimits({ lowestElevation: 30, steepestElevation: 80 }, false),
+		expect(polarLimits({ lowestElevation: 80, highestElevation: 30 }, false)).toEqual(
+			polarLimits({ lowestElevation: 30, highestElevation: 80 }, false),
 		);
 	});
 });

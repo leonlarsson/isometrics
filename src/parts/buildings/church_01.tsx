@@ -6,7 +6,7 @@ import { definePart } from "../types";
 
 const ChurchSchema = z.object({
 	width: z.number().min(1.2).max(5).default(1.8),
-	length: z.number().min(2).max(10).default(3.4),
+	depth: z.number().min(2).max(10).default(3.4),
 	towerHeight: z.number().min(1.5).max(8).default(3.4),
 });
 
@@ -21,9 +21,10 @@ export const church01 = definePart({
 	description: "Stone church with a long nave and a tower with a spire at the front (+Z)",
 	keywords: ["chapel", "cathedral", "steeple", "spire", "religious", "landmark", "village"],
 	schema: ChurchSchema,
+	renamedProps: { length: "depth" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1.2, max: 5, step: 0.1 },
-		{ key: "length", label: "Length", type: "number", min: 2, max: 10, step: 0.1 },
+		{ key: "depth", label: "Depth", type: "number", min: 2, max: 10, step: 0.1 },
 		{ key: "towerHeight", label: "Tower height", type: "number", min: 1.5, max: 8, step: 0.1 },
 	],
 	colors: [
@@ -39,19 +40,19 @@ export const church01 = definePart({
 			shape: "glow",
 			color: "#ffcf7d",
 			comesOn: "gradually",
-			realLight: (p) => ({ at: [0, 1, 0], reach: Math.max(p.width, p.length) * 1.2 }),
+			realLight: (p) => ({ at: [0, 1, 0], reach: Math.max(p.width, p.depth) * 1.2 }),
 		},
 	],
-	footprint: (p) => [p.width + 0.3, p.length + TOWER.side / 2],
+	footprint: (p) => [p.width + 0.3, p.depth + TOWER.side / 2],
 	height: (p) => p.towerHeight + TOWER.spire,
 	Component: ({ props: p, colors, palette, lights }) => {
 		// The nave runs along Z; the tower stands at its front end.
-		const naveFront = p.length / 2 - TOWER.side / 2;
-		const windows = Math.max(2, Math.round((p.length - TOWER.side) / 0.7));
+		const naveFront = p.depth / 2 - TOWER.side / 2;
+		const windows = Math.max(2, Math.round((p.depth - TOWER.side) / 0.7));
 		return (
 			<group>
 				<Box
-					size={[p.width, WALL_HEIGHT, p.length - TOWER.side / 2]}
+					size={[p.width, WALL_HEIGHT, p.depth - TOWER.side / 2]}
 					position={[0, WALL_HEIGHT / 2, -TOWER.side / 4]}
 					color={colors.walls}
 				/>
@@ -59,7 +60,7 @@ export const church01 = definePart({
 				{/* Its ridge runs along the nave. */}
 				<group position={[0, WALL_HEIGHT, -TOWER.side / 4]} rotation={[0, Math.PI / 2, 0]}>
 					<GableRoof
-						width={p.length - TOWER.side / 2 + 0.2}
+						width={p.depth - TOWER.side / 2 + 0.2}
 						depth={p.width + 0.3}
 						height={p.width * 0.6}
 						color={colors.roof}
@@ -67,7 +68,7 @@ export const church01 = definePart({
 				</group>
 
 				{/* Tall windows along both sides. */}
-				{spread(windows, p.length - TOWER.side * 1.2).flatMap((z) =>
+				{spread(windows, p.depth - TOWER.side * 1.2).flatMap((z) =>
 					[1, -1].map((side) => (
 						<Box
 							key={`${z},${side}`}

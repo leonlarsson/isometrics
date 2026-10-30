@@ -1,4 +1,4 @@
-import type { TDataBinding, TEntity, TFence } from "./schema";
+import type { TColorSetting, TDataBinding, TEntity, TFence, TScene } from "./schema";
 
 /**
  * Every place an object keeps data bindings (ADR-0058, ADR-0060): each
@@ -10,8 +10,8 @@ import type { TDataBinding, TEntity, TFence } from "./schema";
 export const bindingMapsOf = (
 	entity: Pick<TEntity, "lights" | "colors">,
 ): Record<string, TDataBinding>[] => [
-	...(typeof entity.lights === "string" ? [] : Object.values(entity.lights).map((l) => l.data)),
-	...Object.values(entity.colors).map((color) => color.data),
+	...Object.values(entity.lights).map((light) => light.data),
+	...colorBindingMapsOf(entity.colors),
 ];
 
 /** Whether any of an object's settings follow a data value. */
@@ -21,7 +21,25 @@ export const usesDataBindings = (entity: Pick<TEntity, "lights" | "colors">) =>
 /** Every place a fence keeps data bindings (ADR-0103): its colours' and its own (`builtShare`). */
 export const fenceBindingMapsOf = (
 	fence: Pick<TFence, "colors" | "data">,
+): Record<string, TDataBinding>[] => [fence.data, ...colorBindingMapsOf(fence.colors)];
+
+/** The data bindings of each colour in a `colors` map (ADR-0060). */
+export const colorBindingMapsOf = (
+	colors: Readonly<Record<string, TColorSetting>>,
+): Record<string, TDataBinding>[] => Object.values(colors).map((color) => color.data);
+
+/**
+ * Every place the world keeps data bindings besides its objects and fences:
+ * the time of day and the weather, each mood's too, and the colours of the
+ * ground, the roads and the areas (ADR-0104).
+ */
+export const worldBindingMapsOf = (
+	scene: Pick<TScene, "lighting" | "weather" | "moods" | "ground" | "roads" | "areas">,
 ): Record<string, TDataBinding>[] => [
-	fence.data,
-	...Object.values(fence.colors).map((color) => color.data),
+	scene.lighting.data,
+	scene.weather.data,
+	...scene.moods.flatMap((mood) => [mood.lighting.data, mood.weather.data]),
+	...colorBindingMapsOf(scene.ground.colors),
+	...scene.roads.flatMap((road) => colorBindingMapsOf(road.colors)),
+	...scene.areas.flatMap((area) => colorBindingMapsOf(area.colors)),
 ];

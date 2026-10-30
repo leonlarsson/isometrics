@@ -5,7 +5,7 @@ import { Box, Mat } from "../primitives";
 import { definePart } from "../types";
 
 const BicycleSchema = z.object({
-	showRider: z.boolean().default(true),
+	showsRider: z.boolean().default(true),
 });
 
 /** Its wheels: how far apart, how big, how thick the tyre. */
@@ -42,7 +42,9 @@ export const bicycle01 = definePart({
 	description: "Bicycle with a rider; can ride along a road or path",
 	keywords: ["bike", "cycle", "cyclist", "rider", "commute", "vehicle"],
 	schema: BicycleSchema,
-	fields: [{ key: "showRider", label: "Show the rider", type: "boolean" }],
+	renamedLights: { lamp: "headlight" },
+	renamedProps: { showRider: "showsRider" },
+	fields: [{ key: "showsRider", label: "Show the rider", type: "boolean" }],
 	colors: [
 		{ id: "frame", name: "Frame", default: "#c8553d", legacy: "color" },
 		{ id: "riderTop", name: "Rider's top", default: "#3d4fd6", legacy: "accent" },
@@ -51,15 +53,15 @@ export const bicycle01 = definePart({
 	],
 	lights: [
 		{
-			id: "lamp",
-			name: "Front lamp",
+			id: "headlight",
+			name: "Headlight",
 			shape: "lens",
 			when: "driving",
 		},
 	],
 	canFollowPath: true,
 	footprint: () => [WHEEL.apart + WHEEL.radius * 2 + 0.04, 0.16],
-	height: (p) => (p.showRider ? 0.78 : 0.4),
+	height: (p) => (p.showsRider ? 0.78 : 0.4),
 	Component: ({ props: p, colors, palette, lights }) => {
 		const hub: [number, number] = [WHEEL.apart / 2, WHEEL.radius];
 		const rearHub: [number, number] = [-WHEEL.apart / 2, WHEEL.radius];
@@ -101,13 +103,13 @@ export const bicycle01 = definePart({
 				<Box size={[0.02, 0.02, 0.2]} position={[BARS.x, BARS.y, 0]} color={palette.tire} />
 
 				<LightLens
-					light={lights.lamp}
+					light={lights.headlight}
 					size={[0.03, 0.03, 0.04]}
 					position={[BARS.x + 0.03, BARS.y - 0.04, 0]}
 				/>
 
 				{/* The rider: legs down to the pedals, a body leaning to the bars, arms, a head. */}
-				{p.showRider && (
+				{p.showsRider && (
 					<group>
 						{[0.05, -0.05].map((z, i) => (
 							<group key={z} position={[0, 0, z]}>

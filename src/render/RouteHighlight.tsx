@@ -22,7 +22,7 @@ type TPoint = [number, number, number];
  * on an open road the whole trip, there, U-turn, back and U-turn.
  */
 const RouteLine = ({ road, reverse }: { road: TRoad; reverse: boolean }) => {
-	const driving = useEditor((s) => s.scene.drivingSide);
+	const driving = useEditor((s) => s.scene.traffic.drivingSide);
 	const palette = usePalette();
 
 	const geometry = useMemo(() => {
@@ -117,21 +117,21 @@ export const RouteHighlight = () => {
 					})
 				: [];
 		const seen = new Set<string>();
-		return wanted.flatMap(({ roadId, reverse }) => {
-			const key = `${roadId}:${reverse}`;
+		return wanted.flatMap(({ roadId, drivesTheOtherWay }) => {
+			const key = `${roadId}:${drivesTheOtherWay}`;
 			const road = roads.find((r) => r.id === roadId);
 			if (!road || seen.has(key)) {
 				return [];
 			}
 			seen.add(key);
-			return [{ key, road, reverse }];
+			return [{ key, road, drivesTheOtherWay }];
 		});
 	}, [offered, editing, selectedItems, entities, roads]);
 
 	return (
 		<>
-			{routes.map(({ key, road, reverse }) => (
-				<RouteLine key={key} road={road} reverse={reverse} />
+			{routes.map(({ key, road, drivesTheOtherWay }) => (
+				<RouteLine key={key} road={road} reverse={drivesTheOtherWay} />
 			))}
 		</>
 	);

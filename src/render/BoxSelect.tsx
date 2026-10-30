@@ -43,7 +43,7 @@ const itemsInBox = (
 	};
 	const items: ISceneItem[] = [];
 	for (const entity of scene.entities) {
-		if (entity.hidden || entity.locked) {
+		if (entity.isHidden || entity.isLocked) {
 			continue;
 		}
 		const part = getPart(entity.kind);
@@ -51,7 +51,7 @@ const itemsInBox = (
 		// A driving vehicle is where it is on screen now, not where it started.
 		const live = livePoses.get(entity.id)?.();
 		const [x, z] = live?.position ?? entity.position;
-		const y = (live?.elevation ?? entity.elevation) + height / 2;
+		const y = (live?.altitude ?? entity.altitude) + height / 2;
 		if (inside(x, y, z)) {
 			items.push({ kind: "entity", id: entity.id });
 		}
@@ -59,8 +59,8 @@ const itemsInBox = (
 	scene.roads.forEach((road, layer) => {
 		const baseY = roadBaseY(layer);
 		if (
-			!road.hidden &&
-			!road.locked &&
+			!road.isHidden &&
+			!road.isLocked &&
 			road.points.every(([x, z, height = 0]) => inside(x, baseY + height, z))
 		) {
 			items.push({ kind: "road", id: road.id });
@@ -68,8 +68,8 @@ const itemsInBox = (
 	});
 	for (const area of scene.areas) {
 		if (
-			!area.hidden &&
-			!area.locked &&
+			!area.isHidden &&
+			!area.isLocked &&
 			area.points.every((point) => inside(point[0], cornerTop(area, point), point[1]))
 		) {
 			items.push({ kind: "area", id: area.id });
@@ -77,8 +77,8 @@ const itemsInBox = (
 	}
 	for (const fence of scene.fences) {
 		if (
-			!fence.hidden &&
-			!fence.locked &&
+			!fence.isHidden &&
+			!fence.isLocked &&
 			fence.points.every(([x, z, lift]) => inside(x, groundHeightAt(scene.areas, [x, z]) + lift, z))
 		) {
 			items.push({ kind: "fence", id: fence.id });

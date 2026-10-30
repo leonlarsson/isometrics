@@ -1,7 +1,7 @@
 import { jitter, Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The pads: where each floats, how big, which way its notch points, and whether it has a flower. */
 const PADS = Array.from({ length: 7 }, (_, i) => {
@@ -25,17 +25,16 @@ export const waterLilies01 = definePart({
 	category: "nature",
 	description: "Lily pads floating on a pond, two of them in flower; place it on water",
 	keywords: ["lily pad", "pond", "lake", "water", "flower", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "pads", name: "Pads", default: "#4f8a3c", legacy: "color" },
 		{ id: "flowers", name: "Flowers", default: "#f2c4d4", legacy: "accent" },
 		{ id: "flowerHearts", name: "Flower hearts", default: "#f2d11c" },
 	],
-	footprint: (p) => [0.5 * p.size, 0.5 * p.size],
-	height: (p) => 0.06 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.5, 0.5],
+	height: () => 0.06,
+	Component: ({ colors }) => (
+		<group>
 			{PADS.map(({ x, z, radius, notch, hasFlower }) => (
 				<group key={`${x},${z}`} position={[x, 0.012, z]}>
 					<mesh rotation={[0, notch, 0]} receiveShadow>

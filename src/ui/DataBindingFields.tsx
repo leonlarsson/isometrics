@@ -52,8 +52,8 @@ export const DataBindingFields = ({
 	max,
 }: IDataBindingFieldsProps) => {
 	const entry = boundEntry(binding, data);
-	const name = entry ? entry.label || entry.key : binding.key;
-	const above = binding.onAbove ?? 0;
+	const name = entry ? entry.name || entry.key : binding.key;
+	const above = binding.switchesOnAbove ?? 0;
 	const full = binding.valueAtFull ?? 1;
 	const reading = readScale(binding, data, { max });
 	const color = entry ? cssColor(entry.value) : null;
@@ -87,7 +87,7 @@ export const DataBindingFields = ({
 				options={[
 					// A value that's gone stays shown until another is picked.
 					...(entry ? [] : [{ value: binding.key, label: `${binding.key} (gone)` }]),
-					...data.map((item) => ({ value: item.key, label: item.label || item.key })),
+					...data.map((item) => ({ value: item.key, label: item.name || item.key })),
 				]}
 				onChange={(key) => onChange({ ...binding, key })}
 				hint={
@@ -103,11 +103,11 @@ export const DataBindingFields = ({
 				<NumberField
 					label="On above"
 					value={above}
-					onChange={(value) => onChange({ ...binding, onAbove: value }, "onAbove")}
+					onChange={(value) => onChange({ ...binding, switchesOnAbove: value }, "switchesOnAbove")}
 					inherit={{
 						from: "default",
-						inherited: binding.onAbove === null,
-						onReset: () => onChange({ ...binding, onAbove: null }),
+						inherited: binding.switchesOnAbove === null,
+						onReset: () => onChange({ ...binding, switchesOnAbove: null }),
 						value: "0",
 					}}
 					hint={now}

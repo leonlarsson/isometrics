@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
+import { colorOf } from "#/parts/colorModel";
 import {
 	buildElevatedSides,
 	buildRibbon,
@@ -14,10 +15,10 @@ import {
 	type IWall,
 	isHiddenRoute,
 	pillarPositions,
-	ROAD_STYLES,
+	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
-import type { TRoad, TRoadPoint } from "#/scene/schema";
+import type { TDataEntry, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -76,8 +77,9 @@ const useDisposable = (geometry: THREE.BufferGeometry) => {
 	return geometry;
 };
 
-export const roadColor = (road: TRoad, palette: IScenePalette) =>
-	road.color ?? (ROAD_STYLES[road.style].surface === "dirt" ? palette.dirt : palette.road);
+/** A road's surface colour as drawn now: from data, else as set, else its kind's (ADR-0104). */
+export const roadColor = (road: TRoad, palette: IScenePalette, data?: readonly TDataEntry[]) =>
+	colorOf(ROAD_KINDS[road.kind], road, "surface", palette, data, palette.road);
 
 /** Height of the road surface above the ground plane for a given layer. */
 export const roadBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
@@ -92,6 +94,8 @@ interface IRoadBodyProps {
 	/** Draw order among roads; later roads sit on top at junctions. */
 	layer: number;
 	palette: IScenePalette;
+	/** The world's data, for colours that follow it. */
+	data: readonly TDataEntry[];
 	ground: { width: number; depth: number };
 	/** Hidden routes show as a dashed line while editing; otherwise they draw nothing. */
 	editing: boolean;
@@ -108,6 +112,7 @@ export const RoadBody = ({
 	road,
 	layer,
 	palette,
+	data,
 	ground,
 	editing,
 	selected,
@@ -115,7 +120,7 @@ export const RoadBody = ({
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
 	const groundDepth = ground.depth;
-	const hidden = isHiddenRoute(road.style);
+	const hidden = isHiddenRoute(road.kind);
 	const y = roadBaseY(layer);
 	const center = useMemo(() => roadCenterlineOf(road), [road]);
 
@@ -142,8 +147,8 @@ export const RoadBody = ({
 	const sides = useMemo(
 		() =>
 			buildElevatedSides(center, road.loops, road.width / 2, {
-				railings: road.showRailings && !hidden,
-				embankment: road.supports === "embankment" && !hidden,
+				railings: road.showsRailings && !hidden,
+				embankment: road.heldUpBy === "embankment" && !hidden,
 				embankmentAngle: road.embankmentAngle,
 				embankmentWidth: road.embankmentWidth,
 				bounds: [groundWidth / 2, groundDepth / 2],
@@ -152,8 +157,8 @@ export const RoadBody = ({
 			center,
 			road.loops,
 			road.width,
-			road.showRailings,
-			road.supports,
+			road.showsRailings,
+			road.heldUpBy,
 			road.embankmentAngle,
 			road.embankmentWidth,
 			hidden,
@@ -167,15 +172,15 @@ export const RoadBody = ({
 	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
 	const pillars = useMemo(
 		() =>
-			road.supports === "pillars" && !hidden
+			road.heldUpBy === "pillars" && !hidden
 				? pillarPositions(center, road.loops, road.pillarSpacing)
 				: [],
-		[center, road.loops, road.supports, road.pillarSpacing, hidden],
+		[center, road.loops, road.heldUpBy, road.pillarSpacing, hidden],
 	);
 
 	// A road with traffic keeps clearer of snow (ADR-0102): its share, a uniform the shading reads.
 	const used = useEditor((s) =>
-		s.scene.entities.some((entity) => entity.follow?.roadId === road.id && !entity.hidden),
+		s.scene.entities.some((entity) => entity.follow?.roadId === road.id && !entity.isHidden),
 	);
 	const snowFactor = useMemo(() => ({ value: 1 }), []);
 	const snowShare = useMemo(() => ({ snowFactor }), [snowFactor]);
@@ -203,14 +208,14 @@ export const RoadBody = ({
 					<meshBasicMaterial transparent opacity={0} depthWrite={false} />
 				) : (
 					<meshStandardMaterial
-						color={roadColor(road, palette)}
+						color={roadColor(road, palette, data)}
 						roughness={0.95}
 						userData={snowShare}
 					/>
 				)}
 			</mesh>
 
-			{ROAD_STYLES[road.style].centreLine && road.showMarkings && (
+			{ROAD_KINDS[road.kind].centreLine && road.showsCentreLine && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} userData={snowShare} />
 				</mesh>
@@ -238,7 +243,14 @@ export const RoadBody = ({
 			{sides.embankment.quads.length > 0 && (
 				<mesh geometry={embankment} castShadow receiveShadow {...handlers}>
 					<meshStandardMaterial
-						color={road.embankmentColor ?? palette.embankment}
+						color={colorOf(
+							ROAD_KINDS[road.kind],
+							road,
+							"embankment",
+							palette,
+							data,
+							palette.embankment,
+						)}
 						roughness={1}
 						side={THREE.DoubleSide}
 					/>
@@ -259,7 +271,7 @@ export const RoadBody = ({
 			{hidden && (
 				<Line
 					points={outline}
-					color={road.color ?? palette.selection}
+					color={road.colors.surface?.color ?? palette.selection}
 					lineWidth={2}
 					dashed
 					dashSize={0.35}
@@ -293,6 +305,7 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
+	const data = useEditor((s) => s.scene.data);
 
 	const editable = mode === "edit" && !drawing;
 	const handlers: TRoadHandlers = editable
@@ -325,6 +338,7 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 			road={road}
 			layer={layer}
 			palette={palette}
+			data={data}
 			ground={ground}
 			editing={mode === "edit"}
 			selected={selected && mode === "edit"}

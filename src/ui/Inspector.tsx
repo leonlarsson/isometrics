@@ -10,8 +10,8 @@ import {
 } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { AREA_KIND_LABELS } from "#/scene/areas";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 
 import { areaTabs } from "./AreaInspector";
 import { IconButton } from "./Button";
@@ -94,21 +94,21 @@ const useSelection = (): ISelectionContext | null => {
 	}
 	if (road) {
 		return {
-			name: road.name || ROAD_STYLE_LABELS[road.style],
+			name: road.name || ROAD_KIND_LABELS[road.kind],
 			icon: "road",
 			tabs: roadTabs(road),
 		};
 	}
 	if (area) {
 		return {
-			name: area.name || AREA_TYPE_LABELS[area.type],
+			name: area.name || AREA_KIND_LABELS[area.kind],
 			icon: "area",
 			tabs: areaTabs(area),
 		};
 	}
 	if (fence) {
 		return {
-			name: fence.name || FENCE_STYLE_LABELS[fence.style],
+			name: fence.name || FENCE_STYLE_LABELS[fence.kind],
 			icon: "fence",
 			tabs: fenceTabs(fence),
 		};

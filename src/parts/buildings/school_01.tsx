@@ -15,7 +15,7 @@ const SchoolSchema = z.object({
 	width: z.number().min(2).max(14).default(5),
 	depth: z.number().min(1.5).max(8).default(2.2),
 	floorCount: z.number().int().min(1).max(4).default(2),
-	showFlagpole: z.boolean().default(true),
+	showsFlagpole: z.boolean().default(true),
 });
 
 export const school01 = definePart({
@@ -26,11 +26,12 @@ export const school01 = definePart({
 		"Long school building with wide classroom windows, an entrance porch and a flagpole; its front faces +Z",
 	keywords: ["school", "college", "academy", "education", "classroom", "building"],
 	schema: SchoolSchema,
+	renamedProps: { showFlagpole: "showsFlagpole" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 2, max: 14, step: 0.1 },
 		{ key: "depth", label: "Depth", type: "number", min: 1.5, max: 8, step: 0.1 },
 		{ key: "floorCount", label: "Number of floors", type: "number", min: 1, max: 4, step: 1 },
-		{ key: "showFlagpole", label: "Show the flagpole", type: "boolean" },
+		{ key: "showsFlagpole", label: "Show the flagpole", type: "boolean" },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#c98b5e", legacy: "color" },
@@ -44,12 +45,12 @@ export const school01 = definePart({
 			description: "Lights left on in the classrooms.",
 			shape: "windows",
 			color: "#f6f0dc",
-			litPanes: 0.25,
+			litPaneShare: 0.25,
 			comesOn: "oneByOne",
 			realLight: (p) => ({ at: [0, 1, p.depth / 2 + 1.3], reach: p.width }),
 		},
 	],
-	footprint: (p) => [p.width + (p.showFlagpole ? 0.8 : 0), p.depth + 0.6],
+	footprint: (p) => [p.width + (p.showsFlagpole ? 0.8 : 0), p.depth + 0.6],
 	height: (p) => p.floorCount * FLOOR_HEIGHT + PARAPET,
 	Component: ({ props: p, colors, palette, lights }) => {
 		const height = p.floorCount * FLOOR_HEIGHT;
@@ -112,7 +113,7 @@ export const school01 = definePart({
 					/>
 				))}
 
-				{p.showFlagpole && (
+				{p.showsFlagpole && (
 					<group position={[p.width / 2 + 0.4, 0, front + 0.3]}>
 						<mesh position={[0, 1.1, 0]} castShadow>
 							<cylinderGeometry args={[0.02, 0.025, 2.2, 6]} />

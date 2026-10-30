@@ -14,7 +14,7 @@ const TowerCraneSchema = z.object({
 	jibLength: z.number().min(2).max(12).default(6),
 	hookOutAlongJib: z.number().min(0.1).max(1).default(0.6),
 	cableLength: z.number().min(0.2).max(16).default(3.5),
-	showLoad: z.boolean().default(true),
+	showsLoad: z.boolean().default(true),
 	swingsToAndFro: z.boolean().default(true),
 });
 
@@ -47,7 +47,7 @@ const cableReach = (p: TTowerCraneProps) =>
 		0.2,
 		Math.min(
 			p.cableLength,
-			p.height + TURNTABLE - HOOK_BLOCK - (p.showLoad ? LOAD.slings + LOAD.size[1] : 0) - 0.05,
+			p.height + TURNTABLE - HOOK_BLOCK - (p.showsLoad ? LOAD.slings + LOAD.size[1] : 0) - 0.05,
 		),
 	);
 
@@ -292,7 +292,7 @@ const Superstructure = ({
 						<Mat color="#3a3a3a" roughness={0.5} />
 					</mesh>
 
-					{p.showLoad && (
+					{p.showsLoad && (
 						<group position={[0, -HOOK_BLOCK / 2 - 0.06, 0]}>
 							{[1, -1].map((side) => (
 								<Strut
@@ -331,6 +331,7 @@ export const towerCrane01 = definePart({
 		"Building-site tower crane: a lattice mast, its jib reaching out along +X with the hook and a load, counterweights at the back; it swings slowly to and fro, with red warning lights after dark",
 	keywords: ["crane", "construction", "building site", "site", "jib", "hook", "lift", "progress"],
 	schema: TowerCraneSchema,
+	renamedProps: { showLoad: "showsLoad" },
 	fields: [
 		{ key: "height", label: "Height", type: "number", min: 2, max: 16, step: 0.1 },
 		{ key: "jibLength", label: "Jib length", type: "number", min: 2, max: 12, step: 0.1 },
@@ -343,7 +344,7 @@ export const towerCrane01 = definePart({
 			step: 0.01,
 		},
 		{ key: "cableLength", label: "Hook hangs down", type: "number", min: 0.2, max: 16, step: 0.1 },
-		{ key: "showLoad", label: "Show a load on the hook", type: "boolean" },
+		{ key: "showsLoad", label: "Show a load on the hook", type: "boolean" },
 		{ key: "swingsToAndFro", label: "Swings to and fro", type: "boolean" },
 	],
 	colors: [
@@ -361,7 +362,7 @@ export const towerCrane01 = definePart({
 	footprint: (p) => [p.jibLength * 2, 1.3],
 	overhang: (p) => ({
 		foot: [1.3, 1.3],
-		from: Math.max(0, p.height - cableReach(p) - (p.showLoad ? 0.6 : 0.3)),
+		from: Math.max(0, p.height - cableReach(p) - (p.showsLoad ? 0.6 : 0.3)),
 	}),
 	height: (p) => p.height + TURNTABLE + PEAK.height + 0.1,
 	Component: ({ props: p, colors, lights }) => (

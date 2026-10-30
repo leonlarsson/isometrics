@@ -7,7 +7,7 @@ import { definePart } from "../types";
 const FactorySchema = z.object({
 	width: z.number().min(2).max(16).default(5),
 	depth: z.number().min(2).max(12).default(3),
-	showChimney: z.boolean().default(true),
+	showsChimney: z.boolean().default(true),
 	chimneyHeight: z.number().min(1).max(10).default(4),
 });
 
@@ -23,10 +23,11 @@ export const factory01 = definePart({
 	description: "Brick factory hall with a sawtooth roof and a tall chimney; its teeth face +Z",
 	keywords: ["industry", "plant", "mill", "works", "industrial", "chimney", "warehouse"],
 	schema: FactorySchema,
+	renamedProps: { showChimney: "showsChimney" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 2, max: 16, step: 0.25 },
 		{ key: "depth", label: "Depth", type: "number", min: 2, max: 12, step: 0.25 },
-		{ key: "showChimney", label: "Show the chimney", type: "boolean" },
+		{ key: "showsChimney", label: "Show the chimney", type: "boolean" },
 		{ key: "chimneyHeight", label: "Chimney height", type: "number", min: 1, max: 10, step: 0.1 },
 	],
 	colors: [
@@ -45,7 +46,7 @@ export const factory01 = definePart({
 		},
 	],
 	footprint: (p) => [p.width, p.depth],
-	height: (p) => Math.max(WALL_HEIGHT + TOOTH_RISE, p.showChimney ? p.chimneyHeight : 0),
+	height: (p) => Math.max(WALL_HEIGHT + TOOTH_RISE, p.showsChimney ? p.chimneyHeight : 0),
 	Component: ({ props: p, colors, palette, lights }) => {
 		const teeth = Math.max(1, Math.round(p.depth / TOOTH_LENGTH));
 		const tooth = p.depth / teeth;
@@ -93,7 +94,7 @@ export const factory01 = definePart({
 					/>
 				))}
 
-				{p.showChimney && (
+				{p.showsChimney && (
 					<group position={[p.width / 2 - 0.4, 0, -p.depth / 2 + 0.4]}>
 						<mesh position={[0, p.chimneyHeight / 2, 0]} castShadow>
 							<cylinderGeometry args={[0.16, 0.24, p.chimneyHeight, 10]} />

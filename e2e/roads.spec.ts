@@ -80,7 +80,7 @@ test.describe("drawing roads and areas (ADR-0017, ADR-0021)", () => {
 			{ x: x - 100, y: y + 120 },
 		]);
 		const area = await read(page, (s) => s.scene.areas[0]);
-		expect(area?.type).toBe("water_01");
+		expect(area?.kind).toBe("water_01");
 		expect(area?.points).toHaveLength(4);
 	});
 });
@@ -113,8 +113,8 @@ test.describe("a road's points (ADR-0018, ADR-0023, ADR-0065, ADR-0066)", () => 
 		const spots = await spotsAcross(page, 3);
 		await drawThrough(page, "Road", spots);
 		await page.mouse.click(spots[1].x, spots[1].y);
-		await page.getByRole("textbox", { name: "Height", exact: true }).fill("2");
-		await page.getByRole("textbox", { name: "Height", exact: true }).press("Enter");
+		await page.getByRole("textbox", { name: "Altitude", exact: true }).fill("2");
+		await page.getByRole("textbox", { name: "Altitude", exact: true }).press("Enter");
 		expect((await road(page))?.points[1][2]).toBe(2);
 		await page.getByRole("textbox", { name: "Width here", exact: true }).fill("4");
 		await page.getByRole("textbox", { name: "Width here", exact: true }).press("Enter");
@@ -167,7 +167,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 			areas: [
 				{
 					id: "hill",
-					type: "grass_01",
+					kind: "grass_01",
 					height: 0,
 					points: [
 						[-3, -2],
@@ -186,7 +186,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		await page.mouse.click(corner.x, corner.y);
 		expect(await read(page, (s) => s.selectedPointIndex)).toBe(1);
 		await page.getByRole("tab", { name: "Shape", exact: true }).click();
-		const height = page.getByRole("textbox", { name: "Height", exact: true });
+		const height = page.getByRole("textbox", { name: "Altitude", exact: true });
 		await height.fill("3");
 		await height.press("Enter");
 		// A flat area turns solid where the corner rises.
@@ -204,7 +204,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 			areas: [
 				{
 					id: "lawn",
-					type: "grass_01",
+					kind: "grass_01",
 					points: [
 						[-4, -3],
 						[4, -3],
@@ -275,7 +275,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 			areas: [
 				{
 					id: "meadow",
-					type: "grass_01",
+					kind: "grass_01",
 					points: [
 						[-4, -4],
 						[4, -4],
@@ -293,7 +293,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		expect((await peak())?.slice(0, 2)).toEqual([0, 0]);
 		await expect(page.getByText("Peak 1 of 1")).toBeVisible();
 
-		const height = page.getByRole("textbox", { name: "Height", exact: true });
+		const height = page.getByRole("textbox", { name: "Altitude", exact: true });
 		await height.fill("3");
 		await height.press("Enter");
 		expect((await peak())?.[2]).toBe(3);
@@ -340,7 +340,7 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 			areas: [
 				{
 					id: "field",
-					type: "grass_01",
+					kind: "grass_01",
 					points: [
 						[-4, -3],
 						[4, -3],
@@ -365,8 +365,8 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 			{ x: x, y: y + 120 },
 		]);
 		await page.getByRole("tab", { name: "Shape", exact: true }).click();
-		await page.getByRole("textbox", { name: "Raised by", exact: true }).fill("2");
-		await page.getByRole("textbox", { name: "Raised by", exact: true }).press("Enter");
+		await page.getByRole("textbox", { name: "Height", exact: true }).fill("2");
+		await page.getByRole("textbox", { name: "Height", exact: true }).press("Enter");
 		expect(await read(page, (s) => s.scene.areas[0].height)).toBe(2);
 		await act(page, (s) => s.clearSelection());
 	});

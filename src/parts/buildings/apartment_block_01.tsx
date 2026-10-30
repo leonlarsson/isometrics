@@ -101,7 +101,7 @@ const ApartmentSchema = z.object({
 	width: z.number().min(1.5).max(12).default(3.2),
 	depth: z.number().min(1.2).max(8).default(2),
 	floorCount: z.number().int().min(2).max(16).default(5),
-	showBalconies: z.boolean().default(true),
+	showsBalconies: z.boolean().default(true),
 });
 
 export const apartmentBlock01 = definePart({
@@ -111,11 +111,12 @@ export const apartmentBlock01 = definePart({
 	description: "Block of flats with rows of windows and balconies; its front faces +Z",
 	keywords: ["flats", "apartments", "housing", "residential", "tenement", "building"],
 	schema: ApartmentSchema,
+	renamedProps: { showBalconies: "showsBalconies" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1.5, max: 12, step: 0.1 },
 		{ key: "depth", label: "Depth", type: "number", min: 1.2, max: 8, step: 0.1 },
 		{ key: "floorCount", label: "Number of floors", type: "number", min: 2, max: 16, step: 1 },
-		{ key: "showBalconies", label: "Show the balconies", type: "boolean" },
+		{ key: "showsBalconies", label: "Show the balconies", type: "boolean" },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#d9c7b0", legacy: "color" },
@@ -131,8 +132,8 @@ export const apartmentBlock01 = definePart({
 			description: "Lamps in the flats.",
 			shape: "windows",
 			color: "#f0b25c",
-			litPanes: 0.45,
-			weight: 8,
+			litPaneShare: 0.45,
+			paneWeight: 8,
 			comesOn: "oneByOne",
 			realLight: (p) => ({ at: [0, 1, p.depth / 2 + 1.2], reach: p.width * 1.3 }),
 		},
@@ -142,12 +143,12 @@ export const apartmentBlock01 = definePart({
 			description: "Televisions on in the flats.",
 			shape: "windows",
 			color: "#9ec0ff",
-			litPanes: 0.4,
-			weight: 1,
+			litPaneShare: 0.4,
+			paneWeight: 1,
 			comesOn: "oneByOne",
 		},
 	],
-	footprint: (p) => [p.width, p.depth + (p.showBalconies ? BALCONY.depth : 0)],
+	footprint: (p) => [p.width, p.depth + (p.showsBalconies ? BALCONY.depth : 0)],
 	height: (p) => p.floorCount * FLOOR_HEIGHT + PARAPET,
 	Component: ({ props: p, colors, palette, lights }) => {
 		const height = p.floorCount * FLOOR_HEIGHT;
@@ -196,7 +197,7 @@ export const apartmentBlock01 = definePart({
 				/>
 
 				{/* A balcony at every other window on the floors above, at the front. */}
-				{p.showBalconies &&
+				{p.showsBalconies &&
 					spread(columnsX, p.width)
 						.filter((_, i) => i % 2 === 0)
 						.flatMap((x) =>

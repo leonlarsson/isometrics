@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeRenamedProps, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 export const pineTree01 = definePart({
 	kind: "pine_tree_01",
@@ -9,17 +9,15 @@ export const pineTree01 = definePart({
 	category: "nature",
 	description: "Conifer made of stacked cones",
 	keywords: ["fir", "spruce", "forest", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
-	renamedProps: treeRenamedProps,
+	...sizedByScale,
 	colors: [
 		{ id: "needles", name: "Needles", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
 	],
-	footprint: (p) => [p.size, p.size],
-	height: (p) => 1.7 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [1, 1],
+	height: () => 1.7,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.2, 0]} castShadow>
 				<cylinderGeometry args={[0.06, 0.08, 0.4, 8]} />
 

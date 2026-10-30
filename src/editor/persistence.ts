@@ -2,7 +2,8 @@ import { nanoid } from "nanoid";
 import { useSyncExternalStore } from "react";
 
 import { APP_NAME } from "#/lib/app";
-import { describeRepairs, parseOrRepairScene } from "#/scene/repair";
+import { readWorld } from "#/parts/readWorld";
+import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
 import { adoptUnsavedView, forgetView, UNSAVED_WORLD } from "./cameraMemory";
@@ -276,9 +277,9 @@ const moveSingleSaveIntoList = () => {
 };
 
 /** Read one stored world: as it is, repaired (original backed up), or unreadable (backed up). */
-const readWorld = (raw: string): TStoredSceneResult => {
+const readWorldText = (raw: string): TStoredSceneResult => {
 	try {
-		const { scene, report } = parseOrRepairScene(JSON.parse(raw));
+		const { scene, report } = readWorld(JSON.parse(raw));
 		if (!report) {
 			return { status: "ok", scene };
 		}
@@ -312,7 +313,7 @@ export const loadStoredScene = (): TStoredSceneResult => {
 		return { status: "empty" };
 	}
 	setOpenWorldId(id);
-	const result = readWorld(raw);
+	const result = readWorldText(raw);
 	if (result.status === "ok") {
 		openedSaved(id);
 	}
@@ -322,7 +323,7 @@ export const loadStoredScene = (): TStoredSceneResult => {
 /** Read a stored world without opening it (e.g. to copy it). */
 export const readStoredWorld = (id: string): TStoredSceneResult => {
 	const raw = getItem(worldKey(id));
-	return raw === null ? { status: "empty" } : readWorld(raw);
+	return raw === null ? { status: "empty" } : readWorldText(raw);
 };
 
 /**
@@ -334,7 +335,7 @@ export const openStoredWorld = (id: string): TStoredSceneResult => {
 	if (raw === null) {
 		return { status: "empty" };
 	}
-	const result = readWorld(raw);
+	const result = readWorldText(raw);
 	if (result.status === "ok" || result.status === "repaired") {
 		setOpenWorldId(id);
 	}
@@ -625,6 +626,6 @@ export const downloadSceneBackup = (backup: ISceneBackup) => {
 export const readSceneFile = async (
 	file: File,
 ): Promise<{ scene: TScene; repairs: string | null }> => {
-	const { scene, report } = parseOrRepairScene(JSON.parse(await file.text()));
+	const { scene, report } = readWorld(JSON.parse(await file.text()));
 	return { scene, repairs: report ? describeRepairs(report) : null };
 };

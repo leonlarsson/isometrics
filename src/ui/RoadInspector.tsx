@@ -2,36 +2,30 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { roadColor } from "#/render/RoadMesh";
+import { changeColorSetting, type TColorSettingChange } from "#/scene/objectSettings";
 import {
 	isHiddenRoute,
 	pointWidth,
 	polylineLength,
-	ROAD_STYLE_LABELS,
-	ROAD_STYLES,
+	ROAD_KIND_LABELS,
+	ROAD_KINDS,
 	roadCenterlineOf,
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 	widthForStyle,
 } from "#/scene/roads";
-import type { TDrivingLane, TRoad, TRoadStyle, TRoadSupports, TTurnStyle } from "#/scene/schema";
+import type { TDrivingLane, TRoad, TRoadHeldUpBy, TRoadKind, TTurnStyle } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
-import {
-	ColorField,
-	Hint,
-	Section,
-	SelectField,
-	SliderField,
-	SwitchField,
-	TextField,
-} from "./fields";
+import { FollowDataNote } from "./FollowDataNote";
+import { Hint, Section, SelectField, SliderField, SwitchField, TextField } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
+import { ColorSettingFields } from "./PartSettings";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
 
-const STYLE_OPTIONS = (Object.keys(ROAD_STYLE_LABELS) as TRoadStyle[]).map((value) => ({
+const STYLE_OPTIONS = (Object.keys(ROAD_KIND_LABELS) as TRoadKind[]).map((value) => ({
 	value,
-	label: ROAD_STYLE_LABELS[value],
+	label: ROAD_KIND_LABELS[value],
 }));
 
 /** Every edit coalesces per road+field so typing or sliding is one undo step. */
@@ -41,15 +35,51 @@ const useRoadEdit = (road: TRoad) => {
 		updateRoad(road.id, recipe, { coalesce: `${road.id}:${field}` });
 };
 
+/**
+ * One of the road's colours (ADR-0104), by hand or from data, under its kind's
+ * name for it unless `label` says otherwise.
+ */
+const RoadColorFields = ({
+	road,
+	colorId,
+	label,
+}: {
+	road: TRoad;
+	colorId: string;
+	label: string;
+}) => {
+	const palette = usePalette();
+	const data = useEditor((s) => s.scene.data);
+	const edit = useRoadEdit(road);
+	const spec = ROAD_KINDS[road.kind].colors.find((color) => color.id === colorId);
+	if (!spec) {
+		return null;
+	}
+	return (
+		<ColorSettingFields
+			spec={spec}
+			setting={road.colors[colorId]}
+			data={data}
+			palette={palette}
+			label={label}
+			onChange={(change: TColorSettingChange, field) =>
+				edit(`color:${colorId}:${field ?? performance.now()}`, (r) => {
+					changeColorSetting(r.colors, colorId, change);
+				})
+			}
+		/>
+	);
+};
+
 /** The Road tab: its name and style, and how vehicles drive on it. */
 const RoadTab = ({ road }: { road: TRoad }) => {
 	const removeRoad = useEditor((s) => s.removeRoad);
 	const followers = useEditor(
 		(s) => s.scene.entities.filter((e) => e.follow?.roadId === road.id).length,
 	);
-	const sceneTurns = useEditor((s) => s.scene.turnStyle);
-	const sceneLeans = useEditor((s) => s.scene.leansInTurns);
-	const driving = useEditor((s) => s.scene.drivingSide);
+	const sceneTurns = useEditor((s) => s.scene.traffic.turnStyle);
+	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
+	const driving = useEditor((s) => s.scene.traffic.drivingSide);
 	const edit = useRoadEdit(road);
 	const length = polylineLength(roadCenterlineOf(road), road.loops);
 
@@ -57,16 +87,16 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 		<>
 			<Section
 				icon="road"
-				title={ROAD_STYLE_LABELS[road.style]}
+				title={ROAD_KIND_LABELS[road.kind]}
 				actions={
 					<IconButtonGroup>
 						<IconButton
-							icon={road.locked ? "lock" : "unlock"}
-							label={road.locked ? "Unlock" : "Lock its shape"}
-							pressed={road.locked}
+							icon={road.isLocked ? "lock" : "unlock"}
+							label={road.isLocked ? "Unlock" : "Lock its shape"}
+							pressed={road.isLocked}
 							onClick={() =>
 								edit("locked", (r) => {
-									r.locked = !r.locked;
+									r.isLocked = !r.isLocked;
 								})
 							}
 						/>
@@ -82,7 +112,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 				<TextField
 					label="Name"
 					value={road.name}
-					placeholder={ROAD_STYLE_LABELS[road.style]}
+					placeholder={ROAD_KIND_LABELS[road.kind]}
 					onChange={(v) =>
 						edit("name", (r) => {
 							r.name = v;
@@ -90,31 +120,31 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 					}
 				/>
 
-				<SelectField<TRoadStyle>
-					label="Style"
-					value={road.style}
+				<SelectField<TRoadKind>
+					label="Kind"
+					value={road.kind}
 					options={STYLE_OPTIONS}
 					onChange={(v) =>
 						edit("style", (r) => {
-							r.width = widthForStyle(r.width, r.style, v);
-							r.style = v;
+							r.width = widthForStyle(r.width, r.kind, v);
+							r.kind = v;
 						})
 					}
 				/>
 			</Section>
 
 			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
-				{!isHiddenRoute(road.style) && (
+				{!isHiddenRoute(road.kind) && (
 					<SelectField<TDrivingLane>
 						label="Vehicles drive"
-						value={road.drivingLane}
+						value={road.traffic.drivingLane}
 						options={[
 							{ value: "side", label: `In lanes (keep ${driving})` },
 							{ value: "centre", label: "Down the centre (one-way, race track)" },
 						]}
 						onChange={(v) =>
 							edit("lane", (r) => {
-								r.drivingLane = v;
+								r.traffic.drivingLane = v;
 							})
 						}
 					/>
@@ -122,19 +152,19 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 
 				<SelectField<TTurnStyle>
 					label="Vehicles turn"
-					value={road.turnStyle ?? sceneTurns}
+					value={road.traffic.turnStyle ?? sceneTurns}
 					options={TURN_STYLE_OPTIONS}
 					onChange={(v) =>
 						edit("turns", (r) => {
-							r.turnStyle = v;
+							r.traffic.turnStyle = v;
 						})
 					}
 					inherit={{
 						from: "scene",
-						inherited: road.turnStyle === null,
+						inherited: road.traffic.turnStyle === null,
 						onReset: () =>
 							edit("turns", (r) => {
-								r.turnStyle = null;
+								r.traffic.turnStyle = null;
 							}),
 						value: TURN_STYLE_LABELS[sceneTurns].toLowerCase(),
 					}}
@@ -142,18 +172,18 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 
 				<SwitchField
 					label="Lean in turns"
-					checked={road.leansInTurns ?? sceneLeans}
+					checked={road.traffic.leansInTurns ?? sceneLeans}
 					onChange={(v) =>
 						edit("leans", (r) => {
-							r.leansInTurns = v;
+							r.traffic.leansInTurns = v;
 						})
 					}
 					inherit={{
 						from: "scene",
-						inherited: road.leansInTurns === null,
+						inherited: road.traffic.leansInTurns === null,
 						onReset: () =>
 							edit("leans", (r) => {
-								r.leansInTurns = null;
+								r.traffic.leansInTurns = null;
 							}),
 						value: sceneLeans ? "on" : "off",
 					}}
@@ -170,7 +200,6 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 
 /** The Shape tab: the selected point, the road's width and curves, and its bridges. */
 const RoadShapeTab = ({ road }: { road: TRoad }) => {
-	const palette = usePalette();
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	const edit = useRoadEdit(road);
@@ -243,7 +272,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				</Hint>
 			</Section>
 
-			{!isHiddenRoute(road.style) && (
+			{!isHiddenRoute(road.kind) && (
 				<Section
 					id="road.supports"
 					icon="bridge"
@@ -252,9 +281,9 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 				>
 					{elevated ? (
 						<>
-							<SelectField<TRoadSupports>
+							<SelectField<TRoadHeldUpBy>
 								label="Held up by"
-								value={road.supports}
+								value={road.heldUpBy}
 								options={[
 									{ value: "pillars", label: "Pillars (roads can pass under)" },
 									{ value: "embankment", label: "Embankment (sloped bank)" },
@@ -262,12 +291,12 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 								]}
 								onChange={(v) =>
 									edit("supports", (r) => {
-										r.supports = v;
+										r.heldUpBy = v;
 									})
 								}
 							/>
 
-							{road.supports === "pillars" && (
+							{road.heldUpBy === "pillars" && (
 								<SliderField
 									label="Pillar spacing"
 									value={road.pillarSpacing}
@@ -282,10 +311,10 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 								/>
 							)}
 
-							{road.supports === "embankment" && (
+							{road.heldUpBy === "embankment" && (
 								<>
 									<SliderField
-										label="Bank slope"
+										label="Embankment slope"
 										value={road.embankmentAngle}
 										min={10}
 										max={90}
@@ -300,7 +329,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 									/>
 
 									<SliderField
-										label="Bank width"
+										label="Embankment width"
 										value={Math.round(road.embankmentWidth * 100)}
 										min={5}
 										max={100}
@@ -314,40 +343,24 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 										}
 									/>
 
-									<ColorField
-										label="Bank colour"
-										value={road.embankmentColor ?? palette.embankment}
-										onChange={(v) =>
-											edit("embankmentColor", (r) => {
-												r.embankmentColor = v;
-											})
-										}
-										inherit={{
-											from: "default",
-											inherited: road.embankmentColor === null,
-											onReset: () =>
-												edit("embankmentColor", (r) => {
-													r.embankmentColor = null;
-												}),
-										}}
-									/>
+									<RoadColorFields road={road} colorId="embankment" label="Embankment colour" />
 								</>
 							)}
 
 							<SwitchField
 								label="Railings"
-								checked={road.showRailings}
+								checked={road.showsRailings}
 								onChange={(v) =>
 									edit("railings", (r) => {
-										r.showRailings = v;
+										r.showsRailings = v;
 									})
 								}
 							/>
 						</>
 					) : (
 						<Hint>
-							Raise points (select them and drag the green arrow up, or set their Height) to build a
-							bridge or flyover.
+							Raise points (select them and drag the green arrow up, or set their Altitude) to build
+							a bridge or flyover.
 						</Hint>
 					)}
 				</Section>
@@ -356,43 +369,38 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 	);
 };
 
-/** The Look tab: the road's surface colour and markings. */
+/** The Look tab: the road's surface colour (by hand or from data) and markings. */
 const RoadLookTab = ({ road }: { road: TRoad }) => {
-	const palette = usePalette();
 	const edit = useRoadEdit(road);
 
 	return (
-		<Section id="road.look" icon="palette" title="Look" keywords="colour color surface markings">
-			<ColorField
-				label="Surface"
-				value={roadColor(road, palette)}
-				onChange={(v) =>
-					edit("color", (r) => {
-						r.color = v;
-					})
-				}
-				inherit={{
-					from: "default",
-					inherited: road.color === null,
-					onReset: () =>
-						edit("color", (r) => {
-							r.color = null;
-						}),
-				}}
-			/>
+		<>
+			<FollowDataNote title="Colours can follow data">
+				A road's colours can come from a value in the Data tab: a value holding a colour (red,
+				#ff0000), or a number on a colour scale, like a road that turns red as traffic builds.
+			</FollowDataNote>
 
-			{ROAD_STYLES[road.style].centreLine && (
-				<SwitchField
-					label="Centre line"
-					checked={road.showMarkings}
-					onChange={(v) =>
-						edit("markings", (r) => {
-							r.showMarkings = v;
-						})
-					}
-				/>
-			)}
-		</Section>
+			<Section
+				id="road.look"
+				icon="palette"
+				title="Look"
+				keywords="colour color surface markings data heatmap"
+			>
+				<RoadColorFields road={road} colorId="surface" label="Surface colour" />
+
+				{ROAD_KINDS[road.kind].centreLine && (
+					<SwitchField
+						label="Centre line"
+						checked={road.showsCentreLine}
+						onChange={(v) =>
+							edit("markings", (r) => {
+								r.showsCentreLine = v;
+							})
+						}
+					/>
+				)}
+			</Section>
+		</>
 	);
 };
 
@@ -405,7 +413,7 @@ export const roadTabs = (road: TRoad): IInspectorTab[] => [
 		icon: "spline",
 		content: <RoadShapeTab key={road.id} road={road} />,
 	},
-	...(isHiddenRoute(road.style)
+	...(isHiddenRoute(road.kind)
 		? []
 		: [
 				{

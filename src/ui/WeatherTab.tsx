@@ -2,16 +2,9 @@ import type { Draft } from "immer";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { type TWeatherDataTarget, useOvercast, weatherNow } from "#/editor/weather";
+import { type TWeatherDataTarget, weatherNow } from "#/editor/weather";
 import type { TBindingKind } from "#/parts/dataBinding";
-import {
-	SkySchema,
-	type TDataBinding,
-	type TScene,
-	type TSky,
-	type TWeather,
-	WeatherSchema,
-} from "#/scene/schema";
+import { type TDataBinding, type TScene, type TWeather, WeatherSchema } from "#/scene/schema";
 import { skyLookAt } from "#/scene/sky";
 
 import { Button, ButtonGroup } from "./Button";
@@ -20,7 +13,6 @@ import { FollowDataNote } from "./FollowDataNote";
 import { ColorField, Hint, Section, SliderField, SwitchField } from "./fields";
 
 const DEFAULTS = WeatherSchema.parse({});
-const SKY_DEFAULTS = SkySchema.parse({});
 const AMOUNT: TBindingKind = "scale";
 
 const percent = (amount: number) => `${Math.round(amount * 100)}%`;
@@ -35,26 +27,21 @@ const CALM = {
 } as const;
 
 /** One click to a kind of weather: its amounts, and the clouds that go with it. */
-const QUICK_PICKS: {
-	label: string;
-	weather: Partial<TWeather>;
-	cloudCover: number;
-}[] = [
-	{ label: "Clear", weather: {}, cloudCover: 0.15 },
-	{ label: "Cloudy", weather: {}, cloudCover: 0.85 },
-	{ label: "Rain", weather: { rainAmount: 0.6 }, cloudCover: 0.9 },
+const QUICK_PICKS: { label: string; weather: Partial<TWeather> }[] = [
+	{ label: "Clear", weather: { cloudCover: 0.15 } },
+	{ label: "Cloudy", weather: { cloudCover: 0.85 } },
+	{ label: "Rain", weather: { rainAmount: 0.6, cloudCover: 0.9 } },
 	{
 		label: "Storm",
-		weather: { rainAmount: 0.95, lightningRate: 0.6, fogDensity: 0.15 },
-		cloudCover: 1,
+		weather: { rainAmount: 0.95, lightningRate: 0.6, fogDensity: 0.15, cloudCover: 1 },
 	},
-	{ label: "Snow", weather: { snowAmount: 0.6 }, cloudCover: 0.8 },
-	{ label: "Fog", weather: { fogDensity: 0.7 }, cloudCover: 0.5 },
+	{ label: "Snow", weather: { snowAmount: 0.6, cloudCover: 0.8 } },
+	{ label: "Fog", weather: { fogDensity: 0.7, cloudCover: 0.5 } },
 ];
 
 /**
  * The Weather tab (ADR-0102): quick picks, then rain and snow, fog and haze,
- * what's on the ground, lightning, the clouds (from the sky) and whether
+ * what's on the ground, lightning, the clouds and whether
  * weather softens the light. Every amount can follow a data value.
  */
 export const WeatherTab = () => {
@@ -65,9 +52,9 @@ export const WeatherTab = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const commit = useEditor((s) => s.commit);
 	const hours = useSceneHours();
-	const overcast = useOvercast();
 	const now = weatherNow(weather, data);
-	const look = skyLookAt(lighting, { ...sky, cloudColor: null }, hours, overcast);
+	// The clouds' colour as the light tints them, for the Cloud colour field's default.
+	const look = skyLookAt(lighting, sky, hours, { ...now, cloudColor: null });
 
 	const set = <K extends keyof TWeather>(key: K, value: TWeather[K], coalesce?: boolean) =>
 		commit(
@@ -76,24 +63,11 @@ export const WeatherTab = () => {
 			},
 			coalesce ? { coalesce: `weather.${key}` } : undefined,
 		);
-	const setSky = <K extends keyof TSky>(key: K, value: TSky[K], coalesce?: boolean) =>
-		commit(
-			(s: Draft<TScene>) => {
-				s.sky[key] = value;
-			},
-			coalesce ? { coalesce: `sky.${key}` } : undefined,
-		);
 	/** A setting with a plain default: Default until changed, then Reset. */
 	const byDefault = <K extends keyof TWeather>(key: K, value: string) => ({
 		from: "default",
 		inherited: weather[key] === DEFAULTS[key],
 		onReset: () => set(key, DEFAULTS[key]),
-		value,
-	});
-	const skyByDefault = <K extends keyof TSky>(key: K, value: string) => ({
-		from: "default",
-		inherited: sky[key] === SKY_DEFAULTS[key],
-		onReset: () => setSky(key, SKY_DEFAULTS[key]),
 		value,
 	});
 	const onBindingChange =
@@ -134,13 +108,13 @@ export const WeatherTab = () => {
 	const pick = (choice: (typeof QUICK_PICKS)[number]) =>
 		commit((s: Draft<TScene>) => {
 			Object.assign(s.weather, CALM, choice.weather, { groundWetness: null, snowCover: null });
-			s.sky.cloudCover = choice.cloudCover;
 		});
 
 	return (
 		<>
 			<FollowDataNote title="Weather from data">
-				Rain, snow, fog, haze and lightning can follow a data value (a rain gauge, a forecast).
+				Clouds, rain, snow, fog, haze and lightning can follow a data value (a rain gauge, a
+				forecast).
 			</FollowDataNote>
 
 			<Section
@@ -265,43 +239,34 @@ export const WeatherTab = () => {
 				title="Clouds"
 				keywords="clouds cloud cover colour speed sky"
 			>
-				<SliderField
-					label="Cloud cover"
-					value={Math.round(sky.cloudCover * 100)}
-					min={0}
-					max={100}
-					step={5}
-					suffix="%"
-					onChange={(value) => setSky("cloudCover", value / 100, true)}
-					inherit={skyByDefault("cloudCover", percent(SKY_DEFAULTS.cloudCover))}
-				/>
+				{amountField("cloudCover", "Cloud cover", "0% is a clear sky.")}
 
-				{sky.cloudCover > 0 && (
+				{now.cloudCover > 0 && (
 					<>
 						<ColorField
 							label="Cloud colour"
-							value={sky.cloudColor ?? look.cloudColor}
-							onChange={(color) => setSky("cloudColor", color, true)}
+							value={weather.cloudColor ?? look.cloudColor}
+							onChange={(color) => set("cloudColor", color, true)}
 							inherit={{
 								from:
 									lighting.time === null && lighting.timeSource === "fixed"
 										? "default"
 										: "time of day",
-								inherited: sky.cloudColor === null,
-								onReset: () => setSky("cloudColor", null),
+								inherited: weather.cloudColor === null,
+								onReset: () => set("cloudColor", null),
 								value: look.cloudColor,
 							}}
 						/>
 
 						<SliderField
 							label="Cloud speed"
-							value={sky.cloudSpeed}
+							value={weather.cloudSpeed}
 							min={0}
 							max={5}
 							step={0.1}
 							suffix="×"
-							onChange={(value) => setSky("cloudSpeed", value, true)}
-							inherit={skyByDefault("cloudSpeed", `${SKY_DEFAULTS.cloudSpeed}×`)}
+							onChange={(value) => set("cloudSpeed", value, true)}
+							inherit={byDefault("cloudSpeed", `${DEFAULTS.cloudSpeed}×`)}
 						/>
 					</>
 				)}

@@ -31,7 +31,7 @@ export interface ITrafficRoad {
 	/** A loop (otherwise an open road, driven there and back). */
 	loop: boolean;
 	/** Vehicles may overtake (otherwise they queue behind slower ones). Default on. */
-	allowOvertaking?: boolean;
+	overtakes?: boolean;
 }
 
 /** What the traffic step remembers about a vehicle between frames. */
@@ -236,7 +236,7 @@ export const stepRoadTraffic = (
 
 			// Start overtaking when it has waited long enough and the way is clear for the whole move.
 			if (
-				road.allowOvertaking !== false &&
+				road.overtakes !== false &&
 				slowed &&
 				leader &&
 				state.heldFor >= patience &&
@@ -283,7 +283,7 @@ export const stepRoadTraffic = (
 					!passed ||
 					isPast(car, passed, MIN_GAP + state.speed * HEADWAY) ||
 					state.passingFor > MAX_PASS_SECONDS ||
-					road.allowOvertaking === false ||
+					road.overtakes === false ||
 					car.turning ||
 					roomToEnd < car.length
 				) {

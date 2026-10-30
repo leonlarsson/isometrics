@@ -3,15 +3,14 @@ import { describe, expect, it } from "vitest";
 import { getPart, PARTS } from "#/parts/registry";
 
 import {
-	LEGACY_AREA_TYPES,
+	LEGACY_AREA_KINDS,
 	LEGACY_PART_KINDS,
-	LEGACY_ROAD_STYLES,
+	LEGACY_ROAD_KINDS,
 	upgradeLegacyIds,
 } from "./legacy";
 import { parseScene } from "./migrate";
 import { parseOrRepairScene } from "./repair";
-import type { TEntityLight } from "./schema";
-import { AreaTypeSchema, RoadStyleSchema } from "./schema";
+import { AreaKindSchema, RoadKindSchema } from "./schema";
 
 const oldWorld = () => ({
 	version: 1,
@@ -46,8 +45,8 @@ const oldWorld = () => ({
 /** Every id in use, per kind of thing, with its table of old ids. */
 const CURRENT = [
 	{ what: "part kind", ids: PARTS.map((part) => part.kind), legacy: LEGACY_PART_KINDS },
-	{ what: "road style", ids: RoadStyleSchema.options, legacy: LEGACY_ROAD_STYLES },
-	{ what: "area type", ids: AreaTypeSchema.options, legacy: LEGACY_AREA_TYPES },
+	{ what: "road kind", ids: RoadKindSchema.options, legacy: LEGACY_ROAD_KINDS },
+	{ what: "area kind", ids: AreaKindSchema.options, legacy: LEGACY_AREA_KINDS },
 ];
 
 describe("current ids", () => {
@@ -73,11 +72,11 @@ describe("legacy ids", () => {
 		for (const kind of Object.values(LEGACY_PART_KINDS)) {
 			expect(getPart(kind), kind).toBeDefined();
 		}
-		for (const style of Object.values(LEGACY_ROAD_STYLES)) {
-			expect(RoadStyleSchema.safeParse(style).success, style).toBe(true);
+		for (const kind of Object.values(LEGACY_ROAD_KINDS)) {
+			expect(RoadKindSchema.safeParse(kind).success, kind).toBe(true);
 		}
-		for (const type of Object.values(LEGACY_AREA_TYPES)) {
-			expect(AreaTypeSchema.safeParse(type).success, type).toBe(true);
+		for (const kind of Object.values(LEGACY_AREA_KINDS)) {
+			expect(AreaKindSchema.safeParse(kind).success, kind).toBe(true);
 		}
 	});
 
@@ -89,8 +88,8 @@ describe("legacy ids", () => {
 			"delivery_van_01",
 			"house_01",
 		]);
-		expect(scene.roads[0].style).toBe("hidden_route_01");
-		expect(scene.areas[0].type).toBe("water_01");
+		expect(scene.roads[0].kind).toBe("hidden_route_01");
+		expect(scene.areas[0].kind).toBe("water_01");
 	});
 
 	it("are upgraded in a world that needs repairing for another reason", () => {
@@ -98,8 +97,8 @@ describe("legacy ids", () => {
 		const { scene, report } = parseOrRepairScene(world);
 		expect(report?.fixed).toBe(1);
 		expect(scene.entities[0].kind).toBe("office_tower_01");
-		expect(scene.roads[0].style).toBe("hidden_route_01");
-		expect(scene.areas[0].type).toBe("water_01");
+		expect(scene.roads[0].kind).toBe("hidden_route_01");
+		expect(scene.areas[0].kind).toBe("water_01");
 	});
 
 	it("leave the input untouched, so it can be kept as a backup", () => {
@@ -111,12 +110,12 @@ describe("legacy ids", () => {
 
 	it("leave a world without old ids as it is", () => {
 		const world = { version: 1, entities: [{ id: "e1", kind: "house_01" }] };
-		expect(upgradeLegacyIds(world)).toBe(world);
+		expect(upgradeLegacyIds(world)).toEqual(world);
 	});
 
 	it("don't treat inherited object keys as old ids", () => {
 		const world = { version: 1, entities: [{ id: "e1", kind: "toString" }] };
-		expect(upgradeLegacyIds(world)).toBe(world);
+		expect(upgradeLegacyIds(world)).toEqual(world);
 	});
 });
 
@@ -188,25 +187,33 @@ describe("renamed fields (ADR-0071)", () => {
 	it("keep their values under the new names, without repairs", () => {
 		const { scene, report } = parseOrRepairScene(structuredClone(oldWorld));
 		expect(report).toBeNull();
-		expect(scene.drivingSide).toBe("left");
-		expect(scene.turnStyle).toBe("sharp");
+		expect(scene.traffic).toEqual({
+			drivingSide: "left",
+			turnStyle: "sharp",
+			leansInTurns: true,
+			keepsDistance: false,
+			overtakes: false,
+		});
 		expect(Object.values(scene.onScreen).every((shown) => shown === false)).toBe(true);
 		expect(scene.lighting.whenLightsAreOn).toBe("on");
-		expect(scene.traffic).toEqual({ keepSpacing: false, allowOvertaking: false });
-		expect(scene.camera).toMatchObject({ turntableOn: true, tiltShiftOn: true });
+		expect(scene.camera.turntable.isOn).toBe(true);
+		expect(scene.camera.tiltShift.isOn).toBe(true);
 		expect(scene.roads[0]).toMatchObject({
 			loops: true,
-			showMarkings: false,
-			showRailings: false,
-			drivingLane: "centre",
-			turnStyle: "sharp",
+			showsCentreLine: false,
+			showsRailings: false,
+			traffic: { drivingLane: "centre", turnStyle: "sharp" },
 		});
 		const [car] = scene.entities;
 		expect(car.follow?.turnStyle).toBe("smooth");
-		const lights = car.lights as Record<string, TEntityLight>;
-		expect(lights.headlights.whenOn).toBe("off");
-		const renamed = { onAbove: 5, valueAtFull: 50, valueAtLowColor: 10, valueAtHighColor: 90 };
-		expect(lights.headlights.data.strength).toMatchObject(renamed);
+		expect(car.lights.headlights.whenOn).toBe("off");
+		const renamed = {
+			switchesOnAbove: 5,
+			valueAtFull: 50,
+			valueAtLowColor: 10,
+			valueAtHighColor: 90,
+		};
+		expect(car.lights.headlights.data.strength).toMatchObject(renamed);
 		expect(car.colors.body.data.color).toMatchObject(renamed);
 	});
 
@@ -214,8 +221,8 @@ describe("renamed fields (ADR-0071)", () => {
 		const input = structuredClone(oldWorld);
 		upgradeLegacyIds(input);
 		expect(input).toEqual(oldWorld);
-		expect(parseScene({ version: 1, driving: "left", drivingSide: "right" }).drivingSide).toBe(
-			"right",
-		);
+		expect(
+			parseScene({ version: 1, driving: "left", drivingSide: "right" }).traffic.drivingSide,
+		).toBe("right");
 	});
 });

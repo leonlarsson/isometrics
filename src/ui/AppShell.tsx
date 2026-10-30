@@ -112,7 +112,7 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	const editing = useEditor((s) => s.mode === "edit");
 	const lighting = useEditor((s) => s.scene.lighting);
 	const timeEntry = useEditor((s) =>
-		s.scene.data.find((entry) => entry.key === s.scene.lighting.timeKey),
+		s.scene.data.find((entry) => entry.key === s.scene.lighting.data.time?.key),
 	);
 	const source =
 		lighting.timeSource === "cycle"
@@ -120,7 +120,7 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 			: lighting.timeSource === "clock"
 				? "Viewer's clock"
 				: lighting.timeSource === "data"
-					? `From data: ${timeEntry ? timeEntry.label || timeEntry.key : "no value"}`
+					? `From data: ${timeEntry ? timeEntry.name || timeEntry.key : "no value"}`
 					: "Fixed time";
 	// Each line can be hidden from View mode (World tab → Shown in View mode). Edit mode shows
 	// them all, faded when viewers won't see them.
@@ -129,27 +129,29 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	// Says why lines are struck through, in Edit mode, when any line shown here is.
 	const anyFaded =
 		editing &&
-		(!onScreen.showTitle || (!onScreen.showSubtitle && meta.subtitle) || !onScreen.showTimeOfDay);
+		(!onScreen.showsTitle ||
+			(!onScreen.showsSubtitle && meta.subtitle) ||
+			!onScreen.showsTimeOfDay);
 	if (
-		!shown(onScreen.showTitle) &&
-		!(shown(onScreen.showSubtitle) && meta.subtitle) &&
-		!shown(onScreen.showTimeOfDay)
+		!shown(onScreen.showsTitle) &&
+		!(shown(onScreen.showsSubtitle) && meta.subtitle) &&
+		!shown(onScreen.showsTimeOfDay)
 	) {
 		return null;
 	}
 	return (
 		// Label cards step aside for it (data-label-obstacle), like for the bars.
 		<div className={styles.sceneTitle} data-label-obstacle="">
-			{shown(onScreen.showTitle) && (
-				<h1 data-hidden-in-view={faded(onScreen.showTitle)}>{meta.title}</h1>
+			{shown(onScreen.showsTitle) && (
+				<h1 data-hidden-in-view={faded(onScreen.showsTitle)}>{meta.title}</h1>
 			)}
 
-			{shown(onScreen.showSubtitle) && meta.subtitle && (
-				<p data-hidden-in-view={faded(onScreen.showSubtitle)}>{meta.subtitle}</p>
+			{shown(onScreen.showsSubtitle) && meta.subtitle && (
+				<p data-hidden-in-view={faded(onScreen.showsSubtitle)}>{meta.subtitle}</p>
 			)}
 
-			{!shown(onScreen.showTimeOfDay) ? null : editing ? (
-				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.showTimeOfDay)}>
+			{!shown(onScreen.showsTimeOfDay) ? null : editing ? (
+				<p className={styles.sceneTime} data-hidden-in-view={faded(onScreen.showsTimeOfDay)}>
 					<span className={styles.sceneTimeOpen}>
 						<Tooltip label="Open the Time & light tab">
 							<Button variant="text" size="sm" icon="clock" onClick={onOpenSky}>

@@ -83,7 +83,7 @@ export const RealLightSource = ({ id, at, light, shape, reach }: IRealLightSourc
 export const realLightIntensity = (light: IResolvedLight, shape: TLightShape) =>
 	light.level *
 	BRIGHTNESS[shape] *
-	(shape === "windows" ? Math.min(1, 0.4 + light.litPanes * 2) : 1);
+	(shape === "windows" ? Math.min(1, 0.4 + light.litPaneShare * 2) : 1);
 
 /** The `count` candidates nearest, by `distanceTo` (any measure that grows with distance). */
 export const pickNearest = <T,>(

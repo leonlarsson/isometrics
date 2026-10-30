@@ -12,7 +12,7 @@ import {
 } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { partNameOf } from "#/parts/registry";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
+import { AREA_KIND_LABELS } from "#/scene/areas";
 
 import { Button } from "./Button";
 import { roadName, useRouteHint } from "./FollowOfferBar";
@@ -128,9 +128,9 @@ const TransformControls = () => {
 	const shapeName = road
 		? roadName(road)
 		: area
-			? area.name || `${AREA_TYPE_LABELS[area.type].toLowerCase()} area`
+			? area.name || `${AREA_KIND_LABELS[area.kind].toLowerCase()} area`
 			: fence
-				? fence.name || FENCE_STYLE_LABELS[fence.style].toLowerCase()
+				? fence.name || FENCE_STYLE_LABELS[fence.kind].toLowerCase()
 				: "";
 	const pointName = area ? "corners" : "points";
 	const what =

@@ -1,7 +1,7 @@
 import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
-import type { TLighting } from "#/scene/schema";
+import { DataBindingSchema, type TLighting } from "#/scene/schema";
 import { BALANCED_CONTRAST, formatHour, skyLightAt } from "#/scene/sun";
 
 import { FollowDataNote } from "./FollowDataNote";
@@ -167,12 +167,20 @@ export const LightTab = () => {
 					<>
 						<SelectField
 							label="Time from"
-							value={lighting.timeKey ?? ""}
+							value={lighting.data.time?.key ?? ""}
 							options={[
 								{ value: "", label: "Choose a data value…" },
-								...data.map((entry) => ({ value: entry.key, label: entry.label || entry.key })),
+								...data.map((entry) => ({ value: entry.key, label: entry.name || entry.key })),
 							]}
-							onChange={(key) => set("timeKey", key || null)}
+							onChange={(key) =>
+								commit((s) => {
+									if (key) {
+										s.lighting.data.time = DataBindingSchema.parse({ key });
+									} else {
+										delete s.lighting.data.time;
+									}
+								})
+							}
 							hint="Its value is the hour, 0–24 (e.g. 18.5 = 18:30)."
 						/>
 

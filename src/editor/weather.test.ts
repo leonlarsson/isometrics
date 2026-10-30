@@ -24,7 +24,7 @@ describe("weather (ADR-0102)", () => {
 	});
 
 	it("follows data: value ÷ value at full, up to all", () => {
-		const data = [{ key: "rain", label: "Rain", value: 12, unit: "mm" }];
+		const data = [{ key: "rain", name: "Rain", value: 12, unit: "mm" }];
 		const fromData = weather({
 			data: { rainAmount: DataBindingSchema.parse({ key: "rain", valueAtFull: 20 }) },
 		});

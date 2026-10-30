@@ -9,7 +9,7 @@ const TownShopSchema = z.object({
 	width: z.number().min(0.8).max(4).default(1.2),
 	depth: z.number().min(1).max(6).default(1.8),
 	floorCount: z.number().int().min(1).max(5).default(3),
-	showAwning: z.boolean().default(true),
+	showsAwning: z.boolean().default(true),
 });
 
 export const shop02 = definePart({
@@ -20,11 +20,12 @@ export const shop02 = definePart({
 		"Narrow old-town shop with its gable to the street and rooms above; its front faces +Z",
 	keywords: ["store", "shop", "bakery", "boutique", "old town", "townhouse", "awning"],
 	schema: TownShopSchema,
+	renamedProps: { showAwning: "showsAwning" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 0.8, max: 4, step: 0.1 },
 		{ key: "depth", label: "Depth", type: "number", min: 1, max: 6, step: 0.1 },
 		{ key: "floorCount", label: "Number of floors", type: "number", min: 1, max: 5, step: 1 },
-		{ key: "showAwning", label: "Show the awning", type: "boolean" },
+		{ key: "showsAwning", label: "Show the awning", type: "boolean" },
 	],
 	colors: [
 		{ id: "walls", name: "Walls", default: "#d98f6a", legacy: "color" },
@@ -34,7 +35,7 @@ export const shop02 = definePart({
 		{ id: "door", name: "Door", default: "#3d4f6b" },
 	],
 	lights: shopLights<z.output<typeof TownShopSchema>>((p) => [0, 0.4, p.depth / 2 + 0.5]),
-	footprint: (p) => [p.width + 0.1, p.depth + 0.1 + (p.showAwning ? 0.4 : 0)],
+	footprint: (p) => [p.width + 0.1, p.depth + 0.1 + (p.showsAwning ? 0.4 : 0)],
 	height: (p) => p.floorCount * FLOOR_HEIGHT + p.width * 0.55,
 	Component: ({ props: p, colors, palette, lights }) => {
 		const height = p.floorCount * FLOOR_HEIGHT;
@@ -61,7 +62,7 @@ export const shop02 = definePart({
 					light={lights.shopWindow}
 				/>
 
-				{p.showAwning && <Awning width={p.width * 0.9} front={front} color={colors.awning} />}
+				{p.showsAwning && <Awning width={p.width * 0.9} front={front} color={colors.awning} />}
 
 				<UpperWindows
 					width={p.width}

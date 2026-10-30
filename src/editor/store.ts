@@ -7,39 +7,39 @@ import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import {
-	AREA_TYPE_LABELS,
-	AREA_TYPES,
+	AREA_KIND_LABELS,
+	AREA_KINDS,
+	altitudeMovedTo,
 	areaTopAt,
 	cornerLift,
 	cornerWithLift,
-	elevationMovedTo,
 	groundHeightAt,
 	isInsidePolygon,
 	liftForTop,
 	middleOf,
 	takesCornerHeights,
 } from "#/scene/areas";
-import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
+import { bindingMapsOf, fenceBindingMapsOf, worldBindingMapsOf } from "#/scene/dataBindings";
 import { fenceLength } from "#/scene/fences";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
 	applySettingChange,
 	isUnsetSetting,
-	type TEntityColorChange,
+	type TColorSettingChange,
 	type TEntityLightChange,
 } from "#/scene/objectSettings";
 import {
 	joinedPoints,
 	pointWidth,
-	ROAD_STYLE_LABELS,
-	ROAD_STYLE_WIDTH,
+	ROAD_KIND_LABELS,
+	ROAD_KIND_WIDTH,
 	type TRoadEnd,
 } from "#/scene/roads";
 import {
 	AreaSchema,
 	CameraSettingsSchema,
-	EntityColorSchema,
+	ColorSettingSchema,
 	EntityLightSchema,
 	EntitySchema,
 	FenceSchema,
@@ -47,20 +47,20 @@ import {
 	RoadSchema,
 	type TArea,
 	type TAreaInput,
-	type TAreaType,
+	type TAreaKind,
 	type TDataBinding,
 	type TDataEntry,
 	type TEntity,
 	type TEntityInput,
 	type TFence,
 	type TFenceInput,
+	type TFenceKind,
 	type TFencePoint,
-	type TFenceStyle,
 	type TProjection,
 	type TRoad,
 	type TRoadInput,
+	type TRoadKind,
 	type TRoadPoint,
-	type TRoadStyle,
 	type TScene,
 	type TVec2,
 	type TViewPose,
@@ -175,11 +175,11 @@ export interface IRoadDrawing {
 	/** What the points will become. */
 	target: "road" | "area" | "fence";
 	/** Road style (roads only). */
-	style: TRoadStyle;
+	style: TRoadKind;
 	/** Area type (areas only). */
-	areaType: TAreaType;
+	areaType: TAreaKind;
 	/** Fence style (fences only). */
-	fenceStyle?: TFenceStyle;
+	fenceStyle?: TFenceKind;
 	points: TRoadPoint[];
 	/** When continuing an existing road: its id. Finishing replaces that road's points. */
 	roadId?: string;
@@ -222,14 +222,14 @@ export interface IJoinOffer {
 /** Where a vehicle being dragged would join a road if dropped now, for the route preview. */
 export interface IRoutePreview {
 	roadId: string;
-	reverse: boolean;
+	drivesTheOtherWay: boolean;
 }
 
 /** A vehicle that was just dropped onto a road; the UI asks whether it should drive along it. */
 export interface IFollowOffer extends IRoutePreview {
 	entityId: string;
-	/** Distance along the road where it would start (FollowSchema `offset`). */
-	offset: number;
+	/** Distance along the road where it would start (a follow's `startDistance`). */
+	startDistance: number;
 	/** Where it was dropped; the offer lapses once it has moved. */
 	position: TVec2;
 }
@@ -427,7 +427,7 @@ export interface IEditorState {
 	/** Shift+D: copy the selection in place and pick the copies up to move, as G does (ADR-0067). */
 	duplicateAndGrab: () => void;
 	/** Hide or lock everything selected, or show or unlock it (one undo step). */
-	setSelectedFlag: (flag: "hidden" | "locked", value: boolean) => void;
+	setSelectedFlag: (flag: "isHidden" | "isLocked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
 	setDragging: (dragging: boolean) => void;
@@ -480,7 +480,7 @@ export interface IEditorState {
 	/** Give an object, road or area a new name (empty: it's called by its kind again). */
 	renameItem: (item: ISceneItem, name: string) => void;
 	/** Set an item's `hidden` or `locked` flag (one undo step). */
-	setItemFlag: (item: ISceneItem, flag: "hidden" | "locked", value: boolean) => void;
+	setItemFlag: (item: ISceneItem, flag: "isHidden" | "isLocked", value: boolean) => void;
 	/** Hide the selection, or show it again if the active item is hidden (H). It stays selected. */
 	toggleSelectedHidden: () => void;
 	/** Show every hidden item again (Alt+H). */
@@ -553,7 +553,7 @@ export interface IEditorState {
 	setEntityColor: (
 		id: string,
 		colorId: string,
-		change: TEntityColorChange,
+		change: TColorSettingChange,
 		options?: ICommitOptions,
 	) => void;
 	/**
@@ -654,9 +654,9 @@ export interface IEditorState {
 	 */
 	splitFence: (id: string, index: number) => string | null;
 
-	startDrawing: (style: TRoadStyle) => void;
-	startAreaDrawing: (type: TAreaType) => void;
-	startFenceDrawing: (style: TFenceStyle) => void;
+	startDrawing: (style: TRoadKind) => void;
+	startAreaDrawing: (type: TAreaKind) => void;
+	startFenceDrawing: (style: TFenceKind) => void;
 	/** Continue drawing from one end of an existing open fence. */
 	continueFenceDrawing: (fenceId: string, end: TRoadEnd) => void;
 	/** Continue drawing from one end of an existing open road. */
@@ -906,7 +906,8 @@ const withSelectedItems = (
 
 /** Give an object a new name; a label card titled with its old name follows (ADR-0068). */
 export const renameEntity = (entity: Pick<TEntity, "name" | "label">, name: string) => {
-	if (entity.label && entity.label.title === entity.name) {
+	// An empty title shows the name anyway.
+	if (entity.label.title !== "" && entity.label.title === entity.name) {
 		entity.label.title = name;
 	}
 	entity.name = name;
@@ -933,16 +934,20 @@ const renameBindings = (
 /** Replace every reference to a data key (labels, detail tiles and parts' data key fields). */
 const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | null) => {
 	const swap = (keys: string[]) => keys.flatMap((key) => (key === from ? (to ? [to] : []) : [key]));
-	// The time of day from data (ADR-0052), its moods' too.
-	for (const lighting of [scene.lighting, ...scene.moods.map((mood) => mood.lighting)]) {
-		if (lighting.timeKey === from) {
-			lighting.timeKey = to;
-		}
+	// The time of day and the weather, their moods', and the ground's, roads' and areas' colours.
+	for (const bindings of worldBindingMapsOf(scene)) {
+		renameBindings(bindings, from, to);
 	}
-	// The weather's settings that follow data (ADR-0102), its moods' too.
-	renameBindings(scene.weather.data, from, to);
-	for (const mood of scene.moods) {
-		renameBindings(mood.weather.data, from, to);
+	for (const colors of [
+		scene.ground.colors,
+		...scene.roads.map((road) => road.colors),
+		...scene.areas.map((area) => area.colors),
+	]) {
+		for (const [id, color] of Object.entries(colors)) {
+			if (isUnsetSetting(color)) {
+				delete colors[id];
+			}
+		}
 	}
 	// Fences' colours and how much of them is built (ADR-0103).
 	for (const fence of scene.fences) {
@@ -956,9 +961,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 		}
 	}
 	for (const entity of scene.entities) {
-		if (entity.label) {
-			entity.label.dataKeys = swap(entity.label.dataKeys);
-		}
+		entity.label.dataKeys = swap(entity.label.dataKeys);
 		entity.details.dataKeys = swap(entity.details.dataKeys);
 		for (const field of getPart(entity.kind)?.fields ?? []) {
 			if (field.type === "dataKey" && entity.props[field.key] === from) {
@@ -1430,7 +1433,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						copy.follow.roadId = copiedRoad;
 					} else if (copy.follow && !leaveBehind) {
 						// A little further along the same road, like a single copy.
-						copy.follow.offset += 3;
+						copy.follow.startDistance += 3;
 					}
 					return copy;
 				});
@@ -1530,19 +1533,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			resetCamera: () => {
 				const defaults = CameraSettingsSchema.parse({});
 				get().commit((scene) => {
-					const { turntableOn, turntableSpeed, turntableDelay, keepsIsometricAngle } = scene.camera;
-					const { tiltShiftOn, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
-					scene.camera = {
-						...defaults,
-						turntableOn,
-						turntableSpeed,
-						turntableDelay,
-						keepsIsometricAngle,
-						tiltShiftOn,
-						tiltShiftBlur,
-						tiltShiftFocus,
-						tiltShiftPosition,
-					};
+					// The view's limits and opening go back; the turntable, tilt-shift and isometric lock stay.
+					const { turntable, tiltShift, keepsIsometricAngle } = scene.camera;
+					scene.camera = { ...defaults, turntable, tiltShift, keepsIsometricAngle };
 				});
 				set((s) => ({
 					projection: "orthographic",
@@ -1654,7 +1647,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				const item = selectedItem(state);
 				const found = item && listOf(state.scene, item.kind).find((thing) => thing.id === item.id);
 				if (found) {
-					state.setSelectedFlag("hidden", !found.hidden);
+					state.setSelectedFlag("isHidden", !found.isHidden);
 				}
 			},
 
@@ -1666,7 +1659,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						...scene.areas,
 						...scene.fences,
 					]) {
-						thing.hidden = false;
+						thing.isHidden = false;
 					}
 				}),
 
@@ -1825,8 +1818,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			addEntity: (input) => {
 				const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
 				// Without a height of its own, it stands on the ground where it's put (ADR-0098).
-				if (input.elevation === undefined) {
-					entity.elevation = groundHeightAt(get().scene.areas, entity.position);
+				if (input.altitude === undefined) {
+					entity.altitude = groundHeightAt(get().scene.areas, entity.position);
 				}
 				get().commit((scene) => {
 					scene.entities.push(entity);
@@ -1883,17 +1876,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().updateEntity(
 					id,
 					(entity) => {
-						const spec = getPart(entity.kind)?.colors.find((color) => color.id === colorId);
-						const current = entity.colors[colorId] ?? EntityColorSchema.parse({});
-						// An older world's colour for it becomes its setting here, then the old field goes.
-						const legacy = spec?.legacy ? entity[spec.legacy] : null;
-						const next = applySettingChange(
-							current.color === null && legacy ? { ...current, color: legacy } : current,
-							change,
-						);
-						if (spec?.legacy) {
-							entity[spec.legacy] = null;
-						}
+						const current = entity.colors[colorId] ?? ColorSettingSchema.parse({});
+						const next = applySettingChange(current, change);
 						if (isUnsetSetting(next)) {
 							delete entity.colors[colorId];
 						} else {
@@ -1910,9 +1894,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						const to: TVec2 = [round(position[0]), round(position[1])];
 						// Placed freely, as high above the ground there as here (ADR-0098).
 						if (how?.followGround) {
-							entity.elevation = elevationMovedTo(
+							entity.altitude = altitudeMovedTo(
 								get().scene.areas,
-								entity.elevation,
+								entity.altitude,
 								entity.position,
 								to,
 							);
@@ -1926,7 +1910,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().updateEntity(
 					id,
 					(entity) => {
-						entity.rotation = normalizeDegrees(entity.rotation + delta);
+						const [x, y, z] = entity.rotation;
+						entity.rotation = [x, normalizeDegrees(y + delta), z];
 					},
 					{ coalesce: `rotate:${id}` },
 				),
@@ -1951,7 +1936,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				renameEntity(copy, copyName(source.name, names, readPreferences().namesOfCopies));
 				copy.position = [source.position[0] + 1, source.position[1] + 1];
 				if (copy.follow) {
-					copy.follow.offset += 3;
+					copy.follow.startDistance += 3;
 				}
 				get().commit((scene) => {
 					scene.entities.push(copy);
@@ -2181,13 +2166,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().updateEntity(offer.entityId, (entity) => {
 					entity.follow = FollowSchema.parse({
 						roadId: offer.roadId,
-						offset: round(offer.offset),
-						reverse: offer.reverse,
+						startDistance: round(offer.startDistance),
+						drivesTheOtherWay: offer.drivesTheOtherWay,
 					});
 					// The road sets height, heading and slope now; these would add on top of it.
-					entity.elevation = 0;
-					entity.rotation = 0;
-					entity.pitch = 0;
+					entity.altitude = 0;
+					entity.rotation = [entity.rotation[0], 0, 0];
 				});
 			},
 
@@ -2335,7 +2319,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						target: "fence",
 						style: "road_01",
 						areaType: "grass_01",
-						fenceStyle: fence.style,
+						fenceStyle: fence.kind,
 						points,
 						fenceId,
 						reversed: end === "start",
@@ -2370,7 +2354,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				// Orient the points so new ones are added after the chosen end.
 				const points = end === "end" ? [...road.points] : [...road.points].reverse();
 				set({
-					drawing: { target: "road", style: road.style, areaType: "grass_01", points, roadId },
+					drawing: { target: "road", style: road.kind, areaType: "grass_01", points, roadId },
 					...NOTHING_SELECTED,
 					joinOffer: null,
 					followOffer: null,
@@ -2543,12 +2527,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					if (drawing.points.length < 3) {
 						return null;
 					}
-					const count = scene.areas.filter((a) => a.type === drawing.areaType).length;
+					const count = scene.areas.filter((a) => a.kind === drawing.areaType).length;
 					return get().addArea({
-						name: `${AREA_TYPE_LABELS[drawing.areaType]} ${count + 1}`,
-						type: drawing.areaType,
+						name: `${AREA_KIND_LABELS[drawing.areaType]} ${count + 1}`,
+						kind: drawing.areaType,
 						points: drawing.points.map(([x, z]) => [x, z]),
-						height: AREA_TYPES[drawing.areaType].startHeight,
+						height: AREA_KINDS[drawing.areaType].startHeight,
 					});
 				}
 				const loops = Boolean(options.loops) && drawing.points.length > 2;
@@ -2565,10 +2549,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 						return fenceId;
 					}
 					const fenceStyle = drawing.fenceStyle ?? "picket_fence_01";
-					const count = scene.fences.filter((f) => f.style === fenceStyle).length;
+					const count = scene.fences.filter((f) => f.kind === fenceStyle).length;
 					return get().addFence({
 						name: `${FENCE_STYLE_LABELS[fenceStyle]} ${count + 1}`,
-						style: fenceStyle,
+						kind: fenceStyle,
 						points,
 						loops,
 					});
@@ -2582,12 +2566,12 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					set({ ...NOTHING_SELECTED, selectedRoadId: roadId, tab: "object" });
 					return roadId;
 				}
-				const count = scene.roads.filter((r) => r.style === drawing.style).length;
+				const count = scene.roads.filter((r) => r.kind === drawing.style).length;
 				return get().addRoad({
-					name: `${ROAD_STYLE_LABELS[drawing.style]} ${count + 1}`,
-					style: drawing.style,
+					name: `${ROAD_KIND_LABELS[drawing.style]} ${count + 1}`,
+					kind: drawing.style,
 					points: drawing.points,
-					width: ROAD_STYLE_WIDTH[drawing.style],
+					width: ROAD_KIND_WIDTH[drawing.style],
 					loops,
 				});
 			},

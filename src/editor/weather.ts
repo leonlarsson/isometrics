@@ -1,5 +1,6 @@
 import { readScale } from "#/parts/dataBinding";
 import type { TDataEntry, TWeather } from "#/scene/schema";
+import type { ISkyWeather } from "#/scene/sky";
 
 import { useEditor } from "./store";
 
@@ -20,10 +21,15 @@ export interface IWeatherNow {
 	showsSplashes: boolean;
 	/** How much it dims, softens and greys the light (0 while weather doesn't soften it). */
 	overcast: number;
+	/** How cloudy it is (0–1), the clouds' colour (null: white, tinted by the light) and how fast they drift. */
+	cloudCover: number;
+	cloudColor: string | null;
+	cloudSpeed: number;
 }
 
 /** The weather's settings that can follow a data value. */
 export const WEATHER_DATA = [
+	"cloudCover",
 	"rainAmount",
 	"snowAmount",
 	"fogDensity",
@@ -50,6 +56,9 @@ export const weatherNow = (weather: TWeather, data?: readonly TDataEntry[]): IWe
 		snowCover: weather.snowCover ?? Math.min(1, snow * 1.3),
 		showsSplashes: weather.showsSplashes,
 		overcast: weather.softensLight ? Math.min(1, Math.max(rain * 0.9, snow * 0.75, fog * 0.7)) : 0,
+		cloudCover: amount("cloudCover"),
+		cloudColor: weather.cloudColor,
+		cloudSpeed: weather.cloudSpeed,
 	};
 };
 
@@ -62,3 +71,12 @@ export const weatherNowInWorld = () => {
 /** How overcast the world's weather makes the light (0–1), for components: changes with the weather. */
 export const useOvercast = () =>
 	useEditor((s) => weatherNow(s.scene.weather, s.scene.data).overcast);
+
+/** What the world's weather brings to the sky now (its clouds, overcast), for components. */
+export const useSkyWeather = (): ISkyWeather => {
+	const overcast = useOvercast();
+	const cloudCover = useEditor((s) => weatherNow(s.scene.weather, s.scene.data).cloudCover);
+	const cloudColor = useEditor((s) => s.scene.weather.cloudColor);
+	const cloudSpeed = useEditor((s) => s.scene.weather.cloudSpeed);
+	return { cloudCover, cloudColor, cloudSpeed, overcast };
+};

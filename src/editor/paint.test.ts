@@ -79,7 +79,7 @@ describe("painting objects (ADR-0091)", () => {
 			areas: [
 				{
 					id: "hill",
-					type: "raised_land_01",
+					kind: "raised_land_01",
 					height: 2,
 					points: [
 						[-5, -5],
@@ -93,14 +93,14 @@ describe("painting objects (ADR-0091)", () => {
 		expect(groundHeightAt(scene.areas, [0, 0])).toBe(2);
 		expect(groundHeightAt(scene.areas, [8, 8])).toBe(0);
 		const added = paintStamp(scene, { ...brush, size: 2 }, [0, 0], seeded(5));
-		expect(added.every((entity) => entity.elevation === 2)).toBe(true);
+		expect(added.every((entity) => entity.altitude === 2)).toBe(true);
 	});
 
 	it("erases only what the brush paints, and nothing locked", () => {
 		const scene = world({
 			entities: [
 				{ id: "pine", kind: "pine_tree_01", position: [1, 0] },
-				{ id: "locked_pine", kind: "pine_tree_01", position: [0, 1], locked: true },
+				{ id: "locked_pine", kind: "pine_tree_01", position: [0, 1], isLocked: true },
 				{ id: "house", kind: "house_01", position: [-1, 0] },
 				{ id: "far_pine", kind: "pine_tree_01", position: [9, 9] },
 			],

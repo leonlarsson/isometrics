@@ -22,7 +22,7 @@ const roadAndCar = async (page: Page) => {
 			{
 				id: "main",
 				name: "Main street",
-				style: "road_01",
+				kind: "road_01",
 				points: [
 					[-12, 0, 0],
 					[12, 0, 0],
@@ -70,8 +70,8 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 				e.follow = {
 					roadId: "main",
 					speed: 2,
-					offset: 0,
-					reverse: false,
+					startDistance: 0,
+					drivesTheOtherWay: false,
 					turnStyle: null,
 					leansInTurns: null,
 				};
@@ -84,7 +84,7 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 		await page.getByRole("switch", { name: "Drive the other way" }).click();
 		const follow = (await entity(page, "car"))?.follow;
 		expect(follow?.speed).toBe(5);
-		expect(follow?.reverse).toBe(true);
+		expect(follow?.drivesTheOtherWay).toBe(true);
 	});
 
 	test("the camera follows it, or rides along in perspective; Esc hands it back", async ({
@@ -95,8 +95,8 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 				e.follow = {
 					roadId: "main",
 					speed: 2,
-					offset: 0,
-					reverse: false,
+					startDistance: 0,
+					drivesTheOtherWay: false,
 					turnStyle: null,
 					leansInTurns: null,
 				};

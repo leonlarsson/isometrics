@@ -23,13 +23,14 @@ describe("worldJsonSchema", () => {
 		expect(van?.description).toMatch(/drive along a road/);
 	});
 
-	it("describes each kind's props, labelled like the inspector", () => {
-		const tower = entitySchema().allOf.find(
-			(rule) => rule.if.properties.kind.const === "office_tower_01",
+	it("describes each kind's props, labelled like the inspector and saying what they measure", () => {
+		const propsOf = (kind: string) =>
+			entitySchema().allOf.find((rule) => rule.if.properties.kind.const === kind)?.then.properties
+				.props.properties;
+		expect(propsOf("office_tower_01")?.floorCount?.description).toBe(
+			"Number of floors, a whole number.",
 		);
-		expect(tower?.then.properties.props.properties.floorCount?.description).toBe(
-			"Number of floors",
-		);
+		expect(propsOf("warehouse_01")?.width?.description).toBe("Width, in grid units.");
 	});
 
 	it("explains the format", () => {

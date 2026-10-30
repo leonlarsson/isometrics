@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import type { z } from "zod";
 
+import type { IColorSpec, TColorDefault } from "#/scene/colors";
 import type { TComesOn, TDataEntry } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
@@ -13,6 +14,8 @@ import type { IScenePalette } from "#/scene/theme";
  * e.g. a cabin or doorway). Beams and pools have a reach.
  */
 export type TLightShape = "lens" | "beam" | "pool" | "windows" | "glow";
+
+export type { IColorSpec, TColorDefault };
 
 /** Light shapes that light the ground, and so have a reach. */
 export const LIGHT_SHAPES_WITH_REACH: readonly TLightShape[] = ["beam", "pool"];
@@ -46,14 +49,14 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	strength?: number;
 	/** How far it lights the ground, in grid units at scale 1 (beams and pools). */
 	reach?: number;
-	/** Window lights: the part of its own panes that are lit, 0–1 (all of them if left out). */
-	litPanes?: number;
+	/** Window lights: the share of its own panes that are lit, 0–1 (all of them if left out). */
+	litPaneShare?: number;
 	/**
 	 * Window lights: how many of the building's panes are its, relative to its
-	 * other window lights' weights (9 and 1: nine panes in ten are its); 1 if
+	 * other window lights' pane weights (9 and 1: nine panes in ten are its); 1 if
 	 * left out. Changing it moves which panes are whose.
 	 */
-	weight?: number;
+	paneWeight?: number;
 	/**
 	 * How it comes on after dark: "atOnce" (the default), "oneByOne" (window
 	 * lights: pane after pane as it gets darker) or "gradually" (fading in).
@@ -67,7 +70,8 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	when?: "dark" | "driving" | "always";
 	/**
 	 * Settings older worlds kept elsewhere (props, the accent colour) before this
-	 * light had its own, used while the object's setting for it is unset.
+	 * light had its own: read once when a world is opened (`readWorld`), into the
+	 * object's settings for it where they're unset.
 	 */
 	legacy?: (stored: { props: Record<string, unknown>; accent: string | null }) => {
 		color?: string | null;
@@ -84,32 +88,6 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	realLight?(props: P): IRealLightSource | IRealLightSource[];
 }
 
-/**
- * One of a part's colours (ADR-0060), e.g. a house's roof. Objects store
- * their setting for it under its id and can let data set it; the Look tab
- * shows one per colour, in this order.
- */
-export interface IColorSpec<C extends string = string> {
-	/** Stable key objects store their setting under, e.g. "roof". Never change it. */
-	id: C;
-	/** What the Look tab calls it, e.g. "Roof". */
-	name: string;
-	/** Its colour until it's set: a hex colour, or one from the theme. */
-	default: TColorDefault;
-	/**
-	 * Which of the old per-object fields older worlds kept it in: the first
-	 * colour was `color`, the second `accent`. Read while it isn't set in `colors`.
-	 */
-	legacy?: "color" | "accent";
-	/**
-	 * It's see-through, like glass (ADR-0090): objects can set how see-through
-	 * it is (`transparency`, 0 solid to 1 clear), and until they do it's this.
-	 * Only for glass with something behind it; see-through things can't be
-	 * drawn together with their copies (ADR-0086).
-	 */
-	seeThrough?: { transparency: number };
-}
-
 /** One of a part's lights as it is right now (`resolveLights`). */
 export interface IResolvedLight {
 	/** Lit at all (`level` above 0). */
@@ -120,9 +98,9 @@ export interface IResolvedLight {
 	/** How far it lights the ground, in grid units at scale 1. */
 	reach: number;
 	/** Window lights: the part of its own panes that are lit, 0–1. */
-	litPanes: number;
+	litPaneShare: number;
 	/** Window lights: how many of the building's panes are its, relative to the others' weights. */
-	weight: number;
+	paneWeight: number;
 }
 
 export type TPartCategory =
@@ -171,9 +149,6 @@ export type TFieldSpec<K extends string = string> =
 			options: { value: string; label: string }[];
 	  };
 
-/** A fixed hex colour, or one derived from the active theme palette. */
-export type TColorDefault = string | ((palette: IScenePalette) => string);
-
 export interface IPartRenderProps<P, C extends string = string> {
 	props: P;
 	/** Each of its colours (its `colors`, by id) as it is right now: set, from data, or the default. */
@@ -216,7 +191,8 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	schema: z.ZodType<P>;
 	/**
 	 * Props that were renamed: old name → new name. A world saved with the old
-	 * name keeps its value (`resolveProps` reads it when the new one is missing).
+	 * name keeps its value: `readWorld` moves it to the new name, and
+	 * `resolveProps` reads it there too when the new one is missing.
 	 * Never remove an entry. Renamed again: point every older name at the newest,
 	 * oldest first (`{ pulse: "flashes", pulses: "flashes" }`; of several stored,
 	 * the latest listed wins). See docs/adr/0056-safe-schema-and-part-changes.md.
@@ -227,6 +203,12 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * (unused); listing them tells the old-world tests it isn't a mistake.
 	 */
 	removedProps?: readonly string[];
+	/**
+	 * Props older worlds had that sized the whole part evenly, as an object's
+	 * `scale` does: when a world is opened (`readWorld`) each is multiplied into
+	 * the scale and removed. List them in removedProps too. Never remove an entry.
+	 */
+	foldedIntoScale?: readonly string[];
 	fields: TFieldSpec<Extract<keyof P, string>>[];
 	/**
 	 * Its colours (ADR-0060), in the order the Look tab shows them; the first is

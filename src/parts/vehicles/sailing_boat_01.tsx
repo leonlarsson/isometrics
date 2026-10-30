@@ -10,7 +10,7 @@ import { boatHullGeometry } from "./boatKit";
 
 const SailingBoatSchema = z.object({
 	length: z.number().min(1).max(6).default(2),
-	showSails: z.boolean().default(true),
+	showsSails: z.boolean().default(true),
 });
 
 const HULL_HEIGHT = 0.26;
@@ -63,9 +63,11 @@ export const sailingBoat01 = definePart({
 		"Small sailing boat with a mainsail and a jib, sails up or furled; can sail along a route",
 	keywords: ["sailboat", "yacht", "dinghy", "regatta", "harbour", "boat"],
 	schema: SailingBoatSchema,
+	renamedLights: { masthead: "mastheadLight" },
+	renamedProps: { showSails: "showsSails" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 1, max: 6, step: 0.1 },
-		{ key: "showSails", label: "Sails up", type: "boolean" },
+		{ key: "showsSails", label: "Sails up", type: "boolean" },
 	],
 	colors: [
 		{ id: "hull", name: "Hull", default: "#f7f7f4", legacy: "color" },
@@ -74,7 +76,7 @@ export const sailingBoat01 = definePart({
 	],
 	lights: [
 		{
-			id: "masthead",
+			id: "mastheadLight",
 			name: "Masthead light",
 			description: "The white light at the top of the mast, on after dark.",
 			shape: "lens",
@@ -137,7 +139,7 @@ export const sailingBoat01 = definePart({
 				</mesh>
 
 				<LightLens
-					light={lights.masthead}
+					light={lights.mastheadLight}
 					size={[0.04, 0.04, 0.04]}
 					position={[mastX, HULL_HEIGHT + mastHeight + 0.02, 0]}
 				/>
@@ -172,7 +174,7 @@ export const sailingBoat01 = definePart({
 					/>
 				))}
 
-				{p.showSails ? (
+				{p.showsSails ? (
 					<>
 						<mesh
 							geometry={mainsail}

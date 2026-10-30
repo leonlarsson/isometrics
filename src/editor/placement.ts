@@ -16,7 +16,7 @@ const footprintRect = (entity: TEntity): IRect | null => {
 	}
 	const [w, d] = part.footprint(resolveProps(part, entity.props));
 	// Use the rotated bounding box so placement is conservative.
-	const angle = (entity.rotation * Math.PI) / 180;
+	const angle = (entity.rotation[1] * Math.PI) / 180;
 	const cos = Math.abs(Math.cos(angle));
 	const sin = Math.abs(Math.sin(angle));
 	const halfW = ((w * cos + d * sin) * entity.scale) / 2;

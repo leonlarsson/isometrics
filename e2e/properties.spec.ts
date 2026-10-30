@@ -6,8 +6,8 @@ import { act, entity, expect, loadWorld, openEditor, read, showView, test } from
 const smallStreet = async (page: Page) => {
 	await loadWorld(page, {
 		entities: [
-			{ id: "a", kind: "house_01", name: "House A", position: [-4, 0], rotation: 0 },
-			{ id: "b", kind: "house_01", name: "House B", position: [4, 0], rotation: 90 },
+			{ id: "a", kind: "house_01", name: "House A", position: [-4, 0], rotation: [0, 0, 0] },
+			{ id: "b", kind: "house_01", name: "House B", position: [4, 0], rotation: [0, 90, 0] },
 			{ id: "lamp", kind: "street_lamp_01", name: "Lamp", position: [0, 4] },
 		],
 	});
@@ -32,12 +32,12 @@ test.describe("the properties editor (ADR-0054)", () => {
 		// The turn around the vertical is Rotation's Y (X and Z tip it, ADR-0097).
 		await box(page, "Rotation (°) Y").fill("45");
 		await box(page, "Rotation (°) Y").press("Enter");
-		expect((await entity(page, "a"))?.rotation).toBe(45);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(45);
 
 		// Typing is one undo step.
 		await page.locator("canvas").hover();
 		await page.keyboard.press("Control+z");
-		expect((await entity(page, "a"))?.rotation).toBe(0);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(0);
 	});
 
 	test("a length's presets set it in one click, the chosen one showing (shipping container)", async ({
@@ -110,7 +110,7 @@ test.describe("the properties editor (ADR-0054)", () => {
 	test("the settings search finds a setting, and says when nothing matches", async ({ page }) => {
 		await page.getByRole("button", { name: "Search the settings" }).click();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("lift");
-		await expect(box(page, "Lift")).toBeVisible();
+		await expect(box(page, "Altitude")).toBeVisible();
 		await expect(box(page, "Rotation (°) Y")).toBeHidden();
 		await page.getByRole("searchbox", { name: "Search the settings" }).fill("zzzz");
 		await expect(page.getByText(/No settings match/)).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("the properties editor (ADR-0054)", () => {
 	test("the label card shows on the object, with its values (ADR-0008)", async ({ page }) => {
 		await tab(page, "Label").click();
 		await page.getByRole("switch", { name: "Show" }).click();
-		expect((await entity(page, "a"))?.label?.enabled).toBe(true);
+		expect((await entity(page, "a"))?.label?.isShown).toBe(true);
 		await expect(page.getByRole("button", { name: /House A/ }).first()).toBeVisible();
 	});
 
@@ -146,13 +146,13 @@ test.describe("the properties editor (ADR-0054)", () => {
 		await divider.focus();
 		await page.keyboard.press("ArrowLeft");
 		const lights = () =>
-			entity(page, "tower").then((e) => e?.lights as Record<string, { weight: number | null }>);
+			entity(page, "tower").then((e) => e?.lights as Record<string, { paneWeight: number | null }>);
 		const after = await lights();
-		expect(after.windows.weight).toBe(Number(before) - 1);
-		expect((after.windows.weight ?? 0) + (after.screens.weight ?? 0)).toBe(100);
+		expect(after.windows.paneWeight).toBe(Number(before) - 1);
+		expect((after.windows.paneWeight ?? 0) + (after.screens.paneWeight ?? 0)).toBe(100);
 		// One undo step for the whole split.
 		await act(page, (s) => s.undo());
-		expect((await lights())?.windows?.weight ?? null).toBeNull();
+		expect((await lights())?.windows?.paneWeight ?? null).toBeNull();
 	});
 });
 
@@ -170,8 +170,8 @@ test.describe("several selected (ADR-0064)", () => {
 		await expect(page.getByText("Mixed").first()).toBeVisible();
 		await box(page, "Rotation").fill("30");
 		await box(page, "Rotation").press("Enter");
-		expect((await entity(page, "a"))?.rotation).toBe(30);
-		expect((await entity(page, "b"))?.rotation).toBe(30);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(30);
+		expect((await entity(page, "b"))?.rotation[1]).toBe(30);
 		await expect(page.getByText("Mixed")).toHaveCount(0);
 	});
 

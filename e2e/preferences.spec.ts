@@ -87,7 +87,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 			areas: [
 				{
 					id: "pond",
-					type: "water_01",
+					kind: "water_01",
 					points: [
 						[-6, -6],
 						[6, -6],

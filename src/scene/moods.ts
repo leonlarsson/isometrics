@@ -16,12 +16,7 @@ export const moodOf = (scene: TScene, id: string, name: string): TMood => ({
 	sky: structuredClone(scene.sky),
 	water: structuredClone(scene.water),
 	weather: structuredClone(scene.weather),
-	camera: {
-		tiltShiftOn: scene.camera.tiltShiftOn,
-		tiltShiftBlur: scene.camera.tiltShiftBlur,
-		tiltShiftFocus: scene.camera.tiltShiftFocus,
-		tiltShiftPosition: scene.camera.tiltShiftPosition,
-	},
+	tiltShift: structuredClone(scene.camera.tiltShift),
 });
 
 /** Puts `mood` on the world: its lighting, sky, water, weather and tilt-shift. */
@@ -30,7 +25,7 @@ export const putOnMood = (scene: Draft<TScene>, mood: TMood) => {
 	scene.sky = structuredClone(mood.sky);
 	scene.water = structuredClone(mood.water);
 	scene.weather = structuredClone(mood.weather);
-	Object.assign(scene.camera, mood.camera);
+	scene.camera.tiltShift = structuredClone(mood.tiltShift);
 };
 
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -43,6 +38,6 @@ export const wearsMood = (scene: TScene, mood: TMood) => {
 		sameJson(now.sky, mood.sky) &&
 		sameJson(now.water, mood.water) &&
 		sameJson(now.weather, mood.weather) &&
-		sameJson(now.camera, mood.camera)
+		sameJson(now.tiltShift, mood.tiltShift)
 	);
 };

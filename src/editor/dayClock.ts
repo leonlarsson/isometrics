@@ -36,7 +36,7 @@ export const sceneHours = (
 		case "clock":
 			return local(now);
 		case "data": {
-			const value = Number(data.find((entry) => entry.key === lighting.timeKey)?.value);
+			const value = Number(data.find((entry) => entry.key === lighting.data.time?.key)?.value);
 			return Number.isFinite(value) ? ((value % 24) + 24) % 24 : lighting.time;
 		}
 		default:

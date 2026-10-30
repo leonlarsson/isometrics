@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 export const cypress01 = definePart({
 	kind: "cypress_01",
@@ -9,16 +9,15 @@ export const cypress01 = definePart({
 	category: "nature",
 	description: "Tall, narrow dark-green column, as in Mediterranean gardens",
 	keywords: ["tree", "conifer", "italian", "garden", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: "#3f6e47", legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
 	],
-	footprint: (p) => [0.6 * p.size, 0.6 * p.size],
-	height: (p) => 1.9 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.6, 0.6],
+	height: () => 1.9,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.1, 0]} castShadow>
 				<cylinderGeometry args={[0.04, 0.05, 0.2, 8]} />
 

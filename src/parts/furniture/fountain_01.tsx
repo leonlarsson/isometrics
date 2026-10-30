@@ -8,7 +8,7 @@ import { metres, UNITS_PER_METRE } from "./furnitureSize";
 
 const FountainSchema = z.object({
 	diameter: z.number().min(0.8).max(6).default(1.8),
-	showJet: z.boolean().default(true),
+	showsJet: z.boolean().default(true),
 });
 
 /** The basin's rim, in metres: how tall and thick. */
@@ -22,9 +22,10 @@ export const fountain01 = definePart({
 		"A round stone basin with a two-tier fountain and a jet of water, for squares and parks",
 	keywords: ["fountain", "water", "basin", "square", "plaza", "park", "street furniture"],
 	schema: FountainSchema,
+	renamedProps: { showJet: "showsJet" },
 	fields: [
 		{ key: "diameter", label: "Width", type: "number", min: 0.8, max: 6, step: 0.1 },
-		{ key: "showJet", label: "Show the jet of water", type: "boolean" },
+		{ key: "showsJet", label: "Show the jet of water", type: "boolean" },
 	],
 	colors: [
 		{ id: "stone", name: "Stone", default: "#cfc8bb", legacy: "color" },
@@ -40,7 +41,7 @@ export const fountain01 = definePart({
 		},
 	],
 	footprint: (p) => [p.diameter, p.diameter],
-	height: (p) => metres(p.showJet ? 2.4 : 1.6),
+	height: (p) => metres(p.showsJet ? 2.4 : 1.6),
 	Component: ({ props: p, colors, lights }) => {
 		// Drawn in metres.
 		const radius = p.diameter / UNITS_PER_METRE / 2;
@@ -101,7 +102,7 @@ export const fountain01 = definePart({
 				))}
 
 				{/* The jet, and the water falling from the top bowl. */}
-				{p.showJet && (
+				{p.showsJet && (
 					<group>
 						<mesh position={[0, 1.95, 0]}>
 							<coneGeometry args={[0.07, 0.75, 8]} />

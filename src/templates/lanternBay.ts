@@ -3,12 +3,17 @@ import {
 	SceneSchema,
 	type TAreaInput,
 	type TEntityInput,
+	type TLightingInput,
+	type TMoodInput,
 	type TRoadInput,
 	type TScene,
+	type TSceneInput,
+	type TTiltShiftInput,
 	type TVec2,
 } from "#/scene/schema";
 
 import { paint } from "./paint";
+import { turned } from "./turned";
 
 /*
  * Lantern Bay: a waterfront that shows off the look (ADR-0072 to ADR-0077),
@@ -48,7 +53,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "bay",
 		name: "Lantern Bay",
-		type: "water_01",
+		kind: "water_01",
 		points: [
 			[-22.8, 4],
 			[-12, 3.2],
@@ -70,9 +75,8 @@ const AREAS: TAreaInput[] = [
 		// Sheltered by the pier: still enough to mirror the yachts and the town.
 		id: "basin",
 		name: "Harbour basin",
-		type: "water_01",
-		rippleStrength: 0.06,
-		reflectionStrength: 1,
+		kind: "water_01",
+		water: { rippleStrength: 0.06, reflectionStrength: 1 },
 		points: [
 			[2, 0],
 			[17, 0],
@@ -83,7 +87,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "beach",
 		name: "Beach",
-		type: "sand_01",
+		kind: "sand_01",
 		points: [
 			[-22.8, 1.6],
 			[2, 1.6],
@@ -96,7 +100,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "promenade",
 		name: "Promenade",
-		type: "plaza_01",
+		kind: "plaza_01",
 		points: [
 			[-23.2, -1.6],
 			[17, -1.6],
@@ -109,7 +113,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "pier",
 		name: "Breakwater",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: PIER,
 		points: [
 			[17, -1.6],
@@ -122,7 +126,7 @@ const AREAS: TAreaInput[] = [
 		id: "back_lawns",
 		name: "Back lawns",
 		// In front of the row of houses at the back, down to the road.
-		type: "grass_01",
+		kind: "grass_01",
 		points: [
 			[-30, -21],
 			[-4.25, -21],
@@ -134,7 +138,7 @@ const AREAS: TAreaInput[] = [
 		// The town's garden between the towers and the headland, round a still pond.
 		id: "lighthouse_gardens",
 		name: "Lighthouse gardens",
-		type: "grass_01",
+		kind: "grass_01",
 		points: [
 			[-30, -14.8],
 			[-21.6, -14.8],
@@ -146,9 +150,8 @@ const AREAS: TAreaInput[] = [
 		// Sheltered and still: it mirrors the garden's lamps and the lit towers at night.
 		id: "garden_pond",
 		name: "Garden pond",
-		type: "water_01",
-		rippleStrength: 0.04,
-		reflectionStrength: 1,
+		kind: "water_01",
+		water: { rippleStrength: 0.04, reflectionStrength: 1 },
 		points: [
 			[-27.6, -10.6],
 			[-25.4, -11.2],
@@ -162,7 +165,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "schoolyard",
 		name: "Schoolyard",
-		type: "grass_01",
+		kind: "grass_01",
 		points: [
 			[16, -21],
 			[30, -21],
@@ -173,7 +176,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "terrace_lawns",
 		name: "Terrace lawns",
-		type: "grass_01",
+		kind: "grass_01",
 		points: [
 			[-3.6, -21],
 			[16, -21],
@@ -185,7 +188,7 @@ const AREAS: TAreaInput[] = [
 		// The upper town's ridge along the back, its cliff facing the bay.
 		id: "ridge",
 		name: "Upper town",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: RIDGE,
 		points: [
 			[-30, -26],
@@ -198,7 +201,7 @@ const AREAS: TAreaInput[] = [
 		// A rocky point out into the bay at the west end, the lighthouse on top.
 		id: "headland",
 		name: "Lighthouse point",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: HEADLAND,
 		points: [
 			[-30, -1.6],
@@ -215,7 +218,7 @@ const AREAS: TAreaInput[] = [
 		// Past the pier: the harbour lanes' quay, facing the water.
 		id: "east_quay",
 		name: "East quay",
-		type: "plaza_01",
+		kind: "plaza_01",
 		points: [
 			[18.4, -1.6],
 			[30, -1.6],
@@ -226,7 +229,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "square",
 		name: "Tower square",
-		type: "plaza_01",
+		kind: "plaza_01",
 		points: [
 			[-10, -12],
 			[8, -12],
@@ -242,7 +245,7 @@ const ROADS: TRoadInput[] = [
 	{
 		id: LOOP_ID,
 		name: "Waterfront loop",
-		style: "road_01",
+		kind: "road_01",
 		loops: true,
 		cornerRadius: 3,
 		points: [
@@ -255,7 +258,7 @@ const ROADS: TRoadInput[] = [
 	{
 		id: FERRY_ID,
 		name: "Ferry line",
-		style: "hidden_route_01",
+		kind: "hidden_route_01",
 		loops: true,
 		cornerRadius: 3,
 		points: [
@@ -269,9 +272,9 @@ const ROADS: TRoadInput[] = [
 		// Along the front of the ridge, past the upper town's doors.
 		id: RIDGE_PATH_ID,
 		name: "Ridge path",
-		style: "dirt_path_01",
+		kind: "dirt_path_01",
 		width: 1.1,
-		drivingLane: "centre",
+		traffic: { drivingLane: "centre" },
 		points: [
 			[-29, -21.8, RIDGE],
 			[29, -21.8, RIDGE],
@@ -281,12 +284,12 @@ const ROADS: TRoadInput[] = [
 		// From the west end of the promenade up onto the headland, to the lighthouse.
 		id: HEADLAND_PATH_ID,
 		name: "Headland path",
-		style: "dirt_path_01",
+		kind: "dirt_path_01",
 		width: 1,
 		cornerRadius: 1.5,
-		supports: "embankment",
-		showRailings: false,
-		drivingLane: "centre",
+		heldUpBy: "embankment",
+		showsRailings: false,
+		traffic: { drivingLane: "centre" },
 		points: [
 			[-22.6, -0.6],
 			[-25.4, -0.4, HEADLAND],
@@ -335,7 +338,7 @@ if (lanternTower) {
 const bayview = towers.find((tower) => tower.id === "tower_bayview");
 if (bayview) {
 	bayview.lights = {
-		windows: { data: { litPanes: { key: "offices_at_work", valueAtFull: 100 } } },
+		windows: { data: { litPaneShare: { key: "offices_at_work", valueAtFull: 100 } } },
 	};
 	bayview.label = {
 		title: "Bayview offices",
@@ -378,9 +381,15 @@ const warehouse: TEntityInput[] = [
 		kind: "warehouse_01",
 		name: "Fish hall",
 		position: [18.5, -11],
-		props: { width: 6.4, depth: 4, height: 2.6, doorCount: 3, showSolarPanels: true },
+		props: { width: 6.4, depth: 4, height: 2.6, doorCount: 3, showsSolarPanels: true },
 	},
-	{ id: "hall_truck", kind: "truck_01", name: "Fish truck", position: [17, -6.4], rotation: 90 },
+	{
+		id: "hall_truck",
+		kind: "truck_01",
+		name: "Fish truck",
+		position: [17, -6.4],
+		rotation: turned(90),
+	},
 ];
 
 // ---------------------------------------------------------------- waterfront
@@ -405,14 +414,14 @@ const pier: TEntityInput[] = [
 		kind: "street_lamp_01",
 		name: `Pier lamp ${i + 1}`,
 		position: [17.7, z] as TVec2,
-		elevation: PIER,
+		altitude: PIER,
 	})),
 	{
 		id: "pier_beacon",
 		kind: "beacon_01",
 		name: "Pier beacon",
 		position: [17.7, 12.4],
-		elevation: PIER,
+		altitude: PIER,
 		props: { radius: 0.6, pulses: true },
 	},
 ];
@@ -424,7 +433,7 @@ const marina: TEntityInput[] = [
 		name: "Marina office",
 		position: [20.4, -0.4],
 		colors: paint({ walls: "#e8b83a" }),
-		props: { width: 2.6, depth: 1.6, height: 1.2, showGarageDoor: false },
+		props: { width: 2.6, depth: 1.6, height: 1.2, showsGarageDoor: false },
 		label: {
 			title: "Marina",
 			dataKeys: ["berths", "boats_in"],
@@ -441,7 +450,7 @@ const marina: TEntityInput[] = [
 		kind: "yacht_01",
 		name: `Moored yacht ${i + 1}`,
 		position: [x, 1.7] as TVec2,
-		rotation: -90,
+		rotation: turned(-90),
 		props: { length: [2.4, 2.8, 3.4, 2.6, 3][i], deckCount: i === 2 ? 2 : 1 },
 	})),
 	...[
@@ -452,7 +461,7 @@ const marina: TEntityInput[] = [
 		kind: "yacht_01",
 		name: `Basin yacht ${i + 1}`,
 		position: [x, z] as TVec2,
-		rotation,
+		rotation: turned(rotation),
 		props: { length: 2.6, deckCount: 1 },
 	})),
 	// Out in the bay, clear of the ferry line.
@@ -461,7 +470,7 @@ const marina: TEntityInput[] = [
 		kind: "yacht_01",
 		name: "Bay yacht",
 		position: [4, 12.6],
-		rotation: -20,
+		rotation: turned(-20),
 		colors: paint({ stripe: "#2bb58c" }),
 		props: { length: 2.8, deckCount: 2 },
 	},
@@ -478,7 +487,7 @@ const marina: TEntityInput[] = [
 		kind: "sailing_boat_01",
 		name: `Sailing boat ${i + 1}`,
 		position: [x, z] as TVec2,
-		rotation,
+		rotation: turned(rotation),
 		colors: paint({ sails }),
 		props: { length: [2.2, 1.8, 2.6, 2, 2.2][i] },
 	})),
@@ -488,7 +497,7 @@ const marina: TEntityInput[] = [
 		name: "Bay ferry",
 		colors: paint({ hull: "#2f3a56", funnel: "#e8b83a" }),
 		props: { length: 5 },
-		follow: { roadId: FERRY_ID, speed: 1.3, offset: 6 },
+		follow: { roadId: FERRY_ID, speed: 1.3, startDistance: 6 },
 		// Its cabins glow brighter the more passengers it carries: 60 is 100% (ADR-0058).
 		lights: { cabins: { data: { strength: { key: "ferry_passengers", valueAtFull: 60 } } } },
 		label: {
@@ -507,7 +516,7 @@ const marina: TEntityInput[] = [
 		name: "Beach café",
 		position: [-6, 2.7],
 		// Its front to the promenade; its tables out on the sand either side.
-		rotation: 180,
+		rotation: turned(180),
 		colors: paint({ walls: "#f3d9b0", awning: "#f07b4f" }),
 		props: { width: 2.2 },
 	},
@@ -522,8 +531,18 @@ const marina: TEntityInput[] = [
 			position: [x, z + 0.34] as TVec2,
 			colors: paint({ canopy: ["#f07b4f", "#3cbf9a"][i] }),
 		},
-		{ id: `beach_chair_${i}a`, kind: "chair_01", position: [x - 0.32, z] as TVec2, rotation: 90 },
-		{ id: `beach_chair_${i}b`, kind: "chair_01", position: [x + 0.32, z] as TVec2, rotation: -90 },
+		{
+			id: `beach_chair_${i}a`,
+			kind: "chair_01",
+			position: [x - 0.32, z] as TVec2,
+			rotation: turned(90),
+		},
+		{
+			id: `beach_chair_${i}b`,
+			kind: "chair_01",
+			position: [x + 0.32, z] as TVec2,
+			rotation: turned(-90),
+		},
 	]),
 ];
 
@@ -533,27 +552,27 @@ const traffic: TEntityInput[] = [
 		kind: "car_01",
 		name: "Taxi",
 		colors: paint({ body: "#e8b83a" }),
-		follow: { roadId: LOOP_ID, speed: 3, offset: 4 },
+		follow: { roadId: LOOP_ID, speed: 3, startDistance: 4 },
 	},
 	{
 		id: "loop_car_2",
 		kind: "car_01",
 		name: "Red car",
 		colors: paint({ body: "#e05a4a" }),
-		follow: { roadId: LOOP_ID, speed: 3.3, offset: 30 },
+		follow: { roadId: LOOP_ID, speed: 3.3, startDistance: 30 },
 	},
 	{
 		id: "loop_van",
 		kind: "delivery_van_01",
 		name: "Delivery van",
-		follow: { roadId: LOOP_ID, speed: 2.6, offset: 52 },
+		follow: { roadId: LOOP_ID, speed: 2.6, startDistance: 52 },
 	},
 	{
 		id: "loop_car_3",
 		kind: "car_01",
 		name: "Blue car",
 		colors: paint({ body: "#4a64e0" }),
-		follow: { roadId: LOOP_ID, speed: 2.9, offset: 72 },
+		follow: { roadId: LOOP_ID, speed: 2.9, startDistance: 72 },
 	},
 ];
 
@@ -572,7 +591,7 @@ const nature: TEntityInput[] = [
 		id: `tree_${i}`,
 		kind: "round_tree_01",
 		position: [x, z] as TVec2,
-		props: { size: 0.9 + (i % 3) * 0.15 },
+		scale: 0.9 + (i % 3) * 0.15,
 	})),
 	// In the two gaps between the houses at the back.
 	...[
@@ -582,7 +601,7 @@ const nature: TEntityInput[] = [
 		id: `pine_${i}`,
 		kind: "pine_tree_01",
 		position: [x, z] as TVec2,
-		props: { size: 0.9 },
+		scale: 0.9,
 	})),
 ];
 
@@ -612,7 +631,7 @@ const upperTown: TEntityInput[] = [
 		kind: "terraced_row_01",
 		name: `Upper town row ${i + 1}`,
 		position: [x, UPPER_ROW] as TVec2,
-		elevation: RIDGE,
+		altitude: RIDGE,
 		colors: paint({ walls, otherWalls, roof }),
 		props: { houseCount },
 	})),
@@ -621,21 +640,21 @@ const upperTown: TEntityInput[] = [
 		kind: "church_01",
 		name: "St Elmo's",
 		position: [-5.5, UPPER_ROW + 0.2],
-		elevation: RIDGE,
-		props: { length: 2.6, towerHeight: 4.2 },
+		altitude: RIDGE,
+		props: { depth: 2.6, towerHeight: 4.2 },
 	},
 	...[-19, -9, -1.6, 9.5, 18.4, 28.2].map((x, i) => ({
 		id: `upper_cypress_${i}`,
 		kind: "cypress_01",
 		position: [x, UPPER_ROW - 0.2] as TVec2,
-		elevation: RIDGE,
-		props: { size: 0.9 + (i % 2) * 0.2 },
+		altitude: RIDGE,
+		scale: 0.9 + (i % 2) * 0.2,
 	})),
 	...[-26, -20.6, -13, -8, -3, 2, 7.2, 12, 17, 21, 26].map((x, i) => ({
 		id: `upper_lantern_${i}`,
 		kind: "street_lamp_02",
 		position: [x, -22.7] as TVec2,
-		elevation: RIDGE,
+		altitude: RIDGE,
 		props: { height: 1.1 },
 	})),
 ];
@@ -647,11 +666,11 @@ const headland: TEntityInput[] = [
 		kind: "lighthouse_01",
 		name: "Point lighthouse",
 		position: [-27.6, 7.6],
-		elevation: HEADLAND,
+		altitude: HEADLAND,
 		props: { height: 3.4 },
 		details: { description: "Lit every evening since 1891." },
 	},
-	{ id: "headland_bench", kind: "bench_01", position: [-25.8, 9.2], elevation: HEADLAND },
+	{ id: "headland_bench", kind: "bench_01", position: [-25.8, 9.2], altitude: HEADLAND },
 	...[
 		[-26.9, 1.8],
 		[-25.5, 4.8],
@@ -659,7 +678,7 @@ const headland: TEntityInput[] = [
 		id: `headland_bollard_${i}`,
 		kind: "bollard_light_01",
 		position: [x, z] as TVec2,
-		elevation: HEADLAND,
+		altitude: HEADLAND,
 	})),
 	...[
 		[-28.8, 2.2],
@@ -670,21 +689,21 @@ const headland: TEntityInput[] = [
 		id: `headland_grass_${i}`,
 		kind: "tall_grass_01",
 		position: [x, z] as TVec2,
-		elevation: HEADLAND,
+		altitude: HEADLAND,
 	})),
 	{
 		id: "headland_bush",
 		kind: "bush_01",
 		position: [-29, 5.2],
-		elevation: HEADLAND,
-		props: { size: 0.9 },
+		altitude: HEADLAND,
+		scale: 0.9,
 	},
 	{
 		id: "headland_pine",
 		kind: "pine_tree_01",
 		position: [-29.1, 1],
-		elevation: HEADLAND,
-		props: { size: 0.9 },
+		altitude: HEADLAND,
+		scale: 0.9,
 	},
 	// At the foot of the cliffs, in the sea.
 	{ id: "headland_rocks_1", kind: "rocks_01", position: [-24.2, 11.6], props: { rockCount: 4 } },
@@ -728,8 +747,18 @@ const harbourLanes: TEntityInput[] = [
 	].flatMap(([x, z], i) => [
 		{ id: `lanes_table_${i}`, kind: "cafe_table_01", position: [x, z] as TVec2 },
 		{ id: `lanes_parasol_${i}`, kind: "parasol_01", position: [x, z - 0.34] as TVec2 },
-		{ id: `lanes_chair_${i}a`, kind: "chair_01", position: [x - 0.32, z] as TVec2, rotation: 90 },
-		{ id: `lanes_chair_${i}b`, kind: "chair_01", position: [x + 0.32, z] as TVec2, rotation: -90 },
+		{
+			id: `lanes_chair_${i}a`,
+			kind: "chair_01",
+			position: [x - 0.32, z] as TVec2,
+			rotation: turned(90),
+		},
+		{
+			id: `lanes_chair_${i}b`,
+			kind: "chair_01",
+			position: [x + 0.32, z] as TVec2,
+			rotation: turned(-90),
+		},
 	]),
 	{
 		id: "lanes_string_lights",
@@ -742,7 +771,7 @@ const harbourLanes: TEntityInput[] = [
 		kind: "sailing_boat_01",
 		name: "Moored sailing boat",
 		position: [24, 2.6],
-		props: { length: 2, showSails: false },
+		props: { length: 2, showsSails: false },
 	},
 	{
 		id: "lanes_terrace",
@@ -760,7 +789,7 @@ const harbourLanes: TEntityInput[] = [
 		props: { width: 3.2, depth: 2, floorCount: 6 },
 	},
 	{ id: "lanes_birch_1", kind: "birch_01", position: [23, -8.2] },
-	{ id: "lanes_birch_2", kind: "birch_01", position: [29, -11.4], props: { size: 0.9 } },
+	{ id: "lanes_birch_2", kind: "birch_01", position: [29, -11.4], scale: 0.9 },
 ];
 
 /** Terraced houses behind the loop road with lawns in front, and trees. */
@@ -773,9 +802,9 @@ const terraceHouses: TEntityInput[] = [
 		props: { houseCount: 6 },
 		colors: paint({ walls: "#e8b83a", otherWalls: "#f4f1ea", roof: "#4a4e55" }),
 	},
-	{ id: "back_broad_tree_1", kind: "round_tree_02", position: [11.4, -17.8], props: { size: 1 } },
+	{ id: "back_broad_tree_1", kind: "round_tree_02", position: [11.4, -17.8], scale: 1 },
 	{ id: "back_birch", kind: "birch_01", position: [14.2, -18.6] },
-	{ id: "back_broad_tree_2", kind: "round_tree_02", position: [-2.2, -18.2], props: { size: 0.9 } },
+	{ id: "back_broad_tree_2", kind: "round_tree_02", position: [-2.2, -18.2], scale: 0.9 },
 ];
 
 /**
@@ -786,8 +815,8 @@ const POND: TVec2 = [-25.9, -8.8];
 const gardens: TEntityInput[] = [
 	// Facing the pond from north, south and east (a bench sits facing +Z).
 	{ id: "garden_bench_north", kind: "bench_01", position: [POND[0], -12.4] },
-	{ id: "garden_bench_south", kind: "bench_01", position: [POND[0], -5.2], rotation: 180 },
-	{ id: "garden_bench_east", kind: "bench_01", position: [-22.5, POND[1]], rotation: -90 },
+	{ id: "garden_bench_south", kind: "bench_01", position: [POND[0], -5.2], rotation: turned(180) },
+	{ id: "garden_bench_east", kind: "bench_01", position: [-22.5, POND[1]], rotation: turned(-90) },
 	...[0, 1, 2, 3, 4, 5].map((i) => {
 		const angle = (i / 6) * Math.PI * 2 + 0.5;
 		return {
@@ -803,7 +832,7 @@ const gardens: TEntityInput[] = [
 		id: "garden_flowers_1",
 		kind: "flower_bed_01",
 		position: [-29.2, -12.6],
-		rotation: 90,
+		rotation: turned(90),
 		props: { length: 2, width: 0.7 },
 	},
 	{
@@ -813,12 +842,12 @@ const gardens: TEntityInput[] = [
 		props: { length: 1.6, width: 0.6 },
 		colors: paint({ flowers: "#c06bd8", otherFlowers: "#f7f7f4" }),
 	},
-	{ id: "garden_tree_1", kind: "round_tree_02", position: [-29.1, -6.2], props: { size: 1.1 } },
-	{ id: "garden_tree_2", kind: "round_tree_02", position: [-22.7, -11.6], props: { size: 0.9 } },
+	{ id: "garden_tree_1", kind: "round_tree_02", position: [-29.1, -6.2], scale: 1.1 },
+	{ id: "garden_tree_2", kind: "round_tree_02", position: [-22.7, -11.6], scale: 0.9 },
 	{ id: "garden_birch_1", kind: "birch_01", position: [-28.9, -9.6] },
-	{ id: "garden_birch_2", kind: "birch_01", position: [-24.4, -13.7], props: { size: 0.9 } },
+	{ id: "garden_birch_2", kind: "birch_01", position: [-24.4, -13.7], scale: 0.9 },
 	{ id: "garden_reeds", kind: "tall_grass_01", position: [-24, -10.4] },
-	{ id: "garden_picnic", kind: "picnic_table_01", position: [-22.8, -5.6], rotation: 90 },
+	{ id: "garden_picnic", kind: "picnic_table_01", position: [-22.8, -5.6], rotation: turned(90) },
 	{ id: "garden_bin", kind: "bin_01", position: [-24.4, -5] },
 	{
 		id: "keepers_cottage",
@@ -839,8 +868,8 @@ const school: TEntityInput[] = [
 		position: [21.4, -18.6],
 		colors: paint({ walls: "#d9a07a", flag: "#e8b83a" }),
 	},
-	{ id: "school_tree_1", kind: "round_tree_01", position: [17.2, -17], props: { size: 1 } },
-	{ id: "school_tree_2", kind: "round_tree_02", position: [27.8, -18.6], props: { size: 0.9 } },
+	{ id: "school_tree_1", kind: "round_tree_01", position: [17.2, -17], scale: 1 },
+	{ id: "school_tree_2", kind: "round_tree_02", position: [27.8, -18.6], scale: 0.9 },
 	{ id: "school_picnic_1", kind: "picnic_table_01", position: [25.6, -19.8] },
 	{ id: "school_bench", kind: "bench_01", position: [18.4, -16] },
 ];
@@ -852,33 +881,35 @@ const ridgeCyclist: TEntityInput[] = [
 		kind: "bicycle_01",
 		name: "Cyclist",
 		colors: paint({ riderTop: "#f2c230" }),
-		follow: { roadId: RIDGE_PATH_ID, speed: 0.9, offset: 10 },
+		follow: { roadId: RIDGE_PATH_ID, speed: 0.9, startDistance: 10 },
 	},
 ];
 
 // ---------------------------------------------------------------- moods
 
 /** Its look, the same in every mood but for the time of day (ADR-0078). */
-const SKY = { cloudCover: 0.2, starDensity: 0.9 };
-const WATER = { rippleStrength: 0.45 };
-const TILT_SHIFT = {
-	tiltShiftOn: true,
-	tiltShiftBlur: 0.45,
-	tiltShiftFocus: 0.38,
-	tiltShiftPosition: 0.5,
+const SKY: TSceneInput["sky"] = { starDensity: 0.9 };
+const WEATHER: TSceneInput["weather"] = { cloudCover: 0.2 };
+const WATER: TSceneInput["water"] = { rippleStrength: 0.45 };
+const TILT_SHIFT: TTiltShiftInput = {
+	isOn: true,
+	blurStrength: 0.45,
+	sharpBandHeight: 0.38,
+	sharpBandPosition: 0.5,
 };
-const LIGHTING = { dayLength: 300, sunShadeContrast: 0.75 };
+const LIGHTING = { dayLength: 300, sunShadeContrast: 0.75 } satisfies TLightingInput;
 
 /** From golden hour into the night, a day in five minutes while motion plays (ADR-0052). */
-const EVENING_PASSES = { ...LIGHTING, time: 18.3, timeSource: "cycle" as const };
+const EVENING_PASSES = { ...LIGHTING, time: 18.3, timeSource: "cycle" } satisfies TLightingInput;
 
-const mood = (id: string, name: string, lighting: Record<string, unknown>) => ({
+const mood = (id: string, name: string, lighting: TLightingInput): TMoodInput => ({
 	id,
 	name,
 	lighting: { ...LIGHTING, ...lighting },
 	sky: SKY,
 	water: WATER,
-	camera: TILT_SHIFT,
+	weather: WEATHER,
+	tiltShift: TILT_SHIFT,
 });
 
 const MOODS = [
@@ -896,13 +927,14 @@ export const createLanternBayScene = (): TScene =>
 			subtitle: "An evening on the waterfront",
 		},
 		theme: "system",
-		ground: { width: 60, depth: 52, color: null },
-		drivingSide: "right",
+		ground: { width: 60, depth: 52 },
+		traffic: { drivingSide: "right" },
 		// It opens wearing The evening passes.
 		lighting: EVENING_PASSES,
 		sky: SKY,
 		water: WATER,
-		camera: { openingViewpointId: "view_bay", lowestElevation: 5, ...TILT_SHIFT },
+		weather: WEATHER,
+		camera: { openingViewpointId: "view_bay", lowestElevation: 5, tiltShift: TILT_SHIFT },
 		moods: MOODS,
 		viewpoints: [
 			{
@@ -1002,13 +1034,13 @@ export const createLanternBayScene = (): TScene =>
 			},
 		],
 		data: [
-			{ key: "evening_visitors", label: "Visitors tonight", value: 3400 },
-			{ key: "restaurants_open", label: "Restaurants open", value: 18 },
-			{ key: "offices_at_work", label: "Offices at work", value: 35, unit: "%" },
-			{ key: "berths", label: "Berths taken", value: "38 / 44" },
-			{ key: "boats_in", label: "Boats in tonight", value: 12 },
-			{ key: "ferry_next", label: "Next departure", value: 8, unit: " min" },
-			{ key: "ferry_passengers", label: "Passengers", value: 42 },
+			{ key: "evening_visitors", name: "Visitors tonight", value: 3400 },
+			{ key: "restaurants_open", name: "Restaurants open", value: 18 },
+			{ key: "offices_at_work", name: "Offices at work", value: 35, unit: "%" },
+			{ key: "berths", name: "Berths taken", value: "38 / 44" },
+			{ key: "boats_in", name: "Boats in tonight", value: 12 },
+			{ key: "ferry_next", name: "Next departure", value: 8, unit: " min" },
+			{ key: "ferry_passengers", name: "Passengers", value: 42 },
 		],
 		areas: AREAS,
 		roads: ROADS,
@@ -1031,4 +1063,4 @@ export const createLanternBayScene = (): TScene =>
 			...gardens,
 			...school,
 		],
-	});
+	} satisfies TSceneInput);

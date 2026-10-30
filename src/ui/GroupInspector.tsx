@@ -7,13 +7,18 @@ import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
-import { COLOR_DATA, colorDefault, colorSettingOf, resolveTransparency } from "#/parts/colorModel";
-import { comesOnOf, lightDefaults, lightSettingsOf } from "#/parts/lightModel";
+import {
+	COLOR_DATA,
+	colorSettingOf,
+	resolveColorDefault,
+	resolveTransparency,
+} from "#/parts/colorModel";
+import { comesOnOf, lightDefaults } from "#/parts/lightModel";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
-import type { TEntityColorChange } from "#/scene/objectSettings";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { AREA_KIND_LABELS } from "#/scene/areas";
+import type { TColorSettingChange } from "#/scene/objectSettings";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TEntity, TScene } from "#/scene/schema";
 
 import { IconButton, IconButtonGroup } from "./Button";
@@ -59,14 +64,14 @@ const kindNameOf = (scene: TScene, item: ISceneItem) => {
 	}
 	if (item.kind === "road") {
 		const road = scene.roads.find((r) => r.id === item.id);
-		return road ? ROAD_STYLE_LABELS[road.style] : "";
+		return road ? ROAD_KIND_LABELS[road.kind] : "";
 	}
 	if (item.kind === "fence") {
 		const fence = scene.fences.find((f) => f.id === item.id);
-		return fence ? FENCE_STYLE_LABELS[fence.style] : "";
+		return fence ? FENCE_STYLE_LABELS[fence.kind] : "";
 	}
 	const area = scene.areas.find((a) => a.id === item.id);
-	return area ? AREA_TYPE_LABELS[area.type] : "";
+	return area ? AREA_KIND_LABELS[area.kind] : "";
 };
 
 /** The selected things by what they are, in the order first selected: "Round tree", 2 of them… */
@@ -103,8 +108,8 @@ const SelectionPanel = ({ items }: { items: readonly ISceneItem[] }) => {
 	const things = items.flatMap(
 		(item) => listOf(scene, item.kind).find((thing) => thing.id === item.id) ?? [],
 	);
-	const allHidden = things.every((thing) => thing.hidden);
-	const allLocked = things.every((thing) => thing.locked);
+	const allHidden = things.every((thing) => thing.isHidden);
+	const allLocked = things.every((thing) => thing.isLocked);
 
 	return (
 		<Section
@@ -118,14 +123,14 @@ const SelectionPanel = ({ items }: { items: readonly ISceneItem[] }) => {
 						icon={allHidden ? "eyeOff" : "eye"}
 						label={allHidden ? "Show them (H)" : "Hide them (H)"}
 						pressed={allHidden}
-						onClick={() => store().setSelectedFlag("hidden", !allHidden)}
+						onClick={() => store().setSelectedFlag("isHidden", !allHidden)}
 					/>
 
 					<IconButton
 						icon={allLocked ? "lock" : "unlock"}
 						label={allLocked ? "Unlock them" : "Lock them"}
 						pressed={allLocked}
-						onClick={() => store().setSelectedFlag("locked", !allLocked)}
+						onClick={() => store().setSelectedFlag("isLocked", !allLocked)}
 					/>
 
 					<IconButton
@@ -201,15 +206,15 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 
 					<SliderField
 						label="Rotation"
-						value={entities.at(-1)?.rotation ?? 0}
-						mixed={differ(entities.map((entity) => entity.rotation))}
+						value={entities.at(-1)?.rotation[1] ?? 0}
+						mixed={differ(entities.map((entity) => entity.rotation[1]))}
 						min={0}
 						max={359}
 						step={15}
 						suffix="°"
 						onChange={(v) =>
 							edit("rotation", (e) => {
-								e.rotation = v;
+								e.rotation = [e.rotation[0], v, e.rotation[2]];
 							})
 						}
 					/>
@@ -230,15 +235,15 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 					/>
 
 					<SliderField
-						label="Lift"
-						value={entities.at(-1)?.elevation ?? 0}
-						mixed={differ(entities.map((entity) => entity.elevation))}
+						label="Altitude"
+						value={entities.at(-1)?.altitude ?? 0}
+						mixed={differ(entities.map((entity) => entity.altitude))}
 						min={0}
 						max={20}
 						step={0.1}
 						onChange={(v) =>
 							edit("elevation", (e) => {
-								e.elevation = v;
+								e.altitude = v;
 							})
 						}
 					/>
@@ -362,7 +367,9 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 					// Each one's colour as it shows, from its own part's spec for this id.
 					const shown = holders.map(({ entity, part }) => {
 						const own = part.colors.find((color) => color.id === spec.id) ?? spec;
-						return colorSettingOf(entity, spec.id)?.color ?? colorDefault(own, entity, palette);
+						return (
+							colorSettingOf(entity, spec.id)?.color ?? resolveColorDefault(own.default, palette)
+						);
 					});
 					const bindings = entities.map((entity) => colorSettingOf(entity, spec.id)?.data.color);
 					// See-through when every one of them has it see-through, each as it shows.
@@ -372,14 +379,10 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 					const transparencies = holders.map(({ entity, part }) =>
 						resolveTransparency(part.colors.find((color) => color.id === spec.id) ?? spec, entity),
 					);
-					const inherited = holders.every(({ entity, part }) => {
-						const own = part.colors.find((color) => color.id === spec.id) ?? spec;
-						return (
-							(colorSettingOf(entity, spec.id)?.color ??
-								(own.legacy ? entity[own.legacy] : null)) === null
-						);
-					});
-					const change = (colorChange: TEntityColorChange, field?: string) =>
+					const inherited = holders.every(
+						({ entity }) => colorSettingOf(entity, spec.id)?.color == null,
+					);
+					const change = (colorChange: TColorSettingChange, field?: string) =>
 						writeAll(
 							(id, options) =>
 								useEditor.getState().setEntityColor(id, spec.id, colorChange, options),
@@ -458,16 +461,16 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 				// Each one's settings for this light as they show, to see which differ.
 				const shown = holders.map(({ entity, part }) => {
 					const own = (part.lights ?? []).find((light) => light.id === spec.id) ?? spec;
-					const { setting, objectMode } = lightSettingsOf(part, entity.lights, spec.id);
-					const defaults = lightDefaults(own, entity, palette);
+					const setting = entity.lights[spec.id];
+					const defaults = lightDefaults(own, palette);
 					return {
-						mode: setting?.whenOn ?? objectMode,
+						mode: setting?.whenOn ?? "auto",
 						comesOn: comesOnOf(own, setting),
 						schedule: setting?.schedule ?? [],
 						color: setting?.color ?? defaults.color,
 						strength: setting?.strength ?? defaults.strength,
 						reach: setting?.reach ?? defaults.reach,
-						litPanes: setting?.litPanes ?? defaults.litPanes,
+						litPaneShare: setting?.litPaneShare ?? defaults.litPaneShare,
 						data: setting?.data ?? {},
 					};
 				});
@@ -476,20 +479,21 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 						? differ(shown.map((light) => light.data[key.slice(5)]))
 						: differ(shown.map((light) => light[key as keyof (typeof shown)[number]]));
 				const { entity: active, part: activePart } = holders[holders.length - 1];
-				const { setting, objectMode } = lightSettingsOf(activePart, active.lights, spec.id);
+				const setting = active.lights[spec.id];
 				const windowWeights = (activePart.lights ?? [])
 					.filter((light) => light.shape === "windows")
-					.reduce((sum, light) => sum + (light.weight ?? 1), 0);
+					.reduce((sum, light) => sum + (light.paneWeight ?? 1), 0);
 				return (
 					<LightSettings
 						key={`${spec.id}:${spec.shape}`}
 						spec={spec}
-						defaults={lightDefaults(spec, active, palette)}
+						defaults={lightDefaults(spec, palette)}
 						setting={setting}
-						inheritedMode={objectMode}
 						data={data}
 						hour={hour}
-						windowShare={spec.shape === "windows" ? (spec.weight ?? 1) / windowWeights : undefined}
+						windowShare={
+							spec.shape === "windows" ? (spec.paneWeight ?? 1) / windowWeights : undefined
+						}
 						mixed={mixed}
 						appliesTo={appliesTo(holders, total)}
 						menu={<LightCopyPasteMenu entity={active} spec={spec} />}

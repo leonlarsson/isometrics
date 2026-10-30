@@ -11,9 +11,9 @@ const load = () => {
 			version: 1,
 			ground: { width: 20, depth: 20 },
 			entities: [
-				{ id: "a", kind: "house_01", position: [-2, 0], rotation: 0, scale: 1 },
-				{ id: "b", kind: "house_01", position: [2, 0], rotation: 90, scale: 2 },
-				{ id: "fixed", kind: "house_01", position: [0, 4], locked: true },
+				{ id: "a", kind: "house_01", position: [-2, 0], rotation: [0, 0, 0], scale: 1 },
+				{ id: "b", kind: "house_01", position: [2, 0], rotation: [0, 90, 0], scale: 2 },
+				{ id: "fixed", kind: "house_01", position: [0, 4], isLocked: true },
 				{ id: "car", kind: "car_01", follow: { roadId: "r" } },
 			],
 			roads: [
@@ -73,10 +73,10 @@ describe("group transforms (ADR-0064)", () => {
 		transformSelected({ turn: 90 });
 		// Counter-clockwise seen from above: +X goes to -Z.
 		expect(entity("b")?.position.map((v) => v + 0)).toEqual([0, -2]);
-		expect(entity("b")?.rotation).toBe(180);
+		expect(entity("b")?.rotation[1]).toBe(180);
 		expect(entity("a")?.position.map((v) => v + 0)).toEqual([0, 2]);
-		expect(entity("a")?.rotation).toBe(90);
-		expect(entity("car")?.rotation).toBe(0);
+		expect(entity("a")?.rotation[1]).toBe(90);
+		expect(entity("car")?.rotation[1]).toBe(0);
 	});
 
 	it("resizes sizes and spacing together, within every object's limits", () => {
@@ -93,13 +93,13 @@ describe("group transforms (ADR-0064)", () => {
 
 	it("lifts objects and road points; objects may sink into the ground, roads not (ADR-0097)", () => {
 		transformSelected({ lift: 2 });
-		expect(entity("a")?.elevation).toBe(2);
+		expect(entity("a")?.altitude).toBe(2);
 		expect(road().points[0][2]).toBe(3);
 		transformSelected({ lift: -10 });
-		expect(entity("a")?.elevation).toBe(-8);
+		expect(entity("a")?.altitude).toBe(-8);
 		expect(road().points[1][2]).toBe(0);
 		transformSelected({ lift: -100 });
-		expect(entity("a")?.elevation).toBe(-30);
+		expect(entity("a")?.altitude).toBe(-30);
 	});
 });
 
@@ -197,7 +197,7 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 				areas: [
 					{
 						id: "plateau",
-						type: "raised_land_01",
+						kind: "raised_land_01",
 						height: 2,
 						points: [
 							[4, -4],
@@ -209,8 +209,8 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 				],
 				entities: [
 					{ id: "house", kind: "house_01", position: [0, 0] },
-					{ id: "sign", kind: "house_01", position: [0, 6], elevation: 1 },
-					{ id: "onTop", kind: "house_01", position: [8, 0], elevation: 2 },
+					{ id: "sign", kind: "house_01", position: [0, 6], altitude: 1 },
+					{ id: "onTop", kind: "house_01", position: [8, 0], altitude: 2 },
 				],
 			}),
 		);
@@ -220,21 +220,21 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 		const store = useEditor.getState();
 		const freely = { followGround: true };
 		store.moveEntity("house", [6, 0], undefined, freely);
-		expect(entity("house")?.elevation).toBe(2);
+		expect(entity("house")?.altitude).toBe(2);
 		store.moveEntity("house", [-6, 0], undefined, freely);
-		expect(entity("house")?.elevation).toBe(0);
+		expect(entity("house")?.altitude).toBe(0);
 		store.moveEntity("sign", [8, 2], undefined, freely);
-		expect(entity("sign")?.elevation).toBe(3);
+		expect(entity("sign")?.altitude).toBe(3);
 	});
 
 	it("moved exactly (an axis, a typed distance, the keys), keeps its height", () => {
 		useEditor.getState().moveEntity("house", [6, 0]);
-		expect(entity("house")?.elevation).toBe(0);
+		expect(entity("house")?.altitude).toBe(0);
 	});
 
 	it("lands new objects on the ground where they're put", () => {
 		const id = useEditor.getState().addEntity({ kind: "house_01", position: [10, 0] });
-		expect(entity(id)?.elevation).toBe(2);
+		expect(entity(id)?.altitude).toBe(2);
 	});
 
 	it("placed freely as a group, each lands on the ground there", () => {
@@ -243,8 +243,8 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 			{ kind: "entity", id: "sign" },
 		]);
 		transformSelected({ offset: [8, -3], followGround: true });
-		expect(entity("house")?.elevation).toBe(2);
-		expect(entity("sign")?.elevation).toBe(3);
+		expect(entity("house")?.altitude).toBe(2);
+		expect(entity("sign")?.altitude).toBe(3);
 	});
 
 	it("moves with the land it stands on, lifted once", () => {
@@ -254,7 +254,7 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 		]);
 		transformSelected({ offset: [-10, 0], lift: 1 });
 		expect(useEditor.getState().scene.areas[0].height).toBe(3);
-		expect(entity("onTop")?.elevation).toBe(3);
+		expect(entity("onTop")?.altitude).toBe(3);
 		expect(entity("onTop")?.position).toEqual([-2, 0]);
 	});
 });

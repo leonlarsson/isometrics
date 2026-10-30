@@ -12,7 +12,7 @@ import { definePart } from "../types";
 const WindTurbineSchema = z.object({
 	towerHeight: z.number().min(2).max(14).default(5.5),
 	bladeLength: z.number().min(0.8).max(6).default(2.6),
-	rotorTurns: z.boolean().default(true),
+	rotorSpins: z.boolean().default(true),
 	rotorSecondsPerTurn: z.number().min(1).max(30).default(5),
 });
 
@@ -78,10 +78,11 @@ export const windTurbine01 = definePart({
 		"Tall wind turbine whose three-bladed rotor faces +Z and turns, with a red warning light on top after dark",
 	keywords: ["windmill", "wind farm", "energy", "power", "renewable", "electricity", "turbine"],
 	schema: WindTurbineSchema,
+	renamedProps: { rotorTurns: "rotorSpins" },
 	fields: [
 		{ key: "towerHeight", label: "Tower height", type: "number", min: 2, max: 14, step: 0.1 },
 		{ key: "bladeLength", label: "Blade length", type: "number", min: 0.8, max: 6, step: 0.1 },
-		{ key: "rotorTurns", label: "Rotor turns", type: "boolean" },
+		{ key: "rotorSpins", label: "Rotor turns", type: "boolean" },
 		{
 			key: "rotorSecondsPerTurn",
 			label: "Seconds per turn",
@@ -135,7 +136,7 @@ export const windTurbine01 = definePart({
 					<group position={[0, 0, HUB_OUT]}>
 						<Rotor
 							bladeLength={p.bladeLength}
-							turns={p.rotorTurns}
+							turns={p.rotorSpins}
 							secondsPerTurn={p.rotorSecondsPerTurn}
 							blades={colors.blades}
 							hub={colors.nacelle}

@@ -28,8 +28,8 @@ export const officeTower01 = definePart({
 			description: "Lamps in the offices.",
 			shape: "windows",
 			color: "#e3a14c",
-			litPanes: 0.28,
-			weight: 9,
+			litPaneShare: 0.28,
+			paneWeight: 9,
 			comesOn: "oneByOne",
 			// The windows' light on the street and the buildings on every side of the tower (the screens
 			// add none of their own).
@@ -52,8 +52,8 @@ export const officeTower01 = definePart({
 			description: "Computer screens left on at desks.",
 			shape: "windows",
 			color: "#8fb4e0",
-			litPanes: 0.2,
-			weight: 1,
+			litPaneShare: 0.2,
+			paneWeight: 1,
 			comesOn: "oneByOne",
 		},
 	],

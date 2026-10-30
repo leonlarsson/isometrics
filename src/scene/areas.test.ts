@@ -16,7 +16,7 @@ import {
 import { AreaSchema } from "./schema";
 
 const area = (id: string, points: [number, number][], extra = {}) =>
-	AreaSchema.parse({ id, type: "water_01", points, ...extra });
+	AreaSchema.parse({ id, kind: "water_01", points, ...extra });
 
 const square = (x: number, z: number, size: number): [number, number][] => [
 	[x, z],
@@ -52,7 +52,7 @@ describe("water seams (ADR-0075)", () => {
 	it("are none without other water, or for land and raised water", () => {
 		const pond = area("pond", square(0, 0, 4));
 		expect(waterSeams(pond, [pond])).toEqual([]);
-		const lawn = AreaSchema.parse({ id: "lawn", type: "grass_01", points: square(-2, -2, 8) });
+		const lawn = AreaSchema.parse({ id: "lawn", kind: "grass_01", points: square(-2, -2, 8) });
 		expect(waterSeams(pond, [pond, lawn])).toEqual([]);
 		const raised = area("raised", square(0, 0, 4), { height: 1 });
 		expect(waterSeams(raised, [raised, area("lake", square(-5, -5, 20))])).toEqual([]);
@@ -116,8 +116,8 @@ describe("area corners with their own heights (ADR-0096)", () => {
 });
 
 describe("peaks inside an area (ADR-0101)", () => {
-	const field = (peaks: [number, number, number][], type = "grass_01") =>
-		AreaSchema.parse({ id: "hill", type, points: square(0, 0, 4), peaks });
+	const field = (peaks: [number, number, number][], kind = "grass_01") =>
+		AreaSchema.parse({ id: "hill", kind, points: square(0, 0, 4), peaks });
 
 	it("joins a peak in the middle to every corner, so a hill rises evenly", () => {
 		const triangles = triangulateWithPoints(square(0, 0, 4), [[2, 2]]);

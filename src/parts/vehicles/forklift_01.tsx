@@ -6,7 +6,7 @@ import { definePart } from "../types";
 
 const ForkliftSchema = z.object({
 	forkHeight: z.number().min(0).max(1).default(0.1),
-	showLoad: z.boolean().default(true),
+	showsLoad: z.boolean().default(true),
 });
 
 /** The mast at the front: where it stands and how high it reaches. */
@@ -18,12 +18,14 @@ export const forklift01 = definePart({
 	name: "Forklift",
 	category: "vehicles",
 	description:
-		"Warehouse forklift with raisable forks, a pallet of boxes and a warning beacon; forks face +X, can drive along a route",
+		"Warehouse forklift with raisable forks, a pallet of boxes and a warning light; forks face +X, can drive along a route",
 	keywords: ["warehouse", "pallet", "lift truck", "depot", "logistics", "vehicle"],
 	schema: ForkliftSchema,
+	renamedLights: { beacon: "warningLight" },
+	renamedProps: { showLoad: "showsLoad" },
 	fields: [
 		{ key: "forkHeight", label: "Fork height", type: "number", min: 0, max: 1, step: 0.05 },
-		{ key: "showLoad", label: "Show the load", type: "boolean" },
+		{ key: "showsLoad", label: "Show the load", type: "boolean" },
 	],
 	colors: [
 		{ id: "body", name: "Body", default: "#f2c230", legacy: "color" },
@@ -31,8 +33,8 @@ export const forklift01 = definePart({
 	],
 	lights: [
 		{
-			id: "beacon",
-			name: "Warning beacon",
+			id: "warningLight",
+			name: "Warning light",
 			description: "The orange light on its roof, on while it moves after dark.",
 			shape: "lens",
 			color: "#ff9a2e",
@@ -51,7 +53,7 @@ export const forklift01 = definePart({
 
 				<Box size={[0.16, 0.36, 0.44]} position={[-0.3, 0.3, 0]} color={palette.tire} />
 
-				{/* The overhead guard: four posts and a roof, the beacon on top. */}
+				{/* The overhead guard: four posts and a roof, the warning light on top. */}
 				{[0.18, -0.16].flatMap((x) =>
 					[0.18, -0.18].map((z) => (
 						<Box
@@ -65,7 +67,11 @@ export const forklift01 = definePart({
 
 				<Box size={[0.4, 0.03, 0.42]} position={[0.01, 0.94, 0]} color={palette.tire} />
 
-				<LightLens light={lights.beacon} size={[0.07, 0.07, 0.07]} position={[-0.1, 0.99, 0]} />
+				<LightLens
+					light={lights.warningLight}
+					size={[0.07, 0.07, 0.07]}
+					position={[-0.1, 0.99, 0]}
+				/>
 
 				{/* The mast, and the forks on it at their height. */}
 				{[MAST.gap / 2, -MAST.gap / 2].map((z) => (
@@ -92,7 +98,7 @@ export const forklift01 = definePart({
 					/>
 				))}
 
-				{p.showLoad && (
+				{p.showsLoad && (
 					<group position={[MAST.x + 0.27, forkY + 0.0125, 0]}>
 						<Box
 							size={[PALLET.size, PALLET.height, PALLET.size]}

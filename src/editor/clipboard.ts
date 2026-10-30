@@ -3,22 +3,22 @@ import { z } from "zod";
 import { APP_NAME } from "#/lib/app";
 import { clamp, round } from "#/lib/math";
 import { colorSettingOf } from "#/parts/colorModel";
-import { lightSettingsOf } from "#/parts/lightModel";
+import { readWorld } from "#/parts/readWorld";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
-import { cornerLift, cornerWithLift, elevationMovedTo } from "#/scene/areas";
+import { altitudeMovedTo, cornerLift, cornerWithLift } from "#/scene/areas";
 import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
-import { parseOrRepairScene } from "#/scene/repair";
 import {
+	ColorSettingSchema,
 	DetailsSchema,
-	EntityColorSchema,
 	EntityLightSchema,
 	FollowSchema,
 	LabelSchema,
+	NO_LABEL,
 	SCENE_VERSION,
 	type TArea,
+	type TColorSetting,
 	type TEntity,
-	type TEntityColor,
 	type TEntityLight,
 	type TFence,
 	type TRoad,
@@ -41,6 +41,9 @@ import { notify } from "./toasts";
 const APP = APP_NAME.toLowerCase();
 
 /** What each kind of copied settings holds. */
+/** A copied label card; copies from before cards were always there (ADR-0104) said none as null. */
+const CopiedLabelSchema = LabelSchema.nullable().transform((label) => label ?? NO_LABEL);
+
 const CopiedSettingsSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("light"),
@@ -50,8 +53,8 @@ const CopiedSettingsSchema = z.discriminatedUnion("kind", [
 		shape: z.enum(["lens", "beam", "pool", "windows", "glow"]),
 		light: EntityLightSchema,
 	}),
-	z.object({ kind: z.literal("colors"), colors: z.record(z.string(), EntityColorSchema) }),
-	z.object({ kind: z.literal("label"), label: LabelSchema.nullable(), details: DetailsSchema }),
+	z.object({ kind: z.literal("colors"), colors: z.record(z.string(), ColorSettingSchema) }),
+	z.object({ kind: z.literal("label"), label: CopiedLabelSchema, details: DetailsSchema }),
 	z.object({ kind: z.literal("motion"), follow: FollowSchema }),
 	z.object({
 		kind: z.literal("shape"),
@@ -62,9 +65,9 @@ const CopiedSettingsSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("object"),
 		part: z.string(),
 		props: z.record(z.string(), z.unknown()),
-		colors: z.record(z.string(), EntityColorSchema),
+		colors: z.record(z.string(), ColorSettingSchema),
 		lights: z.record(z.string(), EntityLightSchema),
-		label: LabelSchema.nullable(),
+		label: CopiedLabelSchema,
 		details: DetailsSchema,
 	}),
 ]);
@@ -85,21 +88,18 @@ const ClipSchema = z.discriminatedUnion("type", [
 
 const store = () => useEditor.getState();
 
-/** What a part's colours are on an object: each one's setting, an older world's colour, or unset. */
-const colorsOf = (entity: TEntity, part: TAnyPart): Record<string, TEntityColor> =>
+/** What a part's colours are on an object: each one's setting, or unset. */
+const colorsOf = (entity: TEntity, part: TAnyPart): Record<string, TColorSetting> =>
 	Object.fromEntries(
-		part.colors.map((spec) => {
-			const legacy = spec.legacy ? entity[spec.legacy] : null;
-			const setting = colorSettingOf(entity, spec.id);
-			return [spec.id, setting ?? EntityColorSchema.parse(legacy ? { color: legacy } : {})];
-		}),
+		part.colors.map((spec) => [
+			spec.id,
+			colorSettingOf(entity, spec.id) ?? ColorSettingSchema.parse({}),
+		]),
 	);
 
-/** One light's settings on an object, an older world's one mode for all its lights included. */
-const lightOf = (entity: TEntity, part: TAnyPart, id: string): TEntityLight => {
-	const { setting, objectMode } = lightSettingsOf(part, entity.lights, id);
-	return setting ?? EntityLightSchema.parse(objectMode === "auto" ? {} : { mode: objectMode });
-};
+/** One light's settings on an object, or its part's when it has none. */
+const lightOf = (entity: TEntity, id: string): TEntityLight =>
+	entity.lights[id] ?? EntityLightSchema.parse({});
 
 // Copying ----------------------------------------------------------------------------------------
 
@@ -122,7 +122,7 @@ export const settingsOf = (
 						name: spec.name,
 						lightId: spec.id,
 						shape: spec.shape,
-						light: lightOf(entity, part, spec.id),
+						light: lightOf(entity, spec.id),
 					}
 				: null;
 		}
@@ -141,7 +141,7 @@ export const settingsOf = (
 				props: structuredClone(entity.props),
 				colors: colorsOf(entity, part),
 				lights: Object.fromEntries(
-					(part.lights ?? []).map((spec) => [spec.id, lightOf(entity, part, spec.id)]),
+					(part.lights ?? []).map((spec) => [spec.id, lightOf(entity, spec.id)]),
 				),
 				label: entity.label,
 				details: entity.details,
@@ -292,7 +292,7 @@ const replaceLight = (light: TEntityLight, current: TEntityLight | undefined) =>
 };
 
 /** The same for a colour. */
-const replaceColor = (color: TEntityColor, current: TEntityColor | undefined) => {
+const replaceColor = (color: TColorSetting, current: TColorSetting | undefined) => {
 	const { data, ...fields } = color;
 	const cleared = Object.fromEntries(Object.keys(current?.data ?? {}).map((key) => [key, null]));
 	return { ...fields, data: { ...cleared, ...data } };
@@ -341,7 +341,7 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
 				if (!spec) {
 					break;
 				}
-				const current = lightSettingsOf(part, entity.lights, spec.id).setting;
+				const current = entity.lights[spec.id];
 				state.setEntityLight(
 					entity.id,
 					spec.id,
@@ -371,7 +371,7 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
 				state.updateEntity(
 					entity.id,
 					(e) => {
-						e.label = settings.label && { ...settings.label, title: e.label?.title ?? e.name };
+						e.label = { ...settings.label, title: e.label.title };
 						e.details.dataKeys = [...settings.details.dataKeys];
 					},
 					commit,
@@ -389,11 +389,11 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
 				if (!roadId) {
 					break;
 				}
-				const offset = settings.follow.offset + 3 * pasted;
+				const offset = settings.follow.startDistance + 3 * pasted;
 				state.updateEntity(
 					entity.id,
 					(e) => {
-						e.follow = { ...settings.follow, roadId, offset };
+						e.follow = { ...settings.follow, roadId, startDistance: offset };
 					},
 					commit,
 				);
@@ -423,14 +423,14 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
 					for (const spec of part.lights ?? []) {
 						const light = settings.lights[spec.id];
 						if (light) {
-							const current = lightSettingsOf(part, entity.lights, spec.id).setting;
+							const current = entity.lights[spec.id];
 							state.setEntityLight(entity.id, spec.id, replaceLight(light, current), commit);
 						}
 					}
 					state.updateEntity(
 						entity.id,
 						(e) => {
-							e.label = settings.label && { ...settings.label, title: e.label?.title ?? e.name };
+							e.label = { ...settings.label, title: e.label.title };
 							e.details.dataKeys = [...settings.details.dataKeys];
 						},
 						commit,
@@ -496,7 +496,7 @@ const pasteThings = (
 	at?: TVec2,
 ) => {
 	const state = store();
-	const { scene: repaired } = parseOrRepairScene({
+	const { scene: repaired } = readWorld({
 		version: SCENE_VERSION,
 		entities: clip.entities,
 		roads: clip.roads,
@@ -605,15 +605,15 @@ const pasteThings = (
 			position,
 			// Pasted at a spot, placed there: as high above the ground as where it was copied, pasted
 			// areas included; a step over, at its height, like a copy (ADR-0098).
-			elevation: at
-				? elevationMovedTo(
+			altitude: at
+				? altitudeMovedTo(
 						[...current.areas, ...areas],
-						entity.elevation,
+						entity.altitude,
 						entity.position,
 						position,
 						[...current.areas, ...newAreas],
 					)
-				: entity.elevation,
+				: entity.altitude,
 			// Driving a road that isn't here (from another world): parked where it was instead.
 			follow: entity.follow && roadId && roadExists ? { ...entity.follow, roadId } : null,
 		};

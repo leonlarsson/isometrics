@@ -105,7 +105,7 @@ describe("road traffic", () => {
 		const states = new Map<string, ITrafficState>();
 		for (let t = 0; t < 30; t += DT) {
 			const cars = placed([slow, fast]);
-			const moves = stepRoadTraffic({ ...LOOP, allowOvertaking: false }, cars, states, DT);
+			const moves = stepRoadTraffic({ ...LOOP, overtakes: false }, cars, states, DT);
 			slow.progress += moves.get("slow") ?? 0;
 			fast.progress += moves.get("fast") ?? 0;
 			expect(states.get("fast")?.shift).toBe(0);

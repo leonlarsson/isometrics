@@ -7,7 +7,7 @@ import { definePart } from "../types";
 import { metres, UNITS_PER_METRE } from "./furnitureSize";
 
 const BusStopSchema = z.object({
-	showSidePanel: z.boolean().default(true),
+	showsSidePanel: z.boolean().default(true),
 });
 
 /** The shelter, in metres: how long, deep and tall. */
@@ -22,7 +22,8 @@ export const busStop01 = definePart({
 		"A bus shelter with a glass back, a bench, a lit advert, a light under its roof and a stop sign on a pole; you wait facing +Z",
 	keywords: ["shelter", "bus", "tram", "stop", "public transport", "street furniture"],
 	schema: BusStopSchema,
-	fields: [{ key: "showSidePanel", label: "Show the side panel", type: "boolean" }],
+	renamedProps: { showSidePanel: "showsSidePanel" },
+	fields: [{ key: "showsSidePanel", label: "Show the side panel", type: "boolean" }],
 	colors: [
 		{ id: "frame", name: "Frame and roof", default: "#3d4048", legacy: "color" },
 		{ id: "sign", name: "Stop sign", default: "#d6402f", legacy: "accent" },
@@ -92,7 +93,7 @@ export const busStop01 = definePart({
 					{glass}
 				</mesh>
 
-				{p.showSidePanel && (
+				{p.showsSidePanel && (
 					<mesh position={[half - 0.05, SHELTER.height / 2 + 0.05, 0]}>
 						<boxGeometry args={[0.02, SHELTER.height - 0.3, SHELTER.depth - 0.15]} />
 

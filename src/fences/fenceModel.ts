@@ -17,16 +17,16 @@ import { FENCE_STYLES } from "./registry";
 /** The settings that say how a fence is laid out. */
 export type TFenceShape = Pick<
 	TFence,
-	"style" | "points" | "loops" | "cornerRadius" | "height" | "postSpacing" | "builtShare" | "data"
+	"kind" | "points" | "loops" | "cornerRadius" | "height" | "postSpacing" | "builtShare" | "data"
 >;
 
 /** Its height: its own, else its style's. */
-export const fenceHeightOf = (fence: Pick<TFence, "style" | "height">) =>
-	fence.height ?? FENCE_STYLES[fence.style].height;
+export const fenceHeightOf = (fence: Pick<TFence, "kind" | "height">) =>
+	fence.height ?? FENCE_STYLES[fence.kind].height;
 
 /** The longest gap between posts: its own, else its style's. */
-export const fenceSpacingOf = (fence: Pick<TFence, "style" | "postSpacing">) =>
-	fence.postSpacing ?? FENCE_STYLES[fence.style].postSpacing;
+export const fenceSpacingOf = (fence: Pick<TFence, "kind" | "postSpacing">) =>
+	fence.postSpacing ?? FENCE_STYLES[fence.kind].postSpacing;
 
 /** How much of it is built, 0 to 1: from data while it follows a value that reads as a number. */
 export const builtShareOf = (
@@ -53,7 +53,7 @@ export const buildFence = (
 	areas: readonly TArea[],
 	data: readonly TDataEntry[] | undefined,
 ) => {
-	const style = FENCE_STYLES[fence.style];
+	const style = FENCE_STYLES[fence.kind];
 	const builder = createFenceBuilder();
 	style.build({
 		layout: layoutOfFence(fence, areas, data),
@@ -64,32 +64,18 @@ export const buildFence = (
 	return builder.geometries();
 };
 
-/** What a fence keeps about its colours, as the colour model reads an object's. */
-const storedColors = (fence: Pick<TFence, "colors">) => ({
-	colors: fence.colors,
-	color: null,
-	accent: null,
-});
-
 /** Each of its colours as drawn now, by id, and how see-through it is. */
 export const resolveFenceColors = (
-	fence: Pick<TFence, "style" | "colors">,
+	fence: Pick<TFence, "kind" | "colors">,
 	palette: IScenePalette,
 	data: readonly TDataEntry[] | undefined,
 ) =>
 	Object.fromEntries(
-		FENCE_STYLES[fence.style].colors.map((spec) => [
+		FENCE_STYLES[fence.kind].colors.map((spec) => [
 			spec.id,
 			{
-				color: resolveColor(spec, storedColors(fence), palette, data),
-				transparency: resolveTransparency(spec, storedColors(fence)),
+				color: resolveColor(spec, fence, palette, data),
+				transparency: resolveTransparency(spec, fence),
 			},
 		]),
 	);
-
-/** A fence's colour settings as the shared colour panel reads an object's (ui/PartSettings). */
-export const fenceColorSettings = (fence: Pick<TFence, "colors">) => ({
-	...storedColors(fence),
-	props: {},
-	lights: {},
-});

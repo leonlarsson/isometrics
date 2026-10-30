@@ -66,13 +66,13 @@ export const SkySection = () => {
 		>
 			<SwitchField
 				label="Show the sky in perspective"
-				checked={sky.showInPerspective}
-				onChange={(shown) => set("showInPerspective", shown)}
-				inherit={byDefault("showInPerspective", "on")}
+				checked={sky.showsInPerspective}
+				onChange={(shown) => set("showsInPerspective", shown)}
+				inherit={byDefault("showsInPerspective", "on")}
 				hint="Around the world when you look in perspective. Off, perspective shows the backdrop below too, as it always does with a green screen."
 			/>
 
-			{sky.showInPerspective && (
+			{sky.showsInPerspective && (
 				<>
 					<ColorField
 						label="Colour overhead"
@@ -92,17 +92,17 @@ export const SkySection = () => {
 
 					<SwitchField
 						label="Show the sun in the sky"
-						checked={sky.showSun}
-						onChange={(shown) => set("showSun", shown)}
-						inherit={byDefault("showSun", "on")}
+						checked={sky.showsSun}
+						onChange={(shown) => set("showsSun", shown)}
+						inherit={byDefault("showsSun", "on")}
 						hint="By day, where the sunlight comes from."
 					/>
 
 					<SwitchField
 						label="Show the moon in the sky"
-						checked={sky.showMoon}
-						onChange={(shown) => set("showMoon", shown)}
-						inherit={byDefault("showMoon", "on")}
+						checked={sky.showsMoon}
+						onChange={(shown) => set("showsMoon", shown)}
+						inherit={byDefault("showsMoon", "on")}
 						hint="At night, opposite the sun."
 					/>
 

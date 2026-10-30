@@ -83,7 +83,7 @@ export const readSwitch = (
 	data: readonly TDataEntry[] | undefined,
 ) => {
 	const entry = boundEntry(binding, data);
-	return entry && binding ? switchesOn(entry.value, binding.onAbove ?? 0) : undefined;
+	return entry && binding ? switchesOn(entry.value, binding.switchesOnAbove ?? 0) : undefined;
 };
 
 /** A scale binding's reading: the value ÷ `full`, between `min` and `max`; undefined if it isn't a number. */

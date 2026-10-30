@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeRenamedProps, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** Its tiers, bottom to top: radius, height and where each sits. */
 const TIERS = [
@@ -19,17 +19,15 @@ export const pineTree02 = definePart({
 	category: "nature",
 	description: "Tall, slim spruce of many narrow tiers",
 	keywords: ["spruce", "fir", "conifer", "christmas tree", "forest", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
-	renamedProps: treeRenamedProps,
+	...sizedByScale,
 	colors: [
 		{ id: "needles", name: "Needles", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
 	],
-	footprint: (p) => [0.75 * p.size, 0.75 * p.size],
-	height: (p) => 1.9 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.75, 0.75],
+	height: () => 1.9,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.2, 0]} castShadow>
 				<cylinderGeometry args={[0.045, 0.06, 0.4, 8]} />
 

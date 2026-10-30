@@ -13,7 +13,7 @@
  *   --graphics standard|nice|ultra   the Graphics preset (default standard)
  *   --pref key=value                 a preference, e.g. --pref ambientOcclusion=off (repeatable)
  *   --world path=value               a world setting, e.g. --world lighting.sunShadeContrast=0.75,
- *                                    --world theme=dark, --world camera.tiltShiftOn=true (repeatable)
+ *                                    --world theme=dark, --world camera.tiltShift.isOn=true (repeatable)
  *   --hours 12,18.6,22               times of day (default 12,18.6,22); "world" keeps the world's own
  *                                    (or the mood's), stopped there
  *   --mood mood_golden               a mood of the world's put on first (its look: light, sky, water,
@@ -140,8 +140,8 @@ const world = [
 	// The cards and title, without the viewpoint bar's ◀ ▶ over the world; or no cards, so their
 	// pins (dots in the 3D view) go too.
 	...(options["with-cards"]
-		? [["onScreen.showViewpointBar", false]]
-		: [["onScreen.showLabelCards", false]]),
+		? [["onScreen.showsViewpointBar", false]]
+		: [["onScreen.showsLabelCards", false]]),
 	...pairsOf(options.world),
 ];
 const hours =
@@ -159,7 +159,7 @@ const base = options.base ?? "http://localhost:3000";
 const CLOSE = {
 	id: "close",
 	target: [-4, -2],
-	targetHeight: 0,
+	targetAltitude: 0,
 	azimuth: 315,
 	elevation: 30,
 	span: 15,
@@ -303,7 +303,7 @@ for (const view of views) {
 					id === "close"
 						? close
 						: id === "pose"
-							? { id, targetHeight: 0, ...own }
+							? { id, targetAltitude: 0, ...own }
 							: store.getState().scene.viewpoints.find((v) => v.id === id);
 				store.setState({ flight: { pose, nonce: Date.now(), instant: true } });
 			},

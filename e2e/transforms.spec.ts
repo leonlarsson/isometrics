@@ -49,15 +49,15 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		expect((await entity(page, "a"))?.position).toEqual([3, -2]);
 
 		await keys(page, "g", "y", "4", "Enter");
-		expect((await entity(page, "a"))?.elevation).toBe(4);
+		expect((await entity(page, "a"))?.altitude).toBe(4);
 		// Each transform is one undo step.
 		await keys(page, "Control+z");
-		expect((await entity(page, "a"))?.elevation).toBe(0);
+		expect((await entity(page, "a"))?.altitude).toBe(0);
 	});
 
 	test("R turns by a typed angle, S resizes by a typed factor", async ({ page }) => {
 		await keys(page, "r", "9", "0", "Enter");
-		expect((await entity(page, "a"))?.rotation).toBe(90);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(90);
 		await keys(page, "s", "1", ".", "5", "Enter");
 		expect((await entity(page, "a"))?.scale).toBe(3);
 	});
@@ -68,17 +68,17 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		await keys(page, "r", "x");
 		await expect(page.getByText(/Turning House A around its X/)).toBeVisible();
 		await keys(page, "3", "0", "Enter");
-		expect((await entity(page, "a"))?.roll).toBe(30);
+		expect((await entity(page, "a"))?.rotation[0]).toBe(30);
 		await keys(page, "r", "z", "-", "4", "5", "Enter");
-		expect((await entity(page, "a"))?.pitch).toBeCloseTo(-45, 0);
+		expect((await entity(page, "a"))?.rotation[2]).toBeCloseTo(-45, 0);
 		await keys(page, "g", "y", "-", "2", "Enter");
-		expect((await entity(page, "a"))?.elevation).toBe(-2);
+		expect((await entity(page, "a"))?.altitude).toBe(-2);
 
 		// The Transform panel shows the three angles, X, Y and Z.
 		const x = page.getByRole("textbox", { name: "Rotation (°) X", exact: true });
 		await x.fill("0");
 		await x.press("Enter");
-		expect((await entity(page, "a"))?.roll).toBe(0);
+		expect((await entity(page, "a"))?.rotation[0]).toBe(0);
 	});
 
 	test("the blue arc tips it around its Z, with the mouse (ADR-0097)", async ({ page }) => {
@@ -87,8 +87,8 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		const up = (47.5 * Math.PI) / 180;
 		const arc = await gizmoSpot(page, [0, 0, 0], [1.35 * Math.cos(up), 1.35 * Math.sin(up), 0], 14);
 		await dragBy(page, arc, -50, -30);
-		await expect.poll(async () => (await entity(page, "a"))?.pitch ?? 0).not.toBe(0);
-		expect((await entity(page, "a"))?.roll).toBe(0);
+		await expect.poll(async () => (await entity(page, "a"))?.rotation[2] ?? 0).not.toBe(0);
+		expect((await entity(page, "a"))?.rotation[0]).toBe(0);
 		expect(await read(page, (s) => s.dragging)).toBe(false);
 	});
 
@@ -100,7 +100,7 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 			areas: [
 				{
 					id: "plateau",
-					type: "raised_land_01",
+					kind: "raised_land_01",
 					height: 2,
 					points: [
 						[4, -4],
@@ -114,7 +114,7 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		await act(page, (s) => s.select("a"));
 		await keys(page, "g", "8", "Enter");
 		expect((await entity(page, "a"))?.position).toEqual([8, 0]);
-		expect((await entity(page, "a"))?.elevation).toBe(0);
+		expect((await entity(page, "a"))?.altitude).toBe(0);
 	});
 
 	test("Esc cancels a transform, and nothing changes", async ({ page }) => {
@@ -147,13 +147,13 @@ test.describe("keyboard transforms (ADR-0029)", () => {
 		await keys(page, "Alt+ArrowLeft");
 		expect((await entity(page, "a"))?.position).toEqual([0.4, 2.5]);
 		await keys(page, "q");
-		expect((await entity(page, "a"))?.rotation).toBe(15);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(15);
 		await keys(page, "Shift+e");
-		expect((await entity(page, "a"))?.rotation).toBe(285);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(285);
 	});
 
 	test("a locked object stays put", async ({ page }) => {
-		await act(page, (s) => s.setItemFlag({ kind: "entity", id: "a" }, "locked", true));
+		await act(page, (s) => s.setItemFlag({ kind: "entity", id: "a" }, "isLocked", true));
 		await keys(page, "ArrowRight", "g", "3", "Enter");
 		expect((await entity(page, "a"))?.position).toEqual([0, 0]);
 	});
@@ -177,7 +177,7 @@ test.describe("several at once (ADR-0064)", () => {
 		await keys(page, "r", "1", "8", "0", "Enter");
 		expect((await entity(page, "a"))?.position.map(Math.round)).toEqual([12, 0]);
 		expect((await entity(page, "b"))?.position.map(Math.round)).toEqual([2, 0]);
-		expect((await entity(page, "a"))?.rotation).toBe(180);
+		expect((await entity(page, "a"))?.rotation[1]).toBe(180);
 
 		await keys(page, "ArrowUp");
 		expect((await entity(page, "b"))?.position.map((v) => Math.round(v * 2) / 2)).toEqual([
@@ -258,7 +258,7 @@ test.describe("on raised land (ADR-0098)", () => {
 			areas: [
 				{
 					id: "plateau",
-					type: "raised_land_01",
+					kind: "raised_land_01",
 					height: 2,
 					points: [
 						[3, -10],
@@ -287,6 +287,6 @@ test.describe("on raised land (ADR-0098)", () => {
 		const [px, pz] = (await entity(page, "a"))?.position ?? [0, 0];
 		expect(Math.abs(px - 9)).toBeLessThanOrEqual(0.5);
 		expect(Math.abs(pz)).toBeLessThanOrEqual(0.5);
-		expect((await entity(page, "a"))?.elevation).toBe(2);
+		expect((await entity(page, "a"))?.altitude).toBe(2);
 	});
 });

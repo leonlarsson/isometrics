@@ -13,16 +13,14 @@ export const DetailSheet = () => {
 	const entity = useEditor(selectSelectedEntity);
 	const data = useEditor((s) => s.scene.data);
 	const select = useEditor((s) => s.select);
-	const shown = useEditor((s) => s.scene.onScreen.showDetails);
+	const shown = useEditor((s) => s.scene.onScreen.showsDetails);
 
 	if (mode !== "view" || !entity || !shown) {
 		return null;
 	}
 
-	const keys = entity.details.dataKeys.length
-		? entity.details.dataKeys
-		: (entity.label?.dataKeys ?? []);
-	const title = entity.name || entity.label?.title || partNameOf(entity.kind) || "Object";
+	const keys = entity.details.dataKeys.length ? entity.details.dataKeys : entity.label.dataKeys;
+	const title = entity.name || entity.label.title || partNameOf(entity.kind) || "Object";
 
 	return (
 		<aside className={styles.sheet} data-label-obstacle="" aria-label={`${title} details`}>
@@ -52,7 +50,7 @@ export const DetailSheet = () => {
 							<div key={key} className={styles.tile}>
 								<span className={styles.value}>{formatEntry(entry)}</span>
 
-								<span className={styles.label}>{entry?.label || key}</span>
+								<span className={styles.label}>{entry?.name || key}</span>
 							</div>
 						);
 					})}

@@ -1,7 +1,7 @@
 import { jitter, Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The blades: where each grows in the clump, how tall and which way it leans. */
 const BLADES = Array.from({ length: 14 }, (_, i) => {
@@ -23,13 +23,12 @@ export const tallGrass01 = definePart({
 	category: "nature",
 	description: "Clump of tall grass blades",
 	keywords: ["reeds", "meadow", "weeds", "wild", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [{ id: "grass", name: "Grass", default: "#7fae4f", legacy: "color" }],
-	footprint: (p) => [0.5 * p.size, 0.5 * p.size],
-	height: (p) => 0.36 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.5, 0.5],
+	height: () => 0.36,
+	Component: ({ colors }) => (
+		<group>
 			{BLADES.map(({ x, z, height, leanX, leanZ }) => (
 				<mesh
 					key={`${x},${z}`}

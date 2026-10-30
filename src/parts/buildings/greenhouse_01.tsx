@@ -7,7 +7,7 @@ import { definePart } from "../types";
 
 const GreenhouseSchema = z.object({
 	width: z.number().min(1).max(6).default(1.6),
-	length: z.number().min(1.2).max(10).default(2.6),
+	depth: z.number().min(1.2).max(10).default(2.6),
 });
 
 const WALL_HEIGHT = 0.8;
@@ -38,9 +38,10 @@ export const greenhouse01 = definePart({
 	description: "Glass greenhouse on a white frame with rows of plants inside, along Z",
 	keywords: ["glasshouse", "nursery", "garden", "plants", "allotment", "farm"],
 	schema: GreenhouseSchema,
+	renamedProps: { length: "depth" },
 	fields: [
 		{ key: "width", label: "Width", type: "number", min: 1, max: 6, step: 0.1 },
-		{ key: "length", label: "Length", type: "number", min: 1.2, max: 10, step: 0.1 },
+		{ key: "depth", label: "Depth", type: "number", min: 1.2, max: 10, step: 0.1 },
 	],
 	colors: [
 		{ id: "frame", name: "Frame", default: "#f4f3ee", legacy: "color" },
@@ -54,13 +55,13 @@ export const greenhouse01 = definePart({
 			description: "Lamps over the plants, glowing through the glass.",
 			shape: "glow",
 			color: "#f2a8ff",
-			realLight: (p) => ({ at: [0, WALL_HEIGHT, 0], reach: Math.max(p.width, p.length) }),
+			realLight: (p) => ({ at: [0, WALL_HEIGHT, 0], reach: Math.max(p.width, p.depth) }),
 		},
 	],
-	footprint: (p) => [p.width + 0.1, p.length + 0.1],
+	footprint: (p) => [p.width + 0.1, p.depth + 0.1],
 	height: (p) => WALL_HEIGHT + roofRise(p.width),
 	Component: ({ props: p, colors, transparency, lights }) => {
-		const bays = Math.max(2, Math.round(p.length / 0.6));
+		const bays = Math.max(2, Math.round(p.depth / 0.6));
 		const half = p.width / 2;
 		const rise = roofRise(p.width);
 		const roofSlope = Math.hypot(half, rise);
@@ -68,7 +69,7 @@ export const greenhouse01 = definePart({
 		const gable = useGableGeometry(p.width, rise);
 		// As many benches as fit across with an aisle beside each, at least one.
 		const benches = Math.max(1, Math.floor((p.width - 0.1) / (BENCH.width + BENCH.aisle)));
-		const posts = spread(bays + 1, p.length + p.length / bays);
+		const posts = spread(bays + 1, p.depth + p.depth / bays);
 		// The glass glows in the grow lights' colour while they're on.
 		// The panes are thin boxes, seen from outside; a gable end is a flat triangle, so it's drawn
 		// from both sides, or one end would face away from whoever looks at it. In one pass: three
@@ -94,12 +95,12 @@ export const greenhouse01 = definePart({
 				{spread(benches, p.width - 0.1).map((x) => (
 					<group key={x}>
 						<Box
-							size={[BENCH.width, 0.3, p.length - 0.3]}
+							size={[BENCH.width, 0.3, p.depth - 0.3]}
 							position={[x, 0.15, 0]}
 							color={colors.frame}
 						/>
 
-						{spread(bays, p.length - 0.4).map((z, i) => (
+						{spread(bays, p.depth - 0.4).map((z, i) => (
 							<mesh
 								key={z}
 								position={[x, 0.42, z]}
@@ -117,13 +118,13 @@ export const greenhouse01 = definePart({
 				{/* The glass: four walls and the two roof slopes. */}
 				{[half, -half].map((x) => (
 					<mesh key={x} position={[x, WALL_HEIGHT / 2, 0]}>
-						<boxGeometry args={[0.02, WALL_HEIGHT, p.length]} />
+						<boxGeometry args={[0.02, WALL_HEIGHT, p.depth]} />
 
 						{glass}
 					</mesh>
 				))}
 
-				{[p.length / 2, -p.length / 2].map((z) => (
+				{[p.depth / 2, -p.depth / 2].map((z) => (
 					<mesh key={z} position={[0, WALL_HEIGHT / 2, z]}>
 						<boxGeometry args={[p.width, WALL_HEIGHT, 0.02]} />
 
@@ -137,14 +138,14 @@ export const greenhouse01 = definePart({
 						position={[(side * half) / 2, WALL_HEIGHT + rise / 2, 0]}
 						rotation={[0, 0, side * -roofPitch]}
 					>
-						<boxGeometry args={[roofSlope, 0.02, p.length]} />
+						<boxGeometry args={[roofSlope, 0.02, p.depth]} />
 
 						{glass}
 					</mesh>
 				))}
 
 				{/* The gable ends: the triangles of glass under the roof at both ends. */}
-				{[p.length / 2, -p.length / 2].map((z) => (
+				{[p.depth / 2, -p.depth / 2].map((z) => (
 					<mesh key={z} geometry={gable} position={[0, WALL_HEIGHT, z]}>
 						{glassOn(THREE.DoubleSide)}
 					</mesh>
@@ -177,14 +178,14 @@ export const greenhouse01 = definePart({
 				{[half, -half].map((x) => (
 					<Box
 						key={x}
-						size={[FRAME_BAR, FRAME_BAR, p.length]}
+						size={[FRAME_BAR, FRAME_BAR, p.depth]}
 						position={[x, WALL_HEIGHT, 0]}
 						color={colors.frame}
 					/>
 				))}
 
 				<Box
-					size={[FRAME_BAR, FRAME_BAR, p.length]}
+					size={[FRAME_BAR, FRAME_BAR, p.depth]}
 					position={[0, WALL_HEIGHT + rise, 0]}
 					color={colors.frame}
 				/>

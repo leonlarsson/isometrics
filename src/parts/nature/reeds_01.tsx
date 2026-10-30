@@ -1,7 +1,7 @@
 import { jitter, Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The stalks: where each grows in the clump, how tall, which way it leans, and whether it has a head. */
 const STALKS = Array.from({ length: 16 }, (_, i) => {
@@ -23,16 +23,15 @@ export const reeds01 = definePart({
 	category: "nature",
 	description: "A clump of tall reeds with brown seed heads, for the edge of a pond or river",
 	keywords: ["bulrush", "cattail", "pond", "marsh", "river", "water", "plant", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "stalks", name: "Stalks", default: "#6f9a48", legacy: "color" },
 		{ id: "heads", name: "Seed heads", default: "#6b4a2e", legacy: "accent" },
 	],
-	footprint: (p) => [0.42 * p.size, 0.42 * p.size],
-	height: (p) => 0.66 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.42, 0.42],
+	height: () => 0.66,
+	Component: ({ colors }) => (
+		<group>
 			{STALKS.map(({ x, z, height, leanX, leanZ, hasHead }) => (
 				<group key={`${x},${z}`} position={[x, 0, z]} rotation={[-leanZ, 0, leanX]}>
 					<mesh position={[0, height / 2, 0]} castShadow>

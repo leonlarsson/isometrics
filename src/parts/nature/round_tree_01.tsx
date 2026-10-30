@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeRenamedProps, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 export const roundTree01 = definePart({
 	kind: "round_tree_01",
@@ -9,17 +9,15 @@ export const roundTree01 = definePart({
 	category: "nature",
 	description: "Leafy tree",
 	keywords: ["oak", "plant", "nature", "park"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
-	renamedProps: treeRenamedProps,
+	...sizedByScale,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
 	],
-	footprint: (p) => [p.size, p.size],
-	height: (p) => 1.45 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [1, 1],
+	height: () => 1.45,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.3, 0]} castShadow>
 				<cylinderGeometry args={[0.07, 0.1, 0.6, 8]} />
 

@@ -10,14 +10,14 @@ import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
 import {
 	polylineLength,
-	ROAD_STYLE_LABELS,
+	ROAD_KIND_LABELS,
 	resolveLeansInTurns,
 	resolveTurnStyle,
 	roadCenterlineOf,
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 } from "#/scene/roads";
-import type { TEntity, TTurnStyle } from "#/scene/schema";
+import type { TEntity, TTurnStyle, TVec3 } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
@@ -54,7 +54,7 @@ const KeyPicker = ({
 	return (
 		<CheckboxGroupField
 			label={label}
-			options={data.map((entry) => ({ value: entry.key, label: entry.label || entry.key }))}
+			options={data.map((entry) => ({ value: entry.key, label: entry.name || entry.key }))}
 			value={selected}
 			onChange={onChange}
 		/>
@@ -85,12 +85,12 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				actions={
 					<IconButtonGroup>
 						<IconButton
-							icon={entity.locked ? "lock" : "unlock"}
-							label={entity.locked ? "Unlock" : "Lock position"}
-							pressed={entity.locked}
+							icon={entity.isLocked ? "lock" : "unlock"}
+							label={entity.isLocked ? "Unlock" : "Lock position"}
+							pressed={entity.isLocked}
 							onClick={() =>
 								edit("locked", (e) => {
-									e.locked = !e.locked;
+									e.isLocked = !e.isLocked;
 								})
 							}
 						/>
@@ -139,19 +139,19 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					/>
 				)}
 
-				{/* X tips it (roll), Y turns it around the vertical, Z leans it (pitch), in degrees: applied
-				turn, pitch, roll (ADR-0097). A driving vehicle only turns around the vertical. */}
+				{/* Y turns it around the vertical, then Z and X tip it about its own axes, in degrees
+				(ADR-0097). A driving vehicle only turns around the vertical. */}
 				{following ? (
 					<SliderField
 						label="Rotation"
-						value={entity.rotation}
+						value={entity.rotation[1]}
 						min={0}
 						max={359}
 						step={15}
 						suffix="°"
 						onChange={(v) =>
 							edit("rotation", (e) => {
-								e.rotation = v;
+								e.rotation = [e.rotation[0], v, e.rotation[2]];
 							})
 						}
 					/>
@@ -159,17 +159,13 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					<VectorField
 						label="Rotation (°)"
 						axes={["X", "Y", "Z"]}
-						values={[entity.roll, entity.rotation, entity.pitch]}
+						values={entity.rotation}
 						step={1}
 						onChange={(axis, v) =>
 							edit(`rotation.${axis}`, (e) => {
-								if (axis === 0) {
-									e.roll = wrapDegrees(v);
-								} else if (axis === 1) {
-									e.rotation = normalizeDegrees(v);
-								} else {
-									e.pitch = wrapDegrees(v);
-								}
+								const next: TVec3 = [...e.rotation];
+								next[axis] = axis === 1 ? normalizeDegrees(v) : wrapDegrees(v);
+								e.rotation = next;
 							})
 						}
 					/>
@@ -190,15 +186,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 				/>
 
 				<SliderField
-					label="Lift"
-					value={entity.elevation}
+					label="Altitude"
+					value={entity.altitude}
 					min={-30}
 					max={20}
 					sliderMin={-5}
 					step={0.1}
 					onChange={(v) =>
 						edit("elevation", (e) => {
-							e.elevation = v;
+							e.altitude = v;
 						})
 					}
 				/>
@@ -393,26 +389,17 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 						<SwitchField
 							label="Show"
-							checked={entity.label?.enabled ?? false}
+							checked={entity.label.isShown}
 							onChange={(on) =>
 								edit("label", (e) => {
-									if (e.label) {
-										e.label.enabled = on;
-									} else {
-										e.label = {
-											enabled: true,
-											title: e.name,
-											dataKeys: [],
-											offset: [0, 2, 0],
-										};
-									}
+									e.label.isShown = on;
 								})
 							}
 						/>
 					</>
 				}
 			>
-				{entity.label?.enabled ? (
+				{entity.label.isShown ? (
 					<>
 						<TextField
 							label="Title"
@@ -420,9 +407,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							placeholder={entity.name || partName(part)}
 							onChange={(v) =>
 								edit("label.title", (e) => {
-									if (e.label) {
-										e.label.title = v;
-									}
+									e.label.title = v;
 								})
 							}
 						/>
@@ -432,9 +417,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							selected={entity.label.dataKeys}
 							onChange={(keys) =>
 								edit("label.keys", (e) => {
-									if (e.label) {
-										e.label.dataKeys = keys;
-									}
+									e.label.dataKeys = keys;
 								})
 							}
 						/>
@@ -445,9 +428,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							values={entity.label.offset}
 							onChange={(i, v) =>
 								edit("label.offset", (e) => {
-									if (e.label) {
-										e.label.offset[i] = v;
-									}
+									e.label.offset[i] = v;
 								})
 							}
 						/>
@@ -492,16 +473,16 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Motion tab: the road it drives along, how fast, and where it starts. */
 const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const roads = useEditor((s) => s.scene.roads);
-	const sceneTurns = useEditor((s) => s.scene.turnStyle);
-	const sceneLeans = useEditor((s) => s.scene.leansInTurns);
+	const sceneTurns = useEditor((s) => s.scene.traffic.turnStyle);
+	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
 	const followedRoadLength = followedRoad
 		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.loops)))
 		: 1;
 	/** What this vehicle inherits: its road's setting, else the scene's. */
-	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.turnStyle, null);
-	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.leansInTurns, null);
+	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.traffic.turnStyle, null);
+	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.traffic.leansInTurns, null);
 	// Whether its kind leans in turns at all (a part's turnLean).
 	const leans = getPart(entity.kind)?.turnLean !== undefined;
 
@@ -524,7 +505,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 				value={entity.follow?.roadId ?? ""}
 				options={[
 					{ value: "", label: "Nothing (parked)" },
-					...roads.map((r) => ({ value: r.id, label: r.name || ROAD_STYLE_LABELS[r.style] })),
+					...roads.map((r) => ({ value: r.id, label: r.name || ROAD_KIND_LABELS[r.kind] })),
 				]}
 				onChange={(roadId) =>
 					edit("follow", (e) => {
@@ -532,8 +513,8 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 							? {
 									roadId,
 									speed: e.follow?.speed ?? 2,
-									offset: e.follow?.offset ?? 0,
-									reverse: e.follow?.reverse ?? false,
+									startDistance: e.follow?.startDistance ?? 0,
+									drivesTheOtherWay: e.follow?.drivesTheOtherWay ?? false,
 									turnStyle: e.follow?.turnStyle ?? null,
 									leansInTurns: e.follow?.leansInTurns ?? null,
 								}
@@ -561,14 +542,14 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 
 					<SliderField
 						label="Start point"
-						value={entity.follow.offset}
+						value={entity.follow.startDistance}
 						min={0}
 						max={followedRoadLength}
 						step={0.5}
 						onChange={(v) =>
 							edit("follow.offset", (e) => {
 								if (e.follow) {
-									e.follow.offset = v;
+									e.follow.startDistance = v;
 								}
 							})
 						}
@@ -576,11 +557,11 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 
 					<SwitchField
 						label="Drive the other way"
-						checked={entity.follow.reverse}
+						checked={entity.follow.drivesTheOtherWay}
 						onChange={(v) =>
 							edit("follow.reverse", (e) => {
 								if (e.follow) {
-									e.follow.reverse = v;
+									e.follow.drivesTheOtherWay = v;
 								}
 							})
 						}
@@ -599,7 +580,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 						}
 						inherit={{
 							// The road's own setting, or the scene's when the road has none.
-							from: followedRoad?.turnStyle ? "road" : "scene",
+							from: followedRoad?.traffic.turnStyle ? "road" : "scene",
 							inherited: entity.follow.turnStyle === null,
 							onReset: () =>
 								edit("follow.turns", (e) => {
@@ -624,7 +605,7 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 								})
 							}
 							inherit={{
-								from: followedRoad?.leansInTurns != null ? "road" : "scene",
+								from: followedRoad?.traffic.leansInTurns != null ? "road" : "scene",
 								inherited: entity.follow.leansInTurns === null,
 								onReset: () =>
 									edit("follow.leans", (e) => {

@@ -15,14 +15,14 @@ import { useEditor } from "#/editor/store";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
-import { resolvePartColors, swatchColors } from "#/parts/colorModel";
+import { colorOf, resolvePartColors, swatchColors } from "#/parts/colorModel";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { fencePictureKey, usePartThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
-import { AREA_TYPE_LABELS, areaColor } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
-import type { TAreaType, TRoadStyle } from "#/scene/schema";
+import { AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
+import type { TAreaKind, TRoadKind } from "#/scene/schema";
 import { groupByFamily } from "#/scene/variants";
 
 import { IconButton, IconButtonGroup } from "./Button";
@@ -41,7 +41,7 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import styles from "./PartsPalette.module.css";
 
 // Keyed by id, so a new road style or area type (a variant) can't be left out of the palette.
-const ROAD_TOOL_INFO: Record<TRoadStyle, { description: string; keywords: string }> = {
+const ROAD_TOOL_INFO: Record<TRoadKind, { description: string; keywords: string }> = {
 	road_01: { description: "Paved road with a centre line", keywords: "street" },
 	dirt_path_01: { description: "Unpaved path", keywords: "trail footpath track" },
 	hidden_route_01: {
@@ -50,7 +50,7 @@ const ROAD_TOOL_INFO: Record<TRoadStyle, { description: string; keywords: string
 	},
 };
 
-const AREA_TOOL_INFO: Record<TAreaType, { description: string; keywords: string }> = {
+const AREA_TOOL_INFO: Record<TAreaKind, { description: string; keywords: string }> = {
 	water_01: { description: "Sea, lake, harbour or pond", keywords: "river ocean bay" },
 	grass_01: { description: "Lawn, park or field", keywords: "garden meadow green" },
 	sand_01: { description: "Beach or sand", keywords: "desert dune" },
@@ -76,12 +76,12 @@ const SECTION_ICONS: Record<string, TIconName> = {
 	),
 };
 
-const ROAD_TOOLS = (Object.keys(ROAD_TOOL_INFO) as TRoadStyle[]).map((style) => ({
+const ROAD_TOOLS = (Object.keys(ROAD_TOOL_INFO) as TRoadKind[]).map((style) => ({
 	style,
 	...ROAD_TOOL_INFO[style],
 }));
 
-const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaType[]).map((type) => ({
+const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaKind[]).map((type) => ({
 	type,
 	...AREA_TOOL_INFO[type],
 }));
@@ -220,7 +220,7 @@ export const PartsPalette = () => {
 
 	useHotkey("/", () => searchRef.current?.focus(), { meta: { name: "Search parts" } });
 
-	const roadSwatch: Record<TRoadStyle, string> = {
+	const roadSwatch: Record<TRoadKind, string> = {
 		road_01: `linear-gradient(180deg, ${palette.road} 42%, ${palette.roadMark} 42% 58%, ${palette.road} 58%)`,
 		dirt_path_01: palette.dirt,
 		hidden_route_01: `repeating-linear-gradient(90deg, ${palette.selection} 0 5px, transparent 5px 9px)`,
@@ -231,8 +231,8 @@ export const PartsPalette = () => {
 			key: `road:${style}`,
 			category: "roads" as const,
 			group: "Roads",
-			name: ROAD_STYLE_LABELS[style],
-			familyName: ROAD_STYLE_LABELS[style],
+			name: ROAD_KIND_LABELS[style],
+			familyName: ROAD_KIND_LABELS[style],
 			description,
 			tooltip: `${description}. Click points on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} road`,
@@ -244,12 +244,12 @@ export const PartsPalette = () => {
 			key: `area:${type}`,
 			category: "areas" as const,
 			group: "Areas",
-			name: AREA_TYPE_LABELS[type],
-			familyName: AREA_TYPE_LABELS[type],
+			name: AREA_KIND_LABELS[type],
+			familyName: AREA_KIND_LABELS[type],
 			description,
 			tooltip: `${description}. Click its corners on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} area`,
-			swatch: areaColor({ type, color: null }, palette),
+			swatch: colorOf(AREA_KINDS[type], { colors: {} }, "surface", palette),
 			pressed: drawingArea === type,
 			onSelect: () => startAreaDrawing(type),
 		})),

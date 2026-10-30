@@ -69,7 +69,7 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 			areas: [
 				{
 					id: "plateau",
-					type: "raised_land_01",
+					kind: "raised_land_01",
 					height: 2,
 					points: [
 						[2, 2],
@@ -93,7 +93,7 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 		await page.mouse.up();
 		const tree = await read(page, (s) => s.scene.entities.at(-1));
 		expect(tree?.position.map(Math.round)).toEqual([5, 5]);
-		expect(tree?.elevation).toBe(2);
+		expect(tree?.altitude).toBe(2);
 	});
 
 	test("chips show one category at a time, as a grid or a list, remembered (ADR-0088)", async ({

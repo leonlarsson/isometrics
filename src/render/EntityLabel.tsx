@@ -22,7 +22,7 @@ export const EntityLabel = ({ entity, anchorY, color }: IEntityLabelProps) => {
 	const pinHidden = useEditor((s) =>
 		s.stillRender
 			? !s.stillRender.showsCards
-			: drawnModeOf(s) === "view" && !s.scene.onScreen.showLabelCards,
+			: drawnModeOf(s) === "view" && !s.scene.onScreen.showsLabelCards,
 	);
 	const label = entity.label;
 	if (!label) {

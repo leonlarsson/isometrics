@@ -29,7 +29,7 @@ describe("the sky (ADR-0070)", () => {
 	it("follows the world's own settings: colours, sun direction, what's shown", () => {
 		const look = skyLookAt(
 			LightingSchema.parse({ sunAzimuth: 90, sunElevation: 30 }),
-			SkySchema.parse({ colorOverhead: "#112233", showMoon: false, starDensity: 0 }),
+			SkySchema.parse({ colorOverhead: "#112233", showsMoon: false, starDensity: 0 }),
 			1,
 		);
 		// A colour set by hand is the day's: at 1 o'clock it has darkened almost to the night's.
@@ -39,7 +39,7 @@ describe("the sky (ADR-0070)", () => {
 		).toBe("#112233");
 		expect(look.moonDisc).toBeNull();
 		expect(look.starBrightness).toBe(0);
-		expect(skyLookAt(lighting, SkySchema.parse({ showSun: false }), 12).sunDisc).toBeNull();
+		expect(skyLookAt(lighting, SkySchema.parse({ showsSun: false }), 12).sunDisc).toBeNull();
 		expect(
 			skyLookAt(LightingSchema.parse({ sunAzimuth: 90, sunElevation: 30 }), sky, 12).sunDisc,
 		).toMatchObject({

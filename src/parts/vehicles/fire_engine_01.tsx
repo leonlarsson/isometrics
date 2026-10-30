@@ -7,7 +7,7 @@ import { definePart } from "../types";
 import { FlashingLightBar } from "./emergencyKit";
 
 const FireEngineSchema = z.object({
-	showLadder: z.boolean().default(true),
+	showsLadder: z.boolean().default(true),
 });
 
 const WIDTH = 0.92;
@@ -27,7 +27,8 @@ export const fireEngine01 = definePart({
 		"Fire engine with a ladder on its roof, lockers down its sides and flashing blue lights; can drive along a road",
 	keywords: ["fire truck", "fire brigade", "emergency", "rescue", "siren", "vehicle"],
 	schema: FireEngineSchema,
-	fields: [{ key: "showLadder", label: "Show the ladder", type: "boolean" }],
+	renamedProps: { showLadder: "showsLadder" },
+	fields: [{ key: "showsLadder", label: "Show the ladder", type: "boolean" }],
 	colors: [
 		{ id: "body", name: "Body", default: "#c8202a", legacy: "color" },
 		{ id: "stripe", name: "Stripe", default: "#f4f1ea", legacy: "accent" },
@@ -113,7 +114,7 @@ export const fireEngine01 = definePart({
 				/>
 
 				{/* The ladder on the roof: two rails and their rungs, on a turntable at the back. */}
-				{p.showLadder && (
+				{p.showsLadder && (
 					<group position={[BODY.x - 0.05, bodyTop + 0.1, 0]}>
 						<Box
 							size={[0.3, 0.08, 0.3]}

@@ -50,7 +50,7 @@ export const poseOf = (
 			: target.clone();
 	return {
 		target: [round(onGround.x, 2), round(onGround.z, 2)],
-		targetHeight: round(onGround.y, 2),
+		targetAltitude: round(onGround.y, 2),
 		// Hundredths of a degree: coarser rounding shows as a shift when zoomed in close.
 		azimuth: round(normalizeDegrees(Math.atan2(-direction.z, direction.x) / DEG2RAD), 2),
 		elevation: round(clamp(Math.asin(direction.y) / DEG2RAD, -90, 90), 2),
@@ -73,7 +73,7 @@ export const placeCamera = (
 	height: number,
 	worldFieldOfView: number,
 ) => {
-	const target = new THREE.Vector3(pose.target[0], pose.targetHeight, pose.target[1]);
+	const target = new THREE.Vector3(pose.target[0], pose.targetAltitude, pose.target[1]);
 	const direction = directionOf(pose.azimuth, pose.elevation);
 	if (camera instanceof THREE.PerspectiveCamera) {
 		const fieldOfView = pose.fieldOfView ?? worldFieldOfView;
@@ -106,7 +106,7 @@ export const blendPoses = (a: TViewPose, b: TViewPose, t: number): TViewPose => 
 	const fieldOfViewB = b.fieldOfView ?? a.fieldOfView;
 	return {
 		target: [mix(a.target[0], b.target[0]), mix(a.target[1], b.target[1])],
-		targetHeight: mix(a.targetHeight, b.targetHeight),
+		targetAltitude: mix(a.targetAltitude, b.targetAltitude),
 		azimuth: a.azimuth + turnBetween(a.azimuth, b.azimuth) * t,
 		elevation: mix(a.elevation, b.elevation),
 		// Spans scale, so blend them evenly in proportion rather than in units.
@@ -146,7 +146,7 @@ export const sameView = (a: TViewPose, b: TViewPose, worldFieldOfView: number) =
 	return (
 		a.projection === b.projection &&
 		Math.hypot(a.target[0] - b.target[0], a.target[1] - b.target[1]) < span * 0.02 &&
-		Math.abs(a.targetHeight - b.targetHeight) < span * 0.02 &&
+		Math.abs(a.targetAltitude - b.targetAltitude) < span * 0.02 &&
 		Math.abs(turnBetween(a.azimuth, b.azimuth)) < 1 &&
 		Math.abs(a.elevation - b.elevation) < 1 &&
 		Math.abs(a.span - b.span) < span * 0.02 &&

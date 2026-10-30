@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EntityColorSchema } from "#/scene/schema";
+import { ColorSettingSchema } from "#/scene/schema";
 
 import { resolvePartTransparencies, resolveTransparencies } from "./colorModel";
 import type { IColorSpec } from "./types";
@@ -12,12 +12,10 @@ const part: { colors: IColorSpec[] } = {
 	],
 };
 
-const stored = (colors: Record<string, Partial<ReturnType<typeof EntityColorSchema.parse>>>) => ({
+const stored = (colors: Record<string, Partial<ReturnType<typeof ColorSettingSchema.parse>>>) => ({
 	colors: Object.fromEntries(
-		Object.entries(colors).map(([id, setting]) => [id, EntityColorSchema.parse(setting)]),
+		Object.entries(colors).map(([id, setting]) => [id, ColorSettingSchema.parse(setting)]),
 	),
-	color: null,
-	accent: null,
 });
 
 describe("see-through colours (ADR-0090)", () => {

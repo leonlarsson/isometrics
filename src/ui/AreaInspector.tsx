@@ -3,33 +3,27 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import {
-	AREA_TYPE_LABELS,
-	areaColor,
+	AREA_KIND_LABELS,
+	AREA_KINDS,
 	cornerLift,
 	cornerTop,
 	MAX_CORNER_LIFT,
 	polygonArea,
 	takesCornerHeights,
 } from "#/scene/areas";
-import type { TArea, TAreaType } from "#/scene/schema";
+import { changeColorSetting } from "#/scene/objectSettings";
+import type { TArea, TAreaKind } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
-import {
-	ColorField,
-	Hint,
-	Kbd,
-	Section,
-	SelectField,
-	SliderField,
-	TextField,
-	VectorField,
-} from "./fields";
+import { FollowDataNote } from "./FollowDataNote";
+import { Hint, Kbd, Section, SelectField, SliderField, TextField, VectorField } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
+import { ColorSettingFields } from "./PartSettings";
 import { RipplesNote } from "./WaterSettings";
 
-const TYPE_OPTIONS = (Object.keys(AREA_TYPE_LABELS) as TAreaType[]).map((value) => ({
+const TYPE_OPTIONS = (Object.keys(AREA_KIND_LABELS) as TAreaKind[]).map((value) => ({
 	value,
-	label: AREA_TYPE_LABELS[value],
+	label: AREA_KIND_LABELS[value],
 }));
 
 /** Position and height of the selected corner, with delete. */
@@ -67,7 +61,7 @@ const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
 			/>
 
 			<SliderField
-				label="Height"
+				label="Altitude"
 				value={cornerTop(area, point)}
 				min={0}
 				max={Math.min(15, area.height + MAX_CORNER_LIFT)}
@@ -160,7 +154,7 @@ const PeakPanel = ({ area, index }: { area: TArea; index: number }) => {
 			/>
 
 			<SliderField
-				label="Height"
+				label="Altitude"
 				value={cornerTop(area, peak)}
 				min={0}
 				max={Math.min(15, area.height + MAX_CORNER_LIFT)}
@@ -192,16 +186,16 @@ const AreaTab = ({ area }: { area: TArea }) => {
 	return (
 		<Section
 			icon="area"
-			title={`${AREA_TYPE_LABELS[area.type]} area`}
+			title={`${AREA_KIND_LABELS[area.kind]} area`}
 			actions={
 				<IconButtonGroup>
 					<IconButton
-						icon={area.locked ? "lock" : "unlock"}
-						label={area.locked ? "Unlock" : "Lock its shape"}
-						pressed={area.locked}
+						icon={area.isLocked ? "lock" : "unlock"}
+						label={area.isLocked ? "Unlock" : "Lock its shape"}
+						pressed={area.isLocked}
 						onClick={() =>
 							edit("locked", (a) => {
-								a.locked = !a.locked;
+								a.isLocked = !a.isLocked;
 							})
 						}
 					/>
@@ -213,7 +207,7 @@ const AreaTab = ({ area }: { area: TArea }) => {
 			<TextField
 				label="Name"
 				value={area.name}
-				placeholder={AREA_TYPE_LABELS[area.type]}
+				placeholder={AREA_KIND_LABELS[area.kind]}
 				onChange={(v) =>
 					edit("name", (a) => {
 						a.name = v;
@@ -221,13 +215,13 @@ const AreaTab = ({ area }: { area: TArea }) => {
 				}
 			/>
 
-			<SelectField<TAreaType>
-				label="Type"
-				value={area.type}
+			<SelectField<TAreaKind>
+				label="Kind"
+				value={area.kind}
 				options={TYPE_OPTIONS}
 				onChange={(v) =>
 					edit("type", (a) => {
-						a.type = v;
+						a.kind = v;
 					})
 				}
 			/>
@@ -264,7 +258,7 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				keywords="shape corners raised height cliff slope ramp hill lift peak hollow"
 			>
 				<SliderField
-					label="Raised by"
+					label="Height"
 					value={area.height}
 					min={0}
 					max={10}
@@ -305,91 +299,96 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 	);
 };
 
-/** The Look tab: the area's colour, and for water how rippled and mirroring it is. */
+/** The Look tab: the area's colour (by hand or from data), and for water how rippled and mirroring it is. */
 const AreaLookTab = ({ area }: { area: TArea }) => {
 	const palette = usePalette();
+	const data = useEditor((s) => s.scene.data);
 	const edit = useAreaEdit(area);
 	const worldWater = useEditor((s) => s.scene.water);
+	const [surface] = AREA_KINDS[area.kind].colors;
 
 	return (
-		<Section
-			id="area.look"
-			icon="palette"
-			title="Look"
-			keywords="colour color ripples water waves calm reflections mirror"
-		>
-			<ColorField
-				label="Colour"
-				value={areaColor(area, palette)}
-				onChange={(v) =>
-					edit("color", (a) => {
-						a.color = v;
-					})
-				}
-				inherit={{
-					from: "default",
-					inherited: area.color === null,
-					onReset: () =>
-						edit("color", (a) => {
-							a.color = null;
-						}),
-				}}
-			/>
+		<>
+			<FollowDataNote title="Its colour can follow data">
+				An area's colour can come from a value in the Data tab: a value holding a colour (red,
+				#ff0000), or a number on a colour scale, like a district that turns red as demand rises.
+			</FollowDataNote>
 
-			{area.type === "water_01" && (
-				<>
-					<SliderField
-						label="Ripples on the water"
-						value={Math.round((area.rippleStrength ?? worldWater.rippleStrength) * 100)}
-						min={0}
-						max={100}
-						step={5}
-						suffix="%"
-						onChange={(v) =>
-							edit("rippleStrength", (a) => {
-								a.rippleStrength = v / 100;
-							})
-						}
-						inherit={{
-							from: "scene",
-							inherited: area.rippleStrength === null,
-							onReset: () =>
+			<Section
+				id="area.look"
+				icon="palette"
+				title="Look"
+				keywords="colour color ripples water waves calm reflections mirror data heatmap"
+			>
+				<ColorSettingFields
+					spec={surface}
+					setting={area.colors[surface.id]}
+					data={data}
+					palette={palette}
+					onChange={(change, field) =>
+						edit(`color:${field ?? performance.now()}`, (a) => {
+							changeColorSetting(a.colors, surface.id, change);
+						})
+					}
+				/>
+
+				{area.kind === "water_01" && (
+					<>
+						<SliderField
+							label="Ripples on the water"
+							value={Math.round((area.water.rippleStrength ?? worldWater.rippleStrength) * 100)}
+							min={0}
+							max={100}
+							step={5}
+							suffix="%"
+							onChange={(v) =>
 								edit("rippleStrength", (a) => {
-									a.rippleStrength = null;
-								}),
-							value: `${Math.round(worldWater.rippleStrength * 100)}%`,
-						}}
-						hint="0% is mirror-calm, 100% choppy."
-					/>
+									a.water.rippleStrength = v / 100;
+								})
+							}
+							inherit={{
+								from: "scene",
+								inherited: area.water.rippleStrength === null,
+								onReset: () =>
+									edit("rippleStrength", (a) => {
+										a.water.rippleStrength = null;
+									}),
+								value: `${Math.round(worldWater.rippleStrength * 100)}%`,
+							}}
+							hint="0% is mirror-calm, 100% choppy."
+						/>
 
-					<SliderField
-						label="Reflections on the water"
-						value={Math.round((area.reflectionStrength ?? worldWater.reflectionStrength) * 100)}
-						min={0}
-						max={100}
-						step={5}
-						suffix="%"
-						onChange={(v) =>
-							edit("reflectionStrength", (a) => {
-								a.reflectionStrength = v / 100;
-							})
-						}
-						inherit={{
-							from: "scene",
-							inherited: area.reflectionStrength === null,
-							onReset: () =>
+						<SliderField
+							label="Reflections on the water"
+							value={Math.round(
+								(area.water.reflectionStrength ?? worldWater.reflectionStrength) * 100,
+							)}
+							min={0}
+							max={100}
+							step={5}
+							suffix="%"
+							onChange={(v) =>
 								edit("reflectionStrength", (a) => {
-									a.reflectionStrength = null;
-								}),
-							value: `${Math.round(worldWater.reflectionStrength * 100)}%`,
-						}}
-						hint="How strongly it mirrors the world: 0% shows only its ripples catching the lights."
-					/>
+									a.water.reflectionStrength = v / 100;
+								})
+							}
+							inherit={{
+								from: "scene",
+								inherited: area.water.reflectionStrength === null,
+								onReset: () =>
+									edit("reflectionStrength", (a) => {
+										a.water.reflectionStrength = null;
+									}),
+								value: `${Math.round(worldWater.reflectionStrength * 100)}%`,
+							}}
+							hint="How strongly it mirrors the world: 0% shows only its ripples catching the lights."
+						/>
 
-					<RipplesNote />
-				</>
-			)}
-		</Section>
+						<RipplesNote />
+					</>
+				)}
+			</Section>
+		</>
 	);
 };
 

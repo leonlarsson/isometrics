@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 
 import { Button } from "./Button";
 
@@ -17,7 +17,7 @@ export const JoinOfferBar = () => {
 	if (!a || !b) {
 		return null;
 	}
-	const name = (road: typeof a) => road.name || ROAD_STYLE_LABELS[road.style];
+	const name = (road: typeof a) => road.name || ROAD_KIND_LABELS[road.kind];
 	const sameRoad = a.id === b.id;
 
 	return (

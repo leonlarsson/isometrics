@@ -9,6 +9,7 @@ import {
 } from "#/scene/schema";
 
 import { paint } from "./paint";
+import { turned } from "./turned";
 
 /**
  * Everything here is traced from the official Monaco Grand Prix map (2000 × 1414 px),
@@ -131,9 +132,9 @@ const pier = (id: string, base: TVec2, length: number, width = 14): TAreaInput =
 	return {
 		id,
 		name: "Pier",
-		type: "plaza_01",
+		kind: "plaza_01",
 		// Timber, so the piers read as piers rather than white lines on the water.
-		color: "#a8916f",
+		colors: { surface: { color: "#a8916f" } },
 		points: outline([
 			[base[0] - nx * half, base[1] - ny * half],
 			[tip[0] - nx * half, tip[1] - ny * half],
@@ -156,7 +157,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "water",
 		name: "Port Hercule & the sea",
-		type: "water_01",
+		kind: "water_01",
 		points: outline([
 			[1000, 414], // north quay, below Tabac
 			[1090, 422],
@@ -187,7 +188,7 @@ const AREAS: TAreaInput[] = [
 		// The F1 paddock's quay, between the harbour and Avenue de la Quarantaine.
 		id: "quai_antoine",
 		name: "Quai Antoine Ier",
-		type: "plaza_01",
+		kind: "plaza_01",
 		points: outline([
 			[785, 668],
 			[810, 630],
@@ -199,7 +200,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "terminal",
 		name: "Digue & cruise terminal",
-		type: "plaza_01",
+		kind: "plaza_01",
 		points: outline([
 			[990, 790],
 			[1100, 826],
@@ -214,7 +215,7 @@ const AREAS: TAreaInput[] = [
 		// Monaco-Ville, with the Prince's Palace.
 		id: "the_rock",
 		name: "The Rock",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: ROCK,
 		points: outline([
 			[385, 592],
@@ -234,7 +235,7 @@ const AREAS: TAreaInput[] = [
 		// Monte-Carlo, on the hill above Beau Rivage and Casino Square.
 		id: "hillside",
 		name: "Monte-Carlo hillside",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: HILLSIDE,
 		points: outline([
 			[385, 166],
@@ -263,7 +264,7 @@ const AREAS: TAreaInput[] = [
 		// Inside the Casino / Mirabeau loop: the Casino and its terraces.
 		id: "casino_plateau",
 		name: "Casino Square",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: CASINO_PLATEAU,
 		points: outline([
 			[1597, 454],
@@ -278,7 +279,7 @@ const AREAS: TAreaInput[] = [
 		// Mirabeau and the hairpin, on a terrace with retaining walls below the Casino.
 		id: "hairpin_terrace",
 		name: "Mirabeau terrace",
-		type: "raised_land_01",
+		kind: "raised_land_01",
 		height: HAIRPIN_TERRACE,
 		points: outline([
 			[1714, 452],
@@ -294,7 +295,7 @@ const AREAS: TAreaInput[] = [
 	{
 		id: "hairpin_island",
 		name: "Hairpin island",
-		type: "grass_01",
+		kind: "grass_01",
 		height: HAIRPIN_ISLAND_TOP,
 		points: outline(
 			Array.from({ length: 10 }, (_, i): TVec2 => {
@@ -331,9 +332,9 @@ const cars: TEntityInput[] = LIVERIES.map(([color, accent], i) => ({
 	colors: paint({ livery: color, details: accent }),
 	scale: CAR_SIZE,
 	// The pack runs nose to tail at one speed, so nobody drives through anybody.
-	follow: { roadId: TRACK_ID, speed: 5, offset: 40 - i * 2.5 },
+	follow: { roadId: TRACK_ID, speed: 5, startDistance: 40 - i * 2.5 },
 	// Rain lights on while it rains (the Rain value), day or night (ADR-0058).
-	lights: { rain: { data: { on: { key: "rain" } } } },
+	lights: { rainLight: { data: { on: { key: "rain" } } } },
 	...(i === 0
 		? {
 				label: {
@@ -362,9 +363,9 @@ const paddock: TEntityInput[] = (
 	kind: "depot_01",
 	name: `Team hospitality ${i + 1}`,
 	position: fromMap(spot),
-	rotation: -38.8,
+	rotation: turned(-38.8),
 	colors: paint({ walls: LIVERIES[i][0], roof: LIVERIES[i][1] }),
-	props: { width: 1.4, depth: 1.1, height: 0.9, showGarageDoor: false },
+	props: { width: 1.4, depth: 1.1, height: 0.9, showsGarageDoor: false },
 }));
 
 /** Monte-Carlo's towers on the hillside. */
@@ -393,7 +394,7 @@ const city: TEntityInput[] = (
 	id: `building_${i}`,
 	kind: "office_tower_01",
 	position: fromMap([x, y]),
-	elevation: HILLSIDE,
+	altitude: HILLSIDE,
 	colors: paint({ facade: ["#e9d8b8", "#d9c3a5", "#f1e4cf", "#c9d6e0"][i % 4], grid: "#fbf7ef" }),
 	props: { width: 2.4, depth: 2.4, floorCount: floors },
 }));
@@ -411,11 +412,11 @@ const lowCity: TEntityInput[] = (
 		[760, 840, 2, ROCK],
 		[1898, 425, 9, 0], // apartments above Mirabeau Bas
 	] as [number, number, number, number][]
-).map(([x, y, floors, elevation], i) => ({
+).map(([x, y, floors, altitude], i) => ({
 	id: `low_building_${i}`,
 	kind: "office_tower_01",
 	position: fromMap([x, y]),
-	elevation,
+	altitude,
 	colors: paint({ facade: ["#f1e4cf", "#e9d8b8", "#efd9c0", "#d9c3a5"][i % 4], grid: "#fbf7ef" }),
 	props: { width: 2.2, depth: 2.2, floorCount: floors },
 }));
@@ -432,7 +433,7 @@ const yachts: TEntityInput[] = [
 					id: `yacht_${p}_${k}_${side === 1 ? "a" : "b"}`,
 					kind: "yacht_01",
 					position: fromMap(spot),
-					rotation: ALONG_PIERS + (side === 1 ? 0 : 180),
+					rotation: turned(ALONG_PIERS + (side === 1 ? 0 : 180)),
 					colors: paint({ stripe: (p + k) % 3 === 0 ? "#1f1f24" : null }),
 					props: { length: 1.6 + ((p * 2 + k + (side === 1 ? 0 : 1)) % 3) * 0.4, deckCount: 1 + k },
 				};
@@ -468,12 +469,12 @@ const trees: TEntityInput[] = (
 		[410, 650, ROCK],
 		[660, 520, 0],
 	] as [number, number, number][]
-).map(([x, y, elevation], i) => ({
+).map(([x, y, altitude], i) => ({
 	id: `tree_${i}`,
 	kind: i % 2 === 0 ? "round_tree_01" : "pine_tree_01",
 	position: fromMap([x, y]),
-	elevation,
-	props: { size: 0.9 },
+	altitude,
+	scale: 0.9,
 }));
 
 /** The Circuit de Monaco around Port Hercule, with live race data. */
@@ -482,42 +483,42 @@ export const createMonacoScene = (): TScene => {
 		version: 1,
 		meta: { title: "Monaco street circuit", subtitle: "Live race overview" },
 		theme: "system",
-		ground: { width: 70, depth: 34, color: null },
-		drivingSide: "right",
+		ground: { width: 70, depth: 34 },
+		traffic: { drivingSide: "right" },
 		data: [
-			{ key: "lap", label: "Lap", value: "42 / 78" },
-			{ key: "leader", label: "Leader", value: "Car 16" },
-			{ key: "gap", label: "Gap to P2", value: "+1.8 s" },
-			{ key: "fastest_lap", label: "Fastest lap", value: "1:12.909" },
-			{ key: "top_speed", label: "Top speed", value: 291, unit: " km/h" },
-			{ key: "spectators", label: "Spectators", value: 37800 },
-			{ key: "track_temp", label: "Track temp", value: 41, unit: "°C" },
-			{ key: "pit_stops", label: "Pit stops", value: 11 },
+			{ key: "lap", name: "Lap", value: "42 / 78" },
+			{ key: "leader", name: "Leader", value: "Car 16" },
+			{ key: "gap", name: "Gap to P2", value: "+1.8 s" },
+			{ key: "fastest_lap", name: "Fastest lap", value: "1:12.909" },
+			{ key: "top_speed", name: "Top speed", value: 291, unit: " km/h" },
+			{ key: "spectators", name: "Spectators", value: 37800 },
+			{ key: "track_temp", name: "Track temp", value: 41, unit: "°C" },
+			{ key: "pit_stops", name: "Pit stops", value: 11 },
 			// Set to "yes" and every car's rain light comes on, like in a real wet race.
-			{ key: "rain", label: "Rain", value: "no" },
+			{ key: "rain", name: "Rain", value: "no" },
 		],
 		areas: AREAS,
 		roads: [
 			{
 				id: TRACK_ID,
 				name: "Circuit de Monaco",
-				style: "road_01",
+				kind: "road_01",
 				loops: true,
 				width: 1.2,
 				cornerRadius: 1,
 				// Race tarmac, darker than a town road, with no centre line.
-				color: "#9c988f",
-				showMarkings: false,
-				drivingLane: "centre",
+				colors: { surface: { color: "#9c988f" } },
+				showsCentreLine: false,
+				traffic: { drivingLane: "centre" },
 				// The climb from Sainte Dévote to the Casino sits on the hillside.
-				supports: "embankment",
-				showRailings: false,
+				heldUpBy: "embankment",
+				showsRailings: false,
 				points: TRACK,
 			},
 			{
 				id: "sea_lane",
 				name: "Sea lane",
-				style: "hidden_route_01",
+				kind: "hidden_route_01",
 				points: [fromMap([1580, 885]), fromMap([1910, 760])],
 			},
 		],
@@ -527,7 +528,7 @@ export const createMonacoScene = (): TScene => {
 				kind: "zone_01",
 				name: "Stade Nautique Rainier III (swimming pool)",
 				position: fromMap([850, 480]),
-				rotation: 38.5,
+				rotation: turned(38.5),
 				colors: paint({ fill: "#5fd0ea" }),
 				props: { width: 1.3, depth: 0.9, shape: "rect" },
 			},
@@ -536,9 +537,9 @@ export const createMonacoScene = (): TScene => {
 				kind: "tunnel_01",
 				name: "Tunnel (under the Fairmont)",
 				position: fromMap([1610, 588]),
-				rotation: 1.5,
+				rotation: turned(1.5),
 				colors: paint({ walls: "#d9d4c7", roof: "#e9d5c4" }),
-				props: { length: 12, width: 2.4, height: 1.2, buildingFloors: 2.2 },
+				props: { length: 12, width: 2.4, height: 1.2, buildingHeight: 2.2 },
 				label: { title: "Top speed", dataKeys: ["top_speed"], offset: [0, 1, 3] },
 			},
 			{
@@ -546,10 +547,10 @@ export const createMonacoScene = (): TScene => {
 				kind: "depot_01",
 				name: "Casino de Monte-Carlo",
 				position: fromMap([1665, 495]),
-				elevation: CASINO_PLATEAU,
-				rotation: 180,
+				altitude: CASINO_PLATEAU,
+				rotation: turned(180),
 				colors: paint({ walls: "#f3e7cf", roof: "#c9a15a" }),
-				props: { width: 3.4, depth: 2, height: 2.4, showGarageDoor: false },
+				props: { width: 3.4, depth: 2, height: 2.4, showsGarageDoor: false },
 				label: { title: "Track temp", dataKeys: ["track_temp"], offset: [0, 1.4, 0] },
 			},
 			{
@@ -557,19 +558,19 @@ export const createMonacoScene = (): TScene => {
 				kind: "depot_01",
 				name: "Hôtel de Paris",
 				position: fromMap([1533, 470]),
-				elevation: HILLSIDE,
+				altitude: HILLSIDE,
 				colors: paint({ walls: "#efe2c8", roof: "#9c8b6f" }),
-				props: { width: 2, depth: 1.4, height: 2.2, showGarageDoor: false },
+				props: { width: 2, depth: 1.4, height: 2.2, showsGarageDoor: false },
 			},
 			{
 				id: "palace",
 				kind: "depot_01",
 				name: "Prince's Palace",
 				position: fromMap([480, 680]),
-				elevation: ROCK,
-				rotation: -20,
+				altitude: ROCK,
+				rotation: turned(-20),
 				colors: paint({ walls: "#f0e3cc", roof: "#c96a4a" }),
-				props: { width: 4, depth: 2.4, height: 1.6, showGarageDoor: false },
+				props: { width: 4, depth: 2.4, height: 1.6, showsGarageDoor: false },
 			},
 			{
 				id: "start_line",
@@ -588,8 +589,8 @@ export const createMonacoScene = (): TScene => {
 				kind: "grandstand_01",
 				name: "Grandstand (start straight)",
 				position: fromMap([747, 461]),
-				rotation: 38.5,
-				props: { length: 5, seatRows: 3 },
+				rotation: turned(38.5),
+				props: { length: 5, seatRowCount: 3 },
 				label: { title: "Spectators", dataKeys: ["spectators"], offset: [0, 1.5, 0] },
 			},
 			{
@@ -597,18 +598,18 @@ export const createMonacoScene = (): TScene => {
 				kind: "grandstand_01",
 				name: "Grandstand (La Condamine)",
 				position: fromMap([845, 391]),
-				rotation: 33.5,
+				rotation: turned(33.5),
 				colors: paint({ seats: "#e2603b" }),
-				props: { length: 4, seatRows: 3 },
+				props: { length: 4, seatRowCount: 3 },
 			},
 			{
 				id: "grandstand_rascasse",
 				kind: "grandstand_01",
 				name: "Grandstand (La Rascasse)",
 				position: fromMap([713, 699]),
-				rotation: 153.4,
+				rotation: turned(153.4),
 				colors: paint({ seats: "#2bb58c" }),
-				props: { length: 3, seatRows: 2, showRoof: false },
+				props: { length: 3, seatRowCount: 2, showsRoof: false },
 			},
 			...paddock,
 			...city,
@@ -619,7 +620,7 @@ export const createMonacoScene = (): TScene => {
 				kind: "yacht_01",
 				name: "Cruising yacht",
 				props: { length: 3.6, deckCount: 2 },
-				follow: { roadId: "sea_lane", speed: 0.8, offset: 4 },
+				follow: { roadId: "sea_lane", speed: 0.8, startDistance: 4 },
 			},
 			...trees,
 			...cars,

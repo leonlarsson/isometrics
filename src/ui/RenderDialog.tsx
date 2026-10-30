@@ -61,7 +61,7 @@ export const RenderDialog = () => {
 	const open = useEditor((s) => s.renderDialogOpen);
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const title = useEditor((s) => s.scene.meta.title);
-	const hasCards = useEditor((s) => s.scene.entities.some((e) => e.label?.enabled && !e.hidden));
+	const hasCards = useEditor((s) => s.scene.entities.some((e) => e.label.isShown && !e.isHidden));
 	const playing = useEditor((s) => s.playing);
 	const [chosenCamera, setCamera] = useState("view");
 	// A viewpoint deleted since it was picked: back to the view now.

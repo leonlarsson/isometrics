@@ -3,7 +3,13 @@ import { useState } from "react";
 import { resetPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
-import { CameraSettingsSchema, type TCameraSettings, type TProjection } from "#/scene/schema";
+import {
+	CameraSettingsSchema,
+	type TCameraSettings,
+	type TProjection,
+	type TTiltShift,
+	type TTurntable,
+} from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -59,6 +65,32 @@ export const CameraTab = () => {
 			commit((s) => {
 				s.camera[key] = CAMERA_DEFAULTS[key];
 			}),
+		value,
+	});
+	const setTurntable = <K extends keyof TTurntable>(key: K, value: TTurntable[K]) =>
+		commit(
+			(s) => {
+				s.camera.turntable[key] = value;
+			},
+			{ coalesce: `camera.turntable.${key}` },
+		);
+	const turntableByDefault = <K extends keyof TTurntable>(key: K, value: string) => ({
+		from: "default",
+		inherited: camera.turntable[key] === CAMERA_DEFAULTS.turntable[key],
+		onReset: () => setTurntable(key, CAMERA_DEFAULTS.turntable[key]),
+		value,
+	});
+	const setTiltShift = <K extends keyof TTiltShift>(key: K, value: TTiltShift[K]) =>
+		commit(
+			(s) => {
+				s.camera.tiltShift[key] = value;
+			},
+			{ coalesce: `camera.tiltShift.${key}` },
+		);
+	const tiltShiftByDefault = <K extends keyof TTiltShift>(key: K, value: string) => ({
+		from: "default",
+		inherited: camera.tiltShift[key] === CAMERA_DEFAULTS.tiltShift[key],
+		onReset: () => setTiltShift(key, CAMERA_DEFAULTS.tiltShift[key]),
 		value,
 	});
 
@@ -255,22 +287,22 @@ export const CameraTab = () => {
 				/>
 
 				<SliderField
-					label="Steepest tilt"
-					value={camera.steepestElevation}
+					label="Highest tilt"
+					value={camera.highestElevation}
 					min={0}
 					max={90}
 					step={1}
 					suffix="°"
-					onChange={(v) => set("steepestElevation", v)}
-					inherit={byDefault("steepestElevation", `${CAMERA_DEFAULTS.steepestElevation}°`)}
+					onChange={(v) => set("highestElevation", v)}
+					inherit={byDefault("highestElevation", `${CAMERA_DEFAULTS.highestElevation}°`)}
 					hint="90° looks straight down, like a map."
 				/>
 
 				<SwitchField
 					label="Keep the camera over the ground"
-					checked={camera.keepOverGround}
-					onChange={(v) => set("keepOverGround", v)}
-					inherit={byDefault("keepOverGround", "on")}
+					checked={camera.keepsOverGround}
+					onChange={(v) => set("keepsOverGround", v)}
+					inherit={byDefault("keepsOverGround", "on")}
 				/>
 			</Section>
 
@@ -283,9 +315,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Circle the view in View mode"
-					checked={camera.turntableOn}
-					onChange={(v) => set("turntableOn", v)}
-					inherit={byDefault("turntableOn", "off")}
+					checked={camera.turntable.isOn}
+					onChange={(v) => setTurntable("isOn", v)}
+					inherit={turntableByDefault("isOn", "off")}
 					hint={
 						camera.keepsIsometricAngle
 							? "It doesn’t circle while the world keeps the isometric angle (in the View panel), which turns only a quarter at a time."
@@ -295,25 +327,25 @@ export const CameraTab = () => {
 
 				<SliderField
 					label="Speed"
-					value={camera.turntableSpeed}
+					value={camera.turntable.speed}
 					min={-30}
 					max={30}
 					step={1}
 					suffix="°/s"
-					onChange={(v) => set("turntableSpeed", v)}
-					inherit={byDefault("turntableSpeed", `${CAMERA_DEFAULTS.turntableSpeed}°/s`)}
+					onChange={(v) => setTurntable("speed", v)}
+					inherit={turntableByDefault("speed", `${CAMERA_DEFAULTS.turntable.speed}°/s`)}
 					hint="Degrees a second; below 0 it turns the other way."
 				/>
 
 				<SliderField
 					label="Starts after"
-					value={camera.turntableDelay}
+					value={camera.turntable.delay}
 					min={1}
 					max={120}
 					step={1}
 					suffix="s"
-					onChange={(v) => set("turntableDelay", v)}
-					inherit={byDefault("turntableDelay", `${CAMERA_DEFAULTS.turntableDelay} s`)}
+					onChange={(v) => setTurntable("delay", v)}
+					inherit={turntableByDefault("delay", `${CAMERA_DEFAULTS.turntable.delay} s`)}
 					hint="Seconds without input in View mode. Any press, scroll or key stops it, like a model on a turntable in a shop window: good for a world left on a wall screen."
 				/>
 			</Section>
@@ -327,9 +359,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Miniature blur in View mode"
-					checked={camera.tiltShiftOn}
-					onChange={(v) => set("tiltShiftOn", v)}
-					inherit={byDefault("tiltShiftOn", "off")}
+					checked={camera.tiltShift.isOn}
+					onChange={(v) => setTiltShift("isOn", v)}
+					inherit={tiltShiftByDefault("isOn", "off")}
 				/>
 
 				<SwitchField
@@ -345,39 +377,45 @@ export const CameraTab = () => {
 				/>
 
 				<SliderField
-					label="Blur"
-					value={Math.round(camera.tiltShiftBlur * 100)}
+					label="Blur strength"
+					value={Math.round(camera.tiltShift.blurStrength * 100)}
 					min={0}
 					max={100}
 					step={5}
 					suffix="%"
-					onChange={(v) => set("tiltShiftBlur", v / 100)}
-					inherit={byDefault("tiltShiftBlur", `${CAMERA_DEFAULTS.tiltShiftBlur * 100}%`)}
+					onChange={(v) => setTiltShift("blurStrength", v / 100)}
+					inherit={tiltShiftByDefault(
+						"blurStrength",
+						`${CAMERA_DEFAULTS.tiltShift.blurStrength * 100}%`,
+					)}
 				/>
 
 				<SliderField
-					label="Sharp band"
-					value={Math.round(camera.tiltShiftFocus * 100)}
+					label="Sharp band height"
+					value={Math.round(camera.tiltShift.sharpBandHeight * 100)}
 					min={5}
 					max={100}
 					step={5}
 					suffix="%"
-					onChange={(v) => set("tiltShiftFocus", v / 100)}
-					inherit={byDefault("tiltShiftFocus", `${CAMERA_DEFAULTS.tiltShiftFocus * 100}%`)}
+					onChange={(v) => setTiltShift("sharpBandHeight", v / 100)}
+					inherit={tiltShiftByDefault(
+						"sharpBandHeight",
+						`${CAMERA_DEFAULTS.tiltShift.sharpBandHeight * 100}%`,
+					)}
 					hint="How much of the view’s height stays sharp."
 				/>
 
 				<SliderField
-					label="Band height"
-					value={Math.round(camera.tiltShiftPosition * 100)}
+					label="Sharp band position"
+					value={Math.round(camera.tiltShift.sharpBandPosition * 100)}
 					min={0}
 					max={100}
 					step={5}
 					suffix="%"
-					onChange={(v) => set("tiltShiftPosition", v / 100)}
-					inherit={byDefault(
-						"tiltShiftPosition",
-						`${CAMERA_DEFAULTS.tiltShiftPosition * 100}%, the middle`,
+					onChange={(v) => setTiltShift("sharpBandPosition", v / 100)}
+					inherit={tiltShiftByDefault(
+						"sharpBandPosition",
+						`${CAMERA_DEFAULTS.tiltShift.sharpBandPosition * 100}%, the middle`,
 					)}
 					hint="Where the sharp band is, from the bottom of the view (0%) to the top."
 				/>

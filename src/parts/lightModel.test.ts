@@ -15,7 +15,6 @@ const car: IPartLights = {
 		{ id: "headlights", name: "Headlights", shape: "beam", when: "driving", reach: 2.4 },
 		{ id: "rain", name: "Rain light", shape: "lens", color: "#ff2a2a", strength: 0.8 },
 	],
-	renamedLights: { lamps: "headlights" },
 };
 
 const lamp: IPartLights = {
@@ -26,11 +25,6 @@ const lamp: IPartLights = {
 			shape: "pool",
 			reach: 2.3,
 			color: "#ffe8a3",
-			legacy: ({ props, accent }) => ({
-				strength: typeof props.brightness === "number" ? props.brightness : null,
-				reach: typeof props.reach === "number" ? props.reach : null,
-				color: accent,
-			}),
 		},
 	],
 };
@@ -38,14 +32,10 @@ const lamp: IPartLights = {
 const setting = (fields: Partial<TEntityLight>) => EntityLightSchema.parse(fields);
 
 /** A data binding to the value `key`, with options. */
-const bind = (key: string, options: { onAbove?: number; valueAtFull?: number } = {}) =>
+const bind = (key: string, options: { switchesOnAbove?: number; valueAtFull?: number } = {}) =>
 	DataBindingSchema.parse({ key, ...options });
 
-const entity = (lights: Record<string, TEntityLight> | "auto" | "on" | "off" = {}, props = {}) => ({
-	props,
-	accent: null,
-	lights,
-});
+const entity = (lights: Record<string, TEntityLight> = {}) => ({ lights });
 
 describe("resolveLights (ADR-0058)", () => {
 	it("lights after dark, at once by default, and headlights only while driving", () => {
@@ -59,8 +49,8 @@ describe("resolveLights (ADR-0058)", () => {
 			level: 1,
 			color: night.lamplight,
 			reach: 2.4,
-			litPanes: 1,
-			weight: 1,
+			litPaneShare: 1,
+			paneWeight: 1,
 		});
 	});
 
@@ -78,8 +68,8 @@ describe("resolveLights (ADR-0058)", () => {
 			level: 2,
 			color: "#ffffff",
 			reach: 4,
-			litPanes: 1,
-			weight: 1,
+			litPaneShare: 1,
+			paneWeight: 1,
 		});
 		expect(lights.rain.on).toBe(false);
 	});
@@ -97,40 +87,11 @@ describe("resolveLights (ADR-0058)", () => {
 		expect(resolveLights(signal, off, { palette: night, driving: false }).red.on).toBe(false);
 	});
 
-	it("reads the one setting older worlds had for all of an object's lights", () => {
-		const always = resolveLights(car, entity("on"), { palette: day, driving: false });
-		expect(always.headlights.on && always.rain.on).toBe(true);
-		const never = resolveLights(car, entity("off"), { palette: night, driving: true });
-		expect(never.headlights.on || never.rain.on).toBe(false);
-	});
-
-	it("keeps an object's settings for a light whose id changed", () => {
-		const lights = resolveLights(car, entity({ lamps: setting({ color: "#00ff00" }) }), {
+	it("is as its part has it until the object sets it", () => {
+		const set = resolveLights(lamp, entity({ lamp: setting({ strength: 0.5 }) }), {
 			palette: night,
-			driving: true,
+			driving: false,
 		});
-		expect(lights.headlights.color).toBe("#00ff00");
-	});
-
-	it("takes what older worlds stored elsewhere (a lamp's props and accent) until it's set", () => {
-		const old = resolveLights(
-			lamp,
-			{ props: { brightness: 2, reach: 5 }, accent: "#ff8800", lights: "auto" },
-			{ palette: night, driving: false },
-		);
-		expect(old.lamp).toEqual({
-			on: true,
-			level: 2,
-			color: "#ff8800",
-			reach: 5,
-			litPanes: 1,
-			weight: 1,
-		});
-		const set = resolveLights(
-			lamp,
-			{ props: { brightness: 2 }, accent: "#ff8800", lights: { lamp: setting({ strength: 0.5 }) } },
-			{ palette: night, driving: false },
-		);
 		expect(set.lamp.level).toBe(0.5);
 		expect(resolveLights(lamp, entity(), { palette: night, driving: false }).lamp).toMatchObject({
 			color: "#ffe8a3",
@@ -140,8 +101,8 @@ describe("resolveLights (ADR-0058)", () => {
 
 	it("switches a light by a data value, day and night", () => {
 		const data = [
-			{ key: "alert", label: "Alert", value: 1, unit: "" },
-			{ key: "calm", label: "Calm", value: "off", unit: "" },
+			{ key: "alert", name: "Alert", value: 1, unit: "" },
+			{ key: "calm", name: "Calm", value: "off", unit: "" },
 		];
 		const lights = (key: string) =>
 			resolveLights(car, entity({ rain: setting({ data: { on: bind(key) }, whenOn: "off" }) }), {
@@ -155,7 +116,7 @@ describe("resolveLights (ADR-0058)", () => {
 	});
 
 	it("takes its strength from a data value, against the value at normal strength", () => {
-		const data = [{ key: "visitors", label: "Visitors", value: 150, unit: "" }];
+		const data = [{ key: "visitors", name: "Visitors", value: 150, unit: "" }];
 		const strength = (full: number | null) =>
 			resolveLights(
 				car,
@@ -186,8 +147,8 @@ describe("resolveLights (ADR-0058)", () => {
 describe("colour by data", () => {
 	it("takes its colour from a data value that's a CSS colour, else keeps its own", () => {
 		const data = [
-			{ key: "status", label: "Status", value: "red", unit: "" },
-			{ key: "word", label: "Word", value: "open", unit: "" },
+			{ key: "status", name: "Status", value: "red", unit: "" },
+			{ key: "word", name: "Word", value: "open", unit: "" },
 		];
 		const color = (key: string) =>
 			resolveLights(
@@ -208,40 +169,44 @@ describe("colour by data", () => {
 describe("lit panes", () => {
 	const tower: IPartLights = {
 		lights: [
-			{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.28 },
-			{ id: "screens", name: "Screens", shape: "windows", litPanes: 0.2 },
+			{ id: "windows", name: "Windows", shape: "windows", litPaneShare: 0.28 },
+			{ id: "screens", name: "Screens", shape: "windows", litPaneShare: 0.2 },
 		],
 	};
 
 	it("lights the part's share of each window light's panes, the object's own, or a data value's", () => {
-		const data = [{ key: "occupancy", label: "Occupancy", value: 45, unit: "%" }];
+		const data = [{ key: "occupancy", name: "Occupancy", value: 45, unit: "%" }];
 		const lit = (lights: Record<string, TEntityLight>) => {
 			const resolved = resolveLights(tower, entity(lights), {
 				palette: night,
 				driving: false,
 				data,
 			});
-			return [resolved.windows.litPanes, resolved.screens.litPanes];
+			return [resolved.windows.litPaneShare, resolved.screens.litPaneShare];
 		};
 		expect(lit({})).toEqual([0.28, 0.2]);
-		expect(lit({ screens: setting({ litPanes: 0.9 }) })).toEqual([0.28, 0.9]);
+		expect(lit({ screens: setting({ litPaneShare: 0.9 }) })).toEqual([0.28, 0.9]);
 		expect(
-			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 100 }) } }) }),
+			lit({
+				windows: setting({ data: { litPaneShare: bind("occupancy", { valueAtFull: 100 }) } }),
+			}),
 		).toEqual([0.45, 0.2]);
 		// Never more than all of them.
 		expect(
-			lit({ windows: setting({ data: { litPanes: bind("occupancy", { valueAtFull: 10 }) } }) })[0],
+			lit({
+				windows: setting({ data: { litPaneShare: bind("occupancy", { valueAtFull: 10 }) } }),
+			})[0],
 		).toBe(1);
 	});
 	it("splits the windows by the object's weights, else the part's", () => {
 		const weights = (lights: Record<string, TEntityLight>) => {
 			const resolved = resolveLights(tower, entity(lights), { palette: night, driving: false });
-			return [resolved.windows.weight, resolved.screens.weight];
+			return [resolved.windows.paneWeight, resolved.screens.paneWeight];
 		};
 		expect(weights({})).toEqual([1, 1]);
-		expect(weights({ windows: setting({ weight: 70 }), screens: setting({ weight: 30 }) })).toEqual(
-			[70, 30],
-		);
+		expect(
+			weights({ windows: setting({ paneWeight: 70 }), screens: setting({ paneWeight: 30 }) }),
+		).toEqual([70, 30]);
 	});
 });
 
@@ -258,19 +223,25 @@ describe("when lights come on", () => {
 	it("lights windows one by one as it gets darker, or all together at once", () => {
 		const tower: IPartLights = {
 			lights: [
-				{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.4, comesOn: "oneByOne" },
+				{
+					id: "windows",
+					name: "Windows",
+					shape: "windows",
+					litPaneShare: 0.4,
+					comesOn: "oneByOne",
+				},
 			],
 		};
 		const windows = (night: number, lights = {}) =>
 			resolveLights(tower, entity(lights), { palette: at(night), driving: false }).windows;
-		expect(windows(0.1)).toMatchObject({ on: false, litPanes: 0 });
+		expect(windows(0.1)).toMatchObject({ on: false, litPaneShare: 0 });
 		expect(windows(0.35).level).toBe(1);
-		expect(windows(0.35).litPanes).toBeCloseTo(0.2);
-		expect(windows(1)).toMatchObject({ level: 1, litPanes: 0.4 });
+		expect(windows(0.35).litPaneShare).toBeCloseTo(0.2);
+		expect(windows(1)).toMatchObject({ level: 1, litPaneShare: 0.4 });
 		// At once: all its lit panes together, once it's dark enough.
 		const atOnce = { windows: setting({ comesOn: "atOnce" }) };
 		expect(windows(0.1, atOnce).on).toBe(false);
-		expect(windows(0.4, atOnce)).toMatchObject({ level: 1, litPanes: 0.4 });
+		expect(windows(0.4, atOnce)).toMatchObject({ level: 1, litPaneShare: 0.4 });
 	});
 
 	it("treats one by one as at once for lights that aren't windows", () => {
@@ -325,7 +296,7 @@ describe("when lights come on", () => {
 					palette: day,
 					driving: false,
 					hour: 10,
-					data: [{ key: "hours", label: "Opening hours", value, unit: "" }],
+					data: [{ key: "hours", name: "Opening hours", value, unit: "" }],
 				},
 			).rain.on;
 		expect(shop("09:00-17:30")).toBe(true);
@@ -352,7 +323,7 @@ describe("when lights come on", () => {
 		expect(level(20)).toBeCloseTo(0.8);
 		expect(level(22.75)).toBeCloseTo(0.2);
 		const tower: IPartLights = {
-			lights: [{ id: "windows", name: "Windows", shape: "windows", litPanes: 0.4 }],
+			lights: [{ id: "windows", name: "Windows", shape: "windows", litPaneShare: 0.4 }],
 		};
 		const windows = (hour: number) =>
 			resolveLights(tower, entity({ windows: setting({ ...evening, comesOn: "oneByOne" }) }), {
@@ -361,9 +332,9 @@ describe("when lights come on", () => {
 				hour,
 			}).windows;
 		expect(windows(18.5)).toMatchObject({ level: 1 });
-		expect(windows(18.5).litPanes).toBeCloseTo(0.2);
-		expect(windows(21).litPanes).toBeCloseTo(0.4);
-		expect(windows(22.5).litPanes).toBeCloseTo(0.2);
+		expect(windows(18.5).litPaneShare).toBeCloseTo(0.2);
+		expect(windows(21).litPaneShare).toBeCloseTo(0.4);
+		expect(windows(22.5).litPaneShare).toBeCloseTo(0.2);
 		expect(windows(23).on).toBe(false);
 	});
 });

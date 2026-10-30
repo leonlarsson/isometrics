@@ -13,7 +13,7 @@ import {
 	pillarPositions,
 	pointWidth,
 	polylineLength,
-	ROAD_STYLE_WIDTH,
+	ROAD_KIND_WIDTH,
 	resolveTurnStyle,
 	roadCenterline,
 	segmentMidpoints,
@@ -147,13 +147,45 @@ describe("dashPolyline", () => {
 describe("lanes", () => {
 	it("drives on the right or left, and down the centre of hidden or centre-lane roads", () => {
 		expect(
-			laneOffset({ width: 2, style: "road_01", drivingLane: "side" }, "right"),
+			laneOffset(
+				{
+					width: 2,
+					kind: "road_01",
+					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+				},
+				"right",
+			),
 		).toBeGreaterThan(0);
-		expect(laneOffset({ width: 2, style: "road_01", drivingLane: "side" }, "left")).toBeLessThan(0);
-		expect(laneOffset({ width: 2, style: "hidden_route_01", drivingLane: "side" }, "right")).toBe(
-			0,
-		);
-		expect(laneOffset({ width: 2, style: "road_01", drivingLane: "centre" }, "right")).toBe(0);
+		expect(
+			laneOffset(
+				{
+					width: 2,
+					kind: "road_01",
+					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+				},
+				"left",
+			),
+		).toBeLessThan(0);
+		expect(
+			laneOffset(
+				{
+					width: 2,
+					kind: "hidden_route_01",
+					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+				},
+				"right",
+			),
+		).toBe(0);
+		expect(
+			laneOffset(
+				{
+					width: 2,
+					kind: "road_01",
+					traffic: { drivingLane: "centre", turnStyle: null, leansInTurns: null },
+				},
+				"right",
+			),
+		).toBe(0);
 	});
 
 	it("puts opposite directions on opposite sides", () => {
@@ -616,8 +648,8 @@ describe("road width per point", () => {
 
 describe("widthForStyle", () => {
 	it("adopts the new style's default when the width is still the old default", () => {
-		expect(widthForStyle(ROAD_STYLE_WIDTH.hidden_route_01, "hidden_route_01", "road_01")).toBe(
-			ROAD_STYLE_WIDTH.road_01,
+		expect(widthForStyle(ROAD_KIND_WIDTH.hidden_route_01, "hidden_route_01", "road_01")).toBe(
+			ROAD_KIND_WIDTH.road_01,
 		);
 	});
 

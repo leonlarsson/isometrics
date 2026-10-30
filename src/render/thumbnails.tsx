@@ -11,7 +11,7 @@ import {
 	NO_OBJECT_SETTINGS,
 	type TObjectSettings,
 } from "#/scene/objectSettings";
-import { FenceSchema, type TFenceStyle } from "#/scene/schema";
+import { FenceSchema, type TFenceKind } from "#/scene/schema";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { VIEW_DIRECTION } from "./CameraRig";
@@ -200,7 +200,7 @@ interface IShot {
 }
 
 /** A short fence with a corner, for a style's picture (ADR-0103). */
-const fenceForPicture = (style: TFenceStyle) =>
+const fenceForPicture = (style: TFenceKind) =>
 	FenceSchema.parse({
 		id: "picture",
 		style,
@@ -218,7 +218,7 @@ const FenceShot = ({
 	size,
 	onShot,
 }: {
-	style: TFenceStyle;
+	style: TFenceKind;
 	look: IPictureLook;
 	size: IPictureSize;
 	onShot: (url: string) => void;
@@ -259,7 +259,7 @@ const NO_AREAS: never[] = [];
 const NO_DATA: never[] = [];
 
 /** The key a fence style's picture is kept under, next to the parts' kinds. */
-export const fencePictureKey = (style: TFenceStyle) => `fence:${style}`;
+export const fencePictureKey = (style: TFenceKind) => `fence:${style}`;
 
 interface IShotProps extends IShot {
 	size: IPictureSize;
@@ -327,7 +327,7 @@ const withPictureCanvas = async (
 	size: IPictureSize,
 	use: (
 		take: (shot: IShot) => Promise<string>,
-		takeFence: (style: TFenceStyle, look: IPictureLook) => Promise<string>,
+		takeFence: (style: TFenceKind, look: IPictureLook) => Promise<string>,
 	) => Promise<void>,
 ) => {
 	// <Canvas> teaches R3F three's classes; a root of our own, maybe before any canvas, needs it too.

@@ -1,6 +1,6 @@
 import type { IColorSpec } from "#/parts/types";
 import type { IFenceLayout } from "#/scene/fences";
-import type { TFenceStyle } from "#/scene/schema";
+import type { TFenceKind } from "#/scene/schema";
 
 import type { IFenceBuilder } from "./builder";
 
@@ -20,7 +20,7 @@ export interface IFenceBuildContext<C extends string = string> {
  * built from a layout's posts and spans.
  */
 export interface IFenceStyle<C extends string = string> {
-	id: TFenceStyle;
+	id: TFenceKind;
 	/** Its family's name ("Picket fence"); variants get a number after it. */
 	name: string;
 	/** What it is, for Add to scene and the format guide. */

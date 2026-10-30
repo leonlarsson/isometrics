@@ -9,7 +9,7 @@ import { boatHullGeometry } from "./boatKit";
 
 const CargoShipSchema = z.object({
 	length: z.number().min(5).max(24).default(10),
-	containerLayers: z.number().int().min(0).max(4).default(2),
+	containerLayerCount: z.number().int().min(0).max(4).default(2),
 });
 
 const HULL_HEIGHT = 0.55;
@@ -24,10 +24,12 @@ export const cargoShip01 = definePart({
 		"Container ship with stacks of containers, its bridge and funnel at the stern; can sail along a route",
 	keywords: ["container ship", "freighter", "boat", "port", "harbour", "shipping", "cargo"],
 	schema: CargoShipSchema,
+	renamedLights: { mastheadLamp: "mastheadLight" },
+	renamedProps: { containerLayers: "containerLayerCount" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 5, max: 24, step: 0.5 },
 		{
-			key: "containerLayers",
+			key: "containerLayerCount",
 			label: "Layers of containers",
 			type: "number",
 			min: 0,
@@ -51,8 +53,8 @@ export const cargoShip01 = definePart({
 			realLight: (p) => ({ at: [-p.length * 0.36, HULL_HEIGHT + 0.6, 0], reach: p.length * 0.35 }),
 		},
 		{
-			id: "mastheadLamp",
-			name: "Masthead lamp",
+			id: "mastheadLight",
+			name: "Masthead light",
 			description: "A white lamp at the top of the mast, lit after dark.",
 			shape: "lens",
 			color: "#ffffff",
@@ -62,7 +64,7 @@ export const cargoShip01 = definePart({
 	wake: (p) => ({ width: p.length * 0.16, behind: p.length / 2 }),
 	turnLean: { degreesPerAcceleration: 2, maxDegrees: 3 },
 	footprint: (p) => [p.length, p.length * 0.16],
-	height: (p) => HULL_HEIGHT + Math.max(1.15, p.containerLayers * BOX.height + 0.1),
+	height: (p) => HULL_HEIGHT + Math.max(1.15, p.containerLayerCount * BOX.height + 0.1),
 	Component: ({ props: p, colors, palette, lights }) => {
 		const width = p.length * 0.16;
 		const hull = useMemo(() => boatHullGeometry(p.length, width, HULL_HEIGHT), [p.length, width]);
@@ -90,7 +92,7 @@ export const cargoShip01 = definePart({
 				{spread(bays, holdTo - holdFrom).flatMap((along, bay) =>
 					spread(rows, rows * (BOX.width + 0.02)).flatMap((across, row) => {
 						const seed = bay * 7 + row * 3;
-						const layers = Math.round(p.containerLayers * (0.6 + 0.4 * jitter(seed)));
+						const layers = Math.round(p.containerLayerCount * (0.6 + 0.4 * jitter(seed)));
 						const heights = Array.from(
 							{ length: layers },
 							(_, layer) => HULL_HEIGHT + 0.03 + BOX.height * (layer + 0.5),
@@ -135,7 +137,7 @@ export const cargoShip01 = definePart({
 					<Box size={[0.03, 0.34, 0.03]} position={[0.05, 0.95, 0]} color={palette.trim} />
 
 					<LightLens
-						light={lights.mastheadLamp}
+						light={lights.mastheadLight}
 						size={[0.05, 0.05, 0.05]}
 						position={[0.05, 1.13, 0]}
 					/>

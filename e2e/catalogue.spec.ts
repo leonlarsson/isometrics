@@ -83,7 +83,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		await openPanel(page, "House shape");
 		await openPanel(page, "Colours");
 		await chimney.click();
-		await expect(details.getByText("showChimney")).toBeVisible();
+		await expect(details.getByText("showsChimney")).toBeVisible();
 		await details.getByRole("button", { name: "Colour", exact: true }).first().click();
 		await page.getByRole("button", { name: /^Use / }).first().click();
 		await page.keyboard.press("Escape");
@@ -93,7 +93,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 				props: Record<string, unknown>;
 				colors: Record<string, unknown>;
 			} | null;
-		await expect.poll(() => settings()?.props).toEqual({ showChimney: false });
+		await expect.poll(() => settings()?.props).toEqual({ showsChimney: false });
 		expect(Object.keys(settings()?.colors ?? {})).toEqual(["roof"]);
 
 		// A reload keeps them, with the panels folded again; Reset all puts the part back as it comes.
@@ -111,7 +111,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 			origin: new URL(baseURL ?? "http://localhost:3000").origin,
 		});
 		await page.goto(
-			`/parts?part=house_01&settings=${encodeURIComponent(JSON.stringify({ props: { showChimney: false } }))}`,
+			`/parts?part=house_01&settings=${encodeURIComponent(JSON.stringify({ props: { showsChimney: false } }))}`,
 		);
 		await page.getByRole("button", { name: "Copy as JSON" }).click();
 		// The button says so for a moment: a tick, outlined in green.
@@ -128,7 +128,7 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.entities.length)).toBe(before + 1);
 		const pasted = await read(page, (s) => s.scene.entities.at(-1));
 		expect(pasted?.kind).toBe("house_01");
-		expect(pasted?.props).toEqual({ showChimney: false });
+		expect(pasted?.props).toEqual({ showsChimney: false });
 	});
 
 	test("is linked from Add to scene", async ({ page }) => {

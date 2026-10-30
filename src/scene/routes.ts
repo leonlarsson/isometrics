@@ -8,10 +8,7 @@ import type { TDrivingSide, TRoad, TRoadPoint, TVec2 } from "./schema";
  * See docs/adr/0017-drawable-roads.md and 0031-two-way-routes-and-road-drops.md.
  */
 
-type TRouteRoad = Pick<
-	TRoad,
-	"points" | "loops" | "cornerRadius" | "width" | "style" | "drivingLane" | "turnStyle"
->;
+type TRouteRoad = Pick<TRoad, "points" | "loops" | "cornerRadius" | "width" | "kind" | "traffic">;
 
 // Roads are immutable (immer), so each road object's centre line only needs computing once.
 const centerlines = new WeakMap<object, TRoadPoint[]>();

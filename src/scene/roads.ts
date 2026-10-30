@@ -1,4 +1,5 @@
-import type { TDrivingSide, TRoad, TRoadPoint, TRoadStyle, TTurnStyle, TVec2 } from "./schema";
+import type { IColorSpec } from "./colors";
+import type { TDrivingSide, TRoad, TRoadKind, TRoadPoint, TTurnStyle, TVec2 } from "./schema";
 import { variantName } from "./variants";
 
 /**
@@ -9,37 +10,55 @@ import { variantName } from "./variants";
  * derives from that centre line. See docs/adr/0017 and 0018.
  */
 
+interface IRoadKind {
+	/** Whether it's drawn at all: a hidden route is only followed by vehicles. */
+	isDrawn: boolean;
+	/** Whether it has a centre line to show (`showsCentreLine`). */
+	centreLine: boolean;
+	/** Its colours (ADR-0060): what a road's `colors` keeps settings for, by id. */
+	colors: readonly IColorSpec[];
+}
+
+/** The embankment under raised sections, the same for every drawn road. */
+const EMBANKMENT: IColorSpec = {
+	id: "embankment",
+	name: "Embankment",
+	default: (palette) => palette.embankment,
+};
+
 /**
- * What each road style looks like. Ids are numbered so a style can get
+ * What each road kind looks like. Ids are numbered so a kind can get
  * variants (road_02…); code asks these, never the id.
  */
-export const ROAD_STYLES: Record<
-	TRoadStyle,
-	{ surface: "road" | "dirt" | null; centreLine: boolean }
-> = {
-	road_01: { surface: "road", centreLine: true },
-	dirt_path_01: { surface: "dirt", centreLine: false },
-	hidden_route_01: { surface: null, centreLine: false },
+export const ROAD_KINDS: Record<TRoadKind, IRoadKind> = {
+	road_01: {
+		isDrawn: true,
+		centreLine: true,
+		colors: [{ id: "surface", name: "Surface", default: (palette) => palette.road }, EMBANKMENT],
+	},
+	dirt_path_01: {
+		isDrawn: true,
+		centreLine: false,
+		colors: [{ id: "surface", name: "Surface", default: (palette) => palette.dirt }, EMBANKMENT],
+	},
+	hidden_route_01: { isDrawn: false, centreLine: false, colors: [] },
 };
 
 /** An invisible route: vehicles follow it, but nothing is drawn outside the editor. */
-export const isHiddenRoute = (style: TRoadStyle) => ROAD_STYLES[style].surface === null;
+export const isHiddenRoute = (kind: TRoadKind) => !ROAD_KINDS[kind].isDrawn;
 
 /** Each style's family name; variants of a family are told apart by number (scene/variants). */
-const ROAD_STYLE_NAMES: Record<TRoadStyle, string> = {
+const ROAD_KIND_NAMES: Record<TRoadKind, string> = {
 	road_01: "Road",
 	dirt_path_01: "Dirt path",
 	hidden_route_01: "Hidden route",
 };
 
-const ROAD_STYLE_IDS = Object.keys(ROAD_STYLE_NAMES) as TRoadStyle[];
+const ROAD_KIND_IDS = Object.keys(ROAD_KIND_NAMES) as TRoadKind[];
 
-export const ROAD_STYLE_LABELS = Object.fromEntries(
-	ROAD_STYLE_IDS.map((style) => [
-		style,
-		variantName(style, ROAD_STYLE_NAMES[style], ROAD_STYLE_IDS),
-	]),
-) as Record<TRoadStyle, string>;
+export const ROAD_KIND_LABELS = Object.fromEntries(
+	ROAD_KIND_IDS.map((style) => [style, variantName(style, ROAD_KIND_NAMES[style], ROAD_KIND_IDS)]),
+) as Record<TRoadKind, string>;
 
 export const TURN_STYLE_LABELS: Record<TTurnStyle, string> = {
 	smooth: "Smoothly",
@@ -77,7 +96,7 @@ export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
 	turns === "sharp" ? 0 : Math.min(Math.max(vehicleLength / 2, 0.3), 3);
 
 /** Default width per style when drawing a new road. */
-export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
+export const ROAD_KIND_WIDTH: Record<TRoadKind, number> = {
 	road_01: 2.4,
 	dirt_path_01: 1.4,
 	hidden_route_01: 1.6,
@@ -87,8 +106,8 @@ export const ROAD_STYLE_WIDTH: Record<TRoadStyle, number> = {
  * The road width after switching from one style to another: a width still at
  * the old style's default adopts the new style's default; a custom width stays.
  */
-export const widthForStyle = (width: number, from: TRoadStyle, to: TRoadStyle) =>
-	Math.abs(width - ROAD_STYLE_WIDTH[from]) < 1e-6 ? ROAD_STYLE_WIDTH[to] : width;
+export const widthForStyle = (width: number, from: TRoadKind, to: TRoadKind) =>
+	Math.abs(width - ROAD_KIND_WIDTH[from]) < 1e-6 ? ROAD_KIND_WIDTH[to] : width;
 
 /** Above this height a road counts as elevated: deck, supports and railings appear. */
 export const ELEVATED_MIN = 0.05;
@@ -696,10 +715,10 @@ export const dashPolyline = (
  * Hidden routes have no lanes, so vehicles drive on the line itself.
  */
 export const laneOffset = (
-	road: Pick<TRoad, "width" | "style" | "drivingLane">,
+	road: Pick<TRoad, "width" | "kind" | "traffic">,
 	driving: TDrivingSide,
 ) => {
-	if (isHiddenRoute(road.style) || road.drivingLane === "centre") {
+	if (isHiddenRoute(road.kind) || road.traffic.drivingLane === "centre") {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);

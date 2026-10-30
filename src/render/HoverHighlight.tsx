@@ -88,16 +88,16 @@ export const HoverHighlight = () => {
 			if (item.kind === "road") {
 				const layer = roads.findIndex((r) => r.id === item.id);
 				const road = roads[layer];
-				return road && !road.hidden ? roadOutline(road, roadBaseY(layer)) : [];
+				return road && !road.isHidden ? roadOutline(road, roadBaseY(layer)) : [];
 			}
 			if (item.kind === "area") {
 				const layer = areas.findIndex((a) => a.id === item.id);
 				const area = areas[layer];
-				return area && !area.hidden ? areaOutline(area, areaBaseY(layer)) : [];
+				return area && !area.isHidden ? areaOutline(area, areaBaseY(layer)) : [];
 			}
 			if (item.kind === "fence") {
 				const fence = fences.find((f) => f.id === item.id);
-				return fence && !fence.hidden ? fenceOutline(fence, areas) : [];
+				return fence && !fence.isHidden ? fenceOutline(fence, areas) : [];
 			}
 			return [];
 		});

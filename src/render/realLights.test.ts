@@ -4,13 +4,13 @@ import type { IResolvedLight } from "#/parts/types";
 
 import { pickNearest, realLightIntensity } from "./RealLights";
 
-const light = (level: number, litPanes = 1): IResolvedLight => ({
+const light = (level: number, litPaneShare = 1): IResolvedLight => ({
 	on: level > 0,
 	level,
 	color: "#ffffff",
 	reach: 2,
-	litPanes,
-	weight: 1,
+	litPaneShare,
+	paneWeight: 1,
 });
 
 describe("real night lights (ADR-0072)", () => {

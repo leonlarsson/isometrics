@@ -12,8 +12,8 @@ import type { ISceneItem } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partNameOf } from "#/parts/registry";
-import { AREA_TYPE_LABELS, takesCornerHeights } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { AREA_KIND_LABELS, takesCornerHeights } from "#/scene/areas";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TArea, TEntity, TFence, TRoad, TVec2 } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
@@ -41,8 +41,8 @@ const copySelection = () => {
 };
 
 /** What to call a road in a menu: its name, or its style. */
-const roadName = (road: { name: string; style: keyof typeof ROAD_STYLE_LABELS }) =>
-	road.name || ROAD_STYLE_LABELS[road.style];
+const roadName = (road: { name: string; kind: keyof typeof ROAD_KIND_LABELS }) =>
+	road.name || ROAD_KIND_LABELS[road.kind];
 
 /** Actions only objects have: driving and the camera for vehicles, the label card for all. */
 const EntityActions = ({ id }: { id: string }) => {
@@ -60,8 +60,8 @@ const EntityActions = ({ id }: { id: string }) => {
 				? {
 						roadId,
 						speed: e.follow?.speed ?? 2,
-						offset: e.follow?.offset ?? 0,
-						reverse: e.follow?.reverse ?? false,
+						startDistance: e.follow?.startDistance ?? 0,
+						drivesTheOtherWay: e.follow?.drivesTheOtherWay ?? false,
 						turnStyle: e.follow?.turnStyle ?? null,
 						leansInTurns: e.follow?.leansInTurns ?? null,
 					}
@@ -112,14 +112,10 @@ const EntityActions = ({ id }: { id: string }) => {
 			<Menu.CheckboxItem
 				icon="eye"
 				label="Label card"
-				checked={entity.label?.enabled ?? false}
+				checked={entity.label.isShown}
 				onCheckedChange={(on) =>
 					store().updateEntity(entity.id, (e) => {
-						if (e.label) {
-							e.label.enabled = on;
-						} else {
-							e.label = { enabled: true, title: e.name, dataKeys: [], offset: [0, 2, 0] };
-						}
+						e.label.isShown = on;
 					})
 				}
 			/>
@@ -168,7 +164,7 @@ const EntityActions = ({ id }: { id: string }) => {
 const RoadActions = ({ id }: { id: string }) => {
 	const road = useEditor((s) => s.scene.roads.find((r) => r.id === id));
 	const store = () => useEditor.getState();
-	if (!road || road.loops || road.locked) {
+	if (!road || road.loops || road.isLocked) {
 		return null;
 	}
 	return (
@@ -192,7 +188,7 @@ const RoadActions = ({ id }: { id: string }) => {
 const FenceActions = ({ id }: { id: string }) => {
 	const fence = useEditor((s) => s.scene.fences.find((f) => f.id === id));
 	const store = () => useEditor.getState();
-	if (!fence || fence.loops || fence.locked) {
+	if (!fence || fence.loops || fence.isLocked) {
 		return null;
 	}
 	return (
@@ -215,7 +211,7 @@ const FenceActions = ({ id }: { id: string }) => {
 /** An area's own actions: a peak where it was right-clicked (ADR-0101). */
 const AreaActions = ({ id, point }: { id: string; point?: TVec2 }) => {
 	const area = useEditor((s) => s.scene.areas.find((a) => a.id === id));
-	if (!area || area.locked) {
+	if (!area || area.isLocked) {
 		return null;
 	}
 	const liftable = takesCornerHeights(area);
@@ -245,10 +241,10 @@ const kindName = (item: ISceneItem, thing: TEntity | TRoad | TArea | TFence) =>
 	item.kind === "entity"
 		? (partNameOf((thing as TEntity).kind) ?? (thing as TEntity).kind)
 		: item.kind === "road"
-			? ROAD_STYLE_LABELS[(thing as TRoad).style]
+			? ROAD_KIND_LABELS[(thing as TRoad).kind]
 			: item.kind === "fence"
-				? FENCE_STYLE_LABELS[(thing as TFence).style]
-				: AREA_TYPE_LABELS[(thing as TArea).type];
+				? FENCE_STYLE_LABELS[(thing as TFence).kind]
+				: AREA_KIND_LABELS[(thing as TArea).kind];
 
 interface IItemMenuProps {
 	item: ISceneItem;
@@ -302,15 +298,15 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 			<Menu.CheckboxItem
 				icon="eyeOff"
 				label="Hidden"
-				checked={info.hidden}
-				onCheckedChange={(hidden) => store().setItemFlag(item, "hidden", hidden)}
+				checked={info.isHidden}
+				onCheckedChange={(hidden) => store().setItemFlag(item, "isHidden", hidden)}
 			/>
 
 			<Menu.CheckboxItem
 				icon="lock"
 				label="Locked"
-				checked={info.locked}
-				onCheckedChange={(locked) => store().setItemFlag(item, "locked", locked)}
+				checked={info.isLocked}
+				onCheckedChange={(locked) => store().setItemFlag(item, "isLocked", locked)}
 			/>
 
 			<Menu.Separator />
@@ -346,7 +342,7 @@ const GroupMenu = () => {
 		const things = s.selectedItems.flatMap(
 			(item) => listOf(s.scene, item.kind).find((thing) => thing.id === item.id) ?? [],
 		);
-		return `${things.every((thing) => thing.hidden)} ${things.every((thing) => thing.locked)}`;
+		return `${things.every((thing) => thing.isHidden)} ${things.every((thing) => thing.isLocked)}`;
 	});
 	const [hidden, locked] = flags.split(" ").map((flag) => flag === "true");
 
@@ -395,14 +391,14 @@ const GroupMenu = () => {
 				icon="eyeOff"
 				label="Hidden"
 				checked={hidden}
-				onCheckedChange={(value) => store().setSelectedFlag("hidden", value)}
+				onCheckedChange={(value) => store().setSelectedFlag("isHidden", value)}
 			/>
 
 			<Menu.CheckboxItem
 				icon="lock"
 				label="Locked"
 				checked={locked}
-				onCheckedChange={(value) => store().setSelectedFlag("locked", value)}
+				onCheckedChange={(value) => store().setSelectedFlag("isLocked", value)}
 			/>
 
 			<Menu.Separator />

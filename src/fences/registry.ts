@@ -1,4 +1,4 @@
-import { FenceStyleSchema, type TFenceStyle } from "#/scene/schema";
+import { FenceKindSchema, type TFenceKind } from "#/scene/schema";
 import { variantName } from "#/scene/variants";
 
 import { chainLinkFence01 } from "./chain_link_fence_01";
@@ -12,7 +12,7 @@ import type { IFenceStyle } from "./types";
 
 /**
  * Every fence style (ADR-0103), in the order Add to scene lists them. A new
- * style is a file here, added to this list and to FenceStyleSchema.
+ * style is a file here, added to this list and to FenceKindSchema.
  */
 export const FENCE_STYLE_LIST: readonly IFenceStyle[] = [
 	picketFence01,
@@ -26,11 +26,11 @@ export const FENCE_STYLE_LIST: readonly IFenceStyle[] = [
 
 export const FENCE_STYLES = Object.fromEntries(
 	FENCE_STYLE_LIST.map((style) => [style.id, style]),
-) as Record<TFenceStyle, IFenceStyle>;
+) as Record<TFenceKind, IFenceStyle>;
 
-const IDS = FenceStyleSchema.options;
+const IDS = FenceKindSchema.options;
 
 /** What a style is called, with its variant's number when its family has several ("Hedge 2"). */
 export const FENCE_STYLE_LABELS = Object.fromEntries(
 	FENCE_STYLE_LIST.map((style) => [style.id, variantName(style.id, style.name, IDS)]),
-) as Record<TFenceStyle, string>;
+) as Record<TFenceKind, string>;

@@ -35,11 +35,9 @@ interface ILightSettingsProps {
 	/** The light, as its part declares it. */
 	spec: ILightSpec;
 	/** Its colour, strength and reach as the part has them, shown while not set here. */
-	defaults: { color: string; strength: number; reach: number; litPanes: number };
+	defaults: { color: string; strength: number; reach: number; litPaneShare: number };
 	/** The object's settings for it (undefined: none yet). */
 	setting: TEntityLight | undefined;
-	/** When it turns on while that isn't set here: older worlds had one setting for all an object's lights. */
-	inheritedMode: TLightMode;
 	/** The world's data, to drive its settings by a value. */
 	data: readonly TDataEntry[];
 	/** Window lights: its part of the part's windows (its weight against the others'), 0–1. */
@@ -130,7 +128,6 @@ export const LightSettings = ({
 	spec,
 	defaults,
 	setting,
-	inheritedMode,
 	data,
 	windowShare,
 	hour,
@@ -167,7 +164,7 @@ export const LightSettings = ({
 	const comesOn = comesOnOf(spec, setting);
 	const schedule = setting?.schedule ?? [];
 	const scheduledOn = hour !== null && schedule.some((period) => inPeriod(hour, period));
-	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.whenOn ?? inheritedMode);
+	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.whenOn ?? "auto");
 	const reach = REACH[spec.shape];
 
 	return (
@@ -211,7 +208,7 @@ export const LightSettings = ({
 						from: "default",
 						inherited: setting?.whenOn == null && !bound.on,
 						onReset: () => onChange({ whenOn: null, data: { on: null } }),
-						value: turnsOnLabels[inheritedMode].toLowerCase(),
+						value: turnsOnLabels.auto.toLowerCase(),
 					}}
 					hint={
 						turnsOn === "auto" && spec.when === "driving"
@@ -323,28 +320,28 @@ export const LightSettings = ({
 			{spec.shape === "windows" && (
 				<FieldGroup title="Lit windows">
 					<DataDrivenField
-						kind={LIGHT_DATA.litPanes}
-						binding={bound.litPanes}
-						mixed={mixed("data.litPanes")}
+						kind={LIGHT_DATA.litPaneShare}
+						binding={bound.litPaneShare}
+						mixed={mixed("data.litPaneShare")}
 						data={data}
-						onBindingChange={onBindingChange("litPanes")}
+						onBindingChange={onBindingChange("litPaneShare")}
 						formatScale={percent}
 						max={1}
 					>
 						<SliderField
 							label="Lit panes"
-							value={Math.round((setting?.litPanes ?? defaults.litPanes) * 100)}
-							mixed={mixed("litPanes")}
+							value={Math.round((setting?.litPaneShare ?? defaults.litPaneShare) * 100)}
+							mixed={mixed("litPaneShare")}
 							min={0}
 							max={100}
 							step={1}
 							suffix="%"
-							onChange={(value) => onChange({ litPanes: value / 100 }, "litPanes")}
+							onChange={(value) => onChange({ litPaneShare: value / 100 }, "litPaneShare")}
 							inherit={{
 								from: "default",
-								inherited: setting?.litPanes == null,
-								onReset: () => onChange({ litPanes: null }),
-								value: percent(defaults.litPanes),
+								inherited: setting?.litPaneShare == null,
+								onReset: () => onChange({ litPaneShare: null }),
+								value: percent(defaults.litPaneShare),
 							}}
 							hint={
 								<>

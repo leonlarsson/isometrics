@@ -1,24 +1,26 @@
-import type { TDataEntry, TEntity, TEntityColor } from "#/scene/schema";
+import type { TColorSetting, TDataEntry } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { readColor } from "./dataBinding";
 import type { IColorSpec, TColorDefault } from "./types";
 
 /**
- * Colours as a shared model (ADR-0060), like lights (ADR-0058): a part
- * declares its colours (`IColorSpec`), an object stores a setting for some of
- * them by id (`TEntityColor`, null while it's as the part has it), and this
- * works out each colour for drawing: from data, else as set, else the part's.
- * No React here.
+ * Colours as a shared model (ADR-0060), like lights (ADR-0058): a part (or
+ * a fence kind, a road, an area, the ground) declares its colours
+ * (`IColorSpec`), what's drawn stores a setting for some of them by id
+ * (`TColorSetting`, null while it's as declared), and this works out each
+ * colour for drawing: from data, else as set, else the default. No React here.
  */
 
-/** What a part needs for its colours. */
+/** What a part (or anything else drawn in colours) declares about them. */
 export interface IPartColors {
 	colors: readonly IColorSpec[];
 }
 
-/** What an object keeps about its colours: settings by id, and the fields older worlds used. */
-export type TStoredColors = Pick<TEntity, "colors" | "color" | "accent">;
+/** What's kept about something's colours: its settings by id. */
+export interface IStoredColors {
+	colors: Readonly<Record<string, TColorSetting>>;
+}
 
 /** Settings that can follow data, and how each reads its value (`readColor` for now). */
 export const COLOR_DATA = { color: "color" } as const;
@@ -29,34 +31,29 @@ export type TColorDataTarget = keyof typeof COLOR_DATA;
 export const resolveColorDefault = (value: TColorDefault, palette: IScenePalette) =>
 	typeof value === "function" ? value(palette) : value;
 
-/** An object's setting for one colour, if it has one. */
-export const colorSettingOf = (entity: TStoredColors, id: string): TEntityColor | undefined =>
-	entity.colors[id];
-
-/**
- * A colour as it is while nothing sets it here: what an older world kept in
- * `color` or `accent`, else the part's default for the theme.
- */
-export const colorDefault = (spec: IColorSpec, entity: TStoredColors, palette: IScenePalette) =>
-	(spec.legacy ? entity[spec.legacy] : null) ?? resolveColorDefault(spec.default, palette);
+/** The setting for one colour, if there is one. */
+export const colorSettingOf = (stored: IStoredColors, id: string): TColorSetting | undefined =>
+	stored.colors[id];
 
 /** One colour as it is right now: from data when the value reads as one, else as set, else its default. */
 export const resolveColor = (
 	spec: IColorSpec,
-	entity: TStoredColors,
+	stored: IStoredColors,
 	palette: IScenePalette,
 	data?: readonly TDataEntry[],
 ) => {
-	const setting = colorSettingOf(entity, spec.id);
+	const setting = colorSettingOf(stored, spec.id);
 	return (
-		readColor(setting?.data.color, data) ?? setting?.color ?? colorDefault(spec, entity, palette)
+		readColor(setting?.data.color, data) ??
+		setting?.color ??
+		resolveColorDefault(spec.default, palette)
 	);
 };
 
 /** Every colour of an object, by id, as the part draws them. */
 export const resolveColors = (
 	part: IPartColors,
-	entity: TStoredColors,
+	entity: IStoredColors,
 	palette: IScenePalette,
 	data?: readonly TDataEntry[],
 ): Record<string, string> =>
@@ -64,8 +61,24 @@ export const resolveColors = (
 		part.colors.map((spec) => [spec.id, resolveColor(spec, entity, palette, data)]),
 	);
 
+/**
+ * One of something's colours by id as drawn now: a road's, an area's or the
+ * ground's (ADR-0104), or a part's. `fallback` when it has no colour by that id.
+ */
+export const colorOf = (
+	holder: IPartColors,
+	stored: IStoredColors,
+	id: string,
+	palette: IScenePalette,
+	data?: readonly TDataEntry[],
+	fallback = "#999999",
+) => {
+	const spec = holder.colors.find((color) => color.id === id);
+	return spec ? resolveColor(spec, stored, palette, data) : fallback;
+};
+
 /** How see-through a colour is, 0 solid to 1 clear: as set, else the part's; 0 if it isn't see-through. */
-export const resolveTransparency = (spec: IColorSpec, entity: TStoredColors) =>
+export const resolveTransparency = (spec: IColorSpec, entity: IStoredColors) =>
 	spec.seeThrough
 		? (colorSettingOf(entity, spec.id)?.transparency ?? spec.seeThrough.transparency)
 		: 0;
@@ -73,11 +86,11 @@ export const resolveTransparency = (spec: IColorSpec, entity: TStoredColors) =>
 /** How see-through each of an object's colours is, by id (ADR-0090). */
 export const resolveTransparencies = (
 	part: IPartColors,
-	entity: TStoredColors,
+	entity: IStoredColors,
 ): Record<string, number> =>
 	Object.fromEntries(part.colors.map((spec) => [spec.id, resolveTransparency(spec, entity)]));
 
-const NO_COLORS: TStoredColors = { colors: {}, color: null, accent: null };
+const NO_COLORS: IStoredColors = { colors: {} };
 
 /** A part's colours as it has them (the palette, thumbnails, placing), and how see-through they are. */
 export const resolvePartTransparencies = (part: IPartColors) =>
@@ -105,7 +118,7 @@ const isVeryLight = (hex: string) => {
 /** Colour used for an object's label pin, leader line and card dot: its first colour, unless that's nearly white. */
 export const resolveLabelColor = (
 	part: IPartColors,
-	entity: TStoredColors,
+	entity: IStoredColors,
 	palette: IScenePalette,
 	data?: readonly TDataEntry[],
 ) => {

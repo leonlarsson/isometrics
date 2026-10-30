@@ -54,7 +54,7 @@ export const useShortcuts = () => {
 	// Only what the keys depend on, not the selection itself: these render the whole app again (they
 	// sit in AppShell), so they mustn't on every change to the selected object (a drag).
 	const objectSelected = useEditor((s) => selectSelectedEntity(s) !== null);
-	const selectedLocked = useEditor((s) => selectSelectedEntity(s)?.locked === true);
+	const selectedLocked = useEditor((s) => selectSelectedEntity(s)?.isLocked === true);
 	const selectedFollows = useEditor((s) => Boolean(selectSelectedEntity(s)?.follow));
 	const roadOrAreaSelected = useEditor(
 		(s) =>
@@ -82,7 +82,7 @@ export const useShortcuts = () => {
 			return false;
 		}
 		const shape = selectSelectedRoad(s) ?? selectSelectedArea(s) ?? selectSelectedFence(s);
-		return shape !== null && !shape.hidden && !shape.locked;
+		return shape !== null && !shape.isHidden && !shape.isLocked;
 	});
 	// An area's selected peak that can be edited (ADR-0101): G and the arrows move it too.
 	const selectedPeak = useEditor((s) => {
@@ -92,8 +92,8 @@ export const useShortcuts = () => {
 			s.selectedPeakIndex !== null &&
 			s.selectedItems.length === 1 &&
 			area !== null &&
-			!area.hidden &&
-			!area.locked
+			!area.isHidden &&
+			!area.isLocked
 		);
 	});
 	const canNudgeAny = canNudge || nudgePoint || selectedPeak;
@@ -438,7 +438,7 @@ export const useShortcuts = () => {
 			// Draw a fence in the look of the last one drawn, else a picket fence (ADR-0103).
 			callback: () => {
 				const state = useEditor.getState();
-				state.startFenceDrawing(state.scene.fences.at(-1)?.style ?? "picket_fence_01");
+				state.startFenceDrawing(state.scene.fences.at(-1)?.kind ?? "picket_fence_01");
 			},
 			options: {
 				enabled: mode === "edit" && !transforming && !holdingRightButton,

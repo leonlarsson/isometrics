@@ -7,7 +7,7 @@ import { metres, UNITS_PER_METRE } from "./furnitureSize";
 
 const BenchSchema = z.object({
 	length: z.number().min(0.3).max(3).default(0.75),
-	showBackrest: z.boolean().default(true),
+	showsBackrest: z.boolean().default(true),
 });
 
 /** The backrest's lean, in radians. */
@@ -20,16 +20,17 @@ export const bench01 = definePart({
 	description: "Park bench with wooden slats; you sit facing +Z",
 	keywords: ["seat", "park", "sit", "street furniture"],
 	schema: BenchSchema,
+	renamedProps: { showBackrest: "showsBackrest" },
 	fields: [
 		{ key: "length", label: "Length", type: "number", min: 0.3, max: 3, step: 0.05 },
-		{ key: "showBackrest", label: "Show the backrest", type: "boolean" },
+		{ key: "showsBackrest", label: "Show the backrest", type: "boolean" },
 	],
 	colors: [
 		{ id: "slats", name: "Slats", default: "#a8743f", legacy: "color" },
 		{ id: "frame", name: "Frame", default: "#3d3f42", legacy: "accent" },
 	],
 	footprint: (p) => [p.length, metres(0.5)],
-	height: (p) => metres(p.showBackrest ? 0.86 : 0.47),
+	height: (p) => metres(p.showsBackrest ? 0.86 : 0.47),
 	Component: ({ props: p, colors }) => {
 		// Drawn in metres.
 		const length = p.length / UNITS_PER_METRE;
@@ -41,7 +42,7 @@ export const bench01 = definePart({
 					<Box key={z} size={[length, 0.035, 0.13]} position={[0, 0.45, z]} color={colors.slats} />
 				))}
 
-				{p.showBackrest &&
+				{p.showsBackrest &&
 					[0.6, 0.76].map((y) => (
 						<Box
 							key={y}
@@ -57,7 +58,7 @@ export const bench01 = definePart({
 					<group key={x} position={[x, 0, 0]}>
 						<Box size={[0.05, 0.43, 0.42]} position={[0, 0.215, 0]} color={colors.frame} />
 
-						{p.showBackrest && (
+						{p.showsBackrest && (
 							<Box
 								size={[0.05, 0.42, 0.05]}
 								position={[0, 0.66, -0.26]}

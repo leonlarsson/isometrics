@@ -2,8 +2,8 @@ import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
 import { useEditor } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
-import { AREA_TYPE_LABELS } from "#/scene/areas";
-import { ROAD_STYLE_LABELS } from "#/scene/roads";
+import { AREA_KIND_LABELS } from "#/scene/areas";
+import { ROAD_KIND_LABELS } from "#/scene/roads";
 
 import { Button } from "./Button";
 import { Kbd } from "./fields";
@@ -50,10 +50,10 @@ const DrawingControls = () => {
 					? "Keep clicking to add corners. Click the first corner or press Enter to finish."
 					: "Keep clicking to add points. Click the first point to make a loop.";
 	const what = isArea
-		? `${AREA_TYPE_LABELS[drawing.areaType].toLowerCase()} area`
+		? `${AREA_KIND_LABELS[drawing.areaType].toLowerCase()} area`
 		: drawing.target === "fence"
 			? FENCE_STYLE_LABELS[drawing.fenceStyle ?? "picket_fence_01"].toLowerCase()
-			: ROAD_STYLE_LABELS[drawing.style].toLowerCase();
+			: ROAD_KIND_LABELS[drawing.style].toLowerCase();
 
 	return (
 		<div className={styles.bar} data-label-obstacle="" role="status">

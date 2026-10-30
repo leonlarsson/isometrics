@@ -37,7 +37,7 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 	test("what viewers see: switching the title off hides it in View mode", async ({ page }) => {
 		await worldTab(page, "World");
 		await page.getByRole("switch", { name: "Show the title", exact: true }).click();
-		expect(await read(page, (s) => s.scene.onScreen.showTitle)).toBe(false);
+		expect(await read(page, (s) => s.scene.onScreen.showsTitle)).toBe(false);
 		await page.getByRole("button", { name: "View", exact: true }).click();
 		await expect(page.getByRole("heading", { name: "Brightwater" })).toBeHidden();
 	});
@@ -94,10 +94,10 @@ test.describe("the sky and the backdrop (ADR-0070)", () => {
 		await openPanel(page, "Clouds");
 		await box(page, "Cloud cover").fill("80");
 		await box(page, "Cloud cover").press("Enter");
-		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(0.8);
+		expect(await read(page, (s) => s.scene.weather.cloudCover)).toBe(0.8);
 		await worldTab(page, "Sky & water");
 		await page.getByRole("switch", { name: "Show the sky in perspective" }).click();
-		expect(await read(page, (s) => s.scene.sky.showInPerspective)).toBe(false);
+		expect(await read(page, (s) => s.scene.sky.showsInPerspective)).toBe(false);
 
 		await openPanel(page, "Backdrop");
 		await choose(page, "Behind the world", "Green screen");
@@ -173,7 +173,7 @@ test.describe("water (ADR-0075)", () => {
 			areas: [
 				{
 					id: "pond",
-					type: "water_01",
+					kind: "water_01",
 					points: [
 						[-4, -4],
 						[4, -4],
@@ -197,7 +197,7 @@ test.describe("water (ADR-0075)", () => {
 		await expect(own).toHaveValue("20");
 		await own.fill("0");
 		await own.press("Enter");
-		expect(await read(page, (s) => s.scene.areas[0].rippleStrength)).toBe(0);
+		expect(await read(page, (s) => s.scene.areas[0].water.rippleStrength)).toBe(0);
 	});
 });
 
@@ -205,7 +205,7 @@ test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 	test("the side vehicles drive on, keeping distance and overtaking", async ({ page }) => {
 		await worldTab(page, "Traffic");
 		await choose(page, "Vehicles drive on the", "Left");
-		expect(await read(page, (s) => s.scene.drivingSide)).toBe("left");
+		expect(await read(page, (s) => s.scene.traffic.drivingSide)).toBe("left");
 		const overtake = page.getByRole("switch", { name: "Overtake slower vehicles" });
 		const before = await overtake.getAttribute("aria-checked");
 		await overtake.click();
@@ -230,7 +230,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 			page,
 			(s, key) =>
 				s.updateEntity("depot", (e) => {
-					e.label = { enabled: true, title: "Depot", dataKeys: [key], offset: [0, 2, 0] };
+					e.label = { isShown: true, title: "Depot", dataKeys: [key], offset: [0, 2, 0] };
 				}),
 			key,
 		);
@@ -249,7 +249,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 			entities: [{ id: "lamp", kind: "street_lamp_01", name: "Lamp", position: [0, 0] }],
 		});
 		await act(page, (s) => {
-			s.upsertData({ key: "alert", label: "Alert", value: 1, unit: "" });
+			s.upsertData({ key: "alert", name: "Alert", value: 1, unit: "" });
 			s.select("lamp");
 		});
 		await page.getByRole("tab", { name: "Lights", exact: true }).click();
@@ -273,7 +273,7 @@ test.describe("weather (ADR-0102)", () => {
 			rainAmount: 0.95,
 			lightningRate: 0.6,
 		});
-		expect(await read(page, (s) => s.scene.sky.cloudCover)).toBe(1);
+		expect(await read(page, (s) => s.scene.weather.cloudCover)).toBe(1);
 
 		await openPanel(page, "Rain and snow");
 		await box(page, "Snow").fill("40");

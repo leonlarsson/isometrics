@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import {
-	EntityColorSchema,
+	ColorSettingSchema,
 	EntityLightSchema,
+	type TColorSetting,
 	type TDataBinding,
-	type TEntityColor,
 	type TEntityLight,
 } from "./schema";
 
@@ -24,16 +24,16 @@ export type TEntityLightChange = Partial<Omit<TEntityLight, "data">> & {
 };
 
 /** A change to an object's setting for one colour, like a light's (ADR-0060). */
-export type TEntityColorChange = Partial<Omit<TEntityColor, "data">> & {
+export type TColorSettingChange = Partial<Omit<TColorSetting, "data">> & {
 	data?: Partial<Record<string, TDataBinding | null>>;
 };
 
 /** A light or colour setting that's entirely as the part has it: no fields set, nothing following data. */
-export const isUnsetSetting = ({ data, ...fields }: TEntityLight | TEntityColor) =>
+export const isUnsetSetting = ({ data, ...fields }: TEntityLight | TColorSetting) =>
 	Object.keys(data).length === 0 && Object.values(fields).every((value) => value === null);
 
 /** A setting with a change applied: fields set, data bindings set or (null) removed. */
-export const applySettingChange = <T extends TEntityLight | TEntityColor>(
+export const applySettingChange = <T extends TEntityLight | TColorSetting>(
 	current: T,
 	{
 		data: dataChange,
@@ -51,10 +51,28 @@ export const applySettingChange = <T extends TEntityLight | TEntityColor>(
 	return next;
 };
 
+/**
+ * A `colors` map with one colour's setting changed, in place (an immer draft):
+ * an object's, a fence's, a road's, an area's or the ground's. A colour back to
+ * its default leaves the map.
+ */
+export const changeColorSetting = (
+	colors: Record<string, TColorSetting>,
+	id: string,
+	change: TColorSettingChange,
+) => {
+	const next = applySettingChange(colors[id] ?? ColorSettingSchema.parse({}), change);
+	if (isUnsetSetting(next)) {
+		delete colors[id];
+	} else {
+		colors[id] = next;
+	}
+};
+
 /** An object's props, colours and lights, without the rest of it: what the parts catalogue tries out. */
 export const ObjectSettingsSchema = z.object({
 	props: z.record(z.string(), z.unknown()).default({}),
-	colors: z.record(z.string(), EntityColorSchema).default({}),
+	colors: z.record(z.string(), ColorSettingSchema).default({}),
 	lights: z.record(z.string(), EntityLightSchema).default({}),
 });
 
@@ -81,9 +99,9 @@ export const withLightChange = (
 export const withColorChange = (
 	settings: TObjectSettings,
 	id: string,
-	change: TEntityColorChange,
+	change: TColorSettingChange,
 ): TObjectSettings => {
-	const next = applySettingChange(settings.colors[id] ?? EntityColorSchema.parse({}), change);
+	const next = applySettingChange(settings.colors[id] ?? ColorSettingSchema.parse({}), change);
 	const { [id]: _, ...others } = settings.colors;
 	return { ...settings, colors: isUnsetSetting(next) ? others : { ...others, [id]: next } };
 };

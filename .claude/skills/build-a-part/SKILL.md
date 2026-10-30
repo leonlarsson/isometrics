@@ -18,7 +18,7 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
 
 ## 2. The definition
 
-- **Props:** a Zod schema with a default for every prop that draws it as designed. Names say what they hold (AGENTS.md *Naming*): `showChimney`, `floorCount`, `headTilt`, `beamSecondsPerTurn`, `aimAngle`; never a bare noun for a switch or an amount. A field for each editable prop, with sensible min/max/step. Allow the smallest case people will want (a terraced row of **1** house).
+- **Props:** a Zod schema with a default for every prop that draws it as designed. Names say what they hold (AGENTS.md *Names say what they hold* and *The world's vocabulary*, ADR-0104): `showsChimney`, `floorCount`, `headTilt`, `beamSecondsPerTurn`, `aimAngle`; switches in the third person, counts in `…Count`, buildings `width` × `depth`, long things `length` × `width`; never a bare noun for a switch or an amount. A field for each editable prop, with sensible min/max/step. Allow the smallest case people will want (a terraced row of **1** house).
 - **Colours** (ADR-0060): ids named for what they paint (`walls`, `awning`, `riderTop`), the first `legacy: "color"`, the second `legacy: "accent"`. Theme-following defaults (`(p) => p.foliage`) for things that should change with the theme (trees, grass); fixed hex for things with their own colour (a red barn). Name colours plainly (`"Walls"`, `"Rider's skin"`); a person's skin is a colour setting, never fixed. Glass with something behind it is `seeThrough: { transparency }` (ADR-0090), drawn with `opacity={1 - transparency.<id>}`.
 - **Lights** (ADR-0058): see section 3.
 - **`footprint` and `height`:** what it covers seen from above (awnings, balconies, a swinging frame included) and its top, at scale 1, for selection, placement and label cards.
@@ -67,7 +67,7 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
 4. **Close-ups from where people will look,** including below, behind and the side, with a perspective camera:
    ```ts
    await page.evaluate((v) => globalThis.__editorStore.getState().showOpeningView({
-   	target: v.target, targetHeight: v.height, azimuth: v.azimuth, elevation: v.elevation,
+   	target: v.target, targetAltitude: v.height, azimuth: v.azimuth, elevation: v.elevation,
    	span: v.span, projection: "perspective", fieldOfView: null,
    }), { target: [0, 0], height: 1, azimuth: 200, elevation: 10, span: 3 });
    ```

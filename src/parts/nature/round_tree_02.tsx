@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** The crown: lumps of leaves around the top of the trunk, [x, y, z, radius]. */
 const LUMPS = [
@@ -18,16 +18,15 @@ export const roundTree02 = definePart({
 	category: "nature",
 	description: "Broad leafy tree with a wide, lumpy crown",
 	keywords: ["oak", "chestnut", "plane tree", "plant", "nature", "park"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: (p) => p.foliage, legacy: "color" },
 		{ id: "trunk", name: "Trunk", default: (p) => p.trunk, legacy: "accent" },
 	],
-	footprint: (p) => [1.4 * p.size, 1.4 * p.size],
-	height: (p) => 1.47 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [1.4, 1.4],
+	height: () => 1.47,
+	Component: ({ colors }) => (
+		<group>
 			<mesh position={[0, 0.35, 0]} castShadow>
 				<cylinderGeometry args={[0.09, 0.12, 0.7, 8]} />
 

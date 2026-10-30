@@ -24,7 +24,7 @@ const TextSchema = z.object({
 		.string()
 		.default("")
 		.describe("A data key whose value is shown after the text; empty = none."),
-	showPlate: z.boolean().default(false).describe("A plate behind the text, in the plate colour."),
+	showsPlate: z.boolean().default(false).describe("A plate behind the text, in the plate colour."),
 });
 
 type TTextProps = z.output<typeof TextSchema>;
@@ -42,7 +42,7 @@ const shownText = (p: TTextProps, data: TDataEntry[] | undefined) => {
 };
 
 /** Space around the text on its plate. */
-const platePadding = (p: TTextProps) => (p.showPlate ? p.letterHeight * 0.3 : 0);
+const platePadding = (p: TTextProps) => (p.showsPlate ? p.letterHeight * 0.3 : 0);
 
 /** Estimated width of the text (the real one is only known once troika has laid it out). */
 const estimatedWidth = (p: TTextProps) =>
@@ -88,10 +88,10 @@ const TextModel = ({
 
 	if (p.layout === "standing") {
 		// Upright, facing +z, with a mirrored copy on the back so it reads from both sides.
-		const face = p.showPlate ? PLATE_THICKNESS / 2 + 0.005 : 0.005;
+		const face = p.showsPlate ? PLATE_THICKNESS / 2 + 0.005 : 0.005;
 		return (
 			<group>
-				{p.showPlate && (
+				{p.showsPlate && (
 					<Box
 						size={[width + pad * 2, height + pad * 2, PLATE_THICKNESS]}
 						position={[0, (height + pad * 2) / 2, 0]}
@@ -109,10 +109,10 @@ const TextModel = ({
 	}
 
 	// Lying on the ground, read from the front: the text's top points away from +z.
-	const top = p.showPlate ? LIFT + PLATE_THICKNESS : LIFT;
+	const top = p.showsPlate ? LIFT + PLATE_THICKNESS : LIFT;
 	return (
 		<group>
-			{p.showPlate && (
+			{p.showsPlate && (
 				<Box
 					size={[width + pad * 2, PLATE_THICKNESS, height + pad * 2]}
 					position={[0, LIFT + PLATE_THICKNESS / 2, 0]}
@@ -136,7 +136,7 @@ export const text01 = definePart({
 		"Words in the world: a title or street name lying on the ground, or a sign standing up; can show a data value",
 	keywords: ["label", "title", "sign", "words", "street name", "value", "number"],
 	schema: TextSchema,
-	renamedProps: { size: "letterHeight", plate: "showPlate" },
+	renamedProps: { size: "letterHeight", plate: "showsPlate", showPlate: "showsPlate" },
 	fields: [
 		{ key: "text", label: "Text", type: "text", placeholder: "Words to show" },
 		{ key: "dataKey", label: "Value", type: "dataKey" },
@@ -150,7 +150,7 @@ export const text01 = definePart({
 				{ value: "standing", label: "Standing up" },
 			],
 		},
-		{ key: "showPlate", label: "Show a plate", type: "boolean" },
+		{ key: "showsPlate", label: "Show a plate", type: "boolean" },
 	],
 	colors: [
 		{ id: "letters", name: "Letters", default: (p) => p.text, legacy: "color" },
@@ -158,7 +158,7 @@ export const text01 = definePart({
 	],
 	footprint: (p) =>
 		p.layout === "standing"
-			? [estimatedWidth(p), p.showPlate ? PLATE_THICKNESS + 0.1 : 0.3]
+			? [estimatedWidth(p), p.showsPlate ? PLATE_THICKNESS + 0.1 : 0.3]
 			: [estimatedWidth(p), p.letterHeight * 1.2 + platePadding(p) * 2],
 	height: (p) => (p.layout === "standing" ? p.letterHeight * 1.25 + platePadding(p) * 2 : 0.2),
 	rendersAsync: true,

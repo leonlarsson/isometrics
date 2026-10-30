@@ -8,7 +8,7 @@ import { RoadPointSchema, SceneSchema } from "./schema";
 describe("SceneSchema", () => {
 	it("fills defaults for a minimal scene", () => {
 		const scene = SceneSchema.parse({ version: 1 });
-		expect(scene.ground).toEqual({ width: 40, depth: 30, color: null });
+		expect(scene.ground).toEqual({ width: 40, depth: 30, colors: {} });
 		expect(scene.entities).toEqual([]);
 		expect(scene.theme).toBe("system");
 	});
@@ -17,12 +17,13 @@ describe("SceneSchema", () => {
 		const scene = SceneSchema.parse({ version: 1, entities: [{ id: "a", kind: "house_01" }] });
 		expect(scene.entities[0]).toMatchObject({
 			position: [0, 0],
-			rotation: 0,
+			altitude: 0,
+			rotation: [0, 0, 0],
 			scale: 1,
-			color: null,
-			label: null,
+			colors: {},
+			label: { isShown: false },
 			follow: null,
-			locked: false,
+			isLocked: false,
 		});
 	});
 
@@ -40,7 +41,7 @@ describe("SceneSchema", () => {
 	it("rejects invalid colours", () => {
 		const result = SceneSchema.safeParse({
 			version: 1,
-			entities: [{ id: "a", kind: "house_01", color: "red" }],
+			entities: [{ id: "a", kind: "house_01", colors: { roof: { color: "red" } } }],
 		});
 		expect(result.success).toBe(false);
 	});
@@ -64,8 +65,8 @@ describe("SceneSchema", () => {
 			drivingSide: "left",
 		});
 		expect(scene.meta.title).toBe("Harbour");
-		expect(scene.ground).toEqual({ width: 60, depth: 24, color: null });
-		expect([scene.theme, scene.drivingSide]).toEqual(["dark", "left"]);
+		expect(scene.ground).toEqual({ width: 60, depth: 24, colors: {} });
+		expect([scene.theme, scene.traffic.drivingSide]).toEqual(["dark", "left"]);
 	});
 });
 

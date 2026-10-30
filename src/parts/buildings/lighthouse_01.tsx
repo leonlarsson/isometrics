@@ -13,7 +13,7 @@ import { definePart } from "../types";
 const LighthouseSchema = z.object({
 	height: z.number().min(2).max(10).default(3.6),
 	stripeCount: z.number().int().min(0).max(8).default(3),
-	beamTurns: z.boolean().default(true),
+	beamRotates: z.boolean().default(true),
 	beamSecondsPerTurn: z.number().min(1).max(60).default(6),
 });
 
@@ -119,10 +119,11 @@ export const lighthouse01 = definePart({
 	description: "Striped lighthouse with a lantern room whose beam sweeps round after dark",
 	keywords: ["beacon", "coast", "harbour", "sea", "tower", "landmark", "light"],
 	schema: LighthouseSchema,
+	renamedProps: { beamTurns: "beamRotates" },
 	fields: [
 		{ key: "height", label: "Height", type: "number", min: 2, max: 10, step: 0.1 },
 		{ key: "stripeCount", label: "Number of stripes", type: "number", min: 0, max: 8, step: 1 },
-		{ key: "beamTurns", label: "The beam turns", type: "boolean" },
+		{ key: "beamRotates", label: "The beam turns", type: "boolean" },
 		{
 			key: "beamSecondsPerTurn",
 			label: "Seconds per turn",
@@ -223,7 +224,7 @@ export const lighthouse01 = definePart({
 				</mesh>
 
 				<group position={[0, p.height + 0.06 + LANTERN.height / 2, 0]}>
-					<Beam light={lights.lamp} turns={p.beamTurns} secondsPerTurn={p.beamSecondsPerTurn} />
+					<Beam light={lights.lamp} turns={p.beamRotates} secondsPerTurn={p.beamSecondsPerTurn} />
 				</group>
 
 				{/* The door at the foot, facing +Z, and its lamp above on a bracket: both on the wall

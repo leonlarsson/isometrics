@@ -18,7 +18,7 @@ const PRESET_LENGTHS = [
 
 const ShippingContainerSchema = z.object({
 	length: z.number().min(0.4).max(6).default(1.6),
-	stackHeight: z.number().int().min(1).max(5).default(1),
+	containerCount: z.number().int().min(1).max(5).default(1),
 });
 
 /** Its width and height: a little over true scale, like the vehicles it stands next to. */
@@ -131,6 +131,7 @@ export const shippingContainer01 = definePart({
 		"Corrugated steel container, its doors at the +X end, any length (the usual ones: small, standard, long and extra long, like 10, 20, 40 and 45 foot containers); stack up to five for a port or a yard",
 	keywords: ["container", "cargo", "port", "harbour", "dock", "freight", "logistics", "box"],
 	schema: ShippingContainerSchema,
+	renamedProps: { stackHeight: "containerCount" },
 	fields: [
 		{
 			key: "length",
@@ -141,7 +142,7 @@ export const shippingContainer01 = definePart({
 			step: 0.05,
 			presets: PRESET_LENGTHS,
 		},
-		{ key: "stackHeight", label: "Stacked", type: "number", min: 1, max: 5, step: 1 },
+		{ key: "containerCount", label: "Stacked", type: "number", min: 1, max: 5, step: 1 },
 	],
 	colors: [
 		{ id: "container", name: "Container", default: "#c0462f", legacy: "color" },
@@ -149,10 +150,10 @@ export const shippingContainer01 = definePart({
 	],
 	removedProps: ["containerLength"],
 	footprint: (p) => [p.length, WIDTH],
-	height: (p) => p.stackHeight * HEIGHT,
+	height: (p) => p.containerCount * HEIGHT,
 	Component: ({ props: p, colors }) => (
 		<group>
-			{Array.from({ length: p.stackHeight }, (_, i) => i * HEIGHT).map((y) => (
+			{Array.from({ length: p.containerCount }, (_, i) => i * HEIGHT).map((y) => (
 				<Container key={y} length={p.length} y={y} body={colors.container} trim={colors.corners} />
 			))}
 		</group>

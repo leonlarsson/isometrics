@@ -23,7 +23,7 @@ export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 	return (
 		<TransformGizmo
 			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
-			heading={entity.rotation}
+			heading={entity.rotation[1]}
 			followsGround
 			onStart={(token, handle, keys) => {
 				// Ctrl: an identical copy stays where it is, and this one moves (ADR-0067).

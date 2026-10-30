@@ -25,7 +25,7 @@ export const deliveryVan01 = definePart({
 	fields: [],
 	colors: [
 		{ id: "body", name: "Body", default: "#f7f7f4", legacy: "color" },
-		{ id: "stripe", name: "Stripe & roof", default: "#3d4fd6", legacy: "accent" },
+		{ id: "stripe", name: "Stripe and roof", default: "#3d4fd6", legacy: "accent" },
 	],
 	canFollowPath: true,
 	footprint: () => [1.7, 0.85],

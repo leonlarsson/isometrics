@@ -22,7 +22,7 @@ const pose = {
 	span: 18,
 	projection: "orthographic" as const,
 	fieldOfView: null,
-	targetHeight: 0,
+	targetAltitude: 0,
 };
 
 describe("cameraMemory", () => {

@@ -1,7 +1,7 @@
 import { Mat } from "../primitives";
 import { definePart } from "../types";
 
-import { TreeSizeSchema, treeSizeFields } from "./treeSize";
+import { sizedByScale } from "./sizedByScale";
 
 /** Lumps of leaves, [x, y, z, radius]. */
 const LUMPS = [
@@ -17,13 +17,12 @@ export const bush01 = definePart({
 	category: "nature",
 	description: "Low, round shrub",
 	keywords: ["shrub", "hedge", "plant", "garden", "park", "nature"],
-	schema: TreeSizeSchema,
-	fields: treeSizeFields,
+	...sizedByScale,
 	colors: [{ id: "leaves", name: "Leaves", default: (p) => p.foliage, legacy: "color" }],
-	footprint: (p) => [0.65 * p.size, 0.6 * p.size],
-	height: (p) => 0.42 * p.size,
-	Component: ({ props: { size: s }, colors }) => (
-		<group scale={s}>
+	footprint: () => [0.65, 0.6],
+	height: () => 0.42,
+	Component: ({ colors }) => (
+		<group>
 			{LUMPS.map(([x, y, z, radius]) => (
 				<mesh key={`${x},${z}`} position={[x, y, z]} castShadow receiveShadow>
 					<icosahedronGeometry args={[radius, 1]} />

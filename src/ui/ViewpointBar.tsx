@@ -21,7 +21,7 @@ export const ViewpointBar = () => {
 	const following = useEditor((s) => s.cameraFollow !== null);
 	// ← and → step through the viewpoints even when the world hides the bar (World tab → On screen).
 	const stepping = mode === "view" && viewpoints.length > 0 && !following;
-	const barShown = useEditor((s) => s.scene.onScreen.showViewpointBar);
+	const barShown = useEditor((s) => s.scene.onScreen.showsViewpointBar);
 	const index = viewpoints.findIndex((v) => v.id === activeId);
 
 	const step = (by: number) => {

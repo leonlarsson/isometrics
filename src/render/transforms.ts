@@ -3,7 +3,7 @@ import * as THREE from "three";
 import {
 	type IGroupStart,
 	type IPointsStart,
-	LOWEST_ELEVATION,
+	LOWEST_ALTITUDE,
 	MAX_POINT_HEIGHT,
 	MAX_SIZE,
 	MIN_SIZE,
@@ -13,7 +13,7 @@ import {
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
 import { cornerTop, groundHeightAt } from "#/scene/areas";
-import type { TRoadPoint, TVec2 } from "#/scene/schema";
+import type { TRoadPoint, TVec2, TVec3 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
 import type { IGizmoDrag } from "./TransformGizmo";
@@ -27,10 +27,9 @@ const POINT_HEIGHT_STEP = 0.25;
 /** An object's transform when a drag started. */
 export interface IEntityStart {
 	position: TVec2;
-	elevation: number;
-	rotation: number;
-	pitch: number;
-	roll: number;
+	altitude: number;
+	/** [x, y, z] in degrees: around the vertical (y), then its own Z, then its own X (ADR-0097). */
+	rotation: TVec3;
 	scale: number;
 }
 
@@ -39,17 +38,12 @@ export const entityStart = (id: string): IEntityStart | null => {
 	return entity
 		? {
 				position: entity.position,
-				elevation: entity.elevation,
+				altitude: entity.altitude,
 				rotation: entity.rotation,
-				pitch: entity.pitch,
-				roll: entity.roll,
 				scale: entity.scale,
 			}
 		: null;
 };
-
-/** An object's turn: around the vertical, then its own Z (pitch), then its own X (roll), in degrees. */
-export type TTurn = Pick<IEntityStart, "rotation" | "pitch" | "roll">;
 
 const turning = new THREE.Euler(0, 0, 0, "YZX");
 const turned = new THREE.Quaternion();
@@ -64,20 +58,20 @@ export const headingAxis = (rotation: number, axis: "x" | "z") =>
 
 /**
  * A turn of `degrees` around an object's X or Z axis as it faces (turned
- * around the vertical, not tilted), put together with the turn it has, as the
- * three angles again: rotation 0–360, pitch and roll −180–180 (ADR-0097).
+ * around the vertical, not tilted), put together with the turn it has, as a
+ * rotation again: y 0–360, x and z −180–180 (ADR-0097).
  */
-export const turnAbout = (from: TTurn, axis: "x" | "z", degrees: number): TTurn => {
+export const turnAbout = ([x, y, z]: TVec3, axis: "x" | "z", degrees: number): TVec3 => {
 	const { degToRad, radToDeg } = THREE.MathUtils;
-	turning.set(degToRad(from.roll), degToRad(from.rotation), degToRad(from.pitch), "YZX");
+	turning.set(degToRad(x), degToRad(y), degToRad(z), "YZX");
 	turned.setFromEuler(turning);
-	extra.setFromAxisAngle(headingAxis(from.rotation, axis), degToRad(degrees));
+	extra.setFromAxisAngle(headingAxis(y, axis), degToRad(degrees));
 	turning.setFromQuaternion(turned.premultiply(extra), "YZX");
-	return {
-		rotation: round(normalizeDegrees(radToDeg(turning.y)), 1),
-		pitch: round(wrapDegrees(radToDeg(turning.z)), 1),
-		roll: round(wrapDegrees(radToDeg(turning.x)), 1),
-	};
+	return [
+		round(wrapDegrees(radToDeg(turning.x)), 1),
+		round(normalizeDegrees(radToDeg(turning.y)), 1),
+		round(wrapDegrees(radToDeg(turning.z)), 1),
+	];
 };
 
 const stepper = (drag: IGizmoDrag) => (value: number, size: number) =>
@@ -122,25 +116,23 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 			const base = drag.followsGround
 				? groundHeightAt(scene.areas, now) - groundHeightAt(scene.areas, from.position)
 				: 0;
-			const elevation = Math.max(
-				LOWEST_ELEVATION,
-				base + step(from.elevation + drag.lift, LIFT_STEP),
-			);
+			const altitude = Math.max(LOWEST_ALTITUDE, base + step(from.altitude + drag.lift, LIFT_STEP));
 			store.updateEntity(
 				id,
 				(entity) => {
-					entity.elevation = round(elevation);
+					entity.altitude = round(altitude);
 				},
 				options,
 			);
 			return;
 		}
 		case "rotate": {
-			const rotation = normalizeDegrees(from.rotation + step(drag.turn, TURN_STEP));
+			const [x, y, z] = from.rotation;
+			const heading = round(normalizeDegrees(y + step(drag.turn, TURN_STEP)), 1);
 			store.updateEntity(
 				id,
 				(entity) => {
-					entity.rotation = round(rotation, 1);
+					entity.rotation = [x, heading, z];
 				},
 				options,
 			);
@@ -149,16 +141,14 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 		case "rotateX":
 		case "rotateZ": {
 			const turn = turnAbout(
-				from,
+				from.rotation,
 				drag.handle === "rotateX" ? "x" : "z",
 				step(drag.turn, TURN_STEP),
 			);
 			store.updateEntity(
 				id,
 				(entity) => {
-					entity.rotation = turn.rotation;
-					entity.pitch = turn.pitch;
-					entity.roll = turn.roll;
+					entity.rotation = turn;
 				},
 				options,
 			);

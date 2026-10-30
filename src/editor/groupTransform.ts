@@ -15,6 +15,7 @@ import type {
 	TRoadPoint,
 	TScene,
 	TVec2,
+	TVec3,
 } from "#/scene/schema";
 
 import { type ICommitOptions, useEditor } from "./store";
@@ -25,7 +26,7 @@ export const MAX_SIZE = 10;
 /** The highest a road point may be lifted. */
 export const MAX_POINT_HEIGHT = 50;
 /** How far below the ground an object may be sunk (ADR-0097). */
-export const LOWEST_ELEVATION = -30;
+export const LOWEST_ALTITUDE = -30;
 /** The highest an area may be raised. */
 export const MAX_AREA_HEIGHT = 30;
 
@@ -40,9 +41,9 @@ export interface IGroupStart {
 	entities: {
 		id: string;
 		position: TVec2;
-		elevation: number;
+		altitude: number;
 		aboveGround: number;
-		rotation: number;
+		rotation: TVec3;
 		scale: number;
 	}[];
 	/** Driving vehicles: they move with their road, but take a resize. */
@@ -73,19 +74,19 @@ export const groupStartOf = (
 	scene: TScene,
 	selectedItems: readonly { kind: string; id: string }[],
 ): IGroupStart | null => {
-	const picked = <T extends { id: string; locked: boolean }>(list: T[], kind: string) =>
+	const picked = <T extends { id: string; isLocked: boolean }>(list: T[], kind: string) =>
 		list.filter(
 			(thing) =>
-				!thing.locked && selectedItems.some((item) => item.kind === kind && item.id === thing.id),
+				!thing.isLocked && selectedItems.some((item) => item.kind === kind && item.id === thing.id),
 		);
 	const unlocked = picked(scene.entities, "entity");
 	const entities = unlocked
 		.filter((entity) => !entity.follow)
-		.map(({ id, position, elevation, rotation, scale }) => ({
+		.map(({ id, position, altitude, rotation, scale }) => ({
 			id,
 			position,
-			elevation,
-			aboveGround: elevation - groundHeightAt(scene.areas, position),
+			altitude,
+			aboveGround: altitude - groundHeightAt(scene.areas, position),
 			rotation,
 			scale,
 		}));
@@ -119,7 +120,7 @@ export const groupStartOf = (
 		: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
 	// Areas count by how high they're raised, so the gizmo of a raised one stands on its top.
 	const heights = [
-		...entities.map((entity) => entity.elevation),
+		...entities.map((entity) => entity.altitude),
 		...areas.map((area) => area.height),
 		// Fences by the ground they stand on (ADR-0103).
 		...fences.flatMap((fence) =>
@@ -223,9 +224,11 @@ export const transformGroup = (
 			// rest either way. Objects may sink into the ground (ADR-0097).
 			const height = followGround
 				? groundHeightAt(groundThen, entity.position) + start.aboveGround
-				: start.elevation;
-			entity.elevation = round(Math.max(LOWEST_ELEVATION, height + lift));
-			entity.rotation = round(normalizeDegrees(start.rotation + turn), 1);
+				: start.altitude;
+			entity.altitude = round(Math.max(LOWEST_ALTITUDE, height + lift));
+			// A group turns around the vertical; each keeps its tilt (ADR-0097).
+			const [x, y, z] = start.rotation;
+			entity.rotation = [x, round(normalizeDegrees(y + turn), 1), z];
 			entity.scale = round(start.scale * ratio, 2);
 		}
 		for (const start of from.drivers) {
@@ -308,7 +311,7 @@ export const pointsStartOf = (
 	selectedPointIndices: readonly number[],
 ): IPointsStart | null => {
 	const shape = road ?? area ?? fence;
-	if (!shape || shape.locked || selectedPointIndices.length === 0) {
+	if (!shape || shape.isLocked || selectedPointIndices.length === 0) {
 		return null;
 	}
 	const points = selectedPointIndices.flatMap((index) => {
