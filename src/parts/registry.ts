@@ -60,10 +60,13 @@ import { fruitTree01 } from "./nature/fruit_tree_01";
 import { log01 } from "./nature/log_01";
 import { palmTree01 } from "./nature/palm_tree_01";
 import { pineTree01 } from "./nature/pine_tree_01";
+import { pineTree02 } from "./nature/pine_tree_02";
+import { reeds01 } from "./nature/reeds_01";
 import { rocks01 } from "./nature/rocks_01";
 import { roundTree01 } from "./nature/round_tree_01";
 import { roundTree02 } from "./nature/round_tree_02";
 import { tallGrass01 } from "./nature/tall_grass_01";
+import { waterLilies01 } from "./nature/water_lilies_01";
 import type { IPartDefinition, TPartCategory } from "./types";
 import { ambulance01 } from "./vehicles/ambulance_01";
 import { bicycle01 } from "./vehicles/bicycle_01";
@@ -123,6 +126,7 @@ export const PARTS: TAnyPart[] = [
 	roundTree01,
 	roundTree02,
 	pineTree01,
+	pineTree02,
 	birch01,
 	cypress01,
 	palmTree01,
@@ -131,6 +135,8 @@ export const PARTS: TAnyPart[] = [
 	bush01,
 	flowerBed01,
 	tallGrass01,
+	reeds01,
+	waterLilies01,
 	rocks01,
 	log01,
 	bench01,
