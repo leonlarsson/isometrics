@@ -428,7 +428,8 @@ export interface IEditorState {
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
-	 * back to their defaults (one undo step), except the turntable's and tilt-shift's.
+	 * back to their defaults (one undo step), except the turntable's, tilt-shift's and whether it
+	 * keeps the isometric angle.
 	 */
 	resetCamera: () => void;
 	/** Back to the world's opening view: its opening viewpoint, else the whole world from the default angle, in its opening projection. */
@@ -1389,13 +1390,14 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			resetCamera: () => {
 				const defaults = CameraSettingsSchema.parse({});
 				get().commit((scene) => {
-					const { turntableOn, turntableSpeed, turntableDelay } = scene.camera;
+					const { turntableOn, turntableSpeed, turntableDelay, keepsIsometricAngle } = scene.camera;
 					const { tiltShiftOn, tiltShiftBlur, tiltShiftFocus, tiltShiftPosition } = scene.camera;
 					scene.camera = {
 						...defaults,
 						turntableOn,
 						turntableSpeed,
 						turntableDelay,
+						keepsIsometricAngle,
 						tiltShiftOn,
 						tiltShiftBlur,
 						tiltShiftFocus,

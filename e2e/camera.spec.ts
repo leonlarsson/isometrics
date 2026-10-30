@@ -51,6 +51,28 @@ test.describe("projections and angles (ADR-0004, ADR-0038)", () => {
 		expect(await read(page, (s) => s.scene.camera.fieldOfView)).not.toBeNull();
 	});
 
+	test("a world that keeps the isometric angle turns a quarter at a time and doesn't tilt", async ({
+		page,
+	}) => {
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.camera.keepsIsometricAngle = true;
+			}),
+		);
+		const start = await cameraPose(page);
+		const diagonal = (azimuth: number) => (((azimuth - 45) % 90) + 90) % 90;
+		expect(diagonal(start?.azimuth ?? 1)).toBeCloseTo(0, 0);
+		expect(start?.elevation).toBeCloseTo(35.26, 1);
+
+		await keys(page, "Shift+ArrowLeft");
+		const turned = await cameraPose(page);
+		const by = ((((turned?.azimuth ?? 0) - (start?.azimuth ?? 0)) % 360) + 360) % 360;
+		expect(by).toBeCloseTo(90, 0);
+
+		await keys(page, "Shift+ArrowUp");
+		expect((await cameraPose(page))?.elevation).toBeCloseTo(35.26, 1);
+	});
+
 	test("I turns to a true isometric angle; Home goes back to the opening view", async ({
 		page,
 	}) => {

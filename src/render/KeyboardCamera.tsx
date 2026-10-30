@@ -14,6 +14,7 @@ import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
 import { pixelsPerUnitAt, zoomLimits } from "./cameraMath";
+import { keepsIsometricAngle, turnIsometricView } from "./isometricLock";
 import { FREE_TILT, orbitAround, polarLimits } from "./orbit";
 
 /** At the usual keyboard speed: how much of the view's height a pan crosses per second. */
@@ -152,6 +153,16 @@ export const KeyboardCamera = () => {
 				// Straight up or down, like flying in a game (Q and E).
 				shift.set(0, (move === "moveUp" ? 1 : -1) * span * PAN_PER_SECOND * step, 0);
 				moveBy(shift);
+			} else if (
+				(move === "turnLeft" || move === "turnRight" || move === "tiltUp" || move === "tiltDown") &&
+				!flying &&
+				keepsIsometricAngle()
+			) {
+				// Kept at the isometric angle: a press turns it a quarter, and it doesn't tilt.
+				runningCameraMoves.delete(move);
+				if (move === "turnLeft" || move === "turnRight") {
+					turnIsometricView(move === "turnLeft" ? 1 : -1);
+				}
 			} else if (move === "turnLeft" || move === "turnRight") {
 				const turn = THREE.MathUtils.degToRad(TURN_PER_SECOND * seconds * preferences.orbitSpeed);
 				pivot.copy(target);
