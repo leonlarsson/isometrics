@@ -9,10 +9,11 @@ import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
 import { orthographicDistance, pixelsPerUnitAt, zoomLimits } from "./cameraMath";
+import { keepsIsometricAngle, QUARTER_TURN_DRAG, turnIsometricView } from "./isometricLock";
 import { cardEventHandover } from "./labelRegistry";
 import { cameraCommands } from "./liveCamera";
 import { FREE_TILT, orbitAround, polarLimits, settleTarget } from "./orbit";
-import { runningFlight } from "./viewpoints";
+import { currentView, isometricPoseOf, runningFlight } from "./viewpoints";
 import { viewShift } from "./viewShift";
 
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -166,7 +167,9 @@ const useOrbitAroundCursor = () => {
 		if (!controls) {
 			return;
 		}
-		let orbiting: { id: number; x: number; y: number } | null = null;
+		// `turned`: how far it has been dragged sideways since the last quarter turn, while the world
+		// keeps the isometric angle (render/isometricLock).
+		let orbiting: { id: number; x: number; y: number; turned: number } | null = null;
 
 		/**
 		 * What's under the pointer: the nearest visible mesh, else the world's ground; what the camera
@@ -213,7 +216,7 @@ const useOrbitAroundCursor = () => {
 			if (!wants || !controls.enabled || useEditor.getState().placingKind || !pivotAt(event)) {
 				return;
 			}
-			orbiting = { id: event.pointerId, x: event.clientX, y: event.clientY };
+			orbiting = { id: event.pointerId, x: event.clientX, y: event.clientY, turned: 0 };
 		};
 
 		const onMove = (event: PointerEvent) => {
@@ -234,6 +237,15 @@ const useOrbitAroundCursor = () => {
 			// which the keys have moved away from.
 			const speed = readPreferences().orbitSpeed;
 			const looking = rightButtonPress.movedByKeys;
+			// Kept at the isometric angle: no tilt, and a quarter turn once it's dragged far enough.
+			if (!looking && keepsIsometricAngle()) {
+				orbiting.turned += dx;
+				if (Math.abs(orbiting.turned) > height * QUARTER_TURN_DRAG) {
+					turnIsometricView(-Math.sign(orbiting.turned));
+					orbiting.turned = 0;
+				}
+				return;
+			}
 			// Mouse look turns half as fast: a drag across the view turns your head half round.
 			const turnsPerHeight = looking ? Math.PI : 2 * Math.PI;
 			orbitAround(
@@ -677,7 +689,18 @@ const useOrbitCommand = () => {
 		if (!controls) {
 			return;
 		}
+		// While the world keeps the isometric angle: how far the overlays have turned it since the last
+		// quarter turn.
+		let turned = 0;
 		cameraCommands.orbit = (turn, tilt) => {
+			if (keepsIsometricAngle()) {
+				turned += turn;
+				if (Math.abs(turned) > Math.PI / 4) {
+					turnIsometricView(Math.sign(turned));
+					turned = 0;
+				}
+				return;
+			}
 			runningFlight.stop?.();
 			pivot.copy(controls.target);
 			orbitAround(
@@ -697,6 +720,21 @@ const useOrbitCommand = () => {
 	}, [camera, controls]);
 };
 
+/**
+ * When the world starts keeping the isometric angle (it's switched on, or a
+ * world that keeps it opens), the view glides to the nearest one.
+ */
+const useIsometricLock = () => {
+	const keeps = useEditor((s) => s.scene.camera.keepsIsometricAngle);
+	const free = usePreferences().cameraControl === "free";
+	useEffect(() => {
+		const pose = keeps && !free ? currentView.read?.() : null;
+		if (pose) {
+			useEditor.getState().glideTo({ ...isometricPoseOf(pose), projection: pose.projection });
+		}
+	}, [keeps, free]);
+};
+
 const CameraBehaviours = () => {
 	useGroundPan();
 	useOrbitAroundCursor();
@@ -710,6 +748,7 @@ const CameraBehaviours = () => {
 	useOrbitCommand();
 	useRightButtonHold();
 	useTiltLimits();
+	useIsometricLock();
 	return null;
 };
 
@@ -725,6 +764,8 @@ export const CameraControls = () => {
 	const height = useThree((s) => s.size.height);
 	const preferences = usePreferences();
 	const free = preferences.cameraControl === "free";
+	// Kept at the isometric angle, the touch twist doesn't turn it freely either.
+	const keepsIsometric = settings.keepsIsometricAngle && !free;
 	const damping = dampingFactorOf(preferences.cameraSmoothing);
 	return (
 		<>
@@ -740,6 +781,7 @@ export const CameraControls = () => {
 				// Left-drag panning is useGroundPan's and orbiting is useOrbitAroundCursor's, so the mouse
 				// only zooms here (wheel or middle button). Touch keeps OrbitControls' pan, pinch and twist.
 				enablePan={false}
+				enableRotate={!keepsIsometric}
 				mouseButtons={{
 					LEFT: null as unknown as THREE.MOUSE,
 					MIDDLE: THREE.MOUSE.DOLLY,

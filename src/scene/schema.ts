@@ -777,6 +777,12 @@ export const CameraSettingsSchema = z
 			.describe(
 				"Keep the middle of the view over the ground, so panning and zooming can't lose the world.",
 			),
+		keepsIsometricAngle: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Keep the camera at the isometric angle, like a classic isometric game: the tilt stays put and the view turns a quarter at a time, between the four diagonals.",
+			),
 		turntableOn: z
 			.boolean()
 			.default(false)
@@ -1209,6 +1215,7 @@ export const SceneSchema = z
 			lowestElevation: 15,
 			steepestElevation: 87,
 			keepOverGround: true,
+			keepsIsometricAngle: false,
 			turntableOn: false,
 			turntableSpeed: 4,
 			turntableDelay: 10,
