@@ -34,7 +34,7 @@ Roads: points are [x, z], [x, z, height] or [x, z, height, width]; a height abov
 
 Areas: polygons of [x, z] corners (water, grass, sand, plaza, or raised land with a height).
 
-Fences: fences, walls, hedges and railings, each a line of points ([x, z], or [x, z, lift] to raise it that far above the ground there) with a style; it stands on the ground under it, raised land included. Posts stand at every point and are spaced evenly in between (postSpacing, the style's by default). loops: true closes it; cornerRadius rounds its corners. colors works as for entities, by the style's colour ids (in fences.style's descriptions). builtShare (0–1) builds only the first part of it, and data: { "builtShare": { key, valueAtFull } } takes that from a data value, e.g. a site fence that grows with a project's progress.
+Fences: fences, walls, hedges and railings, each a line of points ([x, z], or [x, z, lift] to raise it that far above the ground there) with a style; it stands on the ground under it, raised land included. Posts stand at every point and are spaced evenly in between (postSpacing, the style's by default); hedges and walls show no posts, so for them postSpacing is the longest straight section. loops: true closes it; cornerRadius rounds its corners. colors works as for entities, by the style's colour ids (in fences.style's descriptions). builtShare (0–1) builds only the first part of it, and data: { "builtShare": { key, valueAtFull } } takes that from a data value, e.g. a site fence that grows with a project's progress.
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with timeKey).
 
@@ -136,7 +136,7 @@ export const worldJsonSchema = () => {
 			oneOf: FENCE_STYLE_LIST.map((style) => ({
 				const: style.id,
 				title: FENCE_STYLE_LABELS[style.id],
-				description: `${style.description}. ${round(style.height)} tall, posts up to ${round(style.postSpacing)} apart by default. Colours (settings in colors, by id): ${style.colors.map(describeColor).join("; ")}.`,
+				description: `${style.description}. ${round(style.height)} tall, ${style.showsPosts === false ? "in straight sections up to" : "posts up to"} ${round(style.postSpacing)} apart by default. Colours (settings in colors, by id): ${style.colors.map(describeColor).join("; ")}.`,
 			})),
 		};
 	}

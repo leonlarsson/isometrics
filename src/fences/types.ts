@@ -31,6 +31,12 @@ export interface IFenceStyle<C extends string = string> {
 	height: number;
 	/** The longest gap between posts while the fence doesn't set one. */
 	postSpacing: number;
+	/**
+	 * Whether its posts can be seen (default true). A hedge's or a wall's "posts"
+	 * are only the joints between its straight lengths, so its spacing is called
+	 * Section length instead.
+	 */
+	showsPosts?: boolean;
 	/** Its colours, as parts list theirs (ADR-0060): ids are stable, never rename one. */
 	colors: readonly IColorSpec<C>[];
 	build: (context: IFenceBuildContext<C>) => void;

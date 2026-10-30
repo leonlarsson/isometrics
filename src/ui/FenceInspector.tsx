@@ -238,6 +238,7 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 	const data = useEditor((s) => s.scene.data);
 	const edit = useFenceEdit(fence);
 	const style = FENCE_STYLES[fence.style];
+	const showsPosts = style.showsPosts !== false;
 	const built = builtShareOf(fence, data);
 
 	return (
@@ -257,7 +258,7 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 				id="fence.shape"
 				icon="spline"
 				title="Whole fence"
-				keywords="shape height posts spacing curves loop points"
+				keywords="shape height posts spacing sections curves loop points"
 			>
 				<SliderField
 					label="Height"
@@ -282,12 +283,16 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 				/>
 
 				<SliderField
-					label="Post spacing"
+					label={showsPosts ? "Post spacing" : "Section length"}
 					value={fenceSpacingOf(fence)}
 					min={0.3}
 					max={6}
 					step={0.1}
-					hint="The longest gap between two posts. Every corner has a post, and the posts between are spaced evenly."
+					hint={
+						showsPosts
+							? "The longest gap between two posts. Every corner has a post, and the posts between are spaced evenly."
+							: "The longest straight length. Shorter lengths follow curves and slopes more closely."
+					}
 					onChange={(v) =>
 						edit("postSpacing", (f) => {
 							f.postSpacing = v;
@@ -315,6 +320,15 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 							f.cornerRadius = v;
 						})
 					}
+					inherit={{
+						from: "default",
+						inherited: fence.cornerRadius === 0,
+						onReset: () =>
+							edit("cornerRadius", (f) => {
+								f.cornerRadius = 0;
+							}),
+						value: "0",
+					}}
 				/>
 
 				<SwitchField

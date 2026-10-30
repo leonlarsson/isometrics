@@ -12,6 +12,7 @@ export const stoneWall01 = defineFenceStyle({
 	keywords: ["wall", "stone", "rural", "dry stone", "boundary", "garden"],
 	height: 0.4,
 	postSpacing: 2,
+	showsPosts: false,
 	colors: [
 		{ id: "stone", name: "Stone", default: "#a39a8c" },
 		{ id: "topStones", name: "Top stones", default: "#8c8376" },

@@ -10,6 +10,7 @@ export const hedge01 = defineFenceStyle({
 	keywords: ["hedge", "bush", "shrub", "garden", "park", "green", "boundary"],
 	height: 0.5,
 	postSpacing: 1.5,
+	showsPosts: false,
 	colors: [
 		{ id: "leaves", name: "Leaves", default: "#4f8a3c" },
 		{ id: "leafTops", name: "Leafy top", default: "#5f9b48" },
