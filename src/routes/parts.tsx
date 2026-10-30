@@ -38,16 +38,21 @@ export const Route = createFileRoute("/parts")({
 function Parts() {
 	const { part, settings } = Route.useSearch();
 	const navigate = useNavigate({ from: "/parts" });
+	// Only the address changes: the grid stays scrolled where it was (the router scrolls to the top
+	// on every navigation otherwise).
 	return (
 		<PartsCatalogue
 			openKind={part ?? null}
-			onOpen={(kind) => navigate({ search: kind ? { part: kind } : {}, replace: true })}
+			onOpen={(kind) =>
+				navigate({ search: kind ? { part: kind } : {}, replace: true, resetScroll: false })
+			}
 			settings={settings ?? NO_OBJECT_SETTINGS}
 			onSettingsChange={(next) =>
 				navigate({
 					search: ({ part: kind }) =>
 						hasObjectSettings(next) ? { part: kind, settings: next } : { part: kind },
 					replace: true,
+					resetScroll: false,
 				})
 			}
 		/>

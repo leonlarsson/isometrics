@@ -43,6 +43,34 @@ test.describe("the parts catalogue (ADR-0087)", () => {
 		expect(new URL(page.url()).searchParams.get("part")).toBe("round_tree_02");
 	});
 
+	test("keeps the grid scrolled where it was while a part's details open, change and close", async ({
+		page,
+	}) => {
+		await page.goto("/parts");
+		await page.waitForLoadState("networkidle");
+		// A card halfway down the grid, so the page isn't scrolled to its end.
+		const card = page.getByRole("list").getByRole("button").filter({ hasText: "ferry_01" });
+		await card.scrollIntoViewIfNeeded();
+		const scrolled = await page.evaluate(() => window.scrollY);
+		expect(scrolled).toBeGreaterThan(200);
+
+		await card.click();
+		const details = page.getByRole("dialog", { name: "Ferry" });
+		await expect(details).toBeVisible();
+		expect(new URL(page.url()).searchParams.get("part")).toBe("ferry_01");
+		expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+
+		// A changed setting goes into the address too, without scrolling the grid behind.
+		await openPanel(page, "Ferry shape");
+		await details.getByRole("slider", { name: "Length" }).press("ArrowRight");
+		await expect.poll(() => new URL(page.url()).searchParams.get("settings")).not.toBeNull();
+		expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+
+		await page.getByRole("button", { name: "Close", exact: true }).click();
+		await expect(details).toBeHidden();
+		expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+	});
+
 	test("tries out a part's settings, kept in the address", async ({ page }) => {
 		await page.goto("/parts?part=house_01");
 		const details = page.getByRole("dialog", { name: "House" });
