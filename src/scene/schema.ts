@@ -101,7 +101,7 @@ export const EntityColorSchema = z
 			.record(z.string(), DataBindingSchema)
 			.default({})
 			.describe(
-				'A data value that sets it: { "color": { key, low, high, lowColor, highColor } }. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number mixes lowColor (at low) and highColor (at high), like a heatmap. A value that is neither leaves the colour as set.',
+				'A data value that sets it: { "color": { key, valueAtLowColor, valueAtHighColor, lowColor, highColor } }. A value holding a CSS colour (red, #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)) is used as it is; a number mixes lowColor (at valueAtLowColor) and highColor (at valueAtHighColor), like a heatmap. A value that is neither leaves the colour as set.',
 			),
 	})
 	.describe("An object's setting for one of its part's colours.");
@@ -930,7 +930,7 @@ export const LightingSchema = z
 				"The world's lit windows, lamps, cabins and headlights: auto = after dark (headlights only while driving), on = always, off = never. A light's own `whenOn` setting other than auto overrides this.",
 			),
 	})
-	.describe("The sun, the sky and the time of day.");
+	.describe("The time of day, the sun, and when the world's lights are on.");
 
 // See docs/adr/0070-sky.md. Colours left null follow the time of day (or the theme).
 export const SkySchema = z
