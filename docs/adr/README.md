@@ -110,3 +110,14 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0104](0104-world-format-before-going-public.md) | The world format before going public: one name per idea, settings where they belong | proposed |
 | [0105](0105-every-setting-offers-reset.md) | Every setting offers Reset, and the kit makes sure of it | proposed |
 | [0106](0106-the-world-format-promise.md) | The world format's promise: every world keeps opening, and the version almost never moves | proposed |
+| [0107](0107-world-data-model.md) | A world's data is values, tables and sources, and what arrives while it's open is kept apart | proposed |
+| [0108](0108-things-follow-table-rows.md) | Objects and roads follow a table row, read as `row.<column>` | proposed |
+| [0109](0109-sizes-from-data.md) | An object's size and props can follow data, on a straight or log scale | proposed |
+| [0110](0110-the-dashboard.md) | The dashboard: trends, watch lines, no data, a legend, the data as tables, and tiles | proposed |
+| [0111](0111-building-clusters.md) | Building clusters: one object of many buildings that grows with a number | proposed |
+| [0112](0112-roads-that-show-flows.md) | Roads that show flows: vehicles each way, from a value or a row | proposed |
+| [0113](0113-links-and-apis.md) | Links and APIs are read in the browser, picked by path, and read again into what arrived | proposed |
+| [0114](0114-stories.md) | Stories: a time slider plays the world through its dated values | proposed |
+| [0115](0115-a-world-without-data.md) | A world can turn data off, and then nothing about data shows | proposed |
+| [0116](0116-first-run-guide-and-your-own-ai.md) | A welcome on the first visit, a guide, and building with your own AI | proposed |
+| [0117](0117-checking-a-world.md) | Checking a world, the worlds API, and worlds with their defaults left out | proposed |

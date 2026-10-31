@@ -54,7 +54,7 @@ describe("SceneSchema", () => {
 	it("creates an empty world with bare ground", () => {
 		const scene = createEmptyScene();
 		expect(parseScene(JSON.parse(JSON.stringify(scene)))).toEqual(scene);
-		expect([scene.entities, scene.roads, scene.areas, scene.data]).toEqual([[], [], [], []]);
+		expect([scene.entities, scene.roads, scene.areas, scene.data.values]).toEqual([[], [], [], []]);
 	});
 
 	it("creates an empty world with the chosen settings", () => {

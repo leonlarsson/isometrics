@@ -194,7 +194,8 @@ describe("renamed fields (ADR-0071)", () => {
 			keepsDistance: false,
 			overtakes: false,
 		});
-		expect(Object.values(scene.onScreen).every((shown) => shown === false)).toBe(true);
+		const { showsDataSwitch: _, legend: __, tileKeys: ___, ...switches } = scene.onScreen;
+		expect(Object.values(switches).every((shown) => shown === false)).toBe(true);
 		expect(scene.lighting.whenLightsAreOn).toBe("on");
 		expect(scene.camera.turntable.isOn).toBe(true);
 		expect(scene.camera.tiltShift.isOn).toBe(true);

@@ -7,34 +7,52 @@ import {
 	dataNumber,
 	readPeriods,
 	readScale,
+	readSetting,
+	settingRangeOf,
 	switchesOn,
 	type TBindingKind,
 } from "#/parts/dataBinding";
 import { formatEntry } from "#/scene/format";
-import type { TDataBinding, TDataEntry } from "#/scene/schema";
+import { columnOfKey } from "#/scene/rowData";
+import type { TDataBinding, TDataValue } from "#/scene/schema";
 
-import { ColorField, formatClock, NumberField, SelectField } from "./fields";
+import {
+	ColorField,
+	formatClock,
+	NumberField,
+	resetToDefault,
+	SelectField,
+	SwitchField,
+} from "./fields";
 
 interface IDataBindingFieldsProps {
 	/** How the setting reads its value: switched on and off, a number, or a colour. */
 	kind: TBindingKind;
 	binding: TDataBinding;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** The binding changed. `coalesce` names the option being typed, so it's one undo step. */
 	onChange: (binding: TDataBinding, coalesce?: string) => void;
 	/** Numbers: how a reading shows, e.g. as a percentage. */
 	formatScale?: (reading: number) => string;
 	/** Numbers: the most a reading goes to. */
 	max?: number;
+	/** Sizes and amounts (`range`): the setting's own range and step, and how a setting shows. */
+	range?: { min: number; max: number; step: number; format?: (setting: number) => string };
 }
 
 /** A data value as the hints show it: numbers with their unit, text in quotes, so "null" reads as text. */
-const shownValue = (entry: TDataEntry) =>
+const shownValue = (entry: TDataValue) =>
 	typeof entry.value === "number"
 		? formatEntry(entry)
 		: entry.value.trim() === ""
 			? "empty"
 			: `“${entry.value}”`;
+
+/** How a value is offered in pickers: by name, a column of the thing's row as “Row: …”. */
+export const dataChoiceLabel = (item: Pick<TDataValue, "key" | "name">) =>
+	columnOfKey(item.key) !== null
+		? `Row: ${item.name || columnOfKey(item.key)}`
+		: item.name || item.key;
 
 /**
  * The fields of a setting that follows a data value (ADR-0058), for any
@@ -50,6 +68,7 @@ export const DataBindingFields = ({
 	onChange,
 	formatScale = (reading) => String(Math.round(reading * 100) / 100),
 	max,
+	range = { min: 0, max: 1, step: 0.01 },
 }: IDataBindingFieldsProps) => {
 	const entry = boundEntry(binding, data);
 	const name = entry ? entry.name || entry.key : binding.key;
@@ -60,24 +79,35 @@ export const DataBindingFields = ({
 	const scale = colorScaleOf(binding);
 	const number = dataNumber(entry?.value);
 	const periods = readPeriods(binding, data);
+	const setting = readSetting(binding, data, range);
+	const settings = settingRangeOf(binding, range);
+	const showSetting =
+		range.format ?? ((value: number) => String(Math.round(value / range.step) * range.step));
 
+	const column = columnOfKey(binding.key);
 	const now = !entry
-		? `There's no data value called “${binding.key}” any more.`
+		? column !== null
+			? `Its row has no value in ${column} (no data), so it stays as set by hand.`
+			: `There's no data value called “${binding.key}” any more.`
 		: kind === "switch"
 			? `${name} is ${shownValue(entry)}, so it's ${switchesOn(entry.value, above) ? "on" : "off"} now. It's on while the value is a number above ${above}, or the text on, yes or true, day and night.`
 			: kind === "periods"
 				? periods
 					? `${name} is ${shownValue(entry)}, so it's on ${periods.map(({ from, until }) => `${formatClock(from)}–${formatClock(until)}`).join(" and ")}.`
 					: `${name} is ${shownValue(entry)}, which isn't times of day like 09:00-17:30, so it keeps the periods set by hand.`
-				: kind === "scale"
-					? reading === undefined
+				: kind === "range"
+					? setting === undefined
 						? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
-						: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
-					: color
-						? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
-						: Number.isFinite(number)
-							? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
-							: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
+						: `${name} is ${shownValue(entry)}, so it's ${showSetting(setting)} now.`
+					: kind === "scale"
+						? reading === undefined
+							? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
+							: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
+						: color
+							? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
+							: Number.isFinite(number)
+								? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
+								: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
 
 	return (
 		<>
@@ -86,8 +116,15 @@ export const DataBindingFields = ({
 				value={binding.key}
 				options={[
 					// A value that's gone stays shown until another is picked.
-					...(entry ? [] : [{ value: binding.key, label: `${binding.key} (gone)` }]),
-					...data.map((item) => ({ value: item.key, label: item.name || item.key })),
+					...(entry
+						? []
+						: [
+								{
+									value: binding.key,
+									label: column !== null ? `Row: ${column} (no data)` : `${binding.key} (gone)`,
+								},
+							]),
+					...data.map((item) => ({ value: item.key, label: dataChoiceLabel(item) })),
 				]}
 				onChange={(key) => onChange({ ...binding, key })}
 				// Which value it follows: there's no default one.
@@ -166,6 +203,83 @@ export const DataBindingFields = ({
 							inherited: binding.highColor === null,
 							onReset: () => onChange({ ...binding, highColor: null }),
 						}}
+					/>
+				</>
+			)}
+
+			{kind === "range" && (
+				<>
+					<SwitchField
+						label="Log scale"
+						checked={binding.usesLogScale}
+						onChange={(on) => onChange({ ...binding, usesLogScale: on })}
+						inherit={resetToDefault(
+							binding.usesLogScale,
+							false,
+							() => onChange({ ...binding, usesLogScale: false }),
+							"straight",
+						)}
+						hint="On a log scale each tenfold is the same step (10, 100, 1,000…): for numbers far apart, like visitors or populations."
+					/>
+
+					<NumberField
+						label="Low value"
+						value={settings.lowValue}
+						onChange={(value) =>
+							onChange({ ...binding, valueAtLowSetting: value }, "valueAtLowSetting")
+						}
+						inherit={{
+							from: "default",
+							inherited: binding.valueAtLowSetting === null,
+							onReset: () => onChange({ ...binding, valueAtLowSetting: null }),
+							value: binding.usesLogScale ? "1" : "0",
+						}}
+					/>
+
+					<NumberField
+						label="Smallest"
+						value={settings.low}
+						min={range.min}
+						max={range.max}
+						step={range.step}
+						onChange={(value) => onChange({ ...binding, lowSetting: value }, "lowSetting")}
+						inherit={{
+							from: "default",
+							inherited: binding.lowSetting === null,
+							onReset: () => onChange({ ...binding, lowSetting: null }),
+							value: showSetting(range.min),
+						}}
+						hint="What it is at the low value and below."
+					/>
+
+					<NumberField
+						label="High value"
+						value={settings.highValue}
+						onChange={(value) =>
+							onChange({ ...binding, valueAtHighSetting: value }, "valueAtHighSetting")
+						}
+						inherit={{
+							from: "default",
+							inherited: binding.valueAtHighSetting === null,
+							onReset: () => onChange({ ...binding, valueAtHighSetting: null }),
+							value: "100",
+						}}
+					/>
+
+					<NumberField
+						label="Largest"
+						value={settings.high}
+						min={range.min}
+						max={range.max}
+						step={range.step}
+						onChange={(value) => onChange({ ...binding, highSetting: value }, "highSetting")}
+						inherit={{
+							from: "default",
+							inherited: binding.highSetting === null,
+							onReset: () => onChange({ ...binding, highSetting: null }),
+							value: showSetting(range.max),
+						}}
+						hint={`What it is at the high value and above; values in between are placed between the two. ${now}`}
 					/>
 				</>
 			)}

@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { z } from "zod";
 
 import { formatEntry } from "#/scene/format";
-import type { TDataEntry } from "#/scene/schema";
+import type { TDataValue } from "#/scene/schema";
 
 import { Box } from "../primitives";
 import { definePart, type IPartRenderProps } from "../types";
@@ -36,7 +36,7 @@ const LIFT = 0.02;
 const PLATE_THICKNESS = 0.08;
 
 /** What the part shows: its text, then the formatted value of its data key if it has one. */
-const shownText = (p: TTextProps, data: TDataEntry[] | undefined) => {
+const shownText = (p: TTextProps, data: readonly TDataValue[] | undefined) => {
 	const value = p.dataKey ? formatEntry(data?.find((d) => d.key === p.dataKey)) : "";
 	return [p.text.trim(), value].filter(Boolean).join(" ");
 };

@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
+	type IEditorState,
 	selectSelectedArea,
 	selectSelectedEntity,
 	selectSelectedFence,
@@ -8,6 +9,7 @@ import {
 	type TInspectorTab,
 	useEditor,
 } from "#/editor/store";
+import { useUsesData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
 import { AREA_KIND_LABELS } from "#/scene/areas";
@@ -50,6 +52,13 @@ const WORLD_TABS: IInspectorTab[] = [
 	{ value: "data", label: "Data", icon: "chart", content: <DataPanel /> },
 ];
 
+/** The tabs about data, the world's and a thing's: gone while the world's data is off (ADR-0115). */
+const DATA_TABS = new Set<TInspectorTab>(["data", "objectData"]);
+const WORLD_TABS_WITHOUT_DATA = WORLD_TABS.filter((tab) => !DATA_TABS.has(tab.value));
+
+/** The world's tabs, without Data while the world's data is off. */
+const useWorldTabs = () => (useUsesData() ? WORLD_TABS : WORLD_TABS_WITHOUT_DATA);
+
 /** Narrow layout only: the left column's panel and the outliner become tabs of the sheet. */
 const NARROW_TABS: IInspectorTab[] = [
 	{ value: "add", label: "Add to scene", icon: "plusSquare", content: <PartsPalette /> },
@@ -71,7 +80,21 @@ const useSelection = (): ISelectionContext | null => {
 	const fence = useEditor(selectSelectedFence);
 	const items = useEditor((s) => s.selectedItems);
 	const entities = useEditor((s) => s.scene.entities);
+	const usesData = useUsesData();
+	const context = selectionContext(entity, road, area, fence, items, entities);
+	return context && !usesData
+		? { ...context, tabs: context.tabs.filter((tab) => !DATA_TABS.has(tab.value)) }
+		: context;
+};
 
+const selectionContext = (
+	entity: ReturnType<typeof selectSelectedEntity>,
+	road: ReturnType<typeof selectSelectedRoad>,
+	area: ReturnType<typeof selectSelectedArea>,
+	fence: ReturnType<typeof selectSelectedFence>,
+	items: IEditorState["selectedItems"],
+	entities: IEditorState["scene"]["entities"],
+): ISelectionContext | null => {
 	// Several things: the settings they all have (ADR-0064), the active one's values shown.
 	if (items.length > 1) {
 		const selected = items.flatMap((item) =>
@@ -135,8 +158,9 @@ export const RailShortcuts = ({ onOpen }: { onOpen: () => void }) => {
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
 	const selectionTabs = useSelection()?.tabs ?? [];
-	const shown = shownTab(tab, [...selectionTabs, ...WORLD_TABS], selectionTabs);
-	const groups = [WORLD_TABS, selectionTabs].filter((group) => group.length > 0);
+	const worldTabs = useWorldTabs();
+	const shown = shownTab(tab, [...selectionTabs, ...worldTabs], selectionTabs);
+	const groups = [worldTabs, selectionTabs].filter((group) => group.length > 0);
 
 	return (
 		<nav className={styles.shortcuts} aria-label="Properties">
@@ -224,17 +248,25 @@ export const Inspector = ({
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
 	const title = useEditor((s) => s.scene.meta.title);
+	const openValue = useEditor((s) => s.openValue);
+	// The data value open on its own page in the Data tab, named for the breadcrumb.
+	const openValueName = useEditor((s) => {
+		const value = s.scene.data.values.find((each) => each.key === s.openValueKey);
+		return value ? value.name || value.key : null;
+	});
 	const selection = useSelection();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const searchInput = useRef<HTMLInputElement>(null);
 
 	const selectionTabs = selection?.tabs ?? [];
-	const available = [...(narrow ? NARROW_TABS : []), ...selectionTabs, ...WORLD_TABS];
+	const worldTabs = useWorldTabs();
+	const available = [...(narrow ? NARROW_TABS : []), ...selectionTabs, ...worldTabs];
 	// A tab the selection doesn't have shows its first one (or the world's, with nothing selected).
 	const shown = shownTab(tab, available, selectionTabs);
 	const searching = searchOpen && query.trim() !== "";
-	const isWorldTab = WORLD_TABS.includes(shown);
+	const isWorldTab = worldTabs.includes(shown);
+	const showsValuePage = shown.value === "data" && openValueName !== null;
 	const hasHeader = !NARROW_TABS.includes(shown);
 
 	const closeSearch = () => {
@@ -259,7 +291,7 @@ export const Inspector = ({
 					closeSearch();
 					onTabSelect?.();
 				}}
-				groups={narrow ? [NARROW_TABS, selectionTabs, WORLD_TABS] : [WORLD_TABS, selectionTabs]}
+				groups={narrow ? [NARROW_TABS, selectionTabs, worldTabs] : [worldTabs, selectionTabs]}
 				barEnd={tabBarEnd}
 				// The phone sheet opens on any tab, even the one that's already open.
 				onTabPress={() => onTabSelect?.()}
@@ -287,6 +319,14 @@ export const Inspector = ({
 							</div>
 						) : (
 							<>
+								{showsValuePage && (
+									<IconButton
+										icon="chevronLeft"
+										label="Back to all values"
+										onClick={() => openValue(null)}
+									/>
+								)}
+
 								<p className={styles.breadcrumb}>
 									<span className={styles.contextIcon}>
 										<Icon name={isWorldTab || !selection ? "globe" : selection.icon} size={15} />
@@ -297,6 +337,14 @@ export const Inspector = ({
 									<Icon name="chevronRight" size={12} />
 
 									<span>{shown.label}</span>
+
+									{showsValuePage && (
+										<>
+											<Icon name="chevronRight" size={12} />
+
+											<span>{openValueName}</span>
+										</>
+									)}
 								</p>
 
 								<IconButton
@@ -311,7 +359,8 @@ export const Inspector = ({
 
 				{open && (
 					<div
-						key={searching ? "search" : shown.value}
+						// A new scroll for each tab, and for a value's page (which opens at its top).
+						key={searching ? "search" : showsValuePage ? "data-value" : shown.value}
 						className={styles.scroll}
 						data-inspector-scroll=""
 					>
@@ -320,7 +369,7 @@ export const Inspector = ({
 								query={query}
 								groups={[
 									...(selection ? [selection] : []),
-									{ name: title || "World", icon: "globe", tabs: WORLD_TABS },
+									{ name: title || "World", icon: "globe", tabs: worldTabs },
 								]}
 							/>
 						) : (

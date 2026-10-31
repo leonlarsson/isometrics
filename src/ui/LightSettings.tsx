@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { useUsesData } from "#/editor/worldData";
 import {
 	comesOnOf,
 	inPeriod,
@@ -13,7 +14,7 @@ import {
 	DataBindingSchema,
 	type TComesOn,
 	type TDataBinding,
-	type TDataEntry,
+	type TDataValue,
 	type TEntityLight,
 	type TLightMode,
 } from "#/scene/schema";
@@ -39,7 +40,7 @@ interface ILightSettingsProps {
 	/** The object's settings for it (undefined: none yet). */
 	setting: TEntityLight | undefined;
 	/** The world's data, to drive its settings by a value. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** Window lights: its part of the part's windows (its weight against the others'), 0–1. */
 	windowShare?: number;
 	/** The world's hour now, for schedules; null without a time of day. */
@@ -138,7 +139,9 @@ export const LightSettings = ({
 	fileName,
 	startsFolded,
 }: ILightSettingsProps) => {
-	const bound = setting?.data ?? {};
+	// With data off (ADR-0115), set by hand only: what follows data is left alone, unseen.
+	const usesData = useUsesData();
+	const bound = usesData ? (setting?.data ?? {}) : {};
 	const hasData = data.length > 0;
 	/** Start following data: the first value, with no options set. */
 	const follow = (target: TLightDataTarget) =>
@@ -188,7 +191,10 @@ export const LightSettings = ({
 					label="When"
 					value={turnsOn}
 					mixed={mixed("whenOn") || mixed("data.on")}
-					options={(["auto", "on", "off", "schedule", "data"] as const).map((option) => ({
+					options={(usesData
+						? (["auto", "on", "off", "schedule", "data"] as const)
+						: (["auto", "on", "off", "schedule"] as const)
+					).map((option) => ({
 						value: option,
 						label: `${turnsOnLabels[option]}${unavailable[option] ?? ""}`,
 						disabled: unavailable[option] !== undefined,

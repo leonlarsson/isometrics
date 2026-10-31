@@ -30,6 +30,11 @@ interface ISliderFieldProps extends INumberRangeProps {
 	/** Shown greyed out and can't be changed; say why in its hint. */
 	disabled?: boolean;
 	hint?: ReactNode;
+	/**
+	 * No number box: for a slider whose value its label names in words (a story's date), where
+	 * the number itself (a position in a list) means nothing.
+	 */
+	hidesBox?: boolean;
 }
 
 /** A slider with a number box; drag the label to scrub, or type an exact value. */
@@ -48,6 +53,7 @@ export const SliderField = ({
 	mixed,
 	disabled = false,
 	hint,
+	hidesBox = false,
 }: ISliderFieldProps & TResettable) => {
 	const id = useId();
 	return (
@@ -99,15 +105,17 @@ export const SliderField = ({
 				</Slider.Root>
 
 				{/* The unit sits inside the box, so every row's box ends at the panel's edge. */}
-				<span className={styles.sliderNumber} data-unit={suffix ? "" : undefined}>
-					{clock ? (
-						<ClockInput hours={value} onChange={onChange} ariaLabel={label} />
-					) : (
-						<NumberBox />
-					)}
+				{!hidesBox && (
+					<span className={styles.sliderNumber} data-unit={suffix ? "" : undefined}>
+						{clock ? (
+							<ClockInput hours={value} onChange={onChange} ariaLabel={label} />
+						) : (
+							<NumberBox />
+						)}
 
-					{suffix && <span className={styles.unit}>{suffix}</span>}
-				</span>
+						{suffix && <span className={styles.unit}>{suffix}</span>}
+					</span>
+				)}
 			</div>
 
 			{hint && <Hint>{hint}</Hint>}

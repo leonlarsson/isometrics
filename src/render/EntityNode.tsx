@@ -15,7 +15,7 @@ import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
-import type { TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
+import type { TDataValue, TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -111,6 +111,31 @@ export const SelectionFrame = ({
 	);
 };
 
+/**
+ * A ring on the ground round an object in View mode (ADR-0111): solid and
+ * wide round the one opened, thin while the pointer is over another, so it's
+ * told by its shape, not its colour.
+ */
+const ViewRing = ({
+	size: [w, d],
+	color,
+	opened,
+}: {
+	size: [number, number];
+	color: string;
+	opened: boolean;
+}) => {
+	const radius = Math.max(w, d) / 2 + 0.4;
+	const band = opened ? 0.35 : 0.12;
+	return (
+		<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} userData={{ notInstanced: true }}>
+			<ringGeometry args={[radius, radius + band, 64]} />
+
+			<meshBasicMaterial color={color} toneMapped={false} />
+		</mesh>
+	);
+};
+
 const UnknownPart = () => {
 	return (
 		<mesh position={[0, 0.5, 0]}>
@@ -142,7 +167,7 @@ export interface IEntityNodeProps {
 	/** The road it follows, if any. */
 	road: TRoad | null;
 	/** The world's data, for objects that show values or follow them; otherwise undefined. */
-	data: TScene["data"] | undefined;
+	data: readonly TDataValue[] | undefined;
 	/** The world's hour, for objects with a light on a schedule or that follow the sun; otherwise null. */
 	hour: number | null;
 	/** Where the sun is now, for objects that follow it (a part's `followsTheSun`); otherwise undefined. */
@@ -589,6 +614,10 @@ export const EntityNode = memo(
 										/>
 									));
 							})}
+
+						{mode === "view" && (selected || hovered || listHovered) && (
+							<ViewRing size={footprint} color={palette.selection} opened={selected} />
+						)}
 
 						{mode === "edit" && (selected || hovered || listHovered || boxed) && (
 							<SelectionFrame

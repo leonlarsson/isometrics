@@ -1,11 +1,14 @@
 import type { Draft } from "immer";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
+import { assignRowsByName, type IRowAssignment } from "#/editor/dataRows";
 import { useSceneHours } from "#/editor/dayClock";
 import type { ISceneItem } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { round } from "#/lib/math";
 import {
@@ -15,19 +18,30 @@ import {
 	resolveTransparency,
 } from "#/parts/colorModel";
 import { comesOnOf, lightDefaults } from "#/parts/lightModel";
+import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
 import { AREA_KIND_LABELS, groundHeightAt } from "#/scene/areas";
 import type { TColorSettingChange } from "#/scene/objectSettings";
 import { ROAD_KIND_LABELS } from "#/scene/roads";
-import type { TEntity, TScene } from "#/scene/schema";
+import { columnOfKey, rowColumnChoices, tableOfRow } from "#/scene/rowData";
+import type { TDataBinding, TEntity, TScene } from "#/scene/schema";
 
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, IconButton, IconButtonGroup } from "./Button";
 import { CopyPasteMenu } from "./CopyPasteMenu";
 import { DataDrivenField } from "./DataDrivenField";
 import { LightCopyPasteMenu } from "./EntityInspector";
 import { FollowDataNote } from "./FollowDataNote";
-import { ColorField, FieldGroup, Hint, Kbd, resetToDefault, Section, SliderField } from "./fields";
+import {
+	ColorField,
+	FieldGroup,
+	Hint,
+	Kbd,
+	resetToDefault,
+	Section,
+	SelectField,
+	SliderField,
+} from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { LightSettings, type TLightSettingKey } from "./LightSettings";
 import { List, ListItem } from "./List";
@@ -296,7 +310,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 	const part = members[0].part;
 	const writeAll = writeTo(members.map((member) => member.entity));
 	const props = members.map((member) => resolveProps(part, member.entity.props));
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	return (
 		<Section
@@ -368,7 +382,7 @@ const lightsOf = (members: readonly IMember[]) => {
 /** The Look tab for several objects: every colour any of them has, saying which have it. */
 const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: number }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 
 	return (
 		<>
@@ -479,7 +493,7 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 /** The Lights tab for several objects: a card for every light any of them has, saying which have it. */
 const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total: number }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const hour = useSceneHours();
 
 	return (
@@ -549,6 +563,156 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
  * are all the same part, and Look and Lights with every colour and light any
  * of them has, each saying which objects it's on.
  */
+/**
+ * The Data tab for several objects (ADR-0108, ADR-0109): each takes the row of
+ * a table matching its name, and their size and settings follow data alike
+ * (a column of each one's own row, `row.<column>`).
+ */
+const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: number }) => {
+	const worldData = useWorldData();
+	const commit = useEditor((s) => s.commit);
+	const setTab = useEditor((s) => s.setTab);
+	const [tableKey, setTableKey] = useState(
+		() => members.at(-1)?.entity.dataRow?.tableKey ?? worldData.tables[0]?.key ?? "",
+	);
+	const table = worldData.tables.find((each) => each.key === tableKey);
+	const last = members[members.length - 1].entity;
+	// What the bindings can pick: the world's values, and every column of the table they follow.
+	const values = [
+		...valuesOfEntity(last, worldData).filter((entry) => columnOfKey(entry.key) === null),
+		...rowColumnChoices(tableOfRow(worldData, last.dataRow) ?? table).map((choice) => ({
+			key: choice.key,
+			name: choice.name,
+			value: "",
+			unit: "",
+			source: null,
+			history: [],
+			threshold: null,
+			about: "",
+		})),
+	];
+	const entities = members.map((member) => member.entity);
+	const samePart = members.every((member) => member.part === members[0].part);
+	const numberFields = samePart
+		? dataDrivenFields(members[0].part).filter((field) => field.type === "number")
+		: [];
+	const setBinding = (setting: string, binding: TDataBinding | null, coalesce?: string) =>
+		commit(
+			(scene) => {
+				for (const entity of scene.entities) {
+					if (entities.some((each) => each.id === entity.id)) {
+						if (binding) {
+							entity.data[setting] = structuredClone(binding);
+						} else {
+							delete entity.data[setting];
+						}
+					}
+				}
+			},
+			coalesce ? { coalesce: `group:data:${setting}:${coalesce}` } : undefined,
+		);
+	const bindingsOf = (setting: string) => entities.map((entity) => entity.data[setting]);
+
+	return (
+		<>
+			<Section
+				id="data.rows"
+				icon="list"
+				title="Table rows"
+				keywords="data table row match names assign"
+			>
+				{members.length < total && <Hint>{appliesTo(members, total)}</Hint>}
+
+				<SelectField
+					label="Table"
+					value={tableKey}
+					options={
+						worldData.tables.length > 0
+							? worldData.tables.map((each) => ({ value: each.key, label: each.name || each.key }))
+							: [{ value: "", label: "A table (no tables yet)", disabled: true }]
+					}
+					onChange={setTableKey}
+					hasNoDefault
+				/>
+
+				{table ? (
+					<Button
+						size="sm"
+						icon="search"
+						onClick={() => {
+							let result: IRowAssignment = { matched: [], unmatched: [] };
+							commit((scene) => {
+								result = assignRowsByName(
+									scene,
+									entities.map((entity) => entity.id),
+									table,
+								);
+							});
+							const { matched, unmatched } = result;
+							notify(
+								`${matched.length} of ${entities.length} took their row`,
+								unmatched.length > 0
+									? `No row of ${table.name || table.key} matches ${unmatched.map((each) => `“${each.name || "(no name)"}”`).join(", ")}: rename them, or pick a row in each one's Data tab.`
+									: undefined,
+								unmatched.length > 0 && matched.length === 0 ? "error" : "info",
+							);
+						}}
+					>
+						Give each the row matching its name
+					</Button>
+				) : (
+					<>
+						<Hint>Read a spreadsheet, a link or an API in the Data tab to get a table.</Hint>
+
+						<Button size="sm" icon="chart" onClick={() => setTab("data")}>
+							Open the Data tab
+						</Button>
+					</>
+				)}
+
+				<Hint>
+					Names are matched loosely: case, spaces and punctuation don't matter. Then pick “Row: …”
+					columns for their cards, colours and sizes, and each shows its own row.
+				</Hint>
+			</Section>
+
+			<Section
+				id="data.sizes"
+				icon="chart"
+				title="Sizes from data"
+				keywords="size scale props grow log scale data"
+			>
+				<DataDrivenField
+					kind="range"
+					binding={bindingsOf(SCALE_SETTING).at(-1)}
+					mixed={differ(bindingsOf(SCALE_SETTING))}
+					data={values}
+					range={{ ...SCALE_RANGE, step: 0.05, format: (value) => `×${value.toFixed(2)}` }}
+					onBindingChange={(binding, coalesce) => setBinding(SCALE_SETTING, binding, coalesce)}
+				>
+					<Hint>Set each one's size in its Object tab, or follow data here.</Hint>
+				</DataDrivenField>
+
+				{numberFields.map((field) =>
+					field.type === "number" ? (
+						<DataDrivenField
+							key={field.key}
+							kind="range"
+							binding={bindingsOf(field.key).at(-1)}
+							mixed={differ(bindingsOf(field.key))}
+							data={values}
+							range={{ min: field.min, max: field.max, step: field.step }}
+							onBindingChange={(binding, coalesce) => setBinding(field.key, binding, coalesce)}
+						>
+							<Hint>{field.label}: set by hand in the Shape tab, or follow data here.</Hint>
+						</DataDrivenField>
+					) : null,
+				)}
+			</Section>
+		</>
+	);
+};
+
 export const groupTabs = (
 	items: readonly ISceneItem[],
 	entities: readonly TEntity[],
@@ -601,6 +765,16 @@ export const groupTabs = (
 						label: "Lights",
 						icon: "bulb",
 						content: tab(<GroupLightsTab {...props} />),
+					} as const,
+				]
+			: []),
+		...(members.length > 0
+			? [
+					{
+						value: "objectData",
+						label: "Data",
+						icon: "chart",
+						content: tab(<GroupDataTab {...props} />),
 					} as const,
 				]
 			: []),

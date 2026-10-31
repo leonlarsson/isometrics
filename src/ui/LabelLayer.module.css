@@ -180,3 +180,40 @@
 		zoom: 0.8;
 	}
 }
+
+/* A short word beside the title, e.g. "home" (the label's tag). */
+.tag {
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+/* Nothing to show: the card and chip greyed, their values in words (ADR-0110). */
+.card[data-no-data],
+.chip[data-no-data] {
+	color: var(--text-muted);
+	box-shadow: none;
+}
+
+.card[data-no-data] .dot,
+.chip[data-no-data] .dot {
+	filter: grayscale(1);
+	opacity: 0.6;
+}
+
+.rowValue[data-no-data] {
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+/* The date a story shows the data at (ADR-0114). */
+.when {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}

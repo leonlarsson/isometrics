@@ -65,8 +65,8 @@ test.describe("opening and saving (ADR-0006, ADR-0020, ADR-0026, ADR-0057)", () 
 });
 
 test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => {
-	test("/schema.json describes the world, with every part kind", async ({ request }) => {
-		const schema = await (await request.get("/schema.json")).json();
+	test("/api/worlds/schema describes the world, with every part kind", async ({ request }) => {
+		const schema = await (await request.get("/api/worlds/schema")).json();
 		expect(schema.title).toBe("Isometrics world");
 		const kinds = schema.properties.entities.items.properties.kind.oneOf.map(
 			(option: { const: string }) => option.const,
@@ -74,8 +74,10 @@ test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => 
 		expect(kinds).toEqual(expect.arrayContaining(["house_01", "office_tower_01", "car_01"]));
 	});
 
-	test("/templates.json lists the starter worlds, each one valid to open", async ({ request }) => {
-		const { templates } = await (await request.get("/templates.json")).json();
+	test("/api/worlds/templates lists the starter worlds, each one valid to open", async ({
+		request,
+	}) => {
+		const { templates } = await (await request.get("/api/worlds/templates")).json();
 		expect(templates.length).toBeGreaterThan(1);
 		const first = await (await request.get(templates[0].url)).json();
 		expect(first.version).toBe(1);

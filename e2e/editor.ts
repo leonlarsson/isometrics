@@ -1,7 +1,15 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
 import type { IEditorState, useEditor } from "#/editor/store";
-import type { TArea, TEntity, TFence, TRoad, TViewPose } from "#/scene/schema";
+import { APP_NAME } from "#/lib/app";
+import {
+	type TArea,
+	type TEntity,
+	type TFence,
+	type TRoad,
+	type TViewPose,
+	WorldDataSchema,
+} from "#/scene/schema";
 
 /**
  * Shared helpers for the end-to-end tests (ADR-0069). Each test gets a fresh
@@ -22,8 +30,27 @@ declare global {
 	};
 }
 
-/** A test that fails when the page throws an uncaught error. */
-export const test = base.extend<{ pageErrors: string[] }>({
+/** The welcome's "seen" mark (editor/welcome.ts), set so tests start in the editor. */
+const WELCOME_SEEN_KEY = `${APP_NAME.toLowerCase()}:welcome-seen`;
+
+/**
+ * A test that fails when the page throws an uncaught error. A new browser is greeted by the
+ * welcome (ADR-0116); tests skip it unless they `test.use({ welcomes: true })`.
+ */
+export const test = base.extend<{ pageErrors: string[]; welcomes: boolean }>({
+	welcomes: [false, { option: true }],
+	page: async ({ page, welcomes }, use) => {
+		if (!welcomes) {
+			await page.addInitScript((key) => {
+				try {
+					localStorage.setItem(key, "1");
+				} catch {
+					// No storage: nothing to skip.
+				}
+			}, WELCOME_SEEN_KEY);
+		}
+		await use(page);
+	},
 	pageErrors: [
 		async ({ page }, use) => {
 			const errors: string[] = [];
@@ -76,6 +103,8 @@ export interface ITestWorld {
 	roads?: Partial<TRoad>[];
 	areas?: Partial<TArea>[];
 	fences?: Partial<TFence>[];
+	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
+	data?: unknown;
 }
 
 /**
@@ -83,7 +112,9 @@ export interface ITestWorld {
  * camera stay the starter's), as a freshly opened world. Missing fields get
  * their defaults through the scene schema.
  */
-export const loadWorld = async (page: Page, world: ITestWorld) => {
+export const loadWorld = async (page: Page, given: ITestWorld) => {
+	// The data with its defaults filled in, as a world file's are when it opens.
+	const world = { ...given, data: given.data ? WorldDataSchema.parse(given.data) : undefined };
 	await page.evaluate((world) => {
 		const state = globalThis.__editorStore.getState();
 		const scene = structuredClone(state.scene);
@@ -97,9 +128,18 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			props: {},
 			colors: {},
 			lights: {},
-			label: { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] },
+			label: {
+				isShown: false,
+				title: "",
+				dataKeys: [],
+				offset: [0, 2, 0],
+				tag: "",
+				showsAsChip: false,
+			},
 			details: { description: "", dataKeys: [] },
 			follow: null,
+			dataRow: null,
+			data: {},
 			isHidden: false,
 			isLocked: false,
 			...e,
@@ -142,6 +182,9 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			...f,
 			points: (f.points ?? []).map(([x, z, lift]) => [x, z, lift ?? 0]),
 		})) as typeof scene.fences;
+		if (world.data) {
+			scene.data = world.data as typeof scene.data;
+		}
 		state.loadScene(scene);
 	}, world);
 	await worldShown(page);
@@ -226,6 +269,13 @@ export const outlinerRow = (page: Page, name: string) =>
 /** Pick an item from the File menu. */
 export const fileMenu = async (page: Page, item: RegExp) => {
 	await page.getByRole("button", { name: "File" }).click();
+	await menuItem(page, item).click();
+};
+
+/** File → Build with your AI → an item ("A new world…", "Change this world…"). */
+export const buildWithAiMenu = async (page: Page, item: RegExp) => {
+	await page.getByRole("button", { name: "File" }).click();
+	await page.getByRole("menuitem", { name: "Build with your AI" }).click();
 	await menuItem(page, item).click();
 };
 

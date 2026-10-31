@@ -40,6 +40,7 @@ import {
 	AreaSchema,
 	CameraSettingsSchema,
 	ColorSettingSchema,
+	DataValueSchema,
 	EntityLightSchema,
 	EntitySchema,
 	FenceSchema,
@@ -49,7 +50,8 @@ import {
 	type TAreaInput,
 	type TAreaKind,
 	type TDataBinding,
-	type TDataEntry,
+	type TDataSource,
+	type TDataValueInput,
 	type TEntity,
 	type TEntityInput,
 	type TFence,
@@ -67,6 +69,7 @@ import {
 	type TViewpoint,
 	ViewpointSchema,
 } from "#/scene/schema";
+import { type IReadData, putReadData } from "#/scene/sheets";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
 import { restartDayCycle } from "./dayClock";
@@ -96,7 +99,14 @@ export type TWorldTab =
 	| "traffic"
 	| "data";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
-export type TSelectionTab = "object" | "shape" | "look" | "lights" | "label" | "motion";
+export type TSelectionTab =
+	| "object"
+	| "shape"
+	| "look"
+	| "lights"
+	| "label"
+	| "objectData"
+	| "motion";
 /**
  * Properties tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
  * layout; the wide layout has them in the left column and above the properties.
@@ -109,6 +119,7 @@ const SELECTION_TABS: readonly TInspectorTab[] = [
 	"look",
 	"lights",
 	"label",
+	"objectData",
 	"motion",
 ];
 
@@ -292,6 +303,8 @@ export interface IEditorState {
 	followOffer: IFollowOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
+	/** The data value whose own page the Data tab shows, by key; null = the list of them. Runtime only. */
+	openValueKey: string | null;
 	dragging: boolean;
 	/**
 	 * A world being opened (at start, or loaded): which opening, until the view
@@ -299,6 +312,8 @@ export interface IEditorState {
 	 * it till then; null once it's shown. Runtime only.
 	 */
 	openingWorld: number | null;
+	/** How many worlds have opened so far, this one included: which world data that arrives is for. Runtime only. */
+	openedWorldCount: number;
 	snapping: boolean;
 	playing: boolean;
 	/** How the camera shows the world: orthographic (the isometric diorama) or perspective. Runtime UI state. */
@@ -351,6 +366,15 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
+	/** Build with your AI is open, for a new world or to change this one (ADR-0116); null: closed. */
+	buildWithAi: "new" | "change" | null;
+	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
+	welcomeOpen: boolean;
+	/**
+	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
+	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
+	 */
+	newWorld: { shows: "all" | "places" | "dataMaps"; usesData: boolean } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
@@ -430,6 +454,8 @@ export interface IEditorState {
 	setSelectedFlag: (flag: "isHidden" | "isLocked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
+	/** Shows a data value's own page in the Data tab; null goes back to the list. */
+	openValue: (key: string | null) => void;
 	setDragging: (dragging: boolean) => void;
 	/** The view has this opening of a world ready to look at: the loading screen goes. */
 	worldShown: (opening: number) => void;
@@ -452,6 +478,9 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
+	setBuildWithAi: (builds: "new" | "change" | null) => void;
+	setWelcomeOpen: (open: boolean) => void;
+	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
@@ -572,8 +601,22 @@ export interface IEditorState {
 	removeEntity: (id: string) => void;
 	duplicateEntity: (id: string) => string | null;
 
-	upsertData: (entry: TDataEntry, previousKey?: string) => void;
+	/**
+	 * Adds or changes a value (missing fields get their defaults), renamed from
+	 * `previousKey` (with whatever follows it); `coalesce` makes a run of edits one undo step.
+	 */
+	upsertData: (entry: TDataValueInput, previousKey?: string, coalesce?: string) => void;
 	removeData: (key: string) => void;
+	/**
+	 * Puts what a source gave in the world's data, one undo step: the source
+	 * added or updated, its values and tables replacing what it gave before
+	 * (data study, `putReadData`).
+	 */
+	putReadData: (source: TDataSource, read: IReadData) => void;
+	/** Removes a table from the world's data. */
+	removeDataTable: (key: string) => void;
+	/** Removes a source; its values and tables stay, as typed by hand. */
+	removeDataSource: (id: string) => void;
 
 	addRoad: (input: Omit<TRoadInput, "id"> & { id?: string }) => string;
 	updateRoad: (id: string, recipe: (road: Draft<TRoad>) => void, options?: ICommitOptions) => void;
@@ -1024,14 +1067,19 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			followOffer: null,
 			mode: "edit",
 			tab: "world",
+			openValueKey: null,
 			dragging: false,
 			openingWorld: 1,
+			openedWorldCount: 1,
 			snapping: true,
 			playing: true,
 			projection: "orthographic",
 			previewTiltShift: false,
 			preferencesOpen: false,
 			renderDialogOpen: false,
+			buildWithAi: null,
+			welcomeOpen: false,
+			newWorld: null,
 			stillRender: null,
 			preferencesPage: null,
 			holdingRightButton: false,
@@ -1090,6 +1138,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				set((state) => ({
 					// The loading screen covers it until the view has it ready (ADR-0100).
 					openingWorld: (state.openingWorld ?? 0) + 1,
+					openedWorldCount: state.openedWorldCount + 1,
 					scene,
 					past: [],
 					future: [],
@@ -1101,6 +1150,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					activeViewpointId: null,
 					flight: null,
 					cameraFollow: null,
+					openValueKey: null,
 				}));
 			},
 
@@ -1497,7 +1547,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					groundMenu: null,
 					viewpointMenu: null,
 				}),
-			setTab: (tab) => set({ tab }),
+			// Leaving the Data tab closes a value's page: it opens on the list next time.
+			setTab: (tab) =>
+				set((state) => ({ tab, openValueKey: tab === "data" ? state.openValueKey : null })),
+			openValue: (key) => set({ tab: "data", openValueKey: key }),
 			setDragging: (dragging) => set({ dragging }),
 			worldShown: (opening) =>
 				set((state) => (state.openingWorld === opening ? { openingWorld: null } : state)),
@@ -1526,6 +1579,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
+			setBuildWithAi: (builds) => set({ buildWithAi: builds }),
+			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
+			setNewWorld: (newWorld) => set({ newWorld }),
 			setPreferencesOpen: (open, page) =>
 				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),
 			setHoldingRightButton: (holding) =>
@@ -1945,31 +2001,65 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				return copy.id;
 			},
 
-			upsertData: (entry, previousKey) =>
+			upsertData: (input, previousKey, coalesce) => {
+				const entry = DataValueSchema.parse(input);
 				get().commit(
 					(scene) => {
 						const lookup = previousKey ?? entry.key;
-						const index = scene.data.findIndex((d) => d.key === lookup);
+						const index = scene.data.values.findIndex((d) => d.key === lookup);
 						if (index === -1) {
-							scene.data.push(entry);
+							scene.data.values.push(entry);
 							return;
 						}
 						// Refuse to rename onto an existing key.
-						if (entry.key !== lookup && scene.data.some((d) => d.key === entry.key)) {
+						if (entry.key !== lookup && scene.data.values.some((d) => d.key === entry.key)) {
 							return;
 						}
-						scene.data[index] = entry;
+						scene.data.values[index] = entry;
 						if (entry.key !== lookup) {
 							renameDataReferences(scene, lookup, entry.key);
 						}
 					},
-					{ coalesce: `data:${previousKey ?? entry.key}` },
-				),
+					{ coalesce: coalesce ?? `data:${previousKey ?? input.key}` },
+				);
+				// Its page stays open under its new key.
+				if (
+					previousKey &&
+					get().openValueKey === previousKey &&
+					get().scene.data.values.some((d) => d.key === entry.key)
+				) {
+					set({ openValueKey: entry.key });
+				}
+			},
 
-			removeData: (key) =>
+			removeData: (key) => {
 				get().commit((scene) => {
-					scene.data = scene.data.filter((d) => d.key !== key);
+					scene.data.values = scene.data.values.filter((d) => d.key !== key);
 					renameDataReferences(scene, key, null);
+				});
+				if (get().openValueKey === key) {
+					set({ openValueKey: null });
+				}
+			},
+
+			putReadData: (source, read) =>
+				get().commit((scene) => {
+					scene.data = putReadData(scene.data, source, read);
+				}),
+
+			removeDataTable: (key) =>
+				get().commit((scene) => {
+					scene.data.tables = scene.data.tables.filter((table) => table.key !== key);
+				}),
+
+			removeDataSource: (id) =>
+				get().commit((scene) => {
+					scene.data.sources = scene.data.sources.filter((source) => source.id !== id);
+					for (const each of [...scene.data.values, ...scene.data.tables]) {
+						if (each.source?.sourceId === id) {
+							each.source = null;
+						}
+					}
 				}),
 
 			addRoad: (input) => {

@@ -1,0 +1,177 @@
+.legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.chip {
+	padding: 3px 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.chip strong {
+	color: var(--text);
+	font-weight: 700;
+}
+
+.switch {
+	margin-top: 8px;
+	pointer-events: auto;
+}
+
+.dataView {
+	position: absolute;
+	inset: 20px 24px 20px auto;
+	z-index: 60;
+	width: min(720px, calc(100% - 420px));
+	min-width: min(360px, calc(100% - 48px));
+	overflow: auto;
+	padding: 16px 20px 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-panel);
+}
+
+.dataHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.dataHeader h2 {
+	margin: 0;
+	font-size: 18px;
+}
+
+.block {
+	margin-top: 16px;
+}
+
+.block h3 {
+	margin: 0;
+	font-size: 15px;
+}
+
+.meta {
+	margin: 2px 0 8px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.values {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.values th,
+.values td {
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+}
+
+.values thead th {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.number {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+/*
+ * View mode's bottom dock (ADR-0110, ADR-0114): the world's main values and the story bar, laid out
+ * together so they never sit on each other: side by side on wide screens, stacked on phones, where
+ * they also make room for the viewpoint bar under them.
+ */
+.dock {
+	position: absolute;
+	right: 24px;
+	bottom: 20px;
+	left: 24px;
+	z-index: 2;
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	pointer-events: none;
+}
+
+.tiles {
+	display: flex;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	flex-wrap: wrap;
+	pointer-events: auto;
+}
+
+.tile {
+	min-width: 140px;
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+}
+
+/* Phones: a smaller title card (the legend one row that scrolls sideways), and the dock stacked above the viewpoint bar. */
+@media (max-width: 900px) {
+	.legend {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		margin-top: 6px;
+		scrollbar-width: none;
+		pointer-events: auto;
+	}
+
+	.chip {
+		flex: none;
+		padding: 2px 8px;
+		font-size: 11px;
+		white-space: nowrap;
+	}
+
+	.switch {
+		margin-top: 6px;
+	}
+
+	.dock {
+		right: 12px;
+		bottom: 12px;
+		left: 12px;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	.dock[data-above-viewpoints] {
+		/* The viewpoint bar's place at the bottom, and a gap. */
+		bottom: 96px;
+	}
+
+	.tiles {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.tile {
+		flex: none;
+		min-width: 120px;
+		padding: 8px 12px;
+	}
+}

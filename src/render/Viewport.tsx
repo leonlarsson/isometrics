@@ -11,6 +11,8 @@ import { drawnModeOf, includesItem, isToggleClick, useEditor } from "#/editor/st
 import { useEntity } from "#/editor/useEntity";
 import { usePalette } from "#/editor/useTheme";
 import { weatherNow } from "#/editor/weather";
+import { useWorldData } from "#/editor/worldData";
+import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -146,12 +148,15 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 		: followsTheHour(entity)
 			? EntityWithHour
 			: EntityNode;
+	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its sizes and
+	// props as data sets them (ADR-0109).
+	const data = followsData(entity) ? valuesOfEntity(entity, shared.data) : undefined;
 	return (
 		<Node
-			entity={entity}
+			entity={entityAsDrawn(entity, data)}
 			world={shared.world}
 			road={roadId ? (shared.roads.find((road) => road.id === roadId) ?? null) : null}
-			data={followsData(entity) ? shared.data : undefined}
+			data={data}
 			hour={null}
 			selected={includesItem(shared.selectedItems, "entity", id)}
 			alone={shared.selectedId === id && shared.selectedItems.length === 1}
@@ -183,10 +188,11 @@ const Entities = memo(() => {
 			drawing: s.drawing !== null,
 		})),
 	);
+	const data = useWorldData();
 	const picked = useEditor(
 		useShallow((s) => ({
 			roads: s.scene.roads,
-			data: s.scene.data,
+			data,
 			selectedItems: s.selectedItems,
 			selectedId: s.selectedId,
 			boxedItems: s.boxDrag?.items ?? NO_ITEMS,
@@ -246,9 +252,10 @@ export const Viewport = () => {
 	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
 	// What the weather draws (ADR-0102): each piece only while its amount is above nothing.
+	const data = useWorldData().values;
 	const weather = useEditor(
 		useShallow((s) => {
-			const now = weatherNow(s.scene.weather, s.scene.data);
+			const now = weatherNow(s.scene.weather, data);
 			return {
 				rain: now.rain > 0,
 				snow: now.snow > 0,

@@ -5,20 +5,24 @@ import { useSceneHours } from "#/editor/dayClock";
 import { setPanelOpen } from "#/editor/panelMemory";
 import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
+import { useSourceRefresh } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
+import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
 import { formatHour } from "#/scene/sun";
 
 import { BoxSelectBar } from "./BoxSelectBar";
+import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
-import { DetailSheet } from "./DetailSheet";
+import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
+import { DetailSheet, RoadDetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { FreshStartOffer } from "./FreshStartOffer";
@@ -56,6 +60,7 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
+import { Welcome } from "./Welcome";
 
 import styles from "./AppShell.module.css";
 
@@ -111,9 +116,8 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	const hour = useSceneHours();
 	const editing = useEditor((s) => s.mode === "edit");
 	const lighting = useEditor((s) => s.scene.lighting);
-	const timeEntry = useEditor((s) =>
-		s.scene.data.find((entry) => entry.key === s.scene.lighting.data.time?.key),
-	);
+	const data = useWorldData().values;
+	const timeEntry = data.find((entry) => entry.key === lighting.data.time?.key);
 	const source =
 		lighting.timeSource === "cycle"
 			? `Day cycle, ${lighting.dayLength} s`
@@ -135,7 +139,8 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	if (
 		!shown(onScreen.showsTitle) &&
 		!(shown(onScreen.showsSubtitle) && meta.subtitle) &&
-		!shown(onScreen.showsTimeOfDay)
+		!shown(onScreen.showsTimeOfDay) &&
+		onScreen.legend.length === 0
 	) {
 		return null;
 	}
@@ -176,6 +181,11 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 				)
 			)}
 
+			{/* What each encoding means, and the Map / Data switch (ADR-0110). */}
+			<LegendChips />
+
+			<MapDataSwitch />
+
 			{anyFaded && (
 				<p className={styles.sceneHiddenNote}>
 					<Tooltip label="Open Shown in View mode">
@@ -197,6 +207,8 @@ export const AppShell = () => {
 
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
+	// Links and APIs read again while the world is open (ADR-0113).
+	useSourceRefresh();
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
 	const [outlinerHeight, setOutlinerHeight] = useOutlinerHeight();
 	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
@@ -346,6 +358,12 @@ export const AppShell = () => {
 
 							<DetailSheet />
 
+							<RoadDetailSheet />
+
+							<ViewDock />
+
+							<WorldDataView />
+
 							<ItemContextMenu />
 
 							<GroundContextMenu />
@@ -356,8 +374,12 @@ export const AppShell = () => {
 
 							<RenderDialog />
 
+							<BuildWithAiDialog />
+
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}
+
+							{ready && <Welcome />}
 						</Stage>
 
 						{mode === "edit" && !rightOpen && (

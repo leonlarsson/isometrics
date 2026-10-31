@@ -1,14 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { startNewWorld } from "#/editor/fileActions";
+import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
 import { SceneSchema, type TDrivingSide, type TScene, type TThemePreference } from "#/scene/schema";
-import { createEmptyScene, TEMPLATES } from "#/templates";
+import {
+	createEmptyScene,
+	TEMPLATE_CATEGORIES,
+	TEMPLATES,
+	type TTemplateCategory,
+} from "#/templates";
 
+import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
-import { Hint, RadioGroupField, resetToDefault, SelectField, TextField } from "./fields";
+import {
+	Hint,
+	RadioGroupField,
+	resetToDefault,
+	SelectField,
+	SwitchField,
+	TextField,
+} from "./fields";
 
 import styles from "./NewWorldDialog.module.css";
 
@@ -34,6 +48,8 @@ interface INewWorldChoices {
 	groundPreset: TGroundPreset;
 	theme: TThemePreference;
 	drivingSide: TDrivingSide;
+	/** Whether a blank world uses data (ADR-0115). */
+	usesData: boolean;
 }
 
 const DEFAULT_CHOICES: INewWorldChoices = {
@@ -41,6 +57,7 @@ const DEFAULT_CHOICES: INewWorldChoices = {
 	groundPreset: "blocks",
 	theme: "system",
 	drivingSide: "right",
+	usesData: true,
 };
 
 const blankPictureId = (preset: TGroundPreset) => `${BLANK}:${preset}`;
@@ -85,18 +102,18 @@ const contentsOf = (scene: TScene) => {
 	] as const;
 	const listed = things.filter(([count]) => count > 0).map(([count, one]) => plural(count, one));
 	return [
-		scene.data.length > 0 &&
-			`${plural(scene.data.length, "data value")} on ${plural(cards, "label card")}`,
+		scene.data.values.length + scene.data.tables.length > 0 &&
+			`${[
+				scene.data.tables.length > 0 && plural(scene.data.tables.length, "data table"),
+				scene.data.values.length > 0 && plural(scene.data.values.length, "data value"),
+			]
+				.filter(Boolean)
+				.join(" and ")} on ${plural(cards, "label card")}`,
 		listed.length > 0 && listed.join(", ").replace(/, ([^,]*)$/, " and $1"),
 		scene.viewpoints.length > 0 && plural(scene.viewpoints.length, "saved viewpoint"),
 		`${scene.ground.width} × ${scene.ground.depth} ground`,
 	].filter((line) => line !== false);
 };
-
-interface INewWorldDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-}
 
 /**
  * File → New world: start from bare ground with a few settings, or from a
@@ -104,17 +121,37 @@ interface INewWorldDialogProps {
  * keeps its choices while the page is open; nothing is stored. The new world
  * opens next to the others (ADR-0044).
  */
-export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => {
+export const NewWorldDialog = () => {
+	const asked = useEditor((s) => s.newWorld);
+	const open = asked !== null;
+	const onOpenChange = (next: boolean) => {
+		if (!next) {
+			useEditor.getState().setNewWorld(null);
+		}
+	};
 	const [choices, setChoices] = useState(DEFAULT_CHOICES);
+	// Which starters show: all, or one category's (places, data maps).
+	const [category, setCategory] = useState<TTemplateCategory | "all">("all");
 	// Empty means the placeholder: the starter's own title, or "Untitled world".
 	const [name, setName] = useState("");
 	const pictures = useScenePictures(useResolvedTheme(), open ? PICTURE_SOURCES : NO_PICTURES);
 
 	useEffect(() => {
-		if (open) {
+		if (asked !== null) {
 			setName("");
+			// Opened for one kind (the welcome's city or example): those starters, the first picked.
+			setCategory(asked.shows);
+			const first =
+				asked.shows === "all"
+					? undefined
+					: TEMPLATES.find((template) => template.category === asked.shows);
+			setChoices((before) => ({
+				...before,
+				usesData: asked.usesData,
+				startFrom: first?.id ?? before.startFrom,
+			}));
 		}
-	}, [open]);
+	}, [asked]);
 
 	// Every starter's world, for its details (all of them are laid out, see below).
 	const starters = useMemo(
@@ -133,12 +170,17 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 		setChoices({ ...choices, startFrom });
 		startNewWorld(
 			picked
-				? { ...picked, meta: { ...picked.meta, title } }
+				? {
+						...picked,
+						meta: { ...picked.meta, title },
+						data: { ...picked.data, isOn: choices.usesData },
+					}
 				: createEmptyScene({
 						title,
 						ground: { width, depth },
 						theme: choices.theme,
 						drivingSide: choices.drivingSide,
+						usesData: choices.usesData,
 					}),
 		);
 	};
@@ -151,12 +193,14 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 			description: "Bare ground: choose its size and look",
 			picture: picture(blankPictureId(choices.groundPreset)),
 		},
-		...TEMPLATES.map((candidate) => ({
-			value: candidate.id,
-			title: candidate.name,
-			description: candidate.description,
-			picture: picture(candidate.id),
-		})),
+		...TEMPLATES.filter((candidate) => category === "all" || candidate.category === category).map(
+			(candidate) => ({
+				value: candidate.id,
+				title: candidate.name,
+				description: candidate.description,
+				picture: picture(candidate.id),
+			}),
+		),
 	];
 
 	return (
@@ -169,16 +213,33 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 			wide
 		>
 			<div className={styles.layout}>
-				<ChoiceCards
-					label="Start from"
-					value={choices.startFrom}
-					onChange={(startFrom) => update({ startFrom })}
-					onPick={(startFrom) => {
-						create(startFrom);
-						onOpenChange(false);
-					}}
-					cards={cards}
-				/>
+				<div className={styles.starters}>
+					<ChipGroup
+						label="Kind of world"
+						value={category}
+						onChange={setCategory}
+						size="sm"
+						chips={[
+							{ value: "all", label: "All", count: TEMPLATES.length },
+							...TEMPLATE_CATEGORIES.map(({ value, label }) => ({
+								value,
+								label,
+								count: TEMPLATES.filter((each) => each.category === value).length,
+							})),
+						]}
+					/>
+
+					<ChoiceCards
+						label="Start from"
+						value={choices.startFrom}
+						onChange={(startFrom) => update({ startFrom })}
+						onPick={(startFrom) => {
+							create(startFrom);
+							onOpenChange(false);
+						}}
+						cards={cards}
+					/>
+				</div>
 
 				<div className={styles.details}>
 					<TextField
@@ -187,6 +248,16 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 						placeholder={defaultName}
 						onChange={setName}
 						inherit={resetToDefault(name, "", () => setName(""), defaultName)}
+					/>
+
+					<SwitchField
+						label="Uses data"
+						checked={choices.usesData}
+						onChange={(usesData) => update({ usesData })}
+						inherit={resetToDefault(choices.usesData, DEFAULT_CHOICES.usesData, () =>
+							update({ usesData: DEFAULT_CHOICES.usesData }),
+						)}
+						hint="Off for a plain world to build, with nothing about data anywhere (a starter's data is kept, hidden). The World tab can turn it on later."
 					/>
 
 					{/*

@@ -1,4 +1,4 @@
-import type { TColorSetting, TDataEntry } from "#/scene/schema";
+import type { TColorSetting, TReadableValues } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { readColor } from "./dataBinding";
@@ -40,7 +40,7 @@ export const resolveColor = (
 	spec: IColorSpec,
 	stored: IStoredColors,
 	palette: IScenePalette,
-	data?: readonly TDataEntry[],
+	data?: TReadableValues,
 ) => {
 	const setting = colorSettingOf(stored, spec.id);
 	return (
@@ -55,7 +55,7 @@ export const resolveColors = (
 	part: IPartColors,
 	entity: IStoredColors,
 	palette: IScenePalette,
-	data?: readonly TDataEntry[],
+	data?: TReadableValues,
 ): Record<string, string> =>
 	Object.fromEntries(
 		part.colors.map((spec) => [spec.id, resolveColor(spec, entity, palette, data)]),
@@ -70,7 +70,7 @@ export const colorOf = (
 	stored: IStoredColors,
 	id: string,
 	palette: IScenePalette,
-	data?: readonly TDataEntry[],
+	data?: TReadableValues,
 	fallback = "#999999",
 ) => {
 	const spec = holder.colors.find((color) => color.id === id);
@@ -120,7 +120,7 @@ export const resolveLabelColor = (
 	part: IPartColors,
 	entity: IStoredColors,
 	palette: IScenePalette,
-	data?: readonly TDataEntry[],
+	data?: TReadableValues,
 ) => {
 	const { first, second } = swatchColors(resolveColors(part, entity, palette, data), part);
 	return isVeryLight(first) ? second : first;

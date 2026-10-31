@@ -1,9 +1,12 @@
 import { memo } from "react";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
+import { useStory } from "#/editor/story";
 import { useThemePalette } from "#/editor/useTheme";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
+import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partNameOf } from "#/parts/registry";
 import { openContextMenuUnlessDragged } from "#/render/contextMenu";
 import {
@@ -12,8 +15,11 @@ import {
 	registerLabelElement,
 	registerLabelLeader,
 } from "#/render/labelRegistry";
-import { formatEntry } from "#/scene/format";
+import { columnOfKey } from "#/scene/rowData";
 import type { TEntity } from "#/scene/schema";
+
+import { DataReading, FlagBadge, shownEntry } from "./DataReading";
+import { formatWhen } from "./Sparkline";
 
 import styles from "./LabelLayer.module.css";
 
@@ -82,22 +88,32 @@ const measured = (id: string, part: TLabelPart) => (element: HTMLElement | null)
 
 const useLabelColor = (entity: TEntity) => {
 	const palette = useThemePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = valuesOfEntity(entity, useWorldData());
 	const part = getPart(entity.kind);
 	return part ? resolveLabelColor(part, entity, palette, data) : palette.selection;
 };
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {
-	const data = useEditor((s) => s.scene.data);
+	const data = valuesOfEntity(entity, useWorldData());
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
-	const entries = entity.label.dataKeys.map((key) => ({
+	// With data off (ADR-0115), a card is its title only.
+	const usesData = useUsesData();
+	const entries = (usesData ? entity.label.dataKeys : []).map((key) => ({
 		key,
 		entry: data.find((d) => d.key === key),
 	}));
 	const title = entity.label.title || entity.name || partNameOf(entity.kind) || "";
-	// The chip shows the main value, or the title when there's no data.
-	const main = entries.length > 0 ? formatEntry(entries[0].entry) : title;
+	// A story shows the data as it was on a date (ADR-0114): the card says when.
+	const storyAt = useStory((s) => s.at);
+	const inView = useEditor((s) => s.mode === "view");
+	// Only cards whose values have a past change with the story; the others say nothing of it.
+	const followsStory = entries.some(({ entry }) => !entry || entry.history.length > 0);
+	const when = storyAt !== null && inView && followsStory ? formatWhen(storyAt) : null;
+	// Nothing to show for any of its values: the card says so, greyed (ADR-0110).
+	const hasNoData = entries.length > 0 && entries.every(({ entry }) => !entry);
+	// The chip shows the main value ("no data" without one), or the title when it shows no values.
+	const main = entries.length > 0 ? shownEntry(entries[0].entry) : title;
 	const handlers = {
 		onClick: (event: { clientX: number; clientY: number }) => {
 			if (!endedADrag(event)) {
@@ -118,6 +134,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	return (
 		<div
 			className={styles.anchor}
+			data-shows-as-chip={entity.label.showsAsChip || undefined}
 			ref={(element) => {
 				registerLabelElement(entity.id, element);
 				return () => {
@@ -130,6 +147,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 				type="button"
 				className={styles.card}
 				data-selected={selected || undefined}
+				data-no-data={hasNoData || undefined}
 				ref={measured(entity.id, "card")}
 				{...handlers}
 			>
@@ -137,16 +155,36 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 					<span className={styles.dot} style={{ background: color }} />
 
 					{title}
+
+					{entity.label.tag && <span className={styles.tag}>{entity.label.tag}</span>}
 				</span>
 
+				{when && <span className={styles.when}>{when}</span>}
+
 				{entries.length === 1 ? (
-					<span className={styles.big}>{formatEntry(entries[0].entry)}</span>
+					<DataReading
+						entry={entries[0].entry}
+						label={columnOfKey(entries[0].key) ?? entries[0].key}
+						size={selected ? "huge" : "big"}
+						// What the value means, under it ("Deliveries so far"), so a total doesn't read as
+						// the month's; left out where the card's title already says it.
+						showsMeaning={
+							selected ||
+							(entries[0].entry?.name || columnOfKey(entries[0].key) || entries[0].key) !== title
+						}
+						// A row's card stays compact among many until it's opened; a world value's shows its past.
+						showsPast={selected || columnOfKey(entries[0].key) === null}
+					/>
 				) : (
 					entries.map(({ key, entry }) => (
 						<span key={key} className={styles.row}>
-							<span className={styles.rowLabel}>{entry?.name || key}</span>
+							<span className={styles.rowLabel}>{entry?.name || columnOfKey(key) || key}</span>
 
-							<span className={styles.rowValue}>{formatEntry(entry)}</span>
+							<span className={styles.rowValue} data-no-data={entry ? undefined : ""}>
+								{shownEntry(entry)}
+							</span>
+
+							{entry && <FlagBadge entry={entry} />}
 						</span>
 					))
 				)}
@@ -156,6 +194,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 			<button
 				type="button"
 				className={styles.chip}
+				data-no-data={hasNoData || undefined}
 				aria-label={main === title ? title : `${title}: ${main}`}
 				ref={measured(entity.id, "chip")}
 				{...handlers}

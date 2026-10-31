@@ -22,7 +22,7 @@
  *                                    or viewpoint ids (default close)
  *   --pose '{"target":[0,0],…}'       a camera of its own (a viewpoint's fields), shot as the view "pose"
  *   --size 1600x1000@1               the page's size in CSS px, @ device pixels per px
- *   --template lantern_bay           a starter world other than Brightwater (its id, from /templates.json)
+ *   --template lantern_bay           a starter world other than Brightwater (its id, from /api/worlds/templates)
  *   --mode view|edit                 the editor's mode (default view); --select <id> selects a thing
  *   --frames 120                     frames to time per shot; --no-shots to only time them
  *   --with-cards                     the stage as View mode shows it: the title and label cards over
@@ -259,7 +259,7 @@ await page.waitForFunction(() => Boolean(globalThis.__editorStore), null, { time
 if (options.template) {
 	await page.evaluate(async (id) => {
 		// Never from the browser's cache: shots are for seeing a template just changed.
-		const scene = await (await fetch(`/templates/${id}.json`, { cache: "no-store" })).json();
+		const scene = await (await fetch(`/api/worlds/templates/${id}`, { cache: "no-store" })).json();
 		globalThis.__editorStore.getState().loadScene(scene);
 	}, options.template);
 }

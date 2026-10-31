@@ -4,8 +4,10 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
+import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
@@ -18,6 +20,7 @@ import {
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 } from "#/scene/roads";
+import { rowColumnChoices, tableOfRow } from "#/scene/rowData";
 import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
 
 /** A vehicle's driving as a new one has it, for Default / Reset. */
@@ -26,7 +29,10 @@ const FOLLOW_DEFAULTS = FollowSchema.parse({ roadId: "" });
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
 import { CopyPasteMenu } from "./CopyPasteMenu";
+import { dataChoiceLabel } from "./DataBindingFields";
+import { EntityDataTab } from "./EntityDataTab";
 import { FollowDataNote } from "./FollowDataNote";
+import { FollowsDataField } from "./FollowsDataField";
 import {
 	CheckboxGroupField,
 	formatClock,
@@ -45,21 +51,35 @@ import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSetti
 
 const KeyPicker = ({
 	label,
+	entity,
 	selected,
 	onChange,
 }: {
 	label: string;
+	entity: TEntity;
 	selected: string[];
 	onChange: (keys: string[]) => void;
 }) => {
-	const data = useEditor((s) => s.scene.data);
-	if (data.length === 0) {
-		return <Hint>Add values in the Data tab to show them here.</Hint>;
+	const data = useWorldData();
+	// The world's values, then every column of its row (ADR-0108), filled or not.
+	const choices = [
+		...data.values.map((entry) => ({ value: entry.key, label: dataChoiceLabel(entry) })),
+		...rowColumnChoices(tableOfRow(data, entity.dataRow)).map((choice) => ({
+			value: choice.key,
+			label: dataChoiceLabel(choice),
+		})),
+	];
+	if (choices.length === 0) {
+		return (
+			<Hint>
+				Add values in the Data tab, or give it a table row in its own Data tab, to show them here.
+			</Hint>
+		);
 	}
 	return (
 		<CheckboxGroupField
 			label={label}
-			options={data.map((entry) => ({ value: entry.key, label: entry.name || entry.key }))}
+			options={choices}
 			value={selected}
 			onChange={onChange}
 			inherit={resetToDefault(selected, [], () => onChange([]), "none")}
@@ -83,6 +103,9 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
 	const areas = useEditor((s) => s.scene.areas);
+	const setTab = useEditor((s) => s.setTab);
+	const values = valuesOfEntity(entity, useWorldData());
+	const usesData = useUsesData();
 
 	return (
 		<>
@@ -206,28 +229,41 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					/>
 				)}
 
-				<SliderField
-					label="Size"
-					value={entity.scale}
-					min={0.25}
-					max={4}
-					step={0.05}
-					suffix="×"
-					onChange={(v) =>
-						edit("scale", (e) => {
-							e.scale = v;
-						})
-					}
-					inherit={resetToDefault(
-						entity.scale,
-						1,
-						() =>
+				{/* With data off (ADR-0115), its size is set by hand. */}
+				{usesData && entity.data[SCALE_SETTING] ? (
+					<FollowsDataField
+						label="Size"
+						binding={entity.data[SCALE_SETTING]}
+						data={values}
+						range={SCALE_RANGE}
+						shownNow={`${(scaleFromData(entity, values) ?? entity.scale).toFixed(2)}×`}
+						showSetting={(value) => `${value.toFixed(2)}×`}
+						onOpenData={() => setTab("objectData")}
+					/>
+				) : (
+					<SliderField
+						label="Size"
+						value={entity.scale}
+						min={0.25}
+						max={4}
+						step={0.05}
+						suffix="×"
+						onChange={(v) =>
 							edit("scale", (e) => {
-								e.scale = 1;
-							}),
-						"1×",
-					)}
-				/>
+								e.scale = v;
+							})
+						}
+						inherit={resetToDefault(
+							entity.scale,
+							1,
+							() =>
+								edit("scale", (e) => {
+									e.scale = 1;
+								}),
+							"1×",
+						)}
+					/>
+				)}
 
 				<SliderField
 					label="Altitude"
@@ -268,13 +304,18 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Shape tab: the part's own settings (floors, width, text…). */
 const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setEntityProp = useEditor((s) => s.setEntityProp);
-	const data = useEditor((s) => s.scene.data);
+	const setTab = useEditor((s) => s.setTab);
+	const data = valuesOfEntity(entity, useWorldData());
+	const usesData = useUsesData();
 
 	return (
 		<PartShapeSection
 			part={part}
 			object={entity}
 			data={data}
+			// With data off (ADR-0115) every setting is by hand.
+			dataBindings={usesData ? entity.data : undefined}
+			onOpenData={() => setTab("objectData")}
 			actions={
 				<CopyPasteMenu
 					what={`${partName(part)} shape`}
@@ -295,7 +336,7 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
  */
 const LookTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = valuesOfEntity(entity, useWorldData());
 	const setEntityColor = useEditor((s) => s.setEntityColor);
 
 	return (
@@ -354,7 +395,7 @@ export const LightCopyPasteMenu = ({ entity, spec }: { entity: TEntity; spec: IL
 /** The Lights tab (ADR-0058): a card for each of the part's lights, in the order the part lists them. */
 const LightsTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = valuesOfEntity(entity, useWorldData());
 	const lighting = useEditor((s) => s.scene.lighting);
 	const setEntityLight = useEditor((s) => s.setEntityLight);
 	const hour = useSceneHours();
@@ -490,12 +531,33 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 						<KeyPicker
 							label="Values shown"
+							entity={entity}
 							selected={entity.label.dataKeys}
 							onChange={(keys) =>
 								edit("label.keys", (e) => {
 									e.label.dataKeys = keys;
 								})
 							}
+						/>
+
+						<SwitchField
+							label="Show as a chip until opened"
+							checked={entity.label.showsAsChip}
+							onChange={(on) =>
+								edit("label.chip", (e) => {
+									e.label.showsAsChip = on;
+								})
+							}
+							inherit={resetToDefault(
+								entity.label.showsAsChip,
+								false,
+								() =>
+									edit("label.chip", (e) => {
+										e.label.showsAsChip = false;
+									}),
+								"the whole card",
+							)}
+							hint="Just its dot and main value, the whole card when it's opened or pointed at: for worlds with many cards."
 						/>
 
 						<VectorField
@@ -552,6 +614,7 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 
 				<KeyPicker
 					label="Stat tiles"
+					entity={entity}
 					selected={entity.details.dataKeys}
 					onChange={(keys) =>
 						edit("details.keys", (e) => {
@@ -837,6 +900,12 @@ export const entityTabs = (entity: TEntity): IInspectorTab[] => {
 			label: "Label",
 			icon: "tag",
 			content: <LabelTab key={entity.id} {...props} />,
+		},
+		{
+			value: "objectData",
+			label: "Data",
+			icon: "chart",
+			content: <EntityDataTab key={entity.id} {...props} />,
 		},
 		...(part.canFollowPath
 			? [

@@ -61,7 +61,7 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
 
 ## 6. Check it before showing it
 
-1. `pnpm check:fix && pnpm check && pnpm typecheck && pnpm test`: the part guards (defaults, colours, lights, the `useFrame` mark) and `/schema.json` run on every part.
+1. `pnpm check:fix && pnpm check && pnpm typecheck && pnpm test`: the part guards (defaults, colours, lights, the `useFrame` mark) and `/api/worlds/schema` run on every part.
 2. **The catalogue, both looks:** a temporary `e2e/debug.spec.ts` that opens `/parts`, picks its category chip, and shoots the page light by day and dark at night (`page.emulateMedia({ colorScheme })`, the "By day"/"At night" chips, wait ~10–20 s for the pictures). Look at every new card.
 3. **World scale:** `loadWorld` with the new parts next to `house_01`, `car_01` and `street_lamp_01`, `showView`, by day and at 22:00 (`s.commit((scene) => { scene.lighting.timeSource = "fixed"; scene.lighting.time = 22; })`).
 4. **Close-ups from where people will look,** including below, behind and the side, with a perspective camera:

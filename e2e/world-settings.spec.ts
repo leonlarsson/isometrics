@@ -214,7 +214,7 @@ test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 });
 
 test.describe("Data (ADR-0010, ADR-0058)", () => {
-	test("a value added in the Data tab shows on a label card, and follows edits", async ({
+	test("a value added in the Data tab opens on its own page, shows on a card, says what uses it, and asks before it's removed", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -222,26 +222,34 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		});
 		await worldTab(page, "Data");
 		await page.getByRole("button", { name: "Add", exact: true }).click();
-		const key = await read(page, (s) => s.scene.data.at(-1)?.key ?? "");
-		await page.getByRole("textbox", { name: "Name" }).last().fill("Orders");
-		await page.getByRole("textbox", { name: "Value" }).last().fill("42");
-		await page.getByRole("textbox", { name: "Value" }).last().press("Tab");
-		await act(
-			page,
-			(s, key) =>
-				s.updateEntity("depot", (e) => {
-					e.label = { isShown: true, title: "Depot", dataKeys: [key], offset: [0, 2, 0] };
-				}),
-			key,
+		// Named, the made-up key becomes the name's.
+		await box(page, "Name").fill("Orders");
+		await expect(box(page, "Key")).toHaveValue("orders");
+		await box(page, "Value").fill("42");
+		await act(page, (s) =>
+			s.updateEntity("depot", (e) => {
+				e.label = {
+					isShown: true,
+					title: "Depot",
+					dataKeys: ["orders"],
+					offset: [0, 2, 0],
+					tag: "",
+					showsAsChip: false,
+				};
+			}),
 		);
 		const card = labelCard(page, /Depot/);
 		await expect(card).toContainText("42");
-		await page.getByRole("textbox", { name: "Value" }).last().fill("57");
-		await page.getByRole("textbox", { name: "Value" }).last().press("Tab");
+		await box(page, "Value").fill("57");
 		await expect(card).toContainText("57");
 
-		await page.getByRole("button", { name: "Remove value" }).last().click();
+		// What uses it, and a way there.
+		await expect(page.getByRole("button", { name: /^Depot.*card/ })).toBeVisible();
+		await page.getByRole("button", { name: "Remove value (unbinds 1)" }).click();
+		await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
 		expect((await entity(page, "depot"))?.label?.dataKeys).toEqual([]);
+		// Back on the list.
+		await expect(page.getByRole("button", { name: "Add", exact: true })).toBeVisible();
 	});
 
 	test("a light can follow a data value (From data)", async ({ page }) => {
@@ -259,7 +267,68 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 			{ data: Record<string, { key: string }> }
 		>;
 		// It starts with the world's first value, to be changed in the fields below.
-		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data[0].key));
+		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data.values[0].key));
+	});
+
+	test("a spreadsheet is read as values over time or as a table, and read again into the same values (data study)", async ({
+		page,
+	}) => {
+		// Four files read, each through its dialog.
+		test.setTimeout(120_000);
+		await openEditor(page);
+		await worldTab(page, "Data");
+		// Named: the toast saying what was read is a dialog too.
+		const dialog = page.getByRole("dialog", { name: /^Read a spreadsheet/ });
+		const readCsv = async (button: string, name: string, text: string) => {
+			const chooser = page.waitForEvent("filechooser");
+			await page.getByRole("button", { name: button }).click();
+			await (await chooser).setFiles({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
+		};
+
+		// Dates and numbers: a value with its past values, the latest its value now.
+		await readCsv("Read a spreadsheet…", "sent.csv", "day,sent\n2026-10-29,5\n2026-10-30,7\n");
+		await expect(dialog).toContainText("Adds 1 value with 2 past values.");
+		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		expect(
+			await read(page, (s) => s.scene.data.values.find((v) => v.key === "sent")),
+		).toMatchObject({
+			value: 7,
+			history: [
+				{ at: "2026-10-29", value: 5 },
+				{ at: "2026-10-30", value: 7 },
+			],
+		});
+
+		// Read again from a newer file: the same value, now up to date.
+		await readCsv("Read it again…", "sent.csv", "day,sent\n2026-10-30,7\n2026-10-31,9\n");
+		await dialog.getByRole("button", { name: "Read again" }).click();
+		const fromFiles = await read(page, (s) =>
+			s.scene.data.values.filter((v) => v.source !== null).map((v) => [v.key, v.value]),
+		);
+		expect(fromFiles).toEqual([["sent", 9]]);
+
+		// Rows of things: a table, its rows named by club, to open and look at.
+		await readCsv(
+			"Read a spreadsheet…",
+			"top-clubs.csv",
+			"club,players,best_rank\nAPES,71,43\nOG,65,67\n",
+		);
+		await expect(dialog).toContainText("Adds a table of 2 rows and 3 columns.");
+		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		expect(await read(page, (s) => s.scene.data.tables.map((t) => [t.key, t.keyColumn]))).toEqual([
+			["top_clubs", "club"],
+		]);
+		await page.getByRole("button", { name: /^Top clubs/ }).click();
+		await expect(page.getByRole("dialog", { name: "Top clubs" })).toContainText("APES");
+		await page.keyboard.press("Escape");
+
+		// Excel, read by a reader loaded only now: a sheet picked, its dates read as dates.
+		const chooser = page.waitForEvent("filechooser");
+		await page.getByRole("button", { name: "Read a spreadsheet…" }).click();
+		await (await chooser).setFiles("docs/data-study/samples/stats-two-sheets.xlsx");
+		await expect(dialog).toContainText("Adds a table of 20 rows and 6 columns.");
+		await choose(page, "Sheet", "Monthly");
+		await expect(dialog).toContainText("Adds 1 value with 46 past values.");
 	});
 });
 

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
+import { useUsesData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
-import { DataBindingSchema, type TDataBinding, type TDataEntry } from "#/scene/schema";
+import { DataBindingSchema, type TDataBinding, type TDataValue } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
 import { resetToDefault, SelectField } from "./fields";
@@ -11,7 +12,7 @@ interface IDataDrivenFieldProps {
 	kind: TBindingKind;
 	/** Its binding while it follows data. */
 	binding: TDataBinding | undefined;
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/**
 	 * Start following data (a binding), stop (null) or change the binding.
 	 * `coalesce` names the option being typed, so it's one undo step.
@@ -21,6 +22,8 @@ interface IDataDrivenFieldProps {
 	formatScale?: (reading: number) => string;
 	/** Numbers: the most a reading goes to. */
 	max?: number;
+	/** Sizes and amounts (`range`): the setting's own range and step. */
+	range?: { min: number; max: number; step: number; format?: (setting: number) => string };
 	/** The field that sets it by hand. */
 	children: ReactNode;
 	/** Several things are selected and follow data differently (ADR-0064): Source says Mixed. */
@@ -43,10 +46,15 @@ export const DataDrivenField = ({
 	onBindingChange,
 	formatScale,
 	max,
+	range,
 	children,
 	mixed,
 }: IDataDrivenFieldProps) => {
 	const hasData = data.length > 0;
+	// With data off (ADR-0115), set by hand only: no Source, no From data.
+	if (!useUsesData()) {
+		return <>{children}</>;
+	}
 	return (
 		<>
 			<SelectField<TSource>
@@ -82,6 +90,7 @@ export const DataDrivenField = ({
 					onChange={onBindingChange}
 					formatScale={formatScale}
 					max={max}
+					range={range}
 				/>
 			) : (
 				children

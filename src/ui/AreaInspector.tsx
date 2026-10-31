@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import {
 	AREA_KIND_LABELS,
 	AREA_KINDS,
@@ -331,7 +332,7 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 /** The Look tab: the area's colour (by hand or from data), and for water how rippled and mirroring it is. */
 const AreaLookTab = ({ area }: { area: TArea }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const edit = useAreaEdit(area);
 	const worldWater = useEditor((s) => s.scene.water);
 	const [surface] = AREA_KINDS[area.kind].colors;

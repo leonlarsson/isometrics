@@ -3,6 +3,7 @@ import type { Draft } from "immer";
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { type TWeatherDataTarget, weatherNow } from "#/editor/weather";
+import { useWorldData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
 import { type TDataBinding, type TScene, type TWeather, WeatherSchema } from "#/scene/schema";
 import { skyLookAt } from "#/scene/sky";
@@ -48,7 +49,7 @@ export const WeatherTab = () => {
 	const weather = useEditor((s) => s.scene.weather);
 	const sky = useEditor((s) => s.scene.sky);
 	const lighting = useEditor((s) => s.scene.lighting);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const commit = useEditor((s) => s.commit);
 	const hours = useSceneHours();

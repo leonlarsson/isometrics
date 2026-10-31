@@ -9,13 +9,17 @@ import { factory01 } from "./buildings/factory_01";
 import { grandstand01 } from "./buildings/grandstand_01";
 import { greenhouse01 } from "./buildings/greenhouse_01";
 import { house01 } from "./buildings/house_01";
+import { houseCluster01 } from "./buildings/house_cluster_01";
 import { lighthouse01 } from "./buildings/lighthouse_01";
 import { officeTower01 } from "./buildings/office_tower_01";
 import { petrolStation01 } from "./buildings/petrol_station_01";
 import { school01 } from "./buildings/school_01";
+import { shedCluster01 } from "./buildings/shed_cluster_01";
 import { shop01 } from "./buildings/shop_01";
 import { shop02 } from "./buildings/shop_02";
+import { tentCluster01 } from "./buildings/tent_cluster_01";
 import { terracedRow01 } from "./buildings/terraced_row_01";
+import { towerCluster01 } from "./buildings/tower_cluster_01";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
 import { bikeRack01 } from "./furniture/bike_rack_01";
@@ -115,6 +119,10 @@ export const PARTS: TAnyPart[] = [
 	greenhouse01,
 	lighthouse01,
 	grandstand01,
+	houseCluster01,
+	towerCluster01,
+	shedCluster01,
+	tentCluster01,
 	deliveryVan01,
 	truck01,
 	car01,

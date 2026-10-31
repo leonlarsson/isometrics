@@ -155,7 +155,10 @@ export const LabelProjector = () => {
 				priority:
 					(id === selectedId ? 10 : 0) + (holding ? 4 : 0) - (driving.has(id) ? 6 : 0) - depth,
 				previous: last,
-				chipOnly: now - (shrankAt.get(id) ?? Number.NEGATIVE_INFINITY) < CHIP_HOLD,
+				// A card that shows as a chip until opened (the label's showsAsChip), or one that just shrank.
+				chipOnly:
+					(element.hasAttribute("data-shows-as-chip") && id !== selectedId) ||
+					now - (shrankAt.get(id) ?? Number.NEGATIVE_INFINITY) < CHIP_HOLD,
 			});
 			// Read here too, before any writes.
 			if (overGizmo(element, canvas, x, y)) {

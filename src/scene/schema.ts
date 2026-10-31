@@ -7,7 +7,7 @@ import { z } from "zod";
  * docs/adr/0104-world-format-before-going-public.md for how fields are named
  * and grouped.
  *
- * Field meanings live in `.describe()` text so they reach /schema.json, where
+ * Field meanings live in `.describe()` text so they reach /api/worlds/schema, where
  * people and AIs writing worlds read them (ADR-0032); comments are for code.
  *
  * Every world ever saved keeps opening (ADR-0106): add fields with defaults,
@@ -78,10 +78,47 @@ export const DataBindingSchema = z
 			.describe(
 				"For colours: the colour at valueAtHighColor and above, as #rrggbb. null = red (#e0483b).",
 			),
+		valueAtLowSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts (an object's props and scale, a road's width and traffic): the value that gives lowSetting (and below). null = 0, or 1 on a log scale.",
+			),
+		valueAtHighSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: the value that gives highSetting (and above); values in between are placed between the two, on a straight or a log scale. null = 100.",
+			),
+		lowSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: what the setting is at valueAtLowSetting. null = the setting's smallest (its field's minimum).",
+			),
+		highSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: what the setting is at valueAtHighSetting. null = the setting's largest (its field's maximum).",
+			),
+		usesLogScale: z
+			.boolean()
+			.default(false)
+			.describe(
+				"For sizes and amounts: whether values are placed on a log scale, so 100 is as far above 10 as 1,000 is above 100 (visitors, populations, sales); false = a straight scale.",
+			),
 	})
-	.describe("A setting driven by a data value.");
+	.describe(
+		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object or road that follows a table row (dataRow), a column of its row as "row.<column>".',
+	);
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
+export type TDataBindingInput = z.input<typeof DataBindingSchema>;
 
 /** Settings that follow data, by setting (ADR-0058), described with what each one reads. */
 const dataBindings = (meaning: string) =>
@@ -234,18 +271,35 @@ export const LabelSchema = z
 			.array(z.string())
 			.default([])
 			.describe(
-				"Keys of entries in the world's data list. One key shows as a big number, several as rows.",
+				'Keys of the world\'s data values, or "row.<column>" for a column of the row it follows (dataRow). One key shows as a big number, several as rows.',
 			),
 		offset: Vec3Schema.default([0, 2, 0]).describe(
 			"Where the card floats, as [x, y, z] in grid units from the top of the part.",
 		),
+		tag: z
+			.string()
+			.default("")
+			.describe('A short word shown beside the title, e.g. "home" or "new"; empty = none.'),
+		showsAsChip: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the card shows only as a chip (its dot and main value) until it's opened or pointed at, so many cards don't cover the world.",
+			),
 	})
 	.describe("A floating card above the object showing data values.");
 
 export type TLabel = z.output<typeof LabelSchema>;
 
 /** The label settings of an object that has never had a card. */
-export const NO_LABEL: TLabel = { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] };
+export const NO_LABEL: TLabel = {
+	isShown: false,
+	title: "",
+	dataKeys: [],
+	offset: [0, 2, 0],
+	tag: "",
+	showsAsChip: false,
+};
 
 export const FollowSchema = z
 	.object({
@@ -286,7 +340,9 @@ export const DetailsSchema = z
 		dataKeys: z
 			.array(z.string())
 			.default([])
-			.describe("Data keys shown as tiles when the object is opened in view mode."),
+			.describe(
+				'Data keys shown as tiles when the object is opened in view mode: the world\'s values, or "row.<column>" for a column of the row it follows.',
+			),
 	})
 	.describe("What view mode shows when someone clicks the object.");
 
@@ -300,6 +356,23 @@ const isHidden = (extra = "") =>
 		.describe(
 			`Whether it isn't drawn${extra} (it's still listed in the editor's outliner, and kept in the file).`,
 		);
+
+/**
+ * Which row of which of the world's tables a thing follows (ADR-0108): by the
+ * table's key and the row's value in the table's key column.
+ */
+export const DataRowRefSchema = z
+	.object({
+		tableKey: z.string().describe("The key of one of the world's data tables."),
+		rowKey: z
+			.string()
+			.describe(
+				"The row: its value in the table's key column (or its number, from 1, when the table has none).",
+			),
+	})
+	.describe("A row of one of the world's tables.");
+
+export type TDataRowRef = z.output<typeof DataRowRefSchema>;
 
 /** Degrees around one axis, kept within half a turn either way. */
 const HalfTurnSchema = z.number().min(-180).max(180);
@@ -346,22 +419,250 @@ export const EntitySchema = z
 			.describe(
 				'Settings for its part\'s lights (see each kind\'s lights in its description), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }.',
 			),
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows: its cards, tiles, colours, lights and sizes can read that row\'s columns as "row.<column>". null = none.',
+			),
+		data: dataBindings(
+			'Its sizes and props that follow data, keyed by the prop\'s name, or "scale" for its size: { "builtShare": { key: "row.visitors", usesLogScale: true, valueAtLowSetting: 1000, valueAtHighSetting: 100000 } }. Numbers are placed between lowSetting and highSetting; on and off props switch.',
+		),
 		isLocked: isLocked("it"),
 		isHidden: isHidden(),
 	})
 	.describe("An object in the world: a building, vehicle, tree, marker…");
 
-export const DataEntrySchema = z
+/** A value as data holds it: a number or a short text. */
+const DataCellSchema = z.union([z.number(), z.string()]);
+
+/** A value as data holds it. */
+export type TDataCell = z.output<typeof DataCellSchema>;
+
+/** A key that other things refer to: lowercase letters, numbers and underscores. */
+const DataKeySchema = z
+	.string()
+	.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores");
+
+/**
+ * Where a value or a table is read from (data study): one of the world's
+ * sources, and where in it. Null on the thing itself = typed by hand.
+ */
+export const DataSourceRefSchema = z
 	.object({
-		key: z
+		sourceId: z.string().describe("The id of one of the world's data sources."),
+		path: z
 			.string()
-			.regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers and underscores")
-			.describe("Unique name that labels refer to: lowercase letters, numbers and underscores."),
-		name: z.string().default("").describe("Human-readable name shown next to the value."),
-		value: z.union([z.number(), z.string()]).describe("The value: a number or a short text."),
-		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+			.default("")
+			.describe(
+				'Where in the source: a JSON path for links and APIs ("totalUsers", "data.0.rank"; empty = the whole response); in a spreadsheet, the column a value is read from ("sent", or "Stats!sent" in another sheet), the row it is named by when each row is a value ("Population"), or the sheet a table is ("Stats"; empty = the only or first one).',
+			),
+		field: z
+			.string()
+			.default("")
+			.describe(
+				'For a value over time read from a list (links and APIs): the field of each entry holding the value ("sent"); empty = a single value at path.',
+			),
+		dateField: z
+			.string()
+			.default("")
+			.describe(
+				'For a value over time read from a list: the field of each entry holding its date ("day"); the entries become its past values, the latest its value now.',
+			),
+		maxRowCount: z
+			.number()
+			.int()
+			.min(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"For a table: keeps at most this many rows, the first ones read (the top 100 of a 10,000-row list); null = all.",
+			),
 	})
-	.describe("A named value that cards and detail tiles show.");
+	.describe("Where a value or a table is read from.");
+
+/**
+ * A line a value is watched against (ADR-0110): crossing it flags the value on
+ * cards and tiles with a word and a symbol, never by colour alone.
+ */
+export const DataThresholdSchema = z
+	.object({
+		line: z.number().describe("The value it's watched against."),
+		flagsWhen: z
+			.enum(["above", "below"])
+			.default("below")
+			.describe("Whether it's flagged when the value is above the line or below it."),
+		word: z
+			.string()
+			.default("Watch")
+			.describe('The word shown with a ⚠ when it\'s flagged, e.g. "Watch" or "Low".'),
+	})
+	.describe("A line a value is watched against.");
+
+export type TDataThreshold = z.output<typeof DataThresholdSchema>;
+
+/** One past value, for trends and sparklines (data study). */
+export const DataPointSchema = z
+	.object({
+		at: z
+			.string()
+			.describe(
+				'When, as an ISO 8601 date or date and time: "2026-10-30" or "2026-10-30T14:00:00Z".',
+			),
+		value: DataCellSchema.describe("The value then."),
+	})
+	.describe("A value at a moment.");
+
+export const DataValueSchema = z
+	.object({
+		key: DataKeySchema.describe(
+			"Unique name that cards, tiles and settings refer to: lowercase letters, numbers and underscores.",
+		),
+		name: z.string().default("").describe("Human-readable name shown next to the value."),
+		value: DataCellSchema.describe(
+			"The value: a number or a short text. Read from its source, it's the last value read.",
+		),
+		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+		source: DataSourceRefSchema.nullable()
+			.default(null)
+			.describe("Where it's read from; null = typed by hand."),
+		history: z
+			.array(DataPointSchema)
+			.default([])
+			.describe("Its past values, oldest first, for trends and sparklines; [] = none kept."),
+		threshold: DataThresholdSchema.nullable()
+			.default(null)
+			.describe("A line it's watched against, flagged on cards and tiles; null = none."),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note shown with it where it\'s shown in full (detail tiles), e.g. "Example numbers, not measured"; empty = none.',
+			),
+	})
+	.describe("A named value that cards, detail tiles and settings show or follow.");
+
+/** A table's column (data study). */
+export const DataColumnSchema = z
+	.object({
+		key: DataKeySchema.describe("The column's name in the rows and in settings that follow it."),
+		name: z.string().default("").describe("Human-readable name; empty = its key."),
+		unit: z.string().default("").describe('Shown after its values, e.g. "%".'),
+		field: z
+			.string()
+			.default("")
+			.describe(
+				'Read from a link or API: the field of each entry it\'s read from ("rankScore", "stats.kills"); empty = its key.',
+			),
+		threshold: DataThresholdSchema.nullable()
+			.default(null)
+			.describe("A line every row's value in it is watched against; null = none."),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note shown with its values in detail tiles, e.g. "Example numbers, not measured"; empty = none.',
+			),
+	})
+	.describe("A column of a table.");
+
+export const DataTableSchema = z
+	.object({
+		key: DataKeySchema.describe("Unique name that objects refer to, among the tables."),
+		name: z.string().default("").describe("Human-readable name."),
+		source: DataSourceRefSchema.nullable()
+			.default(null)
+			.describe("Where it's read from; null = typed by hand."),
+		keyColumn: z
+			.string()
+			.default("")
+			.describe("The column that names each row (an id, a name); empty = rows by their order."),
+		columns: z.array(DataColumnSchema).default([]).describe("Its columns, in order."),
+		rows: z
+			.array(z.record(z.string(), DataCellSchema.nullable()))
+			.default([])
+			.describe("Its rows, each by column key; read from its source, the last rows read."),
+		history: z
+			.array(
+				z.object({
+					at: z.string().describe('When, as an ISO 8601 date or date and time: "2026-10-30".'),
+					rows: z
+						.array(z.record(z.string(), DataCellSchema.nullable()))
+						.describe("Its rows then, as rows."),
+				}),
+			)
+			.default([])
+			.describe(
+				"Its rows at past moments, oldest first, for trends and stories (only as its source gives them: a dated file, an API with dates); [] = none.",
+			),
+	})
+	.describe("A table of rows: objects can each take one, and follow its columns.");
+
+export const DataSourceKindSchema = z
+	.enum(["file", "link", "api", "push"])
+	.describe(
+		"How it's read: file = a spreadsheet (CSV or Excel) imported by hand, read again by importing again; link = a CSV or JSON URL; api = a JSON API that may need keys; push = values sent to the world.",
+	);
+
+export const DataSourceSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the sources."),
+		name: z.string().default("").describe("Human-readable name."),
+		kind: DataSourceKindSchema,
+		url: z.string().nullable().default(null).describe("With kind link or api: where to read it."),
+		fileName: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe("With kind file: the file it was imported from."),
+		refreshSeconds: z
+			.number()
+			.min(10)
+			.nullable()
+			.default(null)
+			.describe(
+				"How often to read it again while the world is open, in seconds; null = only when asked.",
+			),
+		lastReadAt: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe("When its values and tables were last read, as an ISO 8601 date and time."),
+		pageUrl: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe(
+				"A page people can open to see where the data comes from (shown as the source's link); null = none.",
+			),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note about the data shown with it: what it covers, how good it is ("Store sales only, last 30 days", "Example numbers, not measured").',
+			),
+	})
+	.describe("Where some of the world's data comes from.");
+
+/** The world's data (data study): its values, tables and where they come from. */
+export const WorldDataSchema = z
+	.object({
+		isOn: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether the world uses data (ADR-0115). Off, a plain world to build: every data tool, card value, tile and the story bar are hidden, and things are drawn as set by hand; its values, tables and sources are kept, back when it's on again.",
+			),
+		values: z
+			.array(DataValueSchema)
+			.default([])
+			.describe("Named values cards, tiles and settings show or follow."),
+		tables: z.array(DataTableSchema).default([]).describe("Tables whose rows objects can take."),
+		sources: z
+			.array(DataSourceSchema)
+			.default([])
+			.describe("Where values and tables are read from."),
+	})
+	.describe("The world's data: values, tables and their sources.");
 
 // See docs/adr/0023-road-width-per-point.md for widths per point.
 export const RoadPointSchema = z
@@ -411,6 +712,60 @@ export const RoadTrafficSchema = z
 			),
 	})
 	.describe("How vehicles drive on this road.");
+
+/**
+ * A flow along a road (ADR-0112): vehicles that show how much goes from its
+ * first point to its last and back, by how many there are and which way they
+ * drive, readable without colour. Drawn by the road itself; they aren't objects.
+ */
+export const RoadFlowSchema = z
+	.object({
+		isOn: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether vehicles drive along it showing a flow (they aren't objects of the world).",
+			),
+		vehicleKind: z
+			.string()
+			.default("car_01")
+			.describe("Which vehicle part drives it, e.g. car_01, truck_01, bus_01."),
+		vehicleCountAlong: z
+			.number()
+			.int()
+			.min(0)
+			.max(40)
+			.default(4)
+			.describe(
+				"How many vehicles drive from its first point to its last (in the order of its points); data can set it (data.vehicleCountAlong).",
+			),
+		vehicleCountAgainst: z
+			.number()
+			.int()
+			.min(0)
+			.max(40)
+			.default(0)
+			.describe(
+				"How many drive the other way, from its last point to its first; data can set it (data.vehicleCountAgainst).",
+			),
+		speed: z.number().min(0.2).max(20).default(3).describe("Grid units per second."),
+		vehicleDensity: z
+			.number()
+			.min(0)
+			.max(6)
+			.nullable()
+			.default(null)
+			.describe(
+				"How many vehicles per 10 grid units of road drive each way it goes (each way with vehicles), so short and long roads compare fairly; data can set it (data.vehicleDensity). 0 = none (an amount of nothing); above 0, at least one vehicle. null = the counts as set (vehicleCountAlong, vehicleCountAgainst).",
+			),
+		showsArrows: z
+			.boolean()
+			.default(true)
+			.describe("Whether arrows on the road point the way the bigger flow goes."),
+	})
+	.describe("Vehicles along the road showing a flow: how much, and which way.");
+
+export type TRoadFlow = z.output<typeof RoadFlowSchema>;
 
 // See docs/adr/0017-drawable-roads.md and 0018-elevated-roads-and-road-editing.md.
 export const RoadSchema = z
@@ -469,6 +824,15 @@ export const RoadSchema = z
 		traffic: RoadTrafficSchema.default(() => RoadTrafficSchema.parse({})),
 		colors: colorSettings(
 			'{ "surface": { "color": "#3a3a3a" } }; its colours are surface and embankment',
+		),
+		flow: RoadFlowSchema.default(() => RoadFlowSchema.parse({})),
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows, e.g. a row of a "from, to, amount" table: its width, flow and colours can read the row\'s columns as "row.<column>". null = none.',
+			),
+		data: dataBindings(
+			'Its settings that follow data: "width", "vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst", e.g. { "vehicleCountAlong": { key: "row.amount", valueAtLowSetting: 0, valueAtHighSetting: 1000, lowSetting: 0, highSetting: 12 } }.',
 		),
 		isLocked: isLocked("its points"),
 		isHidden: isHidden(
@@ -881,6 +1245,32 @@ export const OnScreenSchema = z
 			.boolean()
 			.default(true)
 			.describe("Whether the bar that steps through the viewpoints shows."),
+		showsDataSwitch: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether the Map / Data switch shows, for a world with data: Data shows the world's tables and values as tables (also the accessible way to read the world).",
+			),
+		legend: z
+			.array(
+				z.object({
+					label: z.string().describe('What it explains, in a word or two: "Size", "Roads".'),
+					meaning: z
+						.string()
+						.default("")
+						.describe('What it means: "visitors per year, log scale".'),
+				}),
+			)
+			.default([])
+			.describe(
+				"Chips under the title saying what each encoding means (ADR-0110), in order; [] = none.",
+			),
+		tileKeys: z
+			.array(z.string())
+			.default([])
+			.describe(
+				"Keys of the world's values shown as tiles along the bottom edge, the world's main numbers; [] = none.",
+			),
 	})
 	.describe(
 		"What viewers see over the world in View mode. Edit mode always shows everything, faded where View mode won't.",
@@ -1167,10 +1557,7 @@ export const SceneSchema = z
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
 		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
-		data: z
-			.array(DataEntrySchema)
-			.default([])
-			.describe("Named values the world shows on cards and detail tiles."),
+		data: WorldDataSchema.default(() => WorldDataSchema.parse({})),
 		viewpoints: z
 			.array(ViewpointSchema)
 			.default([])
@@ -1213,9 +1600,19 @@ export const SceneSchema = z
 			"fence id",
 		);
 		checkUnique(
-			scene.data.map((d) => d.key),
-			["data"],
+			scene.data.values.map((d) => d.key),
+			["data", "values"],
 			"data key",
+		);
+		checkUnique(
+			scene.data.tables.map((t) => t.key),
+			["data", "tables"],
+			"table key",
+		);
+		checkUnique(
+			scene.data.sources.map((s) => s.id),
+			["data", "sources"],
+			"data source id",
 		);
 		checkUnique(
 			scene.viewpoints.map((v) => v.id),
@@ -1234,7 +1631,15 @@ export type TSceneInput = z.input<typeof SceneSchema>;
 export type TEntity = z.output<typeof EntitySchema>;
 export type TEntityInput = z.input<typeof EntitySchema>;
 export type TFollow = z.output<typeof FollowSchema>;
-export type TDataEntry = z.output<typeof DataEntrySchema>;
+export type TDataValue = z.output<typeof DataValueSchema>;
+export type TDataValueInput = z.input<typeof DataValueSchema>;
+/** Values as settings read them: each one's key and value, nothing else needed. */
+export type TReadableValues = readonly Pick<TDataValue, "key" | "value">[];
+export type TDataTable = z.output<typeof DataTableSchema>;
+export type TDataSource = z.output<typeof DataSourceSchema>;
+export type TDataSourceKind = z.output<typeof DataSourceKindSchema>;
+export type TDataPoint = z.output<typeof DataPointSchema>;
+export type TWorldData = z.output<typeof WorldDataSchema>;
 export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadKind = z.output<typeof RoadKindSchema>;

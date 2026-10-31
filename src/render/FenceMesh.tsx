@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { createFenceBuilder } from "#/fences/builder";
 import {
 	buildFence,
@@ -14,7 +15,7 @@ import {
 	resolveFenceColors,
 } from "#/fences/fenceModel";
 import { isClick } from "#/lib/pointer";
-import type { TArea, TDataEntry, TFence } from "#/scene/schema";
+import type { TArea, TDataValue, TFence } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -39,7 +40,7 @@ interface IFenceBodyProps {
 	palette: IScenePalette;
 	/** The ground it stands on. */
 	areas: readonly TArea[];
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TFenceHandlers;
@@ -140,7 +141,7 @@ export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
 	const areas = useEditor((s) => s.scene.areas);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>

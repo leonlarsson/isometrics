@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { changeColorSetting, type TColorSettingChange } from "#/scene/objectSettings";
 import {
 	isHiddenRoute,
@@ -38,6 +39,7 @@ import {
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
+import { RoadDataTab } from "./RoadDataTab";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_KIND_LABELS) as TRoadKind[]).map((value) => ({
@@ -85,7 +87,7 @@ const RoadColorFields = ({
 	label: string;
 }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const edit = useRoadEdit(road);
 	const spec = ROAD_KINDS[road.kind].colors.find((color) => color.id === colorId);
 	if (!spec) {
@@ -482,4 +484,10 @@ export const roadTabs = (road: TRoad): IInspectorTab[] => [
 					content: <RoadLookTab key={road.id} road={road} />,
 				} as const,
 			]),
+	{
+		value: "objectData",
+		label: "Data",
+		icon: "chart",
+		content: <RoadDataTab key={road.id} road={road} />,
+	},
 ];

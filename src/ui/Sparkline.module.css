@@ -1,0 +1,50 @@
+/* The past as a line in the de-emphasis ink, the point shown as a ringed dot in the accent. */
+.line {
+	fill: none;
+	stroke: var(--text-muted);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+
+.end {
+	fill: var(--accent);
+	stroke: var(--surface);
+	stroke-width: 1.5;
+}
+
+.inline {
+	display: block;
+	flex: none;
+	overflow: visible;
+}
+
+.chart {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.readout {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.readout strong {
+	font-size: 15px;
+	color: var(--text);
+}
+
+.plot {
+	height: 72px;
+	touch-action: none;
+}
+
+.hairline {
+	stroke: var(--border-strong);
+	stroke-width: 1;
+}

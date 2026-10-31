@@ -2,7 +2,7 @@ import { resolveColor, resolveTransparency } from "#/parts/colorModel";
 import { readScale } from "#/parts/dataBinding";
 import { groundHeightAt } from "#/scene/areas";
 import { fenceLayout } from "#/scene/fences";
-import type { TArea, TDataEntry, TFence } from "#/scene/schema";
+import type { TArea, TFence, TReadableValues } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { createFenceBuilder } from "./builder";
@@ -31,14 +31,14 @@ export const fenceSpacingOf = (fence: Pick<TFence, "kind" | "postSpacing">) =>
 /** How much of it is built, 0 to 1: from data while it follows a value that reads as a number. */
 export const builtShareOf = (
 	fence: Pick<TFence, "builtShare" | "data">,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) => readScale(fence.data.builtShare, data, { min: 0, max: 1 }) ?? fence.builtShare;
 
 /** Where its posts and spans are, on the ground (the areas) under it. */
 export const layoutOfFence = (
 	fence: TFenceShape,
 	areas: readonly TArea[],
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) =>
 	fenceLayout(
 		fence,
@@ -51,7 +51,7 @@ export const layoutOfFence = (
 export const buildFence = (
 	fence: TFenceShape,
 	areas: readonly TArea[],
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) => {
 	const style = FENCE_STYLES[fence.kind];
 	const builder = createFenceBuilder();
@@ -68,7 +68,7 @@ export const buildFence = (
 export const resolveFenceColors = (
 	fence: Pick<TFence, "kind" | "colors">,
 	palette: IScenePalette,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) =>
 	Object.fromEntries(
 		FENCE_STYLES[fence.kind].colors.map((spec) => [

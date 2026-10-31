@@ -10,15 +10,28 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuideRouteImport } from './routes/guide'
+import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
-import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
-import { Route as TemplatesDotjsonRouteImport } from './routes/templates[.]json'
-import { Route as TemplatesFileRouteImport } from './routes/templates.$file'
+import { Route as ApiWorldsSchemaRouteImport } from './routes/api/worlds/schema'
+import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
+import { Route as ApiWorldsTemplatesIndexRouteImport } from './routes/api/worlds/templates/index'
+import { Route as ApiWorldsTemplatesIdRouteImport } from './routes/api/worlds/templates/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideDotmdRoute = GuideDotmdRouteImport.update({
+  id: '/guide.md',
+  path: '/guide.md',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KitRoute = KitRouteImport.update({
@@ -31,81 +44,107 @@ const PartsRoute = PartsRouteImport.update({
   path: '/parts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
-  id: '/schema.json',
-  path: '/schema.json',
+const ApiWorldsSchemaRoute = ApiWorldsSchemaRouteImport.update({
+  id: '/api/worlds/schema',
+  path: '/api/worlds/schema',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesDotjsonRoute = TemplatesDotjsonRouteImport.update({
-  id: '/templates.json',
-  path: '/templates.json',
+const ApiWorldsValidateRoute = ApiWorldsValidateRouteImport.update({
+  id: '/api/worlds/validate',
+  path: '/api/worlds/validate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesFileRoute = TemplatesFileRouteImport.update({
-  id: '/templates/$file',
-  path: '/templates/$file',
+const ApiWorldsTemplatesIndexRoute = ApiWorldsTemplatesIndexRouteImport.update({
+  id: '/api/worlds/templates/',
+  path: '/api/worlds/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorldsTemplatesIdRoute = ApiWorldsTemplatesIdRouteImport.update({
+  id: '/api/worlds/templates/$id',
+  path: '/api/worlds/templates/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
-    | '/templates.json'
-    | '/templates/$file'
+    | '/api/worlds/schema'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
-    | '/templates.json'
-    | '/templates/$file'
+    | '/api/worlds/schema'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates'
   id:
     | '__root__'
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
-    | '/templates.json'
-    | '/templates/$file'
+    | '/api/worlds/schema'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GuideRoute: typeof GuideRoute
+  GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
-  SchemaDotjsonRoute: typeof SchemaDotjsonRoute
-  TemplatesDotjsonRoute: typeof TemplatesDotjsonRoute
-  TemplatesFileRoute: typeof TemplatesFileRoute
+  ApiWorldsSchemaRoute: typeof ApiWorldsSchemaRoute
+  ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
+  ApiWorldsTemplatesIdRoute: typeof ApiWorldsTemplatesIdRoute
+  ApiWorldsTemplatesIndexRoute: typeof ApiWorldsTemplatesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -115,6 +154,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide.md': {
+      id: '/guide.md'
+      path: '/guide.md'
+      fullPath: '/guide.md'
+      preLoaderRoute: typeof GuideDotmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kit': {
@@ -131,25 +184,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/schema.json': {
-      id: '/schema.json'
-      path: '/schema.json'
-      fullPath: '/schema.json'
-      preLoaderRoute: typeof SchemaDotjsonRouteImport
+    '/api/worlds/schema': {
+      id: '/api/worlds/schema'
+      path: '/api/worlds/schema'
+      fullPath: '/api/worlds/schema'
+      preLoaderRoute: typeof ApiWorldsSchemaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates.json': {
-      id: '/templates.json'
-      path: '/templates.json'
-      fullPath: '/templates.json'
-      preLoaderRoute: typeof TemplatesDotjsonRouteImport
+    '/api/worlds/validate': {
+      id: '/api/worlds/validate'
+      path: '/api/worlds/validate'
+      fullPath: '/api/worlds/validate'
+      preLoaderRoute: typeof ApiWorldsValidateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$file': {
-      id: '/templates/$file'
-      path: '/templates/$file'
-      fullPath: '/templates/$file'
-      preLoaderRoute: typeof TemplatesFileRouteImport
+    '/api/worlds/templates/': {
+      id: '/api/worlds/templates/'
+      path: '/api/worlds/templates'
+      fullPath: '/api/worlds/templates/'
+      preLoaderRoute: typeof ApiWorldsTemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/worlds/templates/$id': {
+      id: '/api/worlds/templates/$id'
+      path: '/api/worlds/templates/$id'
+      fullPath: '/api/worlds/templates/$id'
+      preLoaderRoute: typeof ApiWorldsTemplatesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -157,11 +217,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GuideRoute: GuideRoute,
+  GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
-  SchemaDotjsonRoute: SchemaDotjsonRoute,
-  TemplatesDotjsonRoute: TemplatesDotjsonRoute,
-  TemplatesFileRoute: TemplatesFileRoute,
+  ApiWorldsSchemaRoute: ApiWorldsSchemaRoute,
+  ApiWorldsValidateRoute: ApiWorldsValidateRoute,
+  ApiWorldsTemplatesIdRoute: ApiWorldsTemplatesIdRoute,
+  ApiWorldsTemplatesIndexRoute: ApiWorldsTemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

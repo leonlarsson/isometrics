@@ -3,8 +3,10 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { roadAsDrawn, valuesOfRoad } from "#/editor/roadFlows";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import {
@@ -18,10 +20,11 @@ import {
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
-import type { TDataEntry, TRoad, TRoadPoint } from "#/scene/schema";
+import type { TDataValue, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
+import { RoadFlow } from "./RoadFlow";
 import { setViewCursor } from "./viewCursor";
 
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
@@ -78,7 +81,7 @@ const useDisposable = (geometry: THREE.BufferGeometry) => {
 };
 
 /** A road's surface colour as drawn now: from data, else as set, else its kind's (ADR-0104). */
-export const roadColor = (road: TRoad, palette: IScenePalette, data?: readonly TDataEntry[]) =>
+export const roadColor = (road: TRoad, palette: IScenePalette, data?: readonly TDataValue[]) =>
 	colorOf(ROAD_KINDS[road.kind], road, "surface", palette, data, palette.road);
 
 /** Height of the road surface above the ground plane for a given layer. */
@@ -95,7 +98,7 @@ interface IRoadBodyProps {
 	layer: number;
 	palette: IScenePalette;
 	/** The world's data, for colours that follow it. */
-	data: readonly TDataEntry[];
+	data: readonly TDataValue[];
 	ground: { width: number; depth: number };
 	/** Hidden routes show as a dashed line while editing; otherwise they draw nothing. */
 	editing: boolean;
@@ -293,9 +296,14 @@ interface IRoadMeshProps {
 /** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
 const USED_ROAD_SNOW = 0.08;
 
-export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
+export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
+	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
+	// flow as data sets them (ADR-0112).
+	const data = valuesOfRoad(stored, useWorldData());
+	const road = roadAsDrawn(stored, data);
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
+	const usesData = useEditor((s) => s.scene.data.isOn);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>
@@ -305,7 +313,6 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
-	const data = useEditor((s) => s.scene.data);
 
 	const editable = mode === "edit" && !drawing;
 	const handlers: TRoadHandlers = editable
@@ -331,18 +338,45 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 				},
 				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 			}
-		: {};
+		: // In View mode a road that shows data opens its details, its flow in data terms (ADR-0112).
+			mode === "view" && usesData && (road.dataRow !== null || Object.keys(road.data).length > 0)
+			? {
+					onClick: (e: ThreeEvent<MouseEvent>) => {
+						e.stopPropagation();
+						if (isClick(e)) {
+							selectRoad(road.id);
+						}
+					},
+					onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+						e.stopPropagation();
+						setViewCursor("pointer");
+					},
+					onPointerOut: () => {
+						setViewCursor("");
+					},
+				}
+			: {};
 
 	return (
-		<RoadBody
-			road={road}
-			layer={layer}
-			palette={palette}
-			data={data}
-			ground={ground}
-			editing={mode === "edit"}
-			selected={selected && mode === "edit"}
-			handlers={handlers}
-		/>
+		<>
+			<RoadBody
+				road={road}
+				layer={layer}
+				palette={palette}
+				data={data}
+				ground={ground}
+				editing={mode === "edit"}
+				selected={selected && mode === "edit"}
+				handlers={handlers}
+			/>
+
+			<RoadFlow
+				road={road}
+				palette={palette}
+				data={data}
+				surfaceY={roadBaseY(layer)}
+				surfaceColor={roadColor(road, palette, data)}
+			/>
+		</>
 	);
 });

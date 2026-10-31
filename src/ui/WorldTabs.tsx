@@ -1,5 +1,6 @@
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { GROUND } from "#/scene/ground";
 import { changeColorSetting } from "#/scene/objectSettings";
 import { TURN_STYLE_LABELS, TURN_STYLE_OPTIONS } from "#/scene/roads";
@@ -31,7 +32,12 @@ const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
 /** A new world's settings, for Default / Reset (ADR-0105). */
 const WORLD_DEFAULTS = SceneSchema.parse({ version: SCENE_VERSION });
 
-const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
+/** The on/off settings of what View mode shows. */
+type TOnScreenSwitch = {
+	[K in keyof TOnScreen]: TOnScreen[K] extends boolean ? K : never;
+}[keyof TOnScreen];
+
+const ON_SCREEN_SWITCHES: { key: TOnScreenSwitch; label: string; hint?: string }[] = [
 	{ key: "showsTitle", label: "Show the title" },
 	{ key: "showsSubtitle", label: "Show the subtitle" },
 	{ key: "showsTimeOfDay", label: "Show the time of day" },
@@ -50,6 +56,11 @@ const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }
 		label: "Show the viewpoint bar",
 		hint: "← and → still step through the viewpoints without it.",
 	},
+	{
+		key: "showsDataSwitch",
+		label: "Show the Map / Data switch",
+		hint: "For a world with data: Data shows its tables and values as tables, the accessible way to read it.",
+	},
 ];
 
 /**
@@ -58,8 +69,9 @@ const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }
  */
 const OnScreenSection = () => {
 	const onScreen = useEditor((s) => s.scene.onScreen);
+	const usesData = useEditor((s) => s.scene.data.isOn);
 	const commit = useEditor((s) => s.commit);
-	const set = (key: keyof TOnScreen, value: boolean) =>
+	const set = (key: TOnScreenSwitch, value: boolean) =>
 		commit((s) => {
 			s.onScreen[key] = value;
 		});
@@ -75,21 +87,24 @@ const OnScreenSection = () => {
 				won’t.
 			</Hint>
 
-			{ON_SCREEN_SWITCHES.map(({ key, label, hint }) => (
-				<SwitchField
-					key={key}
-					label={label}
-					checked={onScreen[key]}
-					onChange={(v) => set(key, v)}
-					inherit={{
-						from: "default",
-						inherited: onScreen[key] === ON_SCREEN_DEFAULTS[key],
-						onReset: () => set(key, ON_SCREEN_DEFAULTS[key]),
-						value: "shown",
-					}}
-					hint={hint}
-				/>
-			))}
+			{/* The Map / Data switch is about data: not offered with data off (ADR-0115). */}
+			{ON_SCREEN_SWITCHES.filter(({ key }) => usesData || key !== "showsDataSwitch").map(
+				({ key, label, hint }) => (
+					<SwitchField
+						key={key}
+						label={label}
+						checked={onScreen[key]}
+						onChange={(v) => set(key, v)}
+						inherit={{
+							from: "default",
+							inherited: onScreen[key] === ON_SCREEN_DEFAULTS[key],
+							onReset: () => set(key, ON_SCREEN_DEFAULTS[key]),
+							value: "shown",
+						}}
+						hint={hint}
+					/>
+				),
+			)}
 		</Section>
 	);
 };
@@ -100,10 +115,16 @@ export const WorldTab = () => {
 	const commit = useEditor((s) => s.commit);
 	const resetView = useEditor((s) => s.resetView);
 	const palette = useThemePalette();
+	const data = useWorldData().values;
 
 	return (
 		<>
-			<Section id="world.world" icon="globe" title="World" keywords="name heading">
+			<Section
+				id="world.world"
+				icon="globe"
+				title="World"
+				keywords="name heading theme data uses data plain"
+			>
 				<TextField
 					inherit={resetToDefault(scene.meta.title, WORLD_DEFAULTS.meta.title, () =>
 						commit((s) => {
@@ -167,6 +188,30 @@ export const WorldTab = () => {
 						})
 					}
 				/>
+
+				<SwitchField
+					label="Uses data"
+					checked={scene.data.isOn}
+					onChange={(isOn) =>
+						commit((s) => {
+							s.data.isOn = isOn;
+						})
+					}
+					inherit={{
+						from: "default",
+						inherited: scene.data.isOn,
+						onReset: () =>
+							commit((s) => {
+								s.data.isOn = true;
+							}),
+						value: "on",
+					}}
+					hint={
+						scene.data.isOn
+							? "Things can show and follow values and tables: the Data tab, From data, values on cards. Off for a plain world to build."
+							: "Off: a plain world to build, with nothing about data anywhere. Its values, tables and sources are kept, back when this is on."
+					}
+				/>
 			</Section>
 
 			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
@@ -215,7 +260,7 @@ export const WorldTab = () => {
 				<ColorSettingFields
 					spec={GROUND.colors[0]}
 					setting={scene.ground.colors.surface}
-					data={scene.data}
+					data={data}
 					palette={palette}
 					onChange={(change, field) =>
 						commit(

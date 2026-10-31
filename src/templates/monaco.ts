@@ -485,18 +485,20 @@ export const createMonacoScene = (): TScene => {
 		theme: "system",
 		ground: { width: 70, depth: 34 },
 		traffic: { drivingSide: "right" },
-		data: [
-			{ key: "lap", name: "Lap", value: "42 / 78" },
-			{ key: "leader", name: "Leader", value: "Car 16" },
-			{ key: "gap", name: "Gap to P2", value: "+1.8 s" },
-			{ key: "fastest_lap", name: "Fastest lap", value: "1:12.909" },
-			{ key: "top_speed", name: "Top speed", value: 291, unit: " km/h" },
-			{ key: "spectators", name: "Spectators", value: 37800 },
-			{ key: "track_temp", name: "Track temp", value: 41, unit: "°C" },
-			{ key: "pit_stops", name: "Pit stops", value: 11 },
-			// Set to "yes" and every car's rain light comes on, like in a real wet race.
-			{ key: "rain", name: "Rain", value: "no" },
-		],
+		data: {
+			values: [
+				{ key: "lap", name: "Lap", value: "42 / 78" },
+				{ key: "leader", name: "Leader", value: "Car 16" },
+				{ key: "gap", name: "Gap to P2", value: "+1.8 s" },
+				{ key: "fastest_lap", name: "Fastest lap", value: "1:12.909" },
+				{ key: "top_speed", name: "Top speed", value: 291, unit: " km/h" },
+				{ key: "spectators", name: "Spectators", value: 37800 },
+				{ key: "track_temp", name: "Track temp", value: 41, unit: "°C" },
+				{ key: "pit_stops", name: "Pit stops", value: 11 },
+				// Set to "yes" and every car's rain light comes on, like in a real wet race.
+				{ key: "rain", name: "Rain", value: "no" },
+			],
+		},
 		areas: AREAS,
 		roads: [
 			{

@@ -19,9 +19,11 @@ interface IFollowDataNoteProps {
  * world has values.
  */
 export const FollowDataNote = ({ title, children }: IFollowDataNoteProps) => {
-	const hasData = useEditor((s) => s.scene.data.length > 0);
+	const hasData = useEditor((s) => s.scene.data.values.length > 0);
+	const usesData = useEditor((s) => s.scene.data.isOn);
 	const setTab = useEditor((s) => s.setTab);
-	if (hasData) {
+	// With data off (ADR-0115), not a word about it.
+	if (hasData || !usesData) {
 		return null;
 	}
 	return (

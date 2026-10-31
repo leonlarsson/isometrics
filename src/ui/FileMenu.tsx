@@ -33,7 +33,6 @@ export const FileMenu = () => {
 	const [worlds, setWorlds] = useState<IWorldInfo[]>([]);
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
-	const [creating, setCreating] = useState(false);
 	const [browsing, setBrowsing] = useState(false);
 	const [viewingBackups, setViewingBackups] = useState(false);
 	const [backupCount, setBackupCount] = useState(0);
@@ -61,8 +60,24 @@ export const FileMenu = () => {
 						icon="file"
 						label="New world…"
 						description="Blank, or from a starter world"
-						onClick={() => setCreating(true)}
+						onClick={() => useEditor.getState().setNewWorld({ shows: "all", usesData: true })}
 					/>
+
+					<Menu.Submenu icon="sparkle" label="Build with your AI">
+						<Menu.Item
+							icon="file"
+							label="A new world…"
+							description="Describe it, copy a prompt to any AI chat, open what it writes"
+							onClick={() => useEditor.getState().setBuildWithAi("new")}
+						/>
+
+						<Menu.Item
+							icon="edit"
+							label="Change this world…"
+							description="Say what to change; your AI rewrites it, one undo step"
+							onClick={() => useEditor.getState().setBuildWithAi("change")}
+						/>
+					</Menu.Submenu>
 
 					<Menu.Submenu icon="folder" label="Open world">
 						{worlds.length === 0 && (
@@ -136,6 +151,22 @@ export const FileMenu = () => {
 					<Menu.Separator />
 
 					<Menu.Item
+						icon="info"
+						label="Welcome…"
+						description="The ways to start: build a city, show your data, or open an example"
+						onClick={() => useEditor.getState().setWelcomeOpen(true)}
+					/>
+
+					<Menu.Item
+						icon="newTab"
+						label="Guide"
+						description="How a world is made, walked through with a real API"
+						onClick={() => window.open("/guide", "_blank", "noopener")}
+					/>
+
+					<Menu.Separator />
+
+					<Menu.Item
 						icon="user"
 						label="Preferences…"
 						description="How the camera moves for you, and overlays, in this browser"
@@ -158,7 +189,7 @@ export const FileMenu = () => {
 				</Menu.Popup>
 			</Menu.Root>
 
-			<NewWorldDialog open={creating} onOpenChange={setCreating} />
+			<NewWorldDialog />
 
 			<WorldsDialog open={browsing} onOpenChange={setBrowsing} />
 

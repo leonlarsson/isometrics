@@ -296,7 +296,7 @@ describe("when lights come on", () => {
 					palette: day,
 					driving: false,
 					hour: 10,
-					data: [{ key: "hours", name: "Opening hours", value, unit: "" }],
+					data: [{ key: "hours", value }],
 				},
 			).rain.on;
 		expect(shop("09:00-17:30")).toBe(true);

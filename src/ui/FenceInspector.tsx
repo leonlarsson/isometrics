@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { useWorldData } from "#/editor/worldData";
 import { builtShareOf, fenceHeightOf, fenceSpacingOf, layoutOfFence } from "#/fences/fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "#/fences/registry";
 import { changeColorSetting } from "#/scene/objectSettings";
@@ -48,7 +49,7 @@ const percent = (share: number) => `${Math.round(share * 100)}%`;
 const FenceTab = ({ fence }: { fence: TFence }) => {
 	const removeFence = useEditor((s) => s.removeFence);
 	const areas = useEditor((s) => s.scene.areas);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const edit = useFenceEdit(fence);
 	const layout = layoutOfFence(fence, areas, data);
 	const style = FENCE_STYLES[fence.kind];
@@ -259,7 +260,7 @@ const FencePointsPanel = ({ fence, indices }: { fence: TFence; indices: readonly
 const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 	const selectedPoint = useEditor((s) => s.selectedPointIndex);
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const edit = useFenceEdit(fence);
 	const style = FENCE_STYLES[fence.kind];
 	const showsPosts = style.showsPosts !== false;
@@ -437,7 +438,7 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 /** The Look tab: the style's colours, each by hand or from data (ADR-0060). */
 const FenceLookTab = ({ fence }: { fence: TFence }) => {
 	const palette = usePalette();
-	const data = useEditor((s) => s.scene.data);
+	const data = useWorldData().values;
 	const edit = useFenceEdit(fence);
 
 	return (

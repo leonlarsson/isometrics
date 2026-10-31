@@ -6,8 +6,10 @@ import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
+import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { AREA_KIND_LABELS } from "#/scene/areas";
@@ -74,18 +76,24 @@ const cachedRow = <T extends object>(
 };
 
 /** Every object, road and area as a row, objects grouped by part category. */
-const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
-	const firstValue = (keys: string[]) => {
+const rowsOf = (
+	scene: TScene,
+	palette: IScenePalette,
+	worldData: TScene["data"],
+): IOutlinerRow[] => {
+	const data = worldData.values;
+	const firstValue = (keys: string[], values = data) => {
 		const key = keys[0];
-		return key ? formatEntry(scene.data.find((entry) => entry.key === key)) : null;
+		return key ? formatEntry(values.find((entry) => entry.key === key)) : null;
 	};
-	const { data } = scene;
 	return [
 		...scene.entities.map((each) =>
-			cachedRow(each, palette, data, (entity): IOutlinerRow => {
+			cachedRow(each, palette, worldData, (entity): IOutlinerRow => {
 				const part = getPart(entity.kind);
+				// Its own values: the world's and its row's columns (ADR-0108).
+				const own = valuesOfEntity(entity, worldData);
 				const { first, second } = part
-					? swatchColors(resolveColors(part, entity, palette, scene.data), part)
+					? swatchColors(resolveColors(part, entity, palette, own), part)
 					: { first: palette.selection, second: palette.selection };
 				return {
 					item: { kind: "entity", id: entity.id },
@@ -96,9 +104,12 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 					hidden: entity.isHidden,
 					locked: entity.isLocked,
 					// The card's first value, else its detail tiles' (ADR-0104: every object has card settings).
-					value: firstValue(
-						entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
-					),
+					// With data off (ADR-0115), none: not even "no data".
+					value: worldData.isOn
+						? firstValue(
+								entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
+							)
+						: null,
 				};
 			}),
 		),
@@ -106,7 +117,7 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(road): IOutlinerRow => ({
 					item: { kind: "road", id: road.id },
 					group: ROADS,
@@ -123,7 +134,7 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(area): IOutlinerRow => ({
 					item: { kind: "area", id: area.id },
 					group: AREAS,
@@ -140,13 +151,13 @@ const rowsOf = (scene: TScene, palette: IScenePalette): IOutlinerRow[] => {
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(fence): IOutlinerRow => ({
 					item: { kind: "fence", id: fence.id },
 					group: FENCES,
 					name: fence.name,
 					fallback: FENCE_STYLE_LABELS[fence.kind],
-					swatch: fenceSwatch(fence, palette, scene.data),
+					swatch: fenceSwatch(fence, palette, data),
 					hidden: fence.isHidden,
 					locked: fence.isLocked,
 					value: null,
@@ -401,17 +412,19 @@ export const Outliner = () => {
 		meta: { name: "Rename the selection" },
 	});
 
-	const rows = useMemo(() => rowsOf(scene, palette), [scene, palette]);
+	const data = useWorldData();
+	const usesData = useUsesData();
+	const rows = useMemo(() => rowsOf(scene, palette, data), [scene, palette, data]);
 	const selectedRows = useMemo(() => new Set(selectedKeys.split(" ")), [selectedKeys]);
 	const shown = useMemo(
 		() =>
 			rows.filter(
 				(row) =>
 					(!query.trim() || matches(row, query)) &&
-					(!onlyData || row.value !== null) &&
+					(!onlyData || !usesData || row.value !== null) &&
 					(!onlySelected || selectedRows.has(keyOf(row.item))),
 			),
-		[rows, query, onlyData, onlySelected, selectedRows],
+		[rows, query, onlyData, usesData, onlySelected, selectedRows],
 	);
 	const groups = useMemo(
 		() => GROUP_ORDER.filter((group) => shown.some((row) => row.group === group)),
@@ -468,12 +481,16 @@ export const Outliner = () => {
 							onClick={() => setOnlySelected(!onlySelected)}
 						/>
 
-						<IconButton
-							icon="chart"
-							label={onlyData ? "Showing only things that show data" : "Only things that show data"}
-							pressed={onlyData}
-							onClick={() => setOnlyData(!onlyData)}
-						/>
+						{usesData && (
+							<IconButton
+								icon="chart"
+								label={
+									onlyData ? "Showing only things that show data" : "Only things that show data"
+								}
+								pressed={onlyData}
+								onClick={() => setOnlyData(!onlyData)}
+							/>
+						)}
 					</IconButtonGroup>
 				}
 				// Phones have the sheet, which hides on its own.

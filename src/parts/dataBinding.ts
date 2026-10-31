@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
+import type { TDataBinding, TReadableValues, TTimePeriod } from "#/scene/schema";
 
 /**
  * Settings driven by data (ADR-0058): a `TDataBinding` names a data value and
@@ -12,6 +12,9 @@ import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
  * - `color`: any CSS colour (a name, #rgb or #rrggbb, rgb() or hsl()) as it
  *   is, or a number placed on a colour scale: `lowColor` at `low`, `highColor`
  *   at `high`, mixed in between (a heatmap).
+ * - `range`: a size or amount: the value placed between two values, on a
+ *   straight or log scale, gives the setting that far between two settings
+ *   (ADR-0109).
  * - `periods`: times of the day, as text like "09:00-17:30" or
  *   "7-9, 16:30-19" (opening hours, a timetable).
  *
@@ -20,12 +23,12 @@ import type { TDataBinding, TDataEntry, TTimePeriod } from "#/scene/schema";
  * is choosing its kind; nothing here is about lights in particular. No React.
  */
 
-export type TBindingKind = "switch" | "scale" | "color" | "periods";
+export type TBindingKind = "switch" | "scale" | "color" | "periods" | "range";
 
-/** The entry a binding names, if the world still has it. */
-export const boundEntry = (
+/** The entry a binding names, if the world still has it (as much of it as `data` holds). */
+export const boundEntry = <T extends TReadableValues[number]>(
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: readonly T[] | undefined,
 ) => (binding ? data?.find((entry) => entry.key === binding.key) : undefined);
 
 /** A data value as a number: numbers as they are, text that reads as one, else NaN. */
@@ -80,7 +83,7 @@ export const cssColor = (value: number | string | undefined): string | null => {
 /** A switch binding's reading: on or off, or undefined without a value. */
 export const readSwitch = (
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 ) => {
 	const entry = boundEntry(binding, data);
 	return entry && binding ? switchesOn(entry.value, binding.switchesOnAbove ?? 0) : undefined;
@@ -89,7 +92,7 @@ export const readSwitch = (
 /** A scale binding's reading: the value ÷ `full`, between `min` and `max`; undefined if it isn't a number. */
 export const readScale = (
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
+	data: TReadableValues | undefined,
 	{ min = 0, max = Number.POSITIVE_INFINITY }: { min?: number; max?: number } = {},
 ) => {
 	const value = dataNumber(boundEntry(binding, data)?.value);
@@ -129,10 +132,7 @@ export const colorOnScale = (binding: TDataBinding, value: number) => {
  * A colour binding's reading, as #rrggbb: a value holding a CSS colour as it
  * is, a number on the colour scale; undefined for anything else.
  */
-export const readColor = (
-	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
-) => {
+export const readColor = (binding: TDataBinding | undefined, data: TReadableValues | undefined) => {
 	const value = boundEntry(binding, data)?.value;
 	const asColor = cssColor(value);
 	if (asColor || !binding) {
@@ -176,7 +176,57 @@ export const periodsFromText = (value: number | string | undefined): TTimePeriod
 };
 
 /** A periods binding's reading: the times its value holds, or undefined if it doesn't read as times. */
-export const readPeriods = (
+export const readPeriods = (binding: TDataBinding | undefined, data: TReadableValues | undefined) =>
+	periodsFromText(boundEntry(binding, data)?.value);
+
+/** A size or amount's range as it is in effect: the binding's, else the setting's own. */
+export const settingRangeOf = (
+	binding: TDataBinding,
+	{ min, max }: { min: number; max: number },
+) => {
+	const lowValue = binding.valueAtLowSetting ?? (binding.usesLogScale ? 1 : 0);
+	return {
+		// A log scale can't start at 0 or below.
+		lowValue: binding.usesLogScale && lowValue <= 0 ? 1 : lowValue,
+		highValue: binding.valueAtHighSetting ?? 100,
+		low: binding.lowSetting ?? min,
+		high: binding.highSetting ?? max,
+	};
+};
+
+/** Where a number sits between a range's low and high values, 0 to 1, on a straight or log scale. */
+export const settingPosition = (
+	binding: TDataBinding,
+	value: number,
+	range: { min: number; max: number },
+) => {
+	const { lowValue, highValue } = settingRangeOf(binding, range);
+	const place = binding.usesLogScale
+		? (v: number) => Math.log10(Math.max(v, Number.MIN_VALUE))
+		: (v: number) => v;
+	const from = place(lowValue);
+	const to = place(highValue);
+	if (from === to) {
+		return value >= highValue ? 1 : 0;
+	}
+	return Math.min(1, Math.max(0, (place(value) - from) / (to - from)));
+};
+
+/**
+ * A size or amount from a number (ADR-0109): the value placed between
+ * `valueAtLowSetting` and `valueAtHighSetting` on a straight or log scale, and
+ * the setting that far between `lowSetting` and `highSetting` (the setting's
+ * own `min` and `max` unless set). Undefined if the value isn't a number.
+ */
+export const readSetting = (
 	binding: TDataBinding | undefined,
-	data: readonly TDataEntry[] | undefined,
-) => periodsFromText(boundEntry(binding, data)?.value);
+	data: TReadableValues | undefined,
+	range: { min: number; max: number },
+) => {
+	const value = dataNumber(boundEntry(binding, data)?.value);
+	if (!binding || !Number.isFinite(value)) {
+		return undefined;
+	}
+	const { low, high } = settingRangeOf(binding, range);
+	return low + settingPosition(binding, value, range) * (high - low);
+};

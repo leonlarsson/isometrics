@@ -1,0 +1,17 @@
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: min(420px, 100%);
+	pointer-events: auto;
+	padding: 8px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+}
+
+.slider {
+	flex: 1;
+	min-width: 0;
+}
