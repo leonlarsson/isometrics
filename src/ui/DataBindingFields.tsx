@@ -219,7 +219,7 @@ export const DataBindingFields = ({
 							() => onChange({ ...binding, usesLogScale: false }),
 							"straight",
 						)}
-						hint="On a log scale each tenfold is the same step (10, 100, 1,000…): for numbers far apart, like players or people."
+						hint="On a log scale each tenfold is the same step (10, 100, 1,000…): for numbers far apart, like visitors or populations."
 					/>
 
 					<NumberField

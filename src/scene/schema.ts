@@ -110,7 +110,7 @@ export const DataBindingSchema = z
 			.boolean()
 			.default(false)
 			.describe(
-				"For sizes and amounts: whether values are placed on a log scale, so 100 is as far above 10 as 1,000 is above 100 (player counts, populations); false = a straight scale.",
+				"For sizes and amounts: whether values are placed on a log scale, so 100 is as far above 10 as 1,000 is above 100 (visitors, populations, sales); false = a straight scale.",
 			),
 	})
 	.describe(
@@ -425,7 +425,7 @@ export const EntitySchema = z
 				'The table row it follows: its cards, tiles, colours, lights and sizes can read that row\'s columns as "row.<column>". null = none.',
 			),
 		data: dataBindings(
-			'Its sizes and props that follow data, keyed by the prop\'s name, or "scale" for its size: { "builtShare": { key: "row.players", usesLogScale: true, valueAtLowSetting: 1000, valueAtHighSetting: 100000 } }. Numbers are placed between lowSetting and highSetting; on and off props switch.',
+			'Its sizes and props that follow data, keyed by the prop\'s name, or "scale" for its size: { "builtShare": { key: "row.visitors", usesLogScale: true, valueAtLowSetting: 1000, valueAtHighSetting: 100000 } }. Numbers are placed between lowSetting and highSetting; on and off props switch.',
 		),
 		isLocked: isLocked("it"),
 		isHidden: isHidden(),
@@ -475,7 +475,7 @@ export const DataSourceRefSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"For a table: keeps at most this many rows, the first ones read (a 10,000-row leaderboard's top 100); null = all.",
+				"For a table: keeps at most this many rows, the first ones read (the top 100 of a 10,000-row list); null = all.",
 			),
 	})
 	.describe("Where a value or a table is read from.");
@@ -536,7 +536,7 @@ export const DataValueSchema = z
 			.string()
 			.default("")
 			.describe(
-				'A note shown with it where it\'s shown in full (detail tiles), e.g. "Example numbers, not from Steam"; empty = none.',
+				'A note shown with it where it\'s shown in full (detail tiles), e.g. "Example numbers, not measured"; empty = none.',
 			),
 	})
 	.describe("A named value that cards, detail tiles and settings show or follow.");
@@ -560,7 +560,7 @@ export const DataColumnSchema = z
 			.string()
 			.default("")
 			.describe(
-				'A note shown with its values in detail tiles, e.g. "Example numbers, not from Steam"; empty = none.',
+				'A note shown with its values in detail tiles, e.g. "Example numbers, not measured"; empty = none.',
 			),
 	})
 	.describe("A column of a table.");
@@ -638,7 +638,7 @@ export const DataSourceSchema = z
 			.string()
 			.default("")
 			.describe(
-				'A note about the data shown with it: what it covers, how good it is ("Steam only, last 30 days", "Example numbers, not from Steam").',
+				'A note about the data shown with it: what it covers, how good it is ("Store sales only, last 30 days", "Example numbers, not measured").',
 			),
 	})
 	.describe("Where some of the world's data comes from.");
@@ -1252,7 +1252,7 @@ export const OnScreenSchema = z
 					meaning: z
 						.string()
 						.default("")
-						.describe('What it means: "30-day average Steam players, log scale".'),
+						.describe('What it means: "visitors per year, log scale".'),
 				}),
 			)
 			.default([])

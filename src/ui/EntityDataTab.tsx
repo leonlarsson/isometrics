@@ -87,7 +87,7 @@ export const TableRowSection = ({
 				<>
 					<Hint>
 						Read a spreadsheet, a link or an API in the Data tab to get a table: a row per thing,
-						like a game, a club or a warehouse.
+						like a warehouse, a shop or a city.
 					</Hint>
 
 					<Button size="sm" icon="chart" onClick={() => setTab("data")}>

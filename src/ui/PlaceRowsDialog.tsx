@@ -152,7 +152,7 @@ export const PlaceRowsDialog = ({ table, onClose }: { table: TDataTable; onClose
 						checked={usesLogScale}
 						onChange={setUsesLogScale}
 						hasNoDefault
-						hint="Each tenfold the same step: for numbers far apart, like players."
+						hint="Each tenfold the same step: for numbers far apart, like visitors or populations."
 					/>
 				</>
 			)}

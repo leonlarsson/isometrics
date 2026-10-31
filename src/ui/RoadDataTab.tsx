@@ -160,8 +160,7 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 				) : (
 					<Hint>
 						Show a flow along this road: vehicles from its first point to its last and back, as many
-						as a value or a column of its row says (players moving between games, goods between
-						depots).
+						as a value or a column of its row says (goods between depots, people between depots).
 					</Hint>
 				)}
 			</Section>

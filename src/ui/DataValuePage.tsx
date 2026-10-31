@@ -204,7 +204,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						() => upsertData({ ...value, about: "" }),
 						"none",
 					)}
-					hint="Shown with it in detail tiles and the data's tables, e.g. “Example numbers, not from Steam”."
+					hint="Shown with it in detail tiles and the data's tables, e.g. “Example numbers, not measured”."
 				/>
 			</Section>
 

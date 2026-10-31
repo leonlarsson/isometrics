@@ -431,7 +431,7 @@ export const DataPanel = () => {
 					</List>
 				) : (
 					<Hint>
-						A table holds rows, one for each warehouse, player or line. Read one from a spreadsheet
+						A table holds rows, one for each warehouse, shop or line. Read one from a spreadsheet
 						under Sources.
 					</Hint>
 				)}

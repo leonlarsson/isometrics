@@ -224,7 +224,7 @@ export const ReadSpreadsheetDialog = ({
 									() => setReading({ readsAs: "table", keyColumn: rowNamingColumn(sheet) }),
 									columnName(rowNamingColumn(sheet)),
 								)}
-								hint="Each row's name, like a warehouse's or a player's: what an object will pick its row by."
+								hint="Each row's name, like a warehouse's or a shop's: what an object will pick its row by."
 							/>
 
 							<TextField
