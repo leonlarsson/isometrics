@@ -1,3 +1,5 @@
+import { textUpTo } from "#/lib/textUpTo";
+import { isLocalHost } from "#/lib/webAddress";
 import { parseCsv } from "#/scene/sheets";
 
 import type { ISpreadsheetSheet } from "./readSpreadsheet";
@@ -53,6 +55,9 @@ export const nameOfLink = (url: string) => {
 const looksLikeJson = (text: string, type: string) =>
 	type.includes("json") || /^\s*[[{]/.test(text);
 
+/** More than this from one link is refused: a world's data is never this big, and memory is finite. */
+export const MOST_LINK_BYTES = 20_000_000;
+
 /** Reads a link in the browser, as JSON or CSV. Throws a `LinkError` saying what went wrong. */
 export const readLink = async (
 	url: string,
@@ -64,6 +69,20 @@ export const readLink = async (
 	} catch {
 		throw new LinkError("address", "That isn't a web address: it should start with https://");
 	}
+	// Only web addresses (ADR-0119): no file:, data:, blob: or javascript: from a world someone sent.
+	if (address.protocol !== "https:" && address.protocol !== "http:") {
+		throw new LinkError("address", "Only web addresses can be read: it should start with https://");
+	}
+	// Nothing on this computer or its network, unless the app itself runs there (development).
+	if (
+		isLocalHost(address.hostname) &&
+		!(typeof window !== "undefined" && isLocalHost(window.location.hostname))
+	) {
+		throw new LinkError(
+			"address",
+			`${address.host} is on your own computer or network, which a world on the web can't read.`,
+		);
+	}
 	if (typeof navigator !== "undefined" && navigator.onLine === false) {
 		throw new LinkError(
 			"offline",
@@ -72,7 +91,12 @@ export const readLink = async (
 	}
 	let response: Response;
 	try {
-		response = await fetcher(address.href, { cache: "no-store" });
+		// No cookies and no referrer go with it: a link is read as anyone would (ADR-0119).
+		response = await fetcher(address.href, {
+			cache: "no-store",
+			credentials: "omit",
+			referrerPolicy: "no-referrer",
+		});
 	} catch {
 		throw new LinkError(
 			"blocked",
@@ -85,7 +109,13 @@ export const readLink = async (
 			`${address.host} answered ${response.status}${response.statusText ? ` ${response.statusText}` : ""}${response.status === 401 || response.status === 403 ? ": it may need a key, which worlds can't keep yet" : ""}.`,
 		);
 	}
-	const text = await response.text();
+	const text = await textUpTo(response, MOST_LINK_BYTES);
+	if (text === null) {
+		throw new LinkError(
+			"unreadable",
+			`It's more than ${MOST_LINK_BYTES / 1_000_000} MB, too big for a world's data.`,
+		);
+	}
 	const type = response.headers.get("content-type") ?? "";
 	if (looksLikeJson(text, type)) {
 		try {

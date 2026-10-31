@@ -74,6 +74,17 @@ test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => 
 		expect(kinds).toEqual(expect.arrayContaining(["house_01", "office_tower_01", "car_01"]));
 	});
 
+	test("pages can't be framed by other sites, and answers aren't sniffed (ADR-0119)", async ({
+		request,
+	}) => {
+		const page = await request.get("/guide");
+		expect(page.headers()["x-frame-options"]).toBe("DENY");
+		expect(page.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+		expect(page.headers()["x-content-type-options"]).toBe("nosniff");
+		const schema = await request.get("/api/worlds/schema");
+		expect(schema.headers()["x-content-type-options"]).toBe("nosniff");
+	});
+
 	test("/api/worlds/templates lists the starter worlds, each one valid to open", async ({
 		request,
 	}) => {

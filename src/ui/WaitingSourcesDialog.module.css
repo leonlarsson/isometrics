@@ -1,0 +1,27 @@
+/* The explanation, the waiting addresses (long ones wrap), and where to find them later. */
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.body p {
+	margin: 0;
+}
+
+.addresses {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 8px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	list-style: none;
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+.addresses li {
+	overflow-wrap: anywhere;
+}

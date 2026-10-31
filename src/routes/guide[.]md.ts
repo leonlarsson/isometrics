@@ -11,6 +11,7 @@ export const Route = createFileRoute("/guide.md")({
 					headers: {
 						"Content-Type": "text/markdown; charset=utf-8",
 						"Cache-Control": "public, max-age=300",
+						"X-Content-Type-Options": "nosniff",
 					},
 				}),
 		},

@@ -1,4 +1,4 @@
-import { buildWithAiMenu, expect, openEditor, read, test } from "./editor";
+import { act, buildWithAiMenu, expect, openEditor, read, test } from "./editor";
 
 /** A small world, as an AI might answer: words around JSON in fences. */
 const ANSWER = `Here's your world!
@@ -108,9 +108,9 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		expect(prompt).toContain("> Two shops by a river, sized by sales");
 		expect(prompt).toContain("North,1200");
 
-		await dialog.getByRole("textbox", { name: "The world it wrote" }).fill(ANSWER);
+		await dialog.getByRole("textbox", { name: "Its answer" }).fill(ANSWER);
 		// Checked as it's pasted (ADR-0117).
-		await expect(dialog).toContainText("Checked: it opens as written");
+		await expect(dialog).toContainText("It opens as written");
 		await dialog.getByRole("button", { name: "Open it", exact: true }).click();
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.meta.title)).toBe("Two shops");
@@ -125,7 +125,7 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
 		await expect(dialog.getByRole("radio", { name: /Change this world/ })).toBeChecked();
 		await dialog
-			.getByRole("textbox", { name: "The world it wrote" })
+			.getByRole("textbox", { name: "Its answer" })
 			.fill(
 				'{"version": 1, "entities": [{"id": "x", "kind": "spaceship_99", "position": [0, 0]}]}',
 			);
@@ -133,6 +133,44 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		await expect(
 			dialog.getByRole("button", { name: "Copy the problems for your AI" }),
 		).toBeVisible();
+	});
+});
+
+test.describe("changes as a patch (ADR-0118)", () => {
+	test("a pasted patch says what it changes, goes in as one undo step, and Undo takes it back", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		const target = await read(page, (s) => ({
+			id: s.scene.entities[0].id,
+			scale: s.scene.entities[0].scale,
+			count: s.scene.entities.length,
+		}));
+		await buildWithAiMenu(page, /Change this world/);
+		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
+		await dialog.getByRole("textbox", { name: "Its answer" }).fill(
+			JSON.stringify({
+				isPatch: true,
+				lighting: { time: 19.5 },
+				entities: {
+					change: [{ id: target.id, scale: 1.7 }],
+					add: [
+						{ id: "patch_boat", kind: "sailing_boat_01", name: "Patch boat", position: [0, 0] },
+					],
+				},
+			}),
+		);
+		await expect(dialog).toContainText("Checked: a patch.");
+		await expect(dialog).toContainText("adds Patch boat");
+		await dialog.getByRole("button", { name: "Put it in place" }).click();
+		await expect(dialog).toBeHidden();
+		expect(await read(page, (s) => s.scene.entities[0].scale)).toBe(1.7);
+		expect(await read(page, (s) => s.scene.entities.length)).toBe(target.count + 1);
+		expect(await read(page, (s) => s.scene.lighting.time)).toBe(19.5);
+
+		await act(page, (s) => s.undo());
+		expect(await read(page, (s) => s.scene.entities[0].scale)).toBe(target.scale);
+		expect(await read(page, (s) => s.scene.entities.length)).toBe(target.count);
 	});
 });
 
@@ -153,6 +191,19 @@ test.describe("POST /api/worlds/validate (ADR-0117)", () => {
 			headers: { "Content-Type": "application/json" },
 		});
 		expect(notJson.status()).toBe(400);
+
+		// A patch, with the world it changes (ADR-0118), and its format.
+		const patched = await (
+			await request.post("/api/worlds/validate", {
+				data: {
+					world: { version: 1, entities: [{ id: "h", kind: "house_01", position: [0, 0] }] },
+					patch: { isPatch: true, entities: { change: [{ id: "nope", scale: 2 }] } },
+				},
+			})
+		).json();
+		expect(patched.problems[0].where).toBe("patch entities.change[0]");
+		const patchSchema = await (await request.get("/api/worlds/schema/patch")).json();
+		expect(patchSchema.properties).toHaveProperty("entities");
 	});
 });
 

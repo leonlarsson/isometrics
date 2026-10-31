@@ -60,6 +60,7 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
+import { WaitingSourcesDialog } from "./WaitingSourcesDialog";
 import { Welcome } from "./Welcome";
 
 import styles from "./AppShell.module.css";
@@ -380,6 +381,8 @@ export const AppShell = () => {
 							{ready && <FreshStartOffer />}
 
 							{ready && <Welcome />}
+
+							{ready && <WaitingSourcesDialog />}
 						</Stage>
 
 						{mode === "edit" && !rightOpen && (

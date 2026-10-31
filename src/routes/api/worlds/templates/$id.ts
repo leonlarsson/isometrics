@@ -10,7 +10,7 @@ export const Route = createFileRoute("/api/worlds/templates/$id")({
 				// `brightwater` or `brightwater.json`: both name the same world.
 				const id = params.id.replace(/\.json$/, "");
 				const template = TEMPLATES.find((each) => each.id === id);
-				const headers = { "Access-Control-Allow-Origin": "*" };
+				const headers = { "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" };
 				if (!template) {
 					return Response.json(
 						{ error: `No template "${id}": /api/worlds/templates lists them` },
@@ -18,7 +18,11 @@ export const Route = createFileRoute("/api/worlds/templates/$id")({
 					);
 				}
 				return Response.json(template.create(), {
-					headers: { ...headers, "Cache-Control": "public, max-age=300" },
+					headers: {
+						...headers,
+						"Cache-Control": "public, max-age=300",
+						"X-Content-Type-Options": "nosniff",
+					},
 				});
 			},
 		},

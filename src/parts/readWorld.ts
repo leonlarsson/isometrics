@@ -1,5 +1,6 @@
 import { upgradeLegacyIds } from "#/scene/legacy";
 import { parseOrRepairScene } from "#/scene/repair";
+import { safeJson } from "#/scene/safeJson";
 
 import { getPart, type TAnyPart } from "./registry";
 
@@ -13,7 +14,9 @@ import { getPart, type TAnyPart } from "./registry";
 export const readWorld = (input: unknown) => parseOrRepairScene(upgradeWorld(input));
 
 /** A world's old names and shapes brought up to date, before it's parsed (checkWorld reads this too). */
-export const upgradeWorld = (input: unknown) => upgradePartSettings(upgradeLegacyIds(input));
+export const upgradeWorld = (input: unknown) =>
+	// A safe copy first (ADR-0119): no prototype keys, no nesting deep enough to overflow.
+	upgradePartSettings(upgradeLegacyIds(safeJson(input)));
 
 type TRecord = Record<string, unknown>;
 

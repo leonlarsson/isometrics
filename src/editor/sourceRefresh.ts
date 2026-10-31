@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 
 import { keepOnHotReload } from "#/lib/hot";
@@ -6,7 +6,8 @@ import { readSourceAgain } from "#/scene/jsonSource";
 import type { TDataSource, TWorldData } from "#/scene/schema";
 import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/sheets";
 
-import { LinkError, readLink, type TLinkContent } from "./readLink";
+import { allowLink, isLinkAllowed, useAllowedLinks } from "./linkTrust";
+import { LinkError, nameOfLink, readLink, type TLinkContent } from "./readLink";
 import { useEditor } from "./store";
 import { clearArrived, keptWithArrived, tableArrived, valueArrived } from "./worldData";
 
@@ -76,9 +77,20 @@ export const arriveFrom = (kept: TWorldData, source: TDataSource, content: TLink
 	}
 };
 
-/** Reads a link or API source again now, into the arrived layer. */
-export const refreshSource = async (source: TDataSource) => {
+/**
+ * Reads a link or API source again now, into the arrived layer. `asked`: a
+ * person asked for it (Read it again, Allow), which is their yes to the
+ * address (ADR-0119); otherwise an address this browser hasn't allowed isn't read.
+ */
+export const refreshSource = async (source: TDataSource, { asked = false } = {}) => {
 	if (!source.url) {
+		return;
+	}
+	if (!isLinkAllowed(source.url)) {
+		if (asked) {
+			// The yes: the reading schedule picks it up and reads it now (and on its timer), once.
+			allowLink(source.url);
+		}
 		return;
 	}
 	setStatus(source.id, { reading: true });
@@ -101,28 +113,95 @@ const scheduleOf = (sources: readonly TDataSource[]) =>
 		.map((source) => `${source.id} ${source.refreshSeconds ?? 0}`)
 		.join(",");
 
+/** The hosts of some sources, the first few named and the rest counted: "a.com, b.org and 3 more". */
+export const hostsOf = (sources: readonly TDataSource[], most = 5) => {
+	const hosts = [...new Set(sources.map((source) => nameOfLink(source.url ?? "")))];
+	return hosts.length <= most
+		? hosts.join(", ")
+		: `${hosts.slice(0, most).join(", ")} and ${hosts.length - most} more`;
+};
+
+/** At most this many sources are read on their own: a world can't make a browser call a crowd of servers. */
+export const MOST_SOURCES_READ = 10;
+
+/** Never read again sooner than this on its own, whatever a world asks (its own limit is 10 s). */
+export const LEAST_REFRESH_SECONDS = 60;
+
+/** The open world's link and API sources (with data on), and which of them this browser has allowed. */
+const linkSources = (allowed: ReadonlySet<string>) => {
+	const { data } = useEditor.getState().scene;
+	const sources = data.isOn
+		? data.sources.filter(
+				(source) => (source.kind === "link" || source.kind === "api") && source.url,
+			)
+		: [];
+	return {
+		allowed: sources.filter((source) => isLinkAllowed(source.url ?? "", allowed)),
+		waiting: sources.filter((source) => !isLinkAllowed(source.url ?? "", allowed)),
+	};
+};
+
+/** The addresses of the open world's sources this browser hasn't allowed yet (ADR-0119). */
+export const useWaitingSources = () => {
+	const allowed = useAllowedLinks((s) => s.links);
+	const sources = useEditor((s) => s.scene.data.sources);
+	const isOn = useEditor((s) => s.scene.data.isOn);
+	return isOn
+		? sources.filter(
+				(source) =>
+					(source.kind === "link" || source.kind === "api") &&
+					source.url &&
+					!isLinkAllowed(source.url, allowed),
+			)
+		: [];
+};
+
 /**
- * Reads the open world's link and API sources when it opens and on their
- * timers. Mount once (AppShell).
+ * Reads the open world's allowed link and API sources when it opens and on
+ * their timers, at most MOST_SOURCES_READ of them, never more often than
+ * LEAST_REFRESH_SECONDS. Sources at addresses this browser hasn't allowed wait
+ * for a yes (ADR-0119; WaitingSourcesDialog asks). Mount once (AppShell).
  */
 export const useSourceRefresh = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
 	// With data off (ADR-0115), nothing is read.
 	const schedule = useEditor((s) => (s.scene.data.isOn ? scheduleOf(s.scene.data.sources) : ""));
+	const allowed = useAllowedLinks((s) => s.links);
+	// The addresses read since the world opened: a change to its sources or to what's allowed
+	// reads only what's new, the rest wait for their timers.
+	const readSinceOpening = useRef<{ opening: number; urls: Set<string> }>({
+		opening,
+		urls: new Set(),
+	});
+
 	useEffect(() => {
-		const sources = () =>
-			useEditor
-				.getState()
-				.scene.data.sources.filter(
-					(source) =>
-						useEditor.getState().scene.data.isOn &&
-						(source.kind === "link" || source.kind === "api") &&
-						source.url,
-				);
-		for (const source of sources()) {
-			void refreshSource(source);
+		if (readSinceOpening.current.opening !== opening) {
+			readSinceOpening.current = { opening, urls: new Set() };
 		}
-		const timers = sources()
+		// A forgotten address counts as unread: allowed again, it's read again at once.
+		for (const url of readSinceOpening.current.urls) {
+			if (!isLinkAllowed(url, allowed)) {
+				readSinceOpening.current.urls.delete(url);
+			}
+		}
+		// One source per address, at most MOST_SOURCES_READ addresses: repeating an address
+		// doesn't multiply the calls to it.
+		const seen = new Set<string>();
+		const read = linkSources(allowed).allowed.filter((source) => {
+			const url = source.url ?? "";
+			if (seen.has(url) || seen.size >= MOST_SOURCES_READ) {
+				return false;
+			}
+			seen.add(url);
+			return true;
+		});
+		for (const source of read) {
+			if (!readSinceOpening.current.urls.has(source.url ?? "")) {
+				readSinceOpening.current.urls.add(source.url ?? "");
+				void refreshSource(source);
+			}
+		}
+		const timers = read
 			.filter((source) => source.refreshSeconds !== null)
 			.map((source) =>
 				setInterval(
@@ -134,7 +213,7 @@ export const useSourceRefresh = () => {
 							void refreshSource(now);
 						}
 					},
-					(source.refreshSeconds ?? 60) * 1000,
+					Math.max(source.refreshSeconds ?? LEAST_REFRESH_SECONDS, LEAST_REFRESH_SECONDS) * 1000,
 				),
 			);
 		return () => {
@@ -142,7 +221,7 @@ export const useSourceRefresh = () => {
 				clearInterval(timer);
 			}
 		};
-	}, [opening, schedule]);
+	}, [opening, schedule, allowed]);
 };
 
 /** Keep these values: what arrived put in the world as one undo step, its sources marked as read then. */

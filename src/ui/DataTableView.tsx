@@ -1,5 +1,5 @@
 import { formatValue } from "#/scene/format";
-import { rowKeyOf } from "#/scene/rowData";
+import { cellOf, rowKeyOf } from "#/scene/rowData";
 import type { TDataTable } from "#/scene/schema";
 
 import styles from "./DataTableView.module.css";
@@ -43,9 +43,9 @@ export const DataTableView = ({
 
 				<tbody>
 					{shown.map((row, index) => (
-						<tr key={String(row[keyColumn] ?? index)}>
+						<tr key={String(cellOf(row, keyColumn) ?? index)}>
 							{columns.map((column) => {
-								const cell = row[column.key] ?? null;
+								const cell = cellOf(row, column.key) ?? null;
 								return (
 									<td
 										key={column.key}

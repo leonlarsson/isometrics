@@ -4,9 +4,10 @@ import { aiPrompt, worldFromAnswer } from "#/editor/aiPrompt";
 import { pickFile, startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
-import { checkWorld, issuesForAi } from "#/parts/checkWorld";
+import { checkPatch, checkWorld, type IWorldCheck, issuesForAi } from "#/parts/checkWorld";
 import { readWorld } from "#/parts/readWorld";
 import { describeRepairs } from "#/scene/repair";
+import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
@@ -17,6 +18,23 @@ import { openGuide } from "./Welcome";
 import styles from "./BuildWithAiDialog.module.css";
 
 type TBuilds = "new" | "change";
+
+const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
+
+/** A pasted answer's check in a sentence: what it is, what it changes, and what's wrong. */
+const summaryOf = (check: IWorldCheck) => {
+	const what = check.changes ? `a patch. ${check.changes}` : `${check.contents}.`;
+	const wrong = [
+		check.problems.length > 0 &&
+			`${plural(check.problems.length, "problem")} (${check.changes ? "the rest still applies" : "opening repairs them"})`,
+		check.warnings.length > 0 &&
+			`${plural(check.warnings.length, "warning")} (it opens, but won't look as meant)`,
+	].filter(Boolean);
+	if (wrong.length === 0) {
+		return `Checked: ${what} ${check.changes ? "It applies as written." : "It opens as written."}`;
+	}
+	return `Checked: ${what} ${wrong.join(" and ")}. Go ahead anyway, or ask your AI to fix them.`;
+};
 
 /** How many of a pasted world's problems and warnings the dialog lists. */
 const ISSUES_SHOWN = 6;
@@ -77,7 +95,17 @@ export const BuildWithAiDialog = () => {
 			return null;
 		}
 		try {
-			const checked = checkWorld(worldFromAnswer(answer));
+			const parsed = worldFromAnswer(answer);
+			// A patch (ADR-0118) is the changes to a world: checked against the one open now.
+			if (isWorldPatch(parsed)) {
+				return builds === "change"
+					? checkPatch(useEditor.getState().scene, parsed)
+					: {
+							unreadable:
+								"That's a patch: the changes to a world, not a whole one. Pick Change this world to put it in.",
+						};
+			}
+			const checked = checkWorld(parsed);
 			// Not a world at all (no version or things): said as such, not as a list of problems.
 			return checked.isUnreadable
 				? { unreadable: checked.problems[0]?.what ?? "It isn't a world." }
@@ -85,7 +113,7 @@ export const BuildWithAiDialog = () => {
 		} catch (error) {
 			return { unreadable: error instanceof Error ? error.message : String(error) };
 		}
-	}, [answer]);
+	}, [answer, builds]);
 
 	const copyIssues = async () => {
 		if (check && "isValid" in check) {
@@ -121,8 +149,17 @@ export const BuildWithAiDialog = () => {
 
 	const putInPlace = () => {
 		let read: ReturnType<typeof readWorld>;
+		// What a patch changes, said once it's in place.
+		let changes: string | null = null;
 		try {
-			read = readWorld(worldFromAnswer(answer));
+			const parsed = worldFromAnswer(answer);
+			if (isWorldPatch(parsed) && builds === "change") {
+				const applied = applyWorldPatch(useEditor.getState().scene, parsed);
+				changes = describePatchChanges(applied.changes);
+				read = readWorld(applied.world);
+			} else {
+				read = readWorld(parsed);
+			}
 		} catch (error) {
 			setProblem(error instanceof Error ? error.message : String(error));
 			return;
@@ -138,6 +175,7 @@ export const BuildWithAiDialog = () => {
 		notify(
 			builds === "new" ? `Opened “${scene.meta.title}”` : "The world was changed",
 			[
+				changes,
 				report && `Repaired where it needed it: ${describeRepairs(report)}`,
 				builds === "change" && "Undo (Ctrl+Z) brings the world back as it was.",
 			]
@@ -154,7 +192,7 @@ export const BuildWithAiDialog = () => {
 			open={open}
 			onOpenChange={(next) => !next && close()}
 			title="Build with your AI"
-			description="Describe the world, copy a prompt into any AI chat, and paste back the world it writes. Nothing is sent anywhere from here."
+			description="Describe a world or a change, copy a prompt into any AI chat, and paste back what it writes. Nothing is sent anywhere from here."
 			closeLabel="Cancel"
 			wide
 			confirm={{
@@ -237,7 +275,13 @@ export const BuildWithAiDialog = () => {
 							{copied ? "Copied: paste it into your AI" : "Copy the prompt"}
 						</Button>
 
-						{!isDescribed && <Hint>Describe the world first: it's what the prompt is about.</Hint>}
+						{!isDescribed && (
+							<Hint>
+								{builds === "new"
+									? "Describe the world first: it's what the prompt is about."
+									: "Say what to change first: it's what the prompt is about."}
+							</Hint>
+						)}
 
 						{promptByHand !== null && (
 							<TextField
@@ -252,7 +296,7 @@ export const BuildWithAiDialog = () => {
 
 						<Hint>
 							Paste it into the AI chat you use. The prompt has the world format, every part and the
-							guide's rules, so it can answer with a whole world.
+							guide's rules, so it can answer with a world, or the changes to one.
 						</Hint>
 
 						<Button size="sm" icon="newTab" onClick={openGuide}>
@@ -262,7 +306,7 @@ export const BuildWithAiDialog = () => {
 
 					<FieldGroup title="4. Paste its answer, or open its file">
 						<TextField
-							label="The world it wrote"
+							label="Its answer"
 							value={answer}
 							placeholder="{ … }"
 							onChange={(next) => {
@@ -276,7 +320,7 @@ export const BuildWithAiDialog = () => {
 							hint={
 								builds === "new"
 									? "Words around the JSON are fine. It opens as a new world, repaired where it needs it."
-									: "Words around the JSON are fine. It replaces this world; Undo brings it back."
+									: "The changes it wrote (a patch), or a whole world; words around the JSON are fine. Undo brings this world back."
 							}
 						/>
 
@@ -292,18 +336,7 @@ export const BuildWithAiDialog = () => {
 
 						{check && "isValid" in check && (
 							<>
-								<Hint>
-									{check.isValid && check.warnings.length === 0
-										? `Checked: it opens as written, with ${check.contents}.`
-										: `Checked: ${check.contents}. ${[
-												check.problems.length > 0 &&
-													`${check.problems.length} ${check.problems.length === 1 ? "problem" : "problems"} (opening repairs them)`,
-												check.warnings.length > 0 &&
-													`${check.warnings.length} ${check.warnings.length === 1 ? "warning" : "warnings"} (it opens, but won't look as meant)`,
-											]
-												.filter(Boolean)
-												.join(" and ")}. Open it anyway, or ask your AI to fix them.`}
-								</Hint>
+								<Hint>{summaryOf(check)}</Hint>
 
 								{check.problems.length + check.warnings.length > 0 && (
 									<>

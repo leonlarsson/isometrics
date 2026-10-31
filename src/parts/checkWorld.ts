@@ -1,8 +1,9 @@
 import type { z } from "zod";
 
 import { describeRepairs } from "#/scene/repair";
-import { columnOfKey } from "#/scene/rowData";
+import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
+import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
 import { readWorld, upgradeWorld } from "./readWorld";
 import { getPart, resolveProps } from "./registry";
@@ -33,7 +34,13 @@ export interface IWorldCheck {
 	repairs: string | null;
 	/** What's in it once opened, for a quick look: "12 objects, 3 roads". */
 	contents: string;
+	/** For a patch (ADR-0118): what it changes, in a sentence. */
+	changes?: string;
 }
+
+/** More objects or table rows than these make a world slow and big to keep: said as a warning. */
+const MOST_OBJECTS = 20_000;
+const MOST_ROWS = 100_000;
 
 /** More issues than this of one sort are summed up, not listed. */
 const MOST_ISSUES = 40;
@@ -103,7 +110,9 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		const table = scene.data.tables.find((each) => each.key === row.tableKey);
 		if (!table) {
 			warn(`${where}.dataRow`, `follows table "${row.tableKey}", which the world doesn't have`);
-		} else if (!table.rows.some((each) => String(each[table.keyColumn] ?? "") === row.rowKey)) {
+		} else if (
+			!table.rows.some((each) => String(cellOf(each, table.keyColumn) ?? "") === row.rowKey)
+		) {
 			warn(
 				`${where}.dataRow`,
 				`follows row "${row.rowKey}", which table "${row.tableKey}" doesn't have (by its ${table.keyColumn} column): it shows no data`,
@@ -177,6 +186,24 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		}
 	});
 
+	// Very big worlds open, but slowly, and may not fit in the browser's storage (ADR-0119).
+	if (scene.entities.length > MOST_OBJECTS) {
+		warn(
+			"entities",
+			`${scene.entities.length.toLocaleString("en")} objects, more than ${MOST_OBJECTS.toLocaleString("en")}: it may be slow, and too big to keep in this browser`,
+		);
+	}
+	const rows = scene.data.tables.reduce(
+		(sum, table) =>
+			sum + table.rows.length + table.history.reduce((all, past) => all + past.rows.length, 0),
+		0,
+	);
+	if (rows > MOST_ROWS) {
+		warn(
+			"data.tables",
+			`${rows.toLocaleString("en")} table rows (their pasts included), more than ${MOST_ROWS.toLocaleString("en")}: it may be slow, and too big to keep in this browser`,
+		);
+	}
 	const opening = scene.camera.openingViewpointId;
 	if (opening && !scene.viewpoints.some((viewpoint) => viewpoint.id === opening)) {
 		warn("camera.openingViewpointId", `"${opening}" isn't one of its viewpoints`);
@@ -282,9 +309,31 @@ export const checkWorld = (input: unknown): IWorldCheck => {
 	};
 };
 
+/**
+ * Check a patch (ADR-0118) against the world it changes: its own problems
+ * (an id that isn't there, a list sent whole), said where they are in the
+ * patch, then the world it makes, checked like any world, and what it changes.
+ */
+export const checkPatch = (world: TScene, patch: Record<string, unknown>): IWorldCheck => {
+	const { world: patched, issues, changes } = applyWorldPatch(world, patch);
+	const check = checkWorld(patched);
+	const patchProblems = issues.map((issue) => ({
+		where: `patch ${issue.where}`,
+		what: issue.what,
+	}));
+	return {
+		...check,
+		isValid: check.isValid && patchProblems.length === 0,
+		problems: capped([...patchProblems, ...check.problems]),
+		changes: describePatchChanges(changes),
+	};
+};
+
 /** A check as a message to send back to an AI: fix these, and send the whole world again. */
 export const issuesForAi = (check: IWorldCheck) =>
 	[
-		"The world you wrote doesn't open as written. Fix these and send the whole world again, as JSON only:",
+		check.changes
+			? "The patch you wrote doesn't apply cleanly. Fix these and send the whole patch again, as JSON only:"
+			: "The world you wrote doesn't open as written. Fix these and send the whole world again, as JSON only:",
 		...[...check.problems, ...check.warnings].map((issue) => `- ${issue.where}: ${issue.what}`),
 	].join("\n");

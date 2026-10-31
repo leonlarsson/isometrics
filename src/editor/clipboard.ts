@@ -8,6 +8,7 @@ import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
 import { altitudeMovedTo, cornerLift, cornerWithLift } from "#/scene/areas";
 import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
+import { safeJson } from "#/scene/safeJson";
 import {
 	ColorSettingSchema,
 	DetailsSchema,
@@ -661,7 +662,8 @@ const pasteThings = (
 /** What clipboard text holds, if it's something copied from this app (or written like it). */
 export const readClip = (text: string) => {
 	try {
-		const result = ClipSchema.safeParse(JSON.parse(text));
+		// Untrusted text: no prototype keys, no nesting deep enough to overflow (ADR-0119).
+		const result = ClipSchema.safeParse(safeJson(JSON.parse(text)));
 		return result.success ? result.data : null;
 	} catch {
 		return null;
