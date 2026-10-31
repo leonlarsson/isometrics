@@ -5,6 +5,7 @@ import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
+import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partNameOf } from "#/parts/registry";
 import { openContextMenuUnlessDragged } from "#/render/contextMenu";
 import {
@@ -83,13 +84,13 @@ const measured = (id: string, part: TLabelPart) => (element: HTMLElement | null)
 
 const useLabelColor = (entity: TEntity) => {
 	const palette = useThemePalette();
-	const data = useWorldData().values;
+	const data = valuesOfEntity(entity, useWorldData());
 	const part = getPart(entity.kind);
 	return part ? resolveLabelColor(part, entity, palette, data) : palette.selection;
 };
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {
-	const data = useWorldData().values;
+	const data = valuesOfEntity(entity, useWorldData());
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
 	const entries = entity.label.dataKeys.map((key) => ({

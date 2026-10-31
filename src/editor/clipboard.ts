@@ -239,7 +239,8 @@ export const copySettings = (settings: TCopiedSettings | null) => {
 /** Data keys that settings or things use but this world doesn't have, to warn about. */
 const missingDataKeys = (keys: Iterable<string>) => {
 	const known = new Set(store().scene.data.values.map((entry) => entry.key));
-	return [...new Set(keys)].filter((key) => key && !known.has(key));
+	// A column of the thing's own row ("row.players") isn't one of the world's values.
+	return [...new Set(keys)].filter((key) => key && !key.startsWith("row.") && !known.has(key));
 };
 
 const warnAboutMissingData = (keys: string[]) => {
@@ -256,6 +257,7 @@ const warnAboutMissingData = (keys: string[]) => {
 const dataKeysOf = (thing: {
 	lights?: TEntity["lights"];
 	colors?: TEntity["colors"];
+	data?: TEntity["data"];
 	label?: TEntity["label"];
 	details?: TEntity["details"];
 	props?: Record<string, unknown>;
@@ -263,9 +265,11 @@ const dataKeysOf = (thing: {
 }) => {
 	const part = thing.kind ? getPart(thing.kind) : undefined;
 	return [
-		...bindingMapsOf({ lights: thing.lights ?? {}, colors: thing.colors ?? {} }).flatMap((map) =>
-			Object.values(map).map((binding) => binding.key),
-		),
+		...bindingMapsOf({
+			lights: thing.lights ?? {},
+			colors: thing.colors ?? {},
+			data: thing.data ?? {},
+		}).flatMap((map) => Object.values(map).map((binding) => binding.key)),
 		...(thing.label?.dataKeys ?? []),
 		...(thing.details?.dataKeys ?? []),
 		...(part?.fields ?? [])

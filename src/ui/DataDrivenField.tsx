@@ -21,6 +21,8 @@ interface IDataDrivenFieldProps {
 	formatScale?: (reading: number) => string;
 	/** Numbers: the most a reading goes to. */
 	max?: number;
+	/** Sizes and amounts (`range`): the setting's own range and step. */
+	range?: { min: number; max: number; step: number; format?: (setting: number) => string };
 	/** The field that sets it by hand. */
 	children: ReactNode;
 	/** Several things are selected and follow data differently (ADR-0064): Source says Mixed. */
@@ -43,6 +45,7 @@ export const DataDrivenField = ({
 	onBindingChange,
 	formatScale,
 	max,
+	range,
 	children,
 	mixed,
 }: IDataDrivenFieldProps) => {
@@ -82,6 +85,7 @@ export const DataDrivenField = ({
 					onChange={onBindingChange}
 					formatScale={formatScale}
 					max={max}
+					range={range}
 				/>
 			) : (
 				children

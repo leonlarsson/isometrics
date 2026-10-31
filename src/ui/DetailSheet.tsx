@@ -1,5 +1,6 @@
 import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useWorldData } from "#/editor/worldData";
+import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
 import { formatEntry } from "#/scene/format";
 
@@ -12,7 +13,7 @@ import styles from "./DetailSheet.module.css";
 export const DetailSheet = () => {
 	const mode = useEditor((s) => s.mode);
 	const entity = useEditor(selectSelectedEntity);
-	const data = useWorldData().values;
+	const worldData = useWorldData();
 	const select = useEditor((s) => s.select);
 	const shown = useEditor((s) => s.scene.onScreen.showsDetails);
 
@@ -20,6 +21,7 @@ export const DetailSheet = () => {
 		return null;
 	}
 
+	const data = valuesOfEntity(entity, worldData);
 	const keys = entity.details.dataKeys.length ? entity.details.dataKeys : entity.label.dataKeys;
 	const title = entity.name || entity.label.title || partNameOf(entity.kind) || "Object";
 

@@ -1,7 +1,14 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
 import type { IEditorState, useEditor } from "#/editor/store";
-import type { TArea, TEntity, TFence, TRoad, TViewPose } from "#/scene/schema";
+import {
+	type TArea,
+	type TEntity,
+	type TFence,
+	type TRoad,
+	type TViewPose,
+	WorldDataSchema,
+} from "#/scene/schema";
 
 /**
  * Shared helpers for the end-to-end tests (ADR-0069). Each test gets a fresh
@@ -76,6 +83,8 @@ export interface ITestWorld {
 	roads?: Partial<TRoad>[];
 	areas?: Partial<TArea>[];
 	fences?: Partial<TFence>[];
+	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
+	data?: unknown;
 }
 
 /**
@@ -83,7 +92,9 @@ export interface ITestWorld {
  * camera stay the starter's), as a freshly opened world. Missing fields get
  * their defaults through the scene schema.
  */
-export const loadWorld = async (page: Page, world: ITestWorld) => {
+export const loadWorld = async (page: Page, given: ITestWorld) => {
+	// The data with its defaults filled in, as a world file's are when it opens.
+	const world = { ...given, data: given.data ? WorldDataSchema.parse(given.data) : undefined };
 	await page.evaluate((world) => {
 		const state = globalThis.__editorStore.getState();
 		const scene = structuredClone(state.scene);
@@ -97,9 +108,11 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			props: {},
 			colors: {},
 			lights: {},
-			label: { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] },
+			label: { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0], tag: "" },
 			details: { description: "", dataKeys: [] },
 			follow: null,
+			dataRow: null,
+			data: {},
 			isHidden: false,
 			isLocked: false,
 			...e,
@@ -142,6 +155,9 @@ export const loadWorld = async (page: Page, world: ITestWorld) => {
 			...f,
 			points: (f.points ?? []).map(([x, z, lift]) => [x, z, lift ?? 0]),
 		})) as typeof scene.fences;
+		if (world.data) {
+			scene.data = world.data as typeof scene.data;
+		}
 		state.loadScene(scene);
 	}, world);
 	await worldShown(page);

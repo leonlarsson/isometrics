@@ -228,7 +228,13 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		await box(page, "Value").fill("42");
 		await act(page, (s) =>
 			s.updateEntity("depot", (e) => {
-				e.label = { isShown: true, title: "Depot", dataKeys: ["orders"], offset: [0, 2, 0] };
+				e.label = {
+					isShown: true,
+					title: "Depot",
+					dataKeys: ["orders"],
+					offset: [0, 2, 0],
+					tag: "",
+				};
 			}),
 		);
 		const card = labelCard(page, /Depot/);

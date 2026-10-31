@@ -78,8 +78,44 @@ export const DataBindingSchema = z
 			.describe(
 				"For colours: the colour at valueAtHighColor and above, as #rrggbb. null = red (#e0483b).",
 			),
+		valueAtLowSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts (an object's props and scale, a road's width and traffic): the value that gives lowSetting (and below). null = 0, or 1 on a log scale.",
+			),
+		valueAtHighSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: the value that gives highSetting (and above); values in between are placed between the two, on a straight or a log scale. null = 100.",
+			),
+		lowSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: what the setting is at valueAtLowSetting. null = the setting's smallest (its field's minimum).",
+			),
+		highSetting: z
+			.number()
+			.nullable()
+			.default(null)
+			.describe(
+				"For sizes and amounts: what the setting is at valueAtHighSetting. null = the setting's largest (its field's maximum).",
+			),
+		usesLogScale: z
+			.boolean()
+			.default(false)
+			.describe(
+				"For sizes and amounts: whether values are placed on a log scale, so 100 is as far above 10 as 1,000 is above 100 (player counts, populations); false = a straight scale.",
+			),
 	})
-	.describe("A setting driven by a data value.");
+	.describe(
+		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object or road that follows a table row (dataRow), a column of its row as "row.<column>".',
+	);
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
 
@@ -234,18 +270,28 @@ export const LabelSchema = z
 			.array(z.string())
 			.default([])
 			.describe(
-				"Keys of entries in the world's data list. One key shows as a big number, several as rows.",
+				'Keys of the world\'s data values, or "row.<column>" for a column of the row it follows (dataRow). One key shows as a big number, several as rows.',
 			),
 		offset: Vec3Schema.default([0, 2, 0]).describe(
 			"Where the card floats, as [x, y, z] in grid units from the top of the part.",
 		),
+		tag: z
+			.string()
+			.default("")
+			.describe('A short word shown beside the title, e.g. "home" or "new"; empty = none.'),
 	})
 	.describe("A floating card above the object showing data values.");
 
 export type TLabel = z.output<typeof LabelSchema>;
 
 /** The label settings of an object that has never had a card. */
-export const NO_LABEL: TLabel = { isShown: false, title: "", dataKeys: [], offset: [0, 2, 0] };
+export const NO_LABEL: TLabel = {
+	isShown: false,
+	title: "",
+	dataKeys: [],
+	offset: [0, 2, 0],
+	tag: "",
+};
 
 export const FollowSchema = z
 	.object({
@@ -286,7 +332,9 @@ export const DetailsSchema = z
 		dataKeys: z
 			.array(z.string())
 			.default([])
-			.describe("Data keys shown as tiles when the object is opened in view mode."),
+			.describe(
+				'Data keys shown as tiles when the object is opened in view mode: the world\'s values, or "row.<column>" for a column of the row it follows.',
+			),
 	})
 	.describe("What view mode shows when someone clicks the object.");
 
@@ -300,6 +348,23 @@ const isHidden = (extra = "") =>
 		.describe(
 			`Whether it isn't drawn${extra} (it's still listed in the editor's outliner, and kept in the file).`,
 		);
+
+/**
+ * Which row of which of the world's tables a thing follows (ADR-0108): by the
+ * table's key and the row's value in the table's key column.
+ */
+export const DataRowRefSchema = z
+	.object({
+		tableKey: z.string().describe("The key of one of the world's data tables."),
+		rowKey: z
+			.string()
+			.describe(
+				"The row: its value in the table's key column (or its number, from 1, when the table has none).",
+			),
+	})
+	.describe("A row of one of the world's tables.");
+
+export type TDataRowRef = z.output<typeof DataRowRefSchema>;
 
 /** Degrees around one axis, kept within half a turn either way. */
 const HalfTurnSchema = z.number().min(-180).max(180);
@@ -346,6 +411,14 @@ export const EntitySchema = z
 			.describe(
 				'Settings for its part\'s lights (see each kind\'s lights in its description), keyed by the light\'s id, holding only what differs from the part, e.g. { "headlights": { "color": "#ffffff" } }.',
 			),
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows: its cards, tiles, colours, lights and sizes can read that row\'s columns as "row.<column>". null = none.',
+			),
+		data: dataBindings(
+			'Its sizes and props that follow data, keyed by the prop\'s name, or "scale" for its size: { "builtShare": { key: "row.players", usesLogScale: true, valueAtLowSetting: 1000, valueAtHighSetting: 100000 } }. Numbers are placed between lowSetting and highSetting; on and off props switch.',
+		),
 		isLocked: isLocked("it"),
 		isHidden: isHidden(),
 	})
@@ -353,6 +426,9 @@ export const EntitySchema = z
 
 /** A value as data holds it: a number or a short text. */
 const DataCellSchema = z.union([z.number(), z.string()]);
+
+/** A value as data holds it. */
+export type TDataCell = z.output<typeof DataCellSchema>;
 
 /** A key that other things refer to: lowercase letters, numbers and underscores. */
 const DataKeySchema = z
@@ -372,8 +448,49 @@ export const DataSourceRefSchema = z
 			.describe(
 				'Where in the source: a JSON path for links and APIs ("totalUsers", "data.0.rank"; empty = the whole response); in a spreadsheet, the column a value is read from ("sent", or "Stats!sent" in another sheet), the row it is named by when each row is a value ("Population"), or the sheet a table is ("Stats"; empty = the only or first one).',
 			),
+		field: z
+			.string()
+			.default("")
+			.describe(
+				'For a value over time read from a list (links and APIs): the field of each entry holding the value ("sent"); empty = a single value at path.',
+			),
+		dateField: z
+			.string()
+			.default("")
+			.describe(
+				'For a value over time read from a list: the field of each entry holding its date ("day"); the entries become its past values, the latest its value now.',
+			),
+		maxRowCount: z
+			.number()
+			.int()
+			.min(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"For a table: keeps at most this many rows, the first ones read (a 10,000-row leaderboard's top 100); null = all.",
+			),
 	})
 	.describe("Where a value or a table is read from.");
+
+/**
+ * A line a value is watched against (ADR-0110): crossing it flags the value on
+ * cards and tiles with a word and a symbol, never by colour alone.
+ */
+export const DataThresholdSchema = z
+	.object({
+		line: z.number().describe("The value it's watched against."),
+		flagsWhen: z
+			.enum(["above", "below"])
+			.default("below")
+			.describe("Whether it's flagged when the value is above the line or below it."),
+		word: z
+			.string()
+			.default("Watch")
+			.describe('The word shown with a ⚠ when it\'s flagged, e.g. "Watch" or "Low".'),
+	})
+	.describe("A line a value is watched against.");
+
+export type TDataThreshold = z.output<typeof DataThresholdSchema>;
 
 /** One past value, for trends and sparklines (data study). */
 export const DataPointSchema = z
@@ -404,6 +521,9 @@ export const DataValueSchema = z
 			.array(DataPointSchema)
 			.default([])
 			.describe("Its past values, oldest first, for trends and sparklines; [] = none kept."),
+		threshold: DataThresholdSchema.nullable()
+			.default(null)
+			.describe("A line it's watched against, flagged on cards and tiles; null = none."),
 	})
 	.describe("A named value that cards, detail tiles and settings show or follow.");
 
@@ -413,6 +533,15 @@ export const DataColumnSchema = z
 		key: DataKeySchema.describe("The column's name in the rows and in settings that follow it."),
 		name: z.string().default("").describe("Human-readable name; empty = its key."),
 		unit: z.string().default("").describe('Shown after its values, e.g. "%".'),
+		field: z
+			.string()
+			.default("")
+			.describe(
+				'Read from a link or API: the field of each entry it\'s read from ("rankScore", "stats.kills"); empty = its key.',
+			),
+		threshold: DataThresholdSchema.nullable()
+			.default(null)
+			.describe("A line every row's value in it is watched against; null = none."),
 	})
 	.describe("A column of a table.");
 
@@ -432,6 +561,19 @@ export const DataTableSchema = z
 			.array(z.record(z.string(), DataCellSchema.nullable()))
 			.default([])
 			.describe("Its rows, each by column key; read from its source, the last rows read."),
+		history: z
+			.array(
+				z.object({
+					at: z.string().describe('When, as an ISO 8601 date or date and time: "2026-10-30".'),
+					rows: z
+						.array(z.record(z.string(), DataCellSchema.nullable()))
+						.describe("Its rows then, as rows."),
+				}),
+			)
+			.default([])
+			.describe(
+				"Its rows at past moments, oldest first, for trends and stories (only as its source gives them: a dated file, an API with dates); [] = none.",
+			),
 	})
 	.describe("A table of rows: objects can each take one, and follow its columns.");
 
@@ -465,6 +607,19 @@ export const DataSourceSchema = z
 			.nullable()
 			.default(null)
 			.describe("When its values and tables were last read, as an ISO 8601 date and time."),
+		pageUrl: z
+			.string()
+			.nullable()
+			.default(null)
+			.describe(
+				"A page people can open to see where the data comes from (shown as the source's link); null = none.",
+			),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note about the data shown with it: what it covers, how good it is ("Steam only, last 30 days", "Example numbers, not from Steam").',
+			),
 	})
 	.describe("Where some of the world's data comes from.");
 

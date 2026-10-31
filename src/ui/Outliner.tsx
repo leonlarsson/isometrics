@@ -9,6 +9,7 @@ import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
+import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { AREA_KIND_LABELS } from "#/scene/areas";
@@ -56,13 +57,13 @@ const keyOf = (item: ISceneItem) => `${item.kind}:${item.id}`;
  */
 const madeRows = new WeakMap<
 	object,
-	{ palette: IScenePalette; data: TScene["data"]["values"]; row: IOutlinerRow }
+	{ palette: IScenePalette; data: TScene["data"]; row: IOutlinerRow }
 >();
 
 const cachedRow = <T extends object>(
 	thing: T,
 	palette: IScenePalette,
-	data: TScene["data"]["values"],
+	data: TScene["data"],
 	make: (thing: T) => IOutlinerRow,
 ) => {
 	const made = madeRows.get(thing);
@@ -78,18 +79,21 @@ const cachedRow = <T extends object>(
 const rowsOf = (
 	scene: TScene,
 	palette: IScenePalette,
-	data: TScene["data"]["values"],
+	worldData: TScene["data"],
 ): IOutlinerRow[] => {
-	const firstValue = (keys: string[]) => {
+	const data = worldData.values;
+	const firstValue = (keys: string[], values = data) => {
 		const key = keys[0];
-		return key ? formatEntry(data.find((entry) => entry.key === key)) : null;
+		return key ? formatEntry(values.find((entry) => entry.key === key)) : null;
 	};
 	return [
 		...scene.entities.map((each) =>
-			cachedRow(each, palette, data, (entity): IOutlinerRow => {
+			cachedRow(each, palette, worldData, (entity): IOutlinerRow => {
 				const part = getPart(entity.kind);
+				// Its own values: the world's and its row's columns (ADR-0108).
+				const own = valuesOfEntity(entity, worldData);
 				const { first, second } = part
-					? swatchColors(resolveColors(part, entity, palette, data), part)
+					? swatchColors(resolveColors(part, entity, palette, own), part)
 					: { first: palette.selection, second: palette.selection };
 				return {
 					item: { kind: "entity", id: entity.id },
@@ -110,7 +114,7 @@ const rowsOf = (
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(road): IOutlinerRow => ({
 					item: { kind: "road", id: road.id },
 					group: ROADS,
@@ -127,7 +131,7 @@ const rowsOf = (
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(area): IOutlinerRow => ({
 					item: { kind: "area", id: area.id },
 					group: AREAS,
@@ -144,7 +148,7 @@ const rowsOf = (
 			cachedRow(
 				each,
 				palette,
-				data,
+				worldData,
 				(fence): IOutlinerRow => ({
 					item: { kind: "fence", id: fence.id },
 					group: FENCES,
@@ -405,7 +409,7 @@ export const Outliner = () => {
 		meta: { name: "Rename the selection" },
 	});
 
-	const data = useWorldData().values;
+	const data = useWorldData();
 	const rows = useMemo(() => rowsOf(scene, palette, data), [scene, palette, data]);
 	const selectedRows = useMemo(() => new Set(selectedKeys.split(" ")), [selectedKeys]);
 	const shown = useMemo(

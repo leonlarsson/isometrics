@@ -110,3 +110,6 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0104](0104-world-format-before-going-public.md) | The world format before going public: one name per idea, settings where they belong | proposed |
 | [0105](0105-every-setting-offers-reset.md) | Every setting offers Reset, and the kit makes sure of it | proposed |
 | [0106](0106-the-world-format-promise.md) | The world format's promise: every world keeps opening, and the version almost never moves | proposed |
+| [0107](0107-world-data-model.md) | A world's data is values, tables and sources, and what arrives while it's open is kept apart | proposed |
+| [0108](0108-things-follow-table-rows.md) | Objects and roads follow a table row, read as `row.<column>` | proposed |
+| [0109](0109-sizes-from-data.md) | An object's size and props can follow data, on a straight or log scale | proposed |

@@ -99,7 +99,14 @@ export type TWorldTab =
 	| "traffic"
 	| "data";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
-export type TSelectionTab = "object" | "shape" | "look" | "lights" | "label" | "motion";
+export type TSelectionTab =
+	| "object"
+	| "shape"
+	| "look"
+	| "lights"
+	| "label"
+	| "objectData"
+	| "motion";
 /**
  * Properties tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
  * layout; the wide layout has them in the left column and above the properties.
@@ -112,6 +119,7 @@ const SELECTION_TABS: readonly TInspectorTab[] = [
 	"look",
 	"lights",
 	"label",
+	"objectData",
 	"motion",
 ];
 

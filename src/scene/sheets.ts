@@ -1,5 +1,12 @@
 import { toDataKey } from "./format";
-import type { TDataSource, TDataTable, TDataValue, TWorldData } from "./schema";
+import {
+	DataColumnSchema,
+	DataSourceRefSchema,
+	type TDataSource,
+	type TDataTable,
+	type TDataValue,
+	type TWorldData,
+} from "./schema";
 
 /**
  * Spreadsheets read into a world's data (data study, step 2): a file's rows
@@ -382,7 +389,8 @@ export const dataFromSheet = (
 	}: { sourceId: string; sheetName?: string | null; tableName: string },
 ): IReadData => {
 	const column = (key: string) => sheet.columns.find((each) => each.key === key);
-	const where = (path: string) => ({ sourceId, path: sheetName ? `${sheetName}!${path}` : path });
+	const where = (path: string) =>
+		DataSourceRefSchema.parse({ sourceId, path: sheetName ? `${sheetName}!${path}` : path });
 	const keys = new Set<string>();
 	const value = (
 		name: string,
@@ -397,6 +405,7 @@ export const dataFromSheet = (
 		unit,
 		source: where(path),
 		history,
+		threshold: null,
 	});
 
 	if (reading.readsAs === "table") {
@@ -406,12 +415,15 @@ export const dataFromSheet = (
 				{
 					key: toDataKey(tableName),
 					name: tableName,
-					source: { sourceId, path: sheetName ?? "" },
+					source: DataSourceRefSchema.parse({ sourceId, path: sheetName ?? "" }),
 					keyColumn: column(reading.keyColumn) ? reading.keyColumn : "",
-					columns: sheet.columns.map(({ key, name, unit }) => ({ key, name, unit })),
+					columns: sheet.columns.map(({ key, name, unit }) =>
+						DataColumnSchema.parse({ key, name, unit }),
+					),
 					rows: Array.from({ length: sheet.rowCount }, (_, index) =>
 						Object.fromEntries(sheet.columns.map((each) => [each.key, each.cells[index]])),
 					),
+					history: [],
 				},
 			],
 		};

@@ -3,7 +3,12 @@ import { useEffect, useState } from "react";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
 import { useEditor } from "#/editor/store";
 import { formatEntry, formatValue, toDataKey } from "#/scene/format";
-import type { TDataSource, TDataTable, TDataValue } from "#/scene/schema";
+import {
+	DataColumnSchema,
+	type TDataSource,
+	type TDataTable,
+	type TDataValue,
+} from "#/scene/schema";
 
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -132,12 +137,13 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 		source: null,
 		keyColumn: "",
 		columns: [
-			{ key: "at", name: "When", unit: "" },
-			{ key: "value", name, unit: value.unit },
+			DataColumnSchema.parse({ key: "at", name: "When" }),
+			DataColumnSchema.parse({ key: "value", name, unit: value.unit }),
 		],
 		rows: [...value.history]
 			.reverse()
 			.map((point) => ({ at: formatWhen(point.at), value: point.value })),
+		history: [],
 	};
 
 	return (

@@ -1,4 +1,5 @@
 import { formatValue } from "#/scene/format";
+import { rowKeyOf } from "#/scene/rowData";
 import type { TDataTable } from "#/scene/schema";
 
 import styles from "./DataTableView.module.css";
@@ -10,10 +11,18 @@ interface IDataTableViewProps {
 	keyColumn: string;
 	/** The most rows shown; the rest are counted below. */
 	mostRows: number;
+	/** What follows each row, by row key (ADR-0108): shown in an On the map column. */
+	followers?: ReadonlyMap<string, readonly string[]>;
 }
 
 /** A data table's rows as a grid, numbers right-aligned with their units (data study). */
-export const DataTableView = ({ columns, rows, keyColumn, mostRows }: IDataTableViewProps) => {
+export const DataTableView = ({
+	columns,
+	rows,
+	keyColumn,
+	mostRows,
+	followers,
+}: IDataTableViewProps) => {
 	const shown = rows.slice(0, mostRows);
 	return (
 		<div className={styles.frame}>
@@ -27,6 +36,8 @@ export const DataTableView = ({ columns, rows, keyColumn, mostRows }: IDataTable
 								{column.key === keyColumn && <span className={styles.tag}>names rows</span>}
 							</th>
 						))}
+
+						{followers && <th scope="col">On the map</th>}
 					</tr>
 				</thead>
 
@@ -44,6 +55,10 @@ export const DataTableView = ({ columns, rows, keyColumn, mostRows }: IDataTable
 									</td>
 								);
 							})}
+
+							{followers && (
+								<td>{followers.get(rowKeyOf({ keyColumn }, row, index))?.join(", ") || "—"}</td>
+							)}
 						</tr>
 					))}
 				</tbody>
