@@ -137,8 +137,16 @@ const applyToList = (
 	}
 	const idOf = (item: unknown) => (isRecord(item) ? item[id] : undefined);
 	// Things by id, so each remove, change and add is one lookup, whatever the sizes (ADR-0119).
-	const indexById = (list: readonly unknown[]) =>
-		new Map(list.map((item, index) => [idOf(item), index] as const));
+	const indexById = (list: readonly unknown[]) => {
+		const byId = new Map<unknown, number>();
+		list.forEach((item, index) => {
+			// The first of a repeated id, as reading the world keeps (the rest are left out there).
+			if (!byId.has(idOf(item))) {
+				byId.set(idOf(item), index);
+			}
+		});
+		return byId;
+	};
 	let list = [...items];
 	const remove = ops.remove ?? [];
 	if (!Array.isArray(remove)) {

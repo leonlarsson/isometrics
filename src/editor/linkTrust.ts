@@ -2,7 +2,6 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
-import { TEMPLATES } from "#/templates";
 
 /**
  * Addresses this browser has agreed to read (ADR-0119). A world can name any
@@ -11,22 +10,12 @@ import { TEMPLATES } from "#/templates";
  * looking and when, every time the world is open, or make the browser call
  * someone else's server over and over. So an address is read without asking
  * only once this browser has said yes to it: by typing it (Read a link or
- * API…), by clicking Allow or Read it again, or because it's a template's own.
- * Kept per browser, by the exact address read.
+ * API…), by clicking Allow or Read it again, or by starting a world from a
+ * template that reads it (New world). Kept per browser, by the exact address
+ * read, until forgotten (Addresses this browser reads…).
  */
 
 const KEY = `${APP_NAME.toLowerCase()}:allowed-links`;
-
-/** The addresses the templates read: theirs, so they need no asking. Worked out once, when first asked. */
-let templateLinks: Set<string> | null = null;
-const linksOfTemplates = () => {
-	templateLinks ??= new Set(
-		TEMPLATES.flatMap((template) =>
-			template.create().data.sources.flatMap((source) => (source.url ? [source.url] : [])),
-		),
-	);
-	return templateLinks;
-};
 
 const loadAllowed = (): Set<string> => {
 	try {
@@ -46,7 +35,7 @@ export const useAllowedLinks = keepOnHotReload("allowedLinks", () =>
 
 /** Whether an address may be read without asking. */
 export const isLinkAllowed = (url: string, allowed = useAllowedLinks.getState().links) =>
-	allowed.has(url) || linksOfTemplates().has(url);
+	allowed.has(url);
 
 /** Say yes to an address: it's read from now on, in this browser, whatever world names it. */
 export const allowLink = (url: string) => {
@@ -59,5 +48,17 @@ export const allowLink = (url: string) => {
 		localStorage.setItem(KEY, JSON.stringify([...links]));
 	} catch {
 		// Storage unavailable: allowed for as long as the page is open.
+	}
+};
+
+/** Forget an address: worlds that name it wait for a yes again. */
+export const forgetLink = (url: string) => {
+	const links = new Set(useAllowedLinks.getState().links);
+	links.delete(url);
+	useAllowedLinks.setState({ links });
+	try {
+		localStorage.setItem(KEY, JSON.stringify([...links]));
+	} catch {
+		// Storage unavailable: forgotten for as long as the page is open.
 	}
 };

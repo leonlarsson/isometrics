@@ -256,7 +256,9 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		await page.waitForTimeout(1500);
 		expect(requests).toBe(0);
 
-		await page.getByRole("button", { name: /^Allow reading example.org/ }).click();
+		await page
+			.getByRole("button", { name: /^Allow reading https:\/\/example.org\/counts.json/ })
+			.click();
 		await expect.poll(() => requests).toBe(1);
 		await expect(page.getByText(/this browser hasn't read before/)).toHaveCount(0);
 	});

@@ -1,4 +1,5 @@
 import { textUpTo } from "#/lib/textUpTo";
+import { isLocalHost } from "#/lib/webAddress";
 import { parseCsv } from "#/scene/sheets";
 
 import type { ISpreadsheetSheet } from "./readSpreadsheet";
@@ -71,6 +72,16 @@ export const readLink = async (
 	// Only web addresses (ADR-0119): no file:, data:, blob: or javascript: from a world someone sent.
 	if (address.protocol !== "https:" && address.protocol !== "http:") {
 		throw new LinkError("address", "Only web addresses can be read: it should start with https://");
+	}
+	// Nothing on this computer or its network, unless the app itself runs there (development).
+	if (
+		isLocalHost(address.hostname) &&
+		!(typeof window !== "undefined" && isLocalHost(window.location.hostname))
+	) {
+		throw new LinkError(
+			"address",
+			`${address.host} is on your own computer or network, which a world on the web can't read.`,
+		);
 	}
 	if (typeof navigator !== "undefined" && navigator.onLine === false) {
 		throw new LinkError(

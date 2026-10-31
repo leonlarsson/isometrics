@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { startNewWorld } from "#/editor/fileActions";
+import { allowLink } from "#/editor/linkTrust";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
@@ -168,6 +169,14 @@ export const NewWorldDialog = () => {
 		const title = name.trim() || (picked?.meta.title ?? BLANK_TITLE);
 		const { width, depth } = GROUND_PRESETS[choices.groundPreset];
 		setChoices({ ...choices, startFrom });
+		// Picking a template that reads links is the yes to its own addresses (ADR-0119).
+		if (picked && choices.usesData) {
+			for (const source of picked.data.sources) {
+				if (source.url) {
+					allowLink(source.url);
+				}
+			}
+		}
 		startNewWorld(
 			picked
 				? {

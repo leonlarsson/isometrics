@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import { pickFile } from "#/editor/fileActions";
 import { suggestLegend } from "#/editor/legend";
-import { nameOfLink } from "#/editor/readLink";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
 import {
+	hostsOf,
 	keepArrivedValues,
 	refreshSource,
 	useSourceStatus,
@@ -22,6 +22,7 @@ import {
 	type TDataValue,
 } from "#/scene/schema";
 
+import { AllowedLinksDialog } from "./AllowedLinksDialog";
 import { Button, ButtonGroup, IconButton } from "./Button";
 import { DataTableDialog } from "./DataTableDialog";
 import { DataValuePage } from "./DataValuePage";
@@ -321,6 +322,7 @@ export const DataPanel = () => {
 	const removeDataSource = useEditor((s) => s.removeDataSource);
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
 	const [readsLink, setReadsLink] = useState(false);
+	const [listsAllowed, setListsAllowed] = useState(false);
 	const statuses = useSourceStatus();
 	const waiting = useWaitingSources();
 	const waitingIds = new Set(waiting.map((source) => source.id));
@@ -455,7 +457,7 @@ export const DataPanel = () => {
 			>
 				{waiting.length > 0 && (
 					<Hint>
-						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${[...new Set(waiting.map((source) => nameOfLink(source.url ?? "")))].join(", ")}. A world can come from anyone, so nothing is read from them until you allow each one (its download button).`}
+						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (its download button).`}
 					</Hint>
 				)}
 
@@ -500,7 +502,7 @@ export const DataPanel = () => {
 													icon="download"
 													label={
 														waitingIds.has(source.id)
-															? `Allow reading ${nameOfLink(source.url)}, and read it now`
+															? `Allow reading ${source.url}, and read it now`
 															: "Read it again now"
 													}
 													onClick={() => void refreshSource(source, { asked: true })}
@@ -541,10 +543,16 @@ export const DataPanel = () => {
 					<Button icon="download" onClick={() => setReadsLink(true)}>
 						Read a link or API…
 					</Button>
+
+					<Button variant="ghost" icon="lock" onClick={() => setListsAllowed(true)}>
+						Addresses this browser reads…
+					</Button>
 				</ButtonGroup>
 			</Section>
 
 			{dialogs}
+
+			<AllowedLinksDialog open={listsAllowed} onClose={() => setListsAllowed(false)} />
 		</>
 	);
 };

@@ -51,7 +51,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read. Nothing is read from an address until you allow it: the Data tab lists them under **Sources**, each with its download button. Addresses you type yourself, and the templates' own, are read without asking.",
+				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read. Nothing is read from an address until you allow it: the Data tab lists them under **Sources**, each with its download button. Addresses you type yourself, and a template's own when you start a world from it, are read without asking; **Addresses this browser reads…** lists every one you've allowed, to forget any.",
 			},
 		],
 	},

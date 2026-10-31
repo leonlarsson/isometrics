@@ -88,3 +88,19 @@ describe("checking a patch", () => {
 		expect(issuesForAi(broken)).toContain("send the whole patch again");
 	});
 });
+
+describe("very big worlds", () => {
+	it("are warned of, not refused", () => {
+		const world = {
+			...createEmptyScene(),
+			entities: Array.from({ length: 20_001 }, (_, i) => ({
+				id: `e${i}`,
+				kind: "house_01",
+				position: [0, 0],
+			})),
+		};
+		const check = checkWorld(JSON.parse(JSON.stringify(world)));
+		expect(check.isUnreadable).toBe(false);
+		expect(check.warnings.some((issue) => issue.what.includes("20,001 objects"))).toBe(true);
+	});
+});

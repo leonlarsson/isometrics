@@ -114,6 +114,14 @@ const scheduleOf = (sources: readonly TDataSource[]) =>
 		.map((source) => `${source.id} ${source.refreshSeconds ?? 0}`)
 		.join(",");
 
+/** The hosts of some sources, the first few named and the rest counted: "a.com, b.org and 3 more". */
+export const hostsOf = (sources: readonly TDataSource[], most = 5) => {
+	const hosts = [...new Set(sources.map((source) => nameOfLink(source.url ?? "")))];
+	return hosts.length <= most
+		? hosts.join(", ")
+		: `${hosts.slice(0, most).join(", ")} and ${hosts.length - most} more`;
+};
+
 /** At most this many sources are read on their own: a world can't make a browser call a crowd of servers. */
 export const MOST_SOURCES_READ = 10;
 
@@ -167,13 +175,23 @@ export const useSourceRefresh = () => {
 		if (waiting.length > 0) {
 			notify(
 				"This world reads data from addresses you haven't allowed",
-				`${[...new Set(waiting.map((source) => nameOfLink(source.url ?? "")))].join(", ")}. Nothing is read from them until you allow them: Data tab, Sources.`,
+				`${hostsOf(waiting)}. Nothing is read from them until you allow them: Data tab, Sources.`,
 			);
 		}
 	}, [opening]);
 
 	useEffect(() => {
-		const read = linkSources(allowed).allowed.slice(0, MOST_SOURCES_READ);
+		// One source per address, at most MOST_SOURCES_READ addresses: repeating an address
+		// doesn't multiply the calls to it.
+		const seen = new Set<string>();
+		const read = linkSources(allowed).allowed.filter((source) => {
+			const url = source.url ?? "";
+			if (seen.has(url) || seen.size >= MOST_SOURCES_READ) {
+				return false;
+			}
+			seen.add(url);
+			return true;
+		});
 		for (const source of read) {
 			void refreshSource(source);
 		}
