@@ -176,7 +176,7 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "steps",
 				steps: [
-					"Open **Share a link…** in the File menu.",
+					"Open **Share a link…** in the File menu (or the save status next to it).",
 					"Pick how long it's kept (**Keep it for**: an hour to 30 days) and click **Create a public link**. Nothing is uploaded before you do.",
 					"Copy the link and send it. Anyone with it can open the world and make a copy, until it expires: share nothing private.",
 					"It's a snapshot: share again to send later changes. **Stop sharing** ends a link early; links you shared from this browser are listed there.",

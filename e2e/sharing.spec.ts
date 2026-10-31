@@ -14,6 +14,8 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		page,
 		browser,
 	}) => {
+		// Two editors load in it, one per browser.
+		test.slow();
 		await openEditor(page);
 		await loadWorld(page, {
 			entities: [{ id: "h", kind: "house_01", name: "Shared house", position: [0, 0] }],
@@ -23,7 +25,9 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 				d.meta.title = "Shared world";
 			}),
 		);
-		await fileMenu(page, /Share a link/);
+		// The save status, where saving is managed, offers it too.
+		await page.getByRole("button", { name: /^Saved: more about saving/ }).click();
+		await page.getByRole("menuitem", { name: /^Share a link/ }).click();
 		const dialog = page.getByRole("dialog", { name: "Share a link" });
 		await expect(dialog).toContainText("anyone with the link");
 		await dialog.getByRole("button", { name: "Create a public link" }).click();
@@ -47,6 +51,12 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect
 			.poll(async () => (await page.request.get(`/api/user-worlds/${id}`)).status())
 			.toBe(404);
+
+		// The File menu has it too.
+		await page.keyboard.press("Escape");
+		await expect(dialog).toBeHidden();
+		await fileMenu(page, /Share a link/);
+		await expect(dialog).toBeVisible();
 	});
 
 	test("a shared world that reads from outside says so before it's opened", async ({ page }) => {
