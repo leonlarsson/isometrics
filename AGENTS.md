@@ -98,7 +98,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `fences` → `pa
 
 **Add a brush mix:** add it to `BRUSH_MIXES` in `editor/paint.ts` (part kinds with weights); the paint bar lists it (ADR-0091). Painted objects are plain objects, so nothing else changes.
 
-**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts`. A variant of an existing template (the same world at dusk, say) is `deriveTemplate(createBrightwaterScene, (scene) => { … })` from `templates/derive.ts`: it builds the base fresh and changes only what differs, so later changes to the base flow through; never copy a template's code. The schema test validates every template automatically, and it appears as a starter in File → New world…, with a picture rendered from the template itself (ADR-0047).
+**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts` with its `category` (`places`, a place to look at and build on, or `dataMaps`, a map made to show data; File → New world groups the starters by it, and `/templates.json` lists it). A variant of an existing template (the same world at dusk, say) is `deriveTemplate(createBrightwaterScene, (scene) => { … })` from `templates/derive.ts`: it builds the base fresh and changes only what differs, so later changes to the base flow through; never copy a template's code. The schema test validates every template automatically, and it appears as a starter in File → New world…, with a picture rendered from the template itself (ADR-0047).
 
 ## Verifying visually
 

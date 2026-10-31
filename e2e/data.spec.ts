@@ -347,6 +347,9 @@ test.describe("the example worlds (data study)", () => {
 	}) => {
 		await fileMenu(page, /New world/);
 		const dialog = page.getByRole("dialog", { name: "New world" });
+		// Data maps narrow the starters to the worlds made to show data.
+		await dialog.getByRole("button", { name: /^Data maps/ }).click();
+		await expect(dialog.getByRole("radio", { name: /Brightwater/ })).toBeHidden();
 		await dialog.getByRole("radio", { name: /Extraction shooter territory/ }).click();
 		await dialog.getByRole("button", { name: "Create" }).click();
 		await expect

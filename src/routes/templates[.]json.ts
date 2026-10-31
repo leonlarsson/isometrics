@@ -9,10 +9,11 @@ export const Route = createFileRoute("/templates.json")({
 			GET: () =>
 				Response.json(
 					{
-						templates: TEMPLATES.map(({ id, name, description }) => ({
+						templates: TEMPLATES.map(({ id, name, description, category }) => ({
 							id,
 							name,
 							description,
+							category,
 							url: `/templates/${id}.json`,
 						})),
 					},

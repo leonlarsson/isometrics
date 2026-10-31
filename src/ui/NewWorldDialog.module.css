@@ -7,6 +7,14 @@
 	padding-top: 8px;
 }
 
+/* The starters: the kind of world to show, then the cards. */
+.starters {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
 .details {
 	display: flex;
 	flex-direction: column;
