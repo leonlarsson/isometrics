@@ -26,7 +26,9 @@ import styles from "./Dashboard.module.css";
 /** The legend's chips: "Size 30-day average Steam players, log scale". */
 export const LegendChips = () => {
 	const legend = useEditor((s) => s.scene.onScreen.legend);
-	if (legend.length === 0) {
+	// Set in the Data tab and about what data means: none with data off (ADR-0115).
+	const usesData = useUsesData();
+	if (legend.length === 0 || !usesData) {
 		return null;
 	}
 	return (

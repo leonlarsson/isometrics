@@ -104,9 +104,12 @@ const rowsOf = (
 					hidden: entity.isHidden,
 					locked: entity.isLocked,
 					// The card's first value, else its detail tiles' (ADR-0104: every object has card settings).
-					value: firstValue(
-						entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
-					),
+					// With data off (ADR-0115), none: not even "no data".
+					value: worldData.isOn
+						? firstValue(
+								entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
+							)
+						: null,
 				};
 			}),
 		),

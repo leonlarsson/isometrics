@@ -105,6 +105,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const areas = useEditor((s) => s.scene.areas);
 	const setTab = useEditor((s) => s.setTab);
 	const values = valuesOfEntity(entity, useWorldData());
+	const usesData = useUsesData();
 
 	return (
 		<>
@@ -228,7 +229,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					/>
 				)}
 
-				{entity.data[SCALE_SETTING] ? (
+				{/* With data off (ADR-0115), its size is set by hand. */}
+				{usesData && entity.data[SCALE_SETTING] ? (
 					<FollowsDataField
 						label="Size"
 						binding={entity.data[SCALE_SETTING]}

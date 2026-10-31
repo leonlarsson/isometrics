@@ -69,6 +69,7 @@ const ON_SCREEN_SWITCHES: { key: TOnScreenSwitch; label: string; hint?: string }
  */
 const OnScreenSection = () => {
 	const onScreen = useEditor((s) => s.scene.onScreen);
+	const usesData = useEditor((s) => s.scene.data.isOn);
 	const commit = useEditor((s) => s.commit);
 	const set = (key: TOnScreenSwitch, value: boolean) =>
 		commit((s) => {
@@ -86,21 +87,24 @@ const OnScreenSection = () => {
 				won’t.
 			</Hint>
 
-			{ON_SCREEN_SWITCHES.map(({ key, label, hint }) => (
-				<SwitchField
-					key={key}
-					label={label}
-					checked={onScreen[key]}
-					onChange={(v) => set(key, v)}
-					inherit={{
-						from: "default",
-						inherited: onScreen[key] === ON_SCREEN_DEFAULTS[key],
-						onReset: () => set(key, ON_SCREEN_DEFAULTS[key]),
-						value: "shown",
-					}}
-					hint={hint}
-				/>
-			))}
+			{/* The Map / Data switch is about data: not offered with data off (ADR-0115). */}
+			{ON_SCREEN_SWITCHES.filter(({ key }) => usesData || key !== "showsDataSwitch").map(
+				({ key, label, hint }) => (
+					<SwitchField
+						key={key}
+						label={label}
+						checked={onScreen[key]}
+						onChange={(v) => set(key, v)}
+						inherit={{
+							from: "default",
+							inherited: onScreen[key] === ON_SCREEN_DEFAULTS[key],
+							onReset: () => set(key, ON_SCREEN_DEFAULTS[key]),
+							value: "shown",
+						}}
+						hint={hint}
+					/>
+				),
+			)}
 		</Section>
 	);
 };

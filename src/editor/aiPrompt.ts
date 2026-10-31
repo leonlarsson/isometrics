@@ -208,7 +208,7 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 		given
 			? `Show this data in the world: put it in \`data\` (tables and values, as in the example), and make things follow it (rows become things, amounts sizes, from → to → amount roads). Use the numbers as they are; don't invent more.\n\n\`\`\`\n${given}\n\`\`\``
 			: world
-				? "No new data: keep the world's own."
+				? "No new data in this prompt: keep the world's own, and add any they give you in this chat (a file, or rows pasted after this prompt) the same way, with the numbers as they are."
 				: 'None in this prompt. They may give you data in this chat instead (a file, or rows pasted after this prompt): if they do, put it in `data` (tables and values, as in the example) and make things follow it, with the numbers as they are. With no data at all: if what they want shows no numbers, set `"data": { "isOn": false }` for a plain world to build; if it does, use example numbers, and say so in each source\'s and column\'s `about` ("Example numbers").',
 		...(world
 			? [

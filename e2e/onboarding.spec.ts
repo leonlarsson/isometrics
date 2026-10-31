@@ -155,3 +155,17 @@ test.describe("POST /api/worlds/validate (ADR-0117)", () => {
 		expect(notJson.status()).toBe(400);
 	});
 });
+
+test.describe("the guide (ADR-0116)", () => {
+	test("is a page for people and Markdown for AIs, with the walkthrough", async ({
+		page,
+		request,
+	}) => {
+		const text = await (await request.get("/guide.md")).text();
+		expect(text).toContain("## Walkthrough: a world from the Battlefield Stats API");
+		expect(text).toContain("http://localhost:3000/api/worlds/schema");
+
+		await page.goto("/guide");
+		await expect(page.getByRole("heading", { name: "1. Read the API as a table" })).toBeVisible();
+	});
+});

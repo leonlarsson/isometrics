@@ -19,19 +19,19 @@ const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; pict
 	{
 		value: "city",
 		title: "Build a city",
-		description: "Buildings, roads and water, with nothing about data.",
+		description: "Just build: no data.",
 		picture: "brightwater",
 	},
 	{
 		value: "data",
 		title: "Show my data",
-		description: "Describe it, and your own AI builds it from your data.",
+		description: "Your own AI builds it.",
 		picture: "battlefield_territory",
 	},
 	{
 		value: "example",
 		title: "Explore an example",
-		description: "A finished map of live data, to see how it's wired.",
+		description: "A finished data map.",
 		picture: "extraction_shooters",
 	},
 ];
@@ -66,6 +66,7 @@ const go = (choice: TWelcomeChoice) => {
  */
 export const Welcome = () => {
 	const open = useEditor((s) => s.welcomeOpen);
+	const title = useEditor((s) => s.scene.meta.title);
 	const [choice, setChoice] = useState<TWelcomeChoice>("city");
 	const pictures = useScenePictures(useResolvedTheme(), open ? PICTURE_SOURCES : NO_PICTURES);
 
@@ -110,8 +111,7 @@ export const Welcome = () => {
 			/>
 
 			<Hint>
-				The world behind this is Brightwater, a starter town: look around first if you like. Every
-				way in is in the File menu later, and the guide walks through it all, with a real API.
+				{`Behind this is “${title}”: look around first if you like. Every way in is in the File menu later (Welcome…), and the guide walks through it all, with a real API.`}
 			</Hint>
 
 			<Button size="sm" icon="newTab" onClick={openGuide}>

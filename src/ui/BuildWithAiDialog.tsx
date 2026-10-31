@@ -77,7 +77,11 @@ export const BuildWithAiDialog = () => {
 			return null;
 		}
 		try {
-			return checkWorld(worldFromAnswer(answer));
+			const checked = checkWorld(worldFromAnswer(answer));
+			// Not a world at all (no version or things): said as such, not as a list of problems.
+			return checked.isUnreadable
+				? { unreadable: checked.problems[0]?.what ?? "It isn't a world." }
+				: checked;
 		} catch (error) {
 			return { unreadable: error instanceof Error ? error.message : String(error) };
 		}
@@ -155,7 +159,8 @@ export const BuildWithAiDialog = () => {
 			wide
 			confirm={{
 				label: builds === "new" ? "Open it" : "Put it in place",
-				disabled: answer.trim() === "",
+				// Something to open: a world, even one that needs repairs.
+				disabled: !check || "unreadable" in check,
 				keepOpen: true,
 				onConfirm: putInPlace,
 			}}
