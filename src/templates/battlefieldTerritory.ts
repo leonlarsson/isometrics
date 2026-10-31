@@ -20,12 +20,12 @@ import {
  * Battlefield territory: the data study's example with the owner's own data,
  * Battlefield Stats (a Discord bot for Battlefield players).
  *
- * A cluster per Battlefield game, sized by how many messages its players have
- * sent the bot (log scale), with roads carrying each month's messages to the
- * bot's tower in the middle: wider and busier for more. The tower's floors
- * follow messages per month, with a sparkline, a change on the month before
+ * A cluster per Battlefield game, sized by how many deliveries the bot has
+ * made for it (its outputs: stats sent to players, log scale), with roads
+ * carrying each month's deliveries to the bot's tower in the middle: wider
+ * and busier for more. The tower's floors follow deliveries per month, with a sparkline, a change on the month before
  * and a watch line. The story bar plays the months since 2023: clusters grow
- * with the messages sent by then, roads swell and thin with each month's (the
+ * with the deliveries made by then, roads swell and thin with each month's (the
  * launch of Battlefield 6 in August 2025 floods its road). A beacon shows
  * registered users, read again every minute while the world is open.
  *
@@ -36,7 +36,7 @@ import {
 
 const READ_AT = "2026-10-31T12:33:00Z";
 
-/** Messages sent per game (api.battlefieldstats.com/outputs/counts, category game). */
+/** Deliveries per game (api.battlefieldstats.com/outputs/counts, category game). */
 const GAMES: { name: string; sent: number; kind: string; color: string }[] = [
 	{ name: "Battlefield 6", sent: 80969, kind: "tower_cluster_01", color: "#d1a03b" },
 	{ name: "Battlefield 2042", sent: 60336, kind: "tower_cluster_01", color: "#4f86c6" },
@@ -63,7 +63,7 @@ const OTHER_COUNTS: [string, string, number][] = [
 	["segment", "Classes", 7125],
 ];
 
-/** Messages sent per month (battlefieldstats-sent-monthly.csv). */
+/** Deliveries per month (battlefieldstats-sent-monthly.csv). */
 const MONTHLY: [string, number][] = [
 	["2023-01", 5581],
 	["2023-02", 5063],
@@ -113,7 +113,7 @@ const MONTHLY: [string, number][] = [
 	["2026-10", 1715],
 ];
 
-/** Messages sent per game in each month since January 2023 (api.battlefieldstats.com/outputs/daily-games, read 31 Oct 2026; October 2026 so far). */
+/** Deliveries per game in each month since January 2023 (api.battlefieldstats.com/outputs/daily-games, read 31 Oct 2026; October 2026 so far). */
 const SENT_BY_MONTH: Record<string, number[]> = {
 	"Battlefield 6": [
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -157,7 +157,7 @@ const SENT_BY_MONTH: Record<string, number[]> = {
 	],
 };
 
-/** Messages in the last 30 days (api.battlefieldstats.com/outputs/counts?days=30). */
+/** Deliveries in the last 30 days (api.battlefieldstats.com/outputs/counts?days=30). */
 const LAST_30_DAYS: [string, string, number][] = [
 	["game", "Battlefield 6", 1042],
 	["game", "Battlefield 1", 303],
@@ -196,7 +196,7 @@ const LAST_30_DAYS: [string, string, number][] = [
 /** The months of SENT_BY_MONTH, as dates ("2023-01"), the same months as MONTHLY. */
 const MONTHS = MONTHLY.map(([at]) => at);
 
-/** Messages in a month: from none to a launch month's tens of thousands, log scale. */
+/** Deliveries in a month: from none to a launch month's tens of thousands, log scale. */
 const MONTH_LOW = 1;
 const MONTH_HIGH = 30_000;
 
@@ -231,13 +231,13 @@ const ENTITIES: TEntityInput[] = [
 		},
 		label: {
 			isShown: true,
-			title: "Messages per month",
+			title: "Deliveries per month",
 			dataKeys: ["sent_per_month"],
 			offset: [0, 1.5, 0],
 		},
 		details: {
 			description:
-				"The bot's tower: a floor for every step in messages per month (log scale). Play the story to watch Battlefield 6's launch in August 2025.",
+				"The bot's tower: a floor for every step in deliveries per month (log scale). Play the story to watch Battlefield 6's launch in August 2025.",
 			dataKeys: ["sent_per_month", "registered_users"],
 		},
 	},
@@ -264,14 +264,14 @@ const ENTITIES: TEntityInput[] = [
 			name: game.name,
 			position: spot(index),
 			color: game.color,
-			tableKey: "messages_by_item",
+			tableKey: "deliveries_by_item",
 			builtShare: builtShareFor(game.sent, LOW, HIGH),
 			size: logSize("row.sent", LOW, HIGH),
 			scale: scaleFor(game.sent, LOW, HIGH),
 			scaleFromData: logScale("row.sent", LOW, HIGH),
 			cardKeys: ["row.sent"],
 			tileKeys: ["row.sent", "row.category"],
-			description: "Messages its players have sent the bot, all time.",
+			description: "Deliveries the bot has made for this game so far: stats sent to its players.",
 			seed: index + 1,
 		}),
 	),
@@ -312,12 +312,13 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 		],
 		onScreen: {
 			legend: [
-				{ label: "Size", meaning: "messages sent to the bot per game so far, log scale" },
+				{ label: "Size", meaning: "deliveries per game so far, log scale" },
 				{
 					label: "Roads",
-					meaning: "messages on their way in a month: wider and busier, more messages, log scale",
+					meaning:
+						"deliveries on their way in a month: wider and busier, more deliveries, log scale",
 				},
-				{ label: "Tower", meaning: "messages per month, log scale" },
+				{ label: "Tower", meaning: "deliveries per month, log scale" },
 			],
 			tileKeys: ["registered_users", "sent_per_month"],
 		},
@@ -335,23 +336,23 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				},
 				{
 					id: "bf_counts",
-					name: "Battlefield Stats: messages by game",
+					name: "Battlefield Stats: deliveries by game",
 					kind: "api",
 					url: "https://api.battlefieldstats.com/outputs/counts",
 					refreshSeconds: 3600,
 					pageUrl: "https://battlefieldstats.com",
-					about: "Messages sent to the bot, all time",
+					about: "Deliveries the bot has made (outputs), all time",
 					lastReadAt: READ_AT,
 				},
 				{
 					id: "bf_last_30_days",
-					name: "Battlefield Stats: messages in the last 30 days",
+					name: "Battlefield Stats: deliveries in the last 30 days",
 					kind: "api",
 					url: "https://api.battlefieldstats.com/outputs/counts?days=30",
 					refreshSeconds: 3600,
 					pageUrl: "https://battlefieldstats.com",
 					about:
-						"Messages sent to the bot in the last 30 days; the months before from api.battlefieldstats.com/outputs/daily-games",
+						"Deliveries the bot has made in the last 30 days; the months before from api.battlefieldstats.com/outputs/daily-games",
 					lastReadAt: READ_AT,
 				},
 				{
@@ -360,7 +361,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					kind: "file",
 					fileName: "battlefieldstats-sent-monthly.csv",
 					pageUrl: "https://battlefieldstats.com",
-					about: "Messages sent to the bot per month",
+					about: "Deliveries the bot has made per month",
 					lastReadAt: READ_AT,
 				},
 			],
@@ -373,7 +374,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				},
 				{
 					key: "sent_per_month",
-					name: "Messages sent this month",
+					name: "Deliveries this month",
 					value: 1715,
 					source: { sourceId: "bf_monthly", path: "sent" },
 					history: MONTHLY.map(([at, value]) => ({ at, value })),
@@ -382,20 +383,20 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 			],
 			tables: [
 				{
-					key: "messages_by_item",
-					name: "Messages by game, language and segment",
+					key: "deliveries_by_item",
+					name: "Deliveries by game, language and segment",
 					keyColumn: "item",
 					source: { sourceId: "bf_counts", path: "" },
 					columns: [
 						{ key: "category", name: "Counted by", field: "category" },
 						{ key: "item", name: "Item", field: "item" },
-						{ key: "sent", name: "Messages sent", field: "sent" },
+						{ key: "sent", name: "Deliveries so far", field: "sent" },
 					],
 					rows: [
 						...GAMES.map((game) => ({ category: "game", item: game.name, sent: game.sent })),
 						...OTHER_COUNTS.map(([category, item, sent]) => ({ category, item, sent })),
 					],
-					// Each game's messages sent by the end of each month, so the story grows the clusters.
+					// Each game's deliveries by the end of each month, so the story grows the clusters.
 					history: MONTHS.map((at, month) => ({
 						at,
 						rows: GAMES.map((game) => ({
@@ -408,8 +409,8 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					})),
 				},
 				{
-					key: "messages_per_month",
-					name: "Messages by game, per month",
+					key: "deliveries_per_month",
+					name: "Deliveries by game, per month",
 					keyColumn: "item",
 					source: { sourceId: "bf_last_30_days", path: "" },
 					columns: [
@@ -417,19 +418,19 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 						{ key: "item", name: "Item", field: "item" },
 						{
 							key: "sent",
-							name: "Messages in a month",
+							name: "Deliveries in a month",
 							field: "sent",
 							about: "Now: the last 30 days. Months before: each calendar month",
 						},
 					],
 					rows: [
 						...LAST_30_DAYS.map(([category, item, sent]) => ({ category, item, sent })),
-						// Games with no messages lately aren't in the API's answer: none, not unknown.
+						// Games with no deliveries lately aren't in the API's answer: none, not unknown.
 						...GAMES.filter((game) => !LAST_30_DAYS.some(([, item]) => item === game.name)).map(
 							(game) => ({ category: "game", item: game.name, sent: 0 }),
 						),
 					],
-					// Each game's messages in each month, so the story swells and thins the roads.
+					// Each game's deliveries in each month, so the story swells and thins the roads.
 					history: MONTHS.map((at, month) => ({
 						at,
 						rows: GAMES.map((game) => ({
@@ -450,9 +451,9 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				to: HQ,
 				fromReach: reachOf(scaleFor(game.sent, LOW, HIGH)),
 				toReach: 2,
-				tableKey: "messages_per_month",
+				tableKey: "deliveries_per_month",
 				rowKey: game.name,
-				// Wider for more messages a month: from a lane's width to a broad road, on a log scale.
+				// Wider for more deliveries a month: from a lane's width to a broad road, on a log scale.
 				width: {
 					key: "row.sent",
 					usesLogScale: true,
@@ -461,7 +462,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					lowSetting: 0.6,
 					highSetting: 3.2,
 				},
-				// Busier too, and empty in a month with no messages.
+				// Busier too, and empty in a month with no deliveries.
 				density: {
 					key: "row.sent",
 					usesLogScale: true,

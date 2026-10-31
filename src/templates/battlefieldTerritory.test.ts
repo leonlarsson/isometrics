@@ -25,11 +25,11 @@ const battlefield6On = (at: string) => {
 };
 
 describe("Battlefield territory's story", () => {
-	it("grows clusters with messages so far, and swells roads with each month's", () => {
+	it("grows clusters with deliveries so far, and swells roads with each month's", () => {
 		const before = battlefield6On("2025-07");
 		const launch = battlefield6On("2025-08");
 		const later = battlefield6On("2026-06");
-		// Before its launch: no messages, the smallest cluster and an empty road.
+		// Before its launch: no deliveries, the smallest cluster and an empty road.
 		expect(before.vans).toBe(0);
 		expect(launch.scale).toBeGreaterThan(before.scale);
 		expect(launch.width).toBeGreaterThan(before.width);

@@ -164,8 +164,12 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 						entry={entries[0].entry}
 						label={columnOfKey(entries[0].key) ?? entries[0].key}
 						size={selected ? "huge" : "big"}
-						// What the value means, under it, on the card that's opened (as in a legend).
-						showsMeaning={selected}
+						// What the value means, under it ("Deliveries so far"), so a total doesn't read as
+						// the month's; left out where the card's title already says it.
+						showsMeaning={
+							selected ||
+							(entries[0].entry?.name || columnOfKey(entries[0].key) || entries[0].key) !== title
+						}
 						// A row's card stays compact among many until it's opened; a world value's shows its past.
 						showsPast={selected || columnOfKey(entries[0].key) === null}
 					/>
