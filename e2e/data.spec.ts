@@ -261,3 +261,44 @@ test.describe("links and APIs (ADR-0113)", () => {
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1750);
 	});
 });
+
+test.describe("stories (ADR-0114)", () => {
+	test("the story bar shows the world's data as it was on a date, and Now brings it back", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			data: {
+				values: [
+					{
+						key: "sent",
+						name: "Messages sent",
+						value: 30,
+						history: [
+							{ at: "2026-01", value: 10 },
+							{ at: "2026-02", value: 20 },
+							{ at: "2026-03", value: 30 },
+						],
+					},
+				],
+			},
+			entities: [
+				{
+					id: "m",
+					kind: "tower_cluster_01",
+					name: "Messages",
+					label: { isShown: true, title: "", dataKeys: ["sent"], offset: [0, 2, 0], tag: "" },
+				},
+			],
+		});
+		await act(page, (s) => s.setMode("view"));
+		const story = page.getByRole("region", { name: "Story" });
+		await expect(story).toBeVisible();
+		await story.getByRole("textbox").fill("0");
+		await story.getByRole("textbox").press("Enter");
+		const card = labelCard(page, /Messages/);
+		await expect(card).toContainText("10");
+		await expect(card).toContainText("2026");
+		await story.getByRole("button", { name: "Now" }).click();
+		await expect(card).toContainText("30");
+	});
+});

@@ -51,6 +51,7 @@ import {
 	usePaletteWidth,
 } from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
+import { StoryBar } from "./StoryBar";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
 import { Tooltip, TooltipProvider } from "./Tooltip";
@@ -357,6 +358,8 @@ export const AppShell = () => {
 							<DetailSheet />
 
 							<ValueTiles />
+
+							<StoryBar />
 
 							<WorldDataView />
 

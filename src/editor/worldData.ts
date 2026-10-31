@@ -3,8 +3,10 @@ import { create } from "zustand";
 
 import { keepOnHotReload } from "#/lib/hot";
 import type { TDataPoint, TDataTable, TWorldData } from "#/scene/schema";
+import { worldDataAt } from "#/scene/story";
 
 import { useEditor } from "./store";
+import { useStory } from "./story";
 
 /**
  * The world's data as it is now (data study, docs/data-study): what the world
@@ -71,24 +73,38 @@ export const mergeArrived = (
 	};
 };
 
-/** The world's data now, for components: changes as the world or what arrived changes. */
+/** The data as a story shows it (ADR-0114): as it was on its date in View mode, else as it is. */
+const asOf = (data: TWorldData, at: string | null, inView: boolean) =>
+	at !== null && inView ? worldDataAt(data, at) : data;
+
+/**
+ * The world's data now, for components: changes as the world, what arrived
+ * or the story's date changes.
+ */
 export const useWorldData = (): TWorldData => {
 	const kept = useEditor((s) => s.scene.data);
 	const opening = useEditor((s) => s.openedWorldCount);
+	const inView = useEditor((s) => s.mode === "view");
 	const since = useArrived((s) => s);
+	const at = useStory((s) => s.at);
 	// The same object until something changes, so selectors that use it stay settled.
-	return useMemo(
+	const merged = useMemo(
 		() => mergeArrived(kept, since.forOpening === opening ? since : NOTHING_ARRIVED),
 		[kept, since, opening],
 	);
+	return useMemo(() => asOf(merged, at, inView), [merged, at, inView]);
 };
 
-/** The world's data now, for code outside components (each frame, the store's actions). */
-export const worldDataNow = (): TWorldData => {
+/** What the world keeps with what arrived on top, whatever date a story shows (for keeping it). */
+export const keptWithArrived = (): TWorldData => {
 	const { scene, openedWorldCount } = useEditor.getState();
 	const since = useArrived.getState();
 	return mergeArrived(scene.data, since.forOpening === openedWorldCount ? since : NOTHING_ARRIVED);
 };
+
+/** The world's data now, for code outside components (each frame, the store's actions). */
+export const worldDataNow = (): TWorldData =>
+	asOf(keptWithArrived(), useStory.getState().at, useEditor.getState().mode === "view");
 
 /** What arrived so far for the world open now: none if it was for another. */
 const arrivedForThisWorld = (): IArrivedData => {

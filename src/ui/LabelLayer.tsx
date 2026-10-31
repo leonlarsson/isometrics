@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import { drawnModeOf, useEditor } from "#/editor/store";
+import { useStory } from "#/editor/story";
 import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
@@ -18,6 +19,7 @@ import { columnOfKey } from "#/scene/rowData";
 import type { TEntity } from "#/scene/schema";
 
 import { DataReading, FlagBadge, shownEntry } from "./DataReading";
+import { formatWhen } from "./Sparkline";
 
 import styles from "./LabelLayer.module.css";
 
@@ -100,6 +102,10 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 		entry: data.find((d) => d.key === key),
 	}));
 	const title = entity.label.title || entity.name || partNameOf(entity.kind) || "";
+	// A story shows the data as it was on a date (ADR-0114): the card says when.
+	const storyAt = useStory((s) => s.at);
+	const inView = useEditor((s) => s.mode === "view");
+	const when = storyAt !== null && inView && entries.length > 0 ? formatWhen(storyAt) : null;
 	// Nothing to show for any of its values: the card says so, greyed (ADR-0110).
 	const hasNoData = entries.length > 0 && entries.every(({ entry }) => !entry);
 	// The chip shows the main value ("no data" without one), or the title when it shows no values.
@@ -147,6 +153,8 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 
 					{entity.label.tag && <span className={styles.tag}>{entity.label.tag}</span>}
 				</span>
+
+				{when && <span className={styles.when}>{when}</span>}
 
 				{entries.length === 1 ? (
 					<DataReading

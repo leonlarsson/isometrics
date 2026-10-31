@@ -8,7 +8,7 @@ import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/she
 
 import { LinkError, readLink, type TLinkContent } from "./readLink";
 import { useEditor } from "./store";
-import { clearArrived, tableArrived, valueArrived, worldDataNow } from "./worldData";
+import { clearArrived, keptWithArrived, tableArrived, valueArrived } from "./worldData";
 
 /**
  * Links and APIs read again while a world is open (ADR-0113): each source with
@@ -143,7 +143,7 @@ export const useSourceRefresh = () => {
 
 /** Keep these values: what arrived put in the world as one undo step, its sources marked as read then. */
 export const keepArrivedValues = () => {
-	const now = worldDataNow();
+	const now = keptWithArrived();
 	const statuses = useSourceStatus.getState();
 	useEditor.getState().commit((scene) => {
 		scene.data.values = now.values;

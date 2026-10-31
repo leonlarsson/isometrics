@@ -117,3 +117,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0111](0111-building-clusters.md) | Building clusters: one object of many buildings that grows with a number | proposed |
 | [0112](0112-roads-that-show-flows.md) | Roads that show flows: vehicles each way, from a value or a row | proposed |
 | [0113](0113-links-and-apis.md) | Links and APIs are read in the browser, picked by path, and read again into what arrived | proposed |
+| [0114](0114-stories.md) | Stories: a time slider plays the world through its dated values | proposed |
