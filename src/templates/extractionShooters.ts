@@ -24,7 +24,7 @@ import {
  * A cluster per game, sized by its players on Steam right now (log scale),
  * with a card of the count; roads between games for the audience they share;
  * a detail sheet with stat tiles, where the numbers come from and when they
- * were read. Hunt: Showdown 1896 is "home". Two placeholder titles have no
+ * were read. Two placeholder titles have no
  * data and show it, greyed.
  *
  * The data is a saved snapshot, not live: Steam's current-players API
@@ -100,7 +100,6 @@ const GAMES: IGame[] = [
 		peak: 2.2,
 		allTimePeak: 59968,
 		seed: 2,
-		tag: "home",
 	},
 	{
 		id: "arena",
@@ -367,7 +366,7 @@ const TREES: TEntityInput[] = (() => {
 })();
 
 /** The games whose cards show in full; the rest show as chips until opened (fewer cards over the world). */
-const FULL_CARDS = new Set(["delta", "arc", "tarkov", "hunt"]);
+const FULL_CARDS = new Set(["delta", "arc", "tarkov", "bf6"]);
 
 const ENTITIES: TEntityInput[] = [
 	...GAMES.map((game) => ({
@@ -464,10 +463,10 @@ export const createExtractionShootersScene = (): TScene =>
 		viewpoints: [
 			{ id: "view_all", name: "The territory", target: [0, 2], span: 64 },
 			{
-				id: "view_home",
-				name: "Home: Hunt",
-				description: "Hunt: Showdown 1896 and its neighbours.",
-				target: [-13, -5],
+				id: "view_middle",
+				name: "The middle: Tarkov",
+				description: "Escape from Tarkov and the games round it.",
+				target: [0, 0],
 				span: 36,
 			},
 			{

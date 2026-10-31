@@ -177,7 +177,9 @@ export const flowRoad = ({
 			[to[0] - ux * end, to[1] - uz * end],
 		],
 		width: 2,
-		showsCentreLine: false,
+		// A centre line between its two lanes when it goes both ways; one-way flows drive down the
+		// middle with arrows on the road instead.
+		showsCentreLine: isTwoWay,
 		dataRow: { tableKey, rowKey },
 		flow: {
 			isOn: true,

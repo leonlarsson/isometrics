@@ -328,7 +328,7 @@ test.describe("stories (ADR-0114)", () => {
 });
 
 test.describe("the example worlds (data study)", () => {
-	test("Extraction shooter territory opens from its snapshot: counts, home, no data and tiles", async ({
+	test("Extraction shooter territory opens from its snapshot: counts, no data and tiles", async ({
 		page,
 	}) => {
 		await fileMenu(page, /New world/);
@@ -345,7 +345,6 @@ test.describe("the example worlds (data study)", () => {
 			s.select("hunt");
 		});
 		const sheet = page.getByRole("complementary", { name: "Hunt: Showdown 1896 details" });
-		await expect(sheet).toContainText("home");
 		await expect(sheet).toContainText("Example numbers, not from Steam");
 		await expect(sheet.getByRole("link", { name: "Steam Web API" })).toBeVisible();
 	});

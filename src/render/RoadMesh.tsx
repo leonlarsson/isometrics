@@ -352,7 +352,13 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 				handlers={handlers}
 			/>
 
-			<RoadFlow road={road} palette={palette} data={data} surfaceY={roadBaseY(layer)} />
+			<RoadFlow
+				road={road}
+				palette={palette}
+				data={data}
+				surfaceY={roadBaseY(layer)}
+				surfaceColor={roadColor(road, palette, data)}
+			/>
 		</>
 	);
 });

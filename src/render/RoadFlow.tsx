@@ -193,14 +193,27 @@ const FlowArrows = ({ road, color, y }: { road: TRoad; color: string; y: number 
 	);
 };
 
+/**
+ * The arrows' colour on a road's surface: much darker on a light road, much lighter on a dark one,
+ * so they read on any road in either theme (the road's own markings are white, lost on light roads).
+ */
+export const arrowColorOn = (surface: string) => {
+	const color = new THREE.Color(surface);
+	const { l } = color.getHSL({ h: 0, s: 0, l: 0 });
+	return `#${color.lerp(new THREE.Color(l > 0.5 ? "#000000" : "#ffffff"), 0.55).getHexString()}`;
+};
+
 /** A road's flow: its streams of vehicles each way, and its arrows. */
 export const RoadFlow = ({
 	road,
 	palette,
 	data,
 	surfaceY,
+	surfaceColor,
 }: {
 	road: TRoad;
+	/** The road's surface colour as drawn, for arrows that stand out on it. */
+	surfaceColor: string;
 	palette: IScenePalette;
 	data: readonly TDataValue[];
 	/** The road surface's height above the ground (its layer). */
@@ -233,7 +246,7 @@ export const RoadFlow = ({
 			/>
 
 			{road.flow.showsArrows && road.kind !== "hidden_route_01" && (
-				<FlowArrows road={road} color={palette.roadMark} y={surfaceY + 0.01} />
+				<FlowArrows road={road} color={arrowColorOn(surfaceColor)} y={surfaceY + 0.01} />
 			)}
 		</>
 	);
