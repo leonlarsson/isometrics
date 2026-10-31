@@ -83,6 +83,8 @@
 .tile {
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
 	gap: 2px;
 	padding: 12px 14px;
 	border-radius: var(--radius-md);
@@ -98,4 +100,12 @@
 .label {
 	font-size: 12px;
 	color: var(--text-muted);
+}
+
+/* How a road's amount sets its width and how busy it is, a group each. */
+.explains {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 12px;
 }

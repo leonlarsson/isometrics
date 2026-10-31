@@ -21,7 +21,7 @@ import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
 import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
-import { DetailSheet } from "./DetailSheet";
+import { DetailSheet, RoadDetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { FreshStartOffer } from "./FreshStartOffer";
@@ -355,6 +355,8 @@ export const AppShell = () => {
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 
 							<DetailSheet />
+
+							<RoadDetailSheet />
 
 							<ViewDock />
 

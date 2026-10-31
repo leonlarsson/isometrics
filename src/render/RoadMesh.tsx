@@ -337,7 +337,24 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 				},
 				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 			}
-		: {};
+		: // In View mode a road that shows data opens its details, its flow in data terms (ADR-0112).
+			mode === "view" && (road.dataRow !== null || Object.keys(road.data).length > 0)
+			? {
+					onClick: (e: ThreeEvent<MouseEvent>) => {
+						e.stopPropagation();
+						if (isClick(e)) {
+							selectRoad(road.id);
+						}
+					},
+					onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+						e.stopPropagation();
+						setViewCursor("pointer");
+					},
+					onPointerOut: () => {
+						setViewCursor("");
+					},
+				}
+			: {};
 
 	return (
 		<>

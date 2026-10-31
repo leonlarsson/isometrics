@@ -125,6 +125,20 @@ test.describe("roads that show flows (ADR-0112)", () => {
 		expect(road?.name).toBe("Hunt → Tarkov");
 		expect(road?.flow.isOn).toBe(true);
 		expect(road?.data.width?.key).toBe("row.players");
+
+		// Opened in View mode, it shows its flow in data terms.
+		await act(
+			page,
+			(s, id) => {
+				s.setMode("view");
+				s.selectRoad(id);
+			},
+			road?.id,
+		);
+		const sheet = page.getByRole("complementary", { name: "Hunt → Tarkov details" });
+		await expect(sheet).toContainText("400");
+		await expect(sheet).toContainText("Width: From data");
+		await expect(sheet).toContainText("one way");
 	});
 });
 

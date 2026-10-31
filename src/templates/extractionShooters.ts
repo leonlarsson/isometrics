@@ -249,7 +249,11 @@ const rowOf = (game: IGame) => ({
 	players: game.players,
 	average_30_days: game.players === null ? null : round(game.players * game.average),
 	peak_30_days: game.players === null ? null : round(game.players * game.peak),
-	all_time_peak: game.allTimePeak,
+	// Never below its 30-day peak, whatever Steam's count now makes that.
+	all_time_peak:
+		game.players === null
+			? game.allTimePeak
+			: Math.max(game.allTimePeak, round(game.players * game.peak)),
 });
 
 const byId = new Map(GAMES.map((game) => [game.id, game]));
@@ -502,7 +506,7 @@ export const createExtractionShootersScene = (): TScene =>
 					id: "steam",
 					name: "Steam Web API",
 					kind: "api",
-					about: "Steam players now, read by hand",
+					about: "Steam players now, read from Steam's API",
 					pageUrl: "https://store.steampowered.com/charts/mostplayed",
 					lastReadAt: READ_AT,
 				},
