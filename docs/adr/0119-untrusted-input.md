@@ -26,6 +26,10 @@ Worlds come from anyone: files people open, things pasted, answers pasted back f
 - **Very big worlds** (over 20,000 objects, or 100,000 table rows with their pasts) are warned of by the check, shown before a pasted answer is opened: they open, but slowly, and may not fit in the browser's storage.
 - **Headers**: pages send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'`, `nosniff`, a strict referrer policy and no camera, microphone or location; JSON and Markdown routes send `nosniff`. A CSP that restricts scripts needs nonces for the framework's inline scripts (TODO.md).
 
+**One outside contact is accepted:** 3D text (troika, through drei's Text) fetches fonts from `cdn.jsdelivr.net` for characters the bundled Inter lacks (Chinese, Arabic, emoji…), so a world's text can make a browser contact it. Its host is fixed (a world can't choose where it goes) and the owner trusts the CDN, so it stays; troika's `unicodeFontsURL` (`configureTextBuilder`) can point it at the app itself if that changes.
+
+The only network call the app makes is `readLink`'s fetch, behind the approvals above; images are rendered locally, fonts are bundled, `window.open` only opens `/guide`.
+
 Checked and found safe: nothing renders HTML from strings (no `innerHTML`, `eval`); React escapes all text; colours are `#rrggbb` (`HexColorSchema`), and colours from data are matched against strict patterns and turned into `#rrggbb` before use; Zod 4 skips `__proto__` in `z.record`; the regexes have no catastrophic backtracking; the spreadsheet reader is `read-excel-file`, not SheetJS, so its known CVEs don't apply; nothing exports CSV, so formula injection doesn't arise; `window.open` only opens `/guide`.
 
 ### Consequences
