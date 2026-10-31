@@ -3,7 +3,7 @@ import type { Draft } from "immer";
 import { SCALE_SETTING } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { groundHeightAt } from "#/scene/areas";
-import { looseName, rowKeyFor, rowKeyMatching, rowKeyOf, rowKeysOf } from "#/scene/rowData";
+import { cellOf, looseName, rowKeyFor, rowKeyMatching, rowKeyOf, rowKeysOf } from "#/scene/rowData";
 import {
 	DataBindingSchema,
 	EntitySchema,
@@ -69,7 +69,7 @@ export const columnRange = (
 	positiveOnly = false,
 ) => {
 	const numbers = table.rows
-		.map((row) => row[column])
+		.map((row) => cellOf(row, column))
 		.filter((cell): cell is number => typeof cell === "number" && (!positiveOnly || cell > 0));
 	return numbers.length === 0 ? null : { min: Math.min(...numbers), max: Math.max(...numbers) };
 };
@@ -243,8 +243,8 @@ export const drawRoadsForEachRow = (
 	const result: IRoadsDrawn = { ids: [], unmatched: [] };
 	table.rows.forEach((row, index) => {
 		const rowKey = rowKeyOf(table, row, index);
-		const from = byName(String(row[fromColumn] ?? ""));
-		const to = byName(String(row[toColumn] ?? ""));
+		const from = byName(String(cellOf(row, fromColumn) ?? ""));
+		const to = byName(String(cellOf(row, toColumn) ?? ""));
 		if (!from || !to || from === to) {
 			result.unmatched.push(rowKey);
 			return;

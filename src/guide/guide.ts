@@ -49,6 +49,10 @@ export const GUIDE: IGuideSection[] = [
 				kind: "note",
 				text: "Only want to build? Turn off **Uses data** in the **World** tab (the globe icon on the right): nothing about data shows, and the world is a plain city builder.",
 			},
+			{
+				kind: "note",
+				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read. Nothing is read from an address until you allow it: the Data tab lists them under **Sources**, each with its download button. Addresses you type yourself, and the templates' own, are read without asking.",
+			},
 		],
 	},
 	{

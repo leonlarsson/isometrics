@@ -7,6 +7,7 @@ import {
 import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useViewShowsData } from "#/editor/viewData";
 import { useUsesData, useWorldData } from "#/editor/worldData";
+import { webAddress } from "#/lib/webAddress";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
 import { formatValue } from "#/scene/format";
@@ -69,7 +70,8 @@ export const DetailSheet = () => {
 		(table?.source
 			? worldData.sources.find((source) => source.id === table.source?.sourceId)
 			: undefined) ?? entries.map(({ entry }) => sourceOf(worldData, entry)).find(Boolean);
-	const link = main?.pageUrl ?? (main?.kind === "link" ? main.url : null);
+	// Only a web address becomes a link: the world may come from anyone (ADR-0119).
+	const link = webAddress(main?.pageUrl) ?? (main?.kind === "link" ? webAddress(main.url) : null);
 
 	return (
 		<aside className={styles.sheet} data-label-obstacle="" aria-label={`${title} details`}>
@@ -112,7 +114,7 @@ export const DetailSheet = () => {
 					{"Source: "}
 
 					{link ? (
-						<a href={link} target="_blank" rel="noreferrer">
+						<a href={link} target="_blank" rel="noopener noreferrer">
 							{main.name || link}
 						</a>
 					) : (
@@ -232,8 +234,12 @@ export const RoadDetailSheet = () => {
 				<p className={styles.source}>
 					{"Source: "}
 
-					{source.pageUrl ? (
-						<a href={source.pageUrl} target="_blank" rel="noreferrer">
+					{webAddress(source.pageUrl) ? (
+						<a
+							href={webAddress(source.pageUrl) ?? undefined}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
 							{source.name || source.pageUrl}
 						</a>
 					) : (

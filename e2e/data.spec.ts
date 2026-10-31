@@ -218,6 +218,50 @@ test.describe("the dashboard (ADR-0110)", () => {
 	});
 });
 
+test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
+	test("a link that came with a world isn't read until it's allowed", async ({ page }) => {
+		let requests = 0;
+		await page.route("https://example.org/counts.json", (route) => {
+			requests += 1;
+			return route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ visitors: 99 }),
+			});
+		});
+		await loadWorld(page, {
+			data: {
+				sources: [
+					{
+						id: "s",
+						name: "Counts",
+						kind: "api",
+						url: "https://example.org/counts.json",
+						refreshSeconds: 60,
+					},
+				],
+				values: [
+					{
+						key: "visitors",
+						name: "Visitors",
+						value: 1,
+						source: { sourceId: "s", path: "visitors" },
+					},
+				],
+			},
+		});
+		await act(page, (s) => s.setTab("data"));
+		await expect(page.getByText(/this browser hasn't read before: example.org/)).toBeVisible();
+		await page.waitForTimeout(1500);
+		expect(requests).toBe(0);
+
+		await page.getByRole("button", { name: /^Allow reading example.org/ }).click();
+		await expect.poll(() => requests).toBe(1);
+		await expect(page.getByText(/this browser hasn't read before/)).toHaveCount(0);
+	});
+});
+
 test.describe("a world without data (ADR-0115)", () => {
 	test("Uses data off hides the Data tabs and card values; on brings them back", async ({
 		page,

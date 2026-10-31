@@ -9,7 +9,11 @@ export const Route = createFileRoute("/api/worlds/schema/")({
 		handlers: {
 			GET: () =>
 				Response.json(worldJsonSchema(), {
-					headers: { "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" },
+					headers: {
+						"Cache-Control": "public, max-age=300",
+						"X-Content-Type-Options": "nosniff",
+						"Access-Control-Allow-Origin": "*",
+					},
 				}),
 		},
 	},

@@ -8,7 +8,11 @@ export const Route = createFileRoute("/api/worlds/schema/patch")({
 		handlers: {
 			GET: () =>
 				Response.json(worldPatchJsonSchema(), {
-					headers: { "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" },
+					headers: {
+						"Cache-Control": "public, max-age=300",
+						"X-Content-Type-Options": "nosniff",
+						"Access-Control-Allow-Origin": "*",
+					},
 				}),
 		},
 	},

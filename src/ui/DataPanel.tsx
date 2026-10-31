@@ -2,8 +2,14 @@ import { useState } from "react";
 
 import { pickFile } from "#/editor/fileActions";
 import { suggestLegend } from "#/editor/legend";
+import { nameOfLink } from "#/editor/readLink";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
-import { keepArrivedValues, refreshSource, useSourceStatus } from "#/editor/sourceRefresh";
+import {
+	keepArrivedValues,
+	refreshSource,
+	useSourceStatus,
+	useWaitingSources,
+} from "#/editor/sourceRefresh";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { useHasArrived } from "#/editor/worldData";
@@ -316,6 +322,8 @@ export const DataPanel = () => {
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
 	const [readsLink, setReadsLink] = useState(false);
 	const statuses = useSourceStatus();
+	const waiting = useWaitingSources();
+	const waitingIds = new Set(waiting.map((source) => source.id));
 	const hasArrived = useHasArrived();
 	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
 	const openTable = tables.find((table) => table.key === openTableKey);
@@ -445,6 +453,12 @@ export const DataPanel = () => {
 				title="Sources"
 				keywords="data import read spreadsheet csv excel api link"
 			>
+				{waiting.length > 0 && (
+					<Hint>
+						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${[...new Set(waiting.map((source) => nameOfLink(source.url ?? "")))].join(", ")}. A world can come from anyone, so nothing is read from them until you allow each one (its download button).`}
+					</Hint>
+				)}
+
 				{sources.length > 0 ? (
 					<List>
 						{sources.map((source) => (
@@ -456,6 +470,8 @@ export const DataPanel = () => {
 									source.url ?? (source.fileName === source.name ? null : source.fileName),
 									// Read once, outside the app: it can't be read again from here.
 									(source.kind === "link" || source.kind === "api") && !source.url && "a snapshot",
+									// An address this browser hasn't said yes to (ADR-0119): not read until allowed.
+									waitingIds.has(source.id) && "not read until you allow it",
 									statuses[source.id]?.reading
 										? "reading…"
 										: statuses[source.id]?.error
@@ -482,8 +498,12 @@ export const DataPanel = () => {
 											(source.url ? (
 												<IconButton
 													icon="download"
-													label="Read it again now"
-													onClick={() => void refreshSource(source)}
+													label={
+														waitingIds.has(source.id)
+															? `Allow reading ${nameOfLink(source.url)}, and read it now`
+															: "Read it again now"
+													}
+													onClick={() => void refreshSource(source, { asked: true })}
 												/>
 											) : (
 												// A snapshot (read once, outside the app): shown greyed with why, not hidden.

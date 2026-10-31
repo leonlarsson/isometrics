@@ -1,17 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { textUpTo } from "#/lib/textUpTo";
 import { checkPatch, checkWorld } from "#/parts/checkWorld";
 import { readWorld } from "#/parts/readWorld";
+import { UnsafeJsonError } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
-/** Bigger bodies are turned away: no world needs this much. */
+/** Bigger bodies are turned away: no world needs this much (ADR-0119). */
 const MOST_BYTES = 5_000_000;
 
-/** Anyone may ask, from any site or tool (it reads nothing and keeps nothing). */
-const CORS = {
+/**
+ * Anyone may ask, from any site or tool (it reads nothing and keeps nothing);
+ * answers are JSON, never sniffed as anything else.
+ */
+const HEADERS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 	"Access-Control-Allow-Headers": "Content-Type",
+	"X-Content-Type-Options": "nosniff",
 };
 
 const HOW_TO = {
@@ -20,76 +26,79 @@ const HOW_TO = {
 	example: "curl -X POST -H 'Content-Type: application/json' --data @world.json <this address>",
 	patch:
 		'To check a patch (ADR-0118), POST { "world": <the world it changes>, "patch": <the patch> }: the answer also says what the patch changes (changes), and its own problems start with "patch".',
+	limit: `At most ${MOST_BYTES.toLocaleString("en")} bytes.`,
 	format: "/api/worlds/schema",
 	guide: "/guide.md",
+};
+
+/** A check that couldn't start: the body isn't a world, a patch or JSON at all. */
+const unreadable = (where: string, what: string, status = 400) =>
+	Response.json(
+		{ isValid: false, isUnreadable: true, problems: [{ where, what }], warnings: [] },
+		{ status, headers: HEADERS },
+	);
+
+/** What a parsed body checks out as: a world, or a patch with the world it changes. */
+const check = (input: unknown) => {
+	// A patch with the world it changes (ADR-0118).
+	if (
+		typeof input === "object" &&
+		input !== null &&
+		"patch" in input &&
+		"world" in input &&
+		isWorldPatch(input.patch)
+	) {
+		const world = checkWorld(input.world);
+		if (world.isUnreadable) {
+			return Response.json(world, { headers: HEADERS });
+		}
+		return Response.json(checkPatch(readWorld(input.world).scene, input.patch), {
+			headers: HEADERS,
+		});
+	}
+	if (isWorldPatch(input)) {
+		return unreadable(
+			"(the patch)",
+			'a patch is checked with the world it changes: POST { "world": ..., "patch": ... }',
+		);
+	}
+	return Response.json(checkWorld(input), { headers: HEADERS });
 };
 
 // Check a world: POST it as JSON, get back what's wrong and where. GET says how (ADR-0117).
 export const Route = createFileRoute("/api/worlds/validate")({
 	server: {
 		handlers: {
-			GET: () => Response.json(HOW_TO, { headers: CORS }),
-			OPTIONS: () => new Response(null, { status: 204, headers: CORS }),
+			GET: () => Response.json(HOW_TO, { headers: HEADERS }),
+			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			POST: async ({ request }) => {
-				const text = await request.text();
-				if (text.length > MOST_BYTES) {
-					return Response.json(
-						{ error: `Too big: at most ${MOST_BYTES.toLocaleString("en")} bytes` },
-						{ status: 413, headers: CORS },
+				const text = await textUpTo(request, MOST_BYTES);
+				if (text === null) {
+					return unreadable(
+						"(the body)",
+						`it's more than ${MOST_BYTES.toLocaleString("en")} bytes`,
+						413,
 					);
 				}
 				let input: unknown;
 				try {
 					input = JSON.parse(text);
 				} catch (error) {
-					return Response.json(
-						{
-							isValid: false,
-							isUnreadable: true,
-							problems: [
-								{
-									where: "(the world)",
-									what: `isn't JSON: ${error instanceof Error ? error.message : String(error)}`,
-								},
-							],
-							warnings: [],
-						},
-						{ status: 400, headers: CORS },
+					return unreadable(
+						"(the world)",
+						`isn't JSON: ${error instanceof Error ? error.message : String(error)}`,
 					);
 				}
-				// A patch with the world it changes (ADR-0118).
-				if (
-					typeof input === "object" &&
-					input !== null &&
-					"patch" in input &&
-					"world" in input &&
-					isWorldPatch(input.patch)
-				) {
-					const world = checkWorld(input.world);
-					if (world.isUnreadable) {
-						return Response.json(world, { headers: CORS });
-					}
-					return Response.json(checkPatch(readWorld(input.world).scene, input.patch), {
-						headers: CORS,
-					});
-				}
-				if (isWorldPatch(input)) {
-					return Response.json(
-						{
-							isValid: false,
-							isUnreadable: true,
-							problems: [
-								{
-									where: "(the patch)",
-									what: 'a patch is checked with the world it changes: POST { "world": ..., "patch": ... }',
-								},
-							],
-							warnings: [],
-						},
-						{ status: 400, headers: CORS },
+				// Whatever goes wrong in checking (nesting too deep, anything unforeseen) is an answer, not a crash.
+				try {
+					return check(input);
+				} catch (error) {
+					// Our own words for what we foresaw; nothing of the server's insides otherwise.
+					return unreadable(
+						"(the world)",
+						error instanceof UnsafeJsonError ? error.message : "it couldn't be checked",
 					);
 				}
-				return Response.json(checkWorld(input), { headers: CORS });
 			},
 		},
 	},

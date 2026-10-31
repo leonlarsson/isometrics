@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { allowLink } from "#/editor/linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "#/editor/readLink";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
@@ -285,6 +286,8 @@ export const ReadLinkDialog = ({
 		setError(null);
 		try {
 			const got = await readLink(url);
+			// Typed here: this browser's yes to the address, so it's read again on its own (ADR-0119).
+			allowLink(url.trim());
 			if (got.kind === "csv") {
 				onSpreadsheet({
 					fileName: name.trim() || nameOfLink(url),

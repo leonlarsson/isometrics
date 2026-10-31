@@ -1,3 +1,4 @@
+import { safeJson, UNSAFE_KEYS } from "./safeJson";
 import type { TScene } from "./schema";
 
 /**
@@ -87,6 +88,10 @@ export const mergePatch = (target: unknown, patch: unknown): unknown => {
 	}
 	const result: TRecord = isRecord(target) ? { ...target } : {};
 	for (const [key, value] of Object.entries(patch)) {
+		// Never through a prototype, whatever the caller passed (ADR-0119).
+		if (UNSAFE_KEYS.has(key)) {
+			continue;
+		}
 		if (value === null) {
 			delete result[key];
 		} else {
@@ -130,25 +135,32 @@ const applyToList = (
 			});
 		}
 	}
-	let list = [...items];
 	const idOf = (item: unknown) => (isRecord(item) ? item[id] : undefined);
+	// Things by id, so each remove, change and add is one lookup, whatever the sizes (ADR-0119).
+	const indexById = (list: readonly unknown[]) =>
+		new Map(list.map((item, index) => [idOf(item), index] as const));
+	let list = [...items];
 	const remove = ops.remove ?? [];
 	if (!Array.isArray(remove)) {
 		issues.push({ where: `${where}.remove`, what: `a list of ${id}s to remove` });
 	} else {
-		remove.forEach((gone, index) => {
-			const at = list.findIndex((item) => idOf(item) === gone);
-			if (at === -1) {
+		const byId = indexById(list);
+		const gone = new Set<number>();
+		remove.forEach((target, index) => {
+			const at = byId.get(target);
+			if (at === undefined || gone.has(at)) {
 				issues.push({
 					where: `${where}.remove[${index}]`,
-					what: `there's nothing with ${id} "${String(gone)}" to remove`,
+					what: `there's nothing with ${id} "${String(target)}" to remove`,
 				});
 				return;
 			}
-			changes.removed.push(nameOf(list[at], String(gone)));
-			list = list.filter((_, each) => each !== at);
+			gone.add(at);
+			changes.removed.push(nameOf(list[at], String(target)));
 		});
+		list = list.filter((_, index) => !gone.has(index));
 	}
+	const byId = indexById(list);
 	const change = ops.change ?? [];
 	if (!Array.isArray(change)) {
 		issues.push({
@@ -158,7 +170,7 @@ const applyToList = (
 	} else {
 		change.forEach((patch, index) => {
 			const target = isRecord(patch) ? patch[id] : undefined;
-			const at = list.findIndex((item) => idOf(item) === target);
+			const at = byId.get(target);
 			if (!isRecord(patch) || target === undefined) {
 				issues.push({
 					where: `${where}.change[${index}]`,
@@ -166,7 +178,7 @@ const applyToList = (
 				});
 				return;
 			}
-			if (at === -1) {
+			if (at === undefined) {
 				issues.push({
 					where: `${where}.change[${index}]`,
 					what: `there's nothing with ${id} "${String(target)}" to change (to make one, put it in "add")`,
@@ -191,13 +203,14 @@ const applyToList = (
 				});
 				return;
 			}
-			if (list.some((each) => idOf(each) === added)) {
+			if (byId.has(added)) {
 				issues.push({
 					where: `${where}.add[${index}]`,
 					what: `${id} "${String(added)}" is already there (to change it, put it in "change")`,
 				});
 				return;
 			}
+			byId.set(added, list.length);
 			list.push(structuredClone(item));
 			changes.added.push(nameOf(item, String(added)));
 		});
@@ -212,9 +225,11 @@ const applyToList = (
  */
 export const applyWorldPatch = (
 	world: TScene,
-	patch: TRecord,
+	untrustedPatch: TRecord,
 ): { world: TRecord; issues: IPatchIssue[]; changes: IPatchChanges } => {
 	const result = structuredClone(world) as unknown as TRecord;
+	// The patch is untrusted (ADR-0119): no prototype keys, no nesting deep enough to overflow.
+	const patch = safeJson(untrustedPatch);
 	const issues: IPatchIssue[] = [];
 	const changes: IPatchChanges = { lists: [], settings: [] };
 
@@ -245,7 +260,7 @@ export const applyWorldPatch = (
 		if (key === "isPatch" || key === "version" || (LIST_TOP_KEYS.has(key) && key !== "data")) {
 			continue;
 		}
-		if (!(key in result)) {
+		if (!Object.hasOwn(result, key)) {
 			issues.push({ where: key, what: "isn't part of a world" });
 			continue;
 		}

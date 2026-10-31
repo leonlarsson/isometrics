@@ -78,3 +78,49 @@ describe("world patches", () => {
 		expect((patched.entities as { scale?: number }[])[0].scale).toBe(2);
 	});
 });
+
+describe("big patches", () => {
+	it("apply in about the time it takes to read them, not quadratic", () => {
+		const count = 20_000;
+		const big = SceneSchema.parse({
+			version: 1,
+			entities: Array.from({ length: count }, (_, i) => ({
+				id: `e${i}`,
+				kind: "house_01",
+				position: [0, 0],
+			})),
+		});
+		const started = performance.now();
+		const { issues } = applyWorldPatch(big, {
+			isPatch: true,
+			entities: {
+				remove: Array.from({ length: count / 2 }, (_, i) => `e${i}`),
+				change: Array.from({ length: count / 4 }, (_, i) => ({
+					id: `e${count / 2 + i}`,
+					scale: 2,
+				})),
+				add: Array.from({ length: count }, (_, i) => ({
+					id: `n${i}`,
+					kind: "house_01",
+					position: [0, 0],
+				})),
+			},
+		});
+		expect(issues).toEqual([]);
+		expect(performance.now() - started).toBeLessThan(2000);
+	});
+
+	it("refuse nesting deep enough to overflow, and never touch a prototype", () => {
+		let deep: Record<string, unknown> = {};
+		const root = deep;
+		for (let i = 0; i < 200; i++) {
+			deep.a = {};
+			deep = deep.a as Record<string, unknown>;
+		}
+		expect(() => applyWorldPatch(world, { isPatch: true, meta: root })).toThrow("nested");
+		const polluting = JSON.parse('{"isPatch": true, "meta": {"__proto__": {"polluted": true}}}');
+		const { world: patched } = applyWorldPatch(world, polluting);
+		expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+		expect((patched.meta as { polluted?: boolean }).polluted).toBeUndefined();
+	});
+});

@@ -74,7 +74,9 @@ export const cssColor = (value: number | string | undefined): string | null => {
 		return null;
 	}
 	const text = value.trim().toLowerCase();
-	if (!(HEX.test(text) || text in THREE.Color.NAMES || RGB.test(text) || HSL.test(text))) {
+	if (
+		!(HEX.test(text) || Object.hasOwn(THREE.Color.NAMES, text) || RGB.test(text) || HSL.test(text))
+	) {
 		return null;
 	}
 	return `#${new THREE.Color().setStyle(text).getHexString()}`;
