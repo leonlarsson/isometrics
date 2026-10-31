@@ -10,7 +10,8 @@ describe("the guide", () => {
 		}
 		expect(text).toContain("### 1. Read the API as a table");
 		expect(text).toContain("`https://example.test/schema.json`");
-		expect(text).toContain("`https://example.test/templates.json`");
+		expect(text).toContain("`https://example.test/api/worlds/templates`");
+		expect(text).toContain("`https://example.test/api/worlds/validate`");
 		expect(text).toContain(GUIDE_API.counts);
 		expect(text).not.toContain("`/schema.json`");
 	});

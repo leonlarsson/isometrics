@@ -3,7 +3,7 @@ status: proposed
 date: 2026-10-31
 ---
 
-# 0117. Checking a world: POST /validate, and worlds with their defaults left out
+# 0117. Checking a world, the worlds API, and worlds with their defaults left out
 
 ## Context and problem statement
 
@@ -18,7 +18,7 @@ Worlds written by AIs (ADR-0116) go through `readWorld()`, which repairs what it
 ## Considered options
 
 1. Only the repair report, as before.
-2. **A check that lists problems and warnings by path, served at POST /validate and run on paste.**
+2. **A check that lists problems and warnings by path, served at POST /api/worlds/validate and run on paste.**
 3. JSON Schema validation alone (`/schema.json` with any validator).
 
 ## Decision outcome
@@ -26,9 +26,11 @@ Worlds written by AIs (ADR-0116) go through `readWorld()`, which repairs what it
 Chosen option: **2**. JSON Schema alone (3) can't see what the parts know (part kinds, their props and colours) or references across the world (rows, values, viewpoints).
 
 - `checkWorld()` (`parts/checkWorld.ts`) brings old names up to date like `readWorld`, then lists **problems** (what the strict parse rejects, by path with ids: `entities[2] "shop_north".position`, and ids used twice), each something opening it would repair or leave out, and **warnings** (what opens but won't look as meant: unknown part and vehicle kinds, props and colours a part doesn't have, rows, tables and values that aren't there, an opening viewpoint that isn't, a table whose key column isn't one of its columns, an object over the ground's edge, its footprint turned as it stands). Every template checks out with neither (a test).
-- **POST /validate** answers with that check as JSON (any origin may ask; up to 5 MB; a body that isn't JSON is a 400). GET says how to use it. The prompt offers it to AIs that can make HTTP requests; the guide's format section describes it.
+- **POST /api/worlds/validate** answers with that check as JSON (any origin may ask; up to 5 MB; a body that isn't JSON is a 400). GET says how to use it. The prompt offers it to AIs that can make HTTP requests; the guide's format section describes it.
 - **Build with your AI** runs the same check as an answer is pasted or its file opened (no round trip: the same code, offline too): "Checked: it opens as written, with 12 objects, 3 roads", or the problems and warnings listed, with **Copy the problems for your AI** to send them back. **Open it** still opens it, repaired.
 - **Worlds with their defaults left out** (`parts/compactWorld.ts`): the world a change prompt carries leaves out every field at its default (each list item against its schema's defaults, an object's props against its part's), and the prompt asks the AI to answer the same way, **as a file** (`world.json`) when it can make one, else in one code block. Every template reads back as it was (a test).
+
+- **The worlds API** lives under `/api/worlds`: `POST /api/worlds/validate`, `GET /api/worlds/templates` (the templates listed, each with its `url`) and `GET /api/worlds/templates/<id>` (one as a complete world; `<id>.json` works too), open to any origin. They replace the templates' old addresses (`/templates.json`, `/templates/<id>.json`, ADR-0034, ADR-0083), which are gone: the app isn't public yet. Documents stay where they are (`/schema.json`, `/guide.md`); actions and worlds are under `/api`, with room for more (`POST /api/worlds` to keep one for a while, TODO.md).
 
 ### Consequences
 

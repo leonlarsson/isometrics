@@ -136,19 +136,19 @@ test.describe("Build with your AI (ADR-0116)", () => {
 	});
 });
 
-test.describe("POST /validate (ADR-0117)", () => {
+test.describe("POST /api/worlds/validate (ADR-0117)", () => {
 	test("says what's wrong in a world and where; GET says how", async ({ request }) => {
-		const how = await request.get("/validate");
+		const how = await request.get("/api/worlds/validate");
 		expect(await how.json()).toHaveProperty("about");
 
-		const answer = await request.post("/validate", {
+		const answer = await request.post("/api/worlds/validate", {
 			data: { version: 1, entities: [{ id: "x", kind: "spaceship_99", position: [0, 0] }] },
 		});
 		expect(answer.headers()["access-control-allow-origin"]).toBe("*");
 		const check = await answer.json();
 		expect(check.warnings[0].where).toBe('entities[0] "x".kind');
 
-		const notJson = await request.post("/validate", {
+		const notJson = await request.post("/api/worlds/validate", {
 			data: Buffer.from("{ nope"),
 			headers: { "Content-Type": "application/json" },
 		});

@@ -58,7 +58,7 @@ Viewpoints: prepared camera views (target, targetAltitude, azimuth, elevation, s
 
 Every id must be unique within its list, and follow.roadId must name a road in the same world.
 
-Templates: /templates.json on this site lists complete worlds (e.g. /templates/brightwater.json) to learn from or start with.`;
+Templates: /api/worlds/templates on this site lists complete worlds (e.g. /api/worlds/templates/brightwater) to learn from or start with; POST a world to /api/worlds/validate to check it.`;
 
 /** What a number prop measures, from its name (ADR-0104): counts, angles, seconds, else grid units. */
 const measureOf = (key: string) => {

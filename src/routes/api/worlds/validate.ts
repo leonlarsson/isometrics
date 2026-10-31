@@ -21,7 +21,7 @@ const HOW_TO = {
 };
 
 // Check a world: POST it as JSON, get back what's wrong and where. GET says how (ADR-0117).
-export const Route = createFileRoute("/validate")({
+export const Route = createFileRoute("/api/worlds/validate")({
 	server: {
 		handlers: {
 			GET: () => Response.json(HOW_TO, { headers: CORS }),

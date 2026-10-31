@@ -38,7 +38,7 @@ src/
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: the UI kit (Button, fields, List, Tabs, RailTabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Outliner, Inspector (the properties editor and its tabs), LabelLayer, DetailSheet
-  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; templates = the templates as complete worlds, ADR-0034, ADR-0083; parts = the public parts catalogue, ADR-0087; guide and guide[.]md = the guide, ADR-0116; validate = POST a world, get its problems and warnings, ADR-0117; kit = dev-only UI kit page)
+  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; api/worlds/templates = the templates as complete worlds, ADR-0034, ADR-0083, ADR-0117; parts = the public parts catalogue, ADR-0087; guide and guide[.]md = the guide, ADR-0116; api/worlds/validate = POST a world, get its problems and warnings, ADR-0117; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
 e2e/          end-to-end tests (Playwright), one spec per area, and their shared helpers (editor.ts)
@@ -100,7 +100,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `fences` → `pa
 
 **Add a brush mix:** add it to `BRUSH_MIXES` in `editor/paint.ts` (part kinds with weights); the paint bar lists it (ADR-0091). Painted objects are plain objects, so nothing else changes.
 
-**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts` with its `category` (`places`, a place to look at and build on, or `dataMaps`, a map made to show data; File → New world groups the starters by it, and `/templates.json` lists it). A variant of an existing template (the same world at dusk, say) is `deriveTemplate(createBrightwaterScene, (scene) => { … })` from `templates/derive.ts`: it builds the base fresh and changes only what differs, so later changes to the base flow through; never copy a template's code. The schema test validates every template automatically, and it appears as a starter in File → New world…, with a picture rendered from the template itself (ADR-0047).
+**Add a template:** add a `create…Scene()` in `src/templates/` and register it in `templates/index.ts` with its `category` (`places`, a place to look at and build on, or `dataMaps`, a map made to show data; File → New world groups the starters by it, and `/api/worlds/templates` lists it). A variant of an existing template (the same world at dusk, say) is `deriveTemplate(createBrightwaterScene, (scene) => { … })` from `templates/derive.ts`: it builds the base fresh and changes only what differs, so later changes to the base flow through; never copy a template's code. The schema test validates every template automatically, and it appears as a starter in File → New world…, with a picture rendered from the template itself (ADR-0047).
 
 ## Verifying visually
 

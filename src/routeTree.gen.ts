@@ -15,9 +15,9 @@ import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
-import { Route as TemplatesDotjsonRouteImport } from './routes/templates[.]json'
-import { Route as ValidateRouteImport } from './routes/validate'
-import { Route as TemplatesFileRouteImport } from './routes/templates.$file'
+import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
+import { Route as ApiWorldsTemplatesIndexRouteImport } from './routes/api/worlds/templates/index'
+import { Route as ApiWorldsTemplatesIdRouteImport } from './routes/api/worlds/templates/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,19 +49,19 @@ const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
   path: '/schema.json',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesDotjsonRoute = TemplatesDotjsonRouteImport.update({
-  id: '/templates.json',
-  path: '/templates.json',
+const ApiWorldsValidateRoute = ApiWorldsValidateRouteImport.update({
+  id: '/api/worlds/validate',
+  path: '/api/worlds/validate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ValidateRoute = ValidateRouteImport.update({
-  id: '/validate',
-  path: '/validate',
+const ApiWorldsTemplatesIndexRoute = ApiWorldsTemplatesIndexRouteImport.update({
+  id: '/api/worlds/templates/',
+  path: '/api/worlds/templates/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesFileRoute = TemplatesFileRouteImport.update({
-  id: '/templates/$file',
-  path: '/templates/$file',
+const ApiWorldsTemplatesIdRoute = ApiWorldsTemplatesIdRouteImport.update({
+  id: '/api/worlds/templates/$id',
+  path: '/api/worlds/templates/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -72,9 +72,9 @@ export interface FileRoutesByFullPath {
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/validate': typeof ValidateRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,9 +83,9 @@ export interface FileRoutesByTo {
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/validate': typeof ValidateRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,9 +95,9 @@ export interface FileRoutesById {
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
-  '/templates.json': typeof TemplatesDotjsonRoute
-  '/validate': typeof ValidateRoute
-  '/templates/$file': typeof TemplatesFileRoute
+  '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
+  '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,9 +108,9 @@ export interface FileRouteTypes {
     | '/kit'
     | '/parts'
     | '/schema.json'
-    | '/templates.json'
-    | '/validate'
-    | '/templates/$file'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -119,9 +119,9 @@ export interface FileRouteTypes {
     | '/kit'
     | '/parts'
     | '/schema.json'
-    | '/templates.json'
-    | '/validate'
-    | '/templates/$file'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates'
   id:
     | '__root__'
     | '/'
@@ -130,9 +130,9 @@ export interface FileRouteTypes {
     | '/kit'
     | '/parts'
     | '/schema.json'
-    | '/templates.json'
-    | '/validate'
-    | '/templates/$file'
+    | '/api/worlds/validate'
+    | '/api/worlds/templates/$id'
+    | '/api/worlds/templates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -142,9 +142,9 @@ export interface RootRouteChildren {
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
   SchemaDotjsonRoute: typeof SchemaDotjsonRoute
-  TemplatesDotjsonRoute: typeof TemplatesDotjsonRoute
-  ValidateRoute: typeof ValidateRoute
-  TemplatesFileRoute: typeof TemplatesFileRoute
+  ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
+  ApiWorldsTemplatesIdRoute: typeof ApiWorldsTemplatesIdRoute
+  ApiWorldsTemplatesIndexRoute: typeof ApiWorldsTemplatesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -191,25 +191,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SchemaDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates.json': {
-      id: '/templates.json'
-      path: '/templates.json'
-      fullPath: '/templates.json'
-      preLoaderRoute: typeof TemplatesDotjsonRouteImport
+    '/api/worlds/validate': {
+      id: '/api/worlds/validate'
+      path: '/api/worlds/validate'
+      fullPath: '/api/worlds/validate'
+      preLoaderRoute: typeof ApiWorldsValidateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/validate': {
-      id: '/validate'
-      path: '/validate'
-      fullPath: '/validate'
-      preLoaderRoute: typeof ValidateRouteImport
+    '/api/worlds/templates/': {
+      id: '/api/worlds/templates/'
+      path: '/api/worlds/templates'
+      fullPath: '/api/worlds/templates/'
+      preLoaderRoute: typeof ApiWorldsTemplatesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$file': {
-      id: '/templates/$file'
-      path: '/templates/$file'
-      fullPath: '/templates/$file'
-      preLoaderRoute: typeof TemplatesFileRouteImport
+    '/api/worlds/templates/$id': {
+      id: '/api/worlds/templates/$id'
+      path: '/api/worlds/templates/$id'
+      fullPath: '/api/worlds/templates/$id'
+      preLoaderRoute: typeof ApiWorldsTemplatesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -222,9 +222,9 @@ const rootRouteChildren: RootRouteChildren = {
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
   SchemaDotjsonRoute: SchemaDotjsonRoute,
-  TemplatesDotjsonRoute: TemplatesDotjsonRoute,
-  ValidateRoute: ValidateRoute,
-  TemplatesFileRoute: TemplatesFileRoute,
+  ApiWorldsValidateRoute: ApiWorldsValidateRoute,
+  ApiWorldsTemplatesIdRoute: ApiWorldsTemplatesIdRoute,
+  ApiWorldsTemplatesIndexRoute: ApiWorldsTemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

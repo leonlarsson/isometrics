@@ -71,7 +71,7 @@ export const BuildWithAiDialog = () => {
 		}
 	};
 
-	// The answer checked as it's pasted (ADR-0117): the same check as POST /validate.
+	// The answer checked as it's pasted (ADR-0117): the same check as POST /api/worlds/validate.
 	const check = useMemo(() => {
 		if (!answer.trim()) {
 			return null;

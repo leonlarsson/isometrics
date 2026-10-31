@@ -9,7 +9,7 @@ import { getPart, resolveProps } from "./registry";
 
 /**
  * Checking a world (ADR-0117): what's wrong in it and where, in words an AI
- * or a person can act on. The same check answers POST /validate and runs on a
+ * or a person can act on. The same check answers POST /api/worlds/validate and runs on a
  * world pasted back into Build with your AI. **Problems** are what opening it
  * would repair (reset to a default) or leave out; **warnings** are what opens
  * but won't look as meant (a part kind that doesn't exist, a card value that
