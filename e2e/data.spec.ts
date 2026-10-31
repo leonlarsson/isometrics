@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { act, expect, labelCard, loadWorld, openEditor, read, test } from "./editor";
+import { act, expect, fileMenu, labelCard, loadWorld, openEditor, read, test } from "./editor";
 
 /** A small world with a table of clubs and two towers named after them. */
 const clubsWorld = (page: Page) =>
@@ -300,5 +300,29 @@ test.describe("stories (ADR-0114)", () => {
 		await expect(card).toContainText("2026");
 		await story.getByRole("button", { name: "Now" }).click();
 		await expect(card).toContainText("30");
+	});
+});
+
+test.describe("the example worlds (data study)", () => {
+	test("Extraction shooter territory opens from its snapshot: counts, home, no data and tiles", async ({
+		page,
+	}) => {
+		await fileMenu(page, /New world/);
+		const dialog = page.getByRole("dialog", { name: "New world" });
+		await dialog.getByRole("radio", { name: /Extraction shooter territory/ }).click();
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect
+			.poll(() => read(page, (s) => s.scene.meta.title))
+			.toBe("Extraction shooter territory");
+		await expect(labelCard(page, /Hunt: Showdown 1896/)).toContainText("10,516");
+		await expect(labelCard(page, /Upcoming title/)).toContainText("no data");
+		await act(page, (s) => {
+			s.setMode("view");
+			s.select("hunt");
+		});
+		const sheet = page.getByRole("complementary", { name: "Hunt: Showdown 1896 details" });
+		await expect(sheet).toContainText("home");
+		await expect(sheet).toContainText("Example numbers, not from Steam");
+		await expect(sheet.getByRole("link", { name: "Steam Web API" })).toBeVisible();
 	});
 });

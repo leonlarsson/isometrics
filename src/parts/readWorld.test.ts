@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { upgradeLegacyIds } from "#/scene/legacy";
@@ -6,13 +6,18 @@ import { TEMPLATES } from "#/templates";
 
 import { readWorld, upgradePartSettings } from "./readWorld";
 
-const fixture = (name: string) =>
-	JSON.parse(
-		readFileSync(new URL(`../scene/fixtures/old-worlds/${name}.json`, import.meta.url), "utf8"),
-	);
+const fixtureUrl = (name: string) =>
+	new URL(`../scene/fixtures/old-worlds/${name}.json`, import.meta.url);
+
+const fixture = (name: string) => JSON.parse(readFileSync(fixtureUrl(name), "utf8"));
+
+/** The templates that existed when the format was tidied, each saved then. */
+const tidiedTemplates = TEMPLATES.filter((template) =>
+	existsSync(fixtureUrl(`${template.id}-1a50d84`)),
+);
 
 describe("reading a world saved before the format was tidied (ADR-0104)", () => {
-	it.each(TEMPLATES.map((template) => [template.id, template] as const))(
+	it.each(tidiedTemplates.map((template) => [template.id, template] as const))(
 		"%s, as saved then, reads back exactly as the template builds it now",
 		(id, template) => {
 			const { scene, report } = readWorld(fixture(`${id}-1a50d84`));

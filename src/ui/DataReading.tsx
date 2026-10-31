@@ -45,12 +45,15 @@ export const DataReading = ({
 	label,
 	size = "big",
 	showsMeaning = true,
+	showsPast = true,
 }: {
 	entry: TDataValue | undefined;
 	/** What it's called, when there's no entry to say it. */
 	label: string;
 	size?: "big" | "huge";
 	showsMeaning?: boolean;
+	/** Its past as a line, with how much it moved. */
+	showsPast?: boolean;
 }) => (
 	<span className={styles.reading} data-no-data={entry ? undefined : ""}>
 		<span className={styles.value} data-size={size}>
@@ -59,7 +62,7 @@ export const DataReading = ({
 
 		{showsMeaning && <span className={styles.meaning}>{entry?.name || label}</span>}
 
-		{entry && entry.history.length > 1 && (
+		{showsPast && entry && entry.history.length > 1 && (
 			<span className={styles.past}>
 				<Sparkline points={entry.history} label={`${entry.name || label} over time`} />
 

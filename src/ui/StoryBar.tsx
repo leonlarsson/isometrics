@@ -79,6 +79,7 @@ export const StoryBar = () => {
 						setStoryAt(dates[Math.round(value)] ?? null);
 					}}
 					hasNoDefault
+					hidesBox
 					hint={`${formatWhen(dates[0])} to ${formatWhen(dates.at(-1) ?? dates[0])}`}
 				/>
 			</div>

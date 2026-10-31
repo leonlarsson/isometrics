@@ -118,6 +118,7 @@ export const DataBindingSchema = z
 	);
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
+export type TDataBindingInput = z.input<typeof DataBindingSchema>;
 
 /** Settings that follow data, by setting (ADR-0058), described with what each one reads. */
 const dataBindings = (meaning: string) =>

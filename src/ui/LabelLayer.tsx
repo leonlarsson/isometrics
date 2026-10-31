@@ -163,6 +163,8 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 						size={selected ? "huge" : "big"}
 						// What the value means, under it, on the card that's opened (as in a legend).
 						showsMeaning={selected}
+						// A row's card stays compact among many until it's opened; a world value's shows its past.
+						showsPast={selected || columnOfKey(entries[0].key) === null}
 					/>
 				) : (
 					entries.map(({ key, entry }) => (
