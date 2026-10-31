@@ -310,7 +310,11 @@ export const Inspector = ({
 				)}
 
 				{open && (
-					<div key={searching ? "search" : shown.value} className={styles.scroll}>
+					<div
+						key={searching ? "search" : shown.value}
+						className={styles.scroll}
+						data-inspector-scroll=""
+					>
 						{searching ? (
 							<SearchResults
 								query={query}

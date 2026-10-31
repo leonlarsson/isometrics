@@ -191,6 +191,15 @@
 		box-shadow: var(--shadow-panel);
 	}
 
+	/*
+	 * Open, the sheet has a height of its own, not just a cap: the panels' scrolling area takes
+	 * what the rail and header leave of it. With only max-height its 100% meant nothing, the panels
+	 * grew to their full length and were cut off at the sheet's edge, with nothing to scroll.
+	 */
+	.rightColumn[data-sheet="open"] {
+		height: 55dvh;
+	}
+
 	.right {
 		border-left: none;
 		background: none;
