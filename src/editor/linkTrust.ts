@@ -9,10 +9,11 @@ import { keepOnHotReload } from "#/lib/hot";
  * AI's answer, a patch. Reading one on its own would tell that address who's
  * looking and when, every time the world is open, or make the browser call
  * someone else's server over and over. So an address is read without asking
- * only once this browser has said yes to it: by typing it (Read a link or
- * API…), by clicking Allow or Read it again, or by starting a world from a
- * template that reads it (New world). Kept per browser, by the exact address
- * read, until forgotten (Addresses this browser reads…).
+ * only once this browser has said yes to it: by reading it yourself (Read a
+ * link or API…), or by Allow (the dialog when a world opens, or the Data
+ * tab). Every other address, templates' included, starts disabled, whatever
+ * its host. Kept per browser, by the exact address, until forgotten
+ * (Addresses this browser reads…).
  */
 
 const KEY = `${APP_NAME.toLowerCase()}:allowed-links`;

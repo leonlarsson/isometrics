@@ -67,8 +67,9 @@ export const WaitingSourcesDialog = () => {
 					)}
 
 					<p>
-						Until then the world shows what it last read. You can allow them later in the Data tab,
-						under Sources.
+						{one
+							? "Until then the world shows what it last read. You can allow it later in the Data tab, under Sources."
+							: "Until then the world shows what it last read. You can allow them later in the Data tab, under Sources."}
 					</p>
 				</div>
 			}

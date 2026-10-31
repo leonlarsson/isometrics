@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 
 import { keepOnHotReload } from "#/lib/hot";
@@ -9,7 +9,6 @@ import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/she
 import { allowLink, isLinkAllowed, useAllowedLinks } from "./linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "./readLink";
 import { useEditor } from "./store";
-import { notify } from "./toasts";
 import { clearArrived, keptWithArrived, tableArrived, valueArrived } from "./worldData";
 
 /**
@@ -161,26 +160,30 @@ export const useWaitingSources = () => {
  * Reads the open world's allowed link and API sources when it opens and on
  * their timers, at most MOST_SOURCES_READ of them, never more often than
  * LEAST_REFRESH_SECONDS. Sources at addresses this browser hasn't allowed wait
- * for a yes, and opening a world that has some says so (ADR-0119). Mount once (AppShell).
+ * for a yes (ADR-0119; WaitingSourcesDialog asks). Mount once (AppShell).
  */
 export const useSourceRefresh = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
 	// With data off (ADR-0115), nothing is read.
 	const schedule = useEditor((s) => (s.scene.data.isOn ? scheduleOf(s.scene.data.sources) : ""));
 	const allowed = useAllowedLinks((s) => s.links);
+	// The addresses read since the world opened: a change to its sources or to what's allowed
+	// reads only what's new, the rest wait for their timers.
+	const readSinceOpening = useRef<{ opening: number; urls: Set<string> }>({
+		opening,
+		urls: new Set(),
+	});
 
-	// Opening a world whose sources wait for a yes: say so, once per opening.
 	useEffect(() => {
-		const { waiting } = linkSources(useAllowedLinks.getState().links);
-		if (waiting.length > 0) {
-			notify(
-				"This world reads data from addresses you haven't allowed",
-				`${hostsOf(waiting)}. Nothing is read from them until you allow them: Data tab, Sources.`,
-			);
+		if (readSinceOpening.current.opening !== opening) {
+			readSinceOpening.current = { opening, urls: new Set() };
 		}
-	}, [opening]);
-
-	useEffect(() => {
+		// A forgotten address counts as unread: allowed again, it's read again at once.
+		for (const url of readSinceOpening.current.urls) {
+			if (!isLinkAllowed(url, allowed)) {
+				readSinceOpening.current.urls.delete(url);
+			}
+		}
 		// One source per address, at most MOST_SOURCES_READ addresses: repeating an address
 		// doesn't multiply the calls to it.
 		const seen = new Set<string>();
@@ -193,7 +196,10 @@ export const useSourceRefresh = () => {
 			return true;
 		});
 		for (const source of read) {
-			void refreshSource(source);
+			if (!readSinceOpening.current.urls.has(source.url ?? "")) {
+				readSinceOpening.current.urls.add(source.url ?? "");
+				void refreshSource(source);
+			}
 		}
 		const timers = read
 			.filter((source) => source.refreshSeconds !== null)

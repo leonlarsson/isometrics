@@ -94,7 +94,11 @@ button.main:focus-visible {
 }
 
 .text[data-stacked] .meta {
+	flex: initial;
+	min-width: 0;
 	margin-left: 0;
+	/* Long addresses and names wrap within the row, clear of its buttons. */
+	overflow-wrap: anywhere;
 }
 
 /* Hidden things stay listed, dimmed; their buttons stay clear so they can be shown again. */

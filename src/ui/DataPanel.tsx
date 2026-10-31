@@ -457,7 +457,7 @@ export const DataPanel = () => {
 			>
 				{waiting.length > 0 && (
 					<Hint>
-						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (its download button).`}
+						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (Allow, on its row).`}
 					</Hint>
 				)}
 
@@ -498,15 +498,22 @@ export const DataPanel = () => {
 
 										{(source.kind === "link" || source.kind === "api") &&
 											(source.url ? (
-												<IconButton
-													icon="download"
-													label={
-														waitingIds.has(source.id)
-															? `Allow reading ${source.url}, and read it now`
-															: "Read it again now"
-													}
-													onClick={() => void refreshSource(source, { asked: true })}
-												/>
+												waitingIds.has(source.id) ? (
+													// Waiting for a yes (ADR-0119): said in words, not a download icon.
+													<Button
+														size="sm"
+														icon="check"
+														onClick={() => void refreshSource(source, { asked: true })}
+													>
+														Allow
+													</Button>
+												) : (
+													<IconButton
+														icon="download"
+														label="Read it again now"
+														onClick={() => void refreshSource(source, { asked: true })}
+													/>
+												)
 											) : (
 												// A snapshot (read once, outside the app): shown greyed with why, not hidden.
 												<IconButton
