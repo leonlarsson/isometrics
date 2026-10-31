@@ -337,6 +337,7 @@ export const Inspector = ({
 						// A new scroll for each tab, and for a value's page (which opens at its top).
 						key={searching ? "search" : showsValuePage ? "data-value" : shown.value}
 						className={styles.scroll}
+						data-inspector-scroll=""
 					>
 						{searching ? (
 							<SearchResults

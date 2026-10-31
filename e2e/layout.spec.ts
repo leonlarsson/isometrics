@@ -33,6 +33,31 @@ test.describe("phones (ADR-0030, ADR-0046)", () => {
 		await expect(page.getByRole("tab", { name: "Object" })).toBeVisible();
 	});
 
+	test("the sheet's panels scroll when they're taller than it", async ({ page }) => {
+		await openEditor(page);
+		// The World tab's panels are taller than the sheet.
+		await act(page, (s) => s.setTab("world"));
+		await page.getByRole("button", { name: "Show panel" }).click();
+		const scroller = page.locator("[data-inspector-scroll]");
+		await expect(scroller).toBeVisible();
+		const sizes = await scroller.evaluate((element) => ({
+			client: element.clientHeight,
+			scroll: element.scrollHeight,
+			sheet: element.closest("[data-sheet]")?.getBoundingClientRect().height ?? 0,
+		}));
+		// Its scrolling area fits in the sheet, and holds more than it shows.
+		expect(sizes.client).toBeLessThanOrEqual(sizes.sheet);
+		expect(sizes.scroll).toBeGreaterThan(sizes.client);
+		// Scrolling over it scrolls it.
+		const box = await scroller.boundingBox();
+		if (!box) {
+			throw new Error("no scrolling area");
+		}
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.wheel(0, 300);
+		await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+	});
+
 	test("the toolbar's More menu holds what doesn't fit", async ({ page }) => {
 		await openEditor(page);
 		await page.getByRole("button", { name: "More", exact: true }).click();
