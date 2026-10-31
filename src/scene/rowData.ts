@@ -29,12 +29,20 @@ export const columnOfKey = (key: string) =>
 const cellText = (cell: TDataCell | null | undefined) =>
 	cell === null || cell === undefined ? "" : String(cell).trim();
 
+/**
+ * A row's cell in a column, only if the row has it (ADR-0119): column names
+ * come from data anyone wrote, and one called "constructor" or "toString"
+ * mustn't read a built-in function instead of "no value".
+ */
+export const cellOf = (row: TDataTable["rows"][number], column: string) =>
+	Object.hasOwn(row, column) ? row[column] : undefined;
+
 /** What a row is called: its value in the key column, or its number (from 1) without one. */
 export const rowKeyOf = (
 	table: Pick<TDataTable, "keyColumn">,
 	row: TDataTable["rows"][number],
 	index: number,
-) => (table.keyColumn ? cellText(row[table.keyColumn]) : String(index + 1));
+) => (table.keyColumn ? cellText(cellOf(row, table.keyColumn)) : String(index + 1));
 
 /** The rows of a table by what they're called. */
 export const rowKeysOf = (table: Pick<TDataTable, "keyColumn" | "rows">) =>
@@ -62,7 +70,7 @@ export const rowKeyMatching = (table: Pick<TDataTable, "keyColumn" | "rows">, na
 const columnHistory = (table: TDataTable, rowKey: string, column: string): TDataPoint[] =>
 	table.history.flatMap(({ at, rows }) => {
 		const index = rows.findIndex((row, i) => rowKeyOf(table, row, i) === rowKey);
-		const cell = index === -1 ? null : rows[index][column];
+		const cell = index === -1 ? null : cellOf(rows[index], column);
 		return cell === null || cell === undefined || cell === "" ? [] : [{ at, value: cell }];
 	});
 
@@ -77,7 +85,7 @@ export const rowEntries = (table: TDataTable, rowKey: string): TDataValue[] => {
 		return [];
 	}
 	return table.columns.flatMap((column): TDataValue[] => {
-		const cell = row[column.key];
+		const cell = cellOf(row, column.key);
 		if (cell === null || cell === undefined || cell === "") {
 			return [];
 		}

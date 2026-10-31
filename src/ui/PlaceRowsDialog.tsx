@@ -6,6 +6,7 @@ import { notify } from "#/editor/toasts";
 import { SCALE_SETTING } from "#/parts/propData";
 import { getPart, PARTS, partName } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
+import { cellOf } from "#/scene/rowData";
 import type { TDataTable } from "#/scene/schema";
 
 import { Dialog } from "./Dialog";
@@ -36,7 +37,7 @@ const firstKind = () =>
 export const PlaceRowsDialog = ({ table, onClose }: { table: TDataTable; onClose: () => void }) => {
 	const commit = useEditor((s) => s.commit);
 	const numberColumns = table.columns.filter((column) =>
-		table.rows.some((row) => typeof row[column.key] === "number"),
+		table.rows.some((row) => typeof cellOf(row, column.key) === "number"),
 	);
 	const [kind, setKind] = useState(firstKind);
 	const [layout, setLayout] = useState<TRowLayout>("grid");

@@ -5,6 +5,7 @@ import { APP_NAME } from "#/lib/app";
 import { sceneJsonSchema } from "#/scene/jsonSchema";
 import { isHiddenRoute, ROAD_KINDS } from "#/scene/roads";
 import type { TRoadKind } from "#/scene/schema";
+import { PATCH_LISTS } from "#/scene/worldPatch";
 
 import { PARTS, partName, type TAnyPart } from "./registry";
 import {
@@ -55,6 +56,8 @@ Lights: each kind lists its lights by id (windows, headlights, lamp…). An enti
 Data: data holds named values (key, name, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it, shown while label.isShown) or details.dataKeys (tiles when it's opened in view mode).
 
 Viewpoints: prepared camera views (target, targetAltitude, azimuth, elevation, span), stepped through in View mode like slides; give each a name and a description of what the data there shows.
+
+Patches: to change a world, a patch holds only what changes, shaped like the world with "isPatch": true; its format is at /api/worlds/schema/patch.
 
 Every id must be unique within its list, and follow.roadId must name a road in the same world.
 
@@ -186,4 +189,76 @@ export const worldJsonSchema = () => {
 		then: { properties: { props: propsSchema(part) } },
 	}));
 	return { ...schema, description: GUIDE };
+};
+
+/** What a list's patch takes: ids to remove, changes by id, whole things to add. */
+const listPatchSchema = (one: string, id: string): TJsonSchema => ({
+	type: "object",
+	description: `Changes to the ${one}s, by ${id}: removed, then changed, then added. Never the whole list.`,
+	properties: {
+		remove: {
+			type: "array",
+			items: { type: "string" },
+			description: `The ${id}s of ${one}s to remove.`,
+		},
+		change: {
+			type: "array",
+			description: `For each ${one} to change: its ${id} and only the fields that change, merged as JSON Merge Patch (groups merge, a list is replaced whole, null removes a field so its default applies).`,
+			items: { type: "object", required: [id], properties: { [id]: { type: "string" } } },
+		},
+		add: {
+			type: "array",
+			description: `Whole new ${one}s, each with an ${id} no other has, as in the world format (/api/worlds/schema).`,
+			items: { type: "object", required: [id] },
+		},
+	},
+	additionalProperties: false,
+});
+
+/**
+ * A world patch's JSON Schema (ADR-0118): the changes to a world, shaped like
+ * it. Served at /api/worlds/schema/patch; the things in it are as the world
+ * format says.
+ */
+export const worldPatchJsonSchema = () => {
+	const world = sceneJsonSchema() as TJsonSchema;
+	const lists = new Map(PATCH_LISTS.map((list) => [list.path.join("."), list]));
+	const properties: Record<string, TJsonSchema> = {
+		isPatch: { const: true, description: "Marks this as a patch, not a whole world." },
+	};
+	for (const key of Object.keys(world.properties ?? {})) {
+		if (key === "version") {
+			continue;
+		}
+		const list = lists.get(key);
+		if (list) {
+			properties[key] = listPatchSchema(list.one, list.id);
+		} else if (key === "data") {
+			properties.data = {
+				type: "object",
+				description:
+					"Changes to the world's data: its own settings (isOn) merged, and its lists by key or id.",
+				properties: Object.fromEntries(
+					PATCH_LISTS.filter((each) => each.path[0] === "data").map((each) => [
+						each.path[1],
+						listPatchSchema(each.one, each.id),
+					]),
+				),
+			};
+		} else {
+			properties[key] = {
+				type: "object",
+				description: `Changes to the world's ${key}, as in the world format: only the fields that change; groups merge, a list is replaced whole, null removes a field so its default applies.`,
+			};
+		}
+	}
+	return {
+		$schema: "https://json-schema.org/draft/2020-12/schema",
+		title: `${APP_NAME} world patch`,
+		description: `The changes to a ${APP_NAME} world, without the rest of it (ADR-0118). Shaped like the world (/api/worlds/schema), with the same field names, plus "isPatch": true. A settings group holds only the fields that change, merged as JSON Merge Patch (RFC 7396). A list of things takes remove, change and add, by id (data values and tables by key), applied in that order. Things are named by id, not by their place in a list (as JSON Patch, RFC 6902, would): ids are what stays right when lists are long or change. Check one with POST /api/worlds/validate { "world": ..., "patch": ... }.`,
+		type: "object",
+		required: ["isPatch"],
+		properties,
+		additionalProperties: false,
+	};
 };

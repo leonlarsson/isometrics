@@ -4,6 +4,7 @@ import { drawRoadsForEachRow } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { ROAD_KIND_LABELS } from "#/scene/roads";
+import { cellOf } from "#/scene/rowData";
 import type { TDataTable, TRoad } from "#/scene/schema";
 
 import { Dialog } from "./Dialog";
@@ -11,7 +12,9 @@ import { Hint, SelectField, SliderField } from "./fields";
 
 /** The columns of a table holding text in some row (names of places). */
 export const textColumnsOf = (table: TDataTable) =>
-	table.columns.filter((column) => table.rows.some((row) => typeof row[column.key] === "string"));
+	table.columns.filter((column) =>
+		table.rows.some((row) => typeof cellOf(row, column.key) === "string"),
+	);
 
 /**
  * The column a from or to is likely in: one named so ("from", "source"…), else
@@ -36,7 +39,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 	const commit = useEditor((s) => s.commit);
 	const texts = textColumnsOf(table);
 	const numbers = table.columns.filter((column) =>
-		table.rows.some((row) => typeof row[column.key] === "number"),
+		table.rows.some((row) => typeof cellOf(row, column.key) === "number"),
 	);
 	const [fromColumn, setFromColumn] = useState(() =>
 		guessColumn(table, /^(from|source|origin)/i, 0),

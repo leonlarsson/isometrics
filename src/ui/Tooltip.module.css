@@ -4,8 +4,10 @@
 
 .popup {
 	box-sizing: border-box;
-	max-width: 260px;
+	max-width: min(260px, calc(100vw - 16px));
 	padding: 5px 8px;
+	/* A long address has no spaces to wrap at: it breaks anywhere rather than run off the page. */
+	overflow-wrap: anywhere;
 	border: 1px solid var(--tooltip-border);
 	border-radius: 6px;
 	background: var(--tooltip-bg);

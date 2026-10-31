@@ -3,7 +3,13 @@ import { useState } from "react";
 import { pickFile } from "#/editor/fileActions";
 import { suggestLegend } from "#/editor/legend";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
-import { keepArrivedValues, refreshSource, useSourceStatus } from "#/editor/sourceRefresh";
+import {
+	hostsOf,
+	keepArrivedValues,
+	refreshSource,
+	useSourceStatus,
+	useWaitingSources,
+} from "#/editor/sourceRefresh";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { useHasArrived } from "#/editor/worldData";
@@ -16,6 +22,7 @@ import {
 	type TDataValue,
 } from "#/scene/schema";
 
+import { AllowedLinksDialog } from "./AllowedLinksDialog";
 import { Button, ButtonGroup, IconButton } from "./Button";
 import { DataTableDialog } from "./DataTableDialog";
 import { DataValuePage } from "./DataValuePage";
@@ -315,7 +322,10 @@ export const DataPanel = () => {
 	const removeDataSource = useEditor((s) => s.removeDataSource);
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
 	const [readsLink, setReadsLink] = useState(false);
+	const [listsAllowed, setListsAllowed] = useState(false);
 	const statuses = useSourceStatus();
+	const waiting = useWaitingSources();
+	const waitingIds = new Set(waiting.map((source) => source.id));
 	const hasArrived = useHasArrived();
 	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
 	const openTable = tables.find((table) => table.key === openTableKey);
@@ -445,6 +455,12 @@ export const DataPanel = () => {
 				title="Sources"
 				keywords="data import read spreadsheet csv excel api link"
 			>
+				{waiting.length > 0 && (
+					<Hint>
+						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (Allow, on its row).`}
+					</Hint>
+				)}
+
 				{sources.length > 0 ? (
 					<List>
 						{sources.map((source) => (
@@ -456,6 +472,8 @@ export const DataPanel = () => {
 									source.url ?? (source.fileName === source.name ? null : source.fileName),
 									// Read once, outside the app: it can't be read again from here.
 									(source.kind === "link" || source.kind === "api") && !source.url && "a snapshot",
+									// An address this browser hasn't said yes to (ADR-0119): not read until allowed.
+									waitingIds.has(source.id) && "not read until you allow it",
 									statuses[source.id]?.reading
 										? "reading…"
 										: statuses[source.id]?.error
@@ -480,11 +498,22 @@ export const DataPanel = () => {
 
 										{(source.kind === "link" || source.kind === "api") &&
 											(source.url ? (
-												<IconButton
-													icon="download"
-													label="Read it again now"
-													onClick={() => void refreshSource(source)}
-												/>
+												waitingIds.has(source.id) ? (
+													// Waiting for a yes (ADR-0119): said in words, not a download icon.
+													<Button
+														size="sm"
+														icon="check"
+														onClick={() => void refreshSource(source, { asked: true })}
+													>
+														Allow
+													</Button>
+												) : (
+													<IconButton
+														icon="download"
+														label="Read it again now"
+														onClick={() => void refreshSource(source, { asked: true })}
+													/>
+												)
 											) : (
 												// A snapshot (read once, outside the app): shown greyed with why, not hidden.
 												<IconButton
@@ -521,10 +550,16 @@ export const DataPanel = () => {
 					<Button icon="download" onClick={() => setReadsLink(true)}>
 						Read a link or API…
 					</Button>
+
+					<Button variant="ghost" icon="lock" onClick={() => setListsAllowed(true)}>
+						Addresses this browser reads…
+					</Button>
 				</ButtonGroup>
 			</Section>
 
 			{dialogs}
+
+			<AllowedLinksDialog open={listsAllowed} onClose={() => setListsAllowed(false)} />
 		</>
 	);
 };

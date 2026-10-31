@@ -78,8 +78,20 @@ export const Route = createRootRoute({
 			},
 		],
 	}),
-	// Same as the robots meta tag, for crawlers that only read headers.
-	headers: () => ({ "X-Robots-Tag": "noindex, nofollow" }),
+	headers: () => ({
+		// Same as the robots meta tag, for crawlers that only read headers.
+		"X-Robots-Tag": "noindex, nofollow",
+		// Security (ADR-0119): no other site may frame the editor (clickjacking), no plugins, no
+		// changing where relative links point or forms post, no sniffing, little referrer, and no
+		// camera, microphone or location. Scripts and styles aren't restricted here: that needs
+		// nonces for the framework's inline scripts (TODO.md).
+		"X-Frame-Options": "DENY",
+		"Content-Security-Policy":
+			"frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy": "strict-origin-when-cross-origin",
+		"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+	}),
 	shellComponent: RootDocument,
 	notFoundComponent: NotFound,
 	errorComponent: ErrorScreen,

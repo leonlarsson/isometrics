@@ -218,6 +218,88 @@ test.describe("the dashboard (ADR-0110)", () => {
 	});
 });
 
+test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
+	test("a link that came with a world isn't read until it's allowed", async ({ page }) => {
+		let requests = 0;
+		await page.route("https://example.org/counts.json", (route) => {
+			requests += 1;
+			return route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ visitors: 99 }),
+			});
+		});
+		await loadWorld(page, {
+			data: {
+				sources: [
+					{
+						id: "s",
+						name: "Counts",
+						kind: "api",
+						url: "https://example.org/counts.json",
+						refreshSeconds: 60,
+					},
+				],
+				values: [
+					{
+						key: "visitors",
+						name: "Visitors",
+						value: 1,
+						source: { sourceId: "s", path: "visitors" },
+					},
+				],
+			},
+		});
+		// Asked when the world opens; nothing is read meanwhile.
+		const asking = page.getByRole("alertdialog", { name: "This world reads data from outside" });
+		await expect(asking).toContainText("https://example.org/counts.json");
+		await page.waitForTimeout(1500);
+		expect(requests).toBe(0);
+
+		// Not now: it waits in the Data tab, which can allow it later.
+		await asking.getByRole("button", { name: "Not now" }).click();
+		await act(page, (s) => s.setTab("data"));
+		await expect(page.getByText(/this browser hasn't read before: example.org/)).toBeVisible();
+		expect(requests).toBe(0);
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "https://example.org/counts.json" })
+			.getByRole("button", { name: "Allow", exact: true })
+			.click();
+		await expect.poll(() => requests).toBe(1);
+		await expect(page.getByText(/this browser hasn't read before/)).toHaveCount(0);
+
+		// Another address, brought by a change to the world: asked again, allowed from the dialog.
+		await page.route("https://example.org/more.json", (route) => {
+			requests += 1;
+			return route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: "{}",
+			});
+		});
+		await act(page, (s) =>
+			s.commit((d) => {
+				d.data.sources.push({
+					id: "m",
+					name: "More",
+					kind: "api",
+					url: "https://example.org/more.json",
+					fileName: null,
+					refreshSeconds: null,
+					lastReadAt: null,
+					pageUrl: null,
+					about: "",
+				});
+			}),
+		);
+		await asking.getByRole("button", { name: "Allow and read it" }).click();
+		await expect.poll(() => requests).toBe(2);
+	});
+});
+
 test.describe("a world without data (ADR-0115)", () => {
 	test("Uses data off hides the Data tabs and card values; on brings them back", async ({
 		page,
