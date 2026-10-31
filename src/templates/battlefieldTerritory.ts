@@ -21,11 +21,13 @@ import {
  * Battlefield Stats (a Discord bot for Battlefield players).
  *
  * A cluster per Battlefield game, sized by how many messages its players have
- * sent the bot (log scale), with roads carrying them to the bot's tower in
- * the middle, as many cars as messages. The tower's floors follow messages
- * per month, with a sparkline, a change on the month before and a watch line,
- * and the story bar plays the months since 2023. A beacon shows registered
- * users, read again every minute while the world is open.
+ * sent the bot (log scale), with roads carrying each month's messages to the
+ * bot's tower in the middle: wider and busier for more. The tower's floors
+ * follow messages per month, with a sparkline, a change on the month before
+ * and a watch line. The story bar plays the months since 2023: clusters grow
+ * with the messages sent by then, roads swell and thin with each month's (the
+ * launch of Battlefield 6 in August 2025 floods its road). A beacon shows
+ * registered users, read again every minute while the world is open.
  *
  * It opens from its saved snapshot (read 31 Oct 2026, the files in
  * docs/data-study/samples) and reads the APIs again when online: they let
@@ -110,6 +112,93 @@ const MONTHLY: [string, number][] = [
 	["2026-09", 1846],
 	["2026-10", 1715],
 ];
+
+/** Messages sent per game in each month since January 2023 (api.battlefieldstats.com/outputs/daily-games, read 31 Oct 2026; October 2026 so far). */
+const SENT_BY_MONTH: Record<string, number[]> = {
+	"Battlefield 6": [
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		24685, 1152, 18382, 13442, 5520, 3257, 2260, 1705, 1535, 1563, 1246, 1824, 2159, 1178, 1061,
+	],
+	"Battlefield 2042": [
+		2273, 2112, 3083, 2998, 2392, 2373, 1797, 1769, 1333, 2119, 2313, 1658, 1635, 1737, 2049, 1818,
+		1134, 1077, 1199, 1265, 921, 920, 1172, 774, 977, 2107, 1517, 1124, 1228, 890, 1133, 5058, 2343,
+		1159, 158, 79, 76, 70, 50, 58, 83, 78, 58, 83, 40, 46,
+	],
+	"Battlefield V": [
+		1276, 1314, 1524, 1634, 1233, 1500, 1594, 1422, 1122, 1227, 966, 1217, 1805, 1785, 1701, 1026,
+		1078, 989, 899, 932, 836, 855, 831, 838, 910, 1560, 849, 970, 871, 689, 813, 2584, 623, 694,
+		342, 203, 206, 194, 262, 327, 375, 293, 450, 214, 282, 277,
+	],
+	"Battlefield 1": [
+		996, 719, 843, 747, 704, 708, 916, 848, 652, 735, 626, 608, 659, 597, 593, 523, 525, 483, 891,
+		789, 838, 627, 562, 550, 531, 1316, 732, 712, 800, 703, 682, 3139, 809, 891, 595, 333, 360, 266,
+		239, 268, 285, 179, 255, 292, 342, 315,
+	],
+	"Battlefield 4": [
+		828, 656, 752, 748, 694, 1007, 725, 761, 596, 624, 786, 946, 1170, 764, 737, 637, 513, 509, 460,
+		404, 482, 400, 258, 174, 275, 1254, 414, 334, 325, 285, 478, 3241, 447, 658, 163, 73, 100, 70,
+		9, 12, 4, 5, 3, 9, 1, 11,
+	],
+	"Battlefield 3": [
+		156, 186, 263, 142, 114, 108, 147, 104, 35, 73, 70, 58, 95, 72, 186, 46, 205, 69, 80, 72, 66,
+		54, 24, 9, 33, 267, 101, 54, 44, 47, 67, 704, 75, 158, 24, 17, 14, 5, 0, 0, 0, 4, 7, 0, 0, 3,
+	],
+	"Battlefield Hardline": [
+		28, 46, 54, 26, 24, 39, 15, 21, 7, 15, 12, 9, 24, 43, 47, 32, 14, 14, 21, 11, 22, 3, 9, 4, 18,
+		50, 22, 12, 20, 19, 21, 264, 32, 58, 12, 5, 4, 1, 2, 1, 0, 2, 0, 0, 0, 0,
+	],
+	"Battlefield 2": [
+		12, 6, 9, 6, 6, 19, 8, 6, 5, 16, 8, 1, 7, 27, 8, 1, 14, 3, 3, 6, 3, 0, 10, 0, 22, 36, 11, 7, 21,
+		27, 8, 95, 10, 44, 10, 5, 9, 13, 5, 4, 5, 5, 24, 7, 3, 2,
+	],
+	"Battlefield Bad Company 2": [
+		12, 24, 24, 22, 15, 10, 5, 8, 1, 8, 31, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	],
+};
+
+/** Messages in the last 30 days (api.battlefieldstats.com/outputs/counts?days=30). */
+const LAST_30_DAYS: [string, string, number][] = [
+	["game", "Battlefield 6", 1042],
+	["game", "Battlefield 1", 303],
+	["game", "Battlefield V", 262],
+	["game", "Battlefield 2042", 46],
+	["game", "Battlefield 4", 11],
+	["game", "Battlefield 3", 3],
+	["game", "Battlefield 2", 2],
+	["language", "English", 1139],
+	["language", "Brazilian Portuguese", 177],
+	["language", "Polish", 73],
+	["language", "German", 71],
+	["language", "Russian", 52],
+	["language", "French", 41],
+	["language", "Spanish", 39],
+	["language", "Japanese", 27],
+	["language", "Dutch", 14],
+	["language", "Italian", 10],
+	["language", "Norwegian", 9],
+	["language", "Chinese", 7],
+	["language", "Turkish", 5],
+	["language", "Swedish", 3],
+	["language", "Danish", 2],
+	["segment", "Overview", 817],
+	["segment", "Weapons", 325],
+	["segment", "Vehicles", 161],
+	["segment", "Classes", 101],
+	["segment", "Matches", 86],
+	["segment", "Modes", 77],
+	["segment", "Maps", 55],
+	["segment", "Gadgets", 40],
+	["segment", "Progression", 5],
+	["segment", "Firestorm", 2],
+];
+
+/** The months of SENT_BY_MONTH, as dates ("2023-01"), the same months as MONTHLY. */
+const MONTHS = MONTHLY.map(([at]) => at);
+
+/** Messages in a month: from none to a launch month's tens of thousands, log scale. */
+const MONTH_LOW = 1;
+const MONTH_HIGH = 30_000;
 
 const LOW = 100;
 const HIGH = 100_000;
@@ -223,10 +312,10 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 		],
 		onScreen: {
 			legend: [
-				{ label: "Size", meaning: "messages sent to the bot per game, log scale" },
+				{ label: "Size", meaning: "messages sent to the bot per game so far, log scale" },
 				{
 					label: "Roads",
-					meaning: "the same messages on their way: wider and busier, more messages, log scale",
+					meaning: "messages on their way in a month: wider and busier, more messages, log scale",
 				},
 				{ label: "Tower", meaning: "messages per month, log scale" },
 			],
@@ -252,6 +341,17 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					refreshSeconds: 3600,
 					pageUrl: "https://battlefieldstats.com",
 					about: "Messages sent to the bot, all time",
+					lastReadAt: READ_AT,
+				},
+				{
+					id: "bf_last_30_days",
+					name: "Battlefield Stats: messages in the last 30 days",
+					kind: "api",
+					url: "https://api.battlefieldstats.com/outputs/counts?days=30",
+					refreshSeconds: 3600,
+					pageUrl: "https://battlefieldstats.com",
+					about:
+						"Messages sent to the bot in the last 30 days; the months before from api.battlefieldstats.com/outputs/daily-games",
 					lastReadAt: READ_AT,
 				},
 				{
@@ -295,6 +395,49 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 						...GAMES.map((game) => ({ category: "game", item: game.name, sent: game.sent })),
 						...OTHER_COUNTS.map(([category, item, sent]) => ({ category, item, sent })),
 					],
+					// Each game's messages sent by the end of each month, so the story grows the clusters.
+					history: MONTHS.map((at, month) => ({
+						at,
+						rows: GAMES.map((game) => ({
+							category: "game",
+							item: game.name,
+							sent: SENT_BY_MONTH[game.name]
+								.slice(0, month + 1)
+								.reduce((sum, sent) => sum + sent, 0),
+						})),
+					})),
+				},
+				{
+					key: "messages_per_month",
+					name: "Messages by game, per month",
+					keyColumn: "item",
+					source: { sourceId: "bf_last_30_days", path: "" },
+					columns: [
+						{ key: "category", name: "Counted by", field: "category" },
+						{ key: "item", name: "Item", field: "item" },
+						{
+							key: "sent",
+							name: "Messages in a month",
+							field: "sent",
+							about: "Now: the last 30 days. Months before: each calendar month",
+						},
+					],
+					rows: [
+						...LAST_30_DAYS.map(([category, item, sent]) => ({ category, item, sent })),
+						// Games with no messages lately aren't in the API's answer: none, not unknown.
+						...GAMES.filter((game) => !LAST_30_DAYS.some(([, item]) => item === game.name)).map(
+							(game) => ({ category: "game", item: game.name, sent: 0 }),
+						),
+					],
+					// Each game's messages in each month, so the story swells and thins the roads.
+					history: MONTHS.map((at, month) => ({
+						at,
+						rows: GAMES.map((game) => ({
+							category: "game",
+							item: game.name,
+							sent: SENT_BY_MONTH[game.name][month] ?? 0,
+						})),
+					})),
 				},
 			],
 		},
@@ -307,23 +450,24 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				to: HQ,
 				fromReach: reachOf(scaleFor(game.sent, LOW, HIGH)),
 				toReach: 2,
-				tableKey: "messages_by_item",
+				tableKey: "messages_per_month",
 				rowKey: game.name,
-				// Wider for more messages: from a lane's width to a broad road, on a log scale.
+				// Wider for more messages a month: from a lane's width to a broad road, on a log scale.
 				width: {
 					key: "row.sent",
 					usesLogScale: true,
-					valueAtLowSetting: LOW,
-					valueAtHighSetting: HIGH,
+					valueAtLowSetting: MONTH_LOW,
+					valueAtHighSetting: MONTH_HIGH,
 					lowSetting: 0.6,
 					highSetting: 3.2,
 				},
+				// Busier too, and empty in a month with no messages.
 				density: {
 					key: "row.sent",
 					usesLogScale: true,
-					valueAtLowSetting: LOW,
-					valueAtHighSetting: HIGH,
-					lowSetting: 0.5,
+					valueAtLowSetting: MONTH_LOW,
+					valueAtHighSetting: MONTH_HIGH,
+					lowSetting: 0,
 					highSetting: 3,
 				},
 				vehicleKind: "delivery_van_01",

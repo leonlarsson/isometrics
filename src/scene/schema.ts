@@ -745,12 +745,12 @@ export const RoadFlowSchema = z
 		speed: z.number().min(0.2).max(20).default(3).describe("Grid units per second."),
 		vehicleDensity: z
 			.number()
-			.min(0.1)
+			.min(0)
 			.max(6)
 			.nullable()
 			.default(null)
 			.describe(
-				"How many vehicles per 10 grid units of road drive each way it goes (each way with vehicles), so short and long roads compare fairly; data can set it (data.vehicleDensity). null = the counts as set (vehicleCountAlong, vehicleCountAgainst).",
+				"How many vehicles per 10 grid units of road drive each way it goes (each way with vehicles), so short and long roads compare fairly; data can set it (data.vehicleDensity). 0 = none (an amount of nothing); above 0, at least one vehicle. null = the counts as set (vehicleCountAlong, vehicleCountAgainst).",
 			),
 		showsArrows: z
 			.boolean()

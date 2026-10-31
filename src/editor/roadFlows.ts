@@ -13,7 +13,7 @@ import type { TDataValue, TRoad, TWorldData } from "#/scene/schema";
 /** The road settings that can follow data, with their ranges, by their key in `road.data`. */
 export const ROAD_DATA_SETTINGS = {
 	width: { label: "Width", min: 0.4, max: 20, step: 0.1 },
-	vehicleDensity: { label: "Vehicles per 10 units", min: 0.1, max: 6, step: 0.1 },
+	vehicleDensity: { label: "Vehicles per 10 units", min: 0, max: 6, step: 0.1 },
 	vehicleCountAlong: { label: "Vehicles along it", min: 0, max: 40, step: 1 },
 	vehicleCountAgainst: { label: "Vehicles the other way", min: 0, max: 40, step: 1 },
 } as const;
@@ -67,7 +67,7 @@ export const flowOffsets = (count: number, length: number, shifted = false) =>
 
 /**
  * How many vehicles drive one way along a road of `length`: its count, or with a density, that
- * many per 10 units (at least one); never more than fit a vehicle and a half apart.
+ * many per 10 units (at least one, or none at 0); never more than fit a vehicle and a half apart.
  */
 export const vehiclesOnStream = (
 	flow: Pick<TRoad["flow"], "vehicleDensity">,
@@ -75,7 +75,8 @@ export const vehiclesOnStream = (
 	length: number,
 	vehicleLength: number,
 ) => {
-	if (count === 0) {
+	// None that way, or a density of nothing (an amount of 0 from data).
+	if (count === 0 || flow.vehicleDensity === 0) {
 		return 0;
 	}
 	const wanted =

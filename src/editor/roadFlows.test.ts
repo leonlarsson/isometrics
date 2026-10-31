@@ -68,6 +68,8 @@ describe("roads that show flows (ADR-0112)", () => {
 		expect(vehiclesOnStream({ vehicleDensity: 2 }, 3, 25, 1)).toBe(5);
 		// No density: the count as set.
 		expect(vehiclesOnStream({ vehicleDensity: null }, 3, 25, 1)).toBe(3);
+		// A density of 0 (an amount of nothing): none.
+		expect(vehiclesOnStream({ vehicleDensity: 0 }, 3, 25, 1)).toBe(0);
 		// A short road holds no more than fit a vehicle and a half apart.
 		expect(vehiclesOnStream({ vehicleDensity: 6 }, 3, 6, 1.2)).toBe(3);
 		// No vehicles that way, none from density either.
