@@ -35,7 +35,7 @@ import {
  */
 
 /** When the current players were read from Steam. */
-const READ_AT = "2026-10-31T12:00:00Z";
+const READ_AT = "2026-10-31T12:33:00Z";
 
 /** The months the example past covers, oldest first; the last is now. */
 const MONTHS = [
@@ -77,7 +77,7 @@ const GAMES: IGame[] = [
 		id: "tarkov",
 		name: "Escape from Tarkov",
 		appid: 3932890,
-		players: 18036,
+		players: 39_476,
 		kind: "shed_cluster_01",
 		position: [0, 0],
 		color: "#8a9a5b",
@@ -91,7 +91,7 @@ const GAMES: IGame[] = [
 		id: "hunt",
 		name: "Hunt: Showdown 1896",
 		appid: 594650,
-		players: 10516,
+		players: 23_046,
 		kind: "house_cluster_01",
 		position: [-21.2, -10],
 		color: "#a8577e",
@@ -106,7 +106,7 @@ const GAMES: IGame[] = [
 		id: "arena",
 		name: "Arena Breakout: Infinite",
 		appid: 2073620,
-		players: 19872,
+		players: 30_282,
 		kind: "shed_cluster_01",
 		position: [21.2, -12.5],
 		color: "#4f86c6",
@@ -120,7 +120,7 @@ const GAMES: IGame[] = [
 		id: "delta",
 		name: "Delta Force",
 		appid: 2507950,
-		players: 36478,
+		players: 99_334,
 		kind: "tower_cluster_01",
 		position: [23.8, 11.2],
 		color: "#d1a03b",
@@ -134,7 +134,7 @@ const GAMES: IGame[] = [
 		id: "arc",
 		name: "ARC Raiders",
 		appid: 1808500,
-		players: 67032,
+		players: 53_478,
 		kind: "tower_cluster_01",
 		position: [-6.2, 18.8],
 		color: "#2f9e8f",
@@ -148,7 +148,7 @@ const GAMES: IGame[] = [
 		id: "grayzone",
 		name: "Gray Zone Warfare",
 		appid: 2479810,
-		players: 12620,
+		players: 11_947,
 		kind: "tent_cluster_01",
 		position: [-2.5, -20],
 		color: "#9c8b6e",
@@ -162,7 +162,7 @@ const GAMES: IGame[] = [
 		id: "finals",
 		name: "THE FINALS",
 		appid: 2073850,
-		players: 19712,
+		players: 14_021,
 		kind: "tower_cluster_01",
 		position: [-26.2, 15],
 		color: "#c8553d",
@@ -176,7 +176,7 @@ const GAMES: IGame[] = [
 		id: "bf6",
 		name: "Battlefield 6",
 		appid: 2807960,
-		players: 31670,
+		players: 34_839,
 		kind: "house_cluster_01",
 		position: [15, 26.2],
 		color: "#5b6fa8",
@@ -190,7 +190,7 @@ const GAMES: IGame[] = [
 		id: "marathon",
 		name: "Marathon",
 		appid: 3065800,
-		players: 2828,
+		players: 1_276,
 		kind: "tent_cluster_01",
 		position: [-33.8, -2.5],
 		color: "#3fb07c",
@@ -367,7 +367,7 @@ const TREES: TEntityInput[] = (() => {
 })();
 
 /** The games whose cards show in full; the rest show as chips until opened (fewer cards over the world). */
-const FULL_CARDS = new Set(["arc", "delta", "bf6", "hunt"]);
+const FULL_CARDS = new Set(["delta", "arc", "tarkov", "hunt"]);
 
 const ENTITIES: TEntityInput[] = [
 	...GAMES.map((game) => ({
@@ -434,14 +434,14 @@ const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }, index) => {
 			valueAtLowSetting: 0,
 			valueAtHighSetting: 6000,
 			lowSetting: 1,
-			highSetting: 4,
+			highSetting: 3,
 		},
 		vehicleKind: FLOW_VEHICLES[index % FLOW_VEHICLES.length],
-		// Shared players go both ways: as many cars each way.
+		// Shared players are one number for the pair, with no direction: the same cars each way.
 		isTwoWay: true,
 	});
-	// Thin and quiet: the vehicles say how much, the road only where.
-	return { ...road, width: 1.1 };
+	// Two lanes wide, a lane each way: the vehicles say how much, the road only where.
+	return { ...road, width: 2 };
 });
 
 export const createExtractionShootersScene = (): TScene =>
@@ -449,7 +449,7 @@ export const createExtractionShootersScene = (): TScene =>
 		version: SCENE_VERSION,
 		meta: {
 			title: "Extraction shooter territory",
-			subtitle: "Steam snapshot, read 31 Oct 2026",
+			subtitle: "Steam snapshot, read 31 Oct 2026, 12:33 UTC",
 		},
 		theme: "dark",
 		ground: { width: 84, depth: 66 },
@@ -482,7 +482,10 @@ export const createExtractionShootersScene = (): TScene =>
 		onScreen: {
 			legend: [
 				{ label: "Size", meaning: "Steam players now, log scale" },
-				{ label: "Roads", meaning: "audience overlap (example numbers): more cars, more shared" },
+				{
+					label: "Roads",
+					meaning: "players two games share (example numbers): more cars each way, more shared",
+				},
 			],
 			tileKeys: ["steam_players_total"],
 		},

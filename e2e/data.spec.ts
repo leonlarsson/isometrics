@@ -338,7 +338,7 @@ test.describe("the example worlds (data study)", () => {
 		await expect
 			.poll(() => read(page, (s) => s.scene.meta.title))
 			.toBe("Extraction shooter territory");
-		await expect(labelCard(page, /Hunt: Showdown 1896/)).toContainText("10,516");
+		await expect(labelCard(page, /Hunt: Showdown 1896/)).toContainText("23,046");
 		await expect(labelCard(page, /Upcoming title/)).toContainText("no data");
 		await act(page, (s) => {
 			s.setMode("view");

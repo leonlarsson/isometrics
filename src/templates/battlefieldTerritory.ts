@@ -27,19 +27,19 @@ import {
  * and the story bar plays the months since 2023. A beacon shows registered
  * users, read again every minute while the world is open.
  *
- * It opens from its saved snapshot (read 30 Oct 2026, the files in
+ * It opens from its saved snapshot (read 31 Oct 2026, the files in
  * docs/data-study/samples) and reads the APIs again when online: they let
  * browsers read them (CORS open).
  */
 
-const READ_AT = "2026-10-30T12:00:00Z";
+const READ_AT = "2026-10-31T12:33:00Z";
 
 /** Messages sent per game (api.battlefieldstats.com/outputs/counts, category game). */
 const GAMES: { name: string; sent: number; kind: string; color: string }[] = [
 	{ name: "Battlefield 6", sent: 80969, kind: "tower_cluster_01", color: "#d1a03b" },
 	{ name: "Battlefield 2042", sent: 60336, kind: "tower_cluster_01", color: "#4f86c6" },
-	{ name: "Battlefield V", sent: 43588, kind: "house_cluster_01", color: "#a8577e" },
-	{ name: "Battlefield 1", sent: 30764, kind: "house_cluster_01", color: "#9c6b3e" },
+	{ name: "Battlefield V", sent: 43592, kind: "house_cluster_01", color: "#a8577e" },
+	{ name: "Battlefield 1", sent: 30783, kind: "house_cluster_01", color: "#9c6b3e" },
 	{ name: "Battlefield 4", sent: 23802, kind: "shed_cluster_01", color: "#2f9e8f" },
 	{ name: "Battlefield 3", sent: 4058, kind: "shed_cluster_01", color: "#7d8a52" },
 	{ name: "Battlefield Hardline", sent: 1083, kind: "tent_cluster_01", color: "#c8553d" },
@@ -49,10 +49,10 @@ const GAMES: { name: string; sent: number; kind: string; color: string }[] = [
 
 /** The rest of the counts (languages, segments of the bot), kept in the table as the API gives them. */
 const OTHER_COUNTS: [string, string, number][] = [
-	["language", "English", 175030],
+	["language", "English", 175042],
 	["language", "French", 11883],
 	["language", "Polish", 11530],
-	["language", "Brazilian Portuguese", 11384],
+	["language", "Brazilian Portuguese", 11388],
 	["language", "German", 10030],
 	["language", "Spanish", 7925],
 	["segment", "Overview", 190536],
@@ -108,7 +108,7 @@ const MONTHLY: [string, number][] = [
 	["2026-07", 2621],
 	["2026-08", 2764],
 	["2026-09", 1846],
-	["2026-10", 1692],
+	["2026-10", 1715],
 ];
 
 const LOW = 100;
@@ -211,7 +211,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 		version: SCENE_VERSION,
 		meta: {
 			title: "Battlefield territory",
-			subtitle: "Battlefield Stats, read 30 Oct 2026",
+			subtitle: "Battlefield Stats, read 31 Oct 2026",
 		},
 		theme: "system",
 		ground: { width: 80, depth: 66 },
@@ -265,13 +265,13 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				{
 					key: "registered_users",
 					name: "Registered users",
-					value: 41738,
+					value: 41740,
 					source: { sourceId: "bf_users", path: "totalUsers" },
 				},
 				{
 					key: "sent_per_month",
 					name: "Messages sent this month",
-					value: 1692,
+					value: 1715,
 					source: { sourceId: "bf_monthly", path: "sent" },
 					history: MONTHLY.map(([at, value]) => ({ at, value })),
 					threshold: { line: 2000, flagsWhen: "below", word: "Quiet" },
