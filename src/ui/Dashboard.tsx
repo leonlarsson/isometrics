@@ -13,6 +13,7 @@ import { ChipGroup } from "./ChipGroup";
 import { DataReading, TrendWords } from "./DataReading";
 import { DataTableView } from "./DataTableView";
 import { sourceLine } from "./DetailSheet";
+import { StoryBar } from "./StoryBar";
 
 import styles from "./Dashboard.module.css";
 
@@ -173,7 +174,7 @@ export const WorldDataView = () => {
 };
 
 /** Tiles for the world's main values along the bottom edge, in View mode. */
-export const ValueTiles = () => {
+const ValueTiles = () => {
 	const keys = useEditor((s) => s.scene.onScreen.tileKeys);
 	const inView = useEditor((s) => s.mode === "view");
 	const values = useWorldData().values;
@@ -183,7 +184,7 @@ export const ValueTiles = () => {
 		return null;
 	}
 	return (
-		<ul className={styles.tiles} aria-label="Main values" data-label-obstacle="">
+		<ul className={styles.tiles} aria-label="Main values">
 			{keys.map((key) => {
 				const entry = values.find((each) => each.key === key);
 				return (
@@ -193,5 +194,30 @@ export const ValueTiles = () => {
 				);
 			})}
 		</ul>
+	);
+};
+
+/**
+ * View mode's bottom dock: the main values' tiles and the story bar, laid out together so they
+ * never overlap each other or (on phones) the viewpoint bar under them. Label cards keep clear of it.
+ */
+export const ViewDock = () => {
+	const inView = useEditor((s) => s.mode === "view");
+	const isAboveViewpointBar = useEditor(
+		(s) => s.scene.onScreen.showsViewpointBar && s.scene.viewpoints.length > 0,
+	);
+	if (!inView) {
+		return null;
+	}
+	return (
+		<div
+			className={styles.dock}
+			data-above-viewpoints={isAboveViewpointBar || undefined}
+			data-label-obstacle=""
+		>
+			<ValueTiles />
+
+			<StoryBar />
+		</div>
 	);
 };

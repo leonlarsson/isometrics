@@ -20,7 +20,7 @@ import { BoxSelectBar } from "./BoxSelectBar";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
-import { LegendChips, MapDataSwitch, ValueTiles, WorldDataView } from "./Dashboard";
+import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
@@ -51,7 +51,6 @@ import {
 	usePaletteWidth,
 } from "./ResizeHandle";
 import { StatusBanner } from "./StatusBanner";
-import { StoryBar } from "./StoryBar";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
 import { Tooltip, TooltipProvider } from "./Tooltip";
@@ -357,9 +356,7 @@ export const AppShell = () => {
 
 							<DetailSheet />
 
-							<ValueTiles />
-
-							<StoryBar />
+							<ViewDock />
 
 							<WorldDataView />
 

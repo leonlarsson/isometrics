@@ -55,7 +55,7 @@ export const StoryBar = () => {
 		return null;
 	}
 	return (
-		<section className={styles.bar} aria-label="Story" data-label-obstacle="">
+		<section className={styles.bar} aria-label="Story">
 			<IconButton
 				icon={isPlaying ? "pause" : "play"}
 				label={isPlaying ? "Pause the story" : "Play the story through its dates"}

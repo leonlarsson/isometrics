@@ -1,12 +1,9 @@
 .bar {
-	position: absolute;
-	right: 24px;
-	bottom: 20px;
-	z-index: 2;
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	width: min(420px, calc(100% - 48px));
+	width: min(420px, 100%);
+	pointer-events: auto;
 	padding: 8px 12px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);

@@ -90,18 +90,33 @@
 	font-weight: 600;
 }
 
-.tiles {
+/*
+ * View mode's bottom dock (ADR-0110, ADR-0114): the world's main values and the story bar, laid out
+ * together so they never sit on each other: side by side on wide screens, stacked on phones, where
+ * they also make room for the viewpoint bar under them.
+ */
+.dock {
 	position: absolute;
-	left: 24px;
+	right: 24px;
 	bottom: 20px;
-	z-index: 1;
+	left: 24px;
+	z-index: 2;
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	pointer-events: none;
+}
+
+.tiles {
 	display: flex;
 	gap: 10px;
+	min-width: 0;
 	margin: 0;
 	padding: 0;
 	list-style: none;
-	max-width: calc(100% - 48px);
 	flex-wrap: wrap;
+	pointer-events: auto;
 }
 
 .tile {
@@ -111,4 +126,52 @@
 	border-radius: var(--radius-md);
 	background: var(--surface-raised);
 	box-shadow: var(--shadow-card);
+}
+
+/* Phones: a smaller title card (the legend one row that scrolls sideways), and the dock stacked above the viewpoint bar. */
+@media (max-width: 900px) {
+	.legend {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		margin-top: 6px;
+		scrollbar-width: none;
+		pointer-events: auto;
+	}
+
+	.chip {
+		flex: none;
+		padding: 2px 8px;
+		font-size: 11px;
+		white-space: nowrap;
+	}
+
+	.switch {
+		margin-top: 6px;
+	}
+
+	.dock {
+		right: 12px;
+		bottom: 12px;
+		left: 12px;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	.dock[data-above-viewpoints] {
+		/* The viewpoint bar's place at the bottom, and a gap. */
+		bottom: 96px;
+	}
+
+	.tiles {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.tile {
+		flex: none;
+		min-width: 120px;
+		padding: 8px 12px;
+	}
 }
