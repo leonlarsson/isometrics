@@ -141,6 +141,8 @@ The owner's own public APIs, both readable from the browser (`access-control-all
 | `https://api.battlefieldstats.com/outputs/counts` | `[{ category, item, sent }]` | a table |
 | `https://api.the-finals-leaderboard.com/v1/leaderboard/s8/crossplay` | `{ meta, count, data: [{ rank, name, league, … }] }` (10,000 rows) | a big table |
 
+Checked against the APIs' own code (`leonlarsson/bfstats-api`, `leonlarsson/the-finals-api`, 31 Oct 2026): both send `Access-Control-Allow-Origin: *` on these routes (Hono's `cors()`), and the shapes are as above. Also there: `/outputs/counts?days=30` (a window: `days`, `offset`, up to 366), `/outputs/daily-games` (`[{ day, game, sent, totalSent }]`, every day per game) and The Finals' `clubTag` / `exactClubTag` / `name` filters (`count` is a true/false "count only" switch, not a limit).
+
 The same data as files, in [`samples/`](samples/), read on 2026-10-30: the Finals' top 100 and top 20 clubs (tables), Battlefield Stats' sent per day and per month (values over time) and by category (a table), and `stats-two-sheets.xlsx` (the clubs and the months as two sheets, real Excel dates) for trying Excel. The unit tests and the end-to-end test read them.
 
 ## Decided
@@ -162,7 +164,7 @@ The same data as files, in [`samples/`](samples/), read on 2026-10-30: the Final
 - **Live values gain a past while the world is open**: a value read every minute (registered users) collects points in memory, so a story shows it as "no data" before the first one. *Recommendation:* fine for now (it's honest); revisit with server-side history.
 - **What a thing with no data looks like on the map**: its card says "no data", but a cluster keeps its stored size. *Recommendation:* a "when there's no data" choice per object (keep its size, shrink to the smallest, or grey it), defaulting to keep.
 - **Thresholds on columns in the UI**: columns can have a watch line and a note in the format, set by templates or AIs, but not yet in the table viewer. *Recommendation:* add them to the table viewer's column headers next.
-- **Tables from long sheets**: a sheet with a date, a name and numbers per row (one row per game per month) could become a table with a past (`table.history`) when read. *Recommendation:* add it as a fifth "Read it as" in the spreadsheet dialog.
+- **Tables from long lists**: a sheet or an API list with a date, a name and numbers per entry (one per game per day) could become a table with a past (`table.history`) when read. Battlefield Stats' `/outputs/daily-games` is exactly that: with it, Battlefield territory's clusters would grow through the story with real numbers (today only the tower and the monthly value follow the story there). *Recommendation:* add "A table over time" as a reading in both dialogs (pick the date field and the field naming rows, sum by month), then point Battlefield territory at `/outputs/daily-games`.
 - **Merging into main**: the data-study shape of `data` isn't on main yet. *Recommendation:* merge as is (worlds from main's flat list upgrade on load, every fixture opens with no repairs), then bump nothing: it's additive.
 - **Tables of tables**: an API's nested lists are each offered on their own (several tables, each by its path); entries' fields are read one level deep (`stats.kills`). Deeper nesting isn't offered.
 - **Who refreshes a link** when nobody has the world open: nobody, until there's a server; then a Cron Trigger or the world's Durable Object (above).
