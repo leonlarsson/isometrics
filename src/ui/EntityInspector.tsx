@@ -536,6 +536,26 @@ const LabelTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							}
 						/>
 
+						<SwitchField
+							label="Show as a chip until opened"
+							checked={entity.label.showsAsChip}
+							onChange={(on) =>
+								edit("label.chip", (e) => {
+									e.label.showsAsChip = on;
+								})
+							}
+							inherit={resetToDefault(
+								entity.label.showsAsChip,
+								false,
+								() =>
+									edit("label.chip", (e) => {
+										e.label.showsAsChip = false;
+									}),
+								"the whole card",
+							)}
+							hint="Just its dot and main value, the whole card when it's opened or pointed at: for worlds with many cards."
+						/>
+
 						<VectorField
 							label="Card offset"
 							axes={["X", "Y", "Z"]}

@@ -234,6 +234,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 					dataKeys: ["orders"],
 					offset: [0, 2, 0],
 					tag: "",
+					showsAsChip: false,
 				};
 			}),
 		);

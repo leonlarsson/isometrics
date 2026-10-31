@@ -103,11 +103,21 @@ const Stream = ({
 	const playing = useEditor((s) => s.playing);
 	const part = getPart(road.flow.vehicleKind);
 	const length = part ? part.footprint(resolveProps(part, {}))[0] : 1;
+	// A flow that goes one way only drives down the middle, so no lane of the road stays empty.
+	const oneWay = road.flow.vehicleCountAlong === 0 || road.flow.vehicleCountAgainst === 0;
 	const sampler = useMemo(
-		() => createOneWaySampler(road, driving, { reverse, smoothing: length / 2 }),
-		[road, driving, reverse, length],
+		() =>
+			createOneWaySampler(
+				oneWay ? { ...road, traffic: { ...road.traffic, drivingLane: "centre" } } : road,
+				driving,
+				{ reverse, smoothing: length / 2 },
+			),
+		[road, driving, reverse, length, oneWay],
 	);
-	const offsets = flowOffsets(count, sampler.length, reverse);
+	// Never closer than a vehicle and a half apart, or a long road of trucks reads as one train: a
+	// road holds as many as fit (ADR-0112).
+	const fits = Math.max(1, Math.floor(sampler.length / (length * 1.6)));
+	const offsets = flowOffsets(Math.min(count, fits), sampler.length, reverse);
 	const groups = useRef<(THREE.Group | null)[]>([]);
 	const travelled = useRef(0);
 
@@ -115,7 +125,7 @@ const Stream = ({
 		if (playing) {
 			travelled.current += road.flow.speed * Math.min(delta, 0.1);
 		}
-		for (let i = 0; i < count; i++) {
+		for (let i = 0; i < offsets.length; i++) {
 			const group = groups.current[i];
 			if (!group) {
 				continue;

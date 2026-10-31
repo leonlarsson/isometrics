@@ -280,6 +280,12 @@ export const LabelSchema = z
 			.string()
 			.default("")
 			.describe('A short word shown beside the title, e.g. "home" or "new"; empty = none.'),
+		showsAsChip: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the card shows only as a chip (its dot and main value) until it's opened or pointed at, so many cards don't cover the world.",
+			),
 	})
 	.describe("A floating card above the object showing data values.");
 
@@ -292,6 +298,7 @@ export const NO_LABEL: TLabel = {
 	dataKeys: [],
 	offset: [0, 2, 0],
 	tag: "",
+	showsAsChip: false,
 };
 
 export const FollowSchema = z

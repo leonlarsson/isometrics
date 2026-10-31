@@ -1,3 +1,4 @@
+import { getPart, resolveProps } from "#/parts/registry";
 import {
 	SCENE_VERSION,
 	SceneSchema,
@@ -239,6 +240,9 @@ const EXAMPLE = "Example numbers, not from Steam";
 
 const round = (value: number) => Math.round(value / 10) * 10;
 
+/** A coordinate to a tenth of a grid unit (never -0, so a world reads back as it was written). */
+const tenth = (value: number) => Math.round(value * 10) / 10 + 0;
+
 /** A game's row: its count now from Steam, the rest example numbers. */
 const rowOf = (game: IGame) => ({
 	game: game.name,
@@ -251,9 +255,123 @@ const rowOf = (game: IGame) => ({
 
 const byId = new Map(GAMES.map((game) => [game.id, game]));
 
+/** A repeatable random number in 0–1 for a seed: the same world every time it's made. */
+const random = (seed: number) => {
+	const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+	return x - Math.floor(x);
+};
+
+/** Each game's landmark, which tells it apart by its shape, and the side of its cluster it stands on. */
+const LANDMARK_OF: Record<string, { kind: string; angle: number }> = {
+	tarkov: { kind: "gantry_crane_01", angle: 145 },
+	hunt: { kind: "church_01", angle: 200 },
+	arena: { kind: "shipping_container_01", angle: 330 },
+	delta: { kind: "pylon_01", angle: 20 },
+	arc: { kind: "wind_turbine_01", angle: 120 },
+	grayzone: { kind: "floodlight_01", angle: 270 },
+	finals: { kind: "grandstand_01", angle: 160 },
+	bf6: { kind: "factory_01", angle: 60 },
+	marathon: { kind: "beacon_01", angle: 180 },
+};
+
+/** How far a game's cluster reaches from its middle, at its size from data. */
+const reachOfGame = (game: IGame) => reachOf(scaleFor(game.players ?? 0, LOW, HIGH));
+
+/** How far a part reaches from its middle at scale 1, from its footprint. */
+const partReach = (kind: string, props: Record<string, unknown> = {}) => {
+	const part = getPart(kind);
+	const [w, d] = part ? part.footprint(resolveProps(part, props)) : [1, 1];
+	return Math.hypot(w, d) / 2;
+};
+
+/** A cluster's square body reaches this far at its corners (the templates test checks squares). */
+const CORNER = Math.SQRT2;
+
+/** Where each road runs, so nothing is placed on one. */
+const ROAD_LINES: [TVec2, TVec2][] = OVERLAP.map(({ from, to }) => [
+	byId.get(from)!.position,
+	byId.get(to)!.position,
+]);
+
+const distanceToSegment = ([px, pz]: TVec2, [[ax, az], [bx, bz]]: [TVec2, TVec2]) => {
+	const dx = bx - ax;
+	const dz = bz - az;
+	const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz)));
+	return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+};
+
+/** Each game's landmark: beside its cluster, on the side its angle says, clear of it. */
+const LANDMARKS: TEntityInput[] = GAMES.map((game) => {
+	const landmark = LANDMARK_OF[game.id];
+	const angle = (landmark.angle * Math.PI) / 180;
+	const distance = reachOfGame(game) * CORNER + partReach(landmark.kind) + 0.6;
+	const position: TVec2 = [
+		tenth(game.position[0] + Math.cos(angle) * distance),
+		tenth(game.position[1] + Math.sin(angle) * distance),
+	];
+	return {
+		id: `landmark_${game.id}`,
+		kind: landmark.kind,
+		name: `${game.name}'s ${getPart(landmark.kind)?.name.toLowerCase() ?? "landmark"}`,
+		position,
+		rotation: [0, Math.round(-landmark.angle + 90), 0],
+	};
+});
+
+/** A few pines round each game, clear of its cluster, its landmark, the roads and each other. */
+const TREES: TEntityInput[] = (() => {
+	const placed: { position: TVec2; reach: number }[] = [
+		...LANDMARKS.map((landmark) => ({
+			position: landmark.position as TVec2,
+			reach: partReach(landmark.kind),
+		})),
+		...GAMES.map((game) => ({ position: game.position, reach: reachOfGame(game) * CORNER })),
+		...PLACEHOLDERS.map((each) => ({ position: each.position, reach: 4 * CORNER })),
+	];
+	const result: TEntityInput[] = [];
+	for (const game of GAMES) {
+		const inner = reachOfGame(game) * CORNER + 1.2;
+		let made = 0;
+		for (let attempt = 0; attempt < 60 && made < 3; attempt++) {
+			const seed = game.seed * 1000 + attempt;
+			const angle = random(seed) * Math.PI * 2;
+			const distance = inner + random(seed + 0.5) * 2.5;
+			const position: TVec2 = [
+				tenth(game.position[0] + Math.cos(angle) * distance),
+				tenth(game.position[1] + Math.sin(angle) * distance),
+			];
+			const reach = 0.8;
+			const clear =
+				Math.abs(position[0]) < 40 &&
+				Math.abs(position[1]) < 31 &&
+				ROAD_LINES.every((line) => distanceToSegment(position, line) > reach + 1.2) &&
+				placed.every(
+					(other) =>
+						Math.hypot(other.position[0] - position[0], other.position[1] - position[1]) >
+						other.reach + reach + 0.3,
+				);
+			if (!clear) {
+				continue;
+			}
+			placed.push({ position, reach });
+			result.push({
+				id: `${game.id}_pine_${made + 1}`,
+				kind: made % 2 === 0 ? "pine_tree_01" : "pine_tree_02",
+				position,
+				scale: 0.8 + random(seed + 0.75) * 0.3,
+			});
+			made += 1;
+		}
+	}
+	return result;
+})();
+
+/** The games whose cards show in full; the rest show as chips until opened (fewer cards over the world). */
+const FULL_CARDS = new Set(["arc", "delta", "bf6", "hunt"]);
+
 const ENTITIES: TEntityInput[] = [
-	...GAMES.map((game) =>
-		cluster({
+	...GAMES.map((game) => ({
+		...cluster({
 			id: game.id,
 			kind: game.kind,
 			name: game.name,
@@ -270,8 +388,9 @@ const ENTITIES: TEntityInput[] = [
 				"Players now were read from Steam's API on 31 Oct 2026. Steam gives no averages, peaks or past months: those are example numbers, and say so.",
 			tag: game.tag,
 			seed: game.seed,
+			showsAsChip: !FULL_CARDS.has(game.id),
 		}),
-	),
+	})),
 	...PLACEHOLDERS.map((placeholder) =>
 		cluster({
 			id: placeholder.id,
@@ -285,41 +404,23 @@ const ENTITIES: TEntityInput[] = [
 			tileKeys: ["row.players"],
 			description: "A title in the picture with no numbers yet: it shows no data.",
 			seed: placeholder.seed,
+			showsAsChip: true,
 		}),
 	),
-	// Pines round the edges, the diorama's wilds.
-	...(
-		[
-			[-37.5, 25],
-			[-15, 27.5],
-			[2.5, 30],
-			[35, 22.5],
-			[37.5, 5],
-			[30, -27.5],
-			[10, -27.5],
-			[-17.5, -27.5],
-			[-37.5, 10],
-			[12.5, -2.5],
-			[-12.5, 5],
-			[-13.8, -15],
-		] as TVec2[]
-	).map(
-		(position, index): TEntityInput => ({
-			id: `pine_${index + 1}`,
-			kind: index % 3 === 0 ? "pine_tree_02" : "pine_tree_01",
-			position,
-			scale: 0.8 + (index % 4) * 0.1,
-		}),
-	),
+	...LANDMARKS,
+	...TREES,
 ];
 
-const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }) => {
+/** The vehicles on the flows: small cars, so a count reads at a glance. */
+const FLOW_VEHICLES = ["car_01"];
+
+const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }, index) => {
 	const a = byId.get(from);
 	const b = byId.get(to);
 	if (!a || !b) {
 		throw new Error(`No game ${from} or ${to}`);
 	}
-	return flowRoad({
+	const road = flowRoad({
 		id: `overlap_${from}_${to}`,
 		name: `${a.name} ↔ ${b.name}`,
 		from: a.position,
@@ -333,9 +434,14 @@ const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }) => {
 			valueAtLowSetting: 0,
 			valueAtHighSetting: 6000,
 			lowSetting: 1,
-			highSetting: 8,
+			highSetting: 4,
 		},
+		vehicleKind: FLOW_VEHICLES[index % FLOW_VEHICLES.length],
+		// Shared players go both ways: as many cars each way.
+		isTwoWay: true,
 	});
+	// Thin and quiet: the vehicles say how much, the road only where.
+	return { ...road, width: 1.1 };
 });
 
 export const createExtractionShootersScene = (): TScene =>

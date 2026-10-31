@@ -81,6 +81,8 @@ interface IClusterOptions {
 	description?: string;
 	tag?: string;
 	seed?: number;
+	/** Its card shows as a chip until opened. */
+	showsAsChip?: boolean;
 }
 
 /** A cluster following its row: its main colour, its size from data, a card and tiles. */
@@ -101,6 +103,7 @@ export const cluster = ({
 	description = "",
 	tag = "",
 	seed = 1,
+	showsAsChip = false,
 }: IClusterOptions): TEntityInput => {
 	const mainColor =
 		{
@@ -122,7 +125,7 @@ export const cluster = ({
 			...(size ? { builtShare: size } : {}),
 			...(scaleFromData ? { scale: scaleFromData } : {}),
 		},
-		label: { isShown: true, title: "", dataKeys: cardKeys, offset: [0, 1.5, 0], tag },
+		label: { isShown: true, title: "", dataKeys: cardKeys, offset: [0, 1.5, 0], tag, showsAsChip },
 		details: { description, dataKeys: tileKeys },
 	};
 };
@@ -139,6 +142,7 @@ export const flowRoad = ({
 	vehicleKind = "car_01",
 	fromReach = CLUSTER_WIDTH / 2,
 	toReach = CLUSTER_WIDTH / 2,
+	isTwoWay = false,
 }: {
 	id: string;
 	name: string;
@@ -151,6 +155,8 @@ export const flowRoad = ({
 	/** How far each end's cluster reaches from its middle (its size). */
 	fromReach?: number;
 	toReach?: number;
+	/** The flow goes both ways (a shared audience): each lane gets the same vehicles from data. */
+	isTwoWay?: boolean;
 }): TRoadInput => {
 	const distance = Math.hypot(to[0] - from[0], to[1] - from[1]);
 	const start = fromReach + 0.6;
@@ -169,6 +175,8 @@ export const flowRoad = ({
 		showsCentreLine: false,
 		dataRow: { tableKey, rowKey },
 		flow: { isOn: true, vehicleKind, vehicleCountAlong: 2, speed: 2.5 },
-		data: { vehicleCountAlong: vehicles },
+		data: isTwoWay
+			? { vehicleCountAlong: vehicles, vehicleCountAgainst: vehicles }
+			: { vehicleCountAlong: vehicles },
 	};
 };

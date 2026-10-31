@@ -132,6 +132,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	return (
 		<div
 			className={styles.anchor}
+			data-shows-as-chip={entity.label.showsAsChip || undefined}
 			ref={(element) => {
 				registerLabelElement(entity.id, element);
 				return () => {

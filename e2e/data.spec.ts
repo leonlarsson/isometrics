@@ -63,6 +63,7 @@ test.describe("rows become things (ADR-0108, ADR-0109)", () => {
 					dataKeys: ["row.players"],
 					offset: [0, 2, 0],
 					tag: "",
+					showsAsChip: false,
 				};
 			}),
 		);
@@ -161,7 +162,14 @@ test.describe("the dashboard (ADR-0110)", () => {
 					kind: "tower_cluster_01",
 					name: "Messages",
 					position: [-6, 0],
-					label: { isShown: true, title: "", dataKeys: ["sent"], offset: [0, 2, 0], tag: "home" },
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["sent"],
+						offset: [0, 2, 0],
+						tag: "home",
+						showsAsChip: false,
+					},
 				},
 				{
 					id: "g",
@@ -175,6 +183,7 @@ test.describe("the dashboard (ADR-0110)", () => {
 						dataKeys: ["row.players"],
 						offset: [0, 2, 0],
 						tag: "",
+						showsAsChip: false,
 					},
 				},
 			],
@@ -223,7 +232,14 @@ test.describe("links and APIs (ADR-0113)", () => {
 					id: "c",
 					kind: "tower_cluster_01",
 					name: "Messages",
-					label: { isShown: true, title: "", dataKeys: [], offset: [0, 2, 0], tag: "" },
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: [],
+						offset: [0, 2, 0],
+						tag: "",
+						showsAsChip: false,
+					},
 				},
 			],
 		});
@@ -286,7 +302,14 @@ test.describe("stories (ADR-0114)", () => {
 					id: "m",
 					kind: "tower_cluster_01",
 					name: "Messages",
-					label: { isShown: true, title: "", dataKeys: ["sent"], offset: [0, 2, 0], tag: "" },
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["sent"],
+						offset: [0, 2, 0],
+						tag: "",
+						showsAsChip: false,
+					},
 				},
 			],
 		});
