@@ -51,7 +51,7 @@ Data that drives a world is usually per thing: a row per warehouse, line, player
 
 ## Step 1, built: the foundation
 
-- `scene/schema.ts`: `WorldDataSchema` (values, tables, sources), each field described for `/schema.json`. The world's `data` was a list of values; it's now `{ values, tables, sources }`.
+- `scene/schema.ts`: `WorldDataSchema` (values, tables, sources), each field described for `/api/worlds/schema`. The world's `data` was a list of values; it's now `{ values, tables, sources }`.
 - `scene/legacy.ts`: a world whose `data` is a list (every world saved before this) is brought up to date on load, its values under `values`, so it opens with nothing repaired or lost (ADR-0106; the old-world fixtures and the every-field world check it).
 - `scene/repair.ts`: the safety net reaches into nested lists (`data.values`, `data.tables`, `data.sources`), so one unreadable table is left out, not the whole world's data.
 - `editor/worldData.ts`: the runtime above; every reader of data goes through it (cards, the outliner, objects, fences, roads, areas, the ground, the time of day, the weather).

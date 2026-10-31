@@ -7,7 +7,7 @@ import { z } from "zod";
  * docs/adr/0104-world-format-before-going-public.md for how fields are named
  * and grouped.
  *
- * Field meanings live in `.describe()` text so they reach /schema.json, where
+ * Field meanings live in `.describe()` text so they reach /api/worlds/schema, where
  * people and AIs writing worlds read them (ADR-0032); comments are for code.
  *
  * Every world ever saved keeps opening (ADR-0106): add fields with defaults,

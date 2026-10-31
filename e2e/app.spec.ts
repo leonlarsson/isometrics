@@ -65,8 +65,8 @@ test.describe("opening and saving (ADR-0006, ADR-0020, ADR-0026, ADR-0057)", () 
 });
 
 test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => {
-	test("/schema.json describes the world, with every part kind", async ({ request }) => {
-		const schema = await (await request.get("/schema.json")).json();
+	test("/api/worlds/schema describes the world, with every part kind", async ({ request }) => {
+		const schema = await (await request.get("/api/worlds/schema")).json();
 		expect(schema.title).toBe("Isometrics world");
 		const kinds = schema.properties.entities.items.properties.kind.oneOf.map(
 			(option: { const: string }) => option.const,

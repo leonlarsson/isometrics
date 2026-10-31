@@ -218,7 +218,7 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 			: []),
 		"## How to write a world",
 		sectionsAsMarkdown(RULES_AND_FORMAT, origin, 3),
-		`If you can open links, the full format is at ${origin}/schema.json and complete example worlds are listed at ${origin}/api/worlds/templates; the guide for people is at ${origin}/guide.md. If you can make HTTP requests (running code, a tool), check your world before answering: POST it as JSON to ${origin}/api/worlds/validate, which answers with its problems and warnings and where they are, and fix them. Everything you need is also below.`,
+		`If you can open links, the full format is at ${origin}/api/worlds/schema and complete example worlds are listed at ${origin}/api/worlds/templates; the guide for people is at ${origin}/guide.md. If you can make HTTP requests (running code, a tool), check your world before answering: POST it as JSON to ${origin}/api/worlds/validate, which answers with its problems and warnings and where they are, and fix them. Everything you need is also below.`,
 		"## Roads, areas and fences",
 		`Roads' \`kind\`: ${RoadKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}. Areas' (\`points\`: their corners): ${AreaKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}. Fences': ${FenceKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}.`,
 		"## Every part kind",

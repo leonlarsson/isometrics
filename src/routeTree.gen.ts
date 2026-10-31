@@ -14,7 +14,7 @@ import { Route as GuideRouteImport } from './routes/guide'
 import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
-import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
+import { Route as ApiWorldsSchemaRouteImport } from './routes/api/worlds/schema'
 import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
 import { Route as ApiWorldsTemplatesIndexRouteImport } from './routes/api/worlds/templates/index'
 import { Route as ApiWorldsTemplatesIdRouteImport } from './routes/api/worlds/templates/$id'
@@ -44,9 +44,9 @@ const PartsRoute = PartsRouteImport.update({
   path: '/parts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
-  id: '/schema.json',
-  path: '/schema.json',
+const ApiWorldsSchemaRoute = ApiWorldsSchemaRouteImport.update({
+  id: '/api/worlds/schema',
+  path: '/api/worlds/schema',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWorldsValidateRoute = ApiWorldsValidateRouteImport.update({
@@ -71,7 +71,7 @@ export interface FileRoutesByFullPath {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
@@ -82,7 +82,7 @@ export interface FileRoutesByTo {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/templates': typeof ApiWorldsTemplatesIndexRoute
@@ -94,7 +94,7 @@ export interface FileRoutesById {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/schema.json': typeof SchemaDotjsonRoute
+  '/api/worlds/schema': typeof ApiWorldsSchemaRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
@@ -107,7 +107,7 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
+    | '/api/worlds/schema'
     | '/api/worlds/validate'
     | '/api/worlds/templates/$id'
     | '/api/worlds/templates/'
@@ -118,7 +118,7 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
+    | '/api/worlds/schema'
     | '/api/worlds/validate'
     | '/api/worlds/templates/$id'
     | '/api/worlds/templates'
@@ -129,7 +129,7 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/schema.json'
+    | '/api/worlds/schema'
     | '/api/worlds/validate'
     | '/api/worlds/templates/$id'
     | '/api/worlds/templates/'
@@ -141,7 +141,7 @@ export interface RootRouteChildren {
   GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
-  SchemaDotjsonRoute: typeof SchemaDotjsonRoute
+  ApiWorldsSchemaRoute: typeof ApiWorldsSchemaRoute
   ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
   ApiWorldsTemplatesIdRoute: typeof ApiWorldsTemplatesIdRoute
   ApiWorldsTemplatesIndexRoute: typeof ApiWorldsTemplatesIndexRoute
@@ -184,11 +184,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/schema.json': {
-      id: '/schema.json'
-      path: '/schema.json'
-      fullPath: '/schema.json'
-      preLoaderRoute: typeof SchemaDotjsonRouteImport
+    '/api/worlds/schema': {
+      id: '/api/worlds/schema'
+      path: '/api/worlds/schema'
+      fullPath: '/api/worlds/schema'
+      preLoaderRoute: typeof ApiWorldsSchemaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/worlds/validate': {
@@ -221,7 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
-  SchemaDotjsonRoute: SchemaDotjsonRoute,
+  ApiWorldsSchemaRoute: ApiWorldsSchemaRoute,
   ApiWorldsValidateRoute: ApiWorldsValidateRoute,
   ApiWorldsTemplatesIdRoute: ApiWorldsTemplatesIdRoute,
   ApiWorldsTemplatesIndexRoute: ApiWorldsTemplatesIndexRoute,

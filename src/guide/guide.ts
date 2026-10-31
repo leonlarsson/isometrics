@@ -190,7 +190,7 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "points",
 				points: [
-					"A world is one JSON document. Its format, with every part kind and its settings, is the JSON Schema at `/schema.json`.",
+					"A world is one JSON document. Its format, with every part kind and its settings, is the JSON Schema at `/api/worlds/schema`.",
 					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield_territory` and `extraction_shooters` are data maps.",
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",
@@ -225,9 +225,9 @@ const sectionAsMarkdown = (section: IGuideSection, depth: number): string =>
 		...(section.parts ?? []).map((part) => sectionAsMarkdown(part, depth + 1)),
 	].join("\n\n");
 
-/** The site's own addresses (`/schema.json`) made whole with `origin`, so an AI can open them. */
+/** The site's own addresses (`/api/worlds/schema`) made whole with `origin`, so an AI can open them. */
 const withOrigin = (text: string, origin: string) =>
-	text.replace(/`\/(schema\.json|guide\.md|api\/worlds\/[^`]*)`/g, `\`${origin}/$1\``);
+	text.replace(/`\/(guide\.md|api\/worlds\/[^`]*)`/g, `\`${origin}/$1\``);
 
 /** Some of the guide's sections as Markdown, headed at `depth`, for the prompt. */
 export const sectionsAsMarkdown = (sections: readonly IGuideSection[], origin = "", depth = 2) =>

@@ -16,7 +16,7 @@ const HOW_TO = {
 	about:
 		"Checks a world (ADR-0117): POST it as JSON. The answer says whether it opens as written (isValid), its problems (what opening it would repair or leave out) and warnings (what opens but won't look as meant), each with where in the world.",
 	example: "curl -X POST -H 'Content-Type: application/json' --data @world.json <this address>",
-	format: "/schema.json",
+	format: "/api/worlds/schema",
 	guide: "/guide.md",
 };
 

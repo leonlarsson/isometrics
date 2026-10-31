@@ -377,8 +377,8 @@ export const PartsCatalogue = ({
 					</p>
 
 					<p className={styles.intro}>
-						<a className={styles.link} href="/schema.json">
-							/schema.json
+						<a className={styles.link} href="/api/worlds/schema">
+							/api/worlds/schema
 						</a>
 						: the same parts as data, with every setting, for tools and AIs writing worlds.
 					</p>

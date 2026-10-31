@@ -126,8 +126,8 @@ export const GuidePage = () => {
 				</li>
 
 				<li>
-					<a className={styles.link} href="/schema.json">
-						/schema.json
+					<a className={styles.link} href="/api/worlds/schema">
+						/api/worlds/schema
 					</a>
 					: the world format, with every part and its settings
 				</li>

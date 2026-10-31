@@ -23,7 +23,7 @@ describe("the prompt for your own AI", () => {
 		});
 		expect(prompt).toContain("> A harbour at dusk\n> with a lighthouse");
 		expect(prompt).toContain("North,12000");
-		expect(prompt).toContain(`${ORIGIN}/schema.json`);
+		expect(prompt).toContain(`${ORIGIN}/api/worlds/schema`);
 		for (const part of PARTS) {
 			expect(prompt).toContain(`\`${part.kind}\``);
 		}

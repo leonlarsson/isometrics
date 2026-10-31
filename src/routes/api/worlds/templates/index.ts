@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TEMPLATES } from "#/templates";
 
 // The templates, listed (ADR-0117): complete worlds for people and AIs to learn from or start with,
-// each at its `url`. They follow /schema.json.
+// each at its `url`. They follow /api/worlds/schema.
 export const Route = createFileRoute("/api/worlds/templates/")({
 	server: {
 		handlers: {

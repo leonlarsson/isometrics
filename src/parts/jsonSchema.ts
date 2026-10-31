@@ -154,7 +154,7 @@ const describePart = (part: TAnyPart) => {
 /**
  * The scene JSON Schema (`sceneJsonSchema`) completed with the part registry:
  * every part kind with a description, each kind's props, and a guide to the
- * format. Lives here because `scene/` can't know the parts. Served at /schema.json.
+ * format. Lives here because `scene/` can't know the parts. Served at /api/worlds/schema.
  */
 export const worldJsonSchema = () => {
 	const schema = sceneJsonSchema() as TJsonSchema;
