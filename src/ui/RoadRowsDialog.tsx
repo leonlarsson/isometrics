@@ -44,7 +44,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 	const [toColumn, setToColumn] = useState(() => guessColumn(table, /^(to|target|dest)/i, 1));
 	const [amountColumn, setAmountColumn] = useState(numbers[0]?.key ?? "");
 	const [kind, setKind] = useState<TRoad["kind"]>("road_01");
-	const [mostVehicles, setMostVehicles] = useState(10);
+	const [widest, setWidest] = useState(3);
 	const columnOptions = texts.map((column) => ({
 		value: column.key,
 		label: column.name || column.key,
@@ -55,7 +55,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 			open
 			onOpenChange={(open) => !open && onClose()}
 			title={`Draw a road for each row of ${table.name || table.key}`}
-			description="From the object its from column names to the one its to column names, with vehicles showing how much goes."
+			description="From the object its from column names to the one its to column names, wider for more."
 			closeLabel="Cancel"
 			confirm={{
 				label: `Draw ${table.rows.length.toLocaleString()} roads`,
@@ -69,7 +69,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 							toColumn,
 							amountColumn,
 							kind,
-							mostVehicles,
+							widest,
 						});
 					});
 					notify(
@@ -102,7 +102,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 				label="Amount"
 				value={amountColumn}
 				options={[
-					{ value: "", label: "None (3 vehicles each)" },
+					{ value: "", label: "None (all as wide)" },
 					...numbers.map((column) => ({ value: column.key, label: column.name || column.key })),
 				]}
 				onChange={setAmountColumn}
@@ -110,14 +110,14 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 			/>
 
 			<SliderField
-				label="Most vehicles"
-				value={mostVehicles}
+				label="Widest"
+				value={widest}
 				min={1}
-				max={40}
-				step={1}
-				onChange={setMostVehicles}
+				max={8}
+				step={0.1}
+				onChange={setWidest}
 				hasNoDefault
-				hint="At the largest amount; none at 0, in proportion between."
+				hint="A road's width shows its amount: this wide at the largest, a lane's width at 0, in proportion between. A couple of vehicles drive each one to show which way it goes."
 			/>
 
 			<SelectField

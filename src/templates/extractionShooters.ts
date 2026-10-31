@@ -429,19 +429,19 @@ const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }, index) => {
 		toReach: reachOf(scaleFor(b.players ?? 0, LOW, HIGH)),
 		tableKey: "overlap",
 		rowKey: `${a.name} ↔ ${b.name}`,
-		vehicles: {
+		// Wider for more shared players: two lanes at the least, broad at 6,000 and more.
+		width: {
 			key: "row.shared_players",
 			valueAtLowSetting: 0,
 			valueAtHighSetting: 6000,
-			lowSetting: 1,
-			highSetting: 3,
+			lowSetting: 1.6,
+			highSetting: 4,
 		},
 		vehicleKind: FLOW_VEHICLES[index % FLOW_VEHICLES.length],
-		// Shared players are one number for the pair, with no direction: the same cars each way.
+		// Shared players are one number for the pair, with no direction: cars both ways.
 		isTwoWay: true,
 	});
-	// Two lanes wide, a lane each way: the vehicles say how much, the road only where.
-	return { ...road, width: 2 };
+	return road;
 });
 
 export const createExtractionShootersScene = (): TScene =>
@@ -484,7 +484,7 @@ export const createExtractionShootersScene = (): TScene =>
 				{ label: "Size", meaning: "Steam players now, log scale" },
 				{
 					label: "Roads",
-					meaning: "players two games share (example numbers): more cars each way, more shared",
+					meaning: "players two games share (example numbers): wider, more shared",
 				},
 			],
 			tileKeys: ["steam_players_total"],

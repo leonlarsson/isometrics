@@ -124,7 +124,7 @@ test.describe("roads that show flows (ADR-0112)", () => {
 		const road = await read(page, (s) => s.scene.roads.at(-1));
 		expect(road?.name).toBe("Hunt → Tarkov");
 		expect(road?.flow.isOn).toBe(true);
-		expect(road?.data.vehicleCountAlong?.key).toBe("row.players");
+		expect(road?.data.width?.key).toBe("row.players");
 	});
 });
 

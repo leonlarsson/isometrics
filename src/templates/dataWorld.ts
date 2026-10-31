@@ -130,7 +130,11 @@ export const cluster = ({
 	};
 };
 
-/** A straight road from the edge of one cluster to the edge of another, its flow following a row. */
+/**
+ * A straight road from the edge of one cluster to the edge of another, its row's amount shown by
+ * its width (ADR-0112): thin for little, broad for much, never capped by how long the road is. A
+ * few vehicles drive it for life and to show which way it goes; their number isn't the data.
+ */
 export const flowRoad = ({
 	id,
 	name,
@@ -138,7 +142,7 @@ export const flowRoad = ({
 	to,
 	tableKey,
 	rowKey,
-	vehicles,
+	width,
 	vehicleKind = "car_01",
 	fromReach = CLUSTER_WIDTH / 2,
 	toReach = CLUSTER_WIDTH / 2,
@@ -150,12 +154,13 @@ export const flowRoad = ({
 	to: TVec2;
 	tableKey: string;
 	rowKey: string;
-	vehicles: TDataBindingInput;
+	/** The binding that sets its width from its row's amount. */
+	width: TDataBindingInput;
 	vehicleKind?: string;
 	/** How far each end's cluster reaches from its middle (its size). */
 	fromReach?: number;
 	toReach?: number;
-	/** The flow goes both ways (a shared audience): each lane gets the same vehicles from data. */
+	/** The flow goes both ways (a shared audience): vehicles each way, in their lanes. */
 	isTwoWay?: boolean;
 }): TRoadInput => {
 	const distance = Math.hypot(to[0] - from[0], to[1] - from[1]);
@@ -171,12 +176,16 @@ export const flowRoad = ({
 			[from[0] + ux * start, from[1] + uz * start],
 			[to[0] - ux * end, to[1] - uz * end],
 		],
-		width: 1.6,
+		width: 2,
 		showsCentreLine: false,
 		dataRow: { tableKey, rowKey },
-		flow: { isOn: true, vehicleKind, vehicleCountAlong: 2, speed: 2.5 },
-		data: isTwoWay
-			? { vehicleCountAlong: vehicles, vehicleCountAgainst: vehicles }
-			: { vehicleCountAlong: vehicles },
+		flow: {
+			isOn: true,
+			vehicleKind,
+			vehicleCountAlong: 2,
+			vehicleCountAgainst: isTwoWay ? 2 : 0,
+			speed: 2.5,
+		},
+		data: { width },
 	};
 };

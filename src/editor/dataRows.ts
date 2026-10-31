@@ -214,8 +214,8 @@ export interface IRoadForEachRow {
 	/** A column of numbers for how much goes, or "" for none. */
 	amountColumn: string;
 	kind: TRoad["kind"];
-	/** The most vehicles a road gets, at the column's largest amount. */
-	mostVehicles: number;
+	/** The widest a road gets, at the column's largest amount, in grid units. */
+	widest: number;
 }
 
 /** What drawing a road for each row did: the roads drawn, and the rows whose ends weren't found. */
@@ -227,14 +227,16 @@ export interface IRoadsDrawn {
 /**
  * A road for each row of a "from, to, amount" table (ADR-0112): from the
  * object named in its from column to the one named in its to column (names
- * matched loosely), following its row, its flow's vehicles as many as the
- * amount says, from none to `mostVehicles`.
+ * matched loosely), following its row, its width showing the amount: from a
+ * lane's width at 0 to `widest` at the column's largest. A couple of vehicles
+ * drive it for life and direction; their number isn't the data, so short
+ * roads can't hide an amount.
  */
 export const drawRoadsForEachRow = (
 	scene: Draft<TScene>,
 	options: IRoadForEachRow,
 ): IRoadsDrawn => {
-	const { table, fromColumn, toColumn, amountColumn, kind, mostVehicles } = options;
+	const { table, fromColumn, toColumn, amountColumn, kind, widest } = options;
 	const byName = (name: string) =>
 		scene.entities.find((entity) => looseName(matchingNameOf(entity)) === looseName(name));
 	const range = amountColumn ? columnRange(table, amountColumn) : null;
@@ -267,15 +269,16 @@ export const drawRoadsForEachRow = (
 			points: [start, end],
 			showsCentreLine: false,
 			dataRow: { tableKey: table.key, rowKey },
-			flow: { isOn: true, vehicleCountAlong: amountColumn ? 0 : 3 },
+			width: Math.min(2, widest),
+			flow: { isOn: true, vehicleCountAlong: 2 },
 			data: amountColumn
 				? {
-						vehicleCountAlong: {
+						width: {
 							key: rowKeyFor(amountColumn),
 							valueAtLowSetting: 0,
 							valueAtHighSetting: range?.max ?? null,
-							lowSetting: 0,
-							highSetting: mostVehicles,
+							lowSetting: 0.6,
+							highSetting: Math.max(0.6, widest),
 						},
 					}
 				: {},

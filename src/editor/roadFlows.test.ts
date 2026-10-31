@@ -32,7 +32,7 @@ const scene = () =>
 	});
 
 describe("roads that show flows (ADR-0112)", () => {
-	it("draws a road for each row between the objects it names, its vehicles from the amount", () => {
+	it("draws a road for each row between the objects it names, its width from the amount", () => {
 		const draft = scene();
 		draft.entities[1].name = "";
 		const drawn = drawRoadsForEachRow(draft, {
@@ -41,7 +41,7 @@ describe("roads that show flows (ADR-0112)", () => {
 			toColumn: "to",
 			amountColumn: "players",
 			kind: "road_01",
-			mostVehicles: 8,
+			widest: 4,
 		});
 		expect(drawn.ids).toHaveLength(2);
 		expect(drawn.unmatched).toEqual(["x"]);
@@ -51,8 +51,10 @@ describe("roads that show flows (ADR-0112)", () => {
 		// From the edge of one to the edge of the other.
 		expect(first.points[0][0]).toBeGreaterThan(-10);
 		expect(first.points[1][0]).toBeLessThan(0);
-		expect(roadAsDrawn(first, valuesOfRoad(first, data)).flow.vehicleCountAlong).toBe(8);
-		expect(roadAsDrawn(second, valuesOfRoad(second, data)).flow.vehicleCountAlong).toBe(2);
+		// Its width shows the amount: 400 of 400 is the widest, 100 a quarter of the way up
+		expect(roadAsDrawn(first, valuesOfRoad(first, data)).width).toBe(4);
+		// (0.6 + 0.25 × 3.4 = 1.45, to the width field's step of 0.1)
+		expect(roadAsDrawn(second, valuesOfRoad(second, data)).width).toBeCloseTo(1.4, 5);
 	});
 
 	it("spreads vehicles evenly, the other way half a gap apart, and points arrows the bigger way", () => {
