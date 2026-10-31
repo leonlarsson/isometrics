@@ -6,7 +6,15 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
-import { builtShareFor, cluster, flowRoad, logSize } from "./dataWorld";
+import {
+	builtShareFor,
+	cluster,
+	flowRoad,
+	logScale,
+	logSize,
+	reachOf,
+	scaleFor,
+} from "./dataWorld";
 
 /*
  * Battlefield territory: the data study's example with the owner's own data,
@@ -109,7 +117,7 @@ const HIGH = 100_000;
 /** Where each game's cluster stands: round the bot's tower, the biggest at the back. */
 const spot = (index: number): TVec2 => {
 	const angle = Math.PI + (index / GAMES.length) * Math.PI * 2;
-	return [Math.round(Math.sin(angle) * 19 * 10) / 10, Math.round(Math.cos(angle) * 15 * 10) / 10];
+	return [Math.round(Math.sin(angle) * 29 * 10) / 10, Math.round(Math.cos(angle) * 23 * 10) / 10];
 };
 
 const HQ: TVec2 = [0, 0];
@@ -170,6 +178,8 @@ const ENTITIES: TEntityInput[] = [
 			tableKey: "messages_by_item",
 			builtShare: builtShareFor(game.sent, LOW, HIGH),
 			size: logSize("row.sent", LOW, HIGH),
+			scale: scaleFor(game.sent, LOW, HIGH),
+			scaleFromData: logScale("row.sent", LOW, HIGH),
 			cardKeys: ["row.sent"],
 			tileKeys: ["row.sent", "row.category"],
 			description: "Messages its players have sent the bot, all time.",
@@ -178,14 +188,14 @@ const ENTITIES: TEntityInput[] = [
 	),
 	...(
 		[
-			[-25, -20],
-			[25, -20],
-			[-26, 20],
-			[26, 19],
-			[0, -21],
-			[0, 21],
-			[-9, -6],
-			[9, 6],
+			[-36, -29],
+			[36, -29],
+			[-36, 29],
+			[36, 29],
+			[-14, -30],
+			[14, 30],
+			[-11, -8],
+			[11, 8],
 		] as TVec2[]
 	).map(
 		(position, index): TEntityInput => ({
@@ -204,11 +214,11 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 			subtitle: "Battlefield Stats, read 30 Oct 2026",
 		},
 		theme: "system",
-		ground: { width: 58, depth: 48 },
+		ground: { width: 80, depth: 66 },
 		lighting: { sunShadeContrast: 0.7 },
 		camera: { openingViewpointId: "view_all" },
 		viewpoints: [
-			{ id: "view_all", name: "The territory", target: [0, 1], span: 48 },
+			{ id: "view_all", name: "The territory", target: [0, 1], span: 66 },
 			{ id: "view_bot", name: "The bot's tower", target: [0, 0], span: 22 },
 		],
 		onScreen: {
@@ -292,6 +302,8 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				name: `${game.name} → the bot`,
 				from: spot(index),
 				to: HQ,
+				fromReach: reachOf(scaleFor(game.sent, LOW, HIGH)),
+				toReach: 2,
 				tableKey: "messages_by_item",
 				rowKey: game.name,
 				vehicles: {

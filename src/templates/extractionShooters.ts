@@ -7,7 +7,15 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
-import { builtShareFor, cluster, flowRoad, logSize } from "./dataWorld";
+import {
+	builtShareFor,
+	cluster,
+	flowRoad,
+	logScale,
+	logSize,
+	reachOf,
+	scaleFor,
+} from "./dataWorld";
 
 /*
  * Extraction shooter territory: the data study's concept picture as a world.
@@ -84,7 +92,7 @@ const GAMES: IGame[] = [
 		appid: 594650,
 		players: 10516,
 		kind: "house_cluster_01",
-		position: [-17, -8],
+		position: [-21.2, -10],
 		color: "#a8577e",
 		past: [1.35, 1.3, 1.25, 1.4, 1.2, 1.1, 1.05, 1.15, 1.2, 1.1, 1.05, 1],
 		average: 1.12,
@@ -99,7 +107,7 @@ const GAMES: IGame[] = [
 		appid: 2073620,
 		players: 19872,
 		kind: "shed_cluster_01",
-		position: [17, -10],
+		position: [21.2, -12.5],
 		color: "#4f86c6",
 		past: [1.2, 1.25, 1.1, 1.05, 1, 0.95, 1.05, 1.1, 1, 0.9, 0.95, 1],
 		average: 1.05,
@@ -113,7 +121,7 @@ const GAMES: IGame[] = [
 		appid: 2507950,
 		players: 36478,
 		kind: "tower_cluster_01",
-		position: [19, 9],
+		position: [23.8, 11.2],
 		color: "#d1a03b",
 		past: [1.9, 1.7, 1.5, 1.4, 1.3, 1.2, 1.25, 1.1, 1.05, 1.0, 1.05, 1],
 		average: 1.06,
@@ -127,7 +135,7 @@ const GAMES: IGame[] = [
 		appid: 1808500,
 		players: 67032,
 		kind: "tower_cluster_01",
-		position: [-5, 15],
+		position: [-6.2, 18.8],
 		color: "#2f9e8f",
 		past: [5.2, 4.6, 3.4, 2.6, 2.0, 1.7, 1.5, 1.3, 1.2, 1.1, 1.05, 1],
 		average: 1.1,
@@ -141,7 +149,7 @@ const GAMES: IGame[] = [
 		appid: 2479810,
 		players: 12620,
 		kind: "tent_cluster_01",
-		position: [-2, -16],
+		position: [-2.5, -20],
 		color: "#9c8b6e",
 		past: [0.9, 0.85, 0.8, 0.95, 1.1, 1.0, 0.9, 0.85, 1.2, 1.1, 1.0, 1],
 		average: 1.02,
@@ -155,7 +163,7 @@ const GAMES: IGame[] = [
 		appid: 2073850,
 		players: 19712,
 		kind: "tower_cluster_01",
-		position: [-21, 12],
+		position: [-26.2, 15],
 		color: "#c8553d",
 		past: [0.8, 0.9, 1.1, 1.0, 0.95, 1.2, 1.1, 1.0, 0.9, 0.95, 1.1, 1],
 		average: 1.04,
@@ -169,7 +177,7 @@ const GAMES: IGame[] = [
 		appid: 2807960,
 		players: 31670,
 		kind: "house_cluster_01",
-		position: [12, 21],
+		position: [15, 26.2],
 		color: "#5b6fa8",
 		past: [6.5, 4.8, 3.6, 2.9, 2.3, 1.9, 1.6, 1.4, 1.3, 1.15, 1.05, 1],
 		average: 1.12,
@@ -183,7 +191,7 @@ const GAMES: IGame[] = [
 		appid: 3065800,
 		players: 2828,
 		kind: "tent_cluster_01",
-		position: [-27, -2],
+		position: [-33.8, -2.5],
 		color: "#3fb07c",
 		past: [null, null, null, null, null, null, null, null, null, 3.1, 1.6, 1],
 		average: 1.3,
@@ -198,13 +206,13 @@ const PLACEHOLDERS = [
 	{
 		id: "upcoming",
 		name: "Upcoming title (placeholder)",
-		position: [27, -4] as TVec2,
+		position: [33.8, -5] as TVec2,
 		seed: 11,
 	},
 	{
 		id: "offsteam",
 		name: "Placeholder: off-Steam title",
-		position: [-27, -19] as TVec2,
+		position: [-33.8, -23.8] as TVec2,
 		seed: 12,
 	},
 ];
@@ -254,6 +262,8 @@ const ENTITIES: TEntityInput[] = [
 			tableKey: "games",
 			builtShare: builtShareFor(game.players ?? 0, LOW, HIGH),
 			size: logSize("row.players", LOW, HIGH),
+			scale: scaleFor(game.players ?? 0, LOW, HIGH),
+			scaleFromData: logScale("row.players", LOW, HIGH),
 			cardKeys: ["row.players"],
 			tileKeys: ["row.players", "row.average_30_days", "row.peak_30_days", "row.all_time_peak"],
 			description:
@@ -280,18 +290,18 @@ const ENTITIES: TEntityInput[] = [
 	// Pines round the edges, the diorama's wilds.
 	...(
 		[
-			[-30, 20],
-			[-12, 22],
-			[2, 24],
-			[28, 18],
-			[30, 4],
-			[24, -22],
-			[8, -22],
-			[-14, -22],
-			[-30, 8],
-			[10, -2],
-			[-10, 4],
-			[-11, -12],
+			[-37.5, 25],
+			[-15, 27.5],
+			[2.5, 30],
+			[35, 22.5],
+			[37.5, 5],
+			[30, -27.5],
+			[10, -27.5],
+			[-17.5, -27.5],
+			[-37.5, 10],
+			[12.5, -2.5],
+			[-12.5, 5],
+			[-13.8, -15],
 		] as TVec2[]
 	).map(
 		(position, index): TEntityInput => ({
@@ -314,6 +324,8 @@ const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }) => {
 		name: `${a.name} ↔ ${b.name}`,
 		from: a.position,
 		to: b.position,
+		fromReach: reachOf(scaleFor(a.players ?? 0, LOW, HIGH)),
+		toReach: reachOf(scaleFor(b.players ?? 0, LOW, HIGH)),
 		tableKey: "overlap",
 		rowKey: `${a.name} ↔ ${b.name}`,
 		vehicles: {
@@ -334,7 +346,7 @@ export const createExtractionShootersScene = (): TScene =>
 			subtitle: "Steam snapshot, read 31 Oct 2026",
 		},
 		theme: "dark",
-		ground: { width: 66, depth: 52 },
+		ground: { width: 84, depth: 66 },
 		moods: [
 			{
 				id: "mood_evening",
@@ -344,20 +356,20 @@ export const createExtractionShootersScene = (): TScene =>
 		],
 		camera: { openingViewpointId: "view_all" },
 		viewpoints: [
-			{ id: "view_all", name: "The territory", target: [0, 2], span: 52 },
+			{ id: "view_all", name: "The territory", target: [0, 2], span: 64 },
 			{
 				id: "view_home",
 				name: "Home: Hunt",
 				description: "Hunt: Showdown 1896 and its neighbours.",
-				target: [-10, -4],
-				span: 30,
+				target: [-13, -5],
+				span: 36,
 			},
 			{
 				id: "view_evening",
 				name: "The territory by night",
 				description: "The same, its windows and camps lit.",
 				target: [0, 2],
-				span: 62,
+				span: 76,
 				moodId: "mood_evening",
 			},
 		],

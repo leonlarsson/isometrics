@@ -7,7 +7,7 @@ import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
-import { valuesOfEntity } from "#/parts/propData";
+import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
@@ -32,6 +32,7 @@ import { CopyPasteMenu } from "./CopyPasteMenu";
 import { dataChoiceLabel } from "./DataBindingFields";
 import { EntityDataTab } from "./EntityDataTab";
 import { FollowDataNote } from "./FollowDataNote";
+import { FollowsDataField } from "./FollowsDataField";
 import {
 	CheckboxGroupField,
 	formatClock,
@@ -102,6 +103,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
 	const areas = useEditor((s) => s.scene.areas);
+	const setTab = useEditor((s) => s.setTab);
+	const values = valuesOfEntity(entity, useWorldData());
 
 	return (
 		<>
@@ -225,28 +228,40 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					/>
 				)}
 
-				<SliderField
-					label="Size"
-					value={entity.scale}
-					min={0.25}
-					max={4}
-					step={0.05}
-					suffix="×"
-					onChange={(v) =>
-						edit("scale", (e) => {
-							e.scale = v;
-						})
-					}
-					inherit={resetToDefault(
-						entity.scale,
-						1,
-						() =>
+				{entity.data[SCALE_SETTING] ? (
+					<FollowsDataField
+						label="Size"
+						binding={entity.data[SCALE_SETTING]}
+						data={values}
+						range={SCALE_RANGE}
+						shownNow={`${(scaleFromData(entity, values) ?? entity.scale).toFixed(2)}×`}
+						showSetting={(value) => `${value.toFixed(2)}×`}
+						onOpenData={() => setTab("objectData")}
+					/>
+				) : (
+					<SliderField
+						label="Size"
+						value={entity.scale}
+						min={0.25}
+						max={4}
+						step={0.05}
+						suffix="×"
+						onChange={(v) =>
 							edit("scale", (e) => {
-								e.scale = 1;
-							}),
-						"1×",
-					)}
-				/>
+								e.scale = v;
+							})
+						}
+						inherit={resetToDefault(
+							entity.scale,
+							1,
+							() =>
+								edit("scale", (e) => {
+									e.scale = 1;
+								}),
+							"1×",
+						)}
+					/>
+				)}
 
 				<SliderField
 					label="Altitude"
@@ -287,6 +302,7 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 /** The Shape tab: the part's own settings (floors, width, text…). */
 const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setEntityProp = useEditor((s) => s.setEntityProp);
+	const setTab = useEditor((s) => s.setTab);
 	const data = valuesOfEntity(entity, useWorldData());
 
 	return (
@@ -294,6 +310,8 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 			part={part}
 			object={entity}
 			data={data}
+			dataBindings={entity.data}
+			onOpenData={() => setTab("objectData")}
 			actions={
 				<CopyPasteMenu
 					what={`${partName(part)} shape`}

@@ -16,20 +16,48 @@ export const logSize = (key: string, low: number, high: number): TDataBindingInp
 	highSetting: 1,
 });
 
-/**
- * How built a cluster is for a value, as the binding above draws it, so the
- * stored size (pictures, Edit before data loads) matches the data.
- */
-export const builtShareFor = (value: number, low: number, high: number) => {
-	const position = Math.min(
+/** Where a value sits between `low` and `high` on a log scale, 0 to 1. */
+const logPosition = (value: number, low: number, high: number) =>
+	Math.min(
 		1,
 		Math.max(
 			0,
 			(Math.log10(Math.max(value, 1)) - Math.log10(low)) / (Math.log10(high) - Math.log10(low)),
 		),
 	);
-	return Math.round((0.06 + position * 0.94) * 100) / 100;
-};
+
+/**
+ * How built a cluster is for a value, as the binding above draws it, so the
+ * stored size (pictures, Edit before data loads) matches the data.
+ */
+export const builtShareFor = (value: number, low: number, high: number) =>
+	Math.round((0.06 + logPosition(value, low, high) * 0.94) * 100) / 100;
+
+/** The sizes a cluster's footprint goes between: the smallest game's to the biggest's. */
+const SMALLEST_SCALE = 0.7;
+const LARGEST_SCALE = 1.75;
+
+/**
+ * A log-scale binding for a cluster's overall size, so a big number covers more ground, not only
+ * a denser cluster: from SMALLEST_SCALE at `low` to LARGEST_SCALE at `high`.
+ */
+export const logScale = (key: string, low: number, high: number): TDataBindingInput => ({
+	key,
+	usesLogScale: true,
+	valueAtLowSetting: low,
+	valueAtHighSetting: high,
+	lowSetting: SMALLEST_SCALE,
+	highSetting: LARGEST_SCALE,
+});
+
+/** A cluster's size for a value, as the binding above draws it. */
+export const scaleFor = (value: number, low: number, high: number) =>
+	Math.round(
+		(SMALLEST_SCALE + logPosition(value, low, high) * (LARGEST_SCALE - SMALLEST_SCALE)) * 100,
+	) / 100;
+
+/** How far a cluster of a size reaches from its middle: where a road to it starts. */
+export const reachOf = (scale: number) => (CLUSTER_WIDTH / 2) * scale;
 
 /** The cluster's diameter in the data templates. */
 export const CLUSTER_WIDTH = 8;
@@ -45,6 +73,9 @@ interface IClusterOptions {
 	rowKey?: string;
 	builtShare: number;
 	size?: TDataBindingInput;
+	/** Its overall size, and the binding that sets it from data. */
+	scale?: number;
+	scaleFromData?: TDataBindingInput;
 	cardKeys: string[];
 	tileKeys: string[];
 	description?: string;
@@ -63,6 +94,8 @@ export const cluster = ({
 	rowKey = name,
 	builtShare,
 	size,
+	scale = 1,
+	scaleFromData,
 	cardKeys,
 	tileKeys,
 	description = "",
@@ -81,10 +114,14 @@ export const cluster = ({
 		kind,
 		name,
 		position,
+		scale,
 		props: { builtShare, width: CLUSTER_WIDTH, seed },
 		colors: { [mainColor]: { color } },
 		dataRow: { tableKey, rowKey },
-		data: size ? { builtShare: size } : {},
+		data: {
+			...(size ? { builtShare: size } : {}),
+			...(scaleFromData ? { scale: scaleFromData } : {}),
+		},
 		label: { isShown: true, title: "", dataKeys: cardKeys, offset: [0, 1.5, 0], tag },
 		details: { description, dataKeys: tileKeys },
 	};
@@ -100,6 +137,8 @@ export const flowRoad = ({
 	rowKey,
 	vehicles,
 	vehicleKind = "car_01",
+	fromReach = CLUSTER_WIDTH / 2,
+	toReach = CLUSTER_WIDTH / 2,
 }: {
 	id: string;
 	name: string;
@@ -109,9 +148,13 @@ export const flowRoad = ({
 	rowKey: string;
 	vehicles: TDataBindingInput;
 	vehicleKind?: string;
+	/** How far each end's cluster reaches from its middle (its size). */
+	fromReach?: number;
+	toReach?: number;
 }): TRoadInput => {
 	const distance = Math.hypot(to[0] - from[0], to[1] - from[1]);
-	const edge = CLUSTER_WIDTH / 2 + 0.6;
+	const start = fromReach + 0.6;
+	const end = toReach + 0.6;
 	const ux = (to[0] - from[0]) / distance;
 	const uz = (to[1] - from[1]) / distance;
 	return {
@@ -119,8 +162,8 @@ export const flowRoad = ({
 		name,
 		kind: "road_01",
 		points: [
-			[from[0] + ux * edge, from[1] + uz * edge],
-			[to[0] - ux * edge, to[1] - uz * edge],
+			[from[0] + ux * start, from[1] + uz * start],
+			[to[0] - ux * end, to[1] - uz * end],
 		],
 		width: 1.6,
 		showsCentreLine: false,

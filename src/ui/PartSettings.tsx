@@ -8,14 +8,17 @@ import {
 	resolveColorDefault,
 } from "#/parts/colorModel";
 import { lightDefaults } from "#/parts/lightModel";
+import { propFromData } from "#/parts/propData";
 import { partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec, TFieldSpec } from "#/parts/types";
+import { formatValue } from "#/scene/format";
 import type { TColorSettingChange, TEntityLightChange } from "#/scene/objectSettings";
-import type { TColorSetting, TDataValue, TEntity } from "#/scene/schema";
+import type { TColorSetting, TDataBinding, TDataValue, TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { ChipGroup } from "./ChipGroup";
 import { DataDrivenField } from "./DataDrivenField";
+import { FollowsDataField } from "./FollowsDataField";
 import {
 	ColorField,
 	FieldGroup,
@@ -214,12 +217,19 @@ export const PartShapeSection = ({
 	startsFolded,
 	actions,
 	onChange,
+	dataBindings,
+	onOpenData,
 }: IPartSettingsProps & {
 	/** Controls on the panel's header, like the Copy / Paste menu. */
 	actions?: ReactNode;
 	onChange: (key: string, value: unknown) => void;
+	/** Its props that follow data (an object's `data` map, ADR-0109): shown as From data, not by hand. */
+	dataBindings?: Readonly<Record<string, TDataBinding>>;
+	/** Go to where its props from data are set (the object's Data tab). */
+	onOpenData?: () => void;
 }) => {
 	const props = resolveProps(part, object.props);
+
 	const defaults = part.schema.parse({}) as Record<string, unknown>;
 	return (
 		<Section
@@ -231,17 +241,40 @@ export const PartShapeSection = ({
 			keywords="shape size"
 			actions={actions}
 		>
-			{part.fields.map((spec) => (
-				<PropField
-					key={spec.key}
-					spec={spec}
-					value={props[spec.key]}
-					fallback={defaults[spec.key]}
-					data={data}
-					onChange={(value) => onChange(spec.key, value)}
-					hint={showFileNames ? <FileName name={spec.key} /> : undefined}
-				/>
-			))}
+			{part.fields.map((spec) => {
+				const binding = dataBindings?.[spec.key];
+				if (binding && spec.type === "number") {
+					const show = (value: number) => formatValue(Math.round(value / spec.step) * spec.step);
+					return (
+						<FollowsDataField
+							key={spec.key}
+							label={spec.label}
+							binding={binding}
+							data={data}
+							range={spec}
+							// What data makes it now; as set while its value doesn't read as a number.
+							shownNow={show(
+								Number(
+									propFromData(spec, binding, data) ?? (props as Record<string, unknown>)[spec.key],
+								),
+							)}
+							showSetting={show}
+							onOpenData={onOpenData}
+						/>
+					);
+				}
+				return (
+					<PropField
+						key={spec.key}
+						spec={spec}
+						value={props[spec.key]}
+						fallback={defaults[spec.key]}
+						data={data}
+						onChange={(value) => onChange(spec.key, value)}
+						hint={showFileNames ? <FileName name={spec.key} /> : undefined}
+					/>
+				);
+			})}
 
 			{part.fields.length === 0 && <Hint>It has no settings of its own.</Hint>}
 		</Section>
