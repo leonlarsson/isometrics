@@ -1,0 +1,20 @@
+/* What to build across the top; describing and data on the left, copying and pasting back on the right; stacked on narrow screens. */
+.layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	align-items: start;
+	gap: 16px;
+}
+
+.column {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+@media (max-width: 700px) {
+	.layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
