@@ -303,23 +303,58 @@ const distanceToSegment = ([px, pz]: TVec2, [[ax, az], [bx, bz]]: [TVec2, TVec2]
 	return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
 };
 
-/** Each game's landmark: beside its cluster, on the side its angle says, clear of it. */
-const LANDMARKS: TEntityInput[] = GAMES.map((game) => {
-	const landmark = LANDMARK_OF[game.id];
-	const angle = (landmark.angle * Math.PI) / 180;
-	const distance = reachOfGame(game) * CORNER + partReach(landmark.kind) + 0.6;
-	const position: TVec2 = [
-		tenth(game.position[0] + Math.cos(angle) * distance),
-		tenth(game.position[1] + Math.sin(angle) * distance),
+/** Half the ground's width and depth, for keeping things on it. */
+const GROUND_HALF: TVec2 = [42, 33];
+
+/**
+ * Each game's landmark: beside its cluster, on the side its angle says, clear
+ * of it. Where that side would be off the ground, on a road or on another
+ * cluster or landmark, it turns round its cluster, a little more each way,
+ * until it finds a spot that's clear.
+ */
+const LANDMARKS: TEntityInput[] = (() => {
+	const placed: { position: TVec2; reach: number }[] = [
+		...GAMES.map((game) => ({ position: game.position, reach: reachOfGame(game) * CORNER })),
+		...PLACEHOLDERS.map((each) => ({ position: each.position, reach: 4 * CORNER })),
 	];
-	return {
-		id: `landmark_${game.id}`,
-		kind: landmark.kind,
-		name: `${game.name}'s ${getPart(landmark.kind)?.name.toLowerCase() ?? "landmark"}`,
-		position,
-		rotation: [0, Math.round(-landmark.angle + 90), 0],
-	};
-});
+	const turns = [
+		0,
+		...Array.from({ length: 12 }, (_, i) => (Math.floor(i / 2) + 1) * 30 * (i % 2 ? -1 : 1)),
+	];
+	return GAMES.map((game) => {
+		const landmark = LANDMARK_OF[game.id];
+		const reach = partReach(landmark.kind);
+		const distance = reachOfGame(game) * CORNER + reach + 0.6;
+		const spotAt = (degrees: number): TVec2 => {
+			const angle = (degrees * Math.PI) / 180;
+			return [
+				tenth(game.position[0] + Math.cos(angle) * distance),
+				tenth(game.position[1] + Math.sin(angle) * distance),
+			];
+		};
+		const isClear = (position: TVec2) =>
+			Math.abs(position[0]) + reach + 0.5 <= GROUND_HALF[0] &&
+			Math.abs(position[1]) + reach + 0.5 <= GROUND_HALF[1] &&
+			ROAD_LINES.every((line) => distanceToSegment(position, line) > reach + 1) &&
+			placed.every(
+				(other) =>
+					Math.hypot(other.position[0] - position[0], other.position[1] - position[1]) >
+					other.reach + reach + 0.3,
+			);
+		const angle =
+			turns.map((turn) => landmark.angle + turn).find((each) => isClear(spotAt(each))) ??
+			landmark.angle;
+		const position = spotAt(angle);
+		placed.push({ position, reach });
+		return {
+			id: `landmark_${game.id}`,
+			kind: landmark.kind,
+			name: `${game.name}'s ${getPart(landmark.kind)?.name.toLowerCase() ?? "landmark"}`,
+			position,
+			rotation: [0, Math.round(-angle + 90), 0],
+		};
+	});
+})();
 
 /** A few pines round each game, clear of its cluster, its landmark, the roads and each other. */
 const TREES: TEntityInput[] = (() => {

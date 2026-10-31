@@ -90,6 +90,33 @@ describe("templates", () => {
 		expect(clashes).toEqual([]);
 	});
 
+	// Nothing that stands may hang over the ground's edge, floating on nothing.
+	it.each(templates)("%s has no objects off the ground", (_, create) => {
+		const scene = create();
+		const half = [scene.ground.width / 2, scene.ground.depth / 2];
+		const off: string[] = [];
+		for (const entity of scene.entities) {
+			const part = getPart(entity.kind);
+			if (entity.follow || entity.isHidden || part?.category === "markers") {
+				continue;
+			}
+			for (const body of bodiesOf(entity)) {
+				// How far the outline reaches along x and z from its centre.
+				const reach = (axis: 0 | 1) =>
+					body.halves[0] * Math.abs(body.axes[0][axis]) +
+					body.halves[1] * Math.abs(body.axes[1][axis]);
+				const over = Math.max(
+					Math.abs(body.centre[0]) + reach(0) - half[0],
+					Math.abs(body.centre[1]) + reach(1) - half[1],
+				);
+				if (over > 0.05) {
+					off.push(`${entity.id} (by ${over.toFixed(2)})`);
+				}
+			}
+		}
+		expect(off).toEqual([]);
+	});
+
 	// A prop the part doesn't know is kept but never drawn: a renamed prop set under its old name,
 	// or another part's prop (an oak given a sign's letterHeight).
 	it.each(templates)("%s sets only props its parts know", (_, create) => {
