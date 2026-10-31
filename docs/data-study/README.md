@@ -2,7 +2,7 @@
 
 A study of how worlds get their data: where it comes from, what shape it has, how it reaches what's drawn, and how it can update live later without changing worlds or bindings. Isometrics started as a "3D dashboard"; worlds exist to show data (ADR-0019). Until now that data was a flat list of values typed by hand (ADR-0010).
 
-**Status:** in progress on the `data-study` branch. Step 1 (the foundation) is built; the rest is planned below. Decisions become ADRs once each step has been tried and kept.
+**Status:** in progress on the `data-study` branch. Steps 1 (the foundation) and 2 (spreadsheets in) are built; the rest is planned below. Decisions become ADRs once each step has been tried and kept.
 
 ## What the owner asked for (2026-10-30)
 
@@ -57,9 +57,23 @@ Data that drives a world is usually per thing: a row per warehouse, line, player
 - `editor/worldData.ts`: the runtime above; every reader of data goes through it (cards, the outliner, objects, fences, roads, areas, the ground, the time of day, the weather).
 - `ui/DataPanel.tsx`: the Data tab in three panels, Values (as before, plus where each comes from and how many past values it has), Tables and Sources.
 
-## Next steps
+## Step 2, built: spreadsheets in
 
-2. **A spreadsheet in.** Drop a CSV or Excel file on the Data tab: a sheet with one row of numbers becomes values; one with a name column becomes a table; one with a date column becomes history. Read in the browser (no server), the file name kept as the source.
+Sources → **Read a spreadsheet…** picks a CSV (comma, semicolon or tab) or an Excel `.xlsx` file, read in the browser; nothing goes to a server. A dialog says what the file becomes, with a preview, and **Add to the world** puts it in as one undo step, the file a source of kind `file`.
+
+- **Each column is typed** (`scene/sheets.ts`, `readSheet`): dates (ISO, 3/4/2026 day first unless a part above 12 says otherwise, Excel's own dates, a column headed *Year*), numbers (thousands grouped, a decimal comma in semicolon files, a unit every cell shares after the number: `92%`, `12 min`), or text. "-", "n/a" and empty cells are empty.
+- **Read it as** is guessed and can be changed, ways that don't fit greyed out with the reason ("no column of dates"):
+  - *Values over time*: dates and numbers (the Battlefield daily file): each column of numbers becomes a value, its lines past values, the latest its value now.
+  - *A value for each column*: one line of data, as a sheet of the day's figures.
+  - *A value for each row*: a column of names beside one of values ("Population, 48210").
+  - *A table*: anything else (the Finals clubs file), its rows named by the first column of text that's different on every row.
+- **Reading again** (the source's ↑ button) replaces what the source gave before, found by where in it each came from (`path`: the column, the row's name, or the sheet), and keeps each value's and table's key and name, so cards, colours and lights that follow them keep following. What the file no longer has stays as it last was. Never-seen values get keys that don't collide with the world's.
+- **Excel** is read with [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT, xlsx only, pinned to 9.3.12), loaded only when an Excel file is picked. A file with several sheets offers a Sheet choice. Old `.xls` files are refused with a note to save as `.xlsx` or CSV.
+- **Tables** open in a viewer (their first 500 rows) and can be removed; **sources** can be read again or removed (their values and tables stay, as typed by hand).
+
+Not yet: dropping a file on the tab (only picking), renaming a table, and anything following a table (step 3). A big table is kept whole in the world, so a 10,000-row table makes a big save.
+
+## Next steps
 3. **A table on the map.** Bind an object to a row (Brightwater's warehouses to a stock table) and let its card, colours and lights follow that row's columns.
 4. **A dashboard.** Sparklines and trends on cards, thresholds, and a View-mode layer of the world's main values.
 5. **Links and APIs.** A link to a published sheet or CSV, or a JSON API, read in the browser when it allows it (CORS) and through the Worker otherwise, picking values and a table out of the response by path. Then pushed values and live updates: the server side, once decided.
@@ -73,7 +87,9 @@ The owner's own public APIs, both readable from the browser (`access-control-all
 | `https://api.battlefieldstats.com/users/count` | `{ "totalUsers": 41738 }` | a value (path `totalUsers`) |
 | `https://api.battlefieldstats.com/outputs/daily` | `[{ day, sent }]` | a value with history |
 | `https://api.battlefieldstats.com/outputs/counts` | `[{ category, item, sent }]` | a table |
-| `https://api.the-finals-leaderboard.com/v1/leaderboard/s8/crossplay` | `{ meta, count, data: [{ rank, name, league, … }] }` (10,000 rows; `count` limits it) | a big table |
+| `https://api.the-finals-leaderboard.com/v1/leaderboard/s8/crossplay` | `{ meta, count, data: [{ rank, name, league, … }] }` (10,000 rows) | a big table |
+
+The same data as files, in [`samples/`](samples/), read on 2026-10-30: the Finals' top 100 and top 20 clubs (tables), Battlefield Stats' sent per day and per month (values over time) and by category (a table), and `stats-two-sheets.xlsx` (the clubs and the months as two sheets, real Excel dates) for trying Excel. The unit tests and the end-to-end test read them.
 
 ## Open questions
 

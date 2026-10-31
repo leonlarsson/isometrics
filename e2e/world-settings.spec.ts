@@ -261,6 +261,67 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		// It starts with the world's first value, to be changed in the fields below.
 		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data.values[0].key));
 	});
+
+	test("a spreadsheet is read as values over time or as a table, and read again into the same values (data study)", async ({
+		page,
+	}) => {
+		// Four files read, each through its dialog.
+		test.setTimeout(120_000);
+		await openEditor(page);
+		await worldTab(page, "Data");
+		// Named: the toast saying what was read is a dialog too.
+		const dialog = page.getByRole("dialog", { name: /^Read a spreadsheet/ });
+		const readCsv = async (button: string, name: string, text: string) => {
+			const chooser = page.waitForEvent("filechooser");
+			await page.getByRole("button", { name: button }).click();
+			await (await chooser).setFiles({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
+		};
+
+		// Dates and numbers: a value with its past values, the latest its value now.
+		await readCsv("Read a spreadsheet…", "sent.csv", "day,sent\n2026-10-29,5\n2026-10-30,7\n");
+		await expect(dialog).toContainText("Adds 1 value with 2 past values.");
+		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		expect(
+			await read(page, (s) => s.scene.data.values.find((v) => v.key === "sent")),
+		).toMatchObject({
+			value: 7,
+			history: [
+				{ at: "2026-10-29", value: 5 },
+				{ at: "2026-10-30", value: 7 },
+			],
+		});
+
+		// Read again from a newer file: the same value, now up to date.
+		await readCsv("Read it again…", "sent.csv", "day,sent\n2026-10-30,7\n2026-10-31,9\n");
+		await dialog.getByRole("button", { name: "Read again" }).click();
+		const fromFiles = await read(page, (s) =>
+			s.scene.data.values.filter((v) => v.source !== null).map((v) => [v.key, v.value]),
+		);
+		expect(fromFiles).toEqual([["sent", 9]]);
+
+		// Rows of things: a table, its rows named by club, to open and look at.
+		await readCsv(
+			"Read a spreadsheet…",
+			"top-clubs.csv",
+			"club,players,best_rank\nAPES,71,43\nOG,65,67\n",
+		);
+		await expect(dialog).toContainText("Adds a table of 2 rows and 3 columns.");
+		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		expect(await read(page, (s) => s.scene.data.tables.map((t) => [t.key, t.keyColumn]))).toEqual([
+			["top_clubs", "club"],
+		]);
+		await page.getByRole("button", { name: /^Top clubs/ }).click();
+		await expect(page.getByRole("dialog", { name: "Top clubs" })).toContainText("APES");
+		await page.keyboard.press("Escape");
+
+		// Excel, read by a reader loaded only now: a sheet picked, its dates read as dates.
+		const chooser = page.waitForEvent("filechooser");
+		await page.getByRole("button", { name: "Read a spreadsheet…" }).click();
+		await (await chooser).setFiles("docs/data-study/samples/stats-two-sheets.xlsx");
+		await expect(dialog).toContainText("Adds a table of 20 rows and 6 columns.");
+		await choose(page, "Sheet", "Monthly");
+		await expect(dialog).toContainText("Adds 1 value with 46 past values.");
+	});
 });
 
 test.describe("weather (ADR-0102)", () => {

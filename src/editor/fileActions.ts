@@ -25,7 +25,7 @@ import { notify } from "./toasts";
  */
 
 /** Ask the user for a file. Resolves with null if they cancel. */
-const pickFile = (accept: string) =>
+export const pickFile = (accept: string) =>
 	new Promise<File | null>((resolve) => {
 		const input = document.createElement("input");
 		input.type = "file";

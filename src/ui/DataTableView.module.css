@@ -1,0 +1,54 @@
+/* A table's rows: scrolls sideways when it has more columns than fit. */
+.frame {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+	padding: 5px 10px;
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.table th {
+	position: sticky;
+	top: 0;
+	background: var(--surface-sunken);
+	font-weight: 600;
+	color: var(--text);
+}
+
+.table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.table .number {
+	text-align: right;
+}
+
+/* The column that names each row, said in words beside its header. */
+.tag {
+	margin-left: 6px;
+	font-weight: 400;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.more {
+	margin: 0;
+	padding: 6px 10px;
+	border-top: 1px solid var(--border);
+	font-size: 11px;
+	color: var(--text-muted);
+}

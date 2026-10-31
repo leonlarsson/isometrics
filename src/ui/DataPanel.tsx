@@ -1,18 +1,23 @@
 import { useState } from "react";
 
-import { useEditor } from "#/editor/store";
+import { pickFile } from "#/editor/fileActions";
+import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
+import { newId, useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import { formatEntry, toDataKey } from "#/scene/format";
 import {
+	DataSourceSchema,
 	DataValueSchema,
 	type TDataSource,
 	type TDataSourceKind,
-	type TDataTable,
 	type TDataValue,
 } from "#/scene/schema";
 
 import { Button, IconButton } from "./Button";
+import { DataTableDialog } from "./DataTableDialog";
 import { Hint, Input, Section } from "./fields";
 import { List, ListItem } from "./List";
+import { type ISpreadsheetReading, ReadSpreadsheetDialog } from "./ReadSpreadsheetDialog";
 
 import styles from "./DataPanel.module.css";
 
@@ -40,7 +45,8 @@ const originOf = (source: TDataValue["source"], sources: readonly TDataSource[])
 	}
 	const found = sources.find((each) => each.id === source.sourceId);
 	const name = found ? found.name || SOURCE_KIND_NAMES[found.kind] : `${source.sourceId} (gone)`;
-	return source.path ? `from ${name}, ${source.path}` : `from ${name}`;
+	// A spreadsheet's "Sheet!column" in words: "Sheet › column".
+	return source.path ? `from ${name}, ${source.path.replace("!", " › ")}` : `from ${name}`;
 };
 
 /** One value: its name, then value and unit side by side, then where it comes from and how it reads. */
@@ -91,14 +97,43 @@ const DataRow = ({ entry, sources }: { entry: TDataValue; sources: readonly TDat
 	);
 };
 
-/** One table: its name, its size, and where it comes from. */
-const TableRow = ({ table, sources }: { table: TDataTable; sources: readonly TDataSource[] }) => (
-	<ListItem
-		label={table.name || table.key}
-		meta={`${table.rows.length} rows × ${table.columns.length} columns · ${originOf(table.source, sources)}`}
-		stacked
-	/>
-);
+/**
+ * A spreadsheet picked and read, ready for the dialog that reads it into
+ * the world: into `source` when reading it again, else into a new source.
+ */
+const pickSpreadsheet = async (source?: TDataSource): Promise<ISpreadsheetReading | null> => {
+	const file = await pickFile(SPREADSHEET_TYPES);
+	if (!file) {
+		return null;
+	}
+	try {
+		const sheets = await readSpreadsheet(file);
+		return {
+			fileName: file.name,
+			sheets,
+			isAgain: source !== undefined,
+			source: source
+				? {
+						...source,
+						fileName: file.name,
+						name: source.name === source.fileName ? file.name : source.name,
+					}
+				: DataSourceSchema.parse({
+						id: newId("source"),
+						name: file.name,
+						kind: "file",
+						fileName: file.name,
+					}),
+		};
+	} catch (error) {
+		notify(
+			`Couldn't read ${file.name}`,
+			error instanceof Error ? error.message : "It isn't a spreadsheet this can read.",
+			"error",
+		);
+		return null;
+	}
+};
 
 /**
  * The Data tab (data study, docs/data-study): the world's values, its tables
@@ -108,6 +143,18 @@ const TableRow = ({ table, sources }: { table: TDataTable; sources: readonly TDa
 export const DataPanel = () => {
 	const { values, tables, sources } = useEditor((s) => s.scene.data);
 	const upsertData = useEditor((s) => s.upsertData);
+	const removeDataTable = useEditor((s) => s.removeDataTable);
+	const removeDataSource = useEditor((s) => s.removeDataSource);
+	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
+	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
+	const openTable = tables.find((table) => table.key === openTableKey);
+
+	const readFrom = async (source?: TDataSource) => {
+		const picked = await pickSpreadsheet(source);
+		if (picked) {
+			setReading(picked);
+		}
+	};
 
 	const addValue = () => {
 		let key = toDataKey("new value");
@@ -149,13 +196,26 @@ export const DataPanel = () => {
 				{tables.length > 0 ? (
 					<List>
 						{tables.map((table) => (
-							<TableRow key={table.key} table={table} sources={sources} />
+							<ListItem
+								key={table.key}
+								label={table.name || table.key}
+								meta={`${table.rows.length.toLocaleString()} rows × ${table.columns.length} columns · ${originOf(table.source, sources)}`}
+								stacked
+								onClick={() => setOpenTableKey(table.key)}
+								actions={
+									<IconButton
+										icon="trash"
+										label="Remove table"
+										onClick={() => removeDataTable(table.key)}
+									/>
+								}
+							/>
 						))}
 					</List>
 				) : (
 					<Hint>
-						A table holds rows, like one per warehouse or player, and objects can each take one.
-						Tables come from a spreadsheet or an API.
+						A table holds rows, one for each warehouse, player or line. Read one from a spreadsheet
+						under Sources.
 					</Hint>
 				)}
 			</Section>
@@ -164,7 +224,7 @@ export const DataPanel = () => {
 				id="data.sources"
 				icon="file"
 				title="Sources"
-				keywords="data import spreadsheet api link"
+				keywords="data import read spreadsheet csv excel api link"
 			>
 				{sources.length > 0 ? (
 					<List>
@@ -174,22 +234,55 @@ export const DataPanel = () => {
 								label={source.name || SOURCE_KIND_NAMES[source.kind]}
 								meta={[
 									SOURCE_KIND_NAMES[source.kind],
-									source.url ?? source.fileName,
-									source.lastReadAt && `read ${new Date(source.lastReadAt).toLocaleString()}`,
+									source.url ?? (source.fileName === source.name ? null : source.fileName),
+									source.lastReadAt &&
+										`read ${new Date(source.lastReadAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`,
 								]
 									.filter(Boolean)
 									.join(" · ")}
 								stacked
+								actions={
+									<>
+										{source.kind === "file" && (
+											<IconButton
+												icon="upload"
+												label="Read it again…"
+												onClick={() => readFrom(source)}
+											/>
+										)}
+
+										<IconButton
+											icon="trash"
+											label="Remove source (its values and tables stay)"
+											onClick={() => removeDataSource(source.id)}
+										/>
+									</>
+								}
 							/>
 						))}
 					</List>
 				) : (
 					<Hint>
-						Values and tables can be read from a spreadsheet, a link to a sheet or CSV, or an API,
-						instead of typed by hand.
+						Read values and tables from a spreadsheet (CSV or Excel) instead of typing them: values
+						over time, a table of rows, or a value for each column or row. Read it again when it
+						changes. Links and APIs come later.
 					</Hint>
 				)}
+
+				<Button icon="upload" onClick={() => readFrom()}>
+					Read a spreadsheet…
+				</Button>
 			</Section>
+
+			{reading && <ReadSpreadsheetDialog reading={reading} onClose={() => setReading(null)} />}
+
+			{openTable && (
+				<DataTableDialog
+					table={openTable}
+					origin={originOf(openTable.source, sources)}
+					onClose={() => setOpenTableKey(null)}
+				/>
+			)}
 		</>
 	);
 };

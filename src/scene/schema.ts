@@ -370,7 +370,7 @@ export const DataSourceRefSchema = z
 			.string()
 			.default("")
 			.describe(
-				'Where in the source: a JSON path for links and APIs ("totalUsers", "data.0.rank"; empty = the whole response), a cell for spreadsheets ("B2", "Sheet2!B2"), or a sheet for a table ("Sheet2"; empty = the first).',
+				'Where in the source: a JSON path for links and APIs ("totalUsers", "data.0.rank"; empty = the whole response); in a spreadsheet, the column a value is read from ("sent", or "Stats!sent" in another sheet), the row it is named by when each row is a value ("Population"), or the sheet a table is ("Stats"; empty = the only or first one).',
 			),
 	})
 	.describe("Where a value or a table is read from.");

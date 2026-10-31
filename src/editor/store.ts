@@ -50,6 +50,7 @@ import {
 	type TAreaInput,
 	type TAreaKind,
 	type TDataBinding,
+	type TDataSource,
 	type TDataValueInput,
 	type TEntity,
 	type TEntityInput,
@@ -68,6 +69,7 @@ import {
 	type TViewpoint,
 	ViewpointSchema,
 } from "#/scene/schema";
+import { type IReadData, putReadData } from "#/scene/sheets";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
 import { restartDayCycle } from "./dayClock";
@@ -578,6 +580,16 @@ export interface IEditorState {
 	/** Adds or changes a value (missing fields get their defaults), renamed from `previousKey`. */
 	upsertData: (entry: TDataValueInput, previousKey?: string) => void;
 	removeData: (key: string) => void;
+	/**
+	 * Puts what a source gave in the world's data, one undo step: the source
+	 * added or updated, its values and tables replacing what it gave before
+	 * (data study, `putReadData`).
+	 */
+	putReadData: (source: TDataSource, read: IReadData) => void;
+	/** Removes a table from the world's data. */
+	removeDataTable: (key: string) => void;
+	/** Removes a source; its values and tables stay, as typed by hand. */
+	removeDataSource: (id: string) => void;
 
 	addRoad: (input: Omit<TRoadInput, "id"> & { id?: string }) => string;
 	updateRoad: (id: string, recipe: (road: Draft<TRoad>) => void, options?: ICommitOptions) => void;
@@ -1978,6 +1990,26 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				get().commit((scene) => {
 					scene.data.values = scene.data.values.filter((d) => d.key !== key);
 					renameDataReferences(scene, key, null);
+				}),
+
+			putReadData: (source, read) =>
+				get().commit((scene) => {
+					scene.data = putReadData(scene.data, source, read);
+				}),
+
+			removeDataTable: (key) =>
+				get().commit((scene) => {
+					scene.data.tables = scene.data.tables.filter((table) => table.key !== key);
+				}),
+
+			removeDataSource: (id) =>
+				get().commit((scene) => {
+					scene.data.sources = scene.data.sources.filter((source) => source.id !== id);
+					for (const each of [...scene.data.values, ...scene.data.tables]) {
+						if (each.source?.sourceId === id) {
+							each.source = null;
+						}
+					}
 				}),
 
 			addRoad: (input) => {

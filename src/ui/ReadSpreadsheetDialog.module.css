@@ -1,0 +1,70 @@
+/* Settings on the left, what it adds on the right; one above the other when narrow. */
+.layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+	gap: 16px;
+	align-items: start;
+}
+
+@media (max-width: 720px) {
+	.layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.settings {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.preview {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.summary {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.values {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.values li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 2px 12px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--border);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.values li:last-child {
+	border-bottom: none;
+}
+
+.valueName {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.past {
+	grid-column: 1 / -1;
+	font-size: 11px;
+	color: var(--text-muted);
+}
