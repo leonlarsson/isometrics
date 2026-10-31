@@ -1,46 +1,21 @@
-.list {
+/* A group of values from one place, its heading above the list. */
+.group {
 	display: flex;
 	flex-direction: column;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.row {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	padding: 12px 0;
-	border-top: 1px solid var(--border);
-}
-
-.row:first-child {
-	padding-top: 0;
-	border-top: none;
-}
-
-.nameRow {
-	display: flex;
-	align-items: center;
 	gap: 4px;
 }
 
-.nameRow input {
-	font-weight: 600;
+/* A value's row ends in its sparkline and its value. */
+.valueMeta {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text);
 }
 
-.valueRow {
-	display: grid;
-	grid-template-columns: 1fr 88px;
+.buttons {
+	display: flex;
+	flex-wrap: wrap;
 	gap: 6px;
-	padding-right: 32px;
-}
-
-.meta {
-	font-size: 11px;
-	color: var(--text-muted);
-}
-
-.meta code {
-	font-family: var(--font-mono);
 }

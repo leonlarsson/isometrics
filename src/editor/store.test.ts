@@ -128,6 +128,25 @@ describe("editor store", () => {
 		expect(copy.label).not.toBe(original.label);
 	});
 
+	it("keeps a value's page open under its new key, one undo step for a run of renames, and closes it when it's gone or the tab changes", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().openValue("orders");
+		expect([s().tab, s().openValueKey]).toEqual(["data", "orders"]);
+		const orders = s().scene.data.values[0];
+		s().upsertData({ ...orders, key: "ord" }, "orders", "page");
+		s().upsertData({ ...orders, key: "orders_packed" }, "ord", "page");
+		expect(s().openValueKey).toBe("orders_packed");
+		expect(s().scene.entities[0].label.dataKeys).toEqual(["orders_packed"]);
+		s().undo();
+		expect(s().scene.data.values[0].key).toBe("orders");
+		s().setTab("world");
+		expect(s().openValueKey).toBeNull();
+		s().openValue("orders");
+		s().removeData("orders");
+		expect(s().openValueKey).toBeNull();
+	});
+
 	it("renames data keys everywhere they are referenced", () => {
 		const store = makeStore();
 		const textId = store

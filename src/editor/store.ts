@@ -295,6 +295,8 @@ export interface IEditorState {
 	followOffer: IFollowOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
+	/** The data value whose own page the Data tab shows, by key; null = the list of them. Runtime only. */
+	openValueKey: string | null;
 	dragging: boolean;
 	/**
 	 * A world being opened (at start, or loaded): which opening, until the view
@@ -435,6 +437,8 @@ export interface IEditorState {
 	setSelectedFlag: (flag: "isHidden" | "isLocked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
+	/** Shows a data value's own page in the Data tab; null goes back to the list. */
+	openValue: (key: string | null) => void;
 	setDragging: (dragging: boolean) => void;
 	/** The view has this opening of a world ready to look at: the loading screen goes. */
 	worldShown: (opening: number) => void;
@@ -577,8 +581,11 @@ export interface IEditorState {
 	removeEntity: (id: string) => void;
 	duplicateEntity: (id: string) => string | null;
 
-	/** Adds or changes a value (missing fields get their defaults), renamed from `previousKey`. */
-	upsertData: (entry: TDataValueInput, previousKey?: string) => void;
+	/**
+	 * Adds or changes a value (missing fields get their defaults), renamed from
+	 * `previousKey` (with whatever follows it); `coalesce` makes a run of edits one undo step.
+	 */
+	upsertData: (entry: TDataValueInput, previousKey?: string, coalesce?: string) => void;
 	removeData: (key: string) => void;
 	/**
 	 * Puts what a source gave in the world's data, one undo step: the source
@@ -1040,6 +1047,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			followOffer: null,
 			mode: "edit",
 			tab: "world",
+			openValueKey: null,
 			dragging: false,
 			openingWorld: 1,
 			openedWorldCount: 1,
@@ -1119,6 +1127,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					activeViewpointId: null,
 					flight: null,
 					cameraFollow: null,
+					openValueKey: null,
 				}));
 			},
 
@@ -1515,7 +1524,10 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					groundMenu: null,
 					viewpointMenu: null,
 				}),
-			setTab: (tab) => set({ tab }),
+			// Leaving the Data tab closes a value's page: it opens on the list next time.
+			setTab: (tab) =>
+				set((state) => ({ tab, openValueKey: tab === "data" ? state.openValueKey : null })),
+			openValue: (key) => set({ tab: "data", openValueKey: key }),
 			setDragging: (dragging) => set({ dragging }),
 			worldShown: (opening) =>
 				set((state) => (state.openingWorld === opening ? { openingWorld: null } : state)),
@@ -1963,7 +1975,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				return copy.id;
 			},
 
-			upsertData: (input, previousKey) => {
+			upsertData: (input, previousKey, coalesce) => {
 				const entry = DataValueSchema.parse(input);
 				get().commit(
 					(scene) => {
@@ -1982,15 +1994,27 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 							renameDataReferences(scene, lookup, entry.key);
 						}
 					},
-					{ coalesce: `data:${previousKey ?? input.key}` },
+					{ coalesce: coalesce ?? `data:${previousKey ?? input.key}` },
 				);
+				// Its page stays open under its new key.
+				if (
+					previousKey &&
+					get().openValueKey === previousKey &&
+					get().scene.data.values.some((d) => d.key === entry.key)
+				) {
+					set({ openValueKey: entry.key });
+				}
 			},
 
-			removeData: (key) =>
+			removeData: (key) => {
 				get().commit((scene) => {
 					scene.data.values = scene.data.values.filter((d) => d.key !== key);
 					renameDataReferences(scene, key, null);
-				}),
+				});
+				if (get().openValueKey === key) {
+					set({ openValueKey: null });
+				}
+			},
 
 			putReadData: (source, read) =>
 				get().commit((scene) => {

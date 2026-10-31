@@ -214,7 +214,7 @@ test.describe("Traffic (ADR-0022, ADR-0042)", () => {
 });
 
 test.describe("Data (ADR-0010, ADR-0058)", () => {
-	test("a value added in the Data tab shows on a label card, and follows edits", async ({
+	test("a value added in the Data tab opens on its own page, shows on a card, says what uses it, and asks before it's removed", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -222,26 +222,27 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		});
 		await worldTab(page, "Data");
 		await page.getByRole("button", { name: "Add", exact: true }).click();
-		const key = await read(page, (s) => s.scene.data.values.at(-1)?.key ?? "");
-		await page.getByRole("textbox", { name: "Name" }).last().fill("Orders");
-		await page.getByRole("textbox", { name: "Value" }).last().fill("42");
-		await page.getByRole("textbox", { name: "Value" }).last().press("Tab");
-		await act(
-			page,
-			(s, key) =>
-				s.updateEntity("depot", (e) => {
-					e.label = { isShown: true, title: "Depot", dataKeys: [key], offset: [0, 2, 0] };
-				}),
-			key,
+		// Named, the made-up key becomes the name's.
+		await box(page, "Name").fill("Orders");
+		await expect(box(page, "Key")).toHaveValue("orders");
+		await box(page, "Value").fill("42");
+		await act(page, (s) =>
+			s.updateEntity("depot", (e) => {
+				e.label = { isShown: true, title: "Depot", dataKeys: ["orders"], offset: [0, 2, 0] };
+			}),
 		);
 		const card = labelCard(page, /Depot/);
 		await expect(card).toContainText("42");
-		await page.getByRole("textbox", { name: "Value" }).last().fill("57");
-		await page.getByRole("textbox", { name: "Value" }).last().press("Tab");
+		await box(page, "Value").fill("57");
 		await expect(card).toContainText("57");
 
-		await page.getByRole("button", { name: "Remove value" }).last().click();
+		// What uses it, and a way there.
+		await expect(page.getByRole("button", { name: /^Depot.*card/ })).toBeVisible();
+		await page.getByRole("button", { name: "Remove value (unbinds 1)" }).click();
+		await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
 		expect((await entity(page, "depot"))?.label?.dataKeys).toEqual([]);
+		// Back on the list.
+		await expect(page.getByRole("button", { name: "Add", exact: true })).toBeVisible();
 	});
 
 	test("a light can follow a data value (From data)", async ({ page }) => {

@@ -71,6 +71,8 @@ Sources → **Read a spreadsheet…** picks a CSV (comma, semicolon or tab) or a
 - **Excel** is read with [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT, xlsx only, pinned to 9.3.12), loaded only when an Excel file is picked. A file with several sheets offers a Sheet choice. Old `.xls` files are refused with a note to save as `.xlsx` or CSV.
 - **Tables** open in a viewer (their first 500 rows) and can be removed; **sources** can be read again or removed (their values and tables stay, as typed by hand).
 
+**Values, one at a time.** The Values panel is a list, a row each (name, a sparkline of its past values, its value), grouped by where they come from, with a search once there are more than eight. A row opens the value's own page (the header reads *World › Data › Population*, with a way back): its name, key (changing it changes it everywhere it's used; a value just added takes its key from the name it's given), value and unit; where it comes from (read it again, or keep it typed by hand); its past values drawn, the pointer reading them, and all of them as a table; and **Used by**, every card, tile, light, colour and world setting that follows it (`editor/dataUses.ts`), each a way there. Removing a value that something uses asks first, naming what.
+
 Not yet: dropping a file on the tab (only picking), renaming a table, and anything following a table (step 3). A big table is kept whole in the world, so a 10,000-row table makes a big save.
 
 ## Next steps
@@ -91,9 +93,12 @@ The owner's own public APIs, both readable from the browser (`access-control-all
 
 The same data as files, in [`samples/`](samples/), read on 2026-10-30: the Finals' top 100 and top 20 clubs (tables), Battlefield Stats' sent per day and per month (values over time) and by category (a table), and `stats-two-sheets.xlsx` (the clubs and the months as two sheets, real Excel dates) for trying Excel. The unit tests and the end-to-end test read them.
 
+## Decided
+
+- **A value's past comes only from its source** (2026-10-31): a file's date column, a row a point. A sheet without dates gives today's numbers and no past; reading it again replaces them, and typing a value keeps nothing. Nothing is logged behind the scenes, so a world never grows by itself. (A log of every reading was considered and judged too complex.) Values arriving while a world is open stack up in memory only, up to 500, for the open view.
+
 ## Open questions
 
 - **Where a source's secret lives** (API keys): on the server, per world, which needs worlds on the server (accounts or share links, ADR-0006).
-- **How much history a world keeps**: every point, or a window (the runtime keeps the last 500 while open).
 - **Tables of tables**: whether an API's nested lists become several tables or one picked by path (start with one by path).
 - **Who refreshes a link** when nobody has the world open: nobody, until there's a server; then a Cron Trigger or the world's Durable Object.
