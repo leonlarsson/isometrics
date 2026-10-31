@@ -293,8 +293,9 @@ test.describe("stories (ADR-0114)", () => {
 		await act(page, (s) => s.setMode("view"));
 		const story = page.getByRole("region", { name: "Story" });
 		await expect(story).toBeVisible();
-		await story.getByRole("textbox").fill("0");
-		await story.getByRole("textbox").press("Enter");
+		await story.getByRole("slider").focus();
+		await page.keyboard.press("Home");
+		await expect(story).toContainText("Jan 2026");
 		const card = labelCard(page, /Messages/);
 		await expect(card).toContainText("10");
 		await expect(card).toContainText("2026");
