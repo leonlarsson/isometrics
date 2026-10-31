@@ -218,6 +218,47 @@ test.describe("the dashboard (ADR-0110)", () => {
 	});
 });
 
+test.describe("a world without data (ADR-0115)", () => {
+	test("Uses data off hides the Data tabs and card values; on brings them back", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			data: { values: [{ key: "sent", name: "Messages sent", value: 1692 }] },
+			entities: [
+				{
+					id: "m",
+					kind: "tower_cluster_01",
+					name: "Messages",
+					position: [0, 0],
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["sent"],
+						offset: [0, 2, 0],
+						tag: "",
+						showsAsChip: false,
+					},
+				},
+			],
+		});
+		const card = labelCard(page, /Messages/);
+		const dataTab = page.getByRole("tab", { name: "Data", exact: true });
+		await expect(card).toContainText("1,692");
+		await expect(dataTab).toBeVisible();
+
+		await page.getByRole("tab", { name: "World", exact: true }).click();
+		await page.getByRole("switch", { name: "Uses data" }).click();
+		await expect(card).not.toContainText("1,692");
+		await expect(dataTab).toHaveCount(0);
+		// The data is kept, and back when it's on again.
+		expect(await read(page, (s) => s.scene.data.values.length)).toBe(1);
+
+		await page.getByRole("switch", { name: "Uses data" }).click();
+		await expect(card).toContainText("1,692");
+		await expect(dataTab).toBeVisible();
+	});
+});
+
 test.describe("links and APIs (ADR-0113)", () => {
 	test("an API is read into a value over time, read again into what arrived, and kept", async ({
 		page,

@@ -73,9 +73,27 @@ export const mergeArrived = (
 	};
 };
 
-/** The data as a story shows it (ADR-0114): as it was on its date in View mode, else as it is. */
+/** A world's data with nothing in it, the same object each time for the same data (caches key on it). */
+const emptied = new WeakMap<TWorldData, TWorldData>();
+const withoutData = (data: TWorldData) => {
+	const known = emptied.get(data);
+	if (known) {
+		return known;
+	}
+	const empty = { ...data, values: [], tables: [] };
+	emptied.set(data, empty);
+	return empty;
+};
+
+/**
+ * The data as a story shows it (ADR-0114): as it was on its date in View mode, else as it is.
+ * With data off (ADR-0115), none: everything is drawn as set by hand.
+ */
 const asOf = (data: TWorldData, at: string | null, inView: boolean) =>
-	at !== null && inView ? worldDataAt(data, at) : data;
+	!data.isOn ? withoutData(data) : at !== null && inView ? worldDataAt(data, at) : data;
+
+/** Whether the world uses data (ADR-0115): off hides every data tool, value and tile. */
+export const useUsesData = () => useEditor((s) => s.scene.data.isOn);
 
 /**
  * The world's data now, for components: changes as the world, what arrived

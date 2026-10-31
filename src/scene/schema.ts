@@ -646,6 +646,12 @@ export const DataSourceSchema = z
 /** The world's data (data study): its values, tables and where they come from. */
 export const WorldDataSchema = z
 	.object({
+		isOn: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether the world uses data (ADR-0115). Off, a plain world to build: every data tool, card value, tile and the story bar are hidden, and things are drawn as set by hand; its values, tables and sources are kept, back when it's on again.",
+			),
 		values: z
 			.array(DataValueSchema)
 			.default([])

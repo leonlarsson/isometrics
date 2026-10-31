@@ -3,7 +3,7 @@ import { memo } from "react";
 import { drawnModeOf, useEditor } from "#/editor/store";
 import { useStory } from "#/editor/story";
 import { useThemePalette } from "#/editor/useTheme";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
 import { resolveLabelColor } from "#/parts/colorModel";
 import { valuesOfEntity } from "#/parts/propData";
@@ -97,7 +97,9 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	const data = valuesOfEntity(entity, useWorldData());
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
-	const entries = entity.label.dataKeys.map((key) => ({
+	// With data off (ADR-0115), a card is its title only.
+	const usesData = useUsesData();
+	const entries = (usesData ? entity.label.dataKeys : []).map((key) => ({
 		key,
 		entry: data.find((d) => d.key === key),
 	}));

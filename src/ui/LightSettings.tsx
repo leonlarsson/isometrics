@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { useUsesData } from "#/editor/worldData";
 import {
 	comesOnOf,
 	inPeriod,
@@ -138,7 +139,9 @@ export const LightSettings = ({
 	fileName,
 	startsFolded,
 }: ILightSettingsProps) => {
-	const bound = setting?.data ?? {};
+	// With data off (ADR-0115), set by hand only: what follows data is left alone, unseen.
+	const usesData = useUsesData();
+	const bound = usesData ? (setting?.data ?? {}) : {};
 	const hasData = data.length > 0;
 	/** Start following data: the first value, with no options set. */
 	const follow = (target: TLightDataTarget) =>
@@ -188,7 +191,10 @@ export const LightSettings = ({
 					label="When"
 					value={turnsOn}
 					mixed={mixed("whenOn") || mixed("data.on")}
-					options={(["auto", "on", "off", "schedule", "data"] as const).map((option) => ({
+					options={(usesData
+						? (["auto", "on", "off", "schedule", "data"] as const)
+						: (["auto", "on", "off", "schedule"] as const)
+					).map((option) => ({
 						value: option,
 						label: `${turnsOnLabels[option]}${unavailable[option] ?? ""}`,
 						disabled: unavailable[option] !== undefined,

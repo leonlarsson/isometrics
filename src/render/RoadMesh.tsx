@@ -303,6 +303,7 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 	const road = roadAsDrawn(stored, data);
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
+	const usesData = useEditor((s) => s.scene.data.isOn);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>
@@ -338,7 +339,7 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 			}
 		: // In View mode a road that shows data opens its details, its flow in data terms (ADR-0112).
-			mode === "view" && (road.dataRow !== null || Object.keys(road.data).length > 0)
+			mode === "view" && usesData && (road.dataRow !== null || Object.keys(road.data).length > 0)
 			? {
 					onClick: (e: ThreeEvent<MouseEvent>) => {
 						e.stopPropagation();

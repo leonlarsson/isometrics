@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { useUsesData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
 import { DataBindingSchema, type TDataBinding, type TDataValue } from "#/scene/schema";
 
@@ -50,6 +51,10 @@ export const DataDrivenField = ({
 	mixed,
 }: IDataDrivenFieldProps) => {
 	const hasData = data.length > 0;
+	// With data off (ADR-0115), set by hand only: no Source, no From data.
+	if (!useUsesData()) {
+		return <>{children}</>;
+	}
 	return (
 		<>
 			<SelectField<TSource>

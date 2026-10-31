@@ -4,7 +4,7 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
@@ -304,13 +304,15 @@ const ShapeTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const setEntityProp = useEditor((s) => s.setEntityProp);
 	const setTab = useEditor((s) => s.setTab);
 	const data = valuesOfEntity(entity, useWorldData());
+	const usesData = useUsesData();
 
 	return (
 		<PartShapeSection
 			part={part}
 			object={entity}
 			data={data}
-			dataBindings={entity.data}
+			// With data off (ADR-0115) every setting is by hand.
+			dataBindings={usesData ? entity.data : undefined}
 			onOpenData={() => setTab("objectData")}
 			actions={
 				<CopyPasteMenu

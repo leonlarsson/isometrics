@@ -13,6 +13,8 @@ export interface IEmptySceneOptions {
 	ground?: { width: number; depth: number };
 	theme?: TThemePreference;
 	drivingSide?: TDrivingSide;
+	/** Whether it uses data (ADR-0115): false for a plain world to build. */
+	usesData?: boolean;
 }
 
 /** Starting option: bare ground, with no objects, roads, areas or data. */
@@ -21,6 +23,7 @@ export const createEmptyScene = ({
 	ground,
 	theme,
 	drivingSide,
+	usesData = true,
 }: IEmptySceneOptions = {}): TScene =>
 	SceneSchema.parse({
 		version: SCENE_VERSION,
@@ -28,4 +31,5 @@ export const createEmptyScene = ({
 		...(ground && { ground }),
 		...(theme && { theme }),
 		...(drivingSide && { traffic: { drivingSide } }),
+		...(!usesData && { data: { isOn: false } }),
 	} satisfies TSceneInput);

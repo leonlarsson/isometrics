@@ -107,13 +107,17 @@ const scheduleOf = (sources: readonly TDataSource[]) =>
  */
 export const useSourceRefresh = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
-	const schedule = useEditor((s) => scheduleOf(s.scene.data.sources));
+	// With data off (ADR-0115), nothing is read.
+	const schedule = useEditor((s) => (s.scene.data.isOn ? scheduleOf(s.scene.data.sources) : ""));
 	useEffect(() => {
 		const sources = () =>
 			useEditor
 				.getState()
 				.scene.data.sources.filter(
-					(source) => (source.kind === "link" || source.kind === "api") && source.url,
+					(source) =>
+						useEditor.getState().scene.data.isOn &&
+						(source.kind === "link" || source.kind === "api") &&
+						source.url,
 				);
 		for (const source of sources()) {
 			void refreshSource(source);

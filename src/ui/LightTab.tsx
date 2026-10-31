@@ -1,6 +1,6 @@
 import { restartDayCycle, useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { DataBindingSchema, LightingSchema, type TLighting } from "#/scene/schema";
 import { BALANCED_CONTRAST, formatHour, skyLightAt } from "#/scene/sun";
@@ -47,6 +47,7 @@ const LIGHTS_OPTIONS: { value: TLighting["whenLightsAreOn"]; label: string }[] =
 export const LightTab = () => {
 	const lighting = useEditor((s) => s.scene.lighting);
 	const data = useWorldData().values;
+	const usesData = useUsesData();
 	const commit = useEditor((s) => s.commit);
 	const hours = useSceneHours();
 	// What the time of day gives each sun setting, shown while it isn't set by hand.
@@ -121,7 +122,10 @@ export const LightTab = () => {
 					label="Time follows"
 					value={lighting.timeSource}
 					// Without data values From data is greyed out, saying why (Time from explains below).
-					options={SOURCES.map((source) =>
+					options={SOURCES.filter(
+						// With data off (ADR-0115), not offered (still shown while it's the one picked).
+						(source) => usesData || source.value !== "data" || lighting.timeSource === "data",
+					).map((source) =>
 						source.value === "data" && data.length === 0 && lighting.timeSource !== "data"
 							? { ...source, label: "From data (no values yet)", disabled: true }
 							: source,

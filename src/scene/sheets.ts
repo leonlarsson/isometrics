@@ -510,5 +510,5 @@ export const putReadData = (data: TWorldData, source: TDataSource, read: IReadDa
 	const sources = data.sources.some((each) => each.id === source.id)
 		? data.sources.map((each) => (each.id === source.id ? source : each))
 		: [...data.sources, source];
-	return { values, tables, sources };
+	return { ...data, values, tables, sources };
 };

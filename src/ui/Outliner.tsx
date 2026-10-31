@@ -6,7 +6,7 @@ import { setPanelOpen, usePanelMemory } from "#/editor/panelMemory";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { resolveColors, swatchColors } from "#/parts/colorModel";
 import { valuesOfEntity } from "#/parts/propData";
@@ -410,6 +410,7 @@ export const Outliner = () => {
 	});
 
 	const data = useWorldData();
+	const usesData = useUsesData();
 	const rows = useMemo(() => rowsOf(scene, palette, data), [scene, palette, data]);
 	const selectedRows = useMemo(() => new Set(selectedKeys.split(" ")), [selectedKeys]);
 	const shown = useMemo(
@@ -417,10 +418,10 @@ export const Outliner = () => {
 			rows.filter(
 				(row) =>
 					(!query.trim() || matches(row, query)) &&
-					(!onlyData || row.value !== null) &&
+					(!onlyData || !usesData || row.value !== null) &&
 					(!onlySelected || selectedRows.has(keyOf(row.item))),
 			),
-		[rows, query, onlyData, onlySelected, selectedRows],
+		[rows, query, onlyData, usesData, onlySelected, selectedRows],
 	);
 	const groups = useMemo(
 		() => GROUP_ORDER.filter((group) => shown.some((row) => row.group === group)),
@@ -477,12 +478,16 @@ export const Outliner = () => {
 							onClick={() => setOnlySelected(!onlySelected)}
 						/>
 
-						<IconButton
-							icon="chart"
-							label={onlyData ? "Showing only things that show data" : "Only things that show data"}
-							pressed={onlyData}
-							onClick={() => setOnlyData(!onlyData)}
-						/>
+						{usesData && (
+							<IconButton
+								icon="chart"
+								label={
+									onlyData ? "Showing only things that show data" : "Only things that show data"
+								}
+								pressed={onlyData}
+								onClick={() => setOnlyData(!onlyData)}
+							/>
+						)}
 					</IconButtonGroup>
 				}
 				// Phones have the sheet, which hides on its own.

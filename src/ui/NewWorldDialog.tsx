@@ -14,7 +14,14 @@ import {
 import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
-import { Hint, RadioGroupField, resetToDefault, SelectField, TextField } from "./fields";
+import {
+	Hint,
+	RadioGroupField,
+	resetToDefault,
+	SelectField,
+	SwitchField,
+	TextField,
+} from "./fields";
 
 import styles from "./NewWorldDialog.module.css";
 
@@ -40,6 +47,8 @@ interface INewWorldChoices {
 	groundPreset: TGroundPreset;
 	theme: TThemePreference;
 	drivingSide: TDrivingSide;
+	/** Whether a blank world uses data (ADR-0115). */
+	usesData: boolean;
 }
 
 const DEFAULT_CHOICES: INewWorldChoices = {
@@ -47,6 +56,7 @@ const DEFAULT_CHOICES: INewWorldChoices = {
 	groundPreset: "blocks",
 	theme: "system",
 	drivingSide: "right",
+	usesData: true,
 };
 
 const blankPictureId = (preset: TGroundPreset) => `${BLANK}:${preset}`;
@@ -152,6 +162,7 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 						ground: { width, depth },
 						theme: choices.theme,
 						drivingSide: choices.drivingSide,
+						usesData: choices.usesData,
 					}),
 		);
 	};
@@ -276,6 +287,16 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 								inherit={resetToDefault(choices.drivingSide, DEFAULT_CHOICES.drivingSide, () =>
 									update({ drivingSide: DEFAULT_CHOICES.drivingSide }),
 								)}
+							/>
+
+							<SwitchField
+								label="Uses data"
+								checked={choices.usesData}
+								onChange={(usesData) => update({ usesData })}
+								inherit={resetToDefault(choices.usesData, DEFAULT_CHOICES.usesData, () =>
+									update({ usesData: DEFAULT_CHOICES.usesData }),
+								)}
+								hint="Off for a plain world to build, with nothing about data anywhere."
 							/>
 
 							<Hint>

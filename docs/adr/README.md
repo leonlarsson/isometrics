@@ -118,3 +118,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0112](0112-roads-that-show-flows.md) | Roads that show flows: vehicles each way, from a value or a row | proposed |
 | [0113](0113-links-and-apis.md) | Links and APIs are read in the browser, picked by path, and read again into what arrived | proposed |
 | [0114](0114-stories.md) | Stories: a time slider plays the world through its dated values | proposed |
+| [0115](0115-a-world-without-data.md) | A world can turn data off, and then nothing about data shows | proposed |

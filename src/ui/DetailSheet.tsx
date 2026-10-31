@@ -6,7 +6,7 @@ import {
 } from "#/editor/roadFlows";
 import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useViewShowsData } from "#/editor/viewData";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
 import { formatValue } from "#/scene/format";
@@ -48,13 +48,19 @@ export const DetailSheet = () => {
 	const shown = useEditor((s) => s.scene.onScreen.showsDetails);
 	// The data shown as tables takes the place of the map and what's on it (ADR-0110).
 	const showsData = useViewShowsData((s) => s.showsData);
+	const usesData = useUsesData();
 
 	if (mode !== "view" || !entity || !shown || showsData) {
 		return null;
 	}
 
 	const data = valuesOfEntity(entity, worldData);
-	const keys = entity.details.dataKeys.length ? entity.details.dataKeys : entity.label.dataKeys;
+	// With data off (ADR-0115), its description only: no tiles, no source.
+	const keys = !usesData
+		? []
+		: entity.details.dataKeys.length
+			? entity.details.dataKeys
+			: entity.label.dataKeys;
 	const title = entity.name || entity.label.title || partNameOf(entity.kind) || "Object";
 	const entries = keys.map((key) => ({ key, entry: data.find((d) => d.key === key) }));
 	// Its main source: its row's table's, else its first value's.
@@ -137,8 +143,10 @@ export const RoadDetailSheet = () => {
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const shown = useEditor((s) => s.scene.onScreen.showsDetails);
 	const showsData = useViewShowsData((s) => s.showsData);
+	const usesData = useUsesData();
 
-	if (mode !== "view" || !stored || !shown || showsData) {
+	// A road's sheet is its flow in data terms: none with data off (ADR-0115).
+	if (mode !== "view" || !stored || !shown || showsData || !usesData) {
 		return null;
 	}
 

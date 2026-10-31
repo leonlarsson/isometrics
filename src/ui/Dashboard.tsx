@@ -3,7 +3,7 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { followersByRow } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { setViewShowsData, useViewShowsData } from "#/editor/viewData";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { partNameOf } from "#/parts/registry";
 import { formatEntry } from "#/scene/format";
 import { flagOf } from "#/scene/trends";
@@ -49,7 +49,8 @@ export const MapDataSwitch = () => {
 	const showsData = useViewShowsData((s) => s.showsData);
 	const shown = useEditor((s) => s.mode === "view" && s.scene.onScreen.showsDataSwitch);
 	const hasData = useHasData();
-	if (!shown || !hasData) {
+	const usesData = useUsesData();
+	if (!shown || !hasData || !usesData) {
 		return null;
 	}
 	return (
@@ -79,7 +80,8 @@ export const WorldDataView = () => {
 	const data = useWorldData();
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
-	const open = showsData && inView;
+	const usesData = useUsesData();
+	const open = showsData && inView && usesData;
 	useHotkey("Escape", () => setViewShowsData(false), {
 		enabled: open,
 		meta: { name: "Back to the map" },
@@ -206,7 +208,9 @@ export const ViewDock = () => {
 	const isAboveViewpointBar = useEditor(
 		(s) => s.scene.onScreen.showsViewpointBar && s.scene.viewpoints.length > 0,
 	);
-	if (!inView) {
+	// Its tiles and story bar are all data: none with data off (ADR-0115).
+	const usesData = useUsesData();
+	if (!inView || !usesData) {
 		return null;
 	}
 	return (

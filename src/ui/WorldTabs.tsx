@@ -115,7 +115,12 @@ export const WorldTab = () => {
 
 	return (
 		<>
-			<Section id="world.world" icon="globe" title="World" keywords="name heading">
+			<Section
+				id="world.world"
+				icon="globe"
+				title="World"
+				keywords="name heading theme data uses data plain"
+			>
 				<TextField
 					inherit={resetToDefault(scene.meta.title, WORLD_DEFAULTS.meta.title, () =>
 						commit((s) => {
@@ -177,6 +182,30 @@ export const WorldTab = () => {
 						commit((s) => {
 							s.theme = v;
 						})
+					}
+				/>
+
+				<SwitchField
+					label="Uses data"
+					checked={scene.data.isOn}
+					onChange={(isOn) =>
+						commit((s) => {
+							s.data.isOn = isOn;
+						})
+					}
+					inherit={{
+						from: "default",
+						inherited: scene.data.isOn,
+						onReset: () =>
+							commit((s) => {
+								s.data.isOn = true;
+							}),
+						value: "on",
+					}}
+					hint={
+						scene.data.isOn
+							? "Things can show and follow values and tables: the Data tab, From data, values on cards. Off for a plain world to build."
+							: "Off: a plain world to build, with nothing about data anywhere. Its values, tables and sources are kept, back when this is on."
 					}
 				/>
 			</Section>
