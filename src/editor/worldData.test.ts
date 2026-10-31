@@ -19,7 +19,7 @@ describe("the world's data now (data study)", () => {
 
 	it("puts what arrived on top, adding to a value's history, without changing what's kept", () => {
 		const now = mergeArrived(kept, {
-			values: new Map([["users", { at: "2026-10-30", value: 41738 }]]),
+			values: new Map([["users", { point: { at: "2026-10-30", value: 41738 } }]]),
 			tables: new Map([["games", [{ sent: 2 }, { sent: 3 }]]]),
 		});
 		expect(now.values[0]).toMatchObject({ value: 41738 });
@@ -27,5 +27,17 @@ describe("the world's data now (data study)", () => {
 		expect(now.values[1]).toBe(kept.values[1]);
 		expect(now.tables[0].rows).toHaveLength(2);
 		expect(kept.values[0].value).toBe(41000);
+	});
+
+	it("takes a source's whole past when it gives one", () => {
+		const history = [
+			{ at: "2026-10-29", value: 1 },
+			{ at: "2026-10-30", value: 2 },
+		];
+		const now = mergeArrived(kept, {
+			values: new Map([["users", { point: history[1], history }]]),
+			tables: new Map(),
+		});
+		expect(now.values[0].history).toEqual(history);
 	});
 });

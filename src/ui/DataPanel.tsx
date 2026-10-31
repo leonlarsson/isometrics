@@ -3,8 +3,10 @@ import { useState } from "react";
 import { pickFile } from "#/editor/fileActions";
 import { suggestLegend } from "#/editor/legend";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
+import { keepArrivedValues, refreshSource, useSourceStatus } from "#/editor/sourceRefresh";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
+import { useHasArrived } from "#/editor/worldData";
 import { formatEntry, toDataKey } from "#/scene/format";
 import {
 	DataSourceSchema,
@@ -28,8 +30,9 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
+import { ReadLinkDialog } from "./ReadLinkDialog";
 import { type ISpreadsheetReading, ReadSpreadsheetDialog } from "./ReadSpreadsheetDialog";
-import { Sparkline } from "./Sparkline";
+import { formatWhen, Sparkline } from "./Sparkline";
 
 import styles from "./DataPanel.module.css";
 
@@ -311,6 +314,9 @@ export const DataPanel = () => {
 	const removeDataTable = useEditor((s) => s.removeDataTable);
 	const removeDataSource = useEditor((s) => s.removeDataSource);
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
+	const [readsLink, setReadsLink] = useState(false);
+	const statuses = useSourceStatus();
+	const hasArrived = useHasArrived();
 	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
 	const openTable = tables.find((table) => table.key === openTableKey);
 	const openValueKey = useEditor((s) => s.openValueKey);
@@ -337,6 +343,16 @@ export const DataPanel = () => {
 	const dialogs = (
 		<>
 			{reading && <ReadSpreadsheetDialog reading={reading} onClose={() => setReading(null)} />}
+
+			{readsLink && (
+				<ReadLinkDialog
+					onClose={() => setReadsLink(false)}
+					onSpreadsheet={(sheet) => {
+						setReadsLink(false);
+						setReading(sheet);
+					}}
+				/>
+			)}
 
 			{openTable && (
 				<DataTableDialog
@@ -366,6 +382,19 @@ export const DataPanel = () => {
 
 	return (
 		<>
+			{hasArrived && (
+				<Section icon="clock" title="Read since the world opened">
+					<Hint>
+						Links and APIs gave newer values since the world opened. They show everywhere now, but
+						the world keeps what it had until you keep these (one undo step).
+					</Hint>
+
+					<Button size="sm" icon="check" onClick={keepArrivedValues}>
+						Keep these values
+					</Button>
+				</Section>
+			)}
+
 			<Section
 				id="data.values"
 				icon="chart"
@@ -425,8 +454,14 @@ export const DataPanel = () => {
 								meta={[
 									SOURCE_KIND_NAMES[source.kind],
 									source.url ?? (source.fileName === source.name ? null : source.fileName),
-									source.lastReadAt &&
-										`read ${new Date(source.lastReadAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`,
+									statuses[source.id]?.reading
+										? "reading…"
+										: statuses[source.id]?.error
+											? `couldn't read it: ${statuses[source.id]?.error}`
+											: statuses[source.id]?.readAt
+												? `read ${formatWhen(statuses[source.id]?.readAt ?? "")}${source.refreshSeconds ? `, every ${source.refreshSeconds} s` : ""}`
+												: source.lastReadAt &&
+													`read ${new Date(source.lastReadAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`,
 								]
 									.filter(Boolean)
 									.join(" · ")}
@@ -438,6 +473,14 @@ export const DataPanel = () => {
 												icon="upload"
 												label="Read it again…"
 												onClick={() => readFrom(source)}
+											/>
+										)}
+
+										{(source.kind === "link" || source.kind === "api") && source.url && (
+											<IconButton
+												icon="download"
+												label="Read it again now"
+												onClick={() => void refreshSource(source)}
 											/>
 										)}
 
@@ -454,14 +497,20 @@ export const DataPanel = () => {
 				) : (
 					<Hint>
 						Read values and tables from a spreadsheet (CSV or Excel) instead of typing them: values
-						over time, a table of rows, or a value for each column or row. Read it again when it
-						changes. Links and APIs come later.
+						over time, a table of rows, or a value for each column or row; or from a link or an API,
+						read again while the world is open.
 					</Hint>
 				)}
 
-				<Button icon="upload" onClick={() => readFrom()}>
-					Read a spreadsheet…
-				</Button>
+				<ButtonGroup>
+					<Button icon="upload" onClick={() => readFrom()}>
+						Read a spreadsheet…
+					</Button>
+
+					<Button icon="download" onClick={() => setReadsLink(true)}>
+						Read a link or API…
+					</Button>
+				</ButtonGroup>
 			</Section>
 
 			{dialogs}

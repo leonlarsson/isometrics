@@ -194,3 +194,70 @@ test.describe("the dashboard (ADR-0110)", () => {
 		await expect(tables).toBeHidden();
 	});
 });
+
+test.describe("links and APIs (ADR-0113)", () => {
+	test("an API is read into a value over time, read again into what arrived, and kept", async ({
+		page,
+	}) => {
+		test.setTimeout(120_000);
+		let sentToday = 1692;
+		const json = (body: unknown) => ({
+			status: 200,
+			contentType: "application/json",
+			headers: { "access-control-allow-origin": "*" },
+			body: JSON.stringify(body),
+		});
+		await page.route("https://api.battlefieldstats.com/outputs/daily", (route) =>
+			route.fulfill(
+				json([
+					{ day: "2026-10-30", sent: 1601 },
+					{ day: "2026-10-31", sent: sentToday },
+				]),
+			),
+		);
+		await page.route("https://api.steampowered.com/**", (route) => route.abort("failed"));
+		await loadWorld(page, {
+			data: {},
+			entities: [
+				{
+					id: "c",
+					kind: "tower_cluster_01",
+					name: "Messages",
+					label: { isShown: true, title: "", dataKeys: [], offset: [0, 2, 0], tag: "" },
+				},
+			],
+		});
+		await act(page, (s) => s.setTab("data"));
+		const dialog = page.getByRole("dialog", { name: "Read a link or API" });
+
+		// A site that doesn't let browsers read it says so, and what would fix it.
+		await page.getByRole("button", { name: "Read a link or API…" }).click();
+		await dialog.getByRole("textbox", { name: "Address" }).fill("https://api.steampowered.com/x");
+		await dialog.getByRole("button", { name: "Read", exact: true }).click();
+		await expect(dialog).toContainText("CORS");
+
+		await dialog
+			.getByRole("textbox", { name: "Address" })
+			.fill("https://api.battlefieldstats.com/outputs/daily");
+		await dialog.getByRole("button", { name: "Read", exact: true }).click();
+		await expect(dialog).toContainText("2 entries");
+		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		expect(
+			await read(page, (s) => s.scene.data.values.map((v) => [v.key, v.value, v.history.length])),
+		).toEqual([["sent", 1692, 2]]);
+
+		// Shown on the card, then read again: the card follows what arrived, the world keeps what it had.
+		await act(page, (s) =>
+			s.updateEntity("c", (e) => {
+				e.label.dataKeys = ["sent"];
+			}),
+		);
+		await expect(labelCard(page, /Messages/)).toContainText("1,692");
+		sentToday = 1750;
+		await page.getByRole("button", { name: "Read it again now" }).click();
+		await expect(labelCard(page, /Messages/)).toContainText("1,750");
+		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1692);
+		await page.getByRole("button", { name: "Keep these values" }).click();
+		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1750);
+	});
+});

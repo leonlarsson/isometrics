@@ -26,7 +26,10 @@ export const FlagBadge = ({ entry }: { entry: TDataValue }) => {
 	}
 	return (
 		<span className={styles.flag}>
-			<span aria-hidden="true">⚠</span> {word}
+			<span aria-hidden="true">⚠</span>
+
+			{` ${word} `}
+
 			<span className={styles.line}>{thresholdWords(entry)}</span>
 		</span>
 	);

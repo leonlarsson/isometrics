@@ -19,7 +19,8 @@ import { useEditor } from "./store";
 interface IArrivedData {
 	/** Which world it arrived for (the store's `openedWorldCount`): another world's is ignored. */
 	forOpening: number | null;
-	values: ReadonlyMap<string, TDataPoint>;
+	/** The latest value, and its whole past when the source gives one (an API with dates). */
+	values: ReadonlyMap<string, { point: TDataPoint; history?: readonly TDataPoint[] }>;
 	tables: ReadonlyMap<string, TDataTable["rows"]>;
 }
 
@@ -47,14 +48,21 @@ export const mergeArrived = (
 	return {
 		...kept,
 		values: kept.values.map((entry) => {
-			const point = since.values.get(entry.key);
-			return point
-				? {
-						...entry,
-						value: point.value,
-						history: [...entry.history, point].slice(-MOST_POINTS),
-					}
-				: entry;
+			const arrived = since.values.get(entry.key);
+			if (!arrived) {
+				return entry;
+			}
+			const { point, history } = arrived;
+			return {
+				...entry,
+				value: point.value,
+				// The source's own past, or what's kept with this point on the end (unless it's the last).
+				history: history
+					? [...history]
+					: entry.history.at(-1)?.at === point.at
+						? entry.history
+						: [...entry.history, point].slice(-MOST_POINTS),
+			};
 		}),
 		tables: kept.tables.map((table) => {
 			const rows = since.tables.get(table.key);
@@ -89,10 +97,19 @@ const arrivedForThisWorld = (): IArrivedData => {
 	return since.forOpening === opening ? since : { ...NOTHING_ARRIVED, forOpening: opening };
 };
 
-/** A value that arrived from a source, kept until the world closes or it's kept for good. */
-export const valueArrived = (key: string, point: TDataPoint) => {
+/**
+ * A value that arrived from a source, kept until the world closes or it's kept
+ * for good; with `history`, the source's whole past for it (an API with dates).
+ */
+export const valueArrived = (key: string, point: TDataPoint, history?: readonly TDataPoint[]) => {
 	const since = arrivedForThisWorld();
-	useArrived.setState({ ...since, values: new Map(since.values).set(key, point) });
+	useArrived.setState({ ...since, values: new Map(since.values).set(key, { point, history }) });
+};
+
+/** Whether anything arrived for the world open now, to offer to keep it. */
+export const useHasArrived = () => {
+	const opening = useEditor((s) => s.openedWorldCount);
+	return useArrived((s) => s.forOpening === opening && (s.values.size > 0 || s.tables.size > 0));
 };
 
 /** A table's rows that arrived from a source. */

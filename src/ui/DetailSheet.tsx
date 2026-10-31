@@ -95,7 +95,8 @@ export const DetailSheet = () => {
 
 			{main && (
 				<p className={styles.source}>
-					Source:{" "}
+					{"Source: "}
+
 					{link ? (
 						<a href={link} target="_blank" rel="noreferrer">
 							{main.name || link}

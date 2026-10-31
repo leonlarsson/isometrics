@@ -5,6 +5,7 @@ import { useSceneHours } from "#/editor/dayClock";
 import { setPanelOpen } from "#/editor/panelMemory";
 import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
+import { useSourceRefresh } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
@@ -204,6 +205,8 @@ export const AppShell = () => {
 
 	const mode = useEditor((s) => s.mode);
 	const [ready, setReady] = useState(false);
+	// Links and APIs read again while the world is open (ADR-0113).
+	useSourceRefresh();
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
 	const [outlinerHeight, setOutlinerHeight] = useOutlinerHeight();
 	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
