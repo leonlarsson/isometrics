@@ -42,7 +42,7 @@ export const ShareDialog = () => {
 	const [sharing, setSharing] = useState(false);
 	const { copiedKey, copy } = useCopy();
 	const copyLink = (link: ISharedLink, key: string) =>
-		copy(link.url, `Link copied: ${link.url}`, key);
+		copy(link.url, "Link copied", { key, detail: link.url });
 	const close = () => {
 		useEditor.getState().setShareOpen(false);
 		setMade(null);

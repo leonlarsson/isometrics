@@ -88,8 +88,20 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect(asking).toContainText("https://example.org/x.json");
 		// Not loaded yet: the starter world is still open.
 		expect(await read(page, (s) => s.scene.meta.title)).not.toBe("Reads outside");
+		// Asked once the world open now is on screen, never over a loading screen.
+		await expect(page.locator("[data-loading-screen]")).toHaveCount(0);
 		await asking.getByRole("button", { name: "Don't open it" }).click();
 		expect(await read(page, (s) => s.scene.meta.title)).not.toBe("Reads outside");
+
+		// Open and allow: one question, so the address is allowed and not asked about again.
+		await page.goto(new URL(url).pathname);
+		await asking.getByRole("button", { name: "Open and allow" }).click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Reads outside");
+		await expect(page.locator("[data-loading-screen]")).toHaveCount(0);
+		await expect(asking).toBeHidden();
+		expect(
+			await page.evaluate(() => localStorage.getItem("isometrics:allowed-links") ?? ""),
+		).toContain("https://example.org/x.json");
 	});
 
 	test("a template opens by its address, and an AI's answer can be a link", async ({ page }) => {

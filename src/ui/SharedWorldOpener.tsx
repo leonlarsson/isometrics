@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { startNewWorld } from "#/editor/fileActions";
+import { allowLink } from "#/editor/linkTrust";
 import { markAddressesAsked, outsideAddressesOf } from "#/editor/sourceRefresh";
+import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { fetchSharedWorld, ShareError } from "#/editor/userWorlds";
 import { readWorld } from "#/parts/readWorld";
@@ -40,21 +42,39 @@ type TStep =
  * Opens what the page's address names (ADR-0120): a world someone shared, read
  * from this site (waiting out the minute a new link can take to arrive), or a
  * template. Either opens as a new world next to the others. If it reads
- * anything from outside, it says so before it's loaded, naming each address:
- * open it (they wait for a yes, as ever, ADR-0119) or don't.
+ * anything from outside, it says so before it's loaded, naming each address,
+ * once the world open now is on screen (not over its loading screen). One
+ * question, so the usual one about outside addresses (ADR-0119) isn't asked
+ * again: Open and allow (they're read from then on), Open (they wait in the
+ * Data tab under Sources), or Don't open it.
  */
 export const SharedWorldOpener = () => {
 	const [step, setStep] = useState<TStep>({ kind: "idle" });
+	// Asked once the world open now is on screen, not over its loading screen.
+	const isOnScreen = useEditor((s) => s.openingWorld === null);
 
-	const open = (scene: TScene, addresses: string[], isShared: boolean) => {
+	const open = (
+		scene: TScene,
+		addresses: string[],
+		isShared: boolean,
+		reads: "allowed" | "waiting",
+	) => {
+		if (reads === "allowed") {
+			for (const url of addresses) {
+				allowLink(url);
+			}
+		}
 		startNewWorld(scene);
 		// Asked before it loaded: the dialog for a world's outside addresses doesn't ask again.
 		markAddressesAsked(addresses);
+		const copy = isShared
+			? "A copy of a shared world, next to your worlds: changes stay in this browser."
+			: "A copy of the template, next to your worlds.";
 		notify(
 			`Opened “${scene.meta.title}”`,
-			isShared
-				? "A copy of a shared world, next to your worlds: changes stay in this browser."
-				: "A copy of the template, next to your worlds.",
+			reads === "waiting" && addresses.length > 0
+				? `${copy} Its addresses wait to be allowed in the Data tab, under Sources.`
+				: copy,
 		);
 	};
 
@@ -63,7 +83,7 @@ export const SharedWorldOpener = () => {
 		if (addresses.length > 0) {
 			setStep({ kind: "asking", scene, addresses, isShared });
 		} else {
-			open(scene, [], isShared);
+			open(scene, [], isShared, "allowed");
 			setStep({ kind: "idle" });
 		}
 	};
@@ -113,10 +133,11 @@ export const SharedWorldOpener = () => {
 	}, []);
 
 	const addresses = step.kind === "asking" ? step.addresses : [];
+	const one = addresses.length === 1;
 	return (
 		<>
 			<ConfirmDialog
-				open={step.kind === "asking"}
+				open={step.kind === "asking" && isOnScreen}
 				onOpenChange={(next) => !next && setStep({ kind: "idle" })}
 				title="This world reads data from outside"
 				description={
@@ -138,18 +159,28 @@ export const SharedWorldOpener = () => {
 						)}
 
 						<p>
-							Opening it reads nothing from them: each waits until you allow it, in the Data tab
-							under Sources, and reading it tells it you're looking.
+							{one
+								? "Reading it tells it you're looking. Open and allow reads it from now on in this browser; Open leaves it waiting in the Data tab, under Sources, to allow later."
+								: "Reading them tells each one you're looking. Open and allow reads them from now on in this browser; Open leaves them waiting in the Data tab, under Sources, to allow later."}
 						</p>
 					</div>
 				}
-				confirmLabel="Open it"
+				confirmLabel="Open and allow"
 				cancelLabel="Don't open it"
 				onConfirm={() => {
 					if (step.kind === "asking") {
-						open(step.scene, step.addresses, step.isShared);
+						open(step.scene, step.addresses, step.isShared, "allowed");
 					}
 					setStep({ kind: "idle" });
+				}}
+				extraAction={{
+					label: "Open",
+					onClick: () => {
+						if (step.kind === "asking") {
+							open(step.scene, step.addresses, step.isShared, "waiting");
+						}
+						setStep({ kind: "idle" });
+					},
 				}}
 			/>
 		</>

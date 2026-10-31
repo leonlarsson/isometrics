@@ -16,12 +16,14 @@ const ADDRESSES_SHOWN = 6;
  * change to it (a patch, a paste) brings addresses this browser hasn't
  * allowed, it says which, and why they wait. Allow and read them, or not now:
  * they stay listed in the Data tab under Sources, with a button to go there.
- * Each address is asked about once per opening.
+ * Each address is asked about once per opening, once the world is on screen
+ * (not over its loading screen).
  */
 export const WaitingSourcesDialog = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
 	const waiting = useWaitingSources();
 	const [open, setOpen] = useState(false);
+	const isOnScreen = useEditor((s) => s.openingWorld === null);
 	const addresses = [...new Set(waiting.map((source) => source.url ?? ""))];
 
 	useEffect(() => {
@@ -41,7 +43,7 @@ export const WaitingSourcesDialog = () => {
 	const one = addresses.length === 1;
 	return (
 		<ConfirmDialog
-			open={open && addresses.length > 0}
+			open={open && addresses.length > 0 && isOnScreen}
 			onOpenChange={setOpen}
 			title="This world reads data from outside"
 			description={
