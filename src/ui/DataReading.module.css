@@ -16,6 +16,13 @@
 	font-size: 26px;
 }
 
+/* A text value (a name, a place) under its label: calmer than a number. */
+.value[data-size="text"] {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.25;
+}
+
 /* A value nothing has: greyed and in words, never a zero. */
 .reading[data-no-data] .value {
 	font-size: 14px;

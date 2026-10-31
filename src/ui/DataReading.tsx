@@ -54,22 +54,29 @@ export const DataReading = ({
 	showsMeaning?: boolean;
 	/** Its past as a line, with how much it moved. */
 	showsPast?: boolean;
-}) => (
-	<span className={styles.reading} data-no-data={entry ? undefined : ""}>
-		<span className={styles.value} data-size={size}>
-			{shownEntry(entry)}
-		</span>
+}) => {
+	// Text (a name, a place) reads label first, "From / Escape from Tarkov"; a number value first.
+	const isText = typeof entry?.value === "string";
+	const meaning = showsMeaning && <span className={styles.meaning}>{entry?.name || label}</span>;
+	return (
+		<span className={styles.reading} data-no-data={entry ? undefined : ""}>
+			{isText && meaning}
 
-		{showsMeaning && <span className={styles.meaning}>{entry?.name || label}</span>}
-
-		{showsPast && entry && entry.history.length > 1 && (
-			<span className={styles.past}>
-				<Sparkline points={entry.history} label={`${entry.name || label} over time`} />
-
-				<TrendWords entry={entry} />
+			<span className={styles.value} data-size={isText ? "text" : size}>
+				{shownEntry(entry)}
 			</span>
-		)}
 
-		{entry && <FlagBadge entry={entry} />}
-	</span>
-);
+			{!isText && meaning}
+
+			{showsPast && entry && entry.history.length > 1 && (
+				<span className={styles.past}>
+					<Sparkline points={entry.history} label={`${entry.name || label} over time`} />
+
+					<TrendWords entry={entry} />
+				</span>
+			)}
+
+			{entry && <FlagBadge entry={entry} />}
+		</span>
+	);
+};
