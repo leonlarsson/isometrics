@@ -38,7 +38,7 @@ src/
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
   ui/         DOM UI: the UI kit (Button, fields, List, Tabs, RailTabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Outliner, Inspector (the properties editor and its tabs), LabelLayer, DetailSheet
-  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; templates = the templates as complete worlds, ADR-0034, ADR-0083; parts = the public parts catalogue, ADR-0087; guide and guide[.]md = the guide, ADR-0116; kit = dev-only UI kit page)
+  routes/     TanStack Start file routes (index = the editor, ssr: false; schema[.]json = the scene JSON Schema with every part kind and its props, ADR-0032; templates = the templates as complete worlds, ADR-0034, ADR-0083; parts = the public parts catalogue, ADR-0087; guide and guide[.]md = the guide, ADR-0116; validate = POST a world, get its problems and warnings, ADR-0117; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)
 e2e/          end-to-end tests (Playwright), one spec per area, and their shared helpers (editor.ts)

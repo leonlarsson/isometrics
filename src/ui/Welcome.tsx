@@ -51,7 +51,7 @@ const go = (choice: TWelcomeChoice) => {
 		state.setNewWorld({ shows: "places", usesData: false });
 	}
 	if (choice === "data") {
-		state.setBuildWithAiOpen(true);
+		state.setBuildWithAi("new");
 	}
 	if (choice === "example") {
 		state.setNewWorld({ shows: "dataMaps", usesData: true });

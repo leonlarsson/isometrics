@@ -1,5 +1,6 @@
 import { GUIDE, sectionsAsMarkdown } from "#/guide/guide";
 import { APP_NAME } from "#/lib/app";
+import { compactWorld } from "#/parts/compactWorld";
 import { PARTS, partName } from "#/parts/registry";
 import {
 	AreaKindSchema,
@@ -194,8 +195,8 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 	const given = dataForPrompt(data);
 	return [
 		world
-			? `You're changing a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Change it as asked below and answer with the whole changed world as one JSON document: no explanation before or after, so it can be pasted straight back. Keep every id that stays, and everything not asked about as it is.`
-			: `You're building a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Build the world described below and answer with it as one JSON document: no explanation before or after, so it can be pasted straight back.`,
+			? `You're changing a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Change it as asked below and answer with the whole changed world as one JSON document (how is at the end). Keep every id that stays, and everything not asked about as it is.`
+			: `You're building a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Build the world described below and answer with it as one JSON document (how is at the end).`,
 		"## What they want",
 		wanted
 			? wanted
@@ -209,10 +210,15 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 			: world
 				? "No new data: keep the world's own."
 				: 'None in this prompt. They may give you data in this chat instead (a file, or rows pasted after this prompt): if they do, put it in `data` (tables and values, as in the example) and make things follow it, with the numbers as they are. With no data at all: if what they want shows no numbers, set `"data": { "isOn": false }` for a plain world to build; if it does, use example numbers, and say so in each source\'s and column\'s `about` ("Example numbers").',
-		...(world ? ["## The world now", `\`\`\`json\n${JSON.stringify(world)}\n\`\`\``] : []),
+		...(world
+			? [
+					"## The world now",
+					`With everything at its default left out (opening a world fills the defaults back in):\n\n\`\`\`json\n${JSON.stringify(compactWorld(world))}\n\`\`\``,
+				]
+			: []),
 		"## How to write a world",
 		sectionsAsMarkdown(RULES_AND_FORMAT, origin, 3),
-		`If you can open links, the full format is at ${origin}/schema.json and complete example worlds at ${origin}/templates.json; the guide for people is at ${origin}/guide.md. Everything you need is also below.`,
+		`If you can open links, the full format is at ${origin}/schema.json and complete example worlds at ${origin}/templates.json; the guide for people is at ${origin}/guide.md. If you can make HTTP requests (running code, a tool), check your world before answering: POST it as JSON to ${origin}/validate, which answers with its problems and warnings and where they are, and fix them. Everything you need is also below.`,
 		"## Roads, areas and fences",
 		`Roads' \`kind\`: ${RoadKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}. Areas' (\`points\`: their corners): ${AreaKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}. Fences': ${FenceKindSchema.options.map((kind) => `\`${kind}\``).join(", ")}.`,
 		"## Every part kind",
@@ -221,9 +227,14 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 		"## A small example world",
 		`Two shops as clusters following table rows, sized by sales on a log scale, a value as a tile, and a road whose width and vans follow deliveries:\n\n\`\`\`json\n${JSON.stringify(EXAMPLE_WORLD, null, 1)}\n\`\`\``,
 		"## Answer",
-		world
-			? "Only the whole changed world as JSON, starting with `{`."
-			: "Only the world as JSON, starting with `{`. Give it a `meta.title`, a ground big enough for what's on it, an opening viewpoint that shows it all, and a legend for anything that shows a number.",
+		[
+			world
+				? "The whole changed world, not only what changed."
+				: "Give it a `meta.title`, a ground big enough for what's on it, an opening viewpoint that shows it all, and a legend for anything that shows a number.",
+			"Leave out every field that stays at its default, as the example does: it keeps the world short.",
+			"**If you can make files** (a downloadable file, an artifact, a code tool's output), write the world to a file named `world.json` and give that, not the JSON in the chat: it's long, and a file is easy to open in the app.",
+			"Otherwise, answer with the world alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back.",
+		].join("\n\n"),
 	].join("\n\n");
 };
 

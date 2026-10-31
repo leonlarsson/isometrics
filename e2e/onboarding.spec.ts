@@ -109,9 +109,49 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		expect(prompt).toContain("North,1200");
 
 		await dialog.getByRole("textbox", { name: "The world it wrote" }).fill(ANSWER);
-		await dialog.getByRole("button", { name: "Open it" }).click();
+		// Checked as it's pasted (ADR-0117).
+		await expect(dialog).toContainText("Checked: it opens as written");
+		await dialog.getByRole("button", { name: "Open it", exact: true }).click();
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.meta.title)).toBe("Two shops");
 		expect(await read(page, (s) => s.scene.entities.filter((e) => e.dataRow).length)).toBe(2);
+	});
+
+	test("File → Change this world opens it to change, and a broken answer lists its problems", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await fileMenu(page, /Change this world with your AI/);
+		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
+		await expect(dialog.getByRole("radio", { name: /Change this world/ })).toBeChecked();
+		await dialog
+			.getByRole("textbox", { name: "The world it wrote" })
+			.fill(
+				'{"version": 1, "entities": [{"id": "x", "kind": "spaceship_99", "position": [0, 0]}]}',
+			);
+		await expect(dialog).toContainText("isn't a part kind");
+		await expect(
+			dialog.getByRole("button", { name: "Copy the problems for your AI" }),
+		).toBeVisible();
+	});
+});
+
+test.describe("POST /validate (ADR-0117)", () => {
+	test("says what's wrong in a world and where; GET says how", async ({ request }) => {
+		const how = await request.get("/validate");
+		expect(await how.json()).toHaveProperty("about");
+
+		const answer = await request.post("/validate", {
+			data: { version: 1, entities: [{ id: "x", kind: "spaceship_99", position: [0, 0] }] },
+		});
+		expect(answer.headers()["access-control-allow-origin"]).toBe("*");
+		const check = await answer.json();
+		expect(check.warnings[0].where).toBe('entities[0] "x".kind');
+
+		const notJson = await request.post("/validate", {
+			data: Buffer.from("{ nope"),
+			headers: { "Content-Type": "application/json" },
+		});
+		expect(notJson.status()).toBe(400);
 	});
 });

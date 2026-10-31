@@ -67,7 +67,14 @@ export const FileMenu = () => {
 						icon="sparkle"
 						label="Build with your AI…"
 						description="Describe a world, copy a prompt to any AI chat, paste back what it writes"
-						onClick={() => useEditor.getState().setBuildWithAiOpen(true)}
+						onClick={() => useEditor.getState().setBuildWithAi("new")}
+					/>
+
+					<Menu.Item
+						icon="sparkle"
+						label="Change this world with your AI…"
+						description="Say what to change; your AI rewrites this world, one undo step"
+						onClick={() => useEditor.getState().setBuildWithAi("change")}
 					/>
 
 					<Menu.Submenu icon="folder" label="Open world">

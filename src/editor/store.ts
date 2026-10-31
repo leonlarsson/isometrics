@@ -366,8 +366,8 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
-	/** Build with your AI… is open (ADR-0116). */
-	buildWithAiOpen: boolean;
+	/** Build with your AI… is open, for a new world or to change this one (ADR-0116); null: closed. */
+	buildWithAi: "new" | "change" | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
 	welcomeOpen: boolean;
 	/**
@@ -478,7 +478,7 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
-	setBuildWithAiOpen: (open: boolean) => void;
+	setBuildWithAi: (builds: "new" | "change" | null) => void;
 	setWelcomeOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
 	setHoldingRightButton: (holding: boolean) => void;
@@ -1077,7 +1077,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			previewTiltShift: false,
 			preferencesOpen: false,
 			renderDialogOpen: false,
-			buildWithAiOpen: false,
+			buildWithAi: null,
 			welcomeOpen: false,
 			newWorld: null,
 			stillRender: null,
@@ -1579,7 +1579,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
-			setBuildWithAiOpen: (open) => set({ buildWithAiOpen: open }),
+			setBuildWithAi: (builds) => set({ buildWithAi: builds }),
 			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
 			setNewWorld: (newWorld) => set({ newWorld }),
 			setPreferencesOpen: (open, page) =>

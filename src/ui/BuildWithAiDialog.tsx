@@ -1,20 +1,25 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { aiPrompt, worldFromAnswer } from "#/editor/aiPrompt";
 import { pickFile, startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
+import { checkWorld, issuesForAi } from "#/parts/checkWorld";
 import { readWorld } from "#/parts/readWorld";
 import { describeRepairs } from "#/scene/repair";
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { FieldGroup, Hint, RadioGroupField, TextField } from "./fields";
+import { List, ListItem } from "./List";
 import { openGuide } from "./Welcome";
 
 import styles from "./BuildWithAiDialog.module.css";
 
 type TBuilds = "new" | "change";
+
+/** How many of a pasted world's problems and warnings the dialog lists. */
+const ISSUES_SHOWN = 6;
 
 /** Files whose text can go in the prompt as it is. */
 const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
@@ -27,7 +32,8 @@ const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
  * Keeps what's typed while the page is open.
  */
 export const BuildWithAiDialog = () => {
-	const open = useEditor((s) => s.buildWithAiOpen);
+	const asked = useEditor((s) => s.buildWithAi);
+	const open = asked !== null;
 	const title = useEditor((s) => s.scene.meta.title);
 	const [builds, setBuilds] = useState<TBuilds>("new");
 	const [description, setDescription] = useState("");
@@ -37,7 +43,16 @@ export const BuildWithAiDialog = () => {
 	// The prompt to copy by hand, when the browser wouldn't put it on the clipboard.
 	const [promptByHand, setPromptByHand] = useState<string | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
-	const close = () => useEditor.getState().setBuildWithAiOpen(false);
+	const [issuesCopied, setIssuesCopied] = useState(false);
+	const close = () => useEditor.getState().setBuildWithAi(null);
+
+	// Opened for a new world or to change this one: that's what it builds.
+	useEffect(() => {
+		if (asked !== null) {
+			setBuilds(asked);
+			setCopied(false);
+		}
+	}, [asked]);
 	const isDescribed = description.trim() !== "";
 
 	const copyPrompt = async () => {
@@ -53,6 +68,42 @@ export const BuildWithAiDialog = () => {
 			setPromptByHand(null);
 		} catch {
 			setPromptByHand(prompt);
+		}
+	};
+
+	// The answer checked as it's pasted (ADR-0117): the same check as POST /validate.
+	const check = useMemo(() => {
+		if (!answer.trim()) {
+			return null;
+		}
+		try {
+			return checkWorld(worldFromAnswer(answer));
+		} catch (error) {
+			return { unreadable: error instanceof Error ? error.message : String(error) };
+		}
+	}, [answer]);
+
+	const copyIssues = async () => {
+		if (check && "isValid" in check) {
+			try {
+				await navigator.clipboard.writeText(issuesForAi(check));
+				setIssuesCopied(true);
+			} catch {
+				notify(
+					"This browser wouldn't copy it",
+					"Select the problems above and copy them.",
+					"error",
+				);
+			}
+		}
+	};
+
+	const readAnswerFile = async () => {
+		const file = await pickFile("application/json,.json,.txt,text/plain");
+		if (file) {
+			setAnswer(await file.text());
+			setProblem(null);
+			setIssuesCopied(false);
 		}
 	};
 
@@ -204,7 +255,7 @@ export const BuildWithAiDialog = () => {
 						</Button>
 					</FieldGroup>
 
-					<FieldGroup title="4. Paste its answer">
+					<FieldGroup title="4. Paste its answer, or open its file">
 						<TextField
 							label="The world it wrote"
 							value={answer}
@@ -212,6 +263,7 @@ export const BuildWithAiDialog = () => {
 							onChange={(next) => {
 								setAnswer(next);
 								setProblem(null);
+								setIssuesCopied(false);
 							}}
 							multiline
 							rows={6}
@@ -222,6 +274,56 @@ export const BuildWithAiDialog = () => {
 									: "Words around the JSON are fine. It replaces this world; Undo brings it back."
 							}
 						/>
+
+						<Button size="sm" icon="upload" onClick={() => void readAnswerFile()}>
+							Open its file…
+						</Button>
+
+						{check && "unreadable" in check && (
+							<Hint>
+								<strong>Not a world yet.</strong> {check.unreadable}
+							</Hint>
+						)}
+
+						{check && "isValid" in check && (
+							<>
+								<Hint>
+									{check.isValid && check.warnings.length === 0
+										? `Checked: it opens as written, with ${check.contents}.`
+										: `Checked: ${check.contents}. ${[
+												check.problems.length > 0 &&
+													`${check.problems.length} ${check.problems.length === 1 ? "problem" : "problems"} (opening repairs them)`,
+												check.warnings.length > 0 &&
+													`${check.warnings.length} ${check.warnings.length === 1 ? "warning" : "warnings"} (it opens, but won't look as meant)`,
+											]
+												.filter(Boolean)
+												.join(" and ")}. Open it anyway, or ask your AI to fix them.`}
+								</Hint>
+
+								{check.problems.length + check.warnings.length > 0 && (
+									<>
+										<List>
+											{[...check.problems, ...check.warnings]
+												.slice(0, ISSUES_SHOWN)
+												.map((issue) => (
+													<ListItem
+														key={`${issue.where}:${issue.what}`}
+														label={issue.what}
+														meta={issue.where}
+														stacked
+													/>
+												))}
+										</List>
+
+										<Button size="sm" icon="copy" onClick={() => void copyIssues()}>
+											{issuesCopied
+												? "Copied: paste it to your AI"
+												: "Copy the problems for your AI"}
+										</Button>
+									</>
+								)}
+							</>
+						)}
 
 						{problem && (
 							<Hint>

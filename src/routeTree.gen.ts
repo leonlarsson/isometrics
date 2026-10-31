@@ -16,6 +16,7 @@ import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
 import { Route as TemplatesDotjsonRouteImport } from './routes/templates[.]json'
+import { Route as ValidateRouteImport } from './routes/validate'
 import { Route as TemplatesFileRouteImport } from './routes/templates.$file'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const TemplatesDotjsonRoute = TemplatesDotjsonRouteImport.update({
   path: '/templates.json',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ValidateRoute = ValidateRouteImport.update({
+  id: '/validate',
+  path: '/validate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplatesFileRoute = TemplatesFileRouteImport.update({
   id: '/templates/$file',
   path: '/templates/$file',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
+  '/validate': typeof ValidateRoute
   '/templates/$file': typeof TemplatesFileRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
+  '/validate': typeof ValidateRoute
   '/templates/$file': typeof TemplatesFileRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
   '/templates.json': typeof TemplatesDotjsonRoute
+  '/validate': typeof ValidateRoute
   '/templates/$file': typeof TemplatesFileRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/parts'
     | '/schema.json'
     | '/templates.json'
+    | '/validate'
     | '/templates/$file'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/parts'
     | '/schema.json'
     | '/templates.json'
+    | '/validate'
     | '/templates/$file'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/parts'
     | '/schema.json'
     | '/templates.json'
+    | '/validate'
     | '/templates/$file'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   PartsRoute: typeof PartsRoute
   SchemaDotjsonRoute: typeof SchemaDotjsonRoute
   TemplatesDotjsonRoute: typeof TemplatesDotjsonRoute
+  ValidateRoute: typeof ValidateRoute
   TemplatesFileRoute: typeof TemplatesFileRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/validate': {
+      id: '/validate'
+      path: '/validate'
+      fullPath: '/validate'
+      preLoaderRoute: typeof ValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/templates/$file': {
       id: '/templates/$file'
       path: '/templates/$file'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartsRoute: PartsRoute,
   SchemaDotjsonRoute: SchemaDotjsonRoute,
   TemplatesDotjsonRoute: TemplatesDotjsonRoute,
+  ValidateRoute: ValidateRoute,
   TemplatesFileRoute: TemplatesFileRoute,
 }
 export const routeTree = rootRouteImport

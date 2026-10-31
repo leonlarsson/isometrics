@@ -120,3 +120,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0114](0114-stories.md) | Stories: a time slider plays the world through its dated values | proposed |
 | [0115](0115-a-world-without-data.md) | A world can turn data off, and then nothing about data shows | proposed |
 | [0116](0116-first-run-guide-and-your-own-ai.md) | A welcome on the first visit, a guide, and building with your own AI | proposed |
+| [0117](0117-checking-a-world.md) | Checking a world: POST /validate, and worlds with their defaults left out | proposed |
