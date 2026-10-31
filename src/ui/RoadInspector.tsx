@@ -39,6 +39,7 @@ import {
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
+import { RoadDataTab } from "./RoadDataTab";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_KIND_LABELS) as TRoadKind[]).map((value) => ({
@@ -483,4 +484,10 @@ export const roadTabs = (road: TRoad): IInspectorTab[] => [
 					content: <RoadLookTab key={road.id} road={road} />,
 				} as const,
 			]),
+	{
+		value: "objectData",
+		label: "Data",
+		icon: "chart",
+		content: <RoadDataTab key={road.id} road={road} />,
+	},
 ];

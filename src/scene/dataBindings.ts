@@ -31,8 +31,9 @@ export const colorBindingMapsOf = (
 
 /**
  * Every place the world keeps data bindings besides its objects and fences:
- * the time of day and the weather, each mood's too, and the colours of the
- * ground, the roads and the areas (ADR-0104).
+ * the time of day and the weather, each mood's too, the colours of the
+ * ground, the roads and the areas (ADR-0104), and roads' widths and flows
+ * (ADR-0112).
  */
 export const worldBindingMapsOf = (
 	scene: Pick<TScene, "lighting" | "weather" | "moods" | "ground" | "roads" | "areas">,
@@ -41,6 +42,6 @@ export const worldBindingMapsOf = (
 	scene.weather.data,
 	...scene.moods.flatMap((mood) => [mood.lighting.data, mood.weather.data]),
 	...colorBindingMapsOf(scene.ground.colors),
-	...scene.roads.flatMap((road) => colorBindingMapsOf(road.colors)),
+	...scene.roads.flatMap((road) => [road.data, ...colorBindingMapsOf(road.colors)]),
 	...scene.areas.flatMap((area) => colorBindingMapsOf(area.colors)),
 ];

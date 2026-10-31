@@ -26,6 +26,10 @@ const SETTING_WORDS: Record<string, string> = {
 	litPaneShare: "lit windows",
 	schedule: "schedule",
 	builtShare: "how much is built",
+	scale: "size",
+	width: "width",
+	vehicleCountAlong: "vehicles along it",
+	vehicleCountAgainst: "vehicles the other way",
 	time: "time of day",
 	cloudCover: "cloud cover",
 	rainAmount: "rain",
@@ -80,6 +84,16 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 			item,
 			"shape",
 		);
+		// Its size and props from data (ADR-0109), named as its fields are.
+		add(
+			thing,
+			following(entity.data, key).map(
+				(setting) =>
+					part?.fields.find((field) => field.key === setting)?.label.toLowerCase() ?? setting,
+			),
+			item,
+			"objectData",
+		);
 		for (const [id, light] of Object.entries(entity.lights)) {
 			const name = part?.lights?.find((spec) => spec.id === id)?.name ?? id;
 			add(
@@ -118,12 +132,16 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 		);
 	}
 	for (const road of scene.roads) {
+		const thing = road.name || ROAD_KIND_LABELS[road.kind];
+		const item = { kind: "road", id: road.id } as const;
 		add(
-			road.name || ROAD_KIND_LABELS[road.kind],
+			thing,
 			followingColors(road.colors, key, (id) => id),
-			{ kind: "road", id: road.id },
+			item,
 			"look",
 		);
+		// Its width and flow (ADR-0112).
+		add(thing, following(road.data, key), item, "objectData");
 	}
 	for (const area of scene.areas) {
 		add(

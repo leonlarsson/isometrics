@@ -95,3 +95,34 @@ test.describe("rows become things (ADR-0108, ADR-0109)", () => {
 		await expect(viewer.getByRole("row", { name: /CGM.*CGM/ })).toBeVisible();
 	});
 });
+
+test.describe("roads that show flows (ADR-0112)", () => {
+	test("a from, to, amount table draws a road for each row, with its flow", async ({ page }) => {
+		await loadWorld(page, {
+			data: {
+				tables: [
+					{
+						key: "overlap",
+						name: "Overlap",
+						keyColumn: "pair",
+						columns: [{ key: "pair" }, { key: "from" }, { key: "to" }, { key: "players" }],
+						rows: [{ pair: "1", from: "Hunt", to: "Tarkov", players: 400 }],
+					},
+				],
+			},
+			entities: [
+				{ id: "h", kind: "house_cluster_01", name: "Hunt", position: [-10, 0] },
+				{ id: "t", kind: "tower_cluster_01", name: "Tarkov", position: [10, 0] },
+			],
+		});
+		await act(page, (s) => s.setTab("data"));
+		await page.getByRole("button", { name: /^Overlap/ }).click();
+		await page.getByRole("button", { name: "Draw a road for each row…" }).click();
+		await page.getByRole("button", { name: "Draw 1 roads" }).click();
+		await expect(page.getByText("Drew 1 of 1 roads")).toBeVisible();
+		const road = await read(page, (s) => s.scene.roads.at(-1));
+		expect(road?.name).toBe("Hunt → Tarkov");
+		expect(road?.flow.isOn).toBe(true);
+		expect(road?.data.vehicleCountAlong?.key).toBe("row.players");
+	});
+});

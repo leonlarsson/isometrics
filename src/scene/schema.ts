@@ -687,6 +687,51 @@ export const RoadTrafficSchema = z
 	})
 	.describe("How vehicles drive on this road.");
 
+/**
+ * A flow along a road (ADR-0112): vehicles that show how much goes from its
+ * first point to its last and back, by how many there are and which way they
+ * drive, readable without colour. Drawn by the road itself; they aren't objects.
+ */
+export const RoadFlowSchema = z
+	.object({
+		isOn: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether vehicles drive along it showing a flow (they aren't objects of the world).",
+			),
+		vehicleKind: z
+			.string()
+			.default("car_01")
+			.describe("Which vehicle part drives it, e.g. car_01, truck_01, bus_01."),
+		vehicleCountAlong: z
+			.number()
+			.int()
+			.min(0)
+			.max(40)
+			.default(4)
+			.describe(
+				"How many vehicles drive from its first point to its last (in the order of its points); data can set it (data.vehicleCountAlong).",
+			),
+		vehicleCountAgainst: z
+			.number()
+			.int()
+			.min(0)
+			.max(40)
+			.default(0)
+			.describe(
+				"How many drive the other way, from its last point to its first; data can set it (data.vehicleCountAgainst).",
+			),
+		speed: z.number().min(0.2).max(20).default(3).describe("Grid units per second."),
+		showsArrows: z
+			.boolean()
+			.default(true)
+			.describe("Whether arrows on the road point the way the bigger flow goes."),
+	})
+	.describe("Vehicles along the road showing a flow: how much, and which way.");
+
+export type TRoadFlow = z.output<typeof RoadFlowSchema>;
+
 // See docs/adr/0017-drawable-roads.md and 0018-elevated-roads-and-road-editing.md.
 export const RoadSchema = z
 	.object({
@@ -744,6 +789,15 @@ export const RoadSchema = z
 		traffic: RoadTrafficSchema.default(() => RoadTrafficSchema.parse({})),
 		colors: colorSettings(
 			'{ "surface": { "color": "#3a3a3a" } }; its colours are surface and embankment',
+		),
+		flow: RoadFlowSchema.default(() => RoadFlowSchema.parse({})),
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows, e.g. a row of a "from, to, amount" table: its width, flow and colours can read the row\'s columns as "row.<column>". null = none.',
+			),
+		data: dataBindings(
+			'Its settings that follow data: "width", "vehicleCountAlong", "vehicleCountAgainst", e.g. { "vehicleCountAlong": { key: "row.amount", valueAtLowSetting: 0, valueAtHighSetting: 1000, lowSetting: 0, highSetting: 12 } }.',
 		),
 		isLocked: isLocked("its points"),
 		isHidden: isHidden(

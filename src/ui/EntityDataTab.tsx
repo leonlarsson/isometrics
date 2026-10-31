@@ -1,4 +1,4 @@
-import { assignRowsByName } from "#/editor/dataRows";
+import { matchingNameOf } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { useWorldData } from "#/editor/worldData";
@@ -6,8 +6,8 @@ import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/
 import { resolveProps, type TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import { formatEntry } from "#/scene/format";
-import { columnOfKey, rowKeysOf, tableOfRow } from "#/scene/rowData";
-import type { TDataBinding, TEntity } from "#/scene/schema";
+import { columnOfKey, rowKeyMatching, rowKeysOf, tableOfRow, valuesWithRow } from "#/scene/rowData";
+import type { TDataBinding, TDataRowRef, TEntity } from "#/scene/schema";
 
 import { Button } from "./Button";
 import { DataDrivenField } from "./DataDrivenField";
@@ -25,24 +25,29 @@ import {
 const ROWS_IN_A_SELECT = 30;
 
 /**
- * The table row an object follows (ADR-0108): which table, which row, what its
+ * The table row a thing follows (ADR-0108): which table, which row, what its
  * row holds now, and matching it by name. Without tables, the table choice is
- * greyed out with a way to the Data tab.
+ * greyed out with a way to the Data tab. For objects and roads alike.
  */
-const TableRowSection = ({ entity }: { entity: TEntity }) => {
+export const TableRowSection = ({
+	dataRow: ref,
+	name,
+	setRow,
+	what = "Its card, tiles, colours, lights and sizes",
+}: {
+	dataRow: TDataRowRef | null;
+	/** The thing's name, to match a row by. */
+	name: string;
+	setRow: (next: TDataRowRef | null) => void;
+	/** What can follow its row, in words. */
+	what?: string;
+}) => {
 	const data = useWorldData();
-	const updateEntity = useEditor((s) => s.updateEntity);
-	const commit = useEditor((s) => s.commit);
 	const setTab = useEditor((s) => s.setTab);
-	const ref = entity.dataRow;
 	const table = tableOfRow(data, ref);
 	const rowKeys = table ? rowKeysOf(table) : [];
-	const setRow = (next: TEntity["dataRow"]) =>
-		updateEntity(entity.id, (draft) => {
-			draft.dataRow = next;
-		});
 	const hasTables = data.tables.length > 0;
-	const shown = valuesOfEntity(entity, data).filter((entry) => columnOfKey(entry.key) !== null);
+	const shown = valuesWithRow(data, ref).filter((entry) => columnOfKey(entry.key) !== null);
 
 	return (
 		<Section
@@ -64,17 +69,15 @@ const TableRowSection = ({ entity }: { entity: TEntity }) => {
 				]}
 				onChange={(tableKey) => {
 					const next = data.tables.find((each) => each.key === tableKey);
-					if (!next) {
-						setRow(null);
-						return;
-					}
 					// The row matching its name, else the first.
-					const draftScene = structuredClone(useEditor.getState().scene);
-					const matched = assignRowsByName(draftScene, [entity.id], next).matched[0];
-					setRow({ tableKey, rowKey: matched?.rowKey ?? rowKeysOf(next)[0] ?? "" });
+					setRow(
+						next
+							? { tableKey, rowKey: rowKeyMatching(next, name) ?? rowKeysOf(next)[0] ?? "" }
+							: null,
+					);
 				}}
 				inherit={resetToDefault(ref?.tableKey ?? "", "", () => setRow(null), "none")}
-				hint="Its card, tiles, colours, lights and sizes can then show or follow its row's columns."
+				hint={`${what} can then show or follow its row's columns.`}
 			/>
 
 			{!hasTables && (
@@ -130,16 +133,15 @@ const TableRowSection = ({ entity }: { entity: TEntity }) => {
 						size="sm"
 						icon="search"
 						onClick={() => {
-							let unmatched = false;
-							commit((scene) => {
-								unmatched = assignRowsByName(scene, [entity.id], table).unmatched.length > 0;
-							});
-							if (unmatched) {
+							const rowKey = rowKeyMatching(table, name);
+							if (rowKey === undefined) {
 								notify(
 									"No row matches its name",
-									`No row of ${table.name || table.key} is called “${entity.name || entity.label.title}”.`,
+									`No row of ${table.name || table.key} is called “${name}”.`,
 									"error",
 								);
+							} else {
+								setRow({ ...ref, rowKey });
 							}
 						}}
 					>
@@ -272,10 +274,21 @@ const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPar
 };
 
 /** The object's Data tab: the row it follows, and its sizes from data (ADR-0108, ADR-0109). */
-export const EntityDataTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => (
-	<>
-		<TableRowSection entity={entity} />
+export const EntityDataTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+	const updateEntity = useEditor((s) => s.updateEntity);
+	return (
+		<>
+			<TableRowSection
+				dataRow={entity.dataRow}
+				name={matchingNameOf(entity)}
+				setRow={(next) =>
+					updateEntity(entity.id, (draft) => {
+						draft.dataRow = next;
+					})
+				}
+			/>
 
-		<SizesFromDataSection entity={entity} part={part} />
-	</>
-);
+			<SizesFromDataSection entity={entity} part={part} />
+		</>
+	);
+};

@@ -212,3 +212,25 @@ export const turnLeanDegrees = (
 	const lean = -bend * speed * speed * degreesPerAcceleration;
 	return Math.max(-maxDegrees, Math.min(maxDegrees, lean));
 };
+
+/**
+ * A one-way stream along a road (ADR-0112): from its first point to its last
+ * (or, `reverse`, from its last to its first), in the lane for that way, and
+ * from the start again. Flows use it: their vehicles show which way things go.
+ */
+export const createOneWaySampler = (
+	road: TRouteRoad,
+	driving: TDrivingSide,
+	{ smoothing = 0, reverse = false }: IRouteOptions = {},
+) => {
+	const line = centerlineOf(road);
+	const sampler = createPathSampler(reverse ? reversed(line, road.loops) : line, road.loops, {
+		lane: laneOffset(road, driving),
+		smoothing,
+	});
+	return {
+		length: sampler.length,
+		/** Where a vehicle is that has come `distance` along the stream (round again past its end). */
+		at: (distance: number) => sampler.at(sampler.length > 0 ? wrap(distance, sampler.length) : 0),
+	};
+};

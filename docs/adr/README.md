@@ -114,3 +114,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0108](0108-things-follow-table-rows.md) | Objects and roads follow a table row, read as `row.<column>` | proposed |
 | [0109](0109-sizes-from-data.md) | An object's size and props can follow data, on a straight or log scale | proposed |
 | [0111](0111-building-clusters.md) | Building clusters: one object of many buildings that grows with a number | proposed |
+| [0112](0112-roads-that-show-flows.md) | Roads that show flows: vehicles each way, from a value or a row | proposed |

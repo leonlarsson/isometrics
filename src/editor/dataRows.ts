@@ -1,15 +1,17 @@
 import type { Draft } from "immer";
 
 import { SCALE_SETTING } from "#/parts/propData";
-import { getPart } from "#/parts/registry";
+import { getPart, resolveProps } from "#/parts/registry";
 import { groundHeightAt } from "#/scene/areas";
-import { rowKeyFor, rowKeyMatching, rowKeysOf } from "#/scene/rowData";
+import { looseName, rowKeyFor, rowKeyMatching, rowKeyOf, rowKeysOf } from "#/scene/rowData";
 import {
 	DataBindingSchema,
 	EntitySchema,
+	RoadSchema,
 	type TDataBinding,
 	type TDataTable,
 	type TEntity,
+	type TRoad,
 	type TScene,
 	type TVec2,
 } from "#/scene/schema";
@@ -202,4 +204,84 @@ export const followersByRow = (
 		}
 	}
 	return byRow;
+};
+
+export interface IRoadForEachRow {
+	table: TDataTable;
+	/** The columns naming where each row goes from and to: objects' names. */
+	fromColumn: string;
+	toColumn: string;
+	/** A column of numbers for how much goes, or "" for none. */
+	amountColumn: string;
+	kind: TRoad["kind"];
+	/** The most vehicles a road gets, at the column's largest amount. */
+	mostVehicles: number;
+}
+
+/** What drawing a road for each row did: the roads drawn, and the rows whose ends weren't found. */
+export interface IRoadsDrawn {
+	ids: string[];
+	unmatched: string[];
+}
+
+/**
+ * A road for each row of a "from, to, amount" table (ADR-0112): from the
+ * object named in its from column to the one named in its to column (names
+ * matched loosely), following its row, its flow's vehicles as many as the
+ * amount says, from none to `mostVehicles`.
+ */
+export const drawRoadsForEachRow = (
+	scene: Draft<TScene>,
+	options: IRoadForEachRow,
+): IRoadsDrawn => {
+	const { table, fromColumn, toColumn, amountColumn, kind, mostVehicles } = options;
+	const byName = (name: string) =>
+		scene.entities.find((entity) => looseName(matchingNameOf(entity)) === looseName(name));
+	const range = amountColumn ? columnRange(table, amountColumn) : null;
+	const result: IRoadsDrawn = { ids: [], unmatched: [] };
+	table.rows.forEach((row, index) => {
+		const rowKey = rowKeyOf(table, row, index);
+		const from = byName(String(row[fromColumn] ?? ""));
+		const to = byName(String(row[toColumn] ?? ""));
+		if (!from || !to || from === to) {
+			result.unmatched.push(rowKey);
+			return;
+		}
+		// From the edge of one to the edge of the other, so vehicles don't drive through them.
+		const [fx, fz] = from.position;
+		const [tx, tz] = to.position;
+		const distance = Math.hypot(tx - fx, tz - fz) || 1;
+		const edge = (entity: Draft<TEntity>) => {
+			const part = getPart(entity.kind);
+			const [w, d] = part ? part.footprint(resolveProps(part, entity.props)) : [1, 1];
+			return Math.min(distance * 0.4, (Math.max(w, d) / 2) * entity.scale + 0.5);
+		};
+		const ux = (tx - fx) / distance;
+		const uz = (tz - fz) / distance;
+		const start: TVec2 = [fx + ux * edge(from), fz + uz * edge(from)];
+		const end: TVec2 = [tx - ux * edge(to), tz - uz * edge(to)];
+		const road = RoadSchema.parse({
+			id: newId("road"),
+			kind,
+			name: `${matchingNameOf(from)} → ${matchingNameOf(to)}`,
+			points: [start, end],
+			showsCentreLine: false,
+			dataRow: { tableKey: table.key, rowKey },
+			flow: { isOn: true, vehicleCountAlong: amountColumn ? 0 : 3 },
+			data: amountColumn
+				? {
+						vehicleCountAlong: {
+							key: rowKeyFor(amountColumn),
+							valueAtLowSetting: 0,
+							valueAtHighSetting: range?.max ?? null,
+							lowSetting: 0,
+							highSetting: mostVehicles,
+						},
+					}
+				: {},
+		});
+		scene.roads.push(road);
+		result.ids.push(road.id);
+	});
+	return result;
 };

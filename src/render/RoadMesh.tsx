@@ -3,6 +3,7 @@ import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { roadAsDrawn, valuesOfRoad } from "#/editor/roadFlows";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
@@ -23,6 +24,7 @@ import type { TDataValue, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
+import { RoadFlow } from "./RoadFlow";
 import { setViewCursor } from "./viewCursor";
 
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
@@ -294,7 +296,11 @@ interface IRoadMeshProps {
 /** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
 const USED_ROAD_SNOW = 0.08;
 
-export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
+export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
+	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
+	// flow as data sets them (ADR-0112).
+	const data = valuesOfRoad(stored, useWorldData());
+	const road = roadAsDrawn(stored, data);
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
@@ -306,7 +312,6 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
-	const data = useWorldData().values;
 
 	const editable = mode === "edit" && !drawing;
 	const handlers: TRoadHandlers = editable
@@ -335,15 +340,19 @@ export const RoadMesh = memo(({ road, layer }: IRoadMeshProps) => {
 		: {};
 
 	return (
-		<RoadBody
-			road={road}
-			layer={layer}
-			palette={palette}
-			data={data}
-			ground={ground}
-			editing={mode === "edit"}
-			selected={selected && mode === "edit"}
-			handlers={handlers}
-		/>
+		<>
+			<RoadBody
+				road={road}
+				layer={layer}
+				palette={palette}
+				data={data}
+				ground={ground}
+				editing={mode === "edit"}
+				selected={selected && mode === "edit"}
+				handlers={handlers}
+			/>
+
+			<RoadFlow road={road} palette={palette} data={data} surfaceY={roadBaseY(layer)} />
+		</>
 	);
 });
