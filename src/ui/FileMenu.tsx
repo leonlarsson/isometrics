@@ -133,6 +133,13 @@ export const FileMenu = () => {
 					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
 
 					<Menu.Item
+						icon="newTab"
+						label="Share a link…"
+						description="A public link that opens this world for anyone who has it, until it expires"
+						onClick={() => useEditor.getState().setShareOpen(true)}
+					/>
+
+					<Menu.Item
 						icon="download"
 						label="Save to file"
 						shortcut="Ctrl+S"

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { allowLink } from "#/editor/linkTrust";
-import { useWaitingSources } from "#/editor/sourceRefresh";
+import { markAddressesAsked, useAskedAddresses, useWaitingSources } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -22,19 +22,15 @@ export const WaitingSourcesDialog = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
 	const waiting = useWaitingSources();
 	const [open, setOpen] = useState(false);
-	// The addresses already asked about since the world opened.
-	const asked = useRef<{ opening: number; urls: Set<string> }>({ opening, urls: new Set() });
 	const addresses = [...new Set(waiting.map((source) => source.url ?? ""))];
 
 	useEffect(() => {
-		if (asked.current.opening !== opening) {
-			asked.current = { opening, urls: new Set() };
-		}
-		const fresh = addresses.filter((url) => !asked.current.urls.has(url));
+		// The addresses already asked about since the world opened (here, or before a shared world loaded).
+		const asked = useAskedAddresses.getState();
+		const already = asked.opening === opening ? asked.urls : new Set<string>();
+		const fresh = addresses.filter((url) => !already.has(url));
 		if (fresh.length > 0) {
-			for (const url of fresh) {
-				asked.current.urls.add(url);
-			}
+			markAddressesAsked(fresh);
 			setOpen(true);
 		}
 		if (addresses.length === 0) {

@@ -370,6 +370,8 @@ export interface IEditorState {
 	buildWithAi: "new" | "change" | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
 	welcomeOpen: boolean;
+	/** Share a link… is open (ADR-0120). */
+	shareOpen: boolean;
 	/**
 	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
 	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
@@ -480,6 +482,7 @@ export interface IEditorState {
 	setRenderDialogOpen: (open: boolean) => void;
 	setBuildWithAi: (builds: "new" | "change" | null) => void;
 	setWelcomeOpen: (open: boolean) => void;
+	setShareOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
@@ -1079,6 +1082,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			renderDialogOpen: false,
 			buildWithAi: null,
 			welcomeOpen: false,
+			shareOpen: false,
 			newWorld: null,
 			stillRender: null,
 			preferencesPage: null,
@@ -1581,6 +1585,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
 			setBuildWithAi: (builds) => set({ buildWithAi: builds }),
 			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
+			setShareOpen: (open) => set({ shareOpen: open }),
 			setNewWorld: (newWorld) => set({ newWorld }),
 			setPreferencesOpen: (open, page) =>
 				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),

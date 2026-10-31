@@ -51,6 +51,8 @@ import {
 	useOutlinerHeight,
 	usePaletteWidth,
 } from "./ResizeHandle";
+import { ShareDialog } from "./ShareDialog";
+import { SharedWorldOpener } from "./SharedWorldOpener";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
@@ -383,6 +385,10 @@ export const AppShell = () => {
 							{ready && <Welcome />}
 
 							{ready && <WaitingSourcesDialog />}
+
+							{ready && <SharedWorldOpener />}
+
+							<ShareDialog />
 						</Stage>
 
 						{mode === "edit" && !rightOpen && (

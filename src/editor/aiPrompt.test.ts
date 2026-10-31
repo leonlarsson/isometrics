@@ -86,6 +86,24 @@ describe("the example patch (ADR-0118)", () => {
 	});
 });
 
+describe("handing a world over as a link (ADR-0120)", () => {
+	it("puts the link in the prompt instead of the world, and offers answering with a link", () => {
+		const world = createEmptyScene({ title: "Mine" });
+		const prompt = aiPrompt({
+			description: "More trees",
+			data: "",
+			world,
+			origin: ORIGIN,
+			worldUrl: `${ORIGIN}/api/user-worlds/abcdefghijklmnopqrstuv`,
+		});
+		expect(prompt).toContain(`It's at ${ORIGIN}/api/user-worlds/abcdefghijklmnopqrstuv`);
+		expect(prompt).not.toContain('"title":"Mine"');
+		expect(prompt).toContain(
+			`POST it (the world or the patch, as JSON) to ${ORIGIN}/api/user-worlds`,
+		);
+	});
+});
+
 describe("reading what the AI answered", () => {
 	it("finds the world in fences or among words", () => {
 		expect(worldFromAnswer('Here it is:\n```json\n{"version": 1}\n```\nEnjoy!')).toEqual({

@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 import { keepOnHotReload } from "#/lib/hot";
 import { readSourceAgain } from "#/scene/jsonSource";
-import type { TDataSource, TWorldData } from "#/scene/schema";
+import type { TDataSource, TScene, TWorldData } from "#/scene/schema";
 import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/sheets";
 
 import { allowLink, isLinkAllowed, useAllowedLinks } from "./linkTrust";
@@ -112,6 +112,34 @@ const scheduleOf = (sources: readonly TDataSource[]) =>
 		.filter((source) => (source.kind === "link" || source.kind === "api") && source.url)
 		.map((source) => `${source.id} ${source.refreshSeconds ?? 0}`)
 		.join(",");
+
+/**
+ * The addresses already asked about since the world opened (ADR-0119): the
+ * dialog when a world opens asks about each once, and opening a shared world,
+ * which asks before it loads (ADR-0120), counts as asking.
+ */
+export const useAskedAddresses = keepOnHotReload("askedAddresses", () =>
+	create<{ opening: number; urls: ReadonlySet<string> }>(() => ({ opening: -1, urls: new Set() })),
+);
+
+/** Note that these addresses were asked about, in the world open now. */
+export const markAddressesAsked = (urls: readonly string[]) => {
+	const opening = useEditor.getState().openedWorldCount;
+	const asked = useAskedAddresses.getState();
+	const before = asked.opening === opening ? asked.urls : new Set<string>();
+	useAskedAddresses.setState({ opening, urls: new Set([...before, ...urls]) });
+};
+
+/** The addresses a world reads that this browser hasn't allowed, whether or not its data is on. */
+export const outsideAddressesOf = (scene: TScene) => [
+	...new Set(
+		scene.data.sources.flatMap((source) =>
+			(source.kind === "link" || source.kind === "api") && source.url && !isLinkAllowed(source.url)
+				? [source.url]
+				: [],
+		),
+	),
+];
 
 /** The hosts of some sources, the first few named and the rest counted: "a.com, b.org and 3 more". */
 export const hostsOf = (sources: readonly TDataSource[], most = 5) => {

@@ -4,6 +4,13 @@ import { aiPrompt, worldFromAnswer } from "#/editor/aiPrompt";
 import { pickFile, startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
+import {
+	fetchSharedWorld,
+	HANDOFF_SECONDS,
+	ShareError,
+	sharedWorldIdOf,
+	shareWorld,
+} from "#/editor/userWorlds";
 import { checkPatch, checkWorld, type IWorldCheck, issuesForAi } from "#/parts/checkWorld";
 import { readWorld } from "#/parts/readWorld";
 import { describeRepairs } from "#/scene/repair";
@@ -11,7 +18,14 @@ import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/wor
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
-import { FieldGroup, Hint, RadioGroupField, TextField } from "./fields";
+import {
+	FieldGroup,
+	Hint,
+	RadioGroupField,
+	resetToDefault,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { List, ListItem } from "./List";
 import { openGuide } from "./Welcome";
 
@@ -62,6 +76,11 @@ export const BuildWithAiDialog = () => {
 	const [promptByHand, setPromptByHand] = useState<string | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [issuesCopied, setIssuesCopied] = useState(false);
+	// Changing a world: hand it over as a public link for an hour instead of in the prompt (ADR-0120).
+	const [handsOverLink, setHandsOverLink] = useState(false);
+	const [makingPrompt, setMakingPrompt] = useState(false);
+	// A pasted link to a shared world, being read.
+	const [readingLink, setReadingLink] = useState<string | null>(null);
 	const close = () => useEditor.getState().setBuildWithAi(null);
 
 	// Opened for a new world or to change this one: that's what it builds.
@@ -74,11 +93,29 @@ export const BuildWithAiDialog = () => {
 	const isDescribed = description.trim() !== "";
 
 	const copyPrompt = async () => {
+		const world = builds === "change" ? useEditor.getState().scene : null;
+		let worldUrl: string | null = null;
+		if (world && handsOverLink) {
+			setMakingPrompt(true);
+			try {
+				worldUrl = (await shareWorld(world, HANDOFF_SECONDS, { isHandoff: true })).jsonUrl;
+			} catch (error) {
+				notify(
+					"The world couldn't be handed over as a link",
+					`${error instanceof ShareError ? error.message : "Try again in a moment."} Turn off the link to put the world in the prompt instead.`,
+					"error",
+				);
+				return;
+			} finally {
+				setMakingPrompt(false);
+			}
+		}
 		const prompt = aiPrompt({
 			description,
 			data,
-			world: builds === "change" ? useEditor.getState().scene : null,
+			world,
 			origin: window.location.origin,
+			worldUrl,
 		});
 		try {
 			await navigator.clipboard.writeText(prompt);
@@ -89,9 +126,26 @@ export const BuildWithAiDialog = () => {
 		}
 	};
 
+	// An answer that's a link to a world shared on this site (an AI that posted it, ADR-0120): read
+	// from the link, then checked like any answer. Only this site's own links are read.
+	useEffect(() => {
+		const id = sharedWorldIdOf(answer);
+		if (!id) {
+			return;
+		}
+		setReadingLink(answer.trim());
+		fetchSharedWorld(id)
+			.then((text) => setAnswer(text))
+			.catch((error) =>
+				setProblem(error instanceof ShareError ? error.message : "The link couldn't be read."),
+			)
+			.finally(() => setReadingLink(null));
+	}, [answer]);
+
 	// The answer checked as it's pasted (ADR-0117): the same check as POST /api/worlds/validate.
 	const check = useMemo(() => {
-		if (!answer.trim()) {
+		// Nothing yet, or a link still being read.
+		if (!answer.trim() || sharedWorldIdOf(answer)) {
 			return null;
 		}
 		try {
@@ -266,13 +320,30 @@ export const BuildWithAiDialog = () => {
 
 				<div className={styles.column}>
 					<FieldGroup title="3. Copy the prompt">
+						{builds === "change" && (
+							<SwitchField
+								label="Hand the world over as a link"
+								checked={handsOverLink}
+								onChange={(next) => {
+									setHandsOverLink(next);
+									setCopied(false);
+								}}
+								inherit={resetToDefault(handsOverLink, false, () => setHandsOverLink(false))}
+								hint="A short prompt with a link to the world instead of the whole world. The link is public to anyone who has it for an hour (Share a link… lists it), so your AI must be able to open links."
+							/>
+						)}
+
 						<Button
 							variant="primary"
 							icon={copied ? "check" : "copy"}
-							disabled={!isDescribed}
+							disabled={!isDescribed || makingPrompt}
 							onClick={() => void copyPrompt()}
 						>
-							{copied ? "Copied: paste it into your AI" : "Copy the prompt"}
+							{makingPrompt
+								? "Making its link…"
+								: copied
+									? "Copied: paste it into your AI"
+									: "Copy the prompt"}
 						</Button>
 
 						{!isDescribed && (
@@ -319,14 +390,16 @@ export const BuildWithAiDialog = () => {
 							hasNoDefault
 							hint={
 								builds === "new"
-									? "Words around the JSON are fine. It opens as a new world, repaired where it needs it."
-									: "The changes it wrote (a patch), or a whole world; words around the JSON are fine. Undo brings this world back."
+									? "The world it wrote, or a link to it on this site; words around the JSON are fine. It opens as a new world, repaired where it needs it."
+									: "The changes it wrote (a patch), a whole world, or a link to either on this site; words around the JSON are fine. Undo brings this world back."
 							}
 						/>
 
 						<Button size="sm" icon="upload" onClick={() => void readAnswerFile()}>
 							Open its file…
 						</Button>
+
+						{readingLink && <Hint>Reading the world from its link…</Hint>}
 
 						{check && "unreadable" in check && (
 							<Hint>
