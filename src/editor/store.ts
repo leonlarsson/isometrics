@@ -366,6 +366,15 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
+	/** Build with your AI… is open (ADR-0116). */
+	buildWithAiOpen: boolean;
+	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
+	welcomeOpen: boolean;
+	/**
+	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
+	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
+	 */
+	newWorld: { shows: "all" | "places" | "dataMaps"; usesData: boolean } | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
@@ -469,6 +478,9 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
+	setBuildWithAiOpen: (open: boolean) => void;
+	setWelcomeOpen: (open: boolean) => void;
+	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
@@ -1065,6 +1077,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			previewTiltShift: false,
 			preferencesOpen: false,
 			renderDialogOpen: false,
+			buildWithAiOpen: false,
+			welcomeOpen: false,
+			newWorld: null,
 			stillRender: null,
 			preferencesPage: null,
 			holdingRightButton: false,
@@ -1564,6 +1579,9 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
+			setBuildWithAiOpen: (open) => set({ buildWithAiOpen: open }),
+			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
+			setNewWorld: (newWorld) => set({ newWorld }),
 			setPreferencesOpen: (open, page) =>
 				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),
 			setHoldingRightButton: (holding) =>

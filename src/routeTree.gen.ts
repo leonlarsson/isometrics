@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuideRouteImport } from './routes/guide'
+import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
@@ -19,6 +21,16 @@ import { Route as TemplatesFileRouteImport } from './routes/templates.$file'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideDotmdRoute = GuideDotmdRouteImport.update({
+  id: '/guide.md',
+  path: '/guide.md',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KitRoute = KitRouteImport.update({
@@ -49,6 +61,8 @@ const TemplatesFileRoute = TemplatesFileRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
@@ -57,6 +71,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
@@ -66,6 +82,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/guide': typeof GuideRoute
+  '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/schema.json': typeof SchemaDotjsonRoute
@@ -76,6 +94,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
     | '/schema.json'
@@ -84,6 +104,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
     | '/schema.json'
@@ -92,6 +114,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/guide'
+    | '/guide.md'
     | '/kit'
     | '/parts'
     | '/schema.json'
@@ -101,6 +125,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GuideRoute: typeof GuideRoute
+  GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
   SchemaDotjsonRoute: typeof SchemaDotjsonRoute
@@ -115,6 +141,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide.md': {
+      id: '/guide.md'
+      path: '/guide.md'
+      fullPath: '/guide.md'
+      preLoaderRoute: typeof GuideDotmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kit': {
@@ -157,6 +197,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GuideRoute: GuideRoute,
+  GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
   SchemaDotjsonRoute: SchemaDotjsonRoute,

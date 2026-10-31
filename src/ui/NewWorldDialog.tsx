@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { startNewWorld } from "#/editor/fileActions";
+import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
 import { SceneSchema, type TDrivingSide, type TScene, type TThemePreference } from "#/scene/schema";
@@ -114,18 +115,20 @@ const contentsOf = (scene: TScene) => {
 	].filter((line) => line !== false);
 };
 
-interface INewWorldDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-}
-
 /**
  * File → New world: start from bare ground with a few settings, or from a
  * starter world, picked from cards with a picture of each (ADR-0047). It
  * keeps its choices while the page is open; nothing is stored. The new world
  * opens next to the others (ADR-0044).
  */
-export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => {
+export const NewWorldDialog = () => {
+	const asked = useEditor((s) => s.newWorld);
+	const open = asked !== null;
+	const onOpenChange = (next: boolean) => {
+		if (!next) {
+			useEditor.getState().setNewWorld(null);
+		}
+	};
 	const [choices, setChoices] = useState(DEFAULT_CHOICES);
 	// Which starters show: all, or one category's (places, data maps).
 	const [category, setCategory] = useState<TTemplateCategory | "all">("all");
@@ -134,10 +137,21 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 	const pictures = useScenePictures(useResolvedTheme(), open ? PICTURE_SOURCES : NO_PICTURES);
 
 	useEffect(() => {
-		if (open) {
+		if (asked !== null) {
 			setName("");
+			// Opened for one kind (the welcome's city or example): those starters, the first picked.
+			setCategory(asked.shows);
+			const first =
+				asked.shows === "all"
+					? undefined
+					: TEMPLATES.find((template) => template.category === asked.shows);
+			setChoices((before) => ({
+				...before,
+				usesData: asked.usesData,
+				startFrom: first?.id ?? before.startFrom,
+			}));
 		}
-	}, [open]);
+	}, [asked]);
 
 	// Every starter's world, for its details (all of them are laid out, see below).
 	const starters = useMemo(
@@ -156,7 +170,11 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 		setChoices({ ...choices, startFrom });
 		startNewWorld(
 			picked
-				? { ...picked, meta: { ...picked.meta, title } }
+				? {
+						...picked,
+						meta: { ...picked.meta, title },
+						data: { ...picked.data, isOn: choices.usesData },
+					}
 				: createEmptyScene({
 						title,
 						ground: { width, depth },
@@ -232,6 +250,16 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 						inherit={resetToDefault(name, "", () => setName(""), defaultName)}
 					/>
 
+					<SwitchField
+						label="Uses data"
+						checked={choices.usesData}
+						onChange={(usesData) => update({ usesData })}
+						inherit={resetToDefault(choices.usesData, DEFAULT_CHOICES.usesData, () =>
+							update({ usesData: DEFAULT_CHOICES.usesData }),
+						)}
+						hint="Off for a plain world to build, with nothing about data anywhere (a starter's data is kept, hidden). The World tab can turn it on later."
+					/>
+
 					{/*
 						Every card's details are laid out on top of each other and only the picked one
 						shows, so the dialog keeps the height of the tallest and nothing jumps when
@@ -287,16 +315,6 @@ export const NewWorldDialog = ({ open, onOpenChange }: INewWorldDialogProps) => 
 								inherit={resetToDefault(choices.drivingSide, DEFAULT_CHOICES.drivingSide, () =>
 									update({ drivingSide: DEFAULT_CHOICES.drivingSide }),
 								)}
-							/>
-
-							<SwitchField
-								label="Uses data"
-								checked={choices.usesData}
-								onChange={(usesData) => update({ usesData })}
-								inherit={resetToDefault(choices.usesData, DEFAULT_CHOICES.usesData, () =>
-									update({ usesData: DEFAULT_CHOICES.usesData }),
-								)}
-								hint="Off for a plain world to build, with nothing about data anywhere."
 							/>
 
 							<Hint>

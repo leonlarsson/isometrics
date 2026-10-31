@@ -1,6 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
 import type { IEditorState, useEditor } from "#/editor/store";
+import { APP_NAME } from "#/lib/app";
 import {
 	type TArea,
 	type TEntity,
@@ -29,8 +30,27 @@ declare global {
 	};
 }
 
-/** A test that fails when the page throws an uncaught error. */
-export const test = base.extend<{ pageErrors: string[] }>({
+/** The welcome's "seen" mark (editor/welcome.ts), set so tests start in the editor. */
+const WELCOME_SEEN_KEY = `${APP_NAME.toLowerCase()}:welcome-seen`;
+
+/**
+ * A test that fails when the page throws an uncaught error. A new browser is greeted by the
+ * welcome (ADR-0116); tests skip it unless they `test.use({ welcomes: true })`.
+ */
+export const test = base.extend<{ pageErrors: string[]; welcomes: boolean }>({
+	welcomes: [false, { option: true }],
+	page: async ({ page, welcomes }, use) => {
+		if (!welcomes) {
+			await page.addInitScript((key) => {
+				try {
+					localStorage.setItem(key, "1");
+				} catch {
+					// No storage: nothing to skip.
+				}
+			}, WELCOME_SEEN_KEY);
+		}
+		await use(page);
+	},
 	pageErrors: [
 		async ({ page }, use) => {
 			const errors: string[] = [];

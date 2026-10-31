@@ -38,6 +38,9 @@ const PATHS = {
 	plus: "M12 5v14M5 12h14",
 	close: "M6 6l12 12M18 6 6 18",
 	edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
+	// A four-pointed sparkle and a small one: Build with your AI (ADR-0116).
+	sparkle:
+		"M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z",
 	eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 	eyeOff:
 		"M2 12s4-7 10-7c1.9 0 3.6.7 5 1.6M22 12s-4 7-10 7c-1.9 0-3.6-.7-5-1.6M9.9 14.1A3 3 0 0 1 14.1 9.9M4 20 20 4",

@@ -1,0 +1,130 @@
+/* The guide at /guide: a header, the contents, and its sections as a readable column. */
+.page {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	max-width: 760px;
+	min-height: 100dvh;
+	margin: 0 auto;
+	padding: 24px 16px 64px;
+	background: var(--bg);
+	color: var(--text);
+	line-height: 1.6;
+}
+
+:global(body):has(.page) {
+	background: var(--bg);
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.brand h1 {
+	margin: 0;
+	font-size: 22px;
+	letter-spacing: -0.02em;
+}
+
+/* The editor's logo (Toolbar.module.css). */
+.logo {
+	flex: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 7px;
+	background: linear-gradient(135deg, var(--accent) 50%, var(--brand-blue) 50%);
+	transform: rotate(45deg) scale(0.85);
+}
+
+.link {
+	color: var(--accent);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.link:hover {
+	text-decoration: underline;
+}
+
+.intro {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.contents {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	padding: 12px 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	box-shadow: var(--shadow-card);
+}
+
+.section h2 {
+	margin: 0;
+	font-size: 19px;
+	letter-spacing: -0.01em;
+}
+
+.part {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border);
+}
+
+.part h3 {
+	margin: 0;
+	font-size: 15px;
+}
+
+.section p {
+	margin: 0;
+}
+
+.steps,
+.points {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding-left: 22px;
+}
+
+.note {
+	padding: 10px 14px;
+	border-radius: var(--radius-sm);
+	background: var(--accent-soft);
+}
+
+.page code {
+	padding: 1px 5px;
+	border-radius: 5px;
+	background: var(--surface-sunken);
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+	overflow-wrap: anywhere;
+}

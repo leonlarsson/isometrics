@@ -17,6 +17,7 @@ import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
 import { formatHour } from "#/scene/sun";
 
 import { BoxSelectBar } from "./BoxSelectBar";
+import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
@@ -59,6 +60,7 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
+import { Welcome } from "./Welcome";
 
 import styles from "./AppShell.module.css";
 
@@ -372,8 +374,12 @@ export const AppShell = () => {
 
 							<RenderDialog />
 
+							<BuildWithAiDialog />
+
 							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
 							{ready && <FreshStartOffer />}
+
+							{ready && <Welcome />}
 						</Stage>
 
 						{mode === "edit" && !rightOpen && (

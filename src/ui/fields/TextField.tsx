@@ -12,6 +12,8 @@ interface ITextFieldProps {
 	onChange: (value: string) => void;
 	placeholder?: string;
 	multiline?: boolean;
+	/** Multiline: how many lines it shows before it scrolls (3). */
+	rows?: number;
 	hint?: ReactNode;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
@@ -23,6 +25,7 @@ export const TextField = ({
 	onChange,
 	placeholder,
 	multiline = false,
+	rows = 3,
 	hint,
 	mixed,
 	inherit,
@@ -34,7 +37,7 @@ export const TextField = ({
 					<textarea
 						id={id}
 						className={styles.input}
-						rows={3}
+						rows={rows}
 						value={value}
 						placeholder={placeholder}
 						onChange={(e) => onChange(e.target.value)}
