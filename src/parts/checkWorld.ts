@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { describeRepairs } from "#/scene/repair";
 import { columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
+import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
 import { readWorld, upgradeWorld } from "./readWorld";
 import { getPart, resolveProps } from "./registry";
@@ -33,6 +34,8 @@ export interface IWorldCheck {
 	repairs: string | null;
 	/** What's in it once opened, for a quick look: "12 objects, 3 roads". */
 	contents: string;
+	/** For a patch (ADR-0118): what it changes, in a sentence. */
+	changes?: string;
 }
 
 /** More issues than this of one sort are summed up, not listed. */
@@ -282,9 +285,31 @@ export const checkWorld = (input: unknown): IWorldCheck => {
 	};
 };
 
+/**
+ * Check a patch (ADR-0118) against the world it changes: its own problems
+ * (an id that isn't there, a list sent whole), said where they are in the
+ * patch, then the world it makes, checked like any world, and what it changes.
+ */
+export const checkPatch = (world: TScene, patch: Record<string, unknown>): IWorldCheck => {
+	const { world: patched, issues, changes } = applyWorldPatch(world, patch);
+	const check = checkWorld(patched);
+	const patchProblems = issues.map((issue) => ({
+		where: `patch ${issue.where}`,
+		what: issue.what,
+	}));
+	return {
+		...check,
+		isValid: check.isValid && patchProblems.length === 0,
+		problems: capped([...patchProblems, ...check.problems]),
+		changes: describePatchChanges(changes),
+	};
+};
+
 /** A check as a message to send back to an AI: fix these, and send the whole world again. */
 export const issuesForAi = (check: IWorldCheck) =>
 	[
-		"The world you wrote doesn't open as written. Fix these and send the whole world again, as JSON only:",
+		check.changes
+			? "The patch you wrote doesn't apply cleanly. Fix these and send the whole patch again, as JSON only:"
+			: "The world you wrote doesn't open as written. Fix these and send the whole world again, as JSON only:",
 		...[...check.problems, ...check.warnings].map((issue) => `- ${issue.where}: ${issue.what}`),
 	].join("\n");

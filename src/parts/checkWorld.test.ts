@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyScene, TEMPLATES } from "#/templates";
 
-import { checkWorld, issuesForAi } from "./checkWorld";
+import { checkPatch, checkWorld, issuesForAi } from "./checkWorld";
 
 describe("checking a world", () => {
 	it.each(TEMPLATES.map((template) => [template.id, template.create] as const))(
@@ -62,5 +62,29 @@ describe("checking a world", () => {
 		expect(said).toContain("over the ground's edge");
 		expect(said).toContain('"gone" isn\'t one of its viewpoints');
 		expect(issuesForAi(check)).toContain("send the whole world again");
+	});
+});
+
+describe("checking a patch", () => {
+	it("checks the world it makes, says what it changes, and its own problems by place", () => {
+		const world = createEmptyScene({ title: "Harbour" });
+		const fine = checkPatch(world, {
+			isPatch: true,
+			entities: { add: [{ id: "h", kind: "house_01", name: "Corner house", position: [0, 0] }] },
+		});
+		expect(fine.isValid).toBe(true);
+		expect(fine.changes).toBe("Adds Corner house.");
+
+		const broken = checkPatch(world, {
+			isPatch: true,
+			entities: {
+				change: [{ id: "nope", scale: 2 }],
+				add: [{ id: "x", kind: "spaceship_99", position: [0, 0] }],
+			},
+		});
+		expect(broken.isValid).toBe(false);
+		expect(broken.problems[0].where).toBe("patch entities.change[0]");
+		expect(broken.warnings.some((issue) => issue.what.includes("isn't a part kind"))).toBe(true);
+		expect(issuesForAi(broken)).toContain("send the whole patch again");
 	});
 });

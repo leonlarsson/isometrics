@@ -161,7 +161,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "text",
-				text: "To change the world you're in, pick **Change this world…** under **Build with your AI** in the File menu: say what to change, and what comes back replaces it (one undo step).",
+				text: "To change the world you're in, pick **Change this world…** under **Build with your AI** in the File menu and say what to change. Your AI answers with a **patch**, only the changes, which is quick to copy; the dialog says what it changes before you click **Put it in place** (one undo step).",
 			},
 		],
 	},
@@ -198,6 +198,7 @@ export const GUIDE: IGuideSection[] = [
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
 					"Long worlds are best handed over as a file, `world.json`: the app opens it with **Open its file…**.",
+					'To change a world, answer with a patch, not the whole world: the changes only, shaped like the world with the same field names, plus `"isPatch": true`. A settings group (`lighting`, `meta`, …) holds only the fields that change, merged as JSON Merge Patch (`null` puts a field back to its default); a list of things takes `remove` (ids), `change` (the id and only the fields that change) and `add` (whole new things), never the whole list. Things are named by their id, not their place in a list. Its format: `/api/worlds/schema/patch`; check it with `/api/worlds/validate`, sending `{ "world": ..., "patch": ... }`.',
 				],
 			},
 		],

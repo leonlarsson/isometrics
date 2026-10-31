@@ -121,3 +121,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0115](0115-a-world-without-data.md) | A world can turn data off, and then nothing about data shows | proposed |
 | [0116](0116-first-run-guide-and-your-own-ai.md) | A welcome on the first visit, a guide, and building with your own AI | proposed |
 | [0117](0117-checking-a-world.md) | Checking a world, the worlds API, and worlds with their defaults left out | proposed |
+| [0118](0118-world-patches.md) | Changing a world with a patch: the world's own shape, things by id | proposed |

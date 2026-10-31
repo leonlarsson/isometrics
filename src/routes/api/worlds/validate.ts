@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { checkWorld } from "#/parts/checkWorld";
+import { checkPatch, checkWorld } from "#/parts/checkWorld";
+import { readWorld } from "#/parts/readWorld";
+import { isWorldPatch } from "#/scene/worldPatch";
 
 /** Bigger bodies are turned away: no world needs this much. */
 const MOST_BYTES = 5_000_000;
@@ -16,6 +18,8 @@ const HOW_TO = {
 	about:
 		"Checks a world (ADR-0117): POST it as JSON. The answer says whether it opens as written (isValid), its problems (what opening it would repair or leave out) and warnings (what opens but won't look as meant), each with where in the world.",
 	example: "curl -X POST -H 'Content-Type: application/json' --data @world.json <this address>",
+	patch:
+		'To check a patch (ADR-0118), POST { "world": <the world it changes>, "patch": <the patch> }: the answer also says what the patch changes (changes), and its own problems start with "patch".',
 	format: "/api/worlds/schema",
 	guide: "/guide.md",
 };
@@ -46,6 +50,38 @@ export const Route = createFileRoute("/api/worlds/validate")({
 								{
 									where: "(the world)",
 									what: `isn't JSON: ${error instanceof Error ? error.message : String(error)}`,
+								},
+							],
+							warnings: [],
+						},
+						{ status: 400, headers: CORS },
+					);
+				}
+				// A patch with the world it changes (ADR-0118).
+				if (
+					typeof input === "object" &&
+					input !== null &&
+					"patch" in input &&
+					"world" in input &&
+					isWorldPatch(input.patch)
+				) {
+					const world = checkWorld(input.world);
+					if (world.isUnreadable) {
+						return Response.json(world, { headers: CORS });
+					}
+					return Response.json(checkPatch(readWorld(input.world).scene, input.patch), {
+						headers: CORS,
+					});
+				}
+				if (isWorldPatch(input)) {
+					return Response.json(
+						{
+							isValid: false,
+							isUnreadable: true,
+							problems: [
+								{
+									where: "(the patch)",
+									what: 'a patch is checked with the world it changes: POST { "world": ..., "patch": ... }',
 								},
 							],
 							warnings: [],

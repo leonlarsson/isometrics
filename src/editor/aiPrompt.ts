@@ -175,6 +175,37 @@ export const partsCatalogue = () =>
 		return `- \`${part.kind}\`: ${partName(part)} (${part.category})${props ? `; props: ${props}` : ""}${colors ? `; colors: ${colors}` : ""}`;
 	}).join("\n");
 
+/** How to answer with a new world. */
+const WORLD_ANSWER = [
+	"Give it a `meta.title`, a ground big enough for what's on it, an opening viewpoint that shows it all, and a legend for anything that shows a number.",
+	"Leave out every field that stays at its default, as the example does: it keeps the world short.",
+	"**If you can make files** (a downloadable file, an artifact, a code tool's output), write the world to a file named `world.json` and give that, not the JSON in the chat: it's long, and a file is easy to open in the app.",
+	"Otherwise, answer with the world alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back.",
+].join("\n\n");
+
+/** A patch that shows every move, for the prompt (ADR-0118). */
+export const EXAMPLE_PATCH = {
+	isPatch: true,
+	lighting: { time: 19.5 },
+	entities: {
+		change: [{ id: "lighthouse", scale: 1.6, props: { floorCount: null } }],
+		add: [{ id: "boat_2", kind: "sailing_boat_01", name: "Boat 2", position: [12, 8] }],
+		remove: ["old_shed"],
+	},
+	data: { values: { change: [{ key: "boats", value: 4 }] } },
+};
+
+/** How to answer with the changes to a world: a patch (ADR-0118). */
+const PATCH_ANSWER = [
+	'A **patch**: the changes only, shaped like the world with the same field names, plus `"isPatch": true`. For example:',
+	`\`\`\`json\n${JSON.stringify(EXAMPLE_PATCH, null, 1)}\n\`\`\``,
+	"- A settings group (`meta`, `ground`, `lighting`, `sky`, `water`, `weather`, `camera`, `onScreen`, `traffic`, …): only the fields that change. Groups inside merge the same way, a list is replaced whole, and `null` removes a field so its default applies.",
+	"- A list of things (`entities`, `roads`, `areas`, `fences`, `viewpoints`, `moods`; `data.values` and `data.tables` by `key`, `data.sources` by `id`): `remove` (their ids), `change` (each with the id of what it changes, and only the fields that change, merged the same way) and `add` (whole new things, with ids no other thing has). Never send a whole list.",
+	"- Use the ids in the world above. Leave out every field that stays as it is.",
+	"If what they ask replaces most of the world (start over, a different place), answer with a whole new world instead, without `isPatch`, written as the example world is.",
+	"Answer with the patch alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back (or as a file, `patch.json`, if it's long and you can make files).",
+].join("\n\n");
+
 /** Pasted data, cut to a size a chat takes, saying how much was left out. */
 const dataForPrompt = (data: string) => {
 	const trimmed = data.trim();
@@ -195,7 +226,7 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 	const given = dataForPrompt(data);
 	return [
 		world
-			? `You're changing a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Change it as asked below and answer with the whole changed world as one JSON document (how is at the end). Keep every id that stays, and everything not asked about as it is.`
+			? `You're changing a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Change it as asked below and answer with a patch: only what changes, as one JSON document (how is at the end). Everything not asked about stays as it is.`
 			: `You're building a world in ${APP_NAME}, an app for small animated 3D worlds (low-poly buildings, roads, water, vehicles) whose things can show data. Build the world described below and answer with it as one JSON document (how is at the end).`,
 		"## What they want",
 		wanted
@@ -227,14 +258,7 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 		"## A small example world",
 		`Two shops as clusters following table rows, sized by sales on a log scale, a value as a tile, and a road whose width and vans follow deliveries:\n\n\`\`\`json\n${JSON.stringify(EXAMPLE_WORLD, null, 1)}\n\`\`\``,
 		"## Answer",
-		[
-			world
-				? "The whole changed world, not only what changed."
-				: "Give it a `meta.title`, a ground big enough for what's on it, an opening viewpoint that shows it all, and a legend for anything that shows a number.",
-			"Leave out every field that stays at its default, as the example does: it keeps the world short.",
-			"**If you can make files** (a downloadable file, an artifact, a code tool's output), write the world to a file named `world.json` and give that, not the JSON in the chat: it's long, and a file is easy to open in the app.",
-			"Otherwise, answer with the world alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back.",
-		].join("\n\n"),
+		world ? PATCH_ANSWER : WORLD_ANSWER,
 	].join("\n\n");
 };
 
