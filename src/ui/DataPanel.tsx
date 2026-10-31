@@ -454,6 +454,8 @@ export const DataPanel = () => {
 								meta={[
 									SOURCE_KIND_NAMES[source.kind],
 									source.url ?? (source.fileName === source.name ? null : source.fileName),
+									// Read once, outside the app: it can't be read again from here.
+									(source.kind === "link" || source.kind === "api") && !source.url && "a snapshot",
 									statuses[source.id]?.reading
 										? "reading…"
 										: statuses[source.id]?.error
@@ -476,13 +478,22 @@ export const DataPanel = () => {
 											/>
 										)}
 
-										{(source.kind === "link" || source.kind === "api") && source.url && (
-											<IconButton
-												icon="download"
-												label="Read it again now"
-												onClick={() => void refreshSource(source)}
-											/>
-										)}
+										{(source.kind === "link" || source.kind === "api") &&
+											(source.url ? (
+												<IconButton
+													icon="download"
+													label="Read it again now"
+													onClick={() => void refreshSource(source)}
+												/>
+											) : (
+												// A snapshot (read once, outside the app): shown greyed with why, not hidden.
+												<IconButton
+													icon="download"
+													label="Read it again (a snapshot: it has no link to read again)"
+													disabled
+													onClick={() => undefined}
+												/>
+											))}
 
 										<IconButton
 											icon="trash"
