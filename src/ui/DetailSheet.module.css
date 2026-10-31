@@ -28,9 +28,44 @@
 }
 
 .title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin: 0;
 	font-size: 20px;
 	font-weight: 700;
+}
+
+.tag {
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+/* A value's own note, e.g. "Example numbers, not from Steam". */
+.about {
+	margin-top: 4px;
+	font-size: 11px;
+	font-style: italic;
+	color: var(--text-muted);
+}
+
+.note {
+	margin: 14px 0 0;
+	color: var(--text-muted);
+	line-height: 1.45;
+}
+
+.source {
+	margin: 10px 0 0;
+	font-size: 13px;
+}
+
+.source a {
+	color: var(--accent);
 }
 
 .description {

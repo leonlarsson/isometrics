@@ -406,6 +406,7 @@ export const dataFromSheet = (
 		source: where(path),
 		history,
 		threshold: null,
+		about: "",
 	});
 
 	if (reading.readsAs === "table") {

@@ -32,7 +32,12 @@ const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
 /** A new world's settings, for Default / Reset (ADR-0105). */
 const WORLD_DEFAULTS = SceneSchema.parse({ version: SCENE_VERSION });
 
-const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }[] = [
+/** The on/off settings of what View mode shows. */
+type TOnScreenSwitch = {
+	[K in keyof TOnScreen]: TOnScreen[K] extends boolean ? K : never;
+}[keyof TOnScreen];
+
+const ON_SCREEN_SWITCHES: { key: TOnScreenSwitch; label: string; hint?: string }[] = [
 	{ key: "showsTitle", label: "Show the title" },
 	{ key: "showsSubtitle", label: "Show the subtitle" },
 	{ key: "showsTimeOfDay", label: "Show the time of day" },
@@ -51,6 +56,11 @@ const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }
 		label: "Show the viewpoint bar",
 		hint: "← and → still step through the viewpoints without it.",
 	},
+	{
+		key: "showsDataSwitch",
+		label: "Show the Map / Data switch",
+		hint: "For a world with data: Data shows its tables and values as tables, the accessible way to read it.",
+	},
 ];
 
 /**
@@ -60,7 +70,7 @@ const ON_SCREEN_SWITCHES: { key: keyof TOnScreen; label: string; hint?: string }
 const OnScreenSection = () => {
 	const onScreen = useEditor((s) => s.scene.onScreen);
 	const commit = useEditor((s) => s.commit);
-	const set = (key: keyof TOnScreen, value: boolean) =>
+	const set = (key: TOnScreenSwitch, value: boolean) =>
 		commit((s) => {
 			s.onScreen[key] = value;
 		});

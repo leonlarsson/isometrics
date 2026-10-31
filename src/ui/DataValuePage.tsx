@@ -5,6 +5,7 @@ import { useEditor } from "#/editor/store";
 import { formatEntry, formatValue, toDataKey } from "#/scene/format";
 import {
 	DataColumnSchema,
+	DataThresholdSchema,
 	type TDataSource,
 	type TDataTable,
 	type TDataValue,
@@ -13,7 +14,15 @@ import {
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DataTableDialog } from "./DataTableDialog";
-import { Hint, resetToDefault, Section, TextField } from "./fields";
+import {
+	Hint,
+	NumberField,
+	resetToDefault,
+	Section,
+	SelectField,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { List, ListItem } from "./List";
 import { formatWhen, HistoryChart, numericPoints } from "./Sparkline";
 
@@ -184,6 +193,104 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					inherit={resetToDefault(value.unit, "", () => upsertData({ ...value, unit: "" }), "none")}
 					hint="Shown right after the value: type “ min” (with a space) or “%”."
 				/>
+
+				<TextField
+					label="Note"
+					value={value.about}
+					onChange={(about) => upsertData({ ...value, about })}
+					inherit={resetToDefault(
+						value.about,
+						"",
+						() => upsertData({ ...value, about: "" }),
+						"none",
+					)}
+					hint="Shown with it in detail tiles and the data's tables, e.g. “Example numbers, not from Steam”."
+				/>
+			</Section>
+
+			<Section
+				id="data.value.watch"
+				icon="alert"
+				title="Watch line"
+				keywords="threshold alert flag watch warning line"
+				actions={
+					<SwitchField
+						label="Watch"
+						checked={value.threshold !== null}
+						onChange={(on) =>
+							upsertData({
+								...value,
+								threshold: on
+									? DataThresholdSchema.parse({
+											line: typeof value.value === "number" ? value.value : 0,
+										})
+									: null,
+							})
+						}
+						inherit={{
+							...resetToDefault(
+								value.threshold !== null,
+								false,
+								() => upsertData({ ...value, threshold: null }),
+								"off",
+							),
+							isCompact: true,
+						}}
+					/>
+				}
+			>
+				{value.threshold ? (
+					<>
+						<NumberField
+							label="Line"
+							value={value.threshold.line}
+							onChange={(line) =>
+								value.threshold && upsertData({ ...value, threshold: { ...value.threshold, line } })
+							}
+							hasNoDefault
+						/>
+
+						<SelectField
+							label="Flagged when"
+							value={value.threshold.flagsWhen}
+							options={[
+								{ value: "below", label: "Below the line" },
+								{ value: "above", label: "Above the line" },
+							]}
+							onChange={(flagsWhen) =>
+								value.threshold &&
+								upsertData({ ...value, threshold: { ...value.threshold, flagsWhen } })
+							}
+							inherit={resetToDefault(
+								value.threshold.flagsWhen,
+								"below",
+								() =>
+									value.threshold &&
+									upsertData({ ...value, threshold: { ...value.threshold, flagsWhen: "below" } }),
+							)}
+						/>
+
+						<TextField
+							label="Word"
+							value={value.threshold.word}
+							onChange={(word) =>
+								value.threshold && upsertData({ ...value, threshold: { ...value.threshold, word } })
+							}
+							inherit={resetToDefault(
+								value.threshold.word,
+								"Watch",
+								() =>
+									value.threshold &&
+									upsertData({ ...value, threshold: { ...value.threshold, word: "Watch" } }),
+							)}
+							hint={`Cards and tiles show “⚠ ${value.threshold.word || "Watch"}” while it's ${value.threshold.flagsWhen} ${formatEntry({ ...value, value: value.threshold.line })}: a word and a symbol, never colour alone.`}
+						/>
+					</>
+				) : (
+					<Hint>
+						Flag it on cards and tiles when it crosses a line you set, with a word like “⚠ Watch”.
+					</Hint>
+				)}
 			</Section>
 
 			<Section
@@ -296,7 +403,12 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 			/>
 
 			{showsPast && (
-				<DataTableDialog table={past} origin="newest first" onClose={() => setShowsPast(false)} />
+				<DataTableDialog
+					table={past}
+					origin="newest first"
+					onClose={() => setShowsPast(false)}
+					offersPlacing={false}
+				/>
 			)}
 		</>
 	);

@@ -24,6 +24,7 @@ describe("sceneJsonSchema", () => {
 			"entities.dataRow.rowKey",
 			"roads.id",
 			"roads.points",
+			"onScreen.legend.label",
 			"roads.dataRow.tableKey",
 			"roads.dataRow.rowKey",
 			"areas.id",

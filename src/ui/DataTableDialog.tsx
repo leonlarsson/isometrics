@@ -24,8 +24,11 @@ export const DataTableDialog = ({
 	table,
 	origin,
 	onClose,
+	offersPlacing = true,
 }: {
 	table: TDataTable;
+	/** Offers to place things for its rows (not for a value's past values). */
+	offersPlacing?: boolean;
 	/** Where it comes from, in words. */
 	origin: string;
 	onClose: () => void;
@@ -56,32 +59,34 @@ export const DataTableDialog = ({
 			wide
 			initialFocus="dialog"
 		>
-			<ButtonGroup>
-				<Button size="sm" icon="building" onClick={() => setPlacing("objects")}>
-					Place one for each row…
-				</Button>
-
-				<Tooltip
-					label={
-						hasPlaces
-							? "Roads between the objects each row names, with vehicles showing how much goes"
-							: "Needs two columns of names, from and to"
-					}
-				>
-					<Button size="sm" icon="road" disabled={!hasPlaces} onClick={() => setPlacing("roads")}>
-						{hasPlaces
-							? "Draw a road for each row…"
-							: "Draw a road for each row (no from and to columns)"}
+			{offersPlacing && (
+				<ButtonGroup>
+					<Button size="sm" icon="building" onClick={() => setPlacing("objects")}>
+						Place one for each row…
 					</Button>
-				</Tooltip>
-			</ButtonGroup>
+
+					<Tooltip
+						label={
+							hasPlaces
+								? "Roads between the objects each row names, with vehicles showing how much goes"
+								: "Needs two columns of names, from and to"
+						}
+					>
+						<Button size="sm" icon="road" disabled={!hasPlaces} onClick={() => setPlacing("roads")}>
+							{hasPlaces
+								? "Draw a road for each row…"
+								: "Draw a road for each row (no from and to columns)"}
+						</Button>
+					</Tooltip>
+				</ButtonGroup>
+			)}
 
 			<DataTableView
 				columns={table.columns}
 				rows={table.rows}
 				keyColumn={table.keyColumn}
 				mostRows={MOST_ROWS}
-				followers={followers}
+				followers={offersPlacing ? followers : undefined}
 			/>
 		</Dialog>
 	);

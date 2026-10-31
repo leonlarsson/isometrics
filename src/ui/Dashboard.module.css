@@ -1,0 +1,114 @@
+.legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.chip {
+	padding: 3px 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.chip strong {
+	color: var(--text);
+	font-weight: 700;
+}
+
+.switch {
+	margin-top: 8px;
+	pointer-events: auto;
+}
+
+.dataView {
+	position: absolute;
+	inset: 20px 24px 20px auto;
+	z-index: 60;
+	width: min(720px, calc(100% - 420px));
+	min-width: min(360px, calc(100% - 48px));
+	overflow: auto;
+	padding: 16px 20px 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-panel);
+}
+
+.dataHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.dataHeader h2 {
+	margin: 0;
+	font-size: 18px;
+}
+
+.block {
+	margin-top: 16px;
+}
+
+.block h3 {
+	margin: 0;
+	font-size: 15px;
+}
+
+.meta {
+	margin: 2px 0 8px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.values {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.values th,
+.values td {
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+}
+
+.values thead th {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.number {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.tiles {
+	position: absolute;
+	left: 24px;
+	bottom: 20px;
+	z-index: 1;
+	display: flex;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	max-width: calc(100% - 48px);
+	flex-wrap: wrap;
+}
+
+.tile {
+	min-width: 140px;
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
+}

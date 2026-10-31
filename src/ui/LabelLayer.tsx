@@ -14,8 +14,10 @@ import {
 	registerLabelElement,
 	registerLabelLeader,
 } from "#/render/labelRegistry";
-import { formatEntry } from "#/scene/format";
+import { columnOfKey } from "#/scene/rowData";
 import type { TEntity } from "#/scene/schema";
+
+import { DataReading, FlagBadge, shownEntry } from "./DataReading";
 
 import styles from "./LabelLayer.module.css";
 
@@ -98,8 +100,10 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 		entry: data.find((d) => d.key === key),
 	}));
 	const title = entity.label.title || entity.name || partNameOf(entity.kind) || "";
-	// The chip shows the main value, or the title when there's no data.
-	const main = entries.length > 0 ? formatEntry(entries[0].entry) : title;
+	// Nothing to show for any of its values: the card says so, greyed (ADR-0110).
+	const hasNoData = entries.length > 0 && entries.every(({ entry }) => !entry);
+	// The chip shows the main value ("no data" without one), or the title when it shows no values.
+	const main = entries.length > 0 ? shownEntry(entries[0].entry) : title;
 	const handlers = {
 		onClick: (event: { clientX: number; clientY: number }) => {
 			if (!endedADrag(event)) {
@@ -132,6 +136,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 				type="button"
 				className={styles.card}
 				data-selected={selected || undefined}
+				data-no-data={hasNoData || undefined}
 				ref={measured(entity.id, "card")}
 				{...handlers}
 			>
@@ -139,16 +144,28 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 					<span className={styles.dot} style={{ background: color }} />
 
 					{title}
+
+					{entity.label.tag && <span className={styles.tag}>{entity.label.tag}</span>}
 				</span>
 
 				{entries.length === 1 ? (
-					<span className={styles.big}>{formatEntry(entries[0].entry)}</span>
+					<DataReading
+						entry={entries[0].entry}
+						label={columnOfKey(entries[0].key) ?? entries[0].key}
+						size={selected ? "huge" : "big"}
+						// What the value means, under it, on the card that's opened (as in a legend).
+						showsMeaning={selected}
+					/>
 				) : (
 					entries.map(({ key, entry }) => (
 						<span key={key} className={styles.row}>
-							<span className={styles.rowLabel}>{entry?.name || key}</span>
+							<span className={styles.rowLabel}>{entry?.name || columnOfKey(key) || key}</span>
 
-							<span className={styles.rowValue}>{formatEntry(entry)}</span>
+							<span className={styles.rowValue} data-no-data={entry ? undefined : ""}>
+								{shownEntry(entry)}
+							</span>
+
+							{entry && <FlagBadge entry={entry} />}
 						</span>
 					))
 				)}
@@ -158,6 +175,7 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 			<button
 				type="button"
 				className={styles.chip}
+				data-no-data={hasNoData || undefined}
 				aria-label={main === title ? title : `${title}: ${main}`}
 				ref={measured(entity.id, "chip")}
 				{...handlers}

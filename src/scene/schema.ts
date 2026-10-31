@@ -524,6 +524,12 @@ export const DataValueSchema = z
 		threshold: DataThresholdSchema.nullable()
 			.default(null)
 			.describe("A line it's watched against, flagged on cards and tiles; null = none."),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note shown with it where it\'s shown in full (detail tiles), e.g. "Example numbers, not from Steam"; empty = none.',
+			),
 	})
 	.describe("A named value that cards, detail tiles and settings show or follow.");
 
@@ -542,6 +548,12 @@ export const DataColumnSchema = z
 		threshold: DataThresholdSchema.nullable()
 			.default(null)
 			.describe("A line every row's value in it is watched against; null = none."),
+		about: z
+			.string()
+			.default("")
+			.describe(
+				'A note shown with its values in detail tiles, e.g. "Example numbers, not from Steam"; empty = none.',
+			),
 	})
 	.describe("A column of a table.");
 
@@ -1210,6 +1222,32 @@ export const OnScreenSchema = z
 			.boolean()
 			.default(true)
 			.describe("Whether the bar that steps through the viewpoints shows."),
+		showsDataSwitch: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether the Map / Data switch shows, for a world with data: Data shows the world's tables and values as tables (also the accessible way to read the world).",
+			),
+		legend: z
+			.array(
+				z.object({
+					label: z.string().describe('What it explains, in a word or two: "Size", "Roads".'),
+					meaning: z
+						.string()
+						.default("")
+						.describe('What it means: "30-day average Steam players, log scale".'),
+				}),
+			)
+			.default([])
+			.describe(
+				"Chips under the title saying what each encoding means (ADR-0110), in order; [] = none.",
+			),
+		tileKeys: z
+			.array(z.string())
+			.default([])
+			.describe(
+				"Keys of the world's values shown as tiles along the bottom edge, the world's main numbers; [] = none.",
+			),
 	})
 	.describe(
 		"What viewers see over the world in View mode. Edit mode always shows everything, faded where View mode won't.",

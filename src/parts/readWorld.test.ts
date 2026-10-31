@@ -74,7 +74,10 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			softensLight: false,
 			data: { rainAmount: { key: "rain", valueAtFull: 10 } },
 		});
-		expect(Object.values(scene.onScreen)).toEqual([false, false, false, false, false, false]);
+		// The six switches it had then, all off; what came later has its default.
+		const { showsDataSwitch, legend, tileKeys, ...switches } = scene.onScreen;
+		expect(Object.values(switches)).toEqual([false, false, false, false, false, false]);
+		expect([showsDataSwitch, legend, tileKeys]).toEqual([true, [], []]);
 		expect(scene.camera).toEqual({
 			openingViewpointId: "overview",
 			openingProjection: "perspective",

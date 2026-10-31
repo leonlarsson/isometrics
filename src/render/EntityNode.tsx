@@ -125,7 +125,7 @@ const ViewRing = ({
 	color: string;
 	opened: boolean;
 }) => {
-	const radius = Math.hypot(w, d) / 2 + 0.3;
+	const radius = Math.max(w, d) / 2 + 0.4;
 	const band = opened ? 0.35 : 0.12;
 	return (
 		<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} userData={{ notInstanced: true }}>

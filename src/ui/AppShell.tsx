@@ -19,6 +19,7 @@ import { BoxSelectBar } from "./BoxSelectBar";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
+import { LegendChips, MapDataSwitch, ValueTiles, WorldDataView } from "./Dashboard";
 import { DetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
@@ -135,7 +136,8 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 	if (
 		!shown(onScreen.showsTitle) &&
 		!(shown(onScreen.showsSubtitle) && meta.subtitle) &&
-		!shown(onScreen.showsTimeOfDay)
+		!shown(onScreen.showsTimeOfDay) &&
+		onScreen.legend.length === 0
 	) {
 		return null;
 	}
@@ -175,6 +177,11 @@ const SceneTitle = ({ onOpenSky, onOpenOnScreen }: ISceneTitleProps) => {
 					</p>
 				)
 			)}
+
+			{/* What each encoding means, and the Map / Data switch (ADR-0110). */}
+			<LegendChips />
+
+			<MapDataSwitch />
 
 			{anyFaded && (
 				<p className={styles.sceneHiddenNote}>
@@ -345,6 +352,10 @@ export const AppShell = () => {
 							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
 
 							<DetailSheet />
+
+							<ValueTiles />
+
+							<WorldDataView />
 
 							<ItemContextMenu />
 

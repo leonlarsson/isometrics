@@ -51,7 +51,11 @@ export const DataTableView = ({
 										key={column.key}
 										className={typeof cell === "number" ? styles.number : undefined}
 									>
-										{cell === null ? "" : formatValue(cell, column.unit)}
+										{cell === null ? (
+											<span className={styles.empty}>no data</span>
+										) : (
+											formatValue(cell, column.unit)
+										)}
 									</td>
 								);
 							})}

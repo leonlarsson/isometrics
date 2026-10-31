@@ -126,3 +126,71 @@ test.describe("roads that show flows (ADR-0112)", () => {
 		expect(road?.data.vehicleCountAlong?.key).toBe("row.players");
 	});
 });
+
+test.describe("the dashboard (ADR-0110)", () => {
+	test("cards say no data, flag a value past its line, and View mode shows the data as tables", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			data: {
+				values: [
+					{
+						key: "sent",
+						name: "Messages sent",
+						value: 1692,
+						history: [
+							{ at: "2026-09", value: 1840 },
+							{ at: "2026-10", value: 1692 },
+						],
+						threshold: { line: 1700, flagsWhen: "below", word: "Watch" },
+					},
+				],
+				tables: [
+					{
+						key: "games",
+						name: "Games",
+						keyColumn: "game",
+						columns: [{ key: "game" }, { key: "players", name: "Players" }],
+						rows: [{ game: "Ghost", players: null }],
+					},
+				],
+			},
+			entities: [
+				{
+					id: "m",
+					kind: "tower_cluster_01",
+					name: "Messages",
+					position: [-6, 0],
+					label: { isShown: true, title: "", dataKeys: ["sent"], offset: [0, 2, 0], tag: "home" },
+				},
+				{
+					id: "g",
+					kind: "tent_cluster_01",
+					name: "Ghost",
+					position: [6, 0],
+					dataRow: { tableKey: "games", rowKey: "Ghost" },
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["row.players"],
+						offset: [0, 2, 0],
+						tag: "",
+					},
+				},
+			],
+		});
+		const messages = labelCard(page, /Messages/);
+		await expect(messages).toContainText("home");
+		await expect(messages).toContainText("▼ 8% on September");
+		await expect(messages).toContainText("⚠ Watch");
+		await expect(labelCard(page, /Ghost/)).toContainText("no data");
+
+		await act(page, (s) => s.setMode("view"));
+		await page.getByRole("button", { name: "Data", exact: true }).click();
+		const tables = page.getByRole("region", { name: "The world's data" });
+		await expect(tables).toContainText("Games");
+		await expect(tables).toContainText("Messages sent");
+		await page.keyboard.press("Escape");
+		await expect(tables).toBeHidden();
+	});
+});

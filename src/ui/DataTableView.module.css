@@ -52,3 +52,9 @@
 	font-size: 11px;
 	color: var(--text-muted);
 }
+
+/* An empty cell: in words, greyed (ADR-0110). */
+.empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
