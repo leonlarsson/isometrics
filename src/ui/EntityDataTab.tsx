@@ -20,6 +20,7 @@ import {
 	SliderField,
 	SwitchField,
 } from "./fields";
+import { List, ListItem } from "./List";
 
 /** A table with more rows than this picks its row from a list with a search. */
 const ROWS_IN_A_SELECT = 30;
@@ -47,7 +48,9 @@ export const TableRowSection = ({
 	const table = tableOfRow(data, ref);
 	const rowKeys = table ? rowKeysOf(table) : [];
 	const hasTables = data.tables.length > 0;
-	const shown = valuesWithRow(data, ref).filter((entry) => columnOfKey(entry.key) !== null);
+	const columns = valuesWithRow(data, ref).filter(
+		(entry) => columnOfKey(entry.key) !== null && columnOfKey(entry.key) !== table?.keyColumn,
+	);
 
 	return (
 		<Section
@@ -123,11 +126,18 @@ export const TableRowSection = ({
 						/>
 					)}
 
-					<Hint>
-						{shown.length > 0
-							? `Its row now: ${shown.map((entry) => `${entry.name} ${formatEntry(entry)}`).join(", ")}. Pick its columns as “Row: …” wherever a value is picked.`
-							: "Its row has no values now (no data)."}
-					</Hint>
+					{/* Its row's columns and what they hold now; the one naming the row is the Row above. */}
+					{columns.length > 0 ? (
+						<List>
+							{columns.map((entry) => (
+								<ListItem key={entry.key} label={entry.name} meta={formatEntry(entry)} muted />
+							))}
+						</List>
+					) : (
+						<Hint>Its row has no values now (no data).</Hint>
+					)}
+
+					<Hint>Pick its columns as “Row: …” wherever a value is picked.</Hint>
 
 					<Button
 						size="sm"

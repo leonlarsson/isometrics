@@ -573,7 +573,7 @@ export const createExtractionShootersScene = (): TScene =>
 					keyColumn: "pair",
 					source: { sourceId: "examples" },
 					columns: [
-						{ key: "pair", name: "Games" },
+						{ key: "pair", name: "Pair" },
 						{ key: "from", name: "From" },
 						{ key: "to", name: "To" },
 						{ key: "shared_players", name: "Shared players", about: EXAMPLE },
