@@ -37,36 +37,53 @@ export const Route = createFileRoute("/api/user-worlds/")({
 			GET: () => Response.json(HOW_TO, { headers: HEADERS }),
 			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			POST: async ({ request }) => {
-				const sender = request.headers.get("cf-connecting-ip") ?? "unknown";
-				const { success } = await env.USER_WORLD_UPLOADS.limit({ key: sender });
-				if (!success) {
-					return problem("Too many shares from here just now: try again in a minute.", 429);
-				}
-				const expiresIn = Number(
-					new URL(request.url).searchParams.get("expiresIn") ?? DEFAULT_USER_WORLD_EXPIRY,
-				);
-				const text = await textUpTo(request, MOST_USER_WORLD_BYTES);
-				if (text === null) {
-					return problem(
-						`It's more than ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes.`,
-						413,
-					);
-				}
 				try {
-					const shared = await shareUserWorld(
-						env.USER_WORLDS,
-						text,
-						expiresIn,
-						new URL(request.url).origin,
-					);
-					return Response.json(shared, { status: 201, headers: HEADERS });
+					return await share(request);
 				} catch (error) {
-					// Our own words for what we foresaw; nothing of the server's insides otherwise.
-					return error instanceof UserWorldError
-						? problem(error.message, 400)
-						: problem("It couldn't be shared just now.", 500);
+					// Logged in full for us; answered in our words, nothing of the server's insides.
+					console.error("POST /api/user-worlds failed:", error);
+					return problem("It couldn't be shared just now.", 500);
 				}
 			},
 		},
 	},
 });
+
+/** Share what was posted: limited per address, refused when too big or not a world. */
+const share = async (request: Request) => {
+	if (!env.USER_WORLDS) {
+		console.error("POST /api/user-worlds: the USER_WORLDS KV binding is missing (wrangler.jsonc)");
+		return problem("Sharing isn't set up on this site.", 503);
+	}
+	const sender = request.headers.get("cf-connecting-ip") ?? "unknown";
+	// The rate limit, where the binding is there (it may not be in every deployment, e.g. previews).
+	if (env.USER_WORLD_UPLOADS) {
+		const { success } = await env.USER_WORLD_UPLOADS.limit({ key: sender });
+		if (!success) {
+			return problem("Too many shares from here just now: try again in a minute.", 429);
+		}
+	} else {
+		console.warn("POST /api/user-worlds: no USER_WORLD_UPLOADS rate limit binding; not limited");
+	}
+	const expiresIn = Number(
+		new URL(request.url).searchParams.get("expiresIn") ?? DEFAULT_USER_WORLD_EXPIRY,
+	);
+	const text = await textUpTo(request, MOST_USER_WORLD_BYTES);
+	if (text === null) {
+		return problem(`It's more than ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes.`, 413);
+	}
+	try {
+		const shared = await shareUserWorld(
+			env.USER_WORLDS,
+			text,
+			expiresIn,
+			new URL(request.url).origin,
+		);
+		return Response.json(shared, { status: 201, headers: HEADERS });
+	} catch (error) {
+		if (error instanceof UserWorldError) {
+			return problem(error.message, 400);
+		}
+		throw error;
+	}
+};

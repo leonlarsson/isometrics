@@ -13,12 +13,24 @@ const HEADERS = {
 	"X-Robots-Tag": "noindex, nofollow",
 };
 
+/** Without its KV binding (wrangler.jsonc), there's nothing to read or delete. */
+const notSetUp = () => {
+	console.error("/api/user-worlds/<id>: the USER_WORLDS KV binding is missing (wrangler.jsonc)");
+	return Response.json(
+		{ error: "Sharing isn't set up on this site." },
+		{ status: 503, headers: HEADERS },
+	);
+};
+
 // A shared world as JSON (ADR-0120): GET it, or DELETE it with its key (Authorization: Bearer <key>).
 export const Route = createFileRoute("/api/user-worlds/$id")({
 	server: {
 		handlers: {
 			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			GET: async ({ params }) => {
+				if (!env.USER_WORLDS) {
+					return notSetUp();
+				}
 				const found = await readUserWorld(env.USER_WORLDS, params.id);
 				if (!found) {
 					return Response.json(
@@ -40,6 +52,9 @@ export const Route = createFileRoute("/api/user-worlds/$id")({
 				});
 			},
 			DELETE: async ({ params, request }) => {
+				if (!env.USER_WORLDS) {
+					return notSetUp();
+				}
 				const key = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 				const result = await deleteUserWorld(env.USER_WORLDS, params.id, key);
 				const status = result === "deleted" ? 200 : result === "gone" ? 404 : 403;
