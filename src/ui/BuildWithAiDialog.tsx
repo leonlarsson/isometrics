@@ -25,7 +25,7 @@ const ISSUES_SHOWN = 6;
 const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
 
 /**
- * Build with your AI… (ADR-0116): describe the world, add data, copy a prompt
+ * Build with your AI (ADR-0116): describe the world, add data, copy a prompt
  * into any AI chat, and paste back the world it writes. Nothing is sent
  * anywhere by the app; what comes back is read like any world file
  * (`readWorld`), and opens as a new world or replaces this one (one undo step).

@@ -153,7 +153,7 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "steps",
 				steps: [
-					"Open **Build with your AI…** (the welcome, or the File menu).",
+					"Open **Build with your AI** in the File menu and pick **A new world…** (or **Show my data** in the welcome).",
 					"Describe the world you want: how it looks and what it has. Adding data is optional: paste it there, or give it to your AI yourself, attached or pasted in the chat after the prompt.",
 					"Click **Copy the prompt** and paste it into your AI. It answers with a file, `world.json`, if it can make one, else with the world as text.",
 					"Open its file with **Open its file…**, or paste its answer into the box. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched.",
@@ -161,7 +161,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "text",
-				text: "To change the world you're in, use **Change this world with your AI…** in the File menu: say what to change, and what comes back replaces it (one undo step).",
+				text: "To change the world you're in, pick **Change this world…** under **Build with your AI** in the File menu: say what to change, and what comes back replaces it (one undo step).",
 			},
 		],
 	},

@@ -366,7 +366,7 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
-	/** Build with your AI… is open, for a new world or to change this one (ADR-0116); null: closed. */
+	/** Build with your AI is open, for a new world or to change this one (ADR-0116); null: closed. */
 	buildWithAi: "new" | "change" | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
 	welcomeOpen: boolean;

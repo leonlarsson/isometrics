@@ -272,6 +272,13 @@ export const fileMenu = async (page: Page, item: RegExp) => {
 	await menuItem(page, item).click();
 };
 
+/** File → Build with your AI → an item ("A new world…", "Change this world…"). */
+export const buildWithAiMenu = async (page: Page, item: RegExp) => {
+	await page.getByRole("button", { name: "File" }).click();
+	await page.getByRole("menuitem", { name: "Build with your AI" }).click();
+	await menuItem(page, item).click();
+};
+
 /** Wait until autosave has written the open world (the save status says Saved). */
 export const saved = (page: Page) =>
 	expect(page.getByRole("button", { name: /^Saved: more about saving/ })).toBeVisible();

@@ -1,4 +1,4 @@
-import { expect, fileMenu, openEditor, read, test } from "./editor";
+import { buildWithAiMenu, expect, openEditor, read, test } from "./editor";
 
 /** A small world, as an AI might answer: words around JSON in fences. */
 const ANSWER = `Here's your world!
@@ -91,7 +91,7 @@ test.describe("Build with your AI (ADR-0116)", () => {
 			origin: "http://localhost:3000",
 		});
 		await openEditor(page);
-		await fileMenu(page, /Build with your AI/);
+		await buildWithAiMenu(page, /A new world/);
 		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
 		const copy = dialog.getByRole("button", { name: "Copy the prompt" });
 		await expect(copy).toBeDisabled();
@@ -121,7 +121,7 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		page,
 	}) => {
 		await openEditor(page);
-		await fileMenu(page, /Change this world with your AI/);
+		await buildWithAiMenu(page, /Change this world/);
 		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
 		await expect(dialog.getByRole("radio", { name: /Change this world/ })).toBeChecked();
 		await dialog
