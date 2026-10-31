@@ -30,6 +30,7 @@ const SETTING_WORDS: Record<string, string> = {
 	width: "width",
 	vehicleCountAlong: "vehicles along it",
 	vehicleCountAgainst: "vehicles the other way",
+	vehicleDensity: "vehicles per 10 units",
 	time: "time of day",
 	cloudCover: "cloud cover",
 	rainAmount: "rain",

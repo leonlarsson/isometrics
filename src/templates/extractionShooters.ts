@@ -436,6 +436,14 @@ const ROADS: TRoadInput[] = OVERLAP.map(({ from, to }, index) => {
 			lowSetting: 1.6,
 			highSetting: 4,
 		},
+		// Busier too: from a car every 17 units each way to three every 10.
+		density: {
+			key: "row.shared_players",
+			valueAtLowSetting: 0,
+			valueAtHighSetting: 6000,
+			lowSetting: 0.6,
+			highSetting: 3,
+		},
 		vehicleKind: FLOW_VEHICLES[index % FLOW_VEHICLES.length],
 		// Shared players are one number for the pair, with no direction: cars both ways.
 		isTwoWay: true,
@@ -483,7 +491,7 @@ export const createExtractionShootersScene = (): TScene =>
 				{ label: "Size", meaning: "Steam players now, log scale" },
 				{
 					label: "Roads",
-					meaning: "players two games share (example numbers): wider, more shared",
+					meaning: "players two games share (example numbers): wider and busier, more shared",
 				},
 			],
 			tileKeys: ["steam_players_total"],

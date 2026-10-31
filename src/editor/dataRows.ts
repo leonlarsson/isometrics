@@ -228,8 +228,8 @@ export interface IRoadsDrawn {
  * A road for each row of a "from, to, amount" table (ADR-0112): from the
  * object named in its from column to the one named in its to column (names
  * matched loosely), following its row, its width showing the amount: from a
- * lane's width at 0 to `widest` at the column's largest. A couple of vehicles
- * drive it for life and direction; their number isn't the data, so short
+ * lane's width at 0 to `widest` at the column's largest, and its vehicles per
+ * length of road too (from one every 20 units to three every 10), so short
  * roads can't hide an amount.
  */
 export const drawRoadsForEachRow = (
@@ -279,6 +279,13 @@ export const drawRoadsForEachRow = (
 							valueAtHighSetting: range?.max ?? null,
 							lowSetting: 0.6,
 							highSetting: Math.max(0.6, widest),
+						},
+						vehicleDensity: {
+							key: rowKeyFor(amountColumn),
+							valueAtLowSetting: 0,
+							valueAtHighSetting: range?.max ?? null,
+							lowSetting: 0.5,
+							highSetting: 3,
 						},
 					}
 				: {},

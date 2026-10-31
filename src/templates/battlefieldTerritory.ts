@@ -226,7 +226,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				{ label: "Size", meaning: "messages sent to the bot per game, log scale" },
 				{
 					label: "Roads",
-					meaning: "the same messages on their way: wider, more messages, log scale",
+					meaning: "the same messages on their way: wider and busier, more messages, log scale",
 				},
 				{ label: "Tower", meaning: "messages per month, log scale" },
 			],
@@ -317,6 +317,14 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					valueAtHighSetting: HIGH,
 					lowSetting: 0.6,
 					highSetting: 3.2,
+				},
+				density: {
+					key: "row.sent",
+					usesLogScale: true,
+					valueAtLowSetting: LOW,
+					valueAtHighSetting: HIGH,
+					lowSetting: 0.5,
+					highSetting: 3,
 				},
 				vehicleKind: "delivery_van_01",
 			}),

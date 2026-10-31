@@ -13,6 +13,7 @@ import type { TDataValue, TRoad, TWorldData } from "#/scene/schema";
 /** The road settings that can follow data, with their ranges, by their key in `road.data`. */
 export const ROAD_DATA_SETTINGS = {
 	width: { label: "Width", min: 0.4, max: 20, step: 0.1 },
+	vehicleDensity: { label: "Vehicles per 10 units", min: 0.1, max: 6, step: 0.1 },
 	vehicleCountAlong: { label: "Vehicles along it", min: 0, max: 40, step: 1 },
 	vehicleCountAgainst: { label: "Vehicles the other way", min: 0, max: 40, step: 1 },
 } as const;
@@ -42,6 +43,7 @@ export const roadAsDrawn = (road: TRoad, data: readonly TDataValue[]): TRoad => 
 	const width = read("width");
 	const along = read("vehicleCountAlong");
 	const against = read("vehicleCountAgainst");
+	const density = read("vehicleDensity");
 	const result: TRoad = {
 		...road,
 		width: width ?? road.width,
@@ -49,6 +51,7 @@ export const roadAsDrawn = (road: TRoad, data: readonly TDataValue[]): TRoad => 
 			...road.flow,
 			vehicleCountAlong: along ?? road.flow.vehicleCountAlong,
 			vehicleCountAgainst: against ?? road.flow.vehicleCountAgainst,
+			vehicleDensity: density ?? road.flow.vehicleDensity,
 		},
 	};
 	drawn.set(road, { data, road: result });
@@ -61,6 +64,26 @@ export const roadAsDrawn = (road: TRoad, data: readonly TDataValue[]): TRoad => 
  */
 export const flowOffsets = (count: number, length: number, shifted = false) =>
 	Array.from({ length: count }, (_, index) => ((index + (shifted ? 0.5 : 0)) / count) * length);
+
+/**
+ * How many vehicles drive one way along a road of `length`: its count, or with a density, that
+ * many per 10 units (at least one); never more than fit a vehicle and a half apart.
+ */
+export const vehiclesOnStream = (
+	flow: Pick<TRoad["flow"], "vehicleDensity">,
+	count: number,
+	length: number,
+	vehicleLength: number,
+) => {
+	if (count === 0) {
+		return 0;
+	}
+	const wanted =
+		flow.vehicleDensity === null
+			? count
+			: Math.max(1, Math.round((flow.vehicleDensity * length) / 10));
+	return Math.min(wanted, Math.max(1, Math.floor(length / (vehicleLength * 1.6))));
+};
 
 /** Which way the bigger flow goes, for the road's arrows: 1 along its points, -1 against, 0 even. */
 export const flowDirection = (

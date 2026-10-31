@@ -114,6 +114,32 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 
 						{count("vehicleCountAgainst", "The other way")}
 
+						<DataDrivenField
+							kind="range"
+							binding={road.data.vehicleDensity}
+							data={values}
+							range={ROAD_DATA_SETTINGS.vehicleDensity}
+							onBindingChange={(binding, coalesce) =>
+								setBinding("vehicleDensity", binding, coalesce)
+							}
+						>
+							<SliderField
+								label="Vehicles per 10 units"
+								value={road.flow.vehicleDensity ?? 1}
+								min={0.1}
+								max={6}
+								step={0.1}
+								onChange={(vehicleDensity) => editFlow("vehicleDensity", { vehicleDensity })}
+								inherit={{
+									from: "default",
+									inherited: road.flow.vehicleDensity === null,
+									onReset: () => editFlow("vehicleDensity", { vehicleDensity: null }),
+									value: "the counts above",
+								}}
+								hint="How busy it is each way, so short and long roads compare fairly; by default it has the counts above."
+							/>
+						</DataDrivenField>
+
 						<SliderField
 							label="Speed"
 							value={road.flow.speed}

@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { flowDirection, flowOffsets } from "#/editor/roadFlows";
+import { flowDirection, flowOffsets, vehiclesOnStream } from "#/editor/roadFlows";
 import { useEditor } from "#/editor/store";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
@@ -114,10 +114,13 @@ const Stream = ({
 			),
 		[road, driving, reverse, length, oneWay],
 	);
-	// Never closer than a vehicle and a half apart, or a long road of trucks reads as one train: a
-	// road holds as many as fit (ADR-0112).
-	const fits = Math.max(1, Math.floor(sampler.length / (length * 1.6)));
-	const offsets = flowOffsets(Math.min(count, fits), sampler.length, reverse);
+	// Its count, or with a density that many per 10 units, never closer than a vehicle and a half
+	// apart, or a long road of trucks reads as one train (ADR-0112).
+	const offsets = flowOffsets(
+		vehiclesOnStream(road.flow, count, sampler.length, length),
+		sampler.length,
+		reverse,
+	);
 	const groups = useRef<(THREE.Group | null)[]>([]);
 	const travelled = useRef(0);
 

@@ -743,6 +743,15 @@ export const RoadFlowSchema = z
 				"How many drive the other way, from its last point to its first; data can set it (data.vehicleCountAgainst).",
 			),
 		speed: z.number().min(0.2).max(20).default(3).describe("Grid units per second."),
+		vehicleDensity: z
+			.number()
+			.min(0.1)
+			.max(6)
+			.nullable()
+			.default(null)
+			.describe(
+				"How many vehicles per 10 grid units of road drive each way it goes (each way with vehicles), so short and long roads compare fairly; data can set it (data.vehicleDensity). null = the counts as set (vehicleCountAlong, vehicleCountAgainst).",
+			),
 		showsArrows: z
 			.boolean()
 			.default(true)
@@ -817,7 +826,7 @@ export const RoadSchema = z
 				'The table row it follows, e.g. a row of a "from, to, amount" table: its width, flow and colours can read the row\'s columns as "row.<column>". null = none.',
 			),
 		data: dataBindings(
-			'Its settings that follow data: "width", "vehicleCountAlong", "vehicleCountAgainst", e.g. { "vehicleCountAlong": { key: "row.amount", valueAtLowSetting: 0, valueAtHighSetting: 1000, lowSetting: 0, highSetting: 12 } }.',
+			'Its settings that follow data: "width", "vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst", e.g. { "vehicleCountAlong": { key: "row.amount", valueAtLowSetting: 0, valueAtHighSetting: 1000, lowSetting: 0, highSetting: 12 } }.',
 		),
 		isLocked: isLocked("its points"),
 		isHidden: isHidden(

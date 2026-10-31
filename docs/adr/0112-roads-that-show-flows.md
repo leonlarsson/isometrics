@@ -36,7 +36,7 @@ The road's **Data** tab: Table row, Flow (By hand / From data for each count) an
 
 ### Amended 2026-10-31: width shows the amount
 
-Tried in the example worlds, counting vehicles didn't hold up as the encoding: a road holds only as many vehicles as fit without bumping, so short roads capped the count (Battlefield 6's 80,969 messages showed the same 4 vans as Hardline's 1,083), and a small range (1 to 3) barely told roads apart. So a flow's amount is shown by the road's **width** (`data.width`, straight or log scale, never capped by length), as flow maps do; a couple of vehicles still drive each road for life and to show which way it goes, but their number isn't the data. **Draw a road for each row…** binds the width (Widest, at the column's largest amount; a lane's width at 0). Vehicle counts can still follow data for those who want it.
+Tried in the example worlds, counting vehicles didn't hold up as the encoding: a road holds only as many vehicles as fit without bumping, so short roads capped the count (Battlefield 6's 80,969 messages showed the same 4 vans as Hardline's 1,083), and a small range (1 to 3) barely told roads apart. So a flow's amount is shown by the road's **width** (`data.width`, straight or log scale, never capped by length), as flow maps do; a couple of vehicles still drive each road for life and to show which way it goes, but their number isn't the data. **Draw a road for each row…** binds the width (Widest, at the column's largest amount; a lane's width at 0) and the density (one vehicle per 20 units to three per 10). Vehicle counts can still follow data for those who want it.
 
 ## More information
 

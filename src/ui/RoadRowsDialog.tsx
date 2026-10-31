@@ -55,7 +55,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 			open
 			onOpenChange={(open) => !open && onClose()}
 			title={`Draw a road for each row of ${table.name || table.key}`}
-			description="From the object its from column names to the one its to column names, wider for more."
+			description="From the object its from column names to the one its to column names, wider and busier for more."
 			closeLabel="Cancel"
 			confirm={{
 				label: `Draw ${table.rows.length.toLocaleString()} roads`,
@@ -117,7 +117,7 @@ export const RoadRowsDialog = ({ table, onClose }: { table: TDataTable; onClose:
 				step={0.1}
 				onChange={setWidest}
 				hasNoDefault
-				hint="A road's width shows its amount: this wide at the largest, a lane's width at 0, in proportion between. A couple of vehicles drive each one to show which way it goes."
+				hint="A road's width shows its amount: this wide at the largest, a lane's width at 0, in proportion between; its vehicles per length of road follow it too."
 			/>
 
 			<SelectField

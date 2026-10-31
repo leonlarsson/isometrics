@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { SceneSchema, WorldDataSchema } from "#/scene/schema";
 
 import { drawRoadsForEachRow } from "./dataRows";
-import { flowDirection, flowOffsets, roadAsDrawn, valuesOfRoad } from "./roadFlows";
+import {
+	flowDirection,
+	flowOffsets,
+	roadAsDrawn,
+	valuesOfRoad,
+	vehiclesOnStream,
+} from "./roadFlows";
 
 const data = WorldDataSchema.parse({
 	tables: [
@@ -55,6 +61,17 @@ describe("roads that show flows (ADR-0112)", () => {
 		expect(roadAsDrawn(first, valuesOfRoad(first, data)).width).toBe(4);
 		// (0.6 + 0.25 × 3.4 = 1.45, to the width field's step of 0.1)
 		expect(roadAsDrawn(second, valuesOfRoad(second, data)).width).toBeCloseTo(1.4, 5);
+	});
+
+	it("puts as many vehicles on a road as its density says for its length, never more than fit", () => {
+		// 2 per 10 units on a 25-unit road: 5; 1-unit vehicles fit 15.
+		expect(vehiclesOnStream({ vehicleDensity: 2 }, 3, 25, 1)).toBe(5);
+		// No density: the count as set.
+		expect(vehiclesOnStream({ vehicleDensity: null }, 3, 25, 1)).toBe(3);
+		// A short road holds no more than fit a vehicle and a half apart.
+		expect(vehiclesOnStream({ vehicleDensity: 6 }, 3, 6, 1.2)).toBe(3);
+		// No vehicles that way, none from density either.
+		expect(vehiclesOnStream({ vehicleDensity: 2 }, 0, 25, 1)).toBe(0);
 	});
 
 	it("spreads vehicles evenly, the other way half a gap apart, and points arrows the bigger way", () => {

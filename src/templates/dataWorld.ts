@@ -132,8 +132,8 @@ export const cluster = ({
 
 /**
  * A straight road from the edge of one cluster to the edge of another, its row's amount shown by
- * its width (ADR-0112): thin for little, broad for much, never capped by how long the road is. A
- * few vehicles drive it for life and to show which way it goes; their number isn't the data.
+ * its width and how busy it is (ADR-0112): thin and sparse for little, broad and crowded for much.
+ * Busyness is vehicles per length of road, so short and long roads compare fairly.
  */
 export const flowRoad = ({
 	id,
@@ -143,6 +143,7 @@ export const flowRoad = ({
 	tableKey,
 	rowKey,
 	width,
+	density,
 	vehicleKind = "car_01",
 	fromReach = CLUSTER_WIDTH / 2,
 	toReach = CLUSTER_WIDTH / 2,
@@ -154,8 +155,9 @@ export const flowRoad = ({
 	to: TVec2;
 	tableKey: string;
 	rowKey: string;
-	/** The binding that sets its width from its row's amount. */
+	/** The bindings that set its width and how busy it is from its row's amount. */
 	width: TDataBindingInput;
+	density: TDataBindingInput;
 	vehicleKind?: string;
 	/** How far each end's cluster reaches from its middle (its size). */
 	fromReach?: number;
@@ -188,6 +190,6 @@ export const flowRoad = ({
 			vehicleCountAgainst: isTwoWay ? 2 : 0,
 			speed: 2.5,
 		},
-		data: { width },
+		data: { width, vehicleDensity: density },
 	};
 };
