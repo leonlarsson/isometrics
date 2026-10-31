@@ -16,20 +16,12 @@ import { Button, IconButton } from "./Button";
 import { Dialog } from "./Dialog";
 import { FieldGroup, Hint, resetToDefault, SelectField } from "./fields";
 import { List, ListItem } from "./List";
+import { useCopy } from "./useCopy";
 
 import styles from "./ShareDialog.module.css";
 
 const whenItGoes = (expiresAt: string) =>
 	new Date(expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-
-const copy = async (url: string) => {
-	try {
-		await navigator.clipboard.writeText(url);
-		notify("Link copied", url);
-	} catch {
-		notify("This browser wouldn't copy it", "Select the link and copy it.", "error");
-	}
-};
 
 /**
  * Share a link… (ADR-0120): a public snapshot of the world on the site's
@@ -48,6 +40,9 @@ export const ShareDialog = () => {
 	const [seconds, setSeconds] = useState(SHARE_DEFAULT_SECONDS);
 	const [made, setMade] = useState<ISharedLink | null>(null);
 	const [sharing, setSharing] = useState(false);
+	const { copiedKey, copy } = useCopy();
+	const copyLink = (link: ISharedLink, key: string) =>
+		copy(link.url, `Link copied: ${link.url}`, key);
 	const close = () => {
 		useEditor.getState().setShareOpen(false);
 		setMade(null);
@@ -96,7 +91,12 @@ export const ShareDialog = () => {
 				<FieldGroup title="Its link">
 					<p className={styles.link}>{made.url}</p>
 
-					<Button variant="primary" icon="copy" onClick={() => void copy(made.url)}>
+					<Button
+						variant="primary"
+						icon={copiedKey === "made" ? "check" : "copy"}
+						showsSuccess={copiedKey === "made"}
+						onClick={() => copyLink(made, "made")}
+					>
 						Copy the link
 					</Button>
 
@@ -152,9 +152,13 @@ export const ShareDialog = () => {
 								actions={
 									<>
 										<IconButton
-											icon="copy"
-											label={`Copy the link to “${link.title}”`}
-											onClick={() => void copy(link.url)}
+											icon={copiedKey === link.id ? "check" : "copy"}
+											label={
+												copiedKey === link.id
+													? `Copied the link to “${link.title}”`
+													: `Copy the link to “${link.title}”`
+											}
+											onClick={() => copyLink(link, link.id)}
 										/>
 
 										<IconButton

@@ -13,6 +13,8 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 	test("Share a link makes a public link only when asked, and the link opens a copy elsewhere", async ({
 		page,
 		browser,
+		context,
+		baseURL,
 	}) => {
 		// Two editors load in it, one per browser.
 		test.slow();
@@ -33,6 +35,18 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await dialog.getByRole("button", { name: "Create a public link" }).click();
 		const link = (await dialog.locator("p").filter({ hasText: "/w/" }).textContent()) ?? "";
 		expect(link).toMatch(/\/w\/[A-Za-z0-9_-]{22}$/);
+
+		// Copying it says so for a moment: a tick, outlined in green, and the link on the clipboard.
+		await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+			origin: new URL(baseURL ?? "http://localhost:3000").origin,
+		});
+		const copyButton = dialog.getByRole("button", { name: "Copy the link", exact: true });
+		await copyButton.click();
+		await expect(copyButton).toHaveAttribute("data-success");
+		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
+		await expect(
+			dialog.getByRole("button", { name: "Copy the link to “Shared world”" }),
+		).toBeVisible();
 
 		// Someone else opens it: a copy, next to their worlds.
 		const other = await browser.newContext();
