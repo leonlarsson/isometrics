@@ -105,7 +105,9 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 	// A story shows the data as it was on a date (ADR-0114): the card says when.
 	const storyAt = useStory((s) => s.at);
 	const inView = useEditor((s) => s.mode === "view");
-	const when = storyAt !== null && inView && entries.length > 0 ? formatWhen(storyAt) : null;
+	// Only cards whose values have a past change with the story; the others say nothing of it.
+	const followsStory = entries.some(({ entry }) => !entry || entry.history.length > 0);
+	const when = storyAt !== null && inView && followsStory ? formatWhen(storyAt) : null;
 	// Nothing to show for any of its values: the card says so, greyed (ADR-0110).
 	const hasNoData = entries.length > 0 && entries.every(({ entry }) => !entry);
 	// The chip shows the main value ("no data" without one), or the title when it shows no values.

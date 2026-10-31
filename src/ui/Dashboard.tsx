@@ -177,6 +177,8 @@ export const ValueTiles = () => {
 	const keys = useEditor((s) => s.scene.onScreen.tileKeys);
 	const inView = useEditor((s) => s.mode === "view");
 	const values = useWorldData().values;
+	// Named as the world names them, also while a story shows a date before their past.
+	const kept = useEditor((s) => s.scene.data.values);
 	if (!inView || keys.length === 0) {
 		return null;
 	}
@@ -186,7 +188,7 @@ export const ValueTiles = () => {
 				const entry = values.find((each) => each.key === key);
 				return (
 					<li key={key} className={styles.tile}>
-						<DataReading entry={entry} label={key} />
+						<DataReading entry={entry} label={kept.find((each) => each.key === key)?.name || key} />
 					</li>
 				);
 			})}
