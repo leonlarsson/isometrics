@@ -1,9 +1,8 @@
 import { toggleSidePanes, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
-import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
-import { AppMenu, AppMenuItems } from "./AppMenu";
+import { AppMenu } from "./AppMenu";
 import { IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
@@ -62,7 +61,7 @@ export const Toolbar = () => {
 	return (
 		<header className={styles.toolbar}>
 			<div className={styles.brand}>
-				<AppMenu hidesOnPhones={hasWorld} />
+				<AppMenu />
 
 				<FileMenu />
 
@@ -249,13 +248,6 @@ export const Toolbar = () => {
 									description={themeInfo.nextLabel}
 									onClick={cycleTheme}
 								/>
-
-								<Menu.Separator />
-
-								{/* The app menu's items: on phones its logo has no room in the toolbar. */}
-								<Menu.Submenu icon="info" label={APP_NAME}>
-									<AppMenuItems />
-								</Menu.Submenu>
 							</Menu.Popup>
 						</Menu.Root>
 					</span>

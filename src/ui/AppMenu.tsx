@@ -11,7 +11,7 @@ import { WipeEverything } from "./WipeEverything";
 
 import styles from "./AppMenu.module.css";
 
-/** Which of the app menu's confirmations is open: the logo's menu and the phones' More menu share them. */
+/** Which of the app menu's confirmations is open: the logo's menu and File on phones share them. */
 const useAppMenuDialogs = create<{ isWiping: boolean; isResetting: boolean }>(() => ({
 	isWiping: false,
 	isResetting: false,
@@ -20,7 +20,7 @@ const useAppMenuDialogs = create<{ isWiping: boolean; isResetting: boolean }>(()
 /**
  * What's about the app and this browser rather than a world: help (Welcome…,
  * Guide), Preferences…, and what resets this browser (its settings, or
- * everything). In the app menu on the logo, and in the More menu on phones.
+ * everything). In the app menu on the logo, and at the end of File on phones.
  */
 export const AppMenuItems = () => {
 	const store = () => useEditor.getState();
@@ -68,25 +68,19 @@ export const AppMenuItems = () => {
 	);
 };
 
-interface IAppMenuProps {
-	/**
-	 * On phones the logo gives up its place in a full toolbar: with a world open, its items are in
-	 * the More menu instead. On the home screen (only the logo and File) it stays.
-	 */
-	hidesOnPhones: boolean;
-}
-
 /**
  * The app's own menu, on its logo and name at the start of the toolbar (like a
  * desktop app's): help, Preferences and resets (AppMenuItems). The File menu
- * next to it is only about worlds. Its confirmations (Wipe everything, Reset
- * this browser's settings) live here, whichever menu asked for them.
+ * next to it is only about worlds. On phones there's no room for it: File
+ * holds its items at its end instead, so there's one menu for everything.
+ * Its confirmations (Wipe everything, Reset this browser's settings) live
+ * here, whichever menu asked for them.
  */
-export const AppMenu = ({ hidesOnPhones }: IAppMenuProps) => {
+export const AppMenu = () => {
 	const { isWiping, isResetting } = useAppMenuDialogs();
 	return (
 		<>
-			<span className={styles.menu} data-hides-on-phones={hidesOnPhones || undefined}>
+			<span className={styles.menu}>
 				<Menu.Root>
 					<Menu.Trigger label={`${APP_NAME}: help, preferences and this browser`}>
 						<span className={styles.logo} aria-hidden="true" />

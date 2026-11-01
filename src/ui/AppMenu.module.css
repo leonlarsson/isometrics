@@ -17,13 +17,9 @@
 	white-space: nowrap;
 }
 
-/* Phones: no room for the name; with a world open, no room for the logo either (its items are in More). */
+/* Phones: no room for it in the toolbar; its items are at the end of File instead. */
 @media (max-width: 700px) {
-	.title {
-		display: none;
-	}
-
-	.menu[data-hides-on-phones] {
+	.menu {
 		display: none;
 	}
 }

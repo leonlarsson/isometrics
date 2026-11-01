@@ -10,10 +10,13 @@ import {
 import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { keepsOpenWorld } from "#/editor/whatIsOpen";
+import { APP_NAME } from "#/lib/app";
 
+import { AppMenuItems } from "./AppMenu";
 import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
+import { useNarrowToolbar } from "./useNarrowToolbar";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
 /** How many worlds Recent worlds lists; All worlds… shows the rest. */
@@ -25,7 +28,8 @@ const RECENT_WORLDS = 8;
  * one elsewhere (Share a link…, Save to file, Render a picture…), and manage
  * them (Duplicate, Delete, Backups). New worlds open next to the others
  * instead of replacing one (ADR-0044). What's about the app and this browser
- * (help, Preferences, resets) is in the app menu on the logo (AppMenu).
+ * (help, Preferences, resets) is in the app menu on the logo (AppMenu); on
+ * phones, where the logo has no room, File holds those too, at its end.
  */
 export const FileMenu = () => {
 	const title = useEditor((s) => s.scene.meta.title);
@@ -33,6 +37,8 @@ export const FileMenu = () => {
 	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
 	const ownsWorld = useEditor((s) => keepsOpenWorld(s.whatIsOpen));
 	const notOnHome = hasWorld ? undefined : "No world is open";
+	// Phones: no room for the app menu's logo, so its items are at the end of File.
+	const holdsAppMenu = useNarrowToolbar();
 	// Read when the menu opens: the list lives in localStorage, not in the store.
 	const [worlds, setWorlds] = useState<IWorldInfo[]>([]);
 	const [openId, setOpenId] = useState<string | null>(null);
@@ -175,6 +181,14 @@ export const FileMenu = () => {
 						}
 						onClick={() => setViewingBackups(true)}
 					/>
+
+					{holdsAppMenu && <Menu.Separator />}
+
+					{holdsAppMenu && (
+						<Menu.Group label={APP_NAME}>
+							<AppMenuItems />
+						</Menu.Group>
+					)}
 				</Menu.Popup>
 			</Menu.Root>
 
