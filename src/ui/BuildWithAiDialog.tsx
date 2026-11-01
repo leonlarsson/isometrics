@@ -59,7 +59,7 @@ const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
  * Build with AI (ADR-0116): two steps. Ask: say what to build (a new world, or
  * a change to this one), with data and the world as a link behind folds, and
  * copy the prompt into any AI chat. Then bring back what it writes: paste it,
- * open its file, or paste the link it gives; it's checked as it arrives, and
+ * upload its file, or paste the link it gives; it's checked as it arrives, and
  * opens as a new world or changes this one (one undo step). Nothing is sent
  * anywhere by the app unless the world is handed over as a link. What comes
  * back is read like any world file (`repairWorld`). Keeps what's typed, and
@@ -340,7 +340,7 @@ export const BuildWithAiDialog = () => {
 								/>
 
 								<Button size="sm" icon="upload" onClick={() => void readDataFile()}>
-									Read a file…
+									Upload a file…
 								</Button>
 							</div>
 						) : null}
@@ -411,8 +411,8 @@ export const BuildWithAiDialog = () => {
 								Back
 							</Button>
 
-							<Button size="sm" icon="upload" onClick={() => void readAnswerFile()}>
-								Open its file…
+							<Button size="sm" variant="text" icon="upload" onClick={() => void readAnswerFile()}>
+								Upload a file…
 							</Button>
 
 							{lastPrompt !== null && (

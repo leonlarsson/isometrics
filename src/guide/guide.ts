@@ -158,9 +158,9 @@ export const GUIDE: IGuideSection[] = [
 				kind: "steps",
 				steps: [
 					"Open **Build with AI** in the File menu and pick **A new world…** (or **Build with AI…** in **New world**).",
-					"Say what your AI should build: how it looks and what it has. Data is optional: **Add your data** to paste it there, or give it to your AI yourself in the chat after the prompt.",
+					"Say what your AI should build: how it looks and what it has. Data is optional: **Add your data** to paste it there (or **Upload a file…**), or give it to your AI yourself in the chat after the prompt.",
 					"Click **Copy the prompt** and paste it into your AI. It answers with a file, `world.json`, if it can make one, else with the world as text.",
-					"Bring back what it wrote: paste it into **What your AI wrote**, or **Open its file…**. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with an answer? **I already have an answer** goes straight there.",
+					"Bring back what it wrote: paste it into **What your AI wrote**, or **Upload a file…** with its file. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with an answer? **I already have an answer** goes straight there.",
 				],
 			},
 			{
@@ -224,7 +224,7 @@ export const GUIDE: IGuideSection[] = [
 					"Roads follow rows the same way, with `flow: { isOn: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
-					"Long worlds are best handed over as a file, `world.json`: the app opens it with **Open its file…**.",
+					"Long worlds are best handed over as a file, `world.json`: **Upload a file…** in Build with AI opens it.",
 					"Worlds and patches can be handed back as a link: POST the JSON to `/api/user-worlds` (kept for an hour unless `?expiresIn=` says 86400, 604800 or 2592000 seconds) and give the `url` it returns. Anyone with the link can open it until it expires; `GET /api/user-worlds/<id>` gives the JSON.",
 					'To change a world, answer with a patch, not the whole world: the changes only, shaped like the world with the same field names, plus `"isPatch": true`. A settings group (`lighting`, `meta`, …) holds only the fields that change, merged as JSON Merge Patch (`null` puts a field back to its default); a list of things takes `remove` (ids), `change` (the id and only the fields that change) and `add` (whole new things), never the whole list. Things are named by their id, not their place in a list. Its format: `/api/worlds/schema/patch`; check it with `/api/worlds/validate`, sending `{ "world": ..., "patch": ... }`.',
 				],
