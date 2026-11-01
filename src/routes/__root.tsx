@@ -66,6 +66,14 @@ export const Route = createRootRoute({
 				content: "noindex, nofollow",
 			},
 		],
+		scripts: [
+			// Zod checks without eval (ADR-0122): the Content Security Policy allows none, so in the
+			// browser its eval-built checks could never run, and each try is logged as a violation.
+			// Set before any module runs (Zod reads this when it loads), so it doesn't try at all.
+			{
+				children: "globalThis.__zod_globalConfig = { jitless: true };",
+			},
+		],
 		links: [
 			{
 				rel: "stylesheet",
@@ -81,13 +89,11 @@ export const Route = createRootRoute({
 	headers: () => ({
 		// Same as the robots meta tag, for crawlers that only read headers.
 		"X-Robots-Tag": "noindex, nofollow",
-		// Security (ADR-0119): no other site may frame the editor (clickjacking), no plugins, no
-		// changing where relative links point or forms post, no sniffing, little referrer, and no
-		// camera, microphone or location. Scripts and styles aren't restricted here: that needs
-		// nonces for the framework's inline scripts (TODO.md).
+		// Security (ADR-0119): no other site may frame the editor (clickjacking), no sniffing, little
+		// referrer, and no camera, microphone or location. The Content Security Policy (scripts only
+		// from this site or with the page's nonce, and more) is set per request with that nonce, in
+		// router.tsx (ADR-0122).
 		"X-Frame-Options": "DENY",
-		"Content-Security-Policy":
-			"frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
 		"X-Content-Type-Options": "nosniff",
 		"Referrer-Policy": "strict-origin-when-cross-origin",
 		"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
