@@ -2,17 +2,22 @@ import { useState } from "react";
 
 import { pickFile } from "#/editor/fileActions";
 import { suggestLegend } from "#/editor/legend";
+import { isLinkAllowed, useAllowedLinks } from "#/editor/linkTrust";
+import { LINK_FAILURES } from "#/editor/readLink";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
 import {
-	hostsOf,
 	keepArrivedValues,
+	MOST_SOURCES_READ,
+	readOnTheirOwn,
 	refreshSource,
+	sitesOf,
 	useSourceStatus,
 	useWaitingSources,
 } from "#/editor/sourceRefresh";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { useHasArrived } from "#/editor/worldData";
+import { localDateTime } from "#/lib/when";
 import { formatEntry, toDataKey } from "#/scene/format";
 import {
 	DataSourceSchema,
@@ -23,6 +28,7 @@ import {
 } from "#/scene/schema";
 
 import { AllowedLinksDialog } from "./AllowedLinksDialog";
+import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button, ButtonGroup, IconButton } from "./Button";
 import { DataTableDialog } from "./DataTableDialog";
 import { DataValuePage } from "./DataValuePage";
@@ -40,6 +46,7 @@ import { List, ListItem } from "./List";
 import { ReadLinkDialog } from "./ReadLinkDialog";
 import { type ISpreadsheetReading, ReadSpreadsheetDialog } from "./ReadSpreadsheetDialog";
 import { formatWhen, Sparkline } from "./Sparkline";
+import { Tooltip } from "./Tooltip";
 
 import styles from "./DataPanel.module.css";
 
@@ -51,13 +58,45 @@ const SOURCE_KIND_NAMES: Record<TDataSourceKind, string> = {
 	push: "Pushed",
 };
 
+/** The site an address is on ("api.example.com"), or null when it isn't a web address. */
+const siteOf = (url: string | null | undefined) => {
+	try {
+		return url ? new URL(url).host : null;
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * What a source is called: its own name, else the site it reads (a list of sources all called
+ * "API" says nothing), else its file, else its kind.
+ */
+const sourceNameOf = (source: TDataSource) =>
+	source.name || siteOf(source.url) || source.fileName || SOURCE_KIND_NAMES[source.kind];
+
+/** The longest a source's address is shown in its row; the whole of it is in its tooltip. */
+const ADDRESS_SHOWN = 40;
+
+/** A source's address for its row: without the site when that's already its name, and shortened. */
+const shortAddressOf = (source: TDataSource) => {
+	if (!source.url) {
+		return null;
+	}
+	let shown = source.url.replace(/^https?:\/\//, "");
+	const site = siteOf(source.url);
+	if (site && sourceNameOf(source) === site) {
+		shown = shown.slice(site.length) || "/";
+	}
+	return shown.length > ADDRESS_SHOWN ? `${shown.slice(0, ADDRESS_SHOWN - 1)}…` : shown;
+};
+
 /** Where a value or table comes from, in words: typed by hand, or its source (and where in it). */
 const originOf = (source: TDataValue["source"], sources: readonly TDataSource[]): string => {
 	if (!source) {
 		return "typed by hand";
 	}
 	const found = sources.find((each) => each.id === source.sourceId);
-	const name = found ? found.name || SOURCE_KIND_NAMES[found.kind] : `${source.sourceId} (gone)`;
+	const name = found ? sourceNameOf(found) : `${source.sourceId} (gone)`;
 	// A spreadsheet's "Sheet!column" in words: "Sheet › column".
 	return source.path ? `from ${name}, ${source.path.replace("!", " › ")}` : `from ${name}`;
 };
@@ -67,7 +106,7 @@ const groupsOf = (values: readonly TDataValue[], sources: readonly TDataSource[]
 	const groups = [
 		{ title: "Typed by hand", values: values.filter((value) => !value.source) },
 		...sources.map((source) => ({
-			title: `From ${source.name || SOURCE_KIND_NAMES[source.kind]}`,
+			title: `From ${sourceNameOf(source)}`,
 			values: values.filter((value) => value.source?.sourceId === source.id),
 		})),
 		{
@@ -326,6 +365,80 @@ export const DataPanel = () => {
 	const statuses = useSourceStatus();
 	const waiting = useWaitingSources();
 	const waitingIds = new Set(waiting.map((source) => source.id));
+	const waitingAddresses = [...new Set(waiting.map((source) => source.url ?? ""))];
+	// Long lists get a search, as values do: tables by name and key, sources by name, address or file.
+	const [tableQuery, setTableQuery] = useState("");
+	const [sourceQuery, setSourceQuery] = useState("");
+	const matches = (text: string, query: string) =>
+		text.toLowerCase().includes(query.trim().toLowerCase());
+	const shownTables = tables.filter((table) => matches(`${table.name} ${table.key}`, tableQuery));
+	const shownSources = sources.filter((source) =>
+		matches(
+			`${sourceNameOf(source)} ${source.url ?? ""} ${source.fileName ?? ""} ${SOURCE_KIND_NAMES[source.kind]}`,
+			sourceQuery,
+		),
+	);
+	// Which allowed sources the world reads on its own (the first few addresses): the rest say so.
+	const allowedLinks = useAllowedLinks((s) => s.links);
+	const dataIsOn = useEditor((s) => s.scene.data.isOn);
+	const readIds = new Set(
+		readOnTheirOwn(
+			sources.filter(
+				(source) =>
+					(source.kind === "link" || source.kind === "api") &&
+					source.url &&
+					isLinkAllowed(source.url, allowedLinks),
+			),
+		).map((source) => source.id),
+	);
+	const [isReviewingWaiting, setReviewingWaiting] = useState(false);
+	/** A source's status, short for its row; the exact error, if any, for its tooltip. */
+	const statusOf = (source: TDataSource): { text: string; detail?: string } | null => {
+		const status = statuses[source.id];
+		if (waitingIds.has(source.id)) {
+			return { text: "waiting for your yes" };
+		}
+		if (status?.reading) {
+			return { text: "reading…" };
+		}
+		if (status?.error) {
+			return {
+				text: `couldn't read it: ${LINK_FAILURES[status.failure ?? "unreadable"].short}`,
+				detail: status.error,
+			};
+		}
+		if (
+			(source.kind === "link" || source.kind === "api") &&
+			source.url &&
+			dataIsOn &&
+			!readIds.has(source.id)
+		) {
+			return {
+				text: `not read on its own: a world reads ${MOST_SOURCES_READ} at most`,
+			};
+		}
+		if (status?.readAt) {
+			return {
+				text: `read ${formatWhen(status.readAt)}${source.refreshSeconds ? `, every ${source.refreshSeconds} s` : ""}`,
+			};
+		}
+		// Read once, outside the app: it can't be read again from here.
+		const isSnapshot = (source.kind === "link" || source.kind === "api") && !source.url;
+		const lastRead = source.lastReadAt && `read ${localDateTime(source.lastReadAt)}`;
+		if (isSnapshot) {
+			return { text: lastRead ? `a snapshot, ${lastRead}` : "a snapshot" };
+		}
+		return lastRead ? { text: lastRead } : null;
+	};
+	/** The sources that failed to be read, by how (not those waiting for a yes: said above). */
+	const failures = (["blocked", "status", "unreadable", "address", "offline"] as const)
+		.map((failure) => ({
+			failure,
+			failed: sources.filter(
+				(source) => !waitingIds.has(source.id) && statuses[source.id]?.failure === failure,
+			),
+		}))
+		.filter(({ failed }) => failed.length > 0);
 	const hasArrived = useHasArrived();
 	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
 	const openTable = tables.find((table) => table.key === openTableKey);
@@ -420,9 +533,22 @@ export const DataPanel = () => {
 			</Section>
 
 			<Section id="data.tables" icon="list" title="Tables" keywords="data rows columns table">
+				{tables.length >= SEARCHABLE_FROM && (
+					<SearchField
+						label="Find a table"
+						placeholder="Find a table…"
+						value={tableQuery}
+						onChange={setTableQuery}
+					/>
+				)}
+
+				{tables.length > 0 && shownTables.length === 0 && (
+					<Hint>{`No table matches “${tableQuery.trim()}”.`}</Hint>
+				)}
+
 				{tables.length > 0 ? (
 					<List>
-						{tables.map((table) => (
+						{shownTables.map((table) => (
 							<ListItem
 								key={table.key}
 								label={table.name || table.key}
@@ -457,82 +583,127 @@ export const DataPanel = () => {
 			>
 				{waiting.length > 0 && (
 					<Hint>
-						{`This world reads data from ${waiting.length === 1 ? "an external source" : `${waiting.length} external sources`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (Allow, on its row).`}
+						{`This world reads data from ${waiting.length === 1 ? "an external source" : `${waiting.length} external sources`} this browser hasn't read before, from ${sitesOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow ${waiting.length === 1 ? "it (Allow, on its row)" : "them (Allow, on each row, or all at once)"}.`}
 					</Hint>
+				)}
+
+				{waitingAddresses.length > 1 && (
+					<Button size="sm" icon="check" onClick={() => setReviewingWaiting(true)}>
+						Review and allow…
+					</Button>
+				)}
+
+				{/* Each way of failing explained once, for all the sources that failed that way. */}
+				{failures.map(({ failure, failed }) => (
+					<Hint key={failure}>
+						<strong>
+							{`${failed.length === 1 ? "A source" : `${failed.length} sources`} couldn't be read (${sitesOf(failed)}).`}
+						</strong>
+
+						{` ${LINK_FAILURES[failure].long}`}
+					</Hint>
+				))}
+
+				{sources.length >= SEARCHABLE_FROM && (
+					<SearchField
+						label="Find a source"
+						placeholder="Find a source…"
+						value={sourceQuery}
+						onChange={setSourceQuery}
+					/>
+				)}
+
+				{sources.length > 0 && shownSources.length === 0 && (
+					<Hint>{`No source matches “${sourceQuery.trim()}”.`}</Hint>
 				)}
 
 				{sources.length > 0 ? (
 					<List>
-						{sources.map((source) => (
-							<ListItem
-								key={source.id}
-								label={source.name || SOURCE_KIND_NAMES[source.kind]}
-								meta={[
-									SOURCE_KIND_NAMES[source.kind],
-									source.url ?? (source.fileName === source.name ? null : source.fileName),
-									// Read once, outside the app: it can't be read again from here.
-									(source.kind === "link" || source.kind === "api") && !source.url && "a snapshot",
-									// An address this browser hasn't said yes to (ADR-0119): not read until allowed.
-									waitingIds.has(source.id) && "not read until you allow it",
-									statuses[source.id]?.reading
-										? "reading…"
-										: statuses[source.id]?.error
-											? `couldn't read it: ${statuses[source.id]?.error}`
-											: statuses[source.id]?.readAt
-												? `read ${formatWhen(statuses[source.id]?.readAt ?? "")}${source.refreshSeconds ? `, every ${source.refreshSeconds} s` : ""}`
-												: source.lastReadAt &&
-													`read ${new Date(source.lastReadAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`,
-								]
-									.filter(Boolean)
-									.join(" · ")}
-								stacked
-								actions={
-									<>
-										{source.kind === "file" && (
-											<IconButton
-												icon="upload"
-												label="Read it again…"
-												onClick={() => readFrom(source)}
-											/>
-										)}
+						{shownSources.map((source) => {
+							const address = shortAddressOf(source);
+							const status = statusOf(source);
+							return (
+								<ListItem
+									key={source.id}
+									label={sourceNameOf(source)}
+									meta={
+										<>
+											{SOURCE_KIND_NAMES[source.kind]}
 
-										{(source.kind === "link" || source.kind === "api") &&
-											(source.url ? (
-												waitingIds.has(source.id) ? (
-													// Waiting for a yes (ADR-0119): said in words, not a download icon.
-													<Button
-														size="sm"
-														icon="check"
-														onClick={() => void refreshSource(source, { asked: true })}
-													>
-														Allow
-													</Button>
+											{address && (
+												<>
+													{" · "}
+
+													<Tooltip label={source.url}>
+														<span className={styles.address}>{address}</span>
+													</Tooltip>
+												</>
+											)}
+
+											{status && (
+												<>
+													{" · "}
+
+													{status.detail ? (
+														<Tooltip label={status.detail}>
+															<span className={styles.status}>{status.text}</span>
+														</Tooltip>
+													) : (
+														status.text
+													)}
+												</>
+											)}
+										</>
+									}
+									stacked
+									actions={
+										<>
+											{source.kind === "file" && (
+												<IconButton
+													icon="upload"
+													label="Read it again…"
+													onClick={() => readFrom(source)}
+												/>
+											)}
+
+											{(source.kind === "link" || source.kind === "api") &&
+												(source.url ? (
+													waitingIds.has(source.id) ? (
+														// Waiting for a yes (ADR-0119): said in words, not a download icon.
+														<Button
+															size="sm"
+															icon="check"
+															onClick={() => void refreshSource(source, { asked: true })}
+														>
+															Allow
+														</Button>
+													) : (
+														<IconButton
+															icon="download"
+															label="Read it again now"
+															onClick={() => void refreshSource(source, { asked: true })}
+														/>
+													)
 												) : (
+													// A snapshot (read once, outside the app): shown greyed with why, not hidden.
 													<IconButton
 														icon="download"
-														label="Read it again now"
-														onClick={() => void refreshSource(source, { asked: true })}
+														label="Read it again (a snapshot: it has no link to read again)"
+														disabled
+														onClick={() => undefined}
 													/>
-												)
-											) : (
-												// A snapshot (read once, outside the app): shown greyed with why, not hidden.
-												<IconButton
-													icon="download"
-													label="Read it again (a snapshot: it has no link to read again)"
-													disabled
-													onClick={() => undefined}
-												/>
-											))}
+												))}
 
-										<IconButton
-											icon="trash"
-											label="Remove source (its values and tables stay)"
-											onClick={() => removeDataSource(source.id)}
-										/>
-									</>
-								}
-							/>
-						))}
+											<IconButton
+												icon="trash"
+												label="Remove source (its values and tables stay)"
+												onClick={() => removeDataSource(source.id)}
+											/>
+										</>
+									}
+								/>
+							);
+						})}
 					</List>
 				) : (
 					<Hint>
@@ -560,6 +731,13 @@ export const DataPanel = () => {
 			{dialogs}
 
 			<AllowedLinksDialog open={listsAllowed} onClose={() => setListsAllowed(false)} />
+
+			<AllowSourcesDialog
+				open={isReviewingWaiting && waitingAddresses.length > 1}
+				onOpenChange={setReviewingWaiting}
+				addresses={waitingAddresses}
+				later="Not now leaves them waiting: each can still be allowed on its own row, and any you allow forgotten later (External sources this browser reads…)."
+			/>
 		</>
 	);
 };

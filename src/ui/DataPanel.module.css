@@ -19,3 +19,11 @@
 	flex-wrap: wrap;
 	gap: 6px;
 }
+
+/* A source's address and status in its row: whole on hover (a tooltip), so the row stays one line. */
+.address,
+.status {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}

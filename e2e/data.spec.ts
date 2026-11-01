@@ -219,6 +219,46 @@ test.describe("the dashboard (ADR-0110)", () => {
 });
 
 test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
+	test("many sources: each named by its site, and a search finds one", async ({ page }) => {
+		await openEditor(page);
+		const topics = [
+			"visitors",
+			"parking",
+			"weather",
+			"trains",
+			"energy",
+			"players",
+			"sales",
+			"traffic",
+			"bikes",
+			"buses",
+			"boats",
+			"lamps",
+		];
+		await act(
+			page,
+			(s, names) =>
+				s.commit((d) => {
+					d.data.isOn = true;
+					d.data.sources = names.map((name, i) => ({
+						id: `s${i}`,
+						kind: "api",
+						url: `https://${name}.example.org/now.json`,
+					})) as never;
+				}),
+			topics,
+		);
+		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
+		await asking.getByRole("button", { name: "Not now" }).click();
+		await act(page, (s) => s.setTab("data"));
+		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
+		await page.getByRole("searchbox", { name: "Find a source" }).fill("bikes");
+		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
+		await expect(page.getByText("buses.example.org", { exact: true })).toHaveCount(0);
+		await page.getByRole("searchbox", { name: "Find a source" }).fill("nothing like it");
+		await expect(page.getByText("No source matches “nothing like it”.")).toBeVisible();
+	});
+
 	test("a link that came with a world isn't read until it's allowed", async ({ page }) => {
 		let requests = 0;
 		await page.route("https://example.org/counts.json", (route) => {
@@ -260,11 +300,11 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		// Not now: it waits in the Data tab, which can allow it later.
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		await expect(page.getByText(/this browser hasn't read before: example.org/)).toBeVisible();
+		await expect(page.getByText(/this browser hasn't read before, from example.org/)).toBeVisible();
 		expect(requests).toBe(0);
 		await page
 			.getByRole("listitem")
-			.filter({ hasText: "https://example.org/counts.json" })
+			.filter({ hasText: "example.org" })
 			.getByRole("button", { name: "Allow", exact: true })
 			.click();
 		await expect.poll(() => requests).toBe(1);

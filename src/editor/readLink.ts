@@ -22,15 +22,57 @@ export type TLinkContent =
 	| { kind: "json"; json: unknown }
 	| { kind: "csv"; sheet: ISpreadsheetSheet };
 
+/** Why a link couldn't be read, by kind. */
+export type TLinkFailure =
+	| "offline"
+	| "blocked"
+	| "status"
+	| "unreadable"
+	| "address"
+	| "notAllowed";
+
 /** Why a link couldn't be read, with words for the user. */
 export class LinkError extends Error {
 	constructor(
-		readonly why: "offline" | "blocked" | "status" | "unreadable" | "address" | "notAllowed",
+		readonly why: TLinkFailure,
 		message: string,
 	) {
 		super(message);
 	}
 }
+
+/**
+ * Each kind of failure in words for a list of sources (the Data tab): a short
+ * phrase for a row, and the longer explanation, said once above the list for
+ * all the sources that failed that way (a source's own message has its
+ * details: which site, which answer).
+ */
+export const LINK_FAILURES: Record<TLinkFailure, { short: string; long: string }> = {
+	blocked: {
+		short: "the site doesn't let other sites read it",
+		long: "Most often the site doesn't allow other sites to read it (it sends no CORS header, Access-Control-Allow-Origin); it can also be down or blocked on this network. It would work if the site allowed it, or through a server that reads it for the browser (not built yet). The world keeps what it last read.",
+	},
+	status: {
+		short: "the site answered with an error",
+		long: "The site answered, but with an error instead of the data (each row says which). 401 or 403 usually means it needs a key, which worlds can't keep yet; 404, that the address is wrong or gone.",
+	},
+	unreadable: {
+		short: "what came back isn't data it can read",
+		long: "What came back isn't JSON, or a CSV with a header and rows, or it's more than 20 MB.",
+	},
+	address: {
+		short: "not an address it can read",
+		long: "Only web addresses (https://) can be read, and nothing on your own computer or network.",
+	},
+	offline: {
+		short: "you're offline",
+		long: "You're offline. The world keeps the values it last read, and reads them again when you're back online.",
+	},
+	notAllowed: {
+		short: "waiting for your yes",
+		long: "This browser hasn't allowed these addresses yet: nothing is read from them until you allow them.",
+	},
+};
 
 /**
  * The address to read for a link people paste: a Google Sheet's page becomes
