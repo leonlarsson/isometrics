@@ -67,8 +67,8 @@ const linkCard = (whatIsOpen: TWhatIsOpen) => {
 			subtitle: "",
 		},
 		scene: null,
-		status: step.isArriving
-			? "A new link can take up to a minute to reach everywhere: still trying…"
+		status: step.waited
+			? `Not here yet: a new link can take up to a minute to reach everywhere. Tried ${step.waited.tries} ${step.waited.tries === 1 ? "time" : "times"}, trying for ${step.waited.secondsLeft} s more…`
 			: "Fetching it from the link…",
 	};
 };
@@ -163,13 +163,7 @@ export const LoadingScreen = () => {
 				{/* Both lines take the same place, so the card keeps its width as one gives way to the other. */}
 				<p className={styles.status}>
 					<span data-shown={!ready || undefined} aria-hidden={ready || undefined}>
-						{link
-							? link.scene && things
-								? `${things}: waiting for your answer…`
-								: link.status
-							: things
-								? `Building ${things}…`
-								: "Opening the world…"}
+						{link ? link.status : things ? `Building ${things}…` : "Opening the world…"}
 					</span>
 
 					<span data-shown={ready || undefined} aria-hidden={!ready || undefined}>

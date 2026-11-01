@@ -27,8 +27,11 @@ export interface ILinkAsked {
 
 /** Where opening a link has got to. */
 export type TLinkStep =
-	/** Being fetched; `isArriving` once a new link is being waited for (it takes up to a minute to spread). */
-	| { kind: "fetching"; isArriving: boolean }
+	/**
+	 * Being fetched. `waited` once a new link is being waited for (it takes up to a minute to
+	 * spread): how many tries so far, and the seconds left before giving up.
+	 */
+	| { kind: "fetching"; waited: { tries: number; secondsLeft: number } | null }
 	/** Read, and it reads from addresses this browser hasn't allowed: asked before it's built. */
 	| { kind: "asking"; scene: TScene; addresses: string[]; expiresAt: string | null };
 

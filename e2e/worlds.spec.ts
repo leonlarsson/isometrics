@@ -27,9 +27,9 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await saved(page);
 		expect(await storedWorlds(page)).toBe(2);
 
-		// Back to the first one through File → Open world.
+		// Back to the first one through File → Recent worlds.
 		await page.getByRole("button", { name: "File" }).click();
-		await page.getByRole("menuitem", { name: "Open world" }).click();
+		await page.getByRole("menuitem", { name: "Recent worlds" }).click();
 		await page.getByRole("menuitem", { name: "Starter town" }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Starter town");
 		expect(await read(page, (s) => s.scene.entities.length)).toBeGreaterThan(20);
@@ -63,10 +63,10 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await fileMenu(page, /Delete world/);
 		await page.getByRole("button", { name: "Delete", exact: true }).click();
 		const home = page.getByRole("main", { name: "Home" });
-		await expect(home).toContainText("No worlds in this browser");
+		await expect(home).toContainText("None in this browser yet.");
 		expect(await storedWorlds(page)).toBe(0);
 		await openPage(page, "/");
-		await expect(home).toContainText("No worlds in this browser");
+		await expect(home).toContainText("None in this browser yet.");
 	});
 
 	test("the home screen on start, when Preferences say so, opens a world from the list", async ({
@@ -94,7 +94,7 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await fileMenu(page, /Duplicate world/);
 		await saved(page);
 		await page.getByRole("button", { name: "File" }).click();
-		await page.getByRole("menuitem", { name: "Open world" }).click();
+		await page.getByRole("menuitem", { name: "Recent worlds" }).click();
 		await page.getByRole("menuitem", { name: /All worlds/ }).click();
 		const dialog = page.getByRole("dialog", { name: "All worlds" });
 		await expect(dialog.getByRole("button", { name: "Duplicate" })).toHaveCount(2);

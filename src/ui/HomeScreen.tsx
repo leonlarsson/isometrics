@@ -41,12 +41,8 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 				text: "Nothing from it is kept in this browser.",
 				isProblem: false,
 			};
+		// Nothing to explain: the empty list of worlds says it, without reading like an error.
 		case "noWorlds":
-			return {
-				title: "No worlds in this browser",
-				text: "Start a new one, open a file, or have your AI build one.",
-				isProblem: false,
-			};
 		case "chosen":
 			return null;
 	}
@@ -135,7 +131,7 @@ export const HomeScreen = () => {
 
 					{worlds.length > WORLDS_SHOWN && (
 						<p className={styles.empty}>
-							{`And ${worlds.length - WORLDS_SHOWN} more: File → Open world → All worlds…`}
+							{`And ${worlds.length - WORLDS_SHOWN} more: File → Recent worlds → All worlds…`}
 						</p>
 					)}
 				</section>

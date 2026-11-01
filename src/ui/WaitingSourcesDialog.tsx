@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { allowLink } from "#/editor/linkTrust";
 import { markAddressesAsked, useAskedAddresses, useWaitingSources } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
+import { previewOf } from "#/editor/whatIsOpen";
 
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -24,6 +25,8 @@ export const WaitingSourcesDialog = () => {
 	const waiting = useWaitingSources();
 	const [open, setOpen] = useState(false);
 	const isOnScreen = useEditor((s) => s.openingWorld === null);
+	// A preview from a link has no Data tab: its bar offers Allow (ADR-0121).
+	const isPreview = useEditor((s) => previewOf(s.whatIsOpen) !== null);
 	const addresses = [...new Set(waiting.map((source) => source.url ?? ""))];
 
 	useEffect(() => {
@@ -45,13 +48,13 @@ export const WaitingSourcesDialog = () => {
 		<ConfirmDialog
 			open={open && addresses.length > 0 && isOnScreen}
 			onOpenChange={setOpen}
-			title="This world reads data from outside"
+			title="This world uses external sources"
 			description={
 				<div className={styles.body}>
 					<p>
 						{one
-							? "It reads data from an address this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from it until you allow it: reading tells it you're looking."
-							: `It reads data from ${addresses.length} addresses this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from them until you allow them: reading tells each one you're looking.`}
+							? "It reads data from an external source this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from it until you allow it: reading tells it you're looking."
+							: `It reads data from ${addresses.length} external sources this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from them until you allow them: reading tells each one you're looking.`}
 					</p>
 
 					<ul className={styles.addresses}>
@@ -65,9 +68,7 @@ export const WaitingSourcesDialog = () => {
 					)}
 
 					<p>
-						{one
-							? "Until then the world shows what it last read. You can allow it later in the Data tab, under Sources."
-							: "Until then the world shows what it last read. You can allow them later in the Data tab, under Sources."}
+						{`Until then the world shows what it last read. You can allow ${one ? "it" : "them"} later ${isPreview ? "from the bar at the top" : "in the Data tab, under Sources"}.`}
 					</p>
 				</div>
 			}

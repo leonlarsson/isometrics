@@ -85,8 +85,9 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect(dialog).toBeVisible();
 	});
 
-	test("a shared world that reads from outside is asked about before it's built, with nothing read", async ({
+	test("a shared world with external sources is asked about before it's built, with nothing read", async ({
 		page,
+		browser,
 	}) => {
 		test.slow();
 		let requests = 0;
@@ -104,7 +105,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		expect(response.status()).toBe(201);
 		const { url } = await response.json();
 		await openPage(page, new URL(url).pathname);
-		const asking = page.getByRole("alertdialog", { name: "This world reads data from outside" });
+		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
 		await expect(asking).toContainText("https://example.org/x.json");
 		// Nothing else loaded (ADR-0121): the card behind is the linked world's own; nothing built.
 		expect(await read(page, (s) => s.whatIsOpen.kind)).toBe("link");
@@ -116,6 +117,33 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 			"“Reads outside” wasn't opened",
 		);
 		expect(await page.evaluate(() => window.location.search)).toBe("");
+
+		// Open, in another browser: built, nothing read; the preview's bar names what waits, with Allow.
+		const other = await browser.newContext();
+		const theirs = await other.newPage();
+		let theirRequests = 0;
+		await theirs.route("https://example.org/**", (route) => {
+			theirRequests += 1;
+			return route.fulfill({ json: {} });
+		});
+		await openPage(theirs, new URL(url).pathname);
+		await theirs
+			.getByRole("alertdialog", { name: "This world uses external sources" })
+			.getByRole("button", { name: "Open", exact: true })
+			.click();
+		await expect.poll(() => read(theirs, (s) => s.scene.meta.title)).toBe("Reads outside");
+		await expect(
+			theirs.getByText(/reads an external source not read yet: example\.org/),
+		).toBeVisible();
+		await theirs.waitForTimeout(1500);
+		expect(theirRequests).toBe(0);
+		await theirs.getByRole("button", { name: "Allow it" }).click();
+		await expect.poll(() => theirRequests).toBeGreaterThan(0);
+		await expect(theirs.getByText(/not read yet/)).toHaveCount(0);
+		// The bar can be hidden, until the page reloads.
+		await theirs.getByRole("button", { name: /^Hide this bar/ }).click();
+		await expect(theirs.getByText("A shared world, not kept in this browser")).toHaveCount(0);
+		await other.close();
 
 		// Open and allow: one question, so the address is allowed and not asked about again.
 		await openPage(page, new URL(url).pathname);

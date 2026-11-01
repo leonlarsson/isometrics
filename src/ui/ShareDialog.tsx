@@ -115,7 +115,7 @@ export const ShareDialog = () => {
 						open it and make a copy, until it expires. Links can't be guessed, but they can be
 						passed on: share nothing private.
 						{hasData &&
-							" Its data goes with it: its values, tables, and the addresses it reads (whoever opens it is asked before any are read)."}
+							" Its data goes with it: its values, tables, and the external sources it reads (whoever opens it is asked before any are read)."}
 					</Hint>
 
 					<SelectField

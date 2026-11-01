@@ -18,7 +18,7 @@ import { Menu } from "./Menu";
 import { WipeEverything } from "./WipeEverything";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
-/** How many worlds Open world lists; All worlds… shows the rest. */
+/** How many worlds Recent worlds lists; All worlds… shows the rest. */
 const RECENT_WORLDS = 8;
 
 /**
@@ -83,7 +83,7 @@ export const FileMenu = () => {
 						/>
 					</Menu.Submenu>
 
-					<Menu.Submenu icon="folder" label="Open world">
+					<Menu.Submenu icon="folder" label="Recent worlds">
 						{worlds.length === 0 && (
 							<Menu.Item label="No saved worlds yet" disabled onClick={() => {}} />
 						)}
@@ -109,6 +109,10 @@ export const FileMenu = () => {
 							/>
 						)}
 					</Menu.Submenu>
+
+					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
+
+					<Menu.Separator />
 
 					<Menu.Item
 						icon="copy"
@@ -145,8 +149,6 @@ export const FileMenu = () => {
 					/>
 
 					<Menu.Separator />
-
-					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
 
 					<Menu.Item
 						icon="newTab"

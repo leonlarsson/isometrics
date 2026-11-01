@@ -167,14 +167,15 @@ export interface IFetchedWorld {
 /**
  * A shared world's JSON text, from this site only. A link shared moments ago
  * may not have reached this part of the world yet: it's asked again every few
- * seconds for up to a minute, `onWaiting` told each time, before giving up.
+ * seconds for up to a minute, `onWaiting` told each time (how many tries so far,
+ * and the seconds left), before giving up.
  */
 export const fetchSharedWorld = async (
 	id: string,
-	{ onWaiting }: { onWaiting?: (secondsLeft: number) => void } = {},
+	{ onWaiting }: { onWaiting?: (tries: number, secondsLeft: number) => void } = {},
 ): Promise<IFetchedWorld> => {
 	const started = Date.now();
-	for (;;) {
+	for (let tries = 1; ; tries++) {
 		let response: Response;
 		try {
 			response = await fetch(`/api/user-worlds/${id}`, { cache: "no-store" });
@@ -188,7 +189,7 @@ export const fetchSharedWorld = async (
 		if (response.status !== 404 || secondsLeft <= 0) {
 			throw new ShareError(await errorOf(response));
 		}
-		onWaiting?.(secondsLeft);
+		onWaiting?.(tries, secondsLeft);
 		await new Promise((resolve) => setTimeout(resolve, 4000));
 	}
 };

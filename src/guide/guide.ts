@@ -51,7 +51,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read. Every address starts disabled: when such a world opens, a dialog lists the addresses it reads, to allow now or later in the Data tab under **Sources** (each with **Allow**). Only addresses you read yourself, with **Read a link or API…**, are read without asking; **Addresses this browser reads…** lists every one you've allowed, to forget any.",
+				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read: external sources. Every one starts disabled: when such a world opens, a dialog lists the external sources it reads, to allow now or later in the Data tab under **Sources** (each with **Allow**). Only links you read yourself, with **Read a link or API…**, are read without asking; **External sources this browser reads…** lists every one you've allowed, to forget any.",
 			},
 		],
 	},
@@ -184,7 +184,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "A shared link opens that world on its own, in View mode, and keeps nothing in your browser until you click **Keep a copy** (or **Edit**, which asks first). If it reads data from outside, you're asked before it's built: **Open and allow**, **Open** (nothing is read until you allow it in the Data tab, under Sources) or **Don't open it**. A link shared moments ago can take up to a minute to open everywhere.",
+				text: "A shared link opens that world on its own, in View mode, and keeps nothing in your browser until you click **Keep a copy** (or **Edit**, which asks first). If it uses external sources, you're asked before it's built: **Open and allow**, **Open** (nothing is read until you allow them, from the bar at the top) or **Don't open it**. A link shared moments ago can take up to a minute to open everywhere.",
 			},
 			{
 				kind: "text",

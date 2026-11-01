@@ -25,11 +25,11 @@ export const LinkQuestion = () => {
 		<ConfirmDialog
 			open={step !== null}
 			onOpenChange={(next) => !next && answerLink("decline")}
-			title="This world reads data from outside"
+			title="This world uses external sources"
 			description={
 				<div className={styles.body}>
 					<p>
-						{`“${step?.scene.meta.title ?? ""}” came from a link, and anyone can make one. It reads data from ${one ? "this address" : `these ${addresses.length} addresses`}, and nothing has been read from ${one ? "it" : "them"} yet:`}
+						{`“${step?.scene.meta.title ?? ""}” came from a link, and anyone can make one. It reads data from ${one ? "this external source" : `these ${addresses.length} external sources`}, and nothing has been read from ${one ? "it" : "them"} yet:`}
 					</p>
 
 					<ul className={styles.addresses}>

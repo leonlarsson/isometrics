@@ -6,7 +6,6 @@ import { TEMPLATES } from "#/templates";
 import { allowLink } from "./linkTrust";
 import { markAddressesAsked, outsideAddressesOf } from "./sourceRefresh";
 import { useEditor } from "./store";
-import { notify } from "./toasts";
 import { fetchSharedWorld, ShareError } from "./userWorlds";
 import type { ILinkAsked } from "./whatIsOpen";
 
@@ -80,11 +79,11 @@ const fetchLinked = async (
 		return { scene: template.create(), expiresAt: null };
 	}
 	const { text, expiresAt } = await fetchSharedWorld(link.id, {
-		onWaiting: () =>
+		onWaiting: (tries, secondsLeft) =>
 			useEditor.getState().setWhatIsOpen({
 				kind: "link",
 				link,
-				step: { kind: "fetching", isArriving: true },
+				step: { kind: "fetching", waited: { tries, secondsLeft } },
 			}),
 	});
 	let parsed: unknown;
@@ -113,7 +112,7 @@ const fetchLinked = async (
  */
 export const openLink = async (link: ILinkAsked) => {
 	const { setWhatIsOpen } = useEditor.getState();
-	setWhatIsOpen({ kind: "link", link, step: { kind: "fetching", isArriving: false } });
+	setWhatIsOpen({ kind: "link", link, step: { kind: "fetching", waited: null } });
 	let fetched: { scene: TScene; expiresAt: string | null };
 	try {
 		fetched = await fetchLinked(link);
@@ -154,13 +153,8 @@ export const answerLink = (answer: "allow" | "open" | "decline") => {
 			allowLink(url);
 		}
 	}
+	// With Open, the preview's bar says which wait, with Allow, for as long as they do.
 	openAsPreview(link, step.scene, step.expiresAt, step.addresses);
-	if (answer === "open") {
-		notify(
-			"Its addresses are waiting",
-			"Nothing is read from them until you allow them, in the Data tab under Sources.",
-		);
-	}
 };
 
 /**
