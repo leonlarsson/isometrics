@@ -56,13 +56,47 @@
 	gap: 8px;
 }
 
-/* Buttons that only fit on wider screens; on phones they're in the More menu instead. */
-.wideOnly {
+/*
+ * Buttons that only fit on wider screens fold into the More menu in steps (useNarrowToolbar's
+ * widths): the shading buttons below 1300px, the view buttons (play, re-centre, theme) below
+ * 1100px, the editing and view clusters on phones. More shows once anything is folded.
+ */
+.wideOnly,
+.shadingSlot,
+.viewSlot {
 	display: contents;
 }
 
-.narrowOnly {
+.moreSlot {
 	display: none;
+}
+
+@media (max-width: 1300px) {
+	.shadingSlot {
+		display: none;
+	}
+
+	.moreSlot {
+		display: contents;
+	}
+}
+
+@media (max-width: 1100px) {
+	.viewSlot {
+		display: none;
+	}
+}
+
+/* Narrow desktops: the mode switch shows just its icons (their words stay its names). */
+@media (max-width: 950px) {
+	.modeLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
 }
 
 @media (max-width: 700px) {
@@ -97,9 +131,5 @@
 
 	.actions {
 		gap: 4px;
-	}
-
-	.narrowOnly {
-		display: contents;
 	}
 }

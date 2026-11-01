@@ -29,6 +29,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Preferences (ADR-0062, ADR-0068)", () => {
+	// Wide enough for the toolbar's shading buttons, which fold into More below 1300px.
+	test.use({ viewport: { width: 1440, height: 800 } });
+
 	test("opens from File, keeps a change after a reload, and resets", async ({ page }) => {
 		await appMenu(page, /^Preferences/);
 		await choose(page, "Camera control", "Free, like Blender");

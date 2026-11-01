@@ -1,4 +1,4 @@
-import { act, expect, menuItem, openEditor, read, test, viewCentre } from "./editor";
+import { act, expect, fileMenu, menuItem, openEditor, read, test, viewCentre } from "./editor";
 
 test.describe("the side panes (ADR-0055)", () => {
 	test("each folds to a strip and opens again; Ctrl+Space hides both", async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe("dialogs", () => {
 			return { x: box.x + box.width / 2, y: box.y + box.height / 2, left: box.x };
 		};
 		const openDialog = async () => {
-			await page.getByRole("button", { name: "Render a picture…" }).click();
+			await fileMenu(page, /^Render a picture/);
 			// Measured once it has finished growing in.
 			await dialog.evaluate((element) =>
 				Promise.all(element.getAnimations().map((animation) => animation.finished)),

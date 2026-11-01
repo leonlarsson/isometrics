@@ -17,6 +17,13 @@
 	white-space: nowrap;
 }
 
+/* Narrower desktops: just the logo. */
+@media (max-width: 1100px) {
+	.title {
+		display: none;
+	}
+}
+
 /* Phones: no room for it in the toolbar; its items are at the end of File instead. */
 @media (max-width: 700px) {
 	.menu {

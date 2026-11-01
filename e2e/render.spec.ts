@@ -1,4 +1,4 @@
-import { choose, expect, loadWorld, openEditor, read, test } from "./editor";
+import { choose, expect, fileMenu, loadWorld, openEditor, read, test } from "./editor";
 
 test.describe("Render a picture (ADR-0084)", () => {
 	test("pauses motion, renders the view as a PNG, then puts the view back as it was", async ({
@@ -14,7 +14,7 @@ test.describe("Render a picture (ADR-0084)", () => {
 			],
 		});
 		const before = await page.locator("canvas").first().boundingBox();
-		await page.getByRole("button", { name: "Render a picture…" }).click();
+		await fileMenu(page, /^Render a picture/);
 		// Opening it pauses motion, so the moment stays put.
 		expect(await read(page, (s) => s.playing)).toBe(false);
 		await choose(page, "Size", "The view's size");
