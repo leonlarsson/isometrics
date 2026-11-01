@@ -99,8 +99,8 @@ export const PreviewBar = () => {
 						</ul>
 
 						<p>
-							Not now leaves them waiting; you can forget any later in External sources this browser
-							reads….
+							Not now leaves them waiting. You can forget any you allow later, from the Data tab
+							(External sources this browser reads…).
 						</p>
 					</div>
 				}
