@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
+import { readWorld } from "#/parts/readWorld";
+import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
 /**
@@ -98,12 +100,19 @@ export const shareWorld = async (
 	seconds: number,
 	{ isHandoff = false } = {},
 ): Promise<ISharedLink> => {
+	// The API keeps only worlds that open as written (ADR-0120). The open world was read when it
+	// opened, but an edit can still have written something the schema doesn't take (a bug of ours,
+	// not the person's): repaired here, as opening it would, so sharing is never refused for it.
+	const { scene: asRead, report } = readWorld(structuredClone(scene));
+	if (report) {
+		console.warn(`Repaired before sharing: ${describeRepairs(report)}`, report);
+	}
 	let response: Response;
 	try {
 		response = await fetch(`/api/user-worlds?expiresIn=${seconds}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(scene),
+			body: JSON.stringify(asRead),
 		});
 	} catch {
 		throw new ShareError("The site couldn't be reached: are you offline?");
