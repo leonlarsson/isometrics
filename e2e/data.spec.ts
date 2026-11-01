@@ -1,6 +1,16 @@
 import type { Page } from "@playwright/test";
 
-import { act, expect, fileMenu, labelCard, loadWorld, openEditor, read, test } from "./editor";
+import {
+	act,
+	expect,
+	fileMenu,
+	labelCard,
+	loadWorld,
+	openEditor,
+	openPanel,
+	read,
+	test,
+} from "./editor";
 
 /** A small world with a table of clubs and two towers named after them. */
 const clubsWorld = (page: Page) =>
@@ -251,6 +261,11 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
+		// Folded at first, its title says what waits.
+		await expect(
+			page.getByRole("button", { name: "Sources (12 waiting for your yes)" }),
+		).toBeVisible();
+		await openPanel(page, /^Sources/);
 		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
 		await page.getByRole("searchbox", { name: "Find a source" }).fill("bikes");
 		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
@@ -300,6 +315,7 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		// Not now: it waits in the Data tab, which can allow it later.
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
+		await openPanel(page, /^Sources/);
 		await expect(page.getByText(/this browser hasn't read before, from example.org/)).toBeVisible();
 		expect(requests).toBe(0);
 		await page

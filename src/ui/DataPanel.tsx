@@ -245,6 +245,7 @@ const DashboardSection = () => {
 	return (
 		<Section
 			id="data.dashboard"
+			defaultClosed
 			icon="tag"
 			title="Legend and tiles"
 			keywords="legend chips encoding key tiles dashboard view mode main values"
@@ -439,6 +440,13 @@ export const DataPanel = () => {
 			),
 		}))
 		.filter(({ failed }) => failed.length > 0);
+	const failedCount = failures.reduce((sum, { failed }) => sum + failed.length, 0);
+	const sourcesTitle = [
+		waiting.length > 0 && `${waiting.length} waiting for your yes`,
+		failedCount > 0 && `${failedCount} couldn't be read`,
+	]
+		.filter(Boolean)
+		.join(", ");
 	const hasArrived = useHasArrived();
 	const [openTableKey, setOpenTableKey] = useState<string | null>(null);
 	const openTable = tables.find((table) => table.key === openTableKey);
@@ -520,6 +528,7 @@ export const DataPanel = () => {
 
 			<Section
 				id="data.values"
+				defaultClosed
 				icon="chart"
 				title="Values"
 				keywords="data numbers"
@@ -532,7 +541,13 @@ export const DataPanel = () => {
 				<ValueList values={values} sources={sources} />
 			</Section>
 
-			<Section id="data.tables" icon="list" title="Tables" keywords="data rows columns table">
+			<Section
+				id="data.tables"
+				defaultClosed
+				icon="list"
+				title="Tables"
+				keywords="data rows columns table"
+			>
 				{tables.length >= SEARCHABLE_FROM && (
 					<SearchField
 						label="Find a table"
@@ -577,8 +592,10 @@ export const DataPanel = () => {
 
 			<Section
 				id="data.sources"
+				defaultClosed
 				icon="file"
-				title="Sources"
+				// Folded, the title still says what waits on the viewer (said in words, ADR-0089).
+				title={sourcesTitle ? `Sources (${sourcesTitle})` : "Sources"}
 				keywords="data import read spreadsheet csv excel api link"
 			>
 				{waiting.length > 0 && (
