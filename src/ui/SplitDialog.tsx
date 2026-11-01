@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 
 import { IconButton } from "./Button";
 import { useDialogDrag } from "./useDialogDrag";
@@ -49,13 +49,15 @@ export const SplitDialog = ({
 }: ISplitDialogProps) => {
 	const narrow = useNarrowLayout();
 	const dragHandle = useDialogDrag();
+	// Focus starts on the window itself, so no button in its title bar opens with a focus ring.
+	const popup = useRef<HTMLDivElement>(null);
 
 	return (
 		<BaseDialog.Root open={open} onOpenChange={onOpenChange}>
 			<BaseDialog.Portal>
 				<BaseDialog.Backdrop className={styles.backdrop} />
 
-				<BaseDialog.Popup className={styles.popup}>
+				<BaseDialog.Popup ref={popup} className={styles.popup} initialFocus={popup}>
 					<header className={styles.header} {...dragHandle}>
 						{narrow && showsPage && onBack && (
 							<IconButton icon="chevronLeft" label={backLabel} onClick={onBack} />

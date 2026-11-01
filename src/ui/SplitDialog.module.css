@@ -29,6 +29,8 @@
 	color: var(--text);
 	box-shadow: var(--shadow-panel);
 	overflow: hidden;
+	/* Focus starts on the window itself: no ring around all of it. */
+	outline: none;
 	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px)));
 	transition:
 		transform 120ms ease-out,

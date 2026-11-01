@@ -313,7 +313,9 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		// Not now: it waits in the Data tab, which can allow it later.
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		await expect(page.getByText(/reads data from example.org, which this browser hasn't read before/)).toBeVisible();
+		await expect(
+			page.getByText(/reads data from example.org, which this browser hasn't read before/),
+		).toBeVisible();
 		expect(requests).toBe(0);
 		await page
 			.getByRole("region", { name: "Counts" })

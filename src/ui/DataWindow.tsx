@@ -15,6 +15,7 @@ import { DataSourcePage } from "./DataSourcePage";
 import { DataTablePage } from "./DataTablePage";
 import { DataValuePage } from "./DataValuePage";
 import { Hint, SearchField, Section } from "./fields";
+import { Icon } from "./Icon";
 import { ReadLinkDialog } from "./ReadLinkDialog";
 import { type ISpreadsheetReading, ReadSpreadsheetDialog } from "./ReadSpreadsheetDialog";
 import { ShowValueInWorld } from "./ShowInWorld";
@@ -60,6 +61,10 @@ const pickSpreadsheet = async (source?: TDataSource): Promise<ISpreadsheetReadin
 		return null;
 	}
 };
+
+/** "3 values", "1 table"; nothing for none. */
+const counted = (count: number, thing: string) =>
+	count === 0 ? null : `${count.toLocaleString()} ${thing}${count === 1 ? "" : "s"}`;
 
 /** The world's values and tables by key, to find what a read added. */
 const keysNow = () => {
@@ -202,13 +207,26 @@ export const DataWindow = () => {
 	) : at?.kind === "add" || isFirst ? (
 		addPage
 	) : (
-		<>
-			<Hint>
-				Pick a value or a table on the left to see it and what shows it, or add more data.
-			</Hint>
+		// The start, with data: what the world has, and what to do (Add data is in the title bar).
+		<div className={styles.start}>
+			<span className={styles.startIcon}>
+				<Icon name="chart" size={22} />
+			</span>
 
-			{addPage}
-		</>
+			<h3 className={styles.stepTitle}>
+				{[
+					counted(data.values.length, "value"),
+					counted(data.tables.length, "table"),
+					counted(data.sources.length, "source"),
+				]
+					.filter(Boolean)
+					.join(", ")}
+			</h3>
+
+			<p className={styles.pageAbout}>
+				Pick one on the left to see it and what shows it in the world, or Add data for more.
+			</p>
+		</div>
 	);
 	// Phones show one column: the list at the start, else what's picked.
 	const showsPage = !narrow || (at !== null && at.kind !== "start") || isFirst;
