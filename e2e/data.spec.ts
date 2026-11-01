@@ -261,13 +261,15 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		// Each source is a heading named by its site, its Allow on it.
-		const bikes = page.getByRole("region", { name: "bikes.example.org" });
+		// Each source is a row named by its site, saying it waits, with its Allow.
+		const sourceRow = (name: string) =>
+			page.getByRole("region", { name: "Sources" }).getByRole("listitem").filter({ hasText: name });
+		const bikes = sourceRow("bikes.example.org");
 		await expect(bikes).toContainText("waiting for your yes");
 		await expect(bikes.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
 		await page.getByRole("searchbox", { name: "Find data" }).fill("bikes");
 		await expect(bikes).toBeVisible();
-		await expect(page.getByRole("region", { name: "buses.example.org" })).toHaveCount(0);
+		await expect(sourceRow("buses.example.org")).toHaveCount(0);
 		await page.getByRole("searchbox", { name: "Find data" }).fill("nothing like it");
 		await expect(page.getByText("Nothing matches “nothing like it”.")).toBeVisible();
 	});
@@ -318,7 +320,9 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		).toBeVisible();
 		expect(requests).toBe(0);
 		await page
-			.getByRole("region", { name: "Counts" })
+			.getByRole("region", { name: "Sources" })
+			.getByRole("listitem")
+			.filter({ hasText: "Counts" })
 			.getByRole("button", { name: "Allow", exact: true })
 			.click();
 		await expect.poll(() => requests).toBe(1);
@@ -461,7 +465,13 @@ test.describe("links and APIs (ADR-0113)", () => {
 		);
 		await expect(labelCard(page, /Messages/)).toContainText("1,692");
 		sentToday = 1750;
-		await dataWindow(page).getByRole("button", { name: "Source details" }).click();
+		await dataWindow(page)
+			.getByRole("region", { name: "Sources" })
+			.getByRole("listitem")
+			.first()
+			.getByRole("button")
+			.first()
+			.click();
 		await dataWindow(page).getByRole("button", { name: "Read it now" }).click();
 		await expect(labelCard(page, /Messages/)).toContainText("1,750");
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1692);

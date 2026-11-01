@@ -1,18 +1,67 @@
-/* The world's data as one list: a card per source (the kit's Section), its rows inside. */
+/* The world's data by kind: chips, then a card per kind (the kit's Section), a row per thing. */
 
-/* How a source is doing, at the top of its card: an icon and words. */
-.status {
+/* The chips that pick a kind, inset like the cards under them. */
+.kinds {
+	margin: 0 6px 2px;
+}
+
+/* A row's first line: its name, then what it holds on the right. */
+.line {
 	display: flex;
 	align-items: center;
-	gap: 5px;
-	margin: 0;
+	gap: 8px;
+	min-width: 0;
+}
+
+.name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.value {
+	flex: none;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.rows {
+	flex: none;
 	font-size: 12px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Where a value or table comes from, under its name. */
+.origin {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.originName {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* A source's kind as an icon; its tooltip says it in words. */
+.kindIcon {
+	display: grid;
+	place-items: center;
+	flex: none;
 	color: var(--text-muted);
 }
 
-/* Allow sits at the end of the line. */
-.allow {
-	margin-left: auto;
+/* How a source is doing, under its name: an icon and words. */
+.status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .status[data-tone="failed"] {
@@ -30,23 +79,16 @@
 	cursor: help;
 }
 
-/* A row ends in its sparkline and value, or "table · N rows", and a chevron: it opens. */
-.meta {
-	display: inline-flex;
+/* Allow, at the end of a waiting source's row. */
+.allow {
+	display: flex;
 	align-items: center;
-	gap: 8px;
-	font-variant-numeric: tabular-nums;
+	padding-right: 4px;
+}
+
+/* A search that found nothing, inset like the cards. */
+.none {
+	margin: 6px 12px;
+	font-size: 12px;
 	color: var(--text-muted);
-}
-
-.value {
-	color: var(--text);
-	font-weight: 600;
-}
-
-.tag {
-	padding: 1px 7px;
-	border-radius: 999px;
-	background: var(--surface-sunken);
-	font-size: 11px;
 }

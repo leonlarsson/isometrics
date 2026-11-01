@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { dataGroupsOf, hasAnyData } from "#/editor/dataList";
+import { hasAnyData } from "#/editor/dataList";
 import { LINK_FAILURES } from "#/editor/readLink";
 import { keepArrivedValues, sitesOf } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
@@ -15,8 +15,8 @@ import { useSourceStatuses } from "./useSourceStatuses";
 import styles from "./DataPanel.module.css";
 
 /**
- * The Data tab (ADR-0123): the world's data at a glance, as one list grouped
- * by where it came from, with what needs an answer on top (values that
+ * The Data tab (ADR-0123): the world's data at a glance, by kind (values,
+ * tables, sources), with what needs an answer on top (values that
  * arrived, sources waiting for a yes, sources that couldn't be read). A row
  * opens it in the Data window, where the work is done; so does Add data.
  */
@@ -28,7 +28,6 @@ export const DataPanel = () => {
 	const hasArrived = useHasArrived();
 	const [query, setQuery] = useState("");
 	const [isReviewingWaiting, setReviewingWaiting] = useState(false);
-	const groups = dataGroupsOf(data, query);
 	const isFirst = !hasAnyData(data);
 
 	return (
@@ -81,7 +80,7 @@ export const DataPanel = () => {
 					}
 				>
 					<Hint>
-						{`This world reads data from ${sitesOf(waiting)}, which this browser hasn't read before. A world can come from anyone, so nothing is read until you allow ${waiting.length === 1 ? "it (Allow, on its card)" : "them (Allow, on each card, or all at once)"}.`}
+						{`This world reads data from ${sitesOf(waiting)}, which this browser hasn't read before. A world can come from anyone, so nothing is read until you allow ${waiting.length === 1 ? "it (Allow, on its row under Sources)" : "them (Allow, on each row under Sources, or all at once)"}.`}
 					</Hint>
 
 					{waitingAddresses.length > 1 && (
@@ -122,18 +121,14 @@ export const DataPanel = () => {
 					</div>
 				</Section>
 			) : (
-				<DataList groups={groups} at={at} onOpen={openDataWindow} />
-			)}
-
-			{!isFirst && groups.length === 0 && (
-				<p className={styles.none}>{`Nothing matches “${query.trim()}”.`}</p>
+				<DataList query={query} at={at} onOpen={openDataWindow} />
 			)}
 
 			<AllowSourcesDialog
 				open={isReviewingWaiting && waitingAddresses.length > 1}
 				onOpenChange={setReviewingWaiting}
 				addresses={waitingAddresses}
-				later="Not now leaves them waiting: each can still be allowed on its own card, and any you allow forgotten later (External sources this browser reads…, on a source's details)."
+				later="Not now leaves them waiting: each can still be allowed on its own row under Sources, and any you allow forgotten later (External sources this browser reads…, on a source's page)."
 			/>
 		</>
 	);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { WorldDataSchema } from "#/scene/schema";
 
-import { dataGroupsOf, originOf, sourceNameOf } from "./dataList";
+import { dataFoundIn, originOf, sourceNameOf } from "./dataList";
 
 const data = WorldDataSchema.parse({
 	sources: [
@@ -26,25 +26,22 @@ const data = WorldDataSchema.parse({
 	],
 });
 
-describe("the world's data as one list", () => {
-	it("groups by source, then typed by hand, then a source that's gone", () => {
-		const groups = dataGroupsOf(data);
-		expect(groups.map((group) => [group.title, group.values.length, group.tables.length])).toEqual([
-			["api.example.org", 1, 1],
-			["Weather", 0, 0],
-			["Typed by me", 1, 0],
-			["From a source that's gone", 1, 0],
-		]);
+describe("the world's data by kind", () => {
+	it("keeps every kind without a search", () => {
+		const found = dataFoundIn(data);
+		expect([found.values.length, found.tables.length, found.sources.length]).toEqual([3, 1, 2]);
 	});
 
-	it("searches by name and key, and keeps all of a source that matches by name", () => {
-		expect(dataGroupsOf(data, "goal").map((group) => group.title)).toEqual(["Typed by me"]);
-		expect(dataGroupsOf(data, "shop").map((group) => group.tables.length)).toEqual([1]);
-		const bySite = dataGroupsOf(data, "example.org");
-		expect(bySite.map((group) => [group.title, group.values.length + group.tables.length])).toEqual(
-			[["api.example.org", 2]],
-		);
-		expect(dataGroupsOf(data, "nothing like it")).toEqual([]);
+	it("searches by name and key, and by the source things come from", () => {
+		const keys = (found: ReturnType<typeof dataFoundIn>) => [
+			found.values.map((value) => value.key),
+			found.tables.map((table) => table.key),
+			found.sources.map((source) => source.id),
+		];
+		expect(keys(dataFoundIn(data, "goal"))).toEqual([["goal"], [], []]);
+		expect(keys(dataFoundIn(data, "shop"))).toEqual([[], ["shops"], []]);
+		expect(keys(dataFoundIn(data, "example.org"))).toEqual([["visitors"], ["shops"], ["s"]]);
+		expect(keys(dataFoundIn(data, "nothing like it"))).toEqual([[], [], []]);
 	});
 
 	it("names sources and origins in words", () => {

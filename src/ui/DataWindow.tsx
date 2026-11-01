@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { dataGroupsOf, hasAnyData, originOf } from "#/editor/dataList";
+import { hasAnyData, originOf } from "#/editor/dataList";
 import { pickFile } from "#/editor/fileActions";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
 import { newId, type TDataWindowAt, useEditor } from "#/editor/store";
@@ -87,8 +87,8 @@ const addedSince = (before: ReturnType<typeof keysNow>): TDataWindowAt | null =>
 };
 
 /**
- * The Data window (ADR-0123), like Preferences: the world's data as one list
- * on the left (by where it came from, with a search), and what's picked on the
+ * The Data window (ADR-0123), like Preferences: the world's data on the left
+ * (by kind, with a search and chips), and what's picked on the
  * right: a value, a table, a source, or Add data. Adding data ends at Show it
  * in the world for what was added. On phones it fills the screen: the list,
  * then what's picked, with a way back.
@@ -106,7 +106,6 @@ export const DataWindow = () => {
 	const [before, setBefore] = useState<ReturnType<typeof keysNow> | null>(null);
 	const [newKey, setNewKey] = useState<string | null>(null);
 	const open = at !== null;
-	const groups = dataGroupsOf(data, query);
 	const isFirst = !hasAnyData(data);
 
 	const go = (next: TDataWindowAt) => {
@@ -248,16 +247,16 @@ export const DataWindow = () => {
 						<Hint>Nothing added yet.</Hint>
 					) : (
 						<>
-							<SearchField
-								label="Find data"
-								placeholder="Find data…"
-								value={query}
-								onChange={setQuery}
-							/>
+							<div className={styles.search}>
+								<SearchField
+									label="Find data"
+									placeholder="Find data…"
+									value={query}
+									onChange={setQuery}
+								/>
+							</div>
 
-							<DataList groups={groups} at={at} onOpen={go} />
-
-							{groups.length === 0 && <Hint>{`Nothing matches “${query.trim()}”.`}</Hint>}
+							<DataList query={query} at={at} onOpen={go} />
 						</>
 					)
 				}

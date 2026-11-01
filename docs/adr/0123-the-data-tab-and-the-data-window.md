@@ -3,7 +3,7 @@ status: proposed
 date: 2026-11-01
 ---
 
-# 0123. The Data tab and the Data window: one list by where data came from, and every path ends in the world
+# 0123. The Data tab and the Data window: lists by kind, and every path ends in the world
 
 ## Context and problem statement
 
@@ -26,7 +26,7 @@ The Data tab had four panels (Values, Tables, Legend and tiles, Sources) that ha
 
 Chosen option: **3**.
 
-- **One list** (`editor/dataList.ts`, `ui/DataList.tsx`), shared by the tab and the window: a heading for each source (its name, how it's doing in words with an icon, **Allow** while it waits, and **Source details**), the values and tables it gave under it, then **Typed by me**, then anything whose source is gone. A heading is a label, not a button: only rows (with a chevron) and **Source details** open things. One search finds values and tables by name or key, and all of a source by its name, site or file.
+- **Lists by kind** (`editor/dataList.ts`, `ui/DataList.tsx`), shared by the tab and the window: chips (**All**, **Values**, **Tables**, **Sources**, with counts), then a card for each kind. A value's row has its name, its past values as a line and its value, with where it comes from under it (its source's name, "· waiting for your yes" while that waits, or "typed by me"); a table's, its name and rows; a source's, an icon for its kind (a tooltip says it in words: a link or API, a spreadsheet file, a snapshot), its name, how it's doing in words, and **Allow** while it waits. Every row opens its page in the Data window, and nothing else does. One search finds values and tables by name or key or by their source's name, site or file, and sources by theirs. (A first try grouped the list by source, a card each; it read as a list of sources when people look for their values, so it's by kind.)
 - **The Data tab** (`ui/DataPanel.tsx`) is that list with a search, **Add data** and a button for the window, under what needs an answer (values that arrived, sources waiting for a yes, sources that couldn't be read, explained once per way of failing). An empty world's tab says what data is for.
 - **The Data window** (`ui/DataWindow.tsx`, the store's `dataWindow`: where it's open, runtime only): the list on the left, what's picked on the right: a value (its number, **Show it in the world**, then its page as before), a table (what it is in a sentence, **Show it in the world**, its rows and who follows each), a source (what it is, Allow, reading it again, what it gives, its name, removing it), or **Add data**. On phones it fills the screen, one column at a time.
 - **Add data** (`ui/AddDataPage.tsx`): three cards, a spreadsheet file, a link or API, or a number typed by hand; for an empty world, first what data is for, three examples and **Open an example world…**. The reading dialogs are the same as before; when one closes, the window opens at what it added, with **Next: show it in the world**.
@@ -36,7 +36,7 @@ Chosen option: **3**.
 
 ### Consequences
 
-- Good: "where does this come from" is answered by where it sits; "what is this for" by the empty tab and by every value's and table's next step.
+- Good: "where does this come from" is answered on every row; "what is this for" by the empty tab and by every value's and table's next step.
 - Good: a table's rows and a value's chart have room.
 - Bad: editing a value now opens a window over the view, where the tab used to show its page in place.
 - Bad: the window repeats the list the tab shows (one component, so they can't drift apart).

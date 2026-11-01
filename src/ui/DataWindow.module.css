@@ -135,3 +135,8 @@
 	background: var(--accent-soft);
 	color: var(--accent);
 }
+
+/* The list's search, inset like the cards under it so both are as wide. */
+.search {
+	margin: 0 6px;
+}

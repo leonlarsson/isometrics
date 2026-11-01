@@ -1,9 +1,8 @@
 import type { TDataSource, TDataSourceKind, TDataTable, TDataValue, TScene } from "#/scene/schema";
 
 /**
- * The world's data as one list (ADR-0123): grouped by where it came from, a
- * group per source with the values and tables it gave, then what was typed by
- * hand, then anything whose source is gone. Shared by the Data tab and the
+ * The world's data as lists by kind (ADR-0123): its values, its tables and its
+ * sources, each row saying where it comes from. Shared by the Data tab and the
  * Data window, so both say the same.
  */
 
@@ -46,15 +45,18 @@ export const originOf = (source: TDataValue["source"], sources: readonly TDataSo
 	return source.path ? `from ${name}, ${source.path.replace("!", " › ")}` : `from ${name}`;
 };
 
-export interface IDataGroup {
-	/** Its id in the list: a source's id, "typed" or "gone". */
-	id: string;
-	title: string;
-	/** The source it shows; null for what was typed by hand, or whose source is gone. */
-	source: TDataSource | null;
-	values: TDataValue[];
-	tables: TDataTable[];
-}
+/** Which kind of data the list shows: everything, or only values, tables or sources. */
+export type TDataKind = "all" | "values" | "tables" | "sources";
+
+/** What a source is, in a few words (its kind as people know it). */
+export const sourceKindOf = (source: TDataSource) =>
+	source.kind === "file"
+		? "A spreadsheet file"
+		: isSnapshot(source)
+			? "A snapshot"
+			: source.kind === "push"
+				? "Pushed from outside"
+				: "A link or API";
 
 /** Whether a text has every word of a search in it, ignoring case. */
 const hasWords = (text: string, query: string) => {
@@ -63,61 +65,35 @@ const hasWords = (text: string, query: string) => {
 	return words.every((word) => lower.includes(word));
 };
 
+export interface IDataFound {
+	values: TDataValue[];
+	tables: TDataTable[];
+	sources: TDataSource[];
+}
+
 /**
- * The world's data in groups: a group per source (even one that has given
- * nothing yet, like one waiting for a yes), then "Typed by me", then "From a
- * source that's gone", the last two only when they hold something. A search
- * keeps what matches by name or key, and all of a source that matches by its
- * name, site or file.
+ * The world's data by kind (ADR-0123): its values, its tables and its
+ * sources, each a list of its own. A search keeps values and tables that match
+ * by name or key, or by the name, site or file of the source they come from,
+ * and sources that match by theirs.
  */
-export const dataGroupsOf = (data: TScene["data"], query = ""): IDataGroup[] => {
-	const searching = query.trim() !== "";
-	const known = new Set(data.sources.map((source) => source.id));
-	const itemMatches = (item: TDataValue | TDataTable) =>
-		!searching || hasWords(`${item.name} ${item.key}`, query);
-	const groups: IDataGroup[] = data.sources
-		.map((source): IDataGroup | null => {
-			const sourceMatches =
-				searching &&
-				hasWords(`${sourceNameOf(source)} ${source.url ?? ""} ${source.fileName ?? ""}`, query);
-			const mine = <T extends TDataValue | TDataTable>(items: readonly T[]) =>
-				items.filter(
-					(item) => item.source?.sourceId === source.id && (sourceMatches || itemMatches(item)),
-				);
-			const group: IDataGroup = {
-				id: source.id,
-				title: sourceNameOf(source),
-				source,
-				values: mine(data.values),
-				tables: mine(data.tables),
-			};
-			return !searching || sourceMatches || group.values.length + group.tables.length > 0
-				? group
-				: null;
-		})
-		.filter((group): group is IDataGroup => group !== null);
-	const without = <T extends TDataValue | TDataTable>(items: readonly T[], gone: boolean) =>
-		items.filter(
-			(item) =>
-				(gone ? item.source !== null && !known.has(item.source.sourceId) : item.source === null) &&
-				itemMatches(item),
-		);
-	for (const [id, title, gone] of [
-		["typed", "Typed by me", false],
-		["gone", "From a source that's gone", true],
-	] as const) {
-		const group: IDataGroup = {
-			id,
-			title,
-			source: null,
-			values: without(data.values, gone),
-			tables: without(data.tables, gone),
-		};
-		if (group.values.length + group.tables.length > 0) {
-			groups.push(group);
-		}
+export const dataFoundIn = (data: TScene["data"], query = ""): IDataFound => {
+	if (query.trim() === "") {
+		return { values: [...data.values], tables: [...data.tables], sources: [...data.sources] };
 	}
-	return groups;
+	const sourceText = (source: TDataSource) =>
+		`${sourceNameOf(source)} ${source.url ?? ""} ${source.fileName ?? ""}`;
+	const matchingSources = new Set(
+		data.sources.filter((source) => hasWords(sourceText(source), query)).map((source) => source.id),
+	);
+	const itemMatches = (item: TDataValue | TDataTable) =>
+		hasWords(`${item.name} ${item.key}`, query) ||
+		(item.source !== null && matchingSources.has(item.source.sourceId));
+	return {
+		values: data.values.filter(itemMatches),
+		tables: data.tables.filter(itemMatches),
+		sources: data.sources.filter((source) => matchingSources.has(source.id)),
+	};
 };
 
 /** Whether the world has any data at all: a source, a value or a table. */
