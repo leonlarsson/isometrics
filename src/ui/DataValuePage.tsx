@@ -11,7 +11,7 @@ import {
 	type TDataValue,
 } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DataTableDialog } from "./DataTableDialog";
 import {
@@ -25,8 +25,6 @@ import {
 } from "./fields";
 import { List, ListItem } from "./List";
 import { formatWhen, HistoryChart, numericPoints } from "./Sparkline";
-
-import styles from "./DataPanel.module.css";
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -308,17 +306,17 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 								: `Read ${origin}: that source is gone, so it stays as last read.`}
 						</Hint>
 
-						<div className={styles.buttons}>
+						<ButtonGroup>
 							{source?.kind === "file" && (
-								<Button icon="upload" onClick={() => onReadAgain(source)}>
+								<Button size="sm" icon="upload" onClick={() => onReadAgain(source)}>
 									Read it again…
 								</Button>
 							)}
 
-							<Button onClick={() => upsertData({ ...value, source: null })}>
+							<Button size="sm" onClick={() => upsertData({ ...value, source: null })}>
 								Type it by hand instead
 							</Button>
-						</div>
+						</ButtonGroup>
 					</>
 				) : (
 					<Hint>Typed by hand. Add data reads values from a spreadsheet or a link instead.</Hint>
@@ -339,13 +337,15 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					<>
 						<Hint>{pastInWords}</Hint>
 
-						<div className={styles.buttons}>
-							<Button onClick={() => setShowsPast(true)}>Show them all</Button>
+						<ButtonGroup>
+							<Button size="sm" onClick={() => setShowsPast(true)}>
+								Show them all
+							</Button>
 
-							<Button onClick={() => upsertData({ ...value, history: [] })}>
+							<Button size="sm" onClick={() => upsertData({ ...value, history: [] })}>
 								Clear past values
 							</Button>
-						</div>
+						</ButtonGroup>
 					</>
 				) : (
 					<Hint>
@@ -377,15 +377,16 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					<Hint>Nothing shows or follows it yet: Show it in the world, above.</Hint>
 				)}
 
-				<div className={styles.buttons}>
+				<ButtonGroup>
 					<Button
+						size="sm"
 						variant="danger"
 						icon="trash"
 						onClick={() => (uses.length > 0 ? setConfirmsRemove(true) : removeData(value.key))}
 					>
 						{uses.length > 0 ? `Remove value (unbinds ${uses.length})` : "Remove value"}
 					</Button>
-				</div>
+				</ButtonGroup>
 			</Section>
 
 			<ConfirmDialog
