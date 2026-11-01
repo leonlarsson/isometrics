@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
-import { expect, fileMenu, openEditor, read, reopened, saved, test } from "./editor";
+import { expect, fileMenu, openEditor, openPage, read, reopened, saved, test } from "./editor";
 
 /** How many worlds this browser keeps. */
 const storedWorlds = (page: Page) =>
@@ -58,6 +58,32 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await fileMenu(page, /Delete world/);
 		await page.getByRole("button", { name: "Delete", exact: true }).click();
 		await expect.poll(() => storedWorlds(page)).toBe(1);
+
+		// Deleting the last one leaves no world open: the home screen (ADR-0121), on reload too.
+		await fileMenu(page, /Delete world/);
+		await page.getByRole("button", { name: "Delete", exact: true }).click();
+		const home = page.getByRole("main", { name: "Home" });
+		await expect(home).toContainText("No worlds in this browser");
+		expect(await storedWorlds(page)).toBe(0);
+		await openPage(page, "/");
+		await expect(home).toContainText("No worlds in this browser");
+	});
+
+	test("the home screen on start, when Preferences say so, opens a world from the list", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await page.getByLabel("Title").first().fill("Mine");
+		await saved(page);
+		await page.evaluate(() =>
+			localStorage.setItem("isometrics:preferences", JSON.stringify({ startWith: "home" })),
+		);
+		await openPage(page, "/");
+		const home = page.getByRole("main", { name: "Home" });
+		await expect(page.locator("canvas")).toHaveCount(0);
+		await home.getByRole("button", { name: /^Mine/ }).click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Mine");
+		await expect(page.locator("canvas")).toHaveCount(1);
 	});
 
 	test("All worlds lists them, with a search", async ({ page }) => {

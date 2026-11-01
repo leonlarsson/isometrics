@@ -32,7 +32,7 @@ const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"viewpointsInWorld",
 	"compositionGrid",
 ];
-const EDITING_PAGE: (keyof TPreferences)[] = ["namesOfCopies"];
+const EDITING_PAGE: (keyof TPreferences)[] = ["startWith", "namesOfCopies"];
 
 /** A page's reset: back to the defaults, offered once any of them changed. */
 const pageReset = (preferences: TPreferences, keys: (keyof TPreferences)[]) => ({
@@ -307,6 +307,32 @@ export const PreferencesDialog = () => {
 			label: "Editing",
 			icon: "edit",
 			groups: [
+				{
+					title: "Starting",
+					rows: [
+						{
+							id: "startWith",
+							keywords: "start open home screen last world launch reopen begin",
+							field: (
+								<SelectField<TPreferences["startWith"]>
+									label="When the app opens"
+									value={preferences.startWith}
+									options={[
+										{ value: "lastWorld", label: "Open the last world" },
+										{ value: "home", label: "Show the home screen" },
+									]}
+									onChange={(v) => setPreference("startWith", v)}
+									inherit={preferenceDefault(preferences, "startWith", "open the last world")}
+									hint={
+										preferences.startWith === "lastWorld"
+											? "The world you had open last time opens again."
+											: "Start on the home screen: your worlds, a new one, a file or your AI, to pick from."
+									}
+								/>
+							),
+						},
+					],
+				},
 				{
 					title: "Copies",
 					rows: [

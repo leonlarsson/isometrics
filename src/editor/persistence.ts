@@ -9,6 +9,7 @@ import type { TScene } from "#/scene/schema";
 import { adoptUnsavedView, forgetView, UNSAVED_WORLD } from "./cameraMemory";
 import type { useEditor } from "./store";
 import { notify } from "./toasts";
+import { keepsOpenWorld } from "./whatIsOpen";
 
 /**
  * Local-first persistence: worlds autosave to localStorage and can be
@@ -320,6 +321,16 @@ export const loadStoredScene = (): TStoredSceneResult => {
 	return result;
 };
 
+/**
+ * Whether this browser had worlds and has none left (the last one was
+ * deleted): the list exists but is empty. A first visit has no list yet, and
+ * opens the starter world instead; so does a browser after Wipe everything.
+ */
+export const hasNoWorldsLeft = () =>
+	getItem(WORLD_INDEX_KEY) !== null &&
+	getItem(SINGLE_SAVE_KEY) === null &&
+	listWorlds().length === 0;
+
 /** Read a stored world without opening it (e.g. to copy it). */
 export const readStoredWorld = (id: string): TStoredSceneResult => {
 	const raw = getItem(worldKey(id));
@@ -562,11 +573,15 @@ export const resetBrowserSettings = (): boolean => {
 	}
 };
 
-/** Save the scene shortly after every change. Returns an unsubscribe function. */
+/**
+ * Save the scene shortly after every change, while the open world is one's
+ * own: never a world from a link that isn't kept yet (ADR-0121). Returns an
+ * unsubscribe function.
+ */
 export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const unsubscribe = store.subscribe((state, previous) => {
-		if (state.scene === previous.scene) {
+		if (state.scene === previous.scene || !keepsOpenWorld(state.whatIsOpen)) {
 			return;
 		}
 		setSaveStatus(wiped ? { state: "failed", reason: "wiped" } : { state: "saving" });

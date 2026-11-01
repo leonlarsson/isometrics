@@ -74,6 +74,18 @@ export const openEditor = async (page: Page, path = "/") => {
 	await page.waitForTimeout(1500);
 };
 
+/**
+ * Open the editor at an address that may not open a world straight away (ADR-0121): a link
+ * that's asked about first, or the home screen. Waits only for the editor to start.
+ */
+export const openPage = async (page: Page, path: string) => {
+	await page.goto(path);
+	await page.waitForFunction(() => Boolean(globalThis.__editorStore));
+	await expect
+		.poll(() => read(page, (s) => s.whatIsOpen.kind), { timeout: 20_000 })
+		.not.toBe("starting");
+};
+
 /** Until the loading screen has gone: the world is ready to look at (ADR-0100). */
 export const worldShown = (page: Page) =>
 	page.locator("[data-loading-screen]").waitFor({ state: "detached", timeout: 20_000 });

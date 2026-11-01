@@ -1,0 +1,95 @@
+/* No world open: fills the stage's place, its column scrolling on its own. */
+.home {
+	grid-column: 1 / -1;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 48px 16px;
+	background: var(--bg);
+}
+
+.column {
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+	max-width: 560px;
+	margin: 0 auto;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.logo {
+	flex: none;
+	width: 34px;
+	height: 34px;
+	border-radius: 10px;
+	background: linear-gradient(135deg, var(--accent) 50%, var(--brand-blue) 50%);
+	transform: rotate(45deg) scale(0.85);
+}
+
+.title {
+	margin: 0;
+	font-size: 28px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: var(--text);
+}
+
+.notice {
+	display: flex;
+	gap: 12px;
+	padding: 14px 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text-muted);
+}
+
+.notice[data-problem] {
+	border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+	color: var(--danger);
+}
+
+.noticeTitle {
+	margin: 0;
+	font-weight: 700;
+	color: var(--text);
+}
+
+.noticeText {
+	margin: 2px 0 0;
+	font-size: 13px;
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.heading {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.empty {
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}

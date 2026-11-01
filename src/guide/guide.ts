@@ -184,7 +184,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "Opening a shared link makes a copy next to your worlds. If it reads data from outside, you're told which addresses before it's opened, and nothing is read from them until you allow it. A link shared moments ago can take up to a minute to open everywhere.",
+				text: "A shared link opens that world on its own, in View mode, and keeps nothing in your browser until you click **Keep a copy** (or **Edit**, which asks first). If it reads data from outside, you're asked before it's built: **Open and allow**, **Open** (nothing is read until you allow it in the Data tab, under Sources) or **Don't open it**. A link shared moments ago can take up to a minute to open everywhere.",
 			},
 			{
 				kind: "text",

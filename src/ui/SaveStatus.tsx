@@ -2,6 +2,7 @@ import { saveWorldFile } from "#/editor/fileActions";
 import { type TSaveStatus, useSaveStatus } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { useSharedLinks } from "#/editor/userWorlds";
+import { keepsOpenWorld } from "#/editor/whatIsOpen";
 
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
@@ -47,9 +48,11 @@ const describe = (status: TSaveStatus): { label: string; detail: string } => {
  */
 export const SaveStatus = () => {
 	const mode = useEditor((s) => s.mode);
+	// Only a world of one's own is saved: not a preview from a link, not the home screen (ADR-0121).
+	const ownsWorld = useEditor((s) => keepsOpenWorld(s.whatIsOpen));
 	const status = useSaveStatus();
 	const linkCount = useSharedLinks((s) => s.links.length);
-	if (mode !== "edit") {
+	if (mode !== "edit" || !ownsWorld) {
 		return null;
 	}
 	const { label, detail } = describe(status);

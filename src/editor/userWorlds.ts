@@ -134,6 +134,12 @@ export const sharedWorldIdOf = (text: string, origin = window.location.origin) =
 /** How long a new link may take to reach every part of the world (KV's eventual consistency). */
 const ARRIVING_SECONDS = 60;
 
+/** A shared world as fetched: its JSON text, and when its link expires (ISO), if said. */
+export interface IFetchedWorld {
+	text: string;
+	expiresAt: string | null;
+}
+
 /**
  * A shared world's JSON text, from this site only. A link shared moments ago
  * may not have reached this part of the world yet: it's asked again every few
@@ -142,7 +148,7 @@ const ARRIVING_SECONDS = 60;
 export const fetchSharedWorld = async (
 	id: string,
 	{ onWaiting }: { onWaiting?: (secondsLeft: number) => void } = {},
-): Promise<string> => {
+): Promise<IFetchedWorld> => {
 	const started = Date.now();
 	for (;;) {
 		let response: Response;
@@ -152,7 +158,7 @@ export const fetchSharedWorld = async (
 			throw new ShareError("The site couldn't be reached: are you offline?");
 		}
 		if (response.ok) {
-			return response.text();
+			return { text: await response.text(), expiresAt: response.headers.get("X-World-Expires") };
 		}
 		const secondsLeft = ARRIVING_SECONDS - Math.round((Date.now() - started) / 1000);
 		if (response.status !== 404 || secondsLeft <= 0) {

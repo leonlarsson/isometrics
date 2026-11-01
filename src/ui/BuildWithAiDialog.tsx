@@ -135,7 +135,7 @@ export const BuildWithAiDialog = () => {
 		}
 		setReadingLink(answer.trim());
 		fetchSharedWorld(id)
-			.then((text) => setAnswer(text))
+			.then(({ text }) => setAnswer(text))
 			.catch((error) =>
 				setProblem(error instanceof ShareError ? error.message : "The link couldn't be read."),
 			)

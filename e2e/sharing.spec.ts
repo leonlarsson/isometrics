@@ -5,6 +5,7 @@ import {
 	fileMenu,
 	loadWorld,
 	openEditor,
+	openPage,
 	read,
 	test,
 } from "./editor";
@@ -56,7 +57,18 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		expect(await read(theirs, (s) => s.scene.entities.map((e) => e.name))).toContain(
 			"Shared house",
 		);
-		expect(await theirs.evaluate(() => window.location.pathname)).toBe("/");
+		// A preview in View mode (ADR-0121): nothing kept in their browser yet.
+		expect(await read(theirs, (s) => s.mode)).toBe("view");
+		await expect(theirs.getByText("A shared world, not kept in this browser")).toBeVisible();
+		expect(await theirs.evaluate(() => localStorage.getItem("isometrics:world-index"))).toBeNull();
+		// Edit asks to keep a copy first; then it's theirs, saved, and the address is the editor's own.
+		await theirs.getByRole("button", { name: "Edit", exact: true }).click();
+		await theirs.getByRole("button", { name: "Keep a copy and edit" }).click();
+		await expect.poll(() => read(theirs, (s) => s.mode)).toBe("edit");
+		await expect
+			.poll(() => theirs.evaluate(() => localStorage.getItem("isometrics:world-index") ?? ""))
+			.toContain("Shared world");
+		expect(await theirs.evaluate(() => window.location.search)).toBe("");
 		await other.close();
 
 		// Stop sharing: the link is gone.
@@ -73,7 +85,15 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect(dialog).toBeVisible();
 	});
 
-	test("a shared world that reads from outside says so before it's opened", async ({ page }) => {
+	test("a shared world that reads from outside is asked about before it's built, with nothing read", async ({
+		page,
+	}) => {
+		test.slow();
+		let requests = 0;
+		await page.route("https://example.org/**", (route) => {
+			requests += 1;
+			return route.fulfill({ json: {} });
+		});
 		const response = await page.request.post("/api/user-worlds?expiresIn=3600", {
 			data: {
 				version: 1,
@@ -83,18 +103,22 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		});
 		expect(response.status()).toBe(201);
 		const { url } = await response.json();
-		await openEditor(page, new URL(url).pathname);
+		await openPage(page, new URL(url).pathname);
 		const asking = page.getByRole("alertdialog", { name: "This world reads data from outside" });
 		await expect(asking).toContainText("https://example.org/x.json");
-		// Not loaded yet: the starter world is still open.
-		expect(await read(page, (s) => s.scene.meta.title)).not.toBe("Reads outside");
-		// Asked once the world open now is on screen, never over a loading screen.
-		await expect(page.locator("[data-loading-screen]")).toHaveCount(0);
+		// Nothing else loaded (ADR-0121): the card behind is the linked world's own; nothing built.
+		expect(await read(page, (s) => s.whatIsOpen.kind)).toBe("link");
+		await expect(page.locator("[data-loading-screen]")).toContainText("Reads outside");
+		await expect(page.locator("canvas")).toHaveCount(0);
 		await asking.getByRole("button", { name: "Don't open it" }).click();
-		expect(await read(page, (s) => s.scene.meta.title)).not.toBe("Reads outside");
+		// The home screen says so; nothing was read or kept.
+		await expect(page.getByRole("main", { name: "Home" })).toContainText(
+			"“Reads outside” wasn't opened",
+		);
+		expect(await page.evaluate(() => window.location.search)).toBe("");
 
 		// Open and allow: one question, so the address is allowed and not asked about again.
-		await page.goto(new URL(url).pathname);
+		await openPage(page, new URL(url).pathname);
 		await asking.getByRole("button", { name: "Open and allow" }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Reads outside");
 		await expect(page.locator("[data-loading-screen]")).toHaveCount(0);
@@ -102,11 +126,30 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		expect(
 			await page.evaluate(() => localStorage.getItem("isometrics:allowed-links") ?? ""),
 		).toContain("https://example.org/x.json");
+		// Only now is anything read from it.
+		await expect.poll(() => requests).toBeGreaterThan(0);
+	});
+
+	test("a link that can't be opened lands on the home screen, which starts a world", async ({
+		page,
+	}) => {
+		await openPage(page, "/templates/no_such_template");
+		const home = page.getByRole("main", { name: "Home" });
+		await expect(home).toContainText("That template can't be opened");
+		await expect(page.locator("canvas")).toHaveCount(0);
+		await home.getByRole("button", { name: "New world…" }).click();
+		await page
+			.getByRole("dialog", { name: "New world" })
+			.getByRole("button", { name: "Create" })
+			.click();
+		await expect.poll(() => read(page, (s) => s.whatIsOpen.kind)).toBe("world");
+		await expect(page.locator("canvas")).toHaveCount(1);
 	});
 
 	test("a template opens by its address, and an AI's answer can be a link", async ({ page }) => {
 		await openEditor(page, "/templates/monaco");
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
+		await expect(page.getByText("A template, not kept in this browser")).toBeVisible();
 
 		// An AI that posted its world answers with the link; the dialog reads it from this site.
 		const response = await page.request.post("/api/user-worlds", {

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { cameraMoved, rememberView, saveCameraNow, UNSAVED_WORLD } from "#/editor/cameraMemory";
 import { openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
+import { keepsOpenWorld } from "#/editor/whatIsOpen";
 
 import { currentView } from "./viewpoints";
 
@@ -15,8 +16,13 @@ interface IChangingControls {
 /**
  * Stores where the camera is for the open world in this browser
  * (editor/cameraMemory); a world that isn't saved yet under UNSAVED_WORLD.
+ * Not for a world from a link that isn't kept (ADR-0121): it isn't the open
+ * world's, whose id is still stored.
  */
 const saveView = () => {
+	if (!keepsOpenWorld(useEditor.getState().whatIsOpen)) {
+		return;
+	}
 	const id = openWorldId() ?? UNSAVED_WORLD;
 	const pose = currentView.read?.();
 	if (id && pose) {
