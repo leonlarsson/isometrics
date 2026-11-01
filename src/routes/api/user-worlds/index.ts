@@ -24,7 +24,7 @@ const problem = (what: string, status: number) =>
 
 const HOW_TO = {
 	about:
-		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its kind (world or patch), its url (a world opens in the editor; a patch's is for pasting into Build with your AI → Change this world, and isn't opened on its own), its jsonUrl (the JSON), when it expires, and a deleteKey to DELETE it early.",
+		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its kind (world or patch), its url (a world opens in the editor; a patch's is for pasting into Build with your AI → Change this world, and isn't opened on its own), its jsonUrl (the JSON), when it expires, and a deleteKey to DELETE it early. It's checked first: a world must open exactly as written (no repairs), and a patch must be one (only the world's fields, lists changed by remove, change and add, values each field takes), at most an hour and 500 kB. Anything else is refused with 400 and its problems, where and what.",
 	expiresIn: `One of ${USER_WORLD_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_WORLD_EXPIRY} when left out.`,
 	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes, and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",
@@ -82,7 +82,10 @@ const share = async (request: Request) => {
 		return Response.json(shared, { status: 201, headers: HEADERS });
 	} catch (error) {
 		if (error instanceof UserWorldError) {
-			return problem(error.message, 400);
+			return Response.json(
+				{ error: error.message, ...(error.problems.length > 0 && { problems: error.problems }) },
+				{ status: 400, headers: HEADERS },
+			);
 		}
 		throw error;
 	}

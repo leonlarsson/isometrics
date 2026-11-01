@@ -68,10 +68,25 @@ export const useSharedLinks = keepOnHotReload("sharedLinks", () =>
 /** Why sharing or reading a shared world didn't work, in words. */
 export class ShareError extends Error {}
 
+/** The first few problems a refusal lists, said after its message. */
+const PROBLEMS_SAID = 3;
+
 const errorOf = async (response: Response) => {
 	try {
-		const body = (await response.json()) as { error?: unknown };
-		return typeof body.error === "string" ? body.error : `It answered ${response.status}.`;
+		const body = (await response.json()) as { error?: unknown; problems?: unknown };
+		if (typeof body.error !== "string") {
+			return `It answered ${response.status}.`;
+		}
+		const problems = Array.isArray(body.problems)
+			? body.problems
+					.slice(0, PROBLEMS_SAID)
+					.flatMap((each) =>
+						typeof each?.where === "string" && typeof each?.what === "string"
+							? [`${each.where}: ${each.what}`]
+							: [],
+					)
+			: [];
+		return problems.length > 0 ? `${body.error} ${problems.join("; ")}.` : body.error;
 	} catch {
 		return `It answered ${response.status}.`;
 	}

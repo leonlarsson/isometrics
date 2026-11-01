@@ -1,4 +1,5 @@
-import { checkWorld } from "#/parts/checkWorld";
+import { checkPatchAlone } from "#/parts/checkPatchAlone";
+import { checkWorld, type IWorldIssue } from "#/parts/checkWorld";
 import { compactWorld } from "#/parts/compactWorld";
 import { readWorld } from "#/parts/readWorld";
 import { safeJson } from "#/scene/safeJson";
@@ -48,6 +49,10 @@ export const DEFAULT_USER_WORLD_EXPIRY = 3600;
 /** More than this isn't kept (the same limit as POST /api/worlds/validate). */
 export const MOST_USER_WORLD_BYTES = 5_000_000;
 
+/** A patch is only for handing changes back (ADR-0118): kept an hour at most, and this big at most. */
+export const MOST_PATCH_SECONDS = 3600;
+export const MOST_PATCH_BYTES = 500_000;
+
 /** A shared world's id: 22 characters of 128 random bits, base64url. */
 export const USER_WORLD_ID = /^[A-Za-z0-9_-]{22}$/;
 
@@ -66,7 +71,18 @@ const sha256 = async (text: string) => {
 };
 
 /** Why a world wasn't kept, in words for whoever sent it. */
-export class UserWorldError extends Error {}
+export class UserWorldError extends Error {
+	/** What's wrong with it, where and what, when it was checked and refused. */
+	readonly problems: IWorldIssue[];
+
+	constructor(message: string, problems: IWorldIssue[] = []) {
+		super(message);
+		this.problems = problems;
+	}
+}
+
+/** More problems than this aren't listed in a refusal. */
+const PROBLEMS_LISTED = 40;
 
 /** What sharing a world gives: where it is, until when, and the key that deletes it (shown once). */
 export interface ISharedWorld {
@@ -105,7 +121,26 @@ export const shareUserWorld = async (
 	let kind: IUserWorldMeta["kind"];
 	let title: string;
 	if (isWorldPatch(parsed)) {
-		// A patch is checked against its world where it's put in place; kept as it came, made safe.
+		// Only for handing changes back: short-lived and small, and only a patch, checked on its own
+		// (its fields the world's, its values ones they take); put in place, it's checked against
+		// its world too.
+		if (expiresIn > MOST_PATCH_SECONDS) {
+			throw new UserWorldError(
+				`A patch is kept for an hour at most (expiresIn ${MOST_PATCH_SECONDS}): it's only for handing changes back.`,
+			);
+		}
+		if (new TextEncoder().encode(text).length > MOST_PATCH_BYTES) {
+			throw new UserWorldError(
+				`A patch is at most ${MOST_PATCH_BYTES / 1000} kB: for bigger changes, send the whole world.`,
+			);
+		}
+		const problems = checkPatchAlone(parsed);
+		if (problems.length > 0) {
+			throw new UserWorldError(
+				"It isn't a patch that can be kept: fix these and send it again.",
+				problems.slice(0, PROBLEMS_LISTED),
+			);
+		}
 		kind = "patch";
 		title = "A patch";
 		kept = JSON.stringify(parsed);
@@ -114,6 +149,14 @@ export const shareUserWorld = async (
 		if (check.isUnreadable) {
 			throw new UserWorldError(
 				`It isn't a world: ${check.problems[0]?.what ?? "it couldn't be read"}.`,
+			);
+		}
+		// Kept only as written: a world that would need repairs is refused with its problems (the
+		// same as POST /api/worlds/validate says), never repaired into something else.
+		if (!check.isValid) {
+			throw new UserWorldError(
+				"The world doesn't open as written: fix these and send it again.",
+				check.problems.slice(0, PROBLEMS_LISTED),
 			);
 		}
 		const { scene } = readWorld(parsed);

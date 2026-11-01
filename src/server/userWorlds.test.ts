@@ -84,6 +84,65 @@ describe("worlds shared by link (ADR-0120)", () => {
 		expect(kept.size).toBe(0);
 	});
 
+	it("keep only a patch that is one: the world's fields, lists by remove, change and add, values they take", async () => {
+		const { store, kept } = memoryStore();
+		const share = (patch: unknown, seconds = 3600) =>
+			shareUserWorld(
+				store,
+				JSON.stringify({ isPatch: true, ...(patch as object) }),
+				seconds,
+				ORIGIN,
+			);
+		const good = await share({
+			meta: { title: "Renamed" },
+			entities: {
+				remove: ["old_shed"],
+				change: [{ id: "lighthouse", scale: 1.5, name: null }],
+				add: [{ id: "boat", kind: "sailing_boat_01", position: [4, 2] }],
+			},
+			data: { values: { change: [{ key: "visitors", value: 12 }] } },
+		});
+		expect(good.kind).toBe("patch");
+		const refusedFor = async (patch: unknown, seconds?: number) => {
+			const error = await share(patch, seconds).catch((caught: unknown) => caught);
+			expect(error).toBeInstanceOf(UserWorldError);
+			const { message, problems } = error as UserWorldError;
+			return `${message} ${problems.map((each) => `${each.where}: ${each.what}`).join(" | ")}`;
+		};
+		expect(await refusedFor({ payload: "anything at all" })).toMatch(
+			/payload: isn't a field of the world/,
+		);
+		expect(await refusedFor({ entities: { replace: [] } })).toMatch(/entities\.replace/);
+		expect(await refusedFor({ entities: { change: [{ id: "a", stash: "x" }] } })).toMatch(
+			/change\[0\]\.stash: isn't a field/,
+		);
+		expect(await refusedFor({ entities: { change: [{ id: "a", scale: "huge" }] } })).toMatch(
+			/change\[0\]\.scale/,
+		);
+		expect(await refusedFor({ entities: { change: [{ scale: 2 }] } })).toMatch(/names its thing/);
+		expect(
+			await refusedFor({ entities: { add: [{ id: "x", kind: "house_01", position: "here" }] } }),
+		).toMatch(/position/);
+		expect(await refusedFor({ data: { secrets: 1 } })).toMatch(/data\.secrets/);
+		// Only for handing changes back: an hour at most, 500 kB at most.
+		expect(await refusedFor({ meta: { title: "x" } }, 86_400)).toMatch(/an hour at most/);
+		expect(await refusedFor({ meta: { title: "x".repeat(600_000) } })).toMatch(/500 kB/);
+		expect(kept.size).toBe(1);
+	});
+
+	it("refuse a world that would need repairs, listing its problems", async () => {
+		const { store, kept } = memoryStore();
+		const broken = { ...createEmptyScene({ title: "Broken" }) } as Record<string, unknown>;
+		broken.entities = [{ id: "a", kind: "house_01", position: [0, 0], scale: "huge" }];
+		const error = await shareUserWorld(store, JSON.stringify(broken), 3600, ORIGIN).catch(
+			(caught: unknown) => caught,
+		);
+		expect(error).toBeInstanceOf(UserWorldError);
+		expect((error as UserWorldError).message).toMatch(/doesn't open as written/);
+		expect((error as UserWorldError).problems.length).toBeGreaterThan(0);
+		expect(kept.size).toBe(0);
+	});
+
 	it("delete only with the key that came with it", async () => {
 		const { store } = memoryStore();
 		const shared = await shareUserWorld(store, world(), 3600, ORIGIN);
