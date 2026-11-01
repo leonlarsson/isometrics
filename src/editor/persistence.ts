@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { useSyncExternalStore } from "react";
 
 import { APP_NAME } from "#/lib/app";
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
@@ -280,7 +280,7 @@ const moveSingleSaveIntoList = () => {
 /** Read one stored world: as it is, repaired (original backed up), or unreadable (backed up). */
 const readWorldText = (raw: string): TStoredSceneResult => {
 	try {
-		const { scene, report } = readWorld(JSON.parse(raw));
+		const { scene, report } = repairWorld(JSON.parse(raw));
 		if (!report) {
 			return { status: "ok", scene };
 		}
@@ -641,6 +641,6 @@ export const downloadSceneBackup = (backup: ISceneBackup) => {
 export const readSceneFile = async (
 	file: File,
 ): Promise<{ scene: TScene; repairs: string | null }> => {
-	const { scene, report } = readWorld(JSON.parse(await file.text()));
+	const { scene, report } = repairWorld(JSON.parse(await file.text()));
 	return { scene, repairs: report ? describeRepairs(report) : null };
 };

@@ -1,4 +1,4 @@
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import type { TScene } from "#/scene/schema";
 import { isWorldPatch } from "#/scene/worldPatch";
 import { TEMPLATES } from "#/templates";
@@ -99,7 +99,7 @@ const fetchLinked = async (
 		throw new ShareError(PATCH_LINK);
 	}
 	try {
-		return { scene: readWorld(parsed).scene, expiresAt };
+		return { scene: repairWorld(parsed).scene, expiresAt };
 	} catch {
 		throw new ShareError("What the link holds isn't a world this app can read.");
 	}

@@ -7,7 +7,7 @@ import { SCENE_VERSION, SceneSchema, type TScene } from "./schema";
  *
  * Versioning (ADR-0106): the format changes in place and SCENE_VERSION stays 1;
  * renamed, moved and replaced fields are brought up to date first (legacy.ts,
- * and the parts' in parts/readWorld.ts), and worlds that still don't validate
+ * and the parts' in parts/repairWorld.ts), and worlds that still don't validate
  * are repaired (repair.ts, ADR-0026). A change those can't make bumps the
  * version, with a step here from the version before, kept for good.
  */

@@ -11,8 +11,13 @@ import {
 	sharedWorldIdOf,
 	shareWorld,
 } from "#/editor/userWorlds";
-import { checkPatch, checkWorld, type IWorldCheck, issuesForAi } from "#/parts/checkWorld";
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
+import {
+	type IWorldValidation,
+	issuesForAi,
+	validatePatch,
+	validateWorld,
+} from "#/parts/validateWorld";
 import { describeRepairs } from "#/scene/repair";
 import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
@@ -36,7 +41,7 @@ type TBuilds = "new" | "change";
 const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /** A pasted answer's check in a sentence: what it is, what it changes, and what's wrong. */
-const summaryOf = (check: IWorldCheck) => {
+const summaryOf = (check: IWorldValidation) => {
 	const what = check.changes ? `a patch. ${check.changes}` : `${check.contents}.`;
 	const wrong = [
 		check.problems.length > 0 &&
@@ -60,7 +65,7 @@ const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
  * Build with your AI (ADR-0116): describe the world, add data, copy a prompt
  * into any AI chat, and paste back the world it writes. Nothing is sent
  * anywhere by the app; what comes back is read like any world file
- * (`readWorld`), and opens as a new world or replaces this one (one undo step).
+ * (`repairWorld`), and opens as a new world or replaces this one (one undo step).
  * Keeps what's typed while the page is open.
  */
 export const BuildWithAiDialog = () => {
@@ -153,13 +158,13 @@ export const BuildWithAiDialog = () => {
 			// A patch (ADR-0118) is the changes to a world: checked against the one open now.
 			if (isWorldPatch(parsed)) {
 				return builds === "change"
-					? checkPatch(useEditor.getState().scene, parsed)
+					? validatePatch(useEditor.getState().scene, parsed)
 					: {
 							unreadable:
 								"That's a patch: the changes to a world, not a whole one. Pick Change this world to put it in.",
 						};
 			}
-			const checked = checkWorld(parsed);
+			const checked = validateWorld(parsed);
 			// Not a world at all (no version or things): said as such, not as a list of problems.
 			return checked.isUnreadable
 				? { unreadable: checked.problems[0]?.what ?? "It isn't a world." }
@@ -202,7 +207,7 @@ export const BuildWithAiDialog = () => {
 	};
 
 	const putInPlace = () => {
-		let read: ReturnType<typeof readWorld>;
+		let read: ReturnType<typeof repairWorld>;
 		// What a patch changes, said once it's in place.
 		let changes: string | null = null;
 		try {
@@ -210,9 +215,9 @@ export const BuildWithAiDialog = () => {
 			if (isWorldPatch(parsed) && builds === "change") {
 				const applied = applyWorldPatch(useEditor.getState().scene, parsed);
 				changes = describePatchChanges(applied.changes);
-				read = readWorld(applied.world);
+				read = repairWorld(applied.world);
 			} else {
-				read = readWorld(parsed);
+				read = repairWorld(parsed);
 			}
 		} catch (error) {
 			setProblem(error instanceof Error ? error.message : String(error));

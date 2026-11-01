@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { checkWorld } from "#/parts/checkWorld";
+import { validateWorld } from "#/parts/validateWorld";
 import type { TScene } from "#/scene/schema";
 import { createEmptyScene } from "#/templates";
 
@@ -44,7 +44,7 @@ describe("sharing from the app (ADR-0120)", () => {
 		await shareWorld(broken, 3600);
 		const sent = JSON.parse(posted[0]);
 		// What the API checks (it keeps only worlds that open as written): this passes.
-		expect(checkWorld(sent).isValid).toBe(true);
+		expect(validateWorld(sent).isValid).toBe(true);
 		expect(sent.entities).toHaveLength(1);
 		expect(warn).toHaveBeenCalled();
 		// The world in the editor isn't touched.

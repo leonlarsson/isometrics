@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { checkPatch } from "#/parts/checkWorld";
 import { worldPatchJsonSchema } from "#/parts/jsonSchema";
-import { readWorld } from "#/parts/readWorld";
 import { PARTS } from "#/parts/registry";
+import { repairWorld } from "#/parts/repairWorld";
+import { validatePatch } from "#/parts/validateWorld";
 import { SceneSchema } from "#/scene/schema";
 import { createEmptyScene } from "#/templates";
 
@@ -19,7 +19,7 @@ const ORIGIN = "https://example.test";
 
 describe("the prompt for your own AI", () => {
 	it("teaches with an example world that opens with no repairs", () => {
-		const { report } = readWorld(structuredClone(EXAMPLE_WORLD));
+		const { report } = repairWorld(structuredClone(EXAMPLE_WORLD));
 		expect(report).toBeNull();
 	});
 
@@ -73,7 +73,7 @@ describe("the example patch (ADR-0118)", () => {
 			],
 			data: { values: [{ key: "boats", value: 3 }] },
 		});
-		const check = checkPatch(world, structuredClone(EXAMPLE_PATCH));
+		const check = validatePatch(world, structuredClone(EXAMPLE_PATCH));
 		expect(check.problems).toEqual([]);
 		expect(check.warnings).toEqual([]);
 	});

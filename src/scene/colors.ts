@@ -19,7 +19,7 @@ export interface IColorSpec<C extends string = string> {
 	/**
 	 * Which of the old per-object fields older worlds (and AIs) kept it in: the
 	 * first colour was `color`, the second `accent`. Moved into `colors` when a
-	 * world is opened (`readWorld`).
+	 * world is opened (`repairWorld`).
 	 */
 	legacy?: "color" | "accent";
 	/**

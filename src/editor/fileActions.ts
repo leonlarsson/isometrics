@@ -1,4 +1,4 @@
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
@@ -203,7 +203,7 @@ export const deleteSavedWorld = (id: string) => {
 /** Open a backup as a new world (repaired if needed); the backup itself stays as it is. */
 export const restoreBackup = (backup: ISceneBackup) => {
 	try {
-		const { scene, report } = readWorld(JSON.parse(backup.raw));
+		const { scene, report } = repairWorld(JSON.parse(backup.raw));
 		startNewWorld(scene);
 		notify(
 			"Backup restored",

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { APP_NAME } from "#/lib/app";
 import { clamp, round } from "#/lib/math";
 import { colorSettingOf } from "#/parts/colorModel";
-import { readWorld } from "#/parts/readWorld";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
+import { repairWorld } from "#/parts/repairWorld";
 import { altitudeMovedTo, cornerLift, cornerWithLift } from "#/scene/areas";
 import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
@@ -501,7 +501,7 @@ const pasteThings = (
 	at?: TVec2,
 ) => {
 	const state = store();
-	const { scene: repaired } = readWorld({
+	const { scene: repaired } = repairWorld({
 		version: SCENE_VERSION,
 		entities: clip.entities,
 		roads: clip.roads,

@@ -70,7 +70,7 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	when?: "dark" | "driving" | "always";
 	/**
 	 * Settings older worlds kept elsewhere (props, the accent colour) before this
-	 * light had its own: read once when a world is opened (`readWorld`), into the
+	 * light had its own: read once when a world is opened (`repairWorld`), into the
 	 * object's settings for it where they're unset.
 	 */
 	legacy?: (stored: { props: Record<string, unknown>; accent: string | null }) => {
@@ -191,7 +191,7 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	schema: z.ZodType<P>;
 	/**
 	 * Props that were renamed: old name → new name. A world saved with the old
-	 * name keeps its value: `readWorld` moves it to the new name, and
+	 * name keeps its value: `repairWorld` moves it to the new name, and
 	 * `resolveProps` reads it there too when the new one is missing.
 	 * Never remove an entry. Renamed again: point every older name at the newest,
 	 * oldest first (`{ pulse: "flashes", pulses: "flashes" }`; of several stored,
@@ -205,7 +205,7 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	removedProps?: readonly string[];
 	/**
 	 * Props older worlds had that sized the whole part evenly, as an object's
-	 * `scale` does: when a world is opened (`readWorld`) each is multiplied into
+	 * `scale` does: when a world is opened (`repairWorld`) each is multiplied into
 	 * the scale and removed. List them in removedProps too. Never remove an entry.
 	 */
 	foldedIntoScale?: readonly string[];

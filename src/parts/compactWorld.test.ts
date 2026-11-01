@@ -4,8 +4,8 @@ import type { TScene } from "#/scene/schema";
 import { createEmptyScene, TEMPLATES } from "#/templates";
 
 import { compactWorld } from "./compactWorld";
-import { readWorld } from "./readWorld";
 import { getPart, resolveProps } from "./registry";
+import { repairWorld } from "./repairWorld";
 
 /** Objects' props as their parts draw them: a prop left out is its default. */
 const asDrawn = (scene: TScene) => ({
@@ -24,7 +24,7 @@ const worlds = [
 describe("a world with its defaults left out", () => {
 	it.each(worlds)("%s reads back as it was, with no repairs", (_, create) => {
 		const scene = create();
-		const { scene: back, report } = readWorld(JSON.parse(JSON.stringify(compactWorld(scene))));
+		const { scene: back, report } = repairWorld(JSON.parse(JSON.stringify(compactWorld(scene))));
 		expect(report).toBeNull();
 		expect(asDrawn(back)).toEqual(asDrawn(scene));
 	});

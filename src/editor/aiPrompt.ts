@@ -15,7 +15,7 @@ import {
  * of their choice. It says what they want in their own words, carries their
  * data (and the world, to change one), and teaches the format: the guide's
  * rules, every part kind, and a small world that shows the moves. What comes
- * back is pasted in and read like any untrusted world (`readWorld`).
+ * back is pasted in and read like any untrusted world (`repairWorld`).
  */
 
 /** More characters of pasted data than this are cut, saying so: a chat can't take a whole database. */

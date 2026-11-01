@@ -15,7 +15,7 @@ import {
 } from "#/scene/schema";
 import { applyWorldPatch, PATCH_LISTS } from "#/scene/worldPatch";
 
-import { checkWorld, type IWorldIssue } from "./checkWorld";
+import { type IWorldIssue, validateWorld } from "./validateWorld";
 
 /**
  * Checking a patch (ADR-0118) on its own, without the world it's for: what a
@@ -26,7 +26,7 @@ import { checkWorld, type IWorldIssue } from "./checkWorld";
  *   things holds only `remove` (ids), `change` (each with its thing's id) and
  *   `add`.
  * - What it adds and the settings it merges are put on an empty world and
- *   checked as a world is (`checkWorld`): every problem counts, none repaired.
+ *   checked as a world is (`validateWorld`): every problem counts, none repaired.
  * - Each change's fields are fields of that kind of thing, each value one
  *   that field takes (`null` puts back its default). A thing's own settings
  *   (`props`, `colors`, `lights`) depend on its kind, which only its world
@@ -134,7 +134,7 @@ const withoutChanges = (patch: TRecord): TRecord => {
 };
 
 /** Every problem a patch has on its own; empty when it's a patch that can be kept. */
-export const checkPatchAlone = (patch: TRecord): IWorldIssue[] => {
+export const validatePatchAlone = (patch: TRecord): IWorldIssue[] => {
 	const problems: IWorldIssue[] = [];
 	for (const key of Object.keys(patch)) {
 		if (!WORLD_FIELDS.has(key)) {
@@ -163,7 +163,7 @@ export const checkPatchAlone = (patch: TRecord): IWorldIssue[] => {
 		SceneSchema.parse({ version: 1 }),
 		withoutChanges(patch),
 	);
-	const check = checkWorld(world);
+	const check = validateWorld(world);
 	return [
 		...issues.map((issue) => ({ where: `patch ${issue.where}`, what: issue.what })),
 		...check.problems,

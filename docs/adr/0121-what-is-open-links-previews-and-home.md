@@ -47,3 +47,4 @@ Chosen option: **2**. Option 3 would put people's own work at risk to solve a pr
 
 - ADR-0119 (addresses wait for a yes), ADR-0120 (share links), ADR-0100 (the loading screen), ADR-0044 (several worlds), ADR-0057 (the save status).
 - `editor/whatIsOpen.ts`, `editor/openLink.ts`, `ui/HomeScreen.tsx`, `ui/PreviewBar.tsx`, `ui/KeepPreviewDialog.tsx`, `ui/LinkQuestion.tsx`, `editor/readLink.ts`, `editor/outsideRequests.test.ts`.
+- Renamed with this change, for saying what they do: `readWorld` → `repairWorld` (brings old names up to date, parses, and repairs what doesn't fit: the world as it will be used), and `checkWorld` / `checkPatch` → `validateWorld` / `validatePatch` (report problems, change nothing; behind `/api/worlds/validate`), with `validatePatchAlone` for a patch on its own and `IWorldValidation` for their report. Earlier ADRs keep the old names.

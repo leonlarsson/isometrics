@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
@@ -103,7 +103,7 @@ export const shareWorld = async (
 	// The API keeps only worlds that open as written (ADR-0120). The open world was read when it
 	// opened, but an edit can still have written something the schema doesn't take (a bug of ours,
 	// not the person's): repaired here, as opening it would, so sharing is never refused for it.
-	const { scene: asRead, report } = readWorld(structuredClone(scene));
+	const { scene: asRead, report } = repairWorld(structuredClone(scene));
 	if (report) {
 		console.warn(`Repaired before sharing: ${describeRepairs(report)}`, report);
 	}

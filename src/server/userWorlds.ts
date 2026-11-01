@@ -1,7 +1,7 @@
-import { checkPatchAlone } from "#/parts/checkPatchAlone";
-import { checkWorld, type IWorldIssue } from "#/parts/checkWorld";
 import { compactWorld } from "#/parts/compactWorld";
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
+import { validatePatchAlone } from "#/parts/validatePatchAlone";
+import { type IWorldIssue, validateWorld } from "#/parts/validateWorld";
 import { safeJson } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
@@ -134,7 +134,7 @@ export const shareUserWorld = async (
 				`A patch is at most ${MOST_PATCH_BYTES / 1000} kB: for bigger changes, send the whole world.`,
 			);
 		}
-		const problems = checkPatchAlone(parsed);
+		const problems = validatePatchAlone(parsed);
 		if (problems.length > 0) {
 			throw new UserWorldError(
 				"It isn't a patch that can be kept: fix these and send it again.",
@@ -145,7 +145,7 @@ export const shareUserWorld = async (
 		title = "A patch";
 		kept = JSON.stringify(parsed);
 	} else {
-		const check = checkWorld(parsed);
+		const check = validateWorld(parsed);
 		if (check.isUnreadable) {
 			throw new UserWorldError(
 				`It isn't a world: ${check.problems[0]?.what ?? "it couldn't be read"}.`,
@@ -159,7 +159,7 @@ export const shareUserWorld = async (
 				check.problems.slice(0, PROBLEMS_LISTED),
 			);
 		}
-		const { scene } = readWorld(parsed);
+		const { scene } = repairWorld(parsed);
 		kind = "world";
 		title = scene.meta.title;
 		kept = JSON.stringify(compactWorld(scene));
