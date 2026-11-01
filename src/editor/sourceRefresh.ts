@@ -149,6 +149,28 @@ export const hostsOf = (sources: readonly TDataSource[], most = 5) => {
 		: `${hosts.slice(0, most).join(", ")} and ${hosts.length - most} more`;
 };
 
+/**
+ * The sites some sources are on, by host only, the first few named and the
+ * rest counted, for a short line: "api.a.com, b.org and 3 other sites".
+ */
+export const sitesOf = (sources: readonly TDataSource[], most = 2) => {
+	const sites = [
+		...new Set(
+			sources.map((source) => {
+				try {
+					return new URL(source.url ?? "").host;
+				} catch {
+					return source.url ?? "";
+				}
+			}),
+		),
+	];
+	const rest = sites.length - most;
+	return rest <= 0
+		? sites.join(" and ").replace(/ and (?=.* and )/g, ", ")
+		: `${sites.slice(0, most).join(", ")} and ${rest} other ${rest === 1 ? "site" : "sites"}`;
+};
+
 /** At most this many sources are read on their own: a world can't make a browser call a crowd of servers. */
 export const MOST_SOURCES_READ = 10;
 

@@ -133,7 +133,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 			.click();
 		await expect.poll(() => read(theirs, (s) => s.scene.meta.title)).toBe("Reads outside");
 		await expect(
-			theirs.getByText(/An external source waits for your yes: example\.org/),
+			theirs.getByText(/An external source waits for your yes, from example\.org\./),
 		).toBeVisible();
 		await theirs.waitForTimeout(1500);
 		expect(theirRequests).toBe(0);

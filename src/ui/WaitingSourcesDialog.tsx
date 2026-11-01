@@ -9,9 +9,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 
 import styles from "./WaitingSourcesDialog.module.css";
 
-/** The first this many addresses are listed; the rest are counted. */
-const ADDRESSES_SHOWN = 6;
-
 /**
  * Asks before a world reads from outside (ADR-0119): when a world opens, or a
  * change to it (a patch, a paste) brings addresses this browser hasn't
@@ -58,14 +55,10 @@ export const WaitingSourcesDialog = () => {
 					</p>
 
 					<ul className={styles.addresses}>
-						{addresses.slice(0, ADDRESSES_SHOWN).map((url) => (
+						{addresses.map((url) => (
 							<li key={url}>{url}</li>
 						))}
 					</ul>
-
-					{addresses.length > ADDRESSES_SHOWN && (
-						<p>{`And ${addresses.length - ADDRESSES_SHOWN} more.`}</p>
-					)}
 
 					<p>
 						{`Until then the world shows what it last read. You can allow ${one ? "it" : "them"} later ${isPreview ? "from the bar at the top" : "in the Data tab, under Sources"}.`}

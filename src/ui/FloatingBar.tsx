@@ -66,6 +66,6 @@ export const FloatingBarNote = ({
 	<div className={styles.note}>
 		<span className={styles.noteText}>{children}</span>
 
-		{action}
+		{action && <span className={styles.noteAction}>{action}</span>}
 	</div>
 );

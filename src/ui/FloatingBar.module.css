@@ -83,8 +83,9 @@
 /* A row that waits on the viewer, set apart, with its own small button. */
 .note {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 10px;
+	gap: 8px 10px;
 	padding: 6px 6px 6px 10px;
 	border-radius: var(--radius-sm);
 	background: var(--surface-sunken);
@@ -92,8 +93,14 @@
 }
 
 .noteText {
-	flex: 1;
+	flex: 1 1 220px;
 	min-width: 0;
+}
+
+/* Its button keeps to the row's end, and goes under the text when there's no room beside it. */
+.noteAction {
+	display: inline-flex;
+	margin-left: auto;
 }
 
 /* Narrow screens: the main buttons share the width, side by side. */

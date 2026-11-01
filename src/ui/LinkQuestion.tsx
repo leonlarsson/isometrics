@@ -5,9 +5,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 
 import styles from "./WaitingSourcesDialog.module.css";
 
-/** The first this many outside addresses are listed; the rest are counted. */
-const ADDRESSES_SHOWN = 6;
-
 /**
  * Before a shared world that reads from outside is built (ADR-0121): over its
  * own loading card, naming each address it reads, which nothing has asked
@@ -33,14 +30,10 @@ export const LinkQuestion = () => {
 					</p>
 
 					<ul className={styles.addresses}>
-						{addresses.slice(0, ADDRESSES_SHOWN).map((url) => (
+						{addresses.map((url) => (
 							<li key={url}>{url}</li>
 						))}
 					</ul>
-
-					{addresses.length > ADDRESSES_SHOWN && (
-						<p>{`And ${addresses.length - ADDRESSES_SHOWN} more.`}</p>
-					)}
 
 					<p>
 						{one

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { linkInAddress } from "./openLink";
+import { sitesOf } from "./sourceRefresh";
 import { keepsOpenWorld, previewOf } from "./whatIsOpen";
 
 describe("what's open (ADR-0121)", () => {
@@ -23,5 +24,19 @@ describe("what's open (ADR-0121)", () => {
 		expect(keepsOpenWorld({ kind: "starting" })).toBe(false);
 		expect(previewOf({ kind: "world", preview })).toBe(preview);
 		expect(previewOf({ kind: "home", why: { kind: "chosen" } })).toBeNull();
+	});
+});
+
+describe("naming the sites of external sources (ADR-0121)", () => {
+	const source = (url: string) => ({ url }) as Parameters<typeof sitesOf>[0][number];
+	it("names hosts only, each once, the first two and a count of the rest", () => {
+		expect(sitesOf([source("https://a.com/x"), source("https://a.com/y")])).toBe("a.com");
+		expect(sitesOf([source("https://a.com/x"), source("https://b.org/y")])).toBe("a.com and b.org");
+		expect(
+			sitesOf(["a.com", "b.org", "c.net", "d.io"].map((host) => source(`https://${host}/z`))),
+		).toBe("a.com, b.org and 2 other sites");
+		expect(sitesOf(["a.com", "b.org", "c.net"].map((host) => source(`https://${host}/z`)))).toBe(
+			"a.com, b.org and 1 other site",
+		);
 	});
 });
