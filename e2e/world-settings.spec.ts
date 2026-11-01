@@ -241,13 +241,17 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 				};
 			}),
 		);
-		const card = labelCard(page, /Depot/);
-		await expect(card).toContainText("42");
 		await box(page, "Value").fill("57");
-		await expect(card).toContainText("57");
 
-		// What uses it, and a way there.
-		await expect(page.getByRole("button", { name: /^Depot.*card/ })).toBeVisible();
+		// What uses it, and a way there; the card behind the window shows what was typed.
+		await expect(dataWindow(page).getByRole("button", { name: /^Depot.*card/ })).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
+		await expect(labelCard(page, /Depot/)).toContainText("57");
+		await page
+			.getByRole("tabpanel", { name: "Data" })
+			.getByRole("button", { name: /^Orders/ })
+			.click();
 		await page.getByRole("button", { name: "Remove value (unbinds 1)" }).click();
 		await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
 		expect((await entity(page, "depot"))?.label?.dataKeys).toEqual([]);

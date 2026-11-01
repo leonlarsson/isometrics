@@ -101,10 +101,9 @@ test.describe("rows become things (ADR-0108, ADR-0109)", () => {
 			["APES", "APES"],
 			["CGM", "CGM"],
 		]);
-		// Back in the table's viewer, which names what follows each row.
-		const viewer = page.getByRole("dialog", { name: "Clubs" });
-		await expect(viewer).toContainText("On the map");
-		await expect(viewer.getByRole("row", { name: /CGM.*CGM/ })).toBeVisible();
+		// Back at the table in the Data window, which names what follows each row.
+		await expect(dataWindow(page)).toContainText("2 objects follow its rows now");
+		await expect(dataWindow(page).getByRole("row", { name: /CGM.*CGM/ })).toBeVisible();
 	});
 });
 
