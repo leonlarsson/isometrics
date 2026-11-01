@@ -3,6 +3,7 @@ import { useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
+import { AppMenu, AppMenuItems } from "./AppMenu";
 import { IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
@@ -61,9 +62,7 @@ export const Toolbar = () => {
 	return (
 		<header className={styles.toolbar}>
 			<div className={styles.brand}>
-				<span className={styles.logo} aria-hidden="true" />
-
-				<span className={styles.title}>{APP_NAME}</span>
+				<AppMenu hidesOnPhones={hasWorld} />
 
 				<FileMenu />
 
@@ -250,6 +249,13 @@ export const Toolbar = () => {
 									description={themeInfo.nextLabel}
 									onClick={cycleTheme}
 								/>
+
+								<Menu.Separator />
+
+								{/* The app menu's items: on phones its logo has no room in the toolbar. */}
+								<Menu.Submenu icon="info" label={APP_NAME}>
+									<AppMenuItems />
+								</Menu.Submenu>
 							</Menu.Popup>
 						</Menu.Root>
 					</span>

@@ -80,7 +80,7 @@ Dependencies point downward: `ui` → `render` → `editor` → `fences` → `pa
 - In `useFrame`, read `size` (and the camera) from the frame's state (`useFrame(({ size }) => …)`), not from a `useThree` value captured at render: frames can be drawn right after a resize, before React re-renders (ADR-0055).
 - **Untrusted input (ADR-0119):** JSON from outside that doesn't go through `repairWorld()` goes through `safeJson()` (`scene/safeJson.ts`: no `__proto__` keys, no nesting past 64) before anything merges or walks it; read row cells with `cellOf`, and look up keys from data with `Object.hasOwn`, never `in` or plain indexing on objects with prototypes. A link from data is a link only through `webAddress()`. Network reads go through `readLink` (no cookies or referrer, a size limit) and, when a world asks for them, only to addresses the browser has allowed (`editor/linkTrust.ts`), never to the viewer's own computer or network (`isLocalHost`). Every body read on the server has a size limit (`lib/textUpTo.ts`), and errors answer in our words, never with the server's insides.
 - Untrusted scene JSON (files, storage, paste, AI) must go through `repairWorld()` (`parts/repairWorld.ts`, ADR-0104): it brings old names and shapes up to date, the parts' too (old `color` / `accent`, renamed props and lights), then parses or repairs (ADR-0026). Nothing reads old shapes at draw time.
-- Never discard user data. A save that fails to load is kept as a backup and the user is told (ADR-0020). Don't add code paths that overwrite or drop stored worlds without that safety net. The one exception is File → Wipe everything, behind two confirmations (ADR-0045).
+- Never discard user data. A save that fails to load is kept as a backup and the user is told (ADR-0020). Don't add code paths that overwrite or drop stored worlds without that safety net. The one exception is the app menu's Wipe everything (the logo), behind two confirmations (ADR-0045).
 
 ## Common tasks
 
@@ -137,7 +137,7 @@ Never add AI attribution: no `Co-Authored-By: Claude …` (or any other AI) trai
 
 ## Recommending a fresh start
 
-When a release changes the app so much that people are better off starting over (old worlds or settings would get in the way), bump `FRESH_START` in `src/editor/wipeOffer.ts` (ADR-0059). Every browser that has worlds and hasn't seen the new number is offered, once, to start fresh (File → Wipe everything's two confirmations, with Save to file) or carry on. Worlds must still open after the update (ADR-0026, ADR-0056); this is a recommendation, never a replacement for repairing old worlds. Only bump it with the owner's go-ahead.
+When a release changes the app so much that people are better off starting over (old worlds or settings would get in the way), bump `FRESH_START` in `src/editor/wipeOffer.ts` (ADR-0059). Every browser that has worlds and hasn't seen the new number is offered, once, to start fresh (the app menu's Wipe everything (the logo)'s two confirmations, with Save to file) or carry on. Worlds must still open after the update (ADR-0026, ADR-0056); this is a recommendation, never a replacement for repairing old worlds. Only bump it with the owner's go-ahead.
 
 ## ADR workflow
 

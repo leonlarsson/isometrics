@@ -284,6 +284,12 @@ export const fileMenu = async (page: Page, item: RegExp) => {
 	await menuItem(page, item).click();
 };
 
+/** The app menu on the logo (help, Preferences, resets: AppMenu) → an item. */
+export const appMenu = async (page: Page, item: RegExp) => {
+	await page.getByRole("button", { name: new RegExp(`^${APP_NAME}: `) }).click();
+	await menuItem(page, item).click();
+};
+
 /** File → Build with AI → an item ("A new world…", "Change this world…"). */
 export const buildWithAiMenu = async (page: Page, item: RegExp) => {
 	await page.getByRole("button", { name: "File" }).click();

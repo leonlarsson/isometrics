@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
-import { expect, fileMenu, openEditor, openPage, read, reopened, saved, test } from "./editor";
+import {
+	appMenu,
+	expect,
+	fileMenu,
+	openEditor,
+	openPage,
+	read,
+	reopened,
+	saved,
+	test,
+} from "./editor";
 
 /** How many worlds this browser keeps. */
 const storedWorlds = (page: Page) =>
@@ -140,7 +150,7 @@ test.describe("starting over (ADR-0045)", () => {
 		await openEditor(page);
 		await page.getByLabel("Title").first().fill("Doomed");
 		await saved(page);
-		await fileMenu(page, /Wipe everything/);
+		await appMenu(page, /Wipe everything/);
 		await page.getByRole("button", { name: "Continue" }).click();
 		const wipe = page.getByRole("button", { name: "Wipe everything" });
 		// It waits a few seconds before it can be pressed.
@@ -155,7 +165,7 @@ test.describe("starting over (ADR-0045)", () => {
 		await openEditor(page);
 		await page.getByLabel("Title").first().fill("Kept");
 		await saved(page);
-		await fileMenu(page, /Reset this browser/);
+		await appMenu(page, /Reset this browser/);
 		await page.getByRole("button", { name: "Reset settings" }).click();
 		await reopened(page);
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Kept");

@@ -6,7 +6,7 @@ import { listWorlds } from "./persistence";
  * The fresh-start number (ADR-0059). Bump it in a release that changes the
  * app so much that starting over beats carrying old worlds and settings
  * along: every browser that has worlds and hasn't seen this number is offered,
- * once, to wipe everything (with File → Wipe everything's two confirmations)
+ * once, to wipe everything (with the app menu's Wipe everything (the logo)'s two confirmations)
  * or to carry on. New visitors and freshly wiped browsers just take the number.
  */
 export const FRESH_START = 0;

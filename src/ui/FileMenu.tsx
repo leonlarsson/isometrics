@@ -5,7 +5,6 @@ import {
 	duplicateWorld,
 	openSavedWorld,
 	openWorldFile,
-	resetThisBrowsersSettings,
 	saveWorldFile,
 } from "#/editor/fileActions";
 import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
@@ -15,16 +14,18 @@ import { keepsOpenWorld } from "#/editor/whatIsOpen";
 import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
-import { WipeEverything } from "./WipeEverything";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
 /** How many worlds Recent worlds lists; All worlds… shows the rest. */
 const RECENT_WORLDS = 8;
 
 /**
- * The toolbar's File menu: the worlds kept in this browser (new, from a
- * template, open, duplicate, delete) and world files (open, save). New worlds
- * open next to the others instead of replacing one (ADR-0044).
+ * The toolbar's File menu, only about worlds, in three groups: start or open
+ * one (New world…, Build with AI, Recent worlds, Open file…), take the open
+ * one elsewhere (Share a link…, Save to file, Render a picture…), and manage
+ * them (Duplicate, Delete, Backups). New worlds open next to the others
+ * instead of replacing one (ADR-0044). What's about the app and this browser
+ * (help, Preferences, resets) is in the app menu on the logo (AppMenu).
  */
 export const FileMenu = () => {
 	const title = useEditor((s) => s.scene.meta.title);
@@ -41,9 +42,6 @@ export const FileMenu = () => {
 	const [backupCount, setBackupCount] = useState(0);
 	// Kept while the dialog animates out, so its text doesn't change.
 	const [deletingTitle, setDeletingTitle] = useState(title);
-	// Wiping everything takes two confirmations; the second one names what goes.
-	const [wiping, setWiping] = useState(false);
-	const [resettingSettings, setResettingSettings] = useState(false);
 
 	return (
 		<>
@@ -115,6 +113,36 @@ export const FileMenu = () => {
 					<Menu.Separator />
 
 					<Menu.Item
+						icon="newTab"
+						label="Share a link…"
+						description={
+							notOnHome ??
+							"A public link that opens this world for anyone who has it, until it expires"
+						}
+						disabled={!hasWorld}
+						onClick={() => useEditor.getState().setShareOpen(true)}
+					/>
+
+					<Menu.Item
+						icon="download"
+						label="Save to file"
+						shortcut="Ctrl+S"
+						description={notOnHome}
+						disabled={!hasWorld}
+						onClick={saveWorldFile}
+					/>
+
+					<Menu.Item
+						icon="picture"
+						label="Render a picture…"
+						description={notOnHome ?? "A still of the world at its finest, to save as a PNG"}
+						disabled={!hasWorld}
+						onClick={() => useEditor.getState().setRenderDialogOpen(true)}
+					/>
+
+					<Menu.Separator />
+
+					<Menu.Item
 						icon="copy"
 						label="Duplicate world"
 						description={notOnHome}
@@ -147,77 +175,6 @@ export const FileMenu = () => {
 						}
 						onClick={() => setViewingBackups(true)}
 					/>
-
-					<Menu.Separator />
-
-					<Menu.Item
-						icon="newTab"
-						label="Share a link…"
-						description={
-							notOnHome ??
-							"A public link that opens this world for anyone who has it, until it expires"
-						}
-						disabled={!hasWorld}
-						onClick={() => useEditor.getState().setShareOpen(true)}
-					/>
-
-					<Menu.Item
-						icon="download"
-						label="Save to file"
-						shortcut="Ctrl+S"
-						description={notOnHome}
-						disabled={!hasWorld}
-						onClick={saveWorldFile}
-					/>
-
-					<Menu.Separator />
-
-					<Menu.Item
-						icon="picture"
-						label="Render a picture…"
-						description={notOnHome ?? "A still of the world at its finest, to save as a PNG"}
-						disabled={!hasWorld}
-						onClick={() => useEditor.getState().setRenderDialogOpen(true)}
-					/>
-
-					<Menu.Separator />
-
-					<Menu.Item
-						icon="info"
-						label="Welcome…"
-						description="The ways to start: build a city, show your data, or open an example"
-						onClick={() => useEditor.getState().setWelcomeOpen(true)}
-					/>
-
-					<Menu.Item
-						icon="newTab"
-						label="Guide"
-						description="How a world is made, walked through with a real API"
-						onClick={() => window.open("/guide", "_blank", "noopener")}
-					/>
-
-					<Menu.Separator />
-
-					<Menu.Item
-						icon="user"
-						label="Preferences…"
-						description="How the camera moves for you, and overlays, in this browser"
-						onClick={() => useEditor.getState().setPreferencesOpen(true)}
-					/>
-
-					<Menu.Item
-						icon="reset"
-						label="Reset this browser’s settings…"
-						description="Panels, favourites, cameras, Preferences; keeps your worlds"
-						onClick={() => setResettingSettings(true)}
-					/>
-
-					<Menu.Item
-						icon="trash"
-						label="Wipe everything…"
-						description="Every world, backup and setting in this browser"
-						onClick={() => setWiping(true)}
-					/>
 				</Menu.Popup>
 			</Menu.Root>
 
@@ -234,18 +191,6 @@ export const FileMenu = () => {
 				danger
 				onConfirm={() => deleteOpenWorld()}
 				extraAction={{ label: "Save to file", onClick: saveWorldFile }}
-			/>
-
-			<WipeEverything open={wiping} onClose={() => setWiping(false)} />
-
-			<ConfirmDialog
-				open={resettingSettings}
-				onOpenChange={setResettingSettings}
-				title="Reset this browser’s settings?"
-				description="Panel sizes and folds, Add to scene’s favourites and recently used, where the camera was in each world, and Preferences go back to their defaults. Your worlds and backups stay. The page reloads."
-				confirmLabel="Reset settings"
-				danger
-				onConfirm={resetThisBrowsersSettings}
 			/>
 		</>
 	);

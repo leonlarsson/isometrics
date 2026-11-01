@@ -373,7 +373,7 @@ export interface IEditorState {
 	renderDialogOpen: boolean;
 	/** Build with AI is open, for a new world or to change this one (ADR-0116); null: closed. */
 	buildWithAi: "new" | "change" | null;
-	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
+	/** The welcome is open (ADR-0116): on a first visit, or from the app menu's Welcome… (the logo). */
 	welcomeOpen: boolean;
 	/** Share a link… is open (ADR-0120). */
 	shareOpen: boolean;

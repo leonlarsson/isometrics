@@ -62,7 +62,7 @@ const go = (choice: TWelcomeChoice) => {
 /**
  * The welcome (ADR-0116): three ways in, each with a picture, for someone who
  * has just arrived: build a city, show their data (New world with data on,
- * where building it with AI is one option), or open an example. Shown once to a browser with no worlds; File → Welcome… shows
+ * where building it with AI is one option), or open an example. Shown once to a browser with no worlds; the app menu's Welcome… (the logo) shows
  * it again. Closing it leaves the starter world to look around in.
  */
 export const Welcome = () => {
@@ -112,7 +112,7 @@ export const Welcome = () => {
 			/>
 
 			<Hint>
-				{`Behind this is “${title}”: look around first if you like. Every way in is in the File menu later (Welcome…), and the guide walks through it all, with a real API.`}
+				{`Behind this is “${title}”: look around first if you like. Every way in is there later too: the ${APP_NAME} menu (the logo, top left) has Welcome…, and the guide walks through it all, with a real API.`}
 			</Hint>
 
 			<Button size="sm" icon="newTab" onClick={openGuide}>

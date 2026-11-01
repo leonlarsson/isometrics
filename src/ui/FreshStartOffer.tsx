@@ -9,7 +9,7 @@ import { WipeEverything } from "./WipeEverything";
 
 /**
  * After a big update (the fresh-start number went up, ADR-0059), offers once
- * to wipe everything and start fresh, with File → Wipe everything's two
+ * to wipe everything and start fresh, with the app menu's Wipe everything (the logo)'s two
  * confirmations, or to carry on. Either way it isn't asked again until the
  * next bump.
  */
