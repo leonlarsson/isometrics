@@ -30,6 +30,11 @@ interface IRunningMove {
 	key: string;
 	/** It runs at least until then (performance.now() ms), held or not. */
 	until: number;
+	/**
+	 * Whether a frame has moved the camera by it yet. A move is never dropped before one has: a
+	 * tap does something even when frames come slower than a tap's time (a slow device).
+	 */
+	isApplied: boolean;
 }
 
 /** The moves running now. */
@@ -69,7 +74,7 @@ export const flightPointerLock = keepOnHotReload("flightPointerLock", () => ({
 
 /** Start a move; it runs until `key` is let go, and for at least a tap's time. */
 export const startCameraMove = (move: TCameraMove, key: string) => {
-	runningCameraMoves.set(move, { key, until: performance.now() + TAP_MS });
+	runningCameraMoves.set(move, { key, until: performance.now() + TAP_MS, isApplied: false });
 	rightButtonPress.movedByKeys = true;
 	if (useEditor.getState().holdingRightButton) {
 		flightPointerLock.request?.();
