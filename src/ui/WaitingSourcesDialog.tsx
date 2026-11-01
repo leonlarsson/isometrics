@@ -53,8 +53,8 @@ export const WaitingSourcesDialog = () => {
 				<div className={styles.body}>
 					<p>
 						{one
-							? "It reads data from an external source this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from it until you allow it: reading tells it you're looking."
-							: `It reads data from ${addresses.length} external sources this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from them until you allow them: reading tells each one you're looking.`}
+							? "It reads data from an external source this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from it until you allow it: reading it lets whoever runs it see your visit (your IP address, and when)."
+							: `It reads data from ${addresses.length} external sources this browser hasn't read before. Worlds can come from anyone (a file, an AI's answer), so nothing is read from them until you allow them: reading them lets whoever runs each one see your visit (your IP address, and when).`}
 					</p>
 
 					<ul className={styles.addresses}>

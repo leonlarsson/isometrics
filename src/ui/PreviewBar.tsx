@@ -5,14 +5,10 @@ import { allowLink } from "#/editor/linkTrust";
 import { hostsOf, useWaitingSources } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
 import { previewOf } from "#/editor/whatIsOpen";
+import { localDateTime } from "#/lib/when";
 
-import { Button, IconButton } from "./Button";
-
-import bars from "./DrawingBar.module.css";
-import styles from "./PreviewBar.module.css";
-
-const whenItGoes = (expiresAt: string) =>
-	new Date(expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+import { Button } from "./Button";
+import { FloatingBar } from "./FloatingBar";
 
 /**
  * While a world from a link is open as a preview (ADR-0121): says it isn't
@@ -34,49 +30,46 @@ export const PreviewBar = () => {
 	const what = preview.from === "shared" ? "A shared world" : "A template";
 	const one = waiting.length === 1;
 	return (
-		<div className={`${bars.bar} ${styles.bar}`} data-label-obstacle="" role="status">
-			<div className={`${bars.text} ${styles.text}`}>
-				<strong>{`${what}, not kept in this browser`}</strong>
+		<FloatingBar
+			title={`${what}, not kept in this browser`}
+			dismiss={{
+				label: "Hide this bar (it's back when the page reloads)",
+				onDismiss: () => setHiddenFor(preview.id),
+			}}
+			actions={
+				<>
+					{waiting.length > 0 && (
+						<Button
+							icon="check"
+							onClick={() => {
+								for (const source of waiting) {
+									allowLink(source.url ?? "");
+								}
+							}}
+						>
+							{one ? "Allow it" : "Allow them"}
+						</Button>
+					)}
 
-				<span className={bars.keys}>
-					{preview.expiresAt
-						? `Keep a copy to edit it or come back to it. The link works until ${whenItGoes(preview.expiresAt)}.`
-						: "Keep a copy to edit it or come back to it."}
-				</span>
+					<Button onClick={closePreview}>Close world</Button>
 
-				{waiting.length > 0 && (
-					<span className={`${bars.keys} ${styles.waiting}`}>
-						{`It reads ${one ? "an external source" : `${waiting.length} external sources`} not read yet: ${hostsOf(waiting)}.`}
-					</span>
-				)}
-			</div>
-
-			<div className={`${bars.actions} ${styles.actions}`}>
-				{waiting.length > 0 && (
-					<Button
-						icon="check"
-						onClick={() => {
-							for (const source of waiting) {
-								allowLink(source.url ?? "");
-							}
-						}}
-					>
-						{one ? "Allow it" : "Allow them"}
+					<Button variant="primary" icon="download" onClick={keepPreview}>
+						Keep a copy
 					</Button>
-				)}
+				</>
+			}
+		>
+			<span>
+				{preview.expiresAt
+					? `Keep a copy to edit it or come back to it. The link works until ${localDateTime(preview.expiresAt)}.`
+					: "Keep a copy to edit it or come back to it."}
+			</span>
 
-				<Button onClick={closePreview}>Close world</Button>
-
-				<Button variant="primary" icon="download" onClick={keepPreview}>
-					Keep a copy
-				</Button>
-
-				<IconButton
-					icon="close"
-					label="Hide this bar (it's back when the page reloads)"
-					onClick={() => setHiddenFor(preview.id)}
-				/>
-			</div>
-		</div>
+			{waiting.length > 0 && (
+				<span>
+					{`It reads ${one ? "an external source" : `${waiting.length} external sources`} not read yet: ${hostsOf(waiting)}.`}
+				</span>
+			)}
+		</FloatingBar>
 	);
 };

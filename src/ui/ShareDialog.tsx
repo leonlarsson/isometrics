@@ -11,6 +11,7 @@ import {
 	stopSharing,
 	useSharedLinks,
 } from "#/editor/userWorlds";
+import { localDateTime } from "#/lib/when";
 
 import { Button, IconButton } from "./Button";
 import { Dialog } from "./Dialog";
@@ -20,8 +21,8 @@ import { useCopy } from "./useCopy";
 
 import styles from "./ShareDialog.module.css";
 
-const whenItGoes = (expiresAt: string) =>
-	new Date(expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+/** When a link expires, in the viewer's own time. */
+const whenItGoes = localDateTime;
 
 /**
  * Share a link… (ADR-0120): a public snapshot of the world on the site's

@@ -29,7 +29,7 @@ export const LinkQuestion = () => {
 			description={
 				<div className={styles.body}>
 					<p>
-						{`“${step?.scene.meta.title ?? ""}” came from a link, and anyone can make one. It reads data from ${one ? "this external source" : `these ${addresses.length} external sources`}, and nothing has been read from ${one ? "it" : "them"} yet:`}
+						{`The world “${step?.scene.meta.title ?? ""}” came from a link, and anyone can make one. It reads data from ${one ? "this external source" : `these ${addresses.length} external sources`}, and nothing has been read from ${one ? "it" : "them"} yet:`}
 					</p>
 
 					<ul className={styles.addresses}>
@@ -44,8 +44,8 @@ export const LinkQuestion = () => {
 
 					<p>
 						{one
-							? "Reading it tells it you're looking. Open and allow reads it from now on in this browser; Open leaves it waiting in the Data tab, under Sources, to allow later."
-							: "Reading them tells each one you're looking. Open and allow reads them from now on in this browser; Open leaves them waiting in the Data tab, under Sources, to allow later."}
+							? "Reading it lets whoever runs it see your visit (your IP address, and when). Open and allow reads it from now on in this browser; Open leaves it waiting in the Data tab, under Sources, to allow later."
+							: "Reading them lets whoever runs each one see your visit (your IP address, and when). Open and allow reads them from now on in this browser; Open leaves them waiting in the Data tab, under Sources, to allow later."}
 					</p>
 				</div>
 			}
