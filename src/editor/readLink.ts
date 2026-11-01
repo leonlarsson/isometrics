@@ -115,7 +115,7 @@ export const readLink = async (
 	if (!isLinkAllowed(url.trim())) {
 		throw new LinkError(
 			"notAllowed",
-			"This browser hasn't allowed this address yet: allow it in the Data tab, under Sources.",
+			"This browser hasn't allowed this address yet: allow it in the Data tab (Allow, on its source).",
 		);
 	}
 	let address: URL;

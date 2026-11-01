@@ -63,10 +63,9 @@ interface IDataValuePageProps {
 }
 
 /**
- * One data value's own page in the Data tab (data study): its name, key,
- * value and unit, where it comes from, its past values, and everything that
- * shows or follows it, each a way to go there. The header's breadcrumb names
- * it, with a way back to the list.
+ * One data value's page in the Data window (data study, ADR-0123): its name,
+ * key, value and unit, where it comes from, its past values, and everything
+ * that shows or follows it, each a way to go there (closing the window).
  */
 export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValuePageProps) => {
 	const scene = useEditor((s) => s.scene);
@@ -74,6 +73,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 	const removeData = useEditor((s) => s.removeData);
 	const selectItems = useEditor((s) => s.selectItems);
 	const setTab = useEditor((s) => s.setTab);
+	const openDataWindow = useEditor((s) => s.openDataWindow);
 	// A run of edits to its name and key, while the page is open, is one undo step.
 	const [editing] = useState(() => `data-page:${value.key}`);
 	const [typedKey, setTypedKey] = useState(value.key);
@@ -128,6 +128,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 			selectItems([use.item]);
 		}
 		setTab(use.tab);
+		openDataWindow(null);
 	};
 
 	const numbers = numericPoints(value.history);
@@ -320,9 +321,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						</div>
 					</>
 				) : (
-					<Hint>
-						Typed by hand. Values can also be read from a spreadsheet: Sources, in the Data tab.
-					</Hint>
+					<Hint>Typed by hand. Add data reads values from a spreadsheet or a link instead.</Hint>
 				)}
 			</Section>
 
@@ -375,10 +374,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						))}
 					</List>
 				) : (
-					<Hint>
-						Nothing shows or follows it yet. Show it on an object's card (its Label tab), or make a
-						light or a colour follow it (From data).
-					</Hint>
+					<Hint>Nothing shows or follows it yet: Show it in the world, above.</Hint>
 				)}
 
 				<div className={styles.buttons}>

@@ -1,29 +1,41 @@
-/* A group of values from one place, its heading above the list. */
-.group {
+/* The Data tab's top: a search, Add data and the window. */
+.bar {
 	display: flex;
-	flex-direction: column;
-	gap: 4px;
+	align-items: center;
+	gap: 6px;
 }
 
-/* A value's row ends in its sparkline and its value. */
-.valueMeta {
-	display: inline-flex;
-	align-items: center;
+.bar > :first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+/* What needs an answer: sources waiting for a yes. */
+.notice {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
 	gap: 8px;
-	font-variant-numeric: tabular-nums;
-	color: var(--text);
+	padding: 10px 12px;
+	border-radius: var(--radius-md);
+	background: var(--accent-soft);
+}
+
+/* An empty world's tab: what data is for (the window says more). */
+.first {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.firstTitle {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
 }
 
 .buttons {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
-}
-
-/* A source's address and status in its row: whole on hover (a tooltip), so the row stays one line. */
-.address,
-.status {
-	text-decoration: underline dotted;
-	text-underline-offset: 2px;
-	cursor: help;
 }

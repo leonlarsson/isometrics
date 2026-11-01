@@ -16,7 +16,7 @@ interface IAllowSourcesDialogProps {
 /**
  * Several external sources to allow at once (ADR-0119): every address listed
  * in full before any is allowed, none hidden behind "and 3 more", with Allow
- * all or Not now. From the preview's bar and the Data tab's Sources.
+ * all or Not now. From the preview's bar and the Data tab.
  */
 export const AllowSourcesDialog = ({
 	open,

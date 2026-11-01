@@ -1,0 +1,88 @@
+/* The world's data as one list: a heading per source, its rows under it. */
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* A source's heading: a label, not a button (only the rows and Source details open things). */
+.head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 30px;
+}
+
+.headIcon {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 22px;
+	height: 22px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-muted);
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: 13px;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* How it's doing, under its name: an icon and words. */
+.status {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin: 0 0 2px 30px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.status[data-tone="failed"] {
+	color: var(--danger);
+}
+
+.status[data-tone="waiting"] {
+	color: var(--text);
+}
+
+/* An exact error, whole on hover (a tooltip). */
+.detail {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* A row ends in its sparkline and value, or "table · N rows", and a chevron: it opens. */
+.meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+
+.value {
+	color: var(--text);
+	font-weight: 600;
+}
+
+.tag {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--surface-sunken);
+	font-size: 11px;
+}

@@ -1,0 +1,116 @@
+/* The Data window's pages: a value, a table, a source, Add data (the window is SplitDialog). */
+/* A page's own heading: its name and what it is in a sentence. */
+.pageHead {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.pageTitle {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.stepTitle {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.pageAbout {
+	margin: 0;
+	max-width: 68ch;
+	line-height: 1.5;
+	color: var(--text-muted);
+}
+
+.bigValue {
+	font-size: 16px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text);
+}
+
+.pageFoot {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* A source's facts: a term and its value, a row each. */
+.facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 6px 16px;
+	margin: 0;
+}
+
+.facts dt {
+	color: var(--text-muted);
+}
+
+.facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.address {
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+/* What data is for, before anything is added. */
+.why {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--border);
+}
+
+.examples {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.example {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.example > span:last-child {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.example strong {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.example > span:last-child > span {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.exampleIcon {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--radius-md);
+	background: var(--accent-soft);
+	color: var(--accent);
+}

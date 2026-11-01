@@ -248,12 +248,6 @@ export const Inspector = ({
 	const tab = useEditor((s) => s.tab);
 	const setTab = useEditor((s) => s.setTab);
 	const title = useEditor((s) => s.scene.meta.title);
-	const openValue = useEditor((s) => s.openValue);
-	// The data value open on its own page in the Data tab, named for the breadcrumb.
-	const openValueName = useEditor((s) => {
-		const value = s.scene.data.values.find((each) => each.key === s.openValueKey);
-		return value ? value.name || value.key : null;
-	});
 	const selection = useSelection();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [query, setQuery] = useState("");
@@ -266,7 +260,6 @@ export const Inspector = ({
 	const shown = shownTab(tab, available, selectionTabs);
 	const searching = searchOpen && query.trim() !== "";
 	const isWorldTab = worldTabs.includes(shown);
-	const showsValuePage = shown.value === "data" && openValueName !== null;
 	const hasHeader = !NARROW_TABS.includes(shown);
 
 	const closeSearch = () => {
@@ -319,14 +312,6 @@ export const Inspector = ({
 							</div>
 						) : (
 							<>
-								{showsValuePage && (
-									<IconButton
-										icon="chevronLeft"
-										label="Back to all values"
-										onClick={() => openValue(null)}
-									/>
-								)}
-
 								<p className={styles.breadcrumb}>
 									<span className={styles.contextIcon}>
 										<Icon name={isWorldTab || !selection ? "globe" : selection.icon} size={15} />
@@ -337,14 +322,6 @@ export const Inspector = ({
 									<Icon name="chevronRight" size={12} />
 
 									<span>{shown.label}</span>
-
-									{showsValuePage && (
-										<>
-											<Icon name="chevronRight" size={12} />
-
-											<span>{openValueName}</span>
-										</>
-									)}
 								</p>
 
 								<IconButton
@@ -359,8 +336,8 @@ export const Inspector = ({
 
 				{open && (
 					<div
-						// A new scroll for each tab, and for a value's page (which opens at its top).
-						key={searching ? "search" : showsValuePage ? "data-value" : shown.value}
+						// A new scroll for each tab.
+						key={searching ? "search" : shown.value}
 						className={styles.scroll}
 						data-inspector-scroll=""
 					>

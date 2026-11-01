@@ -1,0 +1,46 @@
+/* Action cards (kit): a few cards, each a thing to do, with a line saying what it does or why it can't yet. */
+.choices {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px;
+}
+
+.choice {
+	all: unset;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 14px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text);
+	cursor: pointer;
+}
+
+.choice strong {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.choice span {
+	font-size: 12px;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.choice:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+.choice:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+/* Not yet possible: greyed, its reason in its words (not hidden). */
+.choice:disabled {
+	cursor: default;
+	opacity: 0.6;
+}

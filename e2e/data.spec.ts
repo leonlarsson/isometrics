@@ -2,12 +2,13 @@ import type { Page } from "@playwright/test";
 
 import {
 	act,
+	addData,
+	dataWindow,
 	expect,
 	fileMenu,
 	labelCard,
 	loadWorld,
 	openEditor,
-	openPanel,
 	read,
 	test,
 } from "./editor";
@@ -261,17 +262,15 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		// Folded at first, its title says what waits.
-		await expect(
-			page.getByRole("button", { name: "Sources (12 waiting for your yes)" }),
-		).toBeVisible();
-		await openPanel(page, /^Sources/);
-		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
-		await page.getByRole("searchbox", { name: "Find a source" }).fill("bikes");
-		await expect(page.getByText("bikes.example.org", { exact: true })).toBeVisible();
-		await expect(page.getByText("buses.example.org", { exact: true })).toHaveCount(0);
-		await page.getByRole("searchbox", { name: "Find a source" }).fill("nothing like it");
-		await expect(page.getByText("No source matches “nothing like it”.")).toBeVisible();
+		// Each source is a heading named by its site, its Allow on it.
+		const bikes = page.getByRole("region", { name: "bikes.example.org" });
+		await expect(bikes).toContainText("waiting for your yes");
+		await expect(bikes.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
+		await page.getByRole("searchbox", { name: "Find data" }).fill("bikes");
+		await expect(bikes).toBeVisible();
+		await expect(page.getByRole("region", { name: "buses.example.org" })).toHaveCount(0);
+		await page.getByRole("searchbox", { name: "Find data" }).fill("nothing like it");
+		await expect(page.getByText("Nothing matches “nothing like it”.")).toBeVisible();
 	});
 
 	test("a link that came with a world isn't read until it's allowed", async ({ page }) => {
@@ -315,12 +314,10 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		// Not now: it waits in the Data tab, which can allow it later.
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		await openPanel(page, /^Sources/);
 		await expect(page.getByText(/this browser hasn't read before, from example.org/)).toBeVisible();
 		expect(requests).toBe(0);
 		await page
-			.getByRole("listitem")
-			.filter({ hasText: "example.org" })
+			.getByRole("region", { name: "Counts" })
 			.getByRole("button", { name: "Allow", exact: true })
 			.click();
 		await expect.poll(() => requests).toBe(1);
@@ -440,7 +437,7 @@ test.describe("links and APIs (ADR-0113)", () => {
 		const dialog = page.getByRole("dialog", { name: "Read a link or API" });
 
 		// A site that doesn't let browsers read it says so, and what would fix it.
-		await page.getByRole("button", { name: "Read a link or API…" }).click();
+		await addData(page, "A link or API…");
 		await dialog.getByRole("textbox", { name: "Address" }).fill("https://api.steampowered.com/x");
 		await dialog.getByRole("button", { name: "Read", exact: true }).click();
 		await expect(dialog).toContainText("CORS");
@@ -463,9 +460,11 @@ test.describe("links and APIs (ADR-0113)", () => {
 		);
 		await expect(labelCard(page, /Messages/)).toContainText("1,692");
 		sentToday = 1750;
-		await page.getByRole("button", { name: "Read it again now" }).click();
+		await dataWindow(page).getByRole("button", { name: "Source details" }).click();
+		await dataWindow(page).getByRole("button", { name: "Read it now" }).click();
 		await expect(labelCard(page, /Messages/)).toContainText("1,750");
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1692);
+		await page.keyboard.press("Escape");
 		await page.getByRole("button", { name: "Keep these values" }).click();
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1750);
 	});
