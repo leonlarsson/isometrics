@@ -40,8 +40,8 @@
 	}
 }
 
-/* Phones: just the icon; the words stay its name. */
-@media (max-width: 700px) {
+/* Narrow desktops and phones: just the icon; the words stay its name. */
+@media (max-width: 950px) {
 	.label {
 		position: absolute;
 		width: 1px;

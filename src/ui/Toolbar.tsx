@@ -1,8 +1,8 @@
 import { toggleSidePanes, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
-import { APP_NAME } from "#/lib/app";
 import type { TThemePreference } from "#/scene/schema";
 
+import { AppMenu } from "./AppMenu";
 import { IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
@@ -10,6 +10,8 @@ import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 import { SaveStatus } from "./SaveStatus";
 import { ShadingMenuGroup, ShadingSwitcher } from "./ShadingSwitcher";
+import { useMediaQuery } from "./useMediaQuery";
+import { TOOLBAR_FOLDS_VIEW, useNarrowToolbar } from "./useNarrowToolbar";
 import { ViewpointsMenu } from "./ViewpointsMenu";
 
 import styles from "./Toolbar.module.css";
@@ -49,6 +51,9 @@ export const Toolbar = () => {
 	const painting = useEditor((s) => s.painting);
 	// On the home screen, or while a link opens, there's no world to edit or view (ADR-0121).
 	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
+	// What the toolbar has folded into More at this width: More lists just that.
+	const foldsView = useMediaQuery(TOOLBAR_FOLDS_VIEW);
+	const isNarrow = useNarrowToolbar();
 
 	const panes = useSidePanes();
 	const panesHidden = !panes.left && !panes.right;
@@ -61,9 +66,7 @@ export const Toolbar = () => {
 	return (
 		<header className={styles.toolbar}>
 			<div className={styles.brand}>
-				<span className={styles.logo} aria-hidden="true" />
-
-				<span className={styles.title}>{APP_NAME}</span>
+				<AppMenu />
 
 				<FileMenu />
 
@@ -162,63 +165,74 @@ export const Toolbar = () => {
 
 					<ViewpointsMenu />
 
-					<span className={styles.wideOnly}>
+					{/* Narrower desktops fold these into More, in steps, as room runs out. */}
+					<span className={styles.shadingSlot}>
 						<ShadingSwitcher />
 					</span>
 
 					<span className={styles.wideOnly}>
 						<IconButtonGroup cluster="View">
-							<IconButton
-								size="md"
-								tooltipSide="bottom"
-								icon={playing ? "pause" : "play"}
-								label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
-								onClick={togglePlaying}
-							/>
+							<span className={styles.viewSlot}>
+								<IconButton
+									size="md"
+									tooltipSide="bottom"
+									icon={playing ? "pause" : "play"}
+									label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
+									onClick={togglePlaying}
+								/>
+							</span>
 
 							<CameraMenu />
 
-							<IconButton
-								size="md"
-								tooltipSide="bottom"
-								icon="focus"
-								label="Re-centre camera"
-								onClick={resetView}
-							/>
+							<span className={styles.viewSlot}>
+								<IconButton
+									size="md"
+									tooltipSide="bottom"
+									icon="focus"
+									label="Re-centre camera"
+									onClick={resetView}
+								/>
+							</span>
 
-							<IconButton
-								size="md"
-								tooltipSide="bottom"
-								icon={themeInfo.icon}
-								label={themeInfo.label}
-								onClick={cycleTheme}
-							/>
+							<span className={styles.viewSlot}>
+								<IconButton
+									size="md"
+									tooltipSide="bottom"
+									icon={themeInfo.icon}
+									label={themeInfo.label}
+									onClick={cycleTheme}
+								/>
+							</span>
 						</IconButtonGroup>
 					</span>
 
-					{/* Phones: the buttons above that don't fit, as a menu. */}
-					<span className={styles.narrowOnly}>
+					{/* What the toolbar has folded away at this width (only that), as a menu. */}
+					<span className={styles.moreSlot}>
 						<Menu.Root>
 							<Menu.Trigger label="More" chevron={false}>
 								<Icon name="more" size={18} />
 							</Menu.Trigger>
 
 							<Menu.Popup>
-								<Menu.CheckboxItem
-									icon="play"
-									label="Play motion"
-									checked={playing}
-									onCheckedChange={togglePlaying}
-								/>
+								{foldsView && (
+									<Menu.CheckboxItem
+										icon="play"
+										label="Play motion"
+										checked={playing}
+										onCheckedChange={togglePlaying}
+									/>
+								)}
 
-								<Menu.CheckboxItem
-									icon="perspective"
-									label="Perspective"
-									checked={perspective}
-									onCheckedChange={toggleProjection}
-								/>
+								{isNarrow && (
+									<Menu.CheckboxItem
+										icon="perspective"
+										label="Perspective"
+										checked={perspective}
+										onCheckedChange={toggleProjection}
+									/>
+								)}
 
-								{mode === "edit" && (
+								{isNarrow && mode === "edit" && (
 									<Menu.CheckboxItem
 										icon="grid"
 										label="Snap to grid"
@@ -227,7 +241,7 @@ export const Toolbar = () => {
 									/>
 								)}
 
-								{mode === "edit" && (
+								{isNarrow && mode === "edit" && (
 									<Menu.Item
 										icon="boxSelect"
 										label="Select with a box"
@@ -236,20 +250,24 @@ export const Toolbar = () => {
 									/>
 								)}
 
-								<Menu.Separator />
+								{foldsView && <Menu.Separator />}
 
 								<ShadingMenuGroup />
 
-								<Menu.Separator />
+								{foldsView && <Menu.Separator />}
 
-								<Menu.Item icon="focus" label="Re-centre camera" onClick={resetView} />
+								{foldsView && (
+									<Menu.Item icon="focus" label="Re-centre camera" onClick={resetView} />
+								)}
 
-								<Menu.Item
-									icon={themeInfo.icon}
-									label={themeInfo.label}
-									description={themeInfo.nextLabel}
-									onClick={cycleTheme}
-								/>
+								{foldsView && (
+									<Menu.Item
+										icon={themeInfo.icon}
+										label={themeInfo.label}
+										description={themeInfo.nextLabel}
+										onClick={cycleTheme}
+									/>
+								)}
 							</Menu.Popup>
 						</Menu.Root>
 					</span>

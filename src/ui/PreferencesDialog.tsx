@@ -93,7 +93,7 @@ const overlayField = (preferences: TPreferences, key: TOverlay, label: string, h
 );
 
 /**
- * Preferences (File → Preferences…, ADR-0062): how the camera moves for you
+ * Preferences (the app menu's Preferences… (the logo), ADR-0062): how the camera moves for you
  * and what's drawn over the view while editing, kept in this browser for
  * every world and never saved with one (editor/preferences). The world's own
  * camera settings are in its Camera tab, as Blender keeps navigation in its

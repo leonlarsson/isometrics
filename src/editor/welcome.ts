@@ -5,7 +5,7 @@ import { listWorlds } from "./persistence";
 /**
  * The welcome (ADR-0116): shown once, to a browser that has never kept a
  * world, so people who know the app aren't greeted again. Picking anything or
- * closing it counts as seen; File → Welcome… shows it again any time.
+ * closing it counts as seen; the app menu's Welcome… (the logo) shows it again any time.
  */
 export const WELCOME_SEEN_KEY = `${APP_NAME.toLowerCase()}:welcome-seen`;
 

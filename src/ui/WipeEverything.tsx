@@ -17,7 +17,7 @@ const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "
  * Deleting everything this app keeps in the browser, behind two confirmations
  * (ADR-0045): the first says what goes and offers Save to file, the second
  * names the counts and only works after a 3-second countdown. Then the page
- * reloads as on a first visit. From File → Wipe everything, and from the
+ * reloads as on a first visit. From the app menu's Wipe everything (the logo), and from the
  * offer to start fresh after a big update (ADR-0059).
  */
 export const WipeEverything = ({ open, onClose }: IWipeEverythingProps) => {

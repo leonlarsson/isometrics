@@ -1,8 +1,8 @@
 import {
 	act,
+	appMenu,
 	choose,
 	expect,
-	fileMenu,
 	groundSpot,
 	keys,
 	loadWorld,
@@ -29,13 +29,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Preferences (ADR-0062, ADR-0068)", () => {
+	// Wide enough for the toolbar's shading buttons, which fold into More below 1300px.
+	test.use({ viewport: { width: 1440, height: 800 } });
+
 	test("opens from File, keeps a change after a reload, and resets", async ({ page }) => {
-		await fileMenu(page, /^Preferences/);
+		await appMenu(page, /^Preferences/);
 		await choose(page, "Camera control", "Free, like Blender");
 		await page.keyboard.press("Escape");
 		await page.reload();
 		await reopened(page);
-		await fileMenu(page, /^Preferences/);
+		await appMenu(page, /^Preferences/);
 		await expect(page.getByRole("combobox", { name: "Camera control" })).toContainText("Free");
 		await preferences(page).getByRole("button", { name: "Reset all preferences" }).click();
 		// It asks first.
@@ -44,7 +47,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 	});
 
 	test("its search finds a setting on another page", async ({ page }) => {
-		await fileMenu(page, /^Preferences/);
+		await appMenu(page, /^Preferences/);
 		await preferences(page)
 			.getByRole("searchbox", { name: "Search the preferences" })
 			.fill("copies");
@@ -54,7 +57,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 	test("Graphics: a preset sets every setting, and a changed one stays and resets (ADR-0072)", async ({
 		page,
 	}) => {
-		await fileMenu(page, /^Preferences/);
+		await appMenu(page, /^Preferences/);
 		await page.getByRole("button", { name: "Graphics" }).click();
 		const occlusion = page.getByRole("combobox", { name: "Ambient occlusion" });
 		await expect(occlusion).toContainText("Off");
@@ -135,7 +138,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 	});
 
 	test("Names of copies: Number them makes Ctrl+D name copies “… 2”", async ({ page }) => {
-		await fileMenu(page, /^Preferences/);
+		await appMenu(page, /^Preferences/);
 		await page.getByRole("button", { name: "Editing" }).click();
 		await choose(page, "Names of copies", "Number them");
 		await page.keyboard.press("Escape");
