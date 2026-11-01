@@ -24,13 +24,14 @@
 
 /*
  * The optional bits, as a row of small text buttons that wraps. Text buttons reach 6px past their
- * text, and their focus ring 4px further: the row leaves room for the ring at its edges (or the
- * dialog's scrolling body clips it), and a gap that keeps neighbouring rings apart.
+ * text (a negative margin), and their focus ring 4px further. The dialog's scrolling body leaves
+ * 4px for rings, so the row gives back the 6px the buttons overhang (or the ring is clipped at
+ * the left), and its gap keeps neighbouring rings apart.
  */
 .links {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px 24px;
-	padding-inline: 4px;
+	padding-inline: 6px;
 }
