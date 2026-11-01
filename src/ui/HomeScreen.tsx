@@ -51,7 +51,7 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 /**
  * No world open (ADR-0121), like an empty editor window: why, if there's
  * anything to say (a link that couldn't be opened, one not opened, no worlds
- * left), the ways to start (New world…, Open file…, Build with your AI) and
+ * left), the ways to start (New world…, Open file…, Build with AI) and
  * one's worlds in this browser to open. On start too, if Preferences say so.
  */
 export const HomeScreen = () => {
@@ -104,7 +104,7 @@ export const HomeScreen = () => {
 						</Button>
 
 						<Button icon="sparkle" onClick={() => store().setBuildWithAi("new")}>
-							Build with your AI…
+							Build with AI…
 						</Button>
 					</div>
 				</section>

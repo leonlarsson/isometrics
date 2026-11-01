@@ -1,20 +1,31 @@
-/* What to build across the top; describing and data on the left, copying and pasting back on the right; stacked on narrow screens. */
-.layout {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	align-items: start;
-	gap: 16px;
-}
-
-.column {
+/* One column: what it builds, then the step's few fields, then small links for what's optional. */
+.body {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
 	min-width: 0;
 }
 
-@media (max-width: 700px) {
-	.layout {
-		grid-template-columns: minmax(0, 1fr);
-	}
+/* What a small link unfolded (data, the world as a link): set apart a little. */
+.fold {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.fold > * {
+	align-self: stretch;
+}
+
+.fold > button {
+	align-self: flex-start;
+}
+
+/* The optional bits, as a row of small text buttons that wraps. */
+.links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
 }

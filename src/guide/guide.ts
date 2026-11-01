@@ -3,7 +3,7 @@ import { APP_NAME } from "#/lib/app";
 /**
  * The guide (ADR-0116): how a world is made, walked through with a real API,
  * for people and for the AIs they ask to build worlds. One text for the
- * `/guide` page, `/guide.md` and the prompt Build with your AI copies. Text
+ * `/guide` page, `/guide.md` and the prompt Build with AI copies. Text
  * marks **bold** (what's on screen) and `code` (what's typed); no React.
  */
 
@@ -148,7 +148,7 @@ export const GUIDE: IGuideSection[] = [
 	},
 	{
 		id: "ai",
-		title: "Building with your own AI",
+		title: "Building with AI",
 		blocks: [
 			{
 				kind: "text",
@@ -157,15 +157,15 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "steps",
 				steps: [
-					"Open **Build with your AI** in the File menu and pick **A new world…** (or **Show my data** in the welcome).",
-					"Describe the world you want: how it looks and what it has. Adding data is optional: paste it there, or give it to your AI yourself, attached or pasted in the chat after the prompt.",
+					"Open **Build with AI** in the File menu and pick **A new world…** (or **Show my data** in the welcome).",
+					"Say what your AI should build: how it looks and what it has. Data is optional: **Add your data** to paste it there, or give it to your AI yourself in the chat after the prompt.",
 					"Click **Copy the prompt** and paste it into your AI. It answers with a file, `world.json`, if it can make one, else with the world as text.",
-					"Open its file with **Open its file…**, or paste its answer into the box. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched.",
+					"Bring back what it wrote: paste it into **What your AI wrote**, or **Open its file…**. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with an answer? **I already have an answer** goes straight there.",
 				],
 			},
 			{
 				kind: "text",
-				text: "To change the world you're in, pick **Change this world…** under **Build with your AI** in the File menu and say what to change. Your AI answers with a **patch**, only the changes, which is quick to copy; the dialog says what it changes before you click **Put it in place** (one undo step).",
+				text: "To change the world you're in, pick **Change this world…** under **Build with AI** in the File menu and say what to change. Your AI answers with a **patch**, only the changes, which is quick to copy; the dialog says what it changes before you click **Apply the changes** (one undo step). To give your AI a link to the world instead of the whole world, open **More options**.",
 			},
 		],
 	},
@@ -188,7 +188,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "text",
-				text: "Changing a world with your AI, **Hand the world over as a link** puts a link to the world in the prompt instead of the whole world (public for an hour), and you can paste back a link your AI gives you instead of its JSON.",
+				text: "Changing a world with AI, **Give your AI a link to the world** (under **More options**) puts a link to the world in the prompt instead of the whole world (public for an hour), and you can paste back a link your AI gives you instead of its JSON.",
 			},
 		],
 	},

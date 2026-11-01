@@ -20,7 +20,7 @@ import { getPart } from "./registry";
 /**
  * A world with everything at its default left out (ADR-0117): the same world
  * once read (`repairWorld` fills the defaults back in), a fraction of the size.
- * For the prompt Build with your AI copies, so neither it nor the answer is a
+ * For the prompt Build with AI copies, so neither it nor the answer is a
  * wall of defaults. No React.
  */
 
