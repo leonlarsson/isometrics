@@ -22,10 +22,15 @@
 	align-self: flex-start;
 }
 
-/* The optional bits, as a row of small text buttons that wraps. */
+/*
+ * The optional bits, as a row of small text buttons that wraps. Text buttons reach 6px past their
+ * text, and their focus ring 4px further: the row leaves room for the ring at its edges (or the
+ * dialog's scrolling body clips it), and a gap that keeps neighbouring rings apart.
+ */
 .links {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 4px 12px;
+	gap: 8px 24px;
+	padding-inline: 4px;
 }
