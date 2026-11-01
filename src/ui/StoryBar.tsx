@@ -2,11 +2,11 @@ import { useEffect } from "react";
 
 import { useEditor } from "#/editor/store";
 import { setStoryAt, setStoryPlaying, useStory } from "#/editor/story";
+import { formatWhen } from "#/lib/when";
 import { storyDates } from "#/scene/story";
 
 import { Button, IconButton } from "./Button";
 import { SliderField } from "./fields";
-import { formatWhen } from "./Sparkline";
 
 import styles from "./StoryBar.module.css";
 

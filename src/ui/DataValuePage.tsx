@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { sourceNameOf } from "#/editor/dataList";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
 import { useEditor } from "#/editor/store";
+import { formatWhen } from "#/lib/when";
 import { formatEntry, formatValue, toDataKey } from "#/scene/format";
 import {
 	DataColumnSchema,
@@ -24,7 +26,7 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
-import { formatWhen, HistoryChart, numericPoints } from "./Sparkline";
+import { HistoryChart, numericPoints } from "./Sparkline";
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -55,8 +57,6 @@ interface IDataValuePageProps {
 	value: TDataValue;
 	/** The source it's read from, if it still exists. */
 	source: TDataSource | null;
-	/** Where it comes from, in words ("from sent.csv, sent"). */
-	origin: string;
 	onReadAgain: (source: TDataSource) => void;
 }
 
@@ -65,7 +65,7 @@ interface IDataValuePageProps {
  * key, value and unit, where it comes from, its past values, and everything
  * that shows or follows it, each a way to go there (closing the window).
  */
-export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValuePageProps) => {
+export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProps) => {
 	const scene = useEditor((s) => s.scene);
 	const upsertData = useEditor((s) => s.upsertData);
 	const removeData = useEditor((s) => s.removeData);
@@ -302,11 +302,21 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					<>
 						<Hint>
 							{source
-								? `Read ${origin}${source.lastReadAt ? `, ${formatWhen(source.lastReadAt)}` : ""}. Typing a value above changes it until it's read again.`
-								: `Read ${origin}: that source is gone, so it stays as last read.`}
+								? `It comes from ${sourceNameOf(source)}. Typing a value above changes it only until it's read again.`
+								: "Its source was removed, so it stays as last read."}
 						</Hint>
 
 						<ButtonGroup>
+							{source && (
+								<Button
+									size="sm"
+									icon="info"
+									onClick={() => openDataWindow({ kind: "source", id: source.id })}
+								>
+									See the source
+								</Button>
+							)}
+
 							{source?.kind === "file" && (
 								<Button size="sm" icon="upload" onClick={() => onReadAgain(source)}>
 									Read it again…
@@ -319,7 +329,10 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						</ButtonGroup>
 					</>
 				) : (
-					<Hint>Typed by hand. Add data reads values from a spreadsheet or a link instead.</Hint>
+					<Hint>
+						Typed by hand: it shows what's typed above. Add data reads values from a spreadsheet or
+						a link instead.
+					</Hint>
 				)}
 			</Section>
 

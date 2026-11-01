@@ -1,6 +1,13 @@
 import { useState } from "react";
 
-import { isSnapshot, SOURCE_KIND_NAMES, siteOf, sourceNameOf } from "#/editor/dataList";
+import {
+	hasNoAddress,
+	siteOf,
+	sourceKindOf,
+	sourceNameOf,
+	tableInWords,
+	valueInWords,
+} from "#/editor/dataList";
 import { LINK_FAILURES } from "#/editor/readLink";
 import { refreshSource } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
@@ -20,8 +27,8 @@ import styles from "./DataWindow.module.css";
 const kindInWords = (source: TDataSource) =>
 	source.kind === "file"
 		? "A spreadsheet file, read from someone's computer. It's read again only when you pick the file again."
-		: isSnapshot(source)
-			? "A snapshot: read once, outside this app. It has no address to read again."
+		: hasNoAddress(source)
+			? "Put in from outside this app by whoever made the world (by hand or by an AI). It has no address, so it can't be read again."
 			: source.kind === "push"
 				? "Values pushed to the world from outside."
 				: "A link or API, read by this browser while the world is open.";
@@ -93,7 +100,7 @@ export const DataSourcePage = ({
 				<dl className={styles.facts}>
 					<dt>Kind</dt>
 
-					<dd>{SOURCE_KIND_NAMES[source.kind]}</dd>
+					<dd>{sourceKindOf(source)}</dd>
 
 					{source.url && (
 						<>
@@ -179,8 +186,9 @@ export const DataSourcePage = ({
 						{givesValues.map((value) => (
 							<ListItem
 								key={`value:${value.key}`}
-								label={value.name || value.key}
-								meta={formatEntry(value)}
+								label={`${value.name || value.key}: ${formatEntry(value)}`}
+								meta={valueInWords(value, [source]).short}
+								stacked
 								onClick={() => openDataWindow({ kind: "value", key: value.key })}
 							/>
 						))}
@@ -189,7 +197,8 @@ export const DataSourcePage = ({
 							<ListItem
 								key={`table:${table.key}`}
 								label={table.name || table.key}
-								meta={`table · ${table.rows.length.toLocaleString()} rows`}
+								meta={tableInWords(table, [source]).short}
+								stacked
 								onClick={() => openDataWindow({ kind: "table", key: table.key })}
 							/>
 						))}

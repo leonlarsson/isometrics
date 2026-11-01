@@ -1,30 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { formatWhen } from "#/lib/when";
 import { formatValue } from "#/scene/format";
 import type { TDataPoint } from "#/scene/schema";
 
 import styles from "./Sparkline.module.css";
-
-/** A past value's date in words: "30 Oct 2026", "Oct 2026", "2019", or as written. */
-export const formatWhen = (at: string): string => {
-	if (/^\d{4}$/.test(at)) {
-		return at;
-	}
-	const month = /^(\d{4})-(\d{2})$/.exec(at);
-	if (month) {
-		return new Date(Number(month[1]), Number(month[2]) - 1).toLocaleDateString(undefined, {
-			month: "short",
-			year: "numeric",
-		});
-	}
-	const time = Date.parse(at);
-	if (Number.isNaN(time)) {
-		return at;
-	}
-	return at.length > 10
-		? new Date(time).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-		: new Date(time).toLocaleDateString(undefined, { dateStyle: "medium" });
-};
 
 /** The points with numbers, for drawing; text values aren't drawn. */
 export const numericPoints = (points: readonly TDataPoint[]) =>

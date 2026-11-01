@@ -27,10 +27,24 @@
 	color: var(--text-muted);
 }
 
+/* A value's number, large, above the sentence saying where it comes from. */
 .bigValue {
-	font-size: 16px;
+	margin: 2px 0 0;
+	font-size: 28px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
 	font-variant-numeric: tabular-nums;
 	color: var(--text);
+}
+
+/* A value's own note (where its numbers came from, "Example numbers…"), under the sentence. */
+.note {
+	margin: 0;
+	max-width: 68ch;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--text-muted);
+	font-style: italic;
 }
 
 .pageFoot {

@@ -7,10 +7,8 @@ import {
 	useWaitingSources,
 } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
-import { localDateTime } from "#/lib/when";
+import { formatWhen, localDateTime } from "#/lib/when";
 import type { TDataSource } from "#/scene/schema";
-
-import { formatWhen } from "./Sparkline";
 
 /** How a source is doing, for its icon: said in words too, never by colour alone (ADR-0089). */
 export type TSourceTone = "waiting" | "reading" | "failed" | "read" | "quiet";
@@ -90,9 +88,9 @@ export const useSourceStatuses = () => {
 			};
 		}
 		const lastRead = source.lastReadAt && `read ${localDateTime(source.lastReadAt)}`;
-		// Read once, outside the app: it can't be read again from here.
+		// Put in from outside the app, with no address: it can't be read again from here.
 		if ((source.kind === "link" || source.kind === "api") && !source.url) {
-			return { text: lastRead ? `a snapshot, ${lastRead}` : "a snapshot", tone: "quiet" };
+			return { text: "no address, can't be read again", tone: "quiet" };
 		}
 		if (source.kind === "file") {
 			return {

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import {
 	dataFoundIn,
-	isSnapshot,
+	hasNoAddress,
 	sourceKindOf,
 	sourceNameOf,
 	type TDataKind,
@@ -25,7 +25,7 @@ import styles from "./DataList.module.css";
 
 /** A source's icon, by how it's read; its tooltip says so in words. */
 const sourceIconOf = (source: TDataSource): TIconName =>
-	source.kind === "file" ? "file" : isSnapshot(source) ? "clock" : "globe";
+	source.kind === "file" ? "file" : hasNoAddress(source) ? "alert" : "globe";
 
 /** The mark before a status, so it isn't told by colour alone (ADR-0089). */
 const TONE_ICONS: Partial<Record<TSourceTone, TIconName>> = {

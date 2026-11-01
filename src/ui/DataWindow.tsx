@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { hasAnyData, originOf } from "#/editor/dataList";
+import { hasAnyData, tableInWords, valueInWords } from "#/editor/dataList";
 import { pickFile } from "#/editor/fileActions";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
 import { newId, type TDataWindowAt, useEditor } from "#/editor/store";
@@ -168,11 +168,12 @@ export const DataWindow = () => {
 			<header className={styles.pageHead}>
 				<h3 className={styles.pageTitle}>{value.name || value.key}</h3>
 
-				<p className={styles.pageAbout}>
-					<strong className={styles.bigValue}>{formatEntry(value)}</strong>
+				<p className={styles.bigValue}>{formatEntry(value)}</p>
 
-					{` · ${originOf(value.source, data.sources)}`}
-				</p>
+				{/* Why it shows this number, in plain words: where it comes from, and the newest of its past values. */}
+				<p className={styles.pageAbout}>{valueInWords(value, data.sources).long}</p>
+
+				{value.about && <p className={styles.note}>{`Note: ${value.about}`}</p>}
 			</header>
 
 			<Section
@@ -186,7 +187,6 @@ export const DataWindow = () => {
 				key={value.key}
 				value={value}
 				source={data.sources.find((each) => each.id === value.source?.sourceId) ?? null}
-				origin={originOf(value.source, data.sources)}
 				onReadAgain={(again) => void readFile(again)}
 			/>
 		</>
@@ -194,7 +194,7 @@ export const DataWindow = () => {
 		<DataTablePage
 			key={table.key}
 			table={table}
-			origin={originOf(table.source, data.sources)}
+			origin={tableInWords(table, data.sources).long}
 			isNew={newKey === table.key}
 		/>
 	) : source ? (

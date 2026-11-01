@@ -26,7 +26,7 @@ export const DataTablePage = ({
 	isNew,
 }: {
 	table: TDataTable;
-	/** Where it comes from, in words. */
+	/** Where its rows come from, in a sentence (`tableInWords`). */
 	origin: string;
 	/** Just added: Show it in the world comes first, said as the next step. */
 	isNew: boolean;
@@ -50,7 +50,7 @@ export const DataTablePage = ({
 				<h3 className={styles.pageTitle}>{table.name || table.key}</h3>
 
 				<p className={styles.pageAbout}>
-					{`A table: ${table.rows.length.toLocaleString()} rows of ${table.columns.length} columns, ${origin}. `}
+					{`${origin} `}
 
 					{keyName
 						? `Each row is named by its ${keyName}, so objects and roads can take one each.`

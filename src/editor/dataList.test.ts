@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { WorldDataSchema } from "#/scene/schema";
 
-import { dataFoundIn, originOf, sourceNameOf } from "./dataList";
+import { dataFoundIn, originOf, sourceNameOf, tableInWords, valueInWords } from "./dataList";
 
 const data = WorldDataSchema.parse({
 	sources: [
@@ -53,5 +53,54 @@ describe("the world's data by kind", () => {
 			),
 		).toBe("from api.example.org, Stats › sent");
 		expect(originOf(null, data.sources)).toBe("typed by hand");
+	});
+
+	it("says why a value shows its number, in plain words", () => {
+		const sources = WorldDataSchema.parse({
+			sources: [
+				{ id: "f", kind: "file", name: "sent.csv", fileName: "sent.csv" },
+				{ id: "a", kind: "api", url: "https://api.example.org/now.json" },
+				{ id: "n", kind: "api", name: "Steam" },
+			],
+		}).sources;
+		const value = (input: object) =>
+			WorldDataSchema.parse({ values: [{ key: "v", name: "V", value: 3, ...input }] }).values[0];
+		const history = [
+			{ at: "2024", value: 1 },
+			{ at: "2025", value: 3 },
+		];
+		expect(valueInWords(value({}), sources).long).toBe("Typed by hand.");
+		expect(valueInWords(value({ history }), sources).long).toBe(
+			"Typed by hand. It keeps 2 past values, 2024 to 2025; the number shown is the newest, from 2025.",
+		);
+		expect(
+			valueInWords(value({ source: { sourceId: "f", path: "sent" }, history }), sources),
+		).toEqual({
+			long: "From the “sent” column of sent.csv, one row per date. It keeps 2 past values, 2024 to 2025; the number shown is the newest, from 2025.",
+			short: "the “sent” column, 2 past values",
+		});
+		expect(
+			valueInWords(value({ source: { sourceId: "f", path: "Stats!sent" } }), sources).long,
+		).toBe("From “sent” in the “Stats” sheet of sent.csv.");
+		expect(
+			valueInWords(value({ source: { sourceId: "a", path: "totalUsers" } }), sources).long,
+		).toBe("From api.example.org: the “totalUsers” in its answer.");
+		expect(
+			valueInWords(
+				value({ source: { sourceId: "a", path: "", field: "sent", dateField: "day" }, history }),
+				sources,
+			).long,
+		).toBe(
+			"From the list api.example.org answers: each entry's “sent”, dated by its “day”. It keeps 2 past values, 2024 to 2025; the number shown is the newest, from 2025.",
+		);
+		expect(valueInWords(value({ source: { sourceId: "n" } }), sources).long).toMatch(
+			/^Put in from outside this app .* It has no address, so it can't be read again\.$/,
+		);
+		expect(valueInWords(value({ source: { sourceId: "gone" } }), sources).short).toBe(
+			"its source was removed",
+		);
+		expect(tableInWords(data.tables[0], data.sources).long).toBe(
+			"From the list api.example.org answers: one row for each entry, 1 row.",
+		);
 	});
 });

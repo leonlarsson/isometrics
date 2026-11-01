@@ -8,6 +8,7 @@ import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useViewShowsData } from "#/editor/viewData";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { webAddress } from "#/lib/webAddress";
+import { formatWhen } from "#/lib/when";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
 import { formatValue } from "#/scene/format";
@@ -18,7 +19,6 @@ import { ButtonGroup, IconButton } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
 import { DataReading } from "./DataReading";
 import { FollowsDataField } from "./FollowsDataField";
-import { formatWhen } from "./Sparkline";
 
 import styles from "./DetailSheet.module.css";
 
