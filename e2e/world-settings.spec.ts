@@ -243,6 +243,16 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		);
 		await box(page, "Value").fill("57");
 
+		// A tile in View mode, and taken away again from the same card.
+		await dataWindow(page)
+			.getByRole("button", { name: /^Add it as a tile/ })
+			.click();
+		expect(await read(page, (s) => s.scene.onScreen.tileKeys)).toContain("orders");
+		await dataWindow(page)
+			.getByRole("button", { name: /^Remove it from the tiles/ })
+			.click();
+		expect(await read(page, (s) => s.scene.onScreen.tileKeys)).not.toContain("orders");
+
 		// What uses it, and a way there; the card behind the window shows what was typed.
 		await expect(dataWindow(page).getByRole("button", { name: /^Depot.*card/ })).toBeVisible();
 		await page.keyboard.press("Escape");

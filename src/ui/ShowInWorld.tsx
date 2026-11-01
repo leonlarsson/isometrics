@@ -117,28 +117,39 @@ export const ShowValueInWorld = ({ value }: { value: TDataValue }) => {
 			cards={[
 				{
 					title: isOnCard
-						? `On ${selectedName}'s card already`
+						? `Take it off ${selectedName}'s card`
 						: selected
 							? `Put it on ${selectedName}'s card`
 							: "Put it on an object's card (select one first)",
-					about: selected
-						? `A floating card over ${selectedName}, showing ${name}.`
-						: "Close this window, select the object in the view, and open Data again.",
-					disabled: !selected || isOnCard,
+					about: isOnCard
+						? `${selectedName}'s card stops showing ${name}; anything else on it stays.`
+						: selected
+							? `A floating card over ${selectedName}, showing ${name}.`
+							: "Close this window, select the object in the view, and open Data again.",
+					disabled: !selected,
 					onChoose: () => {
 						if (!selected) {
 							return;
 						}
 						commit((scene) => {
 							const entity = scene.entities.find((each) => each.id === selected.id);
-							if (entity) {
-								entity.label.isShown = true;
-								if (!entity.label.dataKeys.includes(value.key)) {
-									entity.label.dataKeys.push(value.key);
-								}
+							if (!entity) {
+								return;
+							}
+							if (isOnCard) {
+								entity.label.dataKeys = entity.label.dataKeys.filter((key) => key !== value.key);
+								return;
+							}
+							entity.label.isShown = true;
+							if (!entity.label.dataKeys.includes(value.key)) {
+								entity.label.dataKeys.push(value.key);
 							}
 						});
-						notify(`${name} is on ${selectedName}'s card`);
+						notify(
+							isOnCard
+								? `${name} is off ${selectedName}'s card`
+								: `${name} is on ${selectedName}'s card`,
+						);
 					},
 				},
 				{
@@ -153,14 +164,17 @@ export const ShowValueInWorld = ({ value }: { value: TDataValue }) => {
 					},
 				},
 				{
-					title: isTile ? "A tile in View mode already" : "Add it as a tile in View mode",
-					about: "Along the bottom of the screen, with the world's other main numbers.",
-					disabled: isTile,
+					title: isTile ? "Remove it from the tiles" : "Add it as a tile in View mode",
+					about: isTile
+						? "It's a tile along the bottom of the screen in View mode; this takes it away."
+						: "Along the bottom of the screen, with the world's other main numbers.",
 					onChoose: () => {
 						commit((scene) => {
-							scene.onScreen.tileKeys.push(value.key);
+							scene.onScreen.tileKeys = isTile
+								? scene.onScreen.tileKeys.filter((key) => key !== value.key)
+								: [...scene.onScreen.tileKeys, value.key];
 						});
-						notify(`${name} is a tile in View mode`);
+						notify(isTile ? `${name} is no longer a tile` : `${name} is a tile in View mode`);
 					},
 				},
 			]}
