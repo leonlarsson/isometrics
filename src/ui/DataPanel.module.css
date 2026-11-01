@@ -1,8 +1,8 @@
-/* The Data tab's top: a search, Add data and the window. */
+/* The Data tab's top: a search, then Add data and the window as small icon buttons. */
 .bar {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 2px;
 }
 
 .bar > :first-child {
@@ -25,7 +25,8 @@
 .first {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	align-items: flex-start;
+	gap: 8px;
 }
 
 .firstTitle {

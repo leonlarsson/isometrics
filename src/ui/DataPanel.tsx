@@ -33,28 +33,30 @@ export const DataPanel = () => {
 
 	return (
 		<>
-			<div className={styles.bar}>
-				{!isFirst && (
+			{!isFirst && (
+				<div className={styles.bar}>
 					<SearchField
 						label="Find data"
 						placeholder="Find data…"
 						value={query}
 						onChange={setQuery}
 					/>
-				)}
 
-				<Button variant="primary" icon="plus" onClick={() => openDataWindow({ kind: "add" })}>
-					Add data
-				</Button>
+					<IconButton
+						icon="plus"
+						label="Add data"
+						size="sm"
+						onClick={() => openDataWindow({ kind: "add" })}
+					/>
 
-				{!isFirst && (
 					<IconButton
 						icon="newTab"
 						label="Open the Data window"
+						size="sm"
 						onClick={() => openDataWindow({ kind: "start" })}
 					/>
-				)}
-			</div>
+				</div>
+			)}
 
 			{hasArrived && (
 				<Section icon="clock" title="Read since the world opened">
@@ -103,6 +105,10 @@ export const DataPanel = () => {
 						show them: a tower as tall as its sales, a card with today's visitors, a road as busy as
 						this month's trips.
 					</Hint>
+
+					<Button variant="primary" icon="plus" onClick={() => openDataWindow({ kind: "add" })}>
+						Add data
+					</Button>
 				</div>
 			) : (
 				<DataList groups={groups} at={at} onOpen={openDataWindow} />
