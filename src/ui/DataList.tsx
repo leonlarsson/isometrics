@@ -70,7 +70,7 @@ export const DataList = ({ query, at, onOpen }: IDataListProps) => {
 	const originOf = (item: TDataValue | TDataTable) => {
 		const source = sourceOf(item);
 		if (!item.source) {
-			return "typed by me";
+			return "typed by hand";
 		}
 		if (!source) {
 			return "from a source that's gone";
@@ -81,7 +81,9 @@ export const DataList = ({ query, at, onOpen }: IDataListProps) => {
 
 				<span className={styles.originName}>{sourceNameOf(source)}</span>
 
-				{waitingIds.has(source.id) && <span>· waiting for your yes</span>}
+				{waitingIds.has(source.id) && (
+					<span className={styles.originTail}>· waiting for your yes</span>
+				)}
 			</span>
 		);
 	};

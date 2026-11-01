@@ -458,14 +458,17 @@ test.describe("links and APIs (ADR-0113)", () => {
 		).toEqual([["sent", 1692, 2]]);
 
 		// Shown on the card, then read again: the card follows what arrived, the world keeps what it had.
+		// (An open window hides the view from the page's accessibility tree: close it to look.)
 		await act(page, (s) =>
 			s.updateEntity("c", (e) => {
 				e.label.dataKeys = ["sent"];
 			}),
 		);
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Messages/)).toContainText("1,692");
 		sentToday = 1750;
-		await dataWindow(page)
+		await page
 			.getByRole("region", { name: "Sources" })
 			.getByRole("listitem")
 			.first()
@@ -473,9 +476,10 @@ test.describe("links and APIs (ADR-0113)", () => {
 			.first()
 			.click();
 		await dataWindow(page).getByRole("button", { name: "Read it now" }).click();
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Messages/)).toContainText("1,750");
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1692);
-		await page.keyboard.press("Escape");
 		await page.getByRole("button", { name: "Keep these values" }).click();
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1750);
 	});

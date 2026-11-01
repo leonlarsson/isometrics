@@ -43,6 +43,12 @@
 	max-width: 100%;
 }
 
+/* "· waiting for your yes" stays whole; the source's name shortens instead. */
+.originTail {
+	flex: none;
+	white-space: nowrap;
+}
+
 .originName {
 	overflow: hidden;
 	text-overflow: ellipsis;
