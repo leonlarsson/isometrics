@@ -16,15 +16,17 @@ import { FloatingBar } from "./FloatingBar";
  * then on; Edit asks the same) and Close world (back to one's own world, or
  * home). External sources it reads that this browser hasn't allowed are said
  * here too, for as long as they wait, with Allow: a preview has no Data tab.
- * It can be hidden, until the page reloads or another preview opens (Edit
+ * It shows once the world is on screen, and can be hidden, until the page reloads or another preview opens (Edit
  * still asks to keep a copy).
  */
 export const PreviewBar = () => {
 	const preview = useEditor((s) => previewOf(s.whatIsOpen));
 	const waiting = useWaitingSources();
+	// Once the world is on screen: never over its loading screen.
+	const isOnScreen = useEditor((s) => s.openingWorld === null);
 	// Which preview it was hidden for: never kept, so a reload (or another preview) brings it back.
 	const [hiddenFor, setHiddenFor] = useState<string | null>(null);
-	if (!preview || hiddenFor === preview.id) {
+	if (!preview || !isOnScreen || hiddenFor === preview.id) {
 		return null;
 	}
 	const what = preview.from === "shared" ? "A shared world" : "A template";
