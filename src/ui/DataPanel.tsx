@@ -72,9 +72,16 @@ export const DataPanel = () => {
 			)}
 
 			{waiting.length > 0 && (
-				<div className={styles.notice}>
+				<Section
+					icon="lock"
+					title={
+						waiting.length === 1
+							? "1 source waiting for your yes"
+							: `${waiting.length} sources waiting for your yes`
+					}
+				>
 					<Hint>
-						{`This world reads data from ${waiting.length === 1 ? "an external source" : `${waiting.length} external sources`} this browser hasn't read before, from ${sitesOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow ${waiting.length === 1 ? "it (Allow, on its heading)" : "them (Allow, on each heading, or all at once)"}.`}
+						{`This world reads data from ${sitesOf(waiting)}, which this browser hasn't read before. A world can come from anyone, so nothing is read until you allow ${waiting.length === 1 ? "it (Allow, on its card)" : "them (Allow, on each card, or all at once)"}.`}
 					</Hint>
 
 					{waitingAddresses.length > 1 && (
@@ -82,45 +89,51 @@ export const DataPanel = () => {
 							Review and allow…
 						</Button>
 					)}
-				</div>
+				</Section>
 			)}
 
 			{/* Each way of failing explained once, for all the sources that failed that way. */}
-			{failures.map(({ failure, failed }) => (
-				<Hint key={failure}>
-					<strong>
-						{`${failed.length === 1 ? "A source" : `${failed.length} sources`} couldn't be read (${sitesOf(failed)}).`}
-					</strong>
+			{failures.length > 0 && (
+				<Section icon="alert" title="Couldn't be read">
+					{failures.map(({ failure, failed }) => (
+						<Hint key={failure}>
+							<strong>
+								{`${failed.length === 1 ? "A source" : `${failed.length} sources`} (${sitesOf(failed)}): `}
+							</strong>
 
-					{` ${LINK_FAILURES[failure].long}`}
-				</Hint>
-			))}
+							{LINK_FAILURES[failure].long}
+						</Hint>
+					))}
+				</Section>
+			)}
 
 			{isFirst ? (
-				<div className={styles.first}>
-					<h3 className={styles.firstTitle}>Make the world show real numbers</h3>
-
+				<Section icon="chart" title="Make the world show real numbers">
 					<Hint>
 						Bring in numbers from a spreadsheet or a link, or type them. Then things in the world
 						show them: a tower as tall as its sales, a card with today's visitors, a road as busy as
 						this month's trips.
 					</Hint>
 
-					<Button variant="primary" icon="plus" onClick={() => openDataWindow({ kind: "add" })}>
-						Add data
-					</Button>
-				</div>
+					<div className={styles.start}>
+						<Button variant="primary" icon="plus" onClick={() => openDataWindow({ kind: "add" })}>
+							Add data
+						</Button>
+					</div>
+				</Section>
 			) : (
 				<DataList groups={groups} at={at} onOpen={openDataWindow} />
 			)}
 
-			{!isFirst && groups.length === 0 && <Hint>{`Nothing matches “${query.trim()}”.`}</Hint>}
+			{!isFirst && groups.length === 0 && (
+				<p className={styles.none}>{`Nothing matches “${query.trim()}”.`}</p>
+			)}
 
 			<AllowSourcesDialog
 				open={isReviewingWaiting && waitingAddresses.length > 1}
 				onOpenChange={setReviewingWaiting}
 				addresses={waitingAddresses}
-				later="Not now leaves them waiting: each can still be allowed on its own heading, and any you allow forgotten later (External sources this browser reads…, on a source's details)."
+				later="Not now leaves them waiting: each can still be allowed on its own card, and any you allow forgotten later (External sources this browser reads…, on a source's details)."
 			/>
 		</>
 	);

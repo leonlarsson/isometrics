@@ -1,54 +1,18 @@
-/* The world's data as one list: a heading per source, its rows under it. */
-.list {
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-}
+/* The world's data as one list: a card per source (the kit's Section), its rows inside. */
 
-.group {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-/* A source's heading: a label, not a button (only the rows and Source details open things). */
-.head {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-height: 30px;
-}
-
-.headIcon {
-	display: grid;
-	place-items: center;
-	flex: none;
-	width: 22px;
-	height: 22px;
-	border-radius: var(--radius-sm);
-	background: var(--surface-sunken);
-	color: var(--text-muted);
-}
-
-.title {
-	flex: 1;
-	min-width: 0;
-	margin: 0;
-	overflow: hidden;
-	font-size: 13px;
-	font-weight: 600;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-/* How it's doing, under its name: an icon and words. */
+/* How a source is doing, at the top of its card: an icon and words. */
 .status {
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	margin: 0 0 2px 30px;
+	margin: 0;
 	font-size: 12px;
 	color: var(--text-muted);
+}
+
+/* Allow sits at the end of the line. */
+.allow {
+	margin-left: auto;
 }
 
 .status[data-tone="failed"] {

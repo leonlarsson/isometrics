@@ -30,6 +30,8 @@ interface ISectionProps {
 	remembersOpen?: boolean;
 	/** More words that find the whole panel in the settings search. */
 	keywords?: string;
+	/** A region named by its title, for panels that are one of a list of things (a source's, in the Data tab). */
+	isRegion?: boolean;
 }
 
 /**
@@ -47,6 +49,7 @@ export const Section = ({
 	defaultClosed = false,
 	remembersOpen = true,
 	keywords = "",
+	isRegion = false,
 }: ISectionProps) => {
 	const query = useSettingsSearch();
 	const remembered = usePanelOpen(id ?? "", !defaultClosed);
@@ -72,7 +75,7 @@ export const Section = ({
 	);
 	return (
 		<Collapsible.Root
-			render={<section />}
+			render={<section aria-label={isRegion ? title : undefined} />}
 			className={styles.section}
 			open={open}
 			onOpenChange={(next) => {

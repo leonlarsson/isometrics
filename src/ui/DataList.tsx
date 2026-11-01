@@ -5,7 +5,7 @@ import { formatEntry } from "#/scene/format";
 import type { TDataSource } from "#/scene/schema";
 
 import { Button, IconButton } from "./Button";
-import { Hint } from "./fields";
+import { Hint, Section } from "./fields";
 import { Icon, type TIconName } from "./Icon";
 import { List, ListItem } from "./List";
 import { Sparkline } from "./Sparkline";
@@ -37,52 +37,38 @@ interface IDataListProps {
 }
 
 /**
- * The world's data as one list (ADR-0123): a heading for each source (its
- * name, how it's doing, and Source details), the values and tables it gave
- * under it, then what was typed by hand. Only the rows open things: a value
+ * The world's data as one list (ADR-0123): a card for each source (its name
+ * in the header band with Allow and Source details, how it's doing, and the
+ * values and tables it gave), then one for what was typed by hand. Only the rows open things: a value
  * or a table in the Data window. Shared by the Data tab and the window.
  */
 export const DataList = ({ groups, at, onOpen }: IDataListProps) => {
 	const { statusOf, waitingIds } = useSourceStatuses();
 
 	return (
-		<div className={styles.list}>
+		<>
 			{groups.map((group) => {
 				const { source } = group;
 				const status = source ? statusOf(source) : null;
 				const toneIcon = status ? TONE_ICONS[status.tone] : undefined;
 				const isEmpty = group.values.length + group.tables.length === 0;
 				return (
-					<section key={group.id} className={styles.group} aria-label={group.title}>
-						<header className={styles.head}>
-							<span className={styles.headIcon}>
-								<Icon
-									name={source ? sourceIconOf(source) : group.id === "gone" ? "alert" : "edit"}
-									size={14}
-								/>
-							</span>
-
-							<h4 className={styles.title}>{group.title}</h4>
-
-							{source && waitingIds.has(source.id) && (
-								<Button
-									size="sm"
-									icon="check"
-									onClick={() => void refreshSource(source, { asked: true })}
-								>
-									Allow
-								</Button>
-							)}
-
-							{source && (
+					<Section
+						key={group.id}
+						title={group.title}
+						icon={source ? sourceIconOf(source) : group.id === "gone" ? "alert" : "edit"}
+						isRegion
+						actions={
+							source && (
 								<IconButton
 									icon="info"
 									label="Source details"
+									size="sm"
 									onClick={() => onOpen({ kind: "source", id: source.id })}
 								/>
-							)}
-						</header>
-
+							)
+						}
+					>
 						{status && (
 							<p className={styles.status} data-tone={status.tone}>
 								{toneIcon && <Icon name={toneIcon} size={12} />}
@@ -93,6 +79,19 @@ export const DataList = ({ groups, at, onOpen }: IDataListProps) => {
 									</Tooltip>
 								) : (
 									<span>{status.text}</span>
+								)}
+
+								{/* Allow beside what it answers, not in the header: long names keep their room. */}
+								{source && waitingIds.has(source.id) && (
+									<span className={styles.allow}>
+										<Button
+											size="sm"
+											icon="check"
+											onClick={() => void refreshSource(source, { asked: true })}
+										>
+											Allow
+										</Button>
+									</span>
 								)}
 							</p>
 						)}
@@ -128,7 +127,11 @@ export const DataList = ({ groups, at, onOpen }: IDataListProps) => {
 											<span className={styles.meta}>
 												<span className={styles.tag}>table</span>
 
-												<span>{`${table.rows.length.toLocaleString()} rows`}</span>
+												<span>
+													{table.rows.length === 1
+														? "1 row"
+														: `${table.rows.length.toLocaleString()} rows`}
+												</span>
 
 												<Icon name="chevronRight" size={12} />
 											</span>
@@ -147,9 +150,9 @@ export const DataList = ({ groups, at, onOpen }: IDataListProps) => {
 									: "It gives nothing yet."}
 							</Hint>
 						)}
-					</section>
+					</Section>
 				);
 			})}
-		</div>
+		</>
 	);
 };
