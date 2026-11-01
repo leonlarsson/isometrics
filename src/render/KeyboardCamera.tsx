@@ -87,8 +87,9 @@ export const KeyboardCamera = () => {
 		}
 		const tracker = KeyStateTracker.getInstance();
 		const now = performance.now();
-		for (const [move, { key, until }] of runningCameraMoves) {
-			if (now > until && !tracker.isKeyHeld(key)) {
+		for (const [move, { key, until, isApplied }] of runningCameraMoves) {
+			// Let go and its tap's time is over, once a frame has moved by it at least once.
+			if (isApplied && now > until && !tracker.isKeyHeld(key)) {
 				runningCameraMoves.delete(move);
 			}
 		}
@@ -205,6 +206,10 @@ export const KeyboardCamera = () => {
 					camera.position.copy(target).add(offset);
 				}
 			}
+		}
+		// Every move still running has now moved the camera at least once: let go, it can stop.
+		for (const running of runningCameraMoves.values()) {
+			running.isApplied = true;
 		}
 		camera.updateMatrixWorld();
 		orbit.update();

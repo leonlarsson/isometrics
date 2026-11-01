@@ -104,12 +104,13 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await page.getByRole("button", { name: /^Ultra:/ }).click();
 		await page.getByRole("button", { name: /^Standard:/ }).click();
 		// Clicking the water picks it: it hasn't turned on its edge. Again until it does, as the
-		// first click can come before the next frame has moved the mesh.
+		// first click can come before the next frame has moved the mesh (and frames come slowly in
+		// the software-drawn browser the tests use, after Ultra's effects).
 		await expect(async () => {
 			const { x, y } = await groundSpot(page, [2, 2]);
 			await page.mouse.click(x, y);
 			expect(await read(page, (s) => s.selectedItems)).toEqual([{ kind: "area", id: "pond" }]);
-		}).toPass({ timeout: 5000 });
+		}).toPass({ timeout: 15_000 });
 	});
 
 	test("the toolbar's shading switcher: a preset a click away, wireframe, clay, and the Graphics settings (ADR-0080)", async ({
