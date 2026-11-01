@@ -24,7 +24,7 @@ const problem = (what: string, status: number) =>
 
 const HOW_TO = {
 	about:
-		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its url (opens it in the editor), its jsonUrl (the world as JSON), when it expires, and a deleteKey to DELETE it early.",
+		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its kind (world or patch), its url (a world opens in the editor; a patch's is for pasting into Build with your AI → Change this world, and isn't opened on its own), its jsonUrl (the JSON), when it expires, and a deleteKey to DELETE it early.",
 	expiresIn: `One of ${USER_WORLD_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_WORLD_EXPIRY} when left out.`,
 	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes, and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",

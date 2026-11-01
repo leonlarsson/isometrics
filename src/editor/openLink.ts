@@ -1,5 +1,6 @@
 import { readWorld } from "#/parts/readWorld";
 import type { TScene } from "#/scene/schema";
+import { isWorldPatch } from "#/scene/worldPatch";
 import { TEMPLATES } from "#/templates";
 
 import { allowLink } from "./linkTrust";
@@ -20,6 +21,10 @@ import type { ILinkAsked } from "./whatIsOpen";
  * Edit (or Keep a copy) keeps it. The address keeps `?shared=` while the
  * preview is open, so a reload opens it again; it goes once the preview does.
  */
+
+/** Why a link to a patch isn't opened. */
+export const PATCH_LINK =
+	"It holds changes to a world (a patch), not a world, so there's nothing to open on its own. Links like this are for handing changes back from an AI: open the world they're for, then paste the link into Build with your AI → Change this world.";
 
 const SHARED_ID = /^[A-Za-z0-9_-]{22}$/;
 const TEMPLATE_ID = /^[a-z0-9_]+$/;
@@ -82,8 +87,19 @@ const fetchLinked = async (
 				step: { kind: "fetching", isArriving: true },
 			}),
 	});
+	let parsed: unknown;
 	try {
-		return { scene: readWorld(JSON.parse(text)).scene, expiresAt };
+		parsed = JSON.parse(text);
+	} catch {
+		throw new ShareError("What the link holds isn't a world this app can read.");
+	}
+	// A patch (ADR-0118) is changes to a world, kept for handing back from an AI: on its own it
+	// has no world to change, so it isn't opened (read as a world, it would be an empty one).
+	if (isWorldPatch(parsed)) {
+		throw new ShareError(PATCH_LINK);
+	}
+	try {
+		return { scene: readWorld(parsed).scene, expiresAt };
 	} catch {
 		throw new ShareError("What the link holds isn't a world this app can read.");
 	}

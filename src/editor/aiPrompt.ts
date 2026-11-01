@@ -266,7 +266,7 @@ export const aiPrompt = ({ description, data, world, origin, worldUrl = null }: 
 		`Two shops as clusters following table rows, sized by sales on a log scale, a value as a tile, and a road whose width and vans follow deliveries:\n\n\`\`\`json\n${JSON.stringify(EXAMPLE_WORLD, null, 1)}\n\`\`\``,
 		"## Answer",
 		world ? PATCH_ANSWER : WORLD_ANSWER,
-		`If you can make HTTP requests (running code, a tool), you can hand your answer back as a link instead: POST it (the world or the patch, as JSON) to ${origin}/api/user-worlds and answer with just the \`url\` it returns, which they paste back. It's public to anyone with that link for an hour.`,
+		`If you can make HTTP requests (running code, a tool), you can hand your answer back as a link instead: POST it (the world or the patch, as JSON) to ${origin}/api/user-worlds and answer with just the \`url\` it returns, which they paste back (a patch's link only works pasted into Change this world, not opened on its own). It's public to anyone with that link for an hour.`,
 	].join("\n\n");
 };
 

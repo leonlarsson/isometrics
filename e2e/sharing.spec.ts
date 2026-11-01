@@ -133,8 +133,17 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 	test("a link that can't be opened lands on the home screen, which starts a world", async ({
 		page,
 	}) => {
-		await openPage(page, "/templates/no_such_template");
+		// A link to a patch (changes for Build with your AI) isn't opened on its own, and says why.
+		const response = await page.request.post("/api/user-worlds", {
+			data: { version: 1, isPatch: true, meta: { title: "Renamed" } },
+		});
+		const patch = await response.json();
+		expect(patch.kind).toBe("patch");
+		await openPage(page, new URL(patch.url).pathname);
 		const home = page.getByRole("main", { name: "Home" });
+		await expect(home).toContainText("changes to a world (a patch), not a world");
+
+		await openPage(page, "/templates/no_such_template");
 		await expect(home).toContainText("That template can't be opened");
 		await expect(page.locator("canvas")).toHaveCount(0);
 		await home.getByRole("button", { name: "New world…" }).click();
