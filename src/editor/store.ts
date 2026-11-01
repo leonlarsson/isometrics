@@ -488,7 +488,7 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
-	setBuildWithAi: (builds: "new" | "change" | null) => void;
+	setBuildWithAi: (builds: IEditorState["buildWithAi"]) => void;
 	setWelcomeOpen: (open: boolean) => void;
 	setShareOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;

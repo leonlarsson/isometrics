@@ -12,6 +12,7 @@ import {
 	type TTemplateCategory,
 } from "#/templates";
 
+import { Button } from "./Button";
 import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
@@ -239,6 +240,22 @@ export const NewWorldDialog = () => {
 						}}
 						cards={cards}
 					/>
+
+					{/* The other way to start: describe it, and an AI builds it. */}
+					<div className={styles.withAi}>
+						<span>Or describe a world and let an AI build it.</span>
+
+						<Button
+							size="sm"
+							icon="sparkle"
+							onClick={() => {
+								onOpenChange(false);
+								useEditor.getState().setBuildWithAi("new");
+							}}
+						>
+							Build with AI…
+						</Button>
+					</div>
 				</div>
 
 				<div className={styles.details}>

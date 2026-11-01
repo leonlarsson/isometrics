@@ -25,7 +25,7 @@ const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; pict
 	{
 		value: "data",
 		title: "Show my data",
-		description: "Your own AI builds it.",
+		description: "Map your own numbers.",
 		picture: "battlefield_territory",
 	},
 	{
@@ -50,8 +50,9 @@ const go = (choice: TWelcomeChoice) => {
 	if (choice === "city") {
 		state.setNewWorld({ shows: "places", usesData: false });
 	}
+	// A world that uses data, built by hand or (an option there) with AI: never straight into AI.
 	if (choice === "data") {
-		state.setBuildWithAi("new");
+		state.setNewWorld({ shows: "all", usesData: true });
 	}
 	if (choice === "example") {
 		state.setNewWorld({ shows: "dataMaps", usesData: true });
@@ -60,8 +61,8 @@ const go = (choice: TWelcomeChoice) => {
 
 /**
  * The welcome (ADR-0116): three ways in, each with a picture, for someone who
- * has just arrived: build a city, show their data with their own AI, or open
- * an example. Shown once to a browser with no worlds; File → Welcome… shows
+ * has just arrived: build a city, show their data (New world with data on,
+ * where building it with AI is one option), or open an example. Shown once to a browser with no worlds; File → Welcome… shows
  * it again. Closing it leaves the starter world to look around in.
  */
 export const Welcome = () => {

@@ -157,7 +157,7 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "steps",
 				steps: [
-					"Open **Build with AI** in the File menu and pick **A new world…** (or **Show my data** in the welcome).",
+					"Open **Build with AI** in the File menu and pick **A new world…** (or **Build with AI…** in **New world**).",
 					"Say what your AI should build: how it looks and what it has. Data is optional: **Add your data** to paste it there, or give it to your AI yourself in the chat after the prompt.",
 					"Click **Copy the prompt** and paste it into your AI. It answers with a file, `world.json`, if it can make one, else with the world as text.",
 					"Bring back what it wrote: paste it into **What your AI wrote**, or **Open its file…**. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with an answer? **I already have an answer** goes straight there.",

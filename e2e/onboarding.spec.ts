@@ -1,4 +1,4 @@
-import { act, buildWithAiMenu, expect, openEditor, read, test } from "./editor";
+import { act, buildWithAiMenu, expect, fileMenu, openEditor, read, test } from "./editor";
 
 /** A small world, as an AI might answer: words around JSON in fences. */
 const ANSWER = `Here's your world!
@@ -119,6 +119,16 @@ test.describe("Build with AI (ADR-0116)", () => {
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.meta.title)).toBe("Two shops");
 		expect(await read(page, (s) => s.scene.entities.filter((e) => e.dataRow).length)).toBe(2);
+	});
+
+	test("New world offers Build with AI as one way to start", async ({ page }) => {
+		await openEditor(page);
+		await fileMenu(page, /New world/);
+		const newWorld = page.getByRole("dialog", { name: "New world" });
+		await expect(newWorld).toContainText("Or describe a world and let an AI build it.");
+		await newWorld.getByRole("button", { name: "Build with AI…" }).click();
+		await expect(newWorld).toBeHidden();
+		await expect(page.getByRole("dialog", { name: "Build with AI" })).toBeVisible();
 	});
 
 	test("File → Change this world opens it to change, and a broken answer lists its problems", async ({
