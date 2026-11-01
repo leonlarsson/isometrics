@@ -9,7 +9,6 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 - [ ] **README: beautiful shots of the app itself (owner's idea, 2026-10-27):** the gallery has world shots (`scripts/gallery.mjs`); add polished pictures of the UI and the parts catalogue too: the editor with its panels open on a nice world (Add to scene, the properties on a tab that shows something off, like Lights or Look), View mode with data cards, the parts catalogue's grid and a part's details (both themes), maybe a moment like drawing a road. Taken by a script like the gallery's, so they can be retaken after the look changes (real GPU, `node.exe` on WSL; a fixed window size and device pixel ratio 2 for sharp pictures), into `docs/gallery/`, as their own section in the README.
 
 
-- [ ] **A full Content Security Policy (ADR-0119):** the pages send frame-ancestors, object-src, base-uri and form-action, but don't restrict scripts and styles yet: that needs a nonce on TanStack Start's inline scripts (and `style-src 'unsafe-inline'` for React's style props), checked against the production build so nothing stops loading. connect-src can't be narrowed while worlds read links from anywhere, by design.
 
 ## Safer schema and part changes
 

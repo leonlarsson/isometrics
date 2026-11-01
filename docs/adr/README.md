@@ -125,3 +125,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0119](0119-untrusted-input.md) | Untrusted input: safe JSON, addresses that wait for a yes, and limits everywhere | proposed |
 | [0120](0120-worlds-shared-by-link.md) | Worlds shared by link: public snapshots in Cloudflare KV, kept until they expire | proposed |
 | [0121](0121-what-is-open-links-previews-and-home.md) | What's open: links that load nothing else, previews kept only when edited, and a home screen | proposed |
+| [0122](0122-content-security-policy.md) | A full Content Security Policy, with a nonce for each page | proposed |
