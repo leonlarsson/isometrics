@@ -57,6 +57,9 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 	test("Graphics: a preset sets every setting, and a changed one stays and resets (ADR-0072)", async ({
 		page,
 	}) => {
+		// It goes through every graphics setting, each redrawing the view: about a minute in the
+		// tests' software-drawn browser, right at the usual limit.
+		test.slow();
 		await appMenu(page, /^Preferences/);
 		await page.getByRole("button", { name: "Graphics" }).click();
 		const occlusion = page.getByRole("combobox", { name: "Ambient occlusion" });
