@@ -5,11 +5,10 @@
 	left: 50%;
 	z-index: 40;
 	display: flex;
-	flex-direction: column;
-	gap: 4px;
+	gap: 12px;
 	width: max-content;
-	max-width: calc(100% - 32px);
-	padding: 10px 12px 12px 16px;
+	max-width: min(560px, calc(100% - 32px));
+	padding: 12px 12px 12px 14px;
 	transform: translateX(-50%);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
@@ -17,47 +16,89 @@
 	box-shadow: var(--shadow-panel);
 }
 
-/* The title, and the close button at the row's end, lined up on the title's line. */
+/* The icon in a soft tile, level with the title. */
+.icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-sm);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.main {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+/* The title, and the close button at the row's end, on the title's line. */
 .titleRow {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	min-height: 28px;
+	min-height: 32px;
 }
 
 .title {
 	flex: 1;
 	min-width: 0;
-	font-size: 13px;
+	font-size: 14px;
+	line-height: 1.3;
 }
 
 .dismiss {
 	flex: none;
-	margin: -4px -4px -4px 0;
+	margin-right: -4px;
 }
 
-/* The details and the buttons: side by side when there's room, the buttons under on narrow screens. */
+/* The details get the bar's whole width; the main buttons go under them. */
 .body {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 10px 16px;
+	flex-direction: column;
+	gap: 10px;
 }
 
 .details {
 	display: flex;
-	flex: 1 1 260px;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 	min-width: 0;
-	font-size: 12px;
+	font-size: 13px;
+	line-height: 1.4;
 	color: var(--text-muted);
 	overflow-wrap: anywhere;
 }
 
 .actions {
 	display: flex;
-	flex-wrap: wrap;
+	justify-content: flex-end;
 	gap: 6px;
-	margin-left: auto;
+}
+
+/* A row that waits on the viewer, set apart, with its own small button. */
+.note {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 6px 6px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.noteText {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Narrow screens: the main buttons share the width, side by side. */
+@media (max-width: 600px) {
+	.actions > * {
+		flex: 1;
+	}
 }

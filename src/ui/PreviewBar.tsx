@@ -8,16 +8,16 @@ import { previewOf } from "#/editor/whatIsOpen";
 import { localDateTime } from "#/lib/when";
 
 import { Button } from "./Button";
-import { FloatingBar } from "./FloatingBar";
+import { FloatingBar, FloatingBarNote } from "./FloatingBar";
 
 /**
  * While a world from a link is open as a preview (ADR-0121): says it isn't
  * kept in this browser, with Keep a copy (a world of one's own, saved from
  * then on; Edit asks the same) and Close world (back to one's own world, or
  * home). External sources it reads that this browser hasn't allowed are said
- * here too, for as long as they wait, with Allow: a preview has no Data tab.
- * It shows once the world is on screen, and can be hidden, until the page reloads or another preview opens (Edit
- * still asks to keep a copy).
+ * in a row of their own, for as long as they wait, with Allow: a preview has
+ * no Data tab. It shows once the world is on screen, and can be hidden, until
+ * the page reloads or another preview opens (Edit still asks to keep a copy).
  */
 export const PreviewBar = () => {
 	const preview = useEditor((s) => previewOf(s.whatIsOpen));
@@ -29,30 +29,17 @@ export const PreviewBar = () => {
 	if (!preview || !isOnScreen || hiddenFor === preview.id) {
 		return null;
 	}
-	const what = preview.from === "shared" ? "A shared world" : "A template";
 	const one = waiting.length === 1;
 	return (
 		<FloatingBar
-			title={`${what}, not kept in this browser`}
+			icon="eye"
+			title={preview.from === "shared" ? "Preview of a shared world" : "Preview of a template"}
 			dismiss={{
 				label: "Hide this bar (it's back when the page reloads)",
 				onDismiss: () => setHiddenFor(preview.id),
 			}}
 			actions={
 				<>
-					{waiting.length > 0 && (
-						<Button
-							icon="check"
-							onClick={() => {
-								for (const source of waiting) {
-									allowLink(source.url ?? "");
-								}
-							}}
-						>
-							{one ? "Allow it" : "Allow them"}
-						</Button>
-					)}
-
 					<Button onClick={closePreview}>Close world</Button>
 
 					<Button variant="primary" icon="download" onClick={keepPreview}>
@@ -62,15 +49,28 @@ export const PreviewBar = () => {
 			}
 		>
 			<span>
-				{preview.expiresAt
-					? `Keep a copy to edit it or come back to it. The link works until ${localDateTime(preview.expiresAt)}.`
-					: "Keep a copy to edit it or come back to it."}
+				Not kept in this browser: keep a copy to edit it or come back later.
+				{preview.expiresAt && ` The link works until ${localDateTime(preview.expiresAt)}.`}
 			</span>
 
 			{waiting.length > 0 && (
-				<span>
-					{`It reads ${one ? "an external source" : `${waiting.length} external sources`} not read yet: ${hostsOf(waiting)}.`}
-				</span>
+				<FloatingBarNote
+					action={
+						<Button
+							size="sm"
+							icon="check"
+							onClick={() => {
+								for (const source of waiting) {
+									allowLink(source.url ?? "");
+								}
+							}}
+						>
+							{one ? "Allow it" : "Allow them"}
+						</Button>
+					}
+				>
+					{`${one ? "An external source waits" : `${waiting.length} external sources wait`} for your yes: ${hostsOf(waiting)}`}
+				</FloatingBarNote>
 			)}
 		</FloatingBar>
 	);

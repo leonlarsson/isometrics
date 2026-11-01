@@ -59,7 +59,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		);
 		// A preview in View mode (ADR-0121): nothing kept in their browser yet.
 		expect(await read(theirs, (s) => s.mode)).toBe("view");
-		await expect(theirs.getByText("A shared world, not kept in this browser")).toBeVisible();
+		await expect(theirs.getByText("Preview of a shared world")).toBeVisible();
 		expect(await theirs.evaluate(() => localStorage.getItem("isometrics:world-index"))).toBeNull();
 		// Edit asks to keep a copy first; then it's theirs, saved, and the address is the editor's own.
 		await theirs.getByRole("button", { name: "Edit", exact: true }).click();
@@ -133,16 +133,16 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 			.click();
 		await expect.poll(() => read(theirs, (s) => s.scene.meta.title)).toBe("Reads outside");
 		await expect(
-			theirs.getByText(/reads an external source not read yet: example\.org/),
+			theirs.getByText(/An external source waits for your yes: example\.org/),
 		).toBeVisible();
 		await theirs.waitForTimeout(1500);
 		expect(theirRequests).toBe(0);
 		await theirs.getByRole("button", { name: "Allow it" }).click();
 		await expect.poll(() => theirRequests).toBeGreaterThan(0);
-		await expect(theirs.getByText(/not read yet/)).toHaveCount(0);
+		await expect(theirs.getByText(/waits for your yes/)).toHaveCount(0);
 		// The bar can be hidden, until the page reloads.
 		await theirs.getByRole("button", { name: /^Hide this bar/ }).click();
-		await expect(theirs.getByText("A shared world, not kept in this browser")).toHaveCount(0);
+		await expect(theirs.getByText("Preview of a shared world")).toHaveCount(0);
 		await other.close();
 
 		// Open and allow: one question, so the address is allowed and not asked about again.
@@ -186,7 +186,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 	test("a template opens by its address, and an AI's answer can be a link", async ({ page }) => {
 		await openEditor(page, "/templates/monaco");
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
-		await expect(page.getByText("A template, not kept in this browser")).toBeVisible();
+		await expect(page.getByText("Preview of a template")).toBeVisible();
 
 		// An AI that posted its world answers with the link; the dialog reads it from this site.
 		const response = await page.request.post("/api/user-worlds", {
