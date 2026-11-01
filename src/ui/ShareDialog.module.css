@@ -1,0 +1,11 @@
+/* The new link, in full: it wraps anywhere rather than run out of the dialog. */
+.link {
+	margin: 0;
+	padding: 8px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	font-family: var(--font-mono);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+	user-select: all;
+}

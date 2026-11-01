@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { describeThings } from "#/editor/clipboard";
 import { useEditor } from "#/editor/store";
+import type { TWhatIsOpen } from "#/editor/whatIsOpen";
 
 import styles from "./LoadingScreen.module.css";
 
@@ -51,24 +52,61 @@ const Block = ({ kind, level }: { kind: (typeof BLOCKS)[number]; level: number }
 	);
 };
 
+/** What the card says while a link opens (ADR-0121), from what's open; null for a world. */
+const linkCard = (whatIsOpen: TWhatIsOpen) => {
+	if (whatIsOpen.kind !== "link") {
+		return null;
+	}
+	const { link, step } = whatIsOpen;
+	if (step.kind === "asking") {
+		return { meta: step.scene.meta, scene: step.scene, status: "Waiting for your answer…" };
+	}
+	return {
+		meta: {
+			title: link.from === "shared" ? "Opening a shared world" : "Opening a template",
+			subtitle: "",
+		},
+		scene: null,
+		status: step.waited
+			? `Not here yet: a new link can take up to a minute to reach everywhere. Tried ${step.waited.tries} ${step.waited.tries === 1 ? "time" : "times"}, trying for ${step.waited.secondsLeft} s more…`
+			: "Fetching it from the link…",
+	};
+};
+
 /**
- * Covers the view while a world opens (ADR-0100): the world's name and
+ * Covers the view while a world opens (ADR-0100), and while a world from a
+ * link is fetched or waits for an answer (ADR-0121): the world's name and
  * subtitle, blocks stacking up and what's being built, until the view has it
  * ready to look at (render/WorldReady); then it fades into the world. It never
  * takes the pointer, and leaves the page once faded.
  */
-export const LoadingScreen = ({ starting }: { starting: boolean }) => {
+export const LoadingScreen = () => {
+	const whatIsOpen = useEditor((s) => s.whatIsOpen);
 	const opening = useEditor((s) => s.openingWorld !== null);
-	const meta = useEditor((s) => s.scene.meta);
+	const link = linkCard(whatIsOpen);
+	const sceneMeta = useEditor((s) => s.scene.meta);
+	const meta = link?.meta ?? sceneMeta;
 	const counts = useEditor(
-		useShallow((s) => ({
-			entities: s.scene.entities.length,
-			roads: s.scene.roads.length,
-			areas: s.scene.areas.length,
-			fences: s.scene.fences.length,
-		})),
+		useShallow((s) => {
+			const scene =
+				s.whatIsOpen.kind === "link"
+					? s.whatIsOpen.step.kind === "asking"
+						? s.whatIsOpen.step.scene
+						: null
+					: s.scene;
+			return {
+				entities: scene?.entities.length ?? 0,
+				roads: scene?.roads.length ?? 0,
+				areas: scene?.areas.length ?? 0,
+				fences: scene?.fences.length ?? 0,
+			};
+		}),
 	);
-	const loading = starting || opening;
+	// Nothing to build on the home screen; a world only until the view has it.
+	const loading =
+		whatIsOpen.kind === "starting" ||
+		whatIsOpen.kind === "link" ||
+		(whatIsOpen.kind === "world" && opening);
 	const [phase, setPhase] = useState<TPhase>(loading ? "loading" : "gone");
 	// When this loading began, for the least time it's shown.
 	const since = useRef(performance.now());
@@ -125,7 +163,7 @@ export const LoadingScreen = ({ starting }: { starting: boolean }) => {
 				{/* Both lines take the same place, so the card keeps its width as one gives way to the other. */}
 				<p className={styles.status}>
 					<span data-shown={!ready || undefined} aria-hidden={ready || undefined}>
-						{things ? `Building ${things}…` : "Opening the world…"}
+						{link ? link.status : things ? `Building ${things}…` : "Opening the world…"}
 					</span>
 
 					<span data-shown={ready || undefined} aria-hidden={!ready || undefined}>

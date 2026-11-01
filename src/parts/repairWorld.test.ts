@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { upgradeLegacyIds } from "#/scene/legacy";
 import { TEMPLATES } from "#/templates";
 
-import { readWorld, upgradePartSettings } from "./readWorld";
+import { repairWorld, upgradePartSettings } from "./repairWorld";
 
 const fixtureUrl = (name: string) =>
 	new URL(`../scene/fixtures/old-worlds/${name}.json`, import.meta.url);
@@ -20,13 +20,13 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 	it.each(tidiedTemplates.map((template) => [template.id, template] as const))(
 		"%s, as saved then, reads back exactly as the template builds it now",
 		(id, template) => {
-			const { scene, report } = readWorld(fixture(`${id}-1a50d84`));
+			const { scene, report } = repairWorld(fixture(`${id}-1a50d84`));
 			expect(report).toBeNull();
 			expect(scene).toEqual(template.create());
 		},
 	);
 
-	const { scene, report } = readWorld(fixture("every-field-1a50d84"));
+	const { scene, report } = repairWorld(fixture("every-field-1a50d84"));
 	const entity = (id: string) => {
 		const found = scene.entities.find((e) => e.id === id);
 		if (!found) {
@@ -328,19 +328,19 @@ describe("reading worlds", () => {
 	it("leaves the input as it was, to keep as a backup", () => {
 		const input = fixture("every-field-1a50d84");
 		const before = structuredClone(input);
-		readWorld(input);
+		repairWorld(input);
 		expect(input).toEqual(before);
 	});
 
 	it("reads its own output the same again", () => {
-		const { scene } = readWorld(fixture("every-field-1a50d84"));
-		const again = readWorld(structuredClone(scene));
+		const { scene } = repairWorld(fixture("every-field-1a50d84"));
+		const again = repairWorld(structuredClone(scene));
 		expect(again.report).toBeNull();
 		expect(again.scene).toEqual(scene);
 	});
 
 	it("drops the old colours of a part it doesn't know, and keeps the object", () => {
-		const { scene } = readWorld({
+		const { scene } = repairWorld({
 			version: 1,
 			entities: [{ id: "x", kind: "spaceship_09", color: "#abcdef", props: { warp: 9 } }],
 		});
@@ -349,7 +349,7 @@ describe("reading worlds", () => {
 	});
 
 	it("takes the colours AIs may still write as color and accent", () => {
-		const { scene } = readWorld({
+		const { scene } = repairWorld({
 			version: 1,
 			entities: [{ id: "h", kind: "house_01", color: "#111111", accent: "#222222" }],
 		});

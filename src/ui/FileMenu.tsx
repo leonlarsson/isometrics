@@ -10,16 +10,15 @@ import {
 } from "#/editor/fileActions";
 import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
-import { createEmptyScene } from "#/templates";
+import { keepsOpenWorld } from "#/editor/whatIsOpen";
 
 import { BackupsDialog } from "./BackupsDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
-import { NewWorldDialog } from "./NewWorldDialog";
 import { WipeEverything } from "./WipeEverything";
 import { formatEdited, WorldsDialog } from "./WorldsDialog";
 
-/** How many worlds Open world lists; All worlds… shows the rest. */
+/** How many worlds Recent worlds lists; All worlds… shows the rest. */
 const RECENT_WORLDS = 8;
 
 /**
@@ -29,6 +28,10 @@ const RECENT_WORLDS = 8;
  */
 export const FileMenu = () => {
 	const title = useEditor((s) => s.scene.meta.title);
+	// On the home screen no world is open; a world from a link isn't one's own until kept (ADR-0121).
+	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
+	const ownsWorld = useEditor((s) => keepsOpenWorld(s.whatIsOpen));
+	const notOnHome = hasWorld ? undefined : "No world is open";
 	// Read when the menu opens: the list lives in localStorage, not in the store.
 	const [worlds, setWorlds] = useState<IWorldInfo[]>([]);
 	const [openId, setOpenId] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export const FileMenu = () => {
 					if (open) {
 						setWorlds(listWorlds());
 						setBackupCount(listSceneBackups().length);
-						setOpenId(openWorldId());
+						setOpenId(keepsOpenWorld(useEditor.getState().whatIsOpen) ? openWorldId() : null);
 					}
 				}}
 			>
@@ -74,12 +77,13 @@ export const FileMenu = () => {
 						<Menu.Item
 							icon="edit"
 							label="Change this world…"
-							description="Say what to change; your AI rewrites it, one undo step"
+							description={notOnHome ?? "Say what to change; your AI rewrites it, one undo step"}
+							disabled={!hasWorld}
 							onClick={() => useEditor.getState().setBuildWithAi("change")}
 						/>
 					</Menu.Submenu>
 
-					<Menu.Submenu icon="folder" label="Open world">
+					<Menu.Submenu icon="folder" label="Recent worlds">
 						{worlds.length === 0 && (
 							<Menu.Item label="No saved worlds yet" disabled onClick={() => {}} />
 						)}
@@ -106,11 +110,27 @@ export const FileMenu = () => {
 						)}
 					</Menu.Submenu>
 
-					<Menu.Item icon="copy" label="Duplicate world" onClick={duplicateWorld} />
+					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
+
+					<Menu.Separator />
+
+					<Menu.Item
+						icon="copy"
+						label="Duplicate world"
+						description={notOnHome}
+						disabled={!hasWorld}
+						onClick={duplicateWorld}
+					/>
 
 					<Menu.Item
 						icon="trash"
 						label="Delete world…"
+						description={
+							hasWorld && !ownsWorld
+								? "It isn't kept in this browser: nothing to delete"
+								: notOnHome
+						}
+						disabled={!ownsWorld}
 						onClick={() => {
 							setDeletingTitle(title);
 							setDeleting(true);
@@ -130,12 +150,23 @@ export const FileMenu = () => {
 
 					<Menu.Separator />
 
-					<Menu.Item icon="upload" label="Open file…" shortcut="Ctrl+O" onClick={openWorldFile} />
+					<Menu.Item
+						icon="newTab"
+						label="Share a link…"
+						description={
+							notOnHome ??
+							"A public link that opens this world for anyone who has it, until it expires"
+						}
+						disabled={!hasWorld}
+						onClick={() => useEditor.getState().setShareOpen(true)}
+					/>
 
 					<Menu.Item
 						icon="download"
 						label="Save to file"
 						shortcut="Ctrl+S"
+						description={notOnHome}
+						disabled={!hasWorld}
 						onClick={saveWorldFile}
 					/>
 
@@ -144,7 +175,8 @@ export const FileMenu = () => {
 					<Menu.Item
 						icon="picture"
 						label="Render a picture…"
-						description="A still of the world at its finest, to save as a PNG"
+						description={notOnHome ?? "A still of the world at its finest, to save as a PNG"}
+						disabled={!hasWorld}
 						onClick={() => useEditor.getState().setRenderDialogOpen(true)}
 					/>
 
@@ -189,8 +221,6 @@ export const FileMenu = () => {
 				</Menu.Popup>
 			</Menu.Root>
 
-			<NewWorldDialog />
-
 			<WorldsDialog open={browsing} onOpenChange={setBrowsing} />
 
 			<BackupsDialog open={viewingBackups} onOpenChange={setViewingBackups} />
@@ -202,7 +232,7 @@ export const FileMenu = () => {
 				description="It’s removed from your worlds, and undo can’t bring it back. A copy is kept under File → Backups."
 				confirmLabel="Delete"
 				danger
-				onConfirm={() => deleteOpenWorld(createEmptyScene)}
+				onConfirm={() => deleteOpenWorld()}
 				extraAction={{ label: "Save to file", onClick: saveWorldFile }}
 			/>
 

@@ -2,7 +2,7 @@
  * Worlds as earlier versions saved them, brought up to date on load: old ids
  * (ADR-0050, ADR-0053), renamed fields (ADR-0071) and fields that moved
  * (ADR-0104). Framework-free; what needs the parts (old colours, one lights
- * mode for all, renamed props) is `parts/readWorld.ts`, which runs this first.
+ * mode for all, renamed props) is `parts/repairWorld.ts`, which runs this first.
  *
  * Every entry is kept for good: saved worlds may still use it. Renamed again:
  * point every older name at the newest, oldest first (a world holding several

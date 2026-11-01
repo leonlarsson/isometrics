@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyScene, TEMPLATES } from "#/templates";
 
-import { checkPatch, checkWorld, issuesForAi } from "./checkWorld";
+import { issuesForAi, validatePatch, validateWorld } from "./validateWorld";
 
 describe("checking a world", () => {
 	it.each(TEMPLATES.map((template) => [template.id, template.create] as const))(
 		"%s checks out with no problems or warnings",
 		(_, create) => {
-			const check = checkWorld(JSON.parse(JSON.stringify(create())));
+			const check = validateWorld(JSON.parse(JSON.stringify(create())));
 			expect(check.problems).toEqual([]);
 			expect(check.warnings).toEqual([]);
 			expect(check.isValid).toBe(true);
@@ -16,12 +16,12 @@ describe("checking a world", () => {
 	);
 
 	it("says what isn't a world at all", () => {
-		expect(checkWorld([]).isUnreadable).toBe(true);
-		expect(checkWorld({ hello: 1 }).isUnreadable).toBe(true);
+		expect(validateWorld([]).isUnreadable).toBe(true);
+		expect(validateWorld({ hello: 1 }).isUnreadable).toBe(true);
 	});
 
 	it("names problems by path and id, and what opening would repair", () => {
-		const check = checkWorld({
+		const check = validateWorld({
 			version: 1,
 			entities: [
 				{ id: "a", kind: "house_01", position: [0, 0] },
@@ -53,7 +53,7 @@ describe("checking a world", () => {
 			],
 			camera: { openingViewpointId: "gone" },
 		};
-		const check = checkWorld(JSON.parse(JSON.stringify(world)));
+		const check = validateWorld(JSON.parse(JSON.stringify(world)));
 		const said = check.warnings.map((issue) => `${issue.where}: ${issue.what}`).join("\n");
 		expect(said).toContain('"spaceship_99" isn\'t a part kind');
 		expect(said).toContain('no prop "wings"');
@@ -68,14 +68,14 @@ describe("checking a world", () => {
 describe("checking a patch", () => {
 	it("checks the world it makes, says what it changes, and its own problems by place", () => {
 		const world = createEmptyScene({ title: "Harbour" });
-		const fine = checkPatch(world, {
+		const fine = validatePatch(world, {
 			isPatch: true,
 			entities: { add: [{ id: "h", kind: "house_01", name: "Corner house", position: [0, 0] }] },
 		});
 		expect(fine.isValid).toBe(true);
 		expect(fine.changes).toBe("Adds Corner house.");
 
-		const broken = checkPatch(world, {
+		const broken = validatePatch(world, {
 			isPatch: true,
 			entities: {
 				change: [{ id: "nope", scale: 2 }],
@@ -99,7 +99,7 @@ describe("very big worlds", () => {
 				position: [0, 0],
 			})),
 		};
-		const check = checkWorld(JSON.parse(JSON.stringify(world)));
+		const check = validateWorld(JSON.parse(JSON.stringify(world)));
 		expect(check.isUnreadable).toBe(false);
 		expect(check.warnings.some((issue) => issue.what.includes("20,001 objects"))).toBe(true);
 	});

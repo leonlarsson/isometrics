@@ -49,6 +49,8 @@ test.describe("the welcome (ADR-0116)", () => {
 	test.use({ welcomes: true });
 
 	test("greets a new browser once; Build a city starts a world without data", async ({ page }) => {
+		// The editor loads three times in it, and New world draws its starters' pictures.
+		test.slow();
 		await openEditor(page);
 		const welcome = page.getByRole("dialog", { name: /Welcome to/ });
 		await expect(welcome).toBeVisible();

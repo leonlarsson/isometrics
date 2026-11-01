@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { notify } from "#/editor/toasts";
 import { usePrefersDark } from "#/editor/useTheme";
 import { APP_NAME } from "#/lib/app";
 import { PARTS, partName, resolveProps, type TAnyPart } from "#/parts/registry";
@@ -33,6 +32,7 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
 import { Toaster } from "./Toaster";
 import { TooltipProvider } from "./Tooltip";
+import { useCopy } from "./useCopy";
 
 import styles from "./PartsCatalogue.module.css";
 
@@ -67,31 +67,6 @@ const matches = (part: TAnyPart, query: string) => {
 		.split(/\s+/)
 		.filter(Boolean)
 		.every((word) => text.includes(word));
-};
-
-/** How long a copy button shows its tick after copying. */
-const COPIED_MS = 2000;
-
-/**
- * Put text on the clipboard, saying so (or that the browser didn't allow it);
- * `copied` is true for a moment afterwards, so the button can show a tick.
- */
-const useCopy = () => {
-	const [copied, setCopied] = useState(false);
-	const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-	useEffect(() => () => clearTimeout(timer.current), []);
-	const copy = (text: string, done: string) => {
-		void navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				notify(done);
-				setCopied(true);
-				clearTimeout(timer.current);
-				timer.current = setTimeout(() => setCopied(false), COPIED_MS);
-			})
-			.catch(() => notify("Couldn't copy: the browser didn't allow it"));
-	};
-	return { copied, copy };
 };
 
 /**

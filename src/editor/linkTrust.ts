@@ -13,7 +13,7 @@ import { keepOnHotReload } from "#/lib/hot";
  * link or API…), or by Allow (the dialog when a world opens, or the Data
  * tab). Every other address, templates' included, starts disabled, whatever
  * its host. Kept per browser, by the exact address, until forgotten
- * (Addresses this browser reads…).
+ * (External sources this browser reads…).
  */
 
 const KEY = `${APP_NAME.toLowerCase()}:allowed-links`;

@@ -1,5 +1,5 @@
 import { RoundedBox } from "@react-three/drei";
-import { createRoot, useThree } from "@react-three/fiber";
+import { createRoot, extend, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
@@ -272,6 +272,9 @@ const work = async () => {
 		return;
 	}
 	working = true;
+	// <Canvas> teaches R3F three's classes; this root may come before any canvas (the home screen's
+	// New world…), so it teaches them too.
+	extend(THREE as unknown as Parameters<typeof extend>[0]);
 	const canvas = document.createElement("canvas");
 	const root = createRoot(canvas);
 	try {

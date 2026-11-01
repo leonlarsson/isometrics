@@ -407,8 +407,8 @@ for (const run of runs) {
 		async ({ text, template }) => {
 			const store = globalThis.__editorStore.getState();
 			if (text) {
-				const { readWorld } = await import("/src/parts/readWorld.ts");
-				store.loadScene(readWorld(JSON.parse(text)).scene);
+				const { repairWorld } = await import("/src/parts/repairWorld.ts");
+				store.loadScene(repairWorld(JSON.parse(text)).scene);
 				return;
 			}
 			const { TEMPLATES } = await import("/src/templates/index.ts");

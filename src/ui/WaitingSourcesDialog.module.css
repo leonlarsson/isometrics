@@ -1,4 +1,4 @@
-/* The explanation, the waiting addresses (long ones wrap), and where to find them later. */
+/* The explanation, every waiting address (long ones wrap, many scroll), and where to find them later. */
 .body {
 	display: flex;
 	flex-direction: column;
@@ -20,6 +20,9 @@
 	list-style: none;
 	font-family: var(--font-mono);
 	font-size: 12px;
+	/* Every address is listed, however many (nothing is allowed unseen): it scrolls instead of growing past the screen. */
+	max-height: min(50vh, 360px);
+	overflow-y: auto;
 }
 
 .addresses li {

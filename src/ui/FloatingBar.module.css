@@ -1,0 +1,111 @@
+/* Over the top of the view, centred, like the drawing and transform bars. */
+.bar {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	z-index: 40;
+	display: flex;
+	gap: 12px;
+	width: max-content;
+	max-width: min(560px, calc(100% - 32px));
+	padding: 12px 12px 12px 14px;
+	transform: translateX(-50%);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-panel);
+}
+
+/* The icon in a soft tile, level with the title. */
+.icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-sm);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.main {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+/* The title, and the close button at the row's end, on the title's line. */
+.titleRow {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 32px;
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	font-size: 14px;
+	line-height: 1.3;
+}
+
+.dismiss {
+	flex: none;
+	margin-right: -4px;
+}
+
+/* The details get the bar's whole width; the main buttons go under them. */
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.details {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+/* A row that waits on the viewer, set apart, with its own small button. */
+.note {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 10px;
+	padding: 6px 6px 6px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text);
+}
+
+.noteText {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+/* Its button keeps to the row's end, and goes under the text when there's no room beside it. */
+.noteAction {
+	display: inline-flex;
+	margin-left: auto;
+}
+
+/* Narrow screens: the main buttons share the width, side by side. */
+@media (max-width: 600px) {
+	.actions > * {
+		flex: 1;
+	}
+}

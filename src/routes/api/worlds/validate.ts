@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { textUpTo } from "#/lib/textUpTo";
-import { checkPatch, checkWorld } from "#/parts/checkWorld";
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
+import { validatePatch, validateWorld } from "#/parts/validateWorld";
 import { UnsafeJsonError } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
@@ -48,11 +48,11 @@ const check = (input: unknown) => {
 		"world" in input &&
 		isWorldPatch(input.patch)
 	) {
-		const world = checkWorld(input.world);
+		const world = validateWorld(input.world);
 		if (world.isUnreadable) {
 			return Response.json(world, { headers: HEADERS });
 		}
-		return Response.json(checkPatch(readWorld(input.world).scene, input.patch), {
+		return Response.json(validatePatch(repairWorld(input.world).scene, input.patch), {
 			headers: HEADERS,
 		});
 	}
@@ -62,7 +62,7 @@ const check = (input: unknown) => {
 			'a patch is checked with the world it changes: POST { "world": ..., "patch": ... }',
 		);
 	}
-	return Response.json(checkWorld(input), { headers: HEADERS });
+	return Response.json(validateWorld(input), { headers: HEADERS });
 };
 
 // Check a world: POST it as JSON, get back what's wrong and where. GET says how (ADR-0117).

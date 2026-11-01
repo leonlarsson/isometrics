@@ -10,6 +10,24 @@
     "enabled": true
   },
 
-  // Pull requests get a preview build (wrangler preview); its settings follow the top level.
-  "previews": {}
+  // Worlds people share by link (ADR-0120): one snapshot per key, deleted by KV when it expires.
+  "kv_namespaces": [
+    { "binding": "USER_WORLDS", "id": "a74a79e512924e1d8f78cc010d5b7426" }
+  ],
+
+  // At most 10 shared worlds a minute from one address, so the store can't be flooded.
+  "ratelimits": [
+    { "name": "USER_WORLD_UPLOADS", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+  ],
+
+  // Pull requests get a preview build (wrangler preview). Its plain settings follow the top level, but
+  // bindings aren't inherited: each is listed here too (the same KV namespace as production for now).
+  "previews": {
+    "kv_namespaces": [
+      { "binding": "USER_WORLDS", "id": "a74a79e512924e1d8f78cc010d5b7426" }
+    ],
+    "ratelimits": [
+      { "name": "USER_WORLD_UPLOADS", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }
+    ]
+  }
 }

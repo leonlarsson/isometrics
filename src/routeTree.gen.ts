@@ -14,6 +14,10 @@ import { Route as GuideRouteImport } from './routes/guide'
 import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
+import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
+import { Route as WIdRouteImport } from './routes/w.$id'
+import { Route as ApiUserWorldsIndexRouteImport } from './routes/api/user-worlds/index'
+import { Route as ApiUserWorldsIdRouteImport } from './routes/api/user-worlds/$id'
 import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
 import { Route as ApiWorldsSchemaIndexRouteImport } from './routes/api/worlds/schema/index'
 import { Route as ApiWorldsSchemaPatchRouteImport } from './routes/api/worlds/schema/patch'
@@ -43,6 +47,26 @@ const KitRoute = KitRouteImport.update({
 const PartsRoute = PartsRouteImport.update({
   id: '/parts',
   path: '/parts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesIdRoute = TemplatesIdRouteImport.update({
+  id: '/templates/$id',
+  path: '/templates/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WIdRoute = WIdRouteImport.update({
+  id: '/w/$id',
+  path: '/w/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUserWorldsIndexRoute = ApiUserWorldsIndexRouteImport.update({
+  id: '/api/user-worlds/',
+  path: '/api/user-worlds/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUserWorldsIdRoute = ApiUserWorldsIdRouteImport.update({
+  id: '/api/user-worlds/$id',
+  path: '/api/user-worlds/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWorldsValidateRoute = ApiWorldsValidateRouteImport.update({
@@ -77,7 +101,11 @@ export interface FileRoutesByFullPath {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/w/$id': typeof WIdRoute
+  '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/schema/': typeof ApiWorldsSchemaIndexRoute
@@ -89,7 +117,11 @@ export interface FileRoutesByTo {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/w/$id': typeof WIdRoute
+  '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-worlds': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/schema': typeof ApiWorldsSchemaIndexRoute
@@ -102,7 +134,11 @@ export interface FileRoutesById {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/w/$id': typeof WIdRoute
+  '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
   '/api/worlds/schema/': typeof ApiWorldsSchemaIndexRoute
@@ -116,7 +152,11 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
+    | '/templates/$id'
+    | '/w/$id'
+    | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-worlds/'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
     | '/api/worlds/schema/'
@@ -128,7 +168,11 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
+    | '/templates/$id'
+    | '/w/$id'
+    | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-worlds'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
     | '/api/worlds/schema'
@@ -140,7 +184,11 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
+    | '/templates/$id'
+    | '/w/$id'
+    | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-worlds/'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
     | '/api/worlds/schema/'
@@ -153,7 +201,11 @@ export interface RootRouteChildren {
   GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
+  TemplatesIdRoute: typeof TemplatesIdRoute
+  WIdRoute: typeof WIdRoute
+  ApiUserWorldsIdRoute: typeof ApiUserWorldsIdRoute
   ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
+  ApiUserWorldsIndexRoute: typeof ApiUserWorldsIndexRoute
   ApiWorldsSchemaPatchRoute: typeof ApiWorldsSchemaPatchRoute
   ApiWorldsTemplatesIdRoute: typeof ApiWorldsTemplatesIdRoute
   ApiWorldsSchemaIndexRoute: typeof ApiWorldsSchemaIndexRoute
@@ -195,6 +247,34 @@ declare module '@tanstack/react-router' {
       path: '/parts'
       fullPath: '/parts'
       preLoaderRoute: typeof PartsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$id': {
+      id: '/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/templates/$id'
+      preLoaderRoute: typeof TemplatesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/w/$id': {
+      id: '/w/$id'
+      path: '/w/$id'
+      fullPath: '/w/$id'
+      preLoaderRoute: typeof WIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/user-worlds/': {
+      id: '/api/user-worlds/'
+      path: '/api/user-worlds'
+      fullPath: '/api/user-worlds/'
+      preLoaderRoute: typeof ApiUserWorldsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/user-worlds/$id': {
+      id: '/api/user-worlds/$id'
+      path: '/api/user-worlds/$id'
+      fullPath: '/api/user-worlds/$id'
+      preLoaderRoute: typeof ApiUserWorldsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/worlds/validate': {
@@ -241,7 +321,11 @@ const rootRouteChildren: RootRouteChildren = {
   GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
+  TemplatesIdRoute: TemplatesIdRoute,
+  WIdRoute: WIdRoute,
+  ApiUserWorldsIdRoute: ApiUserWorldsIdRoute,
   ApiWorldsValidateRoute: ApiWorldsValidateRoute,
+  ApiUserWorldsIndexRoute: ApiUserWorldsIndexRoute,
   ApiWorldsSchemaPatchRoute: ApiWorldsSchemaPatchRoute,
   ApiWorldsTemplatesIdRoute: ApiWorldsTemplatesIdRoute,
   ApiWorldsSchemaIndexRoute: ApiWorldsSchemaIndexRoute,

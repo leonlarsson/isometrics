@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { resolveColors } from "#/parts/colorModel";
-import { readWorld } from "#/parts/readWorld";
 import { getPart, resolveProps } from "#/parts/registry";
+import { repairWorld } from "#/parts/repairWorld";
 
 import { AREA_KIND_LABELS } from "./areas";
 import { ROAD_KIND_LABELS } from "./roads";
@@ -44,7 +44,7 @@ describe("worlds saved by earlier versions", () => {
 
 	it.each(worlds)("%s opens as it was, with nothing repaired or lost", (_, text) => {
 		const raw = JSON.parse(text) as IRawWorld;
-		const { scene, report } = readWorld(JSON.parse(text));
+		const { scene, report } = repairWorld(JSON.parse(text));
 
 		expect(report, "it needed repairs").toBeNull();
 		expect(scene.entities).toHaveLength(raw.entities?.length ?? 0);
@@ -66,7 +66,7 @@ describe("worlds saved by earlier versions", () => {
 
 	it.each(worlds)("%s keeps every object's part and props", (_, text) => {
 		const raw = JSON.parse(text) as IRawWorld;
-		const { scene } = readWorld(JSON.parse(text));
+		const { scene } = repairWorld(JSON.parse(text));
 
 		scene.entities.forEach((entity, i) => {
 			const part = getPart(entity.kind);
@@ -78,7 +78,7 @@ describe("worlds saved by earlier versions", () => {
 			const renamed: Readonly<Record<string, string>> = part.renamedProps ?? {};
 			const rawProps = raw.entities?.[i].props ?? {};
 			for (const [key, value] of Object.entries(rawProps)) {
-				// Folded into the object's scale (ADR-0104): readWorld's own test checks the scale.
+				// Folded into the object's scale (ADR-0104): repairWorld's own test checks the scale.
 				if (part.foldedIntoScale?.includes(key)) {
 					continue;
 				}
@@ -103,7 +103,7 @@ describe("worlds saved by earlier versions", () => {
 
 	it.each(worlds)("%s keeps every object's colours", (_, text) => {
 		const raw = JSON.parse(text) as IRawWorld;
-		const { scene } = readWorld(JSON.parse(text));
+		const { scene } = repairWorld(JSON.parse(text));
 		const palette = scenePalettes.light;
 
 		scene.entities.forEach((entity, i) => {

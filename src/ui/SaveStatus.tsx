@@ -1,6 +1,8 @@
 import { saveWorldFile } from "#/editor/fileActions";
 import { type TSaveStatus, useSaveStatus } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
+import { useSharedLinks } from "#/editor/userWorlds";
+import { keepsOpenWorld } from "#/editor/whatIsOpen";
 
 import { Icon } from "./Icon";
 import { Menu } from "./Menu";
@@ -23,7 +25,7 @@ const describe = (status: TSaveStatus): { label: string; detail: string } => {
 		case "saved":
 			return {
 				label: "Saved",
-				detail: `${status.at ? `Saved in this browser at ${timeOf(status.at)}` : "Saved in this browser"}, as you make changes. Only this browser has it: save it to a file to keep a copy elsewhere.`,
+				detail: `${status.at ? `Saved in this browser at ${timeOf(status.at)}` : "Saved in this browser"}, as you make changes. Only this browser has it: save it to a file to keep a copy elsewhere, or share a link to open it somewhere else.`,
 			};
 		case "failed":
 			return {
@@ -41,12 +43,16 @@ const describe = (status: TSaveStatus): { label: string; detail: string } => {
 /**
  * Whether the open world is saved, next to the File menu (ADR-0057): "Saved",
  * "Saving…" or "Not saved". Its menu says when, where and what to do, with
- * Save to file. Edit mode only; nothing changes in View mode.
+ * Save to file and Share a link… (ADR-0120). Edit mode only; nothing changes
+ * in View mode.
  */
 export const SaveStatus = () => {
 	const mode = useEditor((s) => s.mode);
+	// Only a world of one's own is saved: not a preview from a link, not the home screen (ADR-0121).
+	const ownsWorld = useEditor((s) => keepsOpenWorld(s.whatIsOpen));
 	const status = useSaveStatus();
-	if (mode !== "edit") {
+	const linkCount = useSharedLinks((s) => s.links.length);
+	if (mode !== "edit" || !ownsWorld) {
 		return null;
 	}
 	const { label, detail } = describe(status);
@@ -74,6 +80,17 @@ export const SaveStatus = () => {
 				<Menu.Separator />
 
 				<Menu.Item icon="download" label="Save to file" shortcut="Ctrl+S" onClick={saveWorldFile} />
+
+				<Menu.Item
+					icon="newTab"
+					label="Share a link…"
+					description={
+						linkCount > 0
+							? `A public copy for anyone with the link; this browser shares ${linkCount === 1 ? "1 link" : `${linkCount} links`}`
+							: "A public copy for anyone with the link, until it expires"
+					}
+					onClick={() => useEditor.getState().setShareOpen(true)}
+				/>
 			</Menu.Popup>
 		</Menu.Root>
 	);

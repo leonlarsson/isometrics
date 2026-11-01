@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import { deleteSavedWorld, duplicateSavedWorld, openSavedWorld } from "#/editor/fileActions";
 import { type IWorldInfo, listWorlds, openWorldId } from "#/editor/persistence";
-import { createEmptyScene } from "#/templates";
 
 import { IconButton } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -123,7 +122,7 @@ export const WorldsDialog = ({ open, onOpenChange }: IWorldsDialogProps) => {
 				danger
 				onConfirm={() => {
 					if (deleting) {
-						deleteSavedWorld(deleting.id, createEmptyScene);
+						deleteSavedWorld(deleting.id);
 						refresh();
 					}
 				}}

@@ -84,6 +84,7 @@ import {
 } from "./paint";
 import { readPreferences } from "./preferences";
 import { notify } from "./toasts";
+import { type IPreview, previewOf, type TWhatIsOpen } from "./whatIsOpen";
 
 export type TEditorMode = "edit" | "view";
 
@@ -312,6 +313,10 @@ export interface IEditorState {
 	 * it till then; null once it's shown. Runtime only.
 	 */
 	openingWorld: number | null;
+	/** What the editor has open: a world (perhaps a preview from a link), a link, or nothing (ADR-0121). Runtime only. */
+	whatIsOpen: TWhatIsOpen;
+	/** Edit was asked for while a world from a link is a preview: whether to keep a copy is being asked. Runtime only. */
+	isAskingToKeep: boolean;
 	/** How many worlds have opened so far, this one included: which world data that arrives is for. Runtime only. */
 	openedWorldCount: number;
 	snapping: boolean;
@@ -370,6 +375,8 @@ export interface IEditorState {
 	buildWithAi: "new" | "change" | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
 	welcomeOpen: boolean;
+	/** Share a link… is open (ADR-0120). */
+	shareOpen: boolean;
 	/**
 	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
 	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
@@ -384,7 +391,10 @@ export interface IEditorState {
 	cameraFollow: { entityId: string; ride: boolean; projectionBefore: TProjection } | null;
 
 	commit: (recipe: (scene: Draft<TScene>) => void, options?: ICommitOptions) => void;
-	loadScene: (scene: TScene) => void;
+	/** Open `scene`: a world of one's own, or with `preview`, one from a link that isn't kept yet (ADR-0121). */
+	loadScene: (scene: TScene, options?: { preview?: IPreview }) => void;
+	setWhatIsOpen: (whatIsOpen: TWhatIsOpen) => void;
+	setAskingToKeep: (isAskingToKeep: boolean) => void;
 	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
 	revertTo: (before: TScene) => void;
 	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
@@ -480,6 +490,7 @@ export interface IEditorState {
 	setRenderDialogOpen: (open: boolean) => void;
 	setBuildWithAi: (builds: "new" | "change" | null) => void;
 	setWelcomeOpen: (open: boolean) => void;
+	setShareOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
@@ -1031,7 +1042,13 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 	}
 };
 
-export const createEditorStore = (initialScene: TScene = createBrightwaterScene()) => {
+/**
+ * The editor's store. Given a world, it has that world open (tests, tools);
+ * without one it starts with the starter world and nothing open yet, for the
+ * app to decide what to open (ADR-0121).
+ */
+export const createEditorStore = (openScene?: TScene) => {
+	const initialScene = openScene ?? createBrightwaterScene();
 	return create<IEditorState>()((rawSet, get) => {
 		// Every change goes through here, so the list of selected items follows the active item.
 		const set = (
@@ -1070,6 +1087,8 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			openValueKey: null,
 			dragging: false,
 			openingWorld: 1,
+			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
+			isAskingToKeep: false,
 			openedWorldCount: 1,
 			snapping: true,
 			playing: true,
@@ -1079,6 +1098,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			renderDialogOpen: false,
 			buildWithAi: null,
 			welcomeOpen: false,
+			shareOpen: false,
 			newWorld: null,
 			stillRender: null,
 			preferencesPage: null,
@@ -1133,9 +1153,16 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			cancelGesture: null,
 			setCancelGesture: (cancel) => set({ cancelGesture: cancel }),
 
-			loadScene: (scene) => {
+			loadScene: (scene, options = {}) => {
 				warnAboutUnknownParts(scene);
 				set((state) => ({
+					whatIsOpen: { kind: "world", preview: options.preview ?? null },
+					isAskingToKeep: false,
+					// A world from a link opens to be looked at (Edit asks to keep it first); leaving one for a
+					// world of one's own goes back to editing.
+					...(options.preview
+						? { mode: "view" as const }
+						: previewOf(state.whatIsOpen) && { mode: "edit" as const }),
 					// The loading screen covers it until the view has it ready (ADR-0100).
 					openingWorld: (state.openingWorld ?? 0) + 1,
 					openedWorldCount: state.openedWorldCount + 1,
@@ -1531,22 +1558,27 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 					}
 				});
 			},
+			setWhatIsOpen: (whatIsOpen) => set({ whatIsOpen }),
+			setAskingToKeep: (isAskingToKeep) => set({ isAskingToKeep }),
 			setMode: (mode) =>
-				set({
-					mode,
-					...NOTHING_SELECTED,
-					drawing: null,
-					painting: false,
-					placingKind: null,
-					transform: null,
-					boxSelect: null,
-					joinOffer: null,
-					routePreview: null,
-					followOffer: null,
-					contextMenu: null,
-					groundMenu: null,
-					viewpointMenu: null,
-				}),
+				// Editing a world from a link keeps a copy of it: asked first (ADR-0121).
+				mode === "edit" && previewOf(get().whatIsOpen)
+					? set({ isAskingToKeep: true })
+					: set({
+							mode,
+							...NOTHING_SELECTED,
+							drawing: null,
+							painting: false,
+							placingKind: null,
+							transform: null,
+							boxSelect: null,
+							joinOffer: null,
+							routePreview: null,
+							followOffer: null,
+							contextMenu: null,
+							groundMenu: null,
+							viewpointMenu: null,
+						}),
 			// Leaving the Data tab closes a value's page: it opens on the list next time.
 			setTab: (tab) =>
 				set((state) => ({ tab, openValueKey: tab === "data" ? state.openValueKey : null })),
@@ -1581,6 +1613,7 @@ export const createEditorStore = (initialScene: TScene = createBrightwaterScene(
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
 			setBuildWithAi: (builds) => set({ buildWithAi: builds }),
 			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
+			setShareOpen: (open) => set({ shareOpen: open }),
 			setNewWorld: (newWorld) => set({ newWorld }),
 			setPreferencesOpen: (open, page) =>
 				set({ preferencesOpen: open, preferencesPage: open ? (page ?? null) : null }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 
 import { cellOf } from "./rowData";
 import { MOST_DEPTH, safeJson, UnsafeJsonError } from "./safeJson";
@@ -26,7 +26,7 @@ describe("untrusted JSON (ADR-0119)", () => {
 	});
 
 	it("keeps a world that tries to reach a prototype through its records harmless", () => {
-		const { scene } = readWorld(
+		const { scene } = repairWorld(
 			JSON.parse(
 				'{"version": 1, "entities": [{"id": "a", "kind": "house_01", "position": [0, 0], "colors": {"__proto__": {"color": "#ff0000"}}}]}',
 			),

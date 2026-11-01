@@ -5,8 +5,8 @@ import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
-import { readWorld, upgradeWorld } from "./readWorld";
 import { getPart, resolveProps } from "./registry";
+import { repairWorld, upgradeWorld } from "./repairWorld";
 
 /**
  * Checking a world (ADR-0117): what's wrong in it and where, in words an AI
@@ -23,7 +23,7 @@ export interface IWorldIssue {
 	what: string;
 }
 
-export interface IWorldCheck {
+export interface IWorldValidation {
 	/** No problems: it opens exactly as written (warnings can still say it won't look as meant). */
 	isValid: boolean;
 	/** Couldn't be read as a world at all (not an object, no version or things). */
@@ -254,7 +254,7 @@ const capped = (issues: IWorldIssue[]) =>
 			];
 
 /** Check a world: what's wrong and where, and what opening it would do. */
-export const checkWorld = (input: unknown): IWorldCheck => {
+export const validateWorld = (input: unknown): IWorldValidation => {
 	if (!isRecord(input)) {
 		return {
 			isValid: false,
@@ -265,9 +265,9 @@ export const checkWorld = (input: unknown): IWorldCheck => {
 			contents: "",
 		};
 	}
-	let read: ReturnType<typeof readWorld>;
+	let read: ReturnType<typeof repairWorld>;
 	try {
-		read = readWorld(structuredClone(input));
+		read = repairWorld(structuredClone(input));
 	} catch (error) {
 		return {
 			isValid: false,
@@ -314,9 +314,9 @@ export const checkWorld = (input: unknown): IWorldCheck => {
  * (an id that isn't there, a list sent whole), said where they are in the
  * patch, then the world it makes, checked like any world, and what it changes.
  */
-export const checkPatch = (world: TScene, patch: Record<string, unknown>): IWorldCheck => {
+export const validatePatch = (world: TScene, patch: Record<string, unknown>): IWorldValidation => {
 	const { world: patched, issues, changes } = applyWorldPatch(world, patch);
-	const check = checkWorld(patched);
+	const check = validateWorld(patched);
 	const patchProblems = issues.map((issue) => ({
 		where: `patch ${issue.where}`,
 		what: issue.what,
@@ -330,7 +330,7 @@ export const checkPatch = (world: TScene, patch: Record<string, unknown>): IWorl
 };
 
 /** A check as a message to send back to an AI: fix these, and send the whole world again. */
-export const issuesForAi = (check: IWorldCheck) =>
+export const issuesForAi = (check: IWorldValidation) =>
 	[
 		check.changes
 			? "The patch you wrote doesn't apply cleanly. Fix these and send the whole patch again, as JSON only:"

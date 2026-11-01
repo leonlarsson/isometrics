@@ -12,7 +12,14 @@ export const WELCOME_SEEN_KEY = `${APP_NAME.toLowerCase()}:welcome-seen`;
 /** Whether to greet this browser: never welcomed, and no worlds kept yet. */
 export const shouldWelcome = () => {
 	try {
-		return localStorage.getItem(WELCOME_SEEN_KEY) === null && listWorlds().length === 0;
+		// Not over a world someone came to open by its address (/w/…, /templates/…, ADR-0120).
+		const search = new URLSearchParams(window.location.search);
+		return (
+			!search.has("shared") &&
+			!search.has("template") &&
+			localStorage.getItem(WELCOME_SEEN_KEY) === null &&
+			listWorlds().length === 0
+		);
 	} catch {
 		// Storage unavailable: nothing can be remembered, so don't greet on every visit.
 		return false;

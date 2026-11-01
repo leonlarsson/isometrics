@@ -19,7 +19,7 @@ import { getPart } from "./registry";
 
 /**
  * A world with everything at its default left out (ADR-0117): the same world
- * once read (`readWorld` fills the defaults back in), a fraction of the size.
+ * once read (`repairWorld` fills the defaults back in), a fraction of the size.
  * For the prompt Build with your AI copies, so neither it nor the answer is a
  * wall of defaults. No React.
  */
@@ -108,7 +108,7 @@ const LISTS: { path: readonly string[]; schema: z.ZodType; isObjects?: boolean }
 	{ path: ["data", "sources"], schema: DataSourceSchema },
 ];
 
-/** The world with what's at its default left out: `readWorld` reads it back as it was. */
+/** The world with what's at its default left out: `repairWorld` reads it back as it was. */
 export const compactWorld = (scene: TScene): TRecord => {
 	const world = structuredClone(scene) as unknown as TRecord;
 	// Lists first, item by item; then the world's own settings against a new world's.

@@ -4,14 +4,33 @@ import { aiPrompt, worldFromAnswer } from "#/editor/aiPrompt";
 import { pickFile, startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
-import { checkPatch, checkWorld, type IWorldCheck, issuesForAi } from "#/parts/checkWorld";
-import { readWorld } from "#/parts/readWorld";
+import {
+	fetchSharedWorld,
+	HANDOFF_SECONDS,
+	ShareError,
+	sharedWorldIdOf,
+	shareWorld,
+} from "#/editor/userWorlds";
+import { repairWorld } from "#/parts/repairWorld";
+import {
+	type IWorldValidation,
+	issuesForAi,
+	validatePatch,
+	validateWorld,
+} from "#/parts/validateWorld";
 import { describeRepairs } from "#/scene/repair";
 import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
-import { FieldGroup, Hint, RadioGroupField, TextField } from "./fields";
+import {
+	FieldGroup,
+	Hint,
+	RadioGroupField,
+	resetToDefault,
+	SwitchField,
+	TextField,
+} from "./fields";
 import { List, ListItem } from "./List";
 import { openGuide } from "./Welcome";
 
@@ -22,7 +41,7 @@ type TBuilds = "new" | "change";
 const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /** A pasted answer's check in a sentence: what it is, what it changes, and what's wrong. */
-const summaryOf = (check: IWorldCheck) => {
+const summaryOf = (check: IWorldValidation) => {
 	const what = check.changes ? `a patch. ${check.changes}` : `${check.contents}.`;
 	const wrong = [
 		check.problems.length > 0 &&
@@ -46,7 +65,7 @@ const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
  * Build with your AI (ADR-0116): describe the world, add data, copy a prompt
  * into any AI chat, and paste back the world it writes. Nothing is sent
  * anywhere by the app; what comes back is read like any world file
- * (`readWorld`), and opens as a new world or replaces this one (one undo step).
+ * (`repairWorld`), and opens as a new world or replaces this one (one undo step).
  * Keeps what's typed while the page is open.
  */
 export const BuildWithAiDialog = () => {
@@ -62,6 +81,11 @@ export const BuildWithAiDialog = () => {
 	const [promptByHand, setPromptByHand] = useState<string | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [issuesCopied, setIssuesCopied] = useState(false);
+	// Changing a world: hand it over as a public link for an hour instead of in the prompt (ADR-0120).
+	const [handsOverLink, setHandsOverLink] = useState(false);
+	const [makingPrompt, setMakingPrompt] = useState(false);
+	// A pasted link to a shared world, being read.
+	const [readingLink, setReadingLink] = useState<string | null>(null);
 	const close = () => useEditor.getState().setBuildWithAi(null);
 
 	// Opened for a new world or to change this one: that's what it builds.
@@ -74,11 +98,29 @@ export const BuildWithAiDialog = () => {
 	const isDescribed = description.trim() !== "";
 
 	const copyPrompt = async () => {
+		const world = builds === "change" ? useEditor.getState().scene : null;
+		let worldUrl: string | null = null;
+		if (world && handsOverLink) {
+			setMakingPrompt(true);
+			try {
+				worldUrl = (await shareWorld(world, HANDOFF_SECONDS, { isHandoff: true })).jsonUrl;
+			} catch (error) {
+				notify(
+					"The world couldn't be handed over as a link",
+					`${error instanceof ShareError ? error.message : "Try again in a moment."} Turn off the link to put the world in the prompt instead.`,
+					"error",
+				);
+				return;
+			} finally {
+				setMakingPrompt(false);
+			}
+		}
 		const prompt = aiPrompt({
 			description,
 			data,
-			world: builds === "change" ? useEditor.getState().scene : null,
+			world,
 			origin: window.location.origin,
+			worldUrl,
 		});
 		try {
 			await navigator.clipboard.writeText(prompt);
@@ -89,9 +131,26 @@ export const BuildWithAiDialog = () => {
 		}
 	};
 
+	// An answer that's a link to a world shared on this site (an AI that posted it, ADR-0120): read
+	// from the link, then checked like any answer. Only this site's own links are read.
+	useEffect(() => {
+		const id = sharedWorldIdOf(answer);
+		if (!id) {
+			return;
+		}
+		setReadingLink(answer.trim());
+		fetchSharedWorld(id)
+			.then(({ text }) => setAnswer(text))
+			.catch((error) =>
+				setProblem(error instanceof ShareError ? error.message : "The link couldn't be read."),
+			)
+			.finally(() => setReadingLink(null));
+	}, [answer]);
+
 	// The answer checked as it's pasted (ADR-0117): the same check as POST /api/worlds/validate.
 	const check = useMemo(() => {
-		if (!answer.trim()) {
+		// Nothing yet, or a link still being read.
+		if (!answer.trim() || sharedWorldIdOf(answer)) {
 			return null;
 		}
 		try {
@@ -99,13 +158,13 @@ export const BuildWithAiDialog = () => {
 			// A patch (ADR-0118) is the changes to a world: checked against the one open now.
 			if (isWorldPatch(parsed)) {
 				return builds === "change"
-					? checkPatch(useEditor.getState().scene, parsed)
+					? validatePatch(useEditor.getState().scene, parsed)
 					: {
 							unreadable:
 								"That's a patch: the changes to a world, not a whole one. Pick Change this world to put it in.",
 						};
 			}
-			const checked = checkWorld(parsed);
+			const checked = validateWorld(parsed);
 			// Not a world at all (no version or things): said as such, not as a list of problems.
 			return checked.isUnreadable
 				? { unreadable: checked.problems[0]?.what ?? "It isn't a world." }
@@ -148,7 +207,7 @@ export const BuildWithAiDialog = () => {
 	};
 
 	const putInPlace = () => {
-		let read: ReturnType<typeof readWorld>;
+		let read: ReturnType<typeof repairWorld>;
 		// What a patch changes, said once it's in place.
 		let changes: string | null = null;
 		try {
@@ -156,9 +215,9 @@ export const BuildWithAiDialog = () => {
 			if (isWorldPatch(parsed) && builds === "change") {
 				const applied = applyWorldPatch(useEditor.getState().scene, parsed);
 				changes = describePatchChanges(applied.changes);
-				read = readWorld(applied.world);
+				read = repairWorld(applied.world);
 			} else {
-				read = readWorld(parsed);
+				read = repairWorld(parsed);
 			}
 		} catch (error) {
 			setProblem(error instanceof Error ? error.message : String(error));
@@ -266,13 +325,30 @@ export const BuildWithAiDialog = () => {
 
 				<div className={styles.column}>
 					<FieldGroup title="3. Copy the prompt">
+						{builds === "change" && (
+							<SwitchField
+								label="Hand the world over as a link"
+								checked={handsOverLink}
+								onChange={(next) => {
+									setHandsOverLink(next);
+									setCopied(false);
+								}}
+								inherit={resetToDefault(handsOverLink, false, () => setHandsOverLink(false))}
+								hint="A short prompt with a link to the world instead of the whole world. The link is public to anyone who has it for an hour (Share a link… lists it), so your AI must be able to open links."
+							/>
+						)}
+
 						<Button
 							variant="primary"
 							icon={copied ? "check" : "copy"}
-							disabled={!isDescribed}
+							disabled={!isDescribed || makingPrompt}
 							onClick={() => void copyPrompt()}
 						>
-							{copied ? "Copied: paste it into your AI" : "Copy the prompt"}
+							{makingPrompt
+								? "Making its link…"
+								: copied
+									? "Copied: paste it into your AI"
+									: "Copy the prompt"}
 						</Button>
 
 						{!isDescribed && (
@@ -319,14 +395,16 @@ export const BuildWithAiDialog = () => {
 							hasNoDefault
 							hint={
 								builds === "new"
-									? "Words around the JSON are fine. It opens as a new world, repaired where it needs it."
-									: "The changes it wrote (a patch), or a whole world; words around the JSON are fine. Undo brings this world back."
+									? "The world it wrote, or a link to it on this site; words around the JSON are fine. It opens as a new world, repaired where it needs it."
+									: "The changes it wrote (a patch), a whole world, or a link to either on this site; words around the JSON are fine. Undo brings this world back."
 							}
 						/>
 
 						<Button size="sm" icon="upload" onClick={() => void readAnswerFile()}>
 							Open its file…
 						</Button>
+
+						{readingLink && <Hint>Reading the world from its link…</Hint>}
 
 						{check && "unreadable" in check && (
 							<Hint>

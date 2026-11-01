@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { checkPatch } from "#/parts/checkWorld";
 import { worldPatchJsonSchema } from "#/parts/jsonSchema";
-import { readWorld } from "#/parts/readWorld";
 import { PARTS } from "#/parts/registry";
+import { repairWorld } from "#/parts/repairWorld";
+import { validatePatch } from "#/parts/validateWorld";
 import { SceneSchema } from "#/scene/schema";
 import { createEmptyScene } from "#/templates";
 
@@ -19,7 +19,7 @@ const ORIGIN = "https://example.test";
 
 describe("the prompt for your own AI", () => {
 	it("teaches with an example world that opens with no repairs", () => {
-		const { report } = readWorld(structuredClone(EXAMPLE_WORLD));
+		const { report } = repairWorld(structuredClone(EXAMPLE_WORLD));
 		expect(report).toBeNull();
 	});
 
@@ -73,7 +73,7 @@ describe("the example patch (ADR-0118)", () => {
 			],
 			data: { values: [{ key: "boats", value: 3 }] },
 		});
-		const check = checkPatch(world, structuredClone(EXAMPLE_PATCH));
+		const check = validatePatch(world, structuredClone(EXAMPLE_PATCH));
 		expect(check.problems).toEqual([]);
 		expect(check.warnings).toEqual([]);
 	});
@@ -83,6 +83,24 @@ describe("the example patch (ADR-0118)", () => {
 		for (const key of Object.keys(EXAMPLE_PATCH)) {
 			expect(fields).toContain(key);
 		}
+	});
+});
+
+describe("handing a world over as a link (ADR-0120)", () => {
+	it("puts the link in the prompt instead of the world, and offers answering with a link", () => {
+		const world = createEmptyScene({ title: "Mine" });
+		const prompt = aiPrompt({
+			description: "More trees",
+			data: "",
+			world,
+			origin: ORIGIN,
+			worldUrl: `${ORIGIN}/api/user-worlds/abcdefghijklmnopqrstuv`,
+		});
+		expect(prompt).toContain(`It's at ${ORIGIN}/api/user-worlds/abcdefghijklmnopqrstuv`);
+		expect(prompt).not.toContain('"title":"Mine"');
+		expect(prompt).toContain(
+			`POST it (the world or the patch, as JSON) to ${ORIGIN}/api/user-worlds`,
+		);
 	});
 });
 

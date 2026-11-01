@@ -24,6 +24,7 @@ import { openContextMenuOnClick } from "./contextMenu";
 import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { useInstancedPart } from "./InstancedParts";
+import { markInstancedRoot } from "./instancing";
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
@@ -340,6 +341,14 @@ export const EntityNode = memo(
 		// Its meshes drawn together with other objects' that look the same (ADR-0086).
 		const partGroup = useRef<THREE.Group>(null);
 		useInstancedPart(partGroup, moving);
+		// A part that draws once something has loaded (text, once its font has) is looked through
+		// again then: before, it had nothing to draw, and a part with nothing left out of the batches
+		// is hidden as drawn by them, so its text would stay hidden until the next render (a hover).
+		const lookAgain = () => {
+			if (partGroup.current) {
+				markInstancedRoot(partGroup.current, moving);
+			}
+		};
 
 		// Standing still, its matrices are worked out once per render, not every frame (ADR-0092), and
 		// its bounds for the pointer when it first comes by (raycastWithinBounds).
@@ -589,6 +598,7 @@ export const EntityNode = memo(
 								lights={lights}
 								data={data}
 								sun={sun}
+								onReady={part.rendersAsync ? lookAgain : undefined}
 							/>
 						</group>
 

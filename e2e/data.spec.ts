@@ -252,7 +252,7 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 			},
 		});
 		// Asked when the world opens; nothing is read meanwhile.
-		const asking = page.getByRole("alertdialog", { name: "This world reads data from outside" });
+		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
 		await expect(asking).toContainText("https://example.org/counts.json");
 		await page.waitForTimeout(1500);
 		expect(requests).toBe(0);

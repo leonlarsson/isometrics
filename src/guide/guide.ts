@@ -51,7 +51,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read. Every address starts disabled: when such a world opens, a dialog lists the addresses it reads, to allow now or later in the Data tab under **Sources** (each with **Allow**). Only addresses you read yourself, with **Read a link or API…**, are read without asking; **Addresses this browser reads…** lists every one you've allowed, to forget any.",
+				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read: external sources. Every one starts disabled: when such a world opens, a dialog lists the external sources it reads, to allow now or later in the Data tab under **Sources** (each with **Allow**). Only links you read yourself, with **Read a link or API…**, are read without asking; **External sources this browser reads…** lists every one you've allowed, to forget any.",
 			},
 		],
 	},
@@ -170,6 +170,29 @@ export const GUIDE: IGuideSection[] = [
 		],
 	},
 	{
+		id: "sharing",
+		title: "Sharing a world",
+		blocks: [
+			{
+				kind: "steps",
+				steps: [
+					"Open **Share a link…** in the File menu (or the save status next to it).",
+					"Pick how long it's kept (**Keep it for**: an hour to 30 days) and click **Create a public link**. Nothing is uploaded before you do.",
+					"Copy the link and send it. Anyone with it can open the world and make a copy, until it expires: share nothing private.",
+					"It's a snapshot: share again to send later changes. **Stop sharing** ends a link early; links you shared from this browser are listed there.",
+				],
+			},
+			{
+				kind: "note",
+				text: "A shared link opens that world on its own, in View mode, and keeps nothing in your browser until you click **Keep a copy** (or **Edit**, which asks first). If it uses external sources, you're asked before it's built: **Open and allow**, **Open** (nothing is read until you allow them, from the bar at the top) or **Don't open it**. A link shared moments ago can take up to a minute to open everywhere.",
+			},
+			{
+				kind: "text",
+				text: "Changing a world with your AI, **Hand the world over as a link** puts a link to the world in the prompt instead of the whole world (public for an hour), and you can paste back a link your AI gives you instead of its JSON.",
+			},
+		],
+	},
+	{
 		id: "rules",
 		title: "What makes a good data world",
 		blocks: [
@@ -202,6 +225,7 @@ export const GUIDE: IGuideSection[] = [
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
 					"Long worlds are best handed over as a file, `world.json`: the app opens it with **Open its file…**.",
+					"Worlds and patches can be handed back as a link: POST the JSON to `/api/user-worlds` (kept for an hour unless `?expiresIn=` says 86400, 604800 or 2592000 seconds) and give the `url` it returns. Anyone with the link can open it until it expires; `GET /api/user-worlds/<id>` gives the JSON.",
 					'To change a world, answer with a patch, not the whole world: the changes only, shaped like the world with the same field names, plus `"isPatch": true`. A settings group (`lighting`, `meta`, …) holds only the fields that change, merged as JSON Merge Patch (`null` puts a field back to its default); a list of things takes `remove` (ids), `change` (the id and only the fields that change) and `add` (whole new things), never the whole list. Things are named by their id, not their place in a list. Its format: `/api/worlds/schema/patch`; check it with `/api/worlds/validate`, sending `{ "world": ..., "patch": ... }`.',
 				],
 			},
@@ -232,7 +256,7 @@ const sectionAsMarkdown = (section: IGuideSection, depth: number): string =>
 
 /** The site's own addresses (`/api/worlds/schema`) made whole with `origin`, so an AI can open them. */
 const withOrigin = (text: string, origin: string) =>
-	text.replace(/`\/(guide\.md|api\/worlds\/[^`]*)`/g, `\`${origin}/$1\``);
+	text.replace(/`\/(guide\.md|api\/(?:worlds|user-worlds)[^`]*)`/g, `\`${origin}/$1\``);
 
 /** Some of the guide's sections as Markdown, headed at `depth`, for the prompt. */
 export const sectionsAsMarkdown = (sections: readonly IGuideSection[], origin = "", depth = 2) =>

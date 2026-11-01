@@ -1,4 +1,4 @@
-import { readWorld } from "#/parts/readWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
@@ -18,6 +18,7 @@ import {
 } from "./persistence";
 import { useEditor } from "./store";
 import { notify } from "./toasts";
+import { keepsOpenWorld } from "./whatIsOpen";
 
 /**
  * File menu actions, shared by the menu and the keyboard shortcuts. They act on
@@ -48,11 +49,15 @@ const showWorld = (scene: TScene) => {
 /**
  * Save the open world right away before switching to another one, so the
  * last edits (still waiting for autosave) land in it. An untouched starting
- * world that was never saved isn't added to the list.
+ * world that was never saved isn't added to the list, nor is a world from a
+ * link that isn't kept (ADR-0121), and nothing is open on the home screen.
  */
 const saveBeforeSwitching = () => {
 	saveCameraNow();
-	const { scene, past } = useEditor.getState();
+	const { scene, past, whatIsOpen } = useEditor.getState();
+	if (!keepsOpenWorld(whatIsOpen)) {
+		return;
+	}
 	if (openWorldId() || past.length > 0) {
 		saveScene(scene);
 	}
@@ -86,7 +91,8 @@ export const startNewWorld = (scene: TScene, copiedFrom: string | null = null) =
 
 /** Switch to a world saved in this browser. */
 export const openSavedWorld = (id: string) => {
-	if (id === openWorldId()) {
+	// Already showing it (not a preview over it, nor the home screen with it stored as open).
+	if (id === openWorldId() && keepsOpenWorld(useEditor.getState().whatIsOpen)) {
 		return;
 	}
 	saveBeforeSwitching();
@@ -115,8 +121,11 @@ const copyOf = (scene: TScene): TScene => ({
 });
 
 /** Copy the open world into a new one, named "… (copy)", and switch to it. */
-export const duplicateWorld = () =>
-	startNewWorld(copyOf(useEditor.getState().scene), openWorldId());
+export const duplicateWorld = () => {
+	if (useEditor.getState().whatIsOpen.kind === "world") {
+		startNewWorld(copyOf(useEditor.getState().scene), openWorldId());
+	}
+};
 
 /** Copy any saved world into a new one, named "… (copy)", and switch to it. */
 export const duplicateSavedWorld = (id: string) => {
@@ -148,9 +157,13 @@ export const resetThisBrowsersSettings = () => {
 
 /**
  * Delete the open world (it's kept as a backup first) and open the most
- * recently edited other one, or a new empty world if there's none.
+ * recently edited other one, or the home screen if there's none (ADR-0121).
+ * A world from a link that isn't kept isn't in the list: nothing to delete.
  */
-export const deleteOpenWorld = (createEmpty: () => TScene) => {
+export const deleteOpenWorld = () => {
+	if (!keepsOpenWorld(useEditor.getState().whatIsOpen)) {
+		return;
+	}
 	const id = openWorldId();
 	if (id && !deleteWorld(id)) {
 		notify(
@@ -165,17 +178,15 @@ export const deleteOpenWorld = (createEmpty: () => TScene) => {
 	if (result && (result.status === "ok" || result.status === "repaired")) {
 		showWorld(result.scene);
 	} else {
-		const empty = createEmpty();
-		createWorld(empty);
-		showWorld(empty);
+		useEditor.getState().setWhatIsOpen({ kind: "home", why: { kind: "noWorlds" } });
 	}
 	notify("World deleted", "A copy is kept under File → Backups.", "success");
 };
 
 /** Delete any saved world (kept as a backup first); the open one is replaced as above. */
-export const deleteSavedWorld = (id: string, createEmpty: () => TScene) => {
-	if (id === openWorldId()) {
-		deleteOpenWorld(createEmpty);
+export const deleteSavedWorld = (id: string) => {
+	if (id === openWorldId() && keepsOpenWorld(useEditor.getState().whatIsOpen)) {
+		deleteOpenWorld();
 		return;
 	}
 	if (!deleteWorld(id)) {
@@ -192,7 +203,7 @@ export const deleteSavedWorld = (id: string, createEmpty: () => TScene) => {
 /** Open a backup as a new world (repaired if needed); the backup itself stays as it is. */
 export const restoreBackup = (backup: ISceneBackup) => {
 	try {
-		const { scene, report } = readWorld(JSON.parse(backup.raw));
+		const { scene, report } = repairWorld(JSON.parse(backup.raw));
 		startNewWorld(scene);
 		notify(
 			"Backup restored",
@@ -226,5 +237,42 @@ export const openWorldFile = async () => {
 	}
 };
 
+/**
+ * Keep the world from a link that's open as a preview (ADR-0121): a new world
+ * of one's own in this browser, next to the others, saved from now on, with a
+ * title no other saved world has. Nothing is reloaded: it stays as it is on
+ * screen, with its undo history.
+ */
+export const keepPreview = () => {
+	const { scene, whatIsOpen } = useEditor.getState();
+	if (whatIsOpen.kind !== "world" || !whatIsOpen.preview) {
+		return;
+	}
+	const title = uniqueTitle(scene.meta.title);
+	const kept = title === scene.meta.title ? scene : { ...scene, meta: { ...scene.meta, title } };
+	createWorld(kept);
+	useEditor.setState({ scene: kept, whatIsOpen: { kind: "world", preview: null } });
+	saveCameraNow();
+};
+
+/**
+ * Close the world from a link that's open as a preview, keeping nothing: back
+ * to the world of one's own that was open (or the latest), else the home screen.
+ */
+export const closePreview = () => {
+	const id = openWorldId() ?? listWorlds()[0]?.id ?? null;
+	const result = id ? openStoredWorld(id) : null;
+	if (result && (result.status === "ok" || result.status === "repaired")) {
+		showWorld(result.scene);
+	} else {
+		useEditor.getState().setWhatIsOpen({ kind: "home", why: { kind: "closed" } });
+	}
+};
+
 /** Download the open world as a JSON file. */
-export const saveWorldFile = () => downloadScene(useEditor.getState().scene);
+export const saveWorldFile = () => {
+	// Nothing to save on the home screen, or while a link is opening.
+	if (useEditor.getState().whatIsOpen.kind === "world") {
+		downloadScene(useEditor.getState().scene);
+	}
+};

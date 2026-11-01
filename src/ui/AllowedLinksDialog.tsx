@@ -15,7 +15,7 @@ export const AllowedLinksDialog = ({ open, onClose }: { open: boolean; onClose: 
 		<Dialog
 			open={open}
 			onOpenChange={(next) => !next && onClose()}
-			title="Addresses this browser reads"
+			title="External sources this browser reads"
 			description="Links and APIs you've allowed: any world that names one reads it without asking. Forget one, and worlds wait for your yes again."
 			closeLabel="Close"
 		>

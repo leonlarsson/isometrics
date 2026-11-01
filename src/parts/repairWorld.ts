@@ -11,9 +11,9 @@ import { getPart, type TAnyPart } from "./registry";
  * then it's parsed, or repaired if it still doesn't validate (ADR-0026). What
  * comes out is in the current shape, so nothing reads old shapes at draw time.
  */
-export const readWorld = (input: unknown) => parseOrRepairScene(upgradeWorld(input));
+export const repairWorld = (input: unknown) => parseOrRepairScene(upgradeWorld(input));
 
-/** A world's old names and shapes brought up to date, before it's parsed (checkWorld reads this too). */
+/** A world's old names and shapes brought up to date, before it's parsed (validateWorld reads this too). */
 export const upgradeWorld = (input: unknown) =>
 	// A safe copy first (ADR-0119): no prototype keys, no nesting deep enough to overflow.
 	upgradePartSettings(upgradeLegacyIds(safeJson(input)));

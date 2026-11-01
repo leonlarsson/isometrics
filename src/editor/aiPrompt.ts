@@ -15,7 +15,7 @@ import {
  * of their choice. It says what they want in their own words, carries their
  * data (and the world, to change one), and teaches the format: the guide's
  * rules, every part kind, and a small world that shows the moves. What comes
- * back is pasted in and read like any untrusted world (`readWorld`).
+ * back is pasted in and read like any untrusted world (`repairWorld`).
  */
 
 /** More characters of pasted data than this are cut, saying so: a chat can't take a whole database. */
@@ -30,6 +30,11 @@ export interface IAiPromptInput {
 	world: TScene | null;
 	/** The site's address, so the AI can open the schema and examples. */
 	origin: string;
+	/**
+	 * Changing a world handed over as a link (ADR-0120): where its JSON is, for an
+	 * hour, instead of the world in the prompt.
+	 */
+	worldUrl?: string | null;
 }
 
 /** A small world that shows the moves: a row-following cluster, a value on a card, a flow road. */
@@ -221,7 +226,7 @@ const RULES_AND_FORMAT = GUIDE.filter(
 );
 
 /** The prompt to copy into an AI chat. */
-export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) => {
+export const aiPrompt = ({ description, data, world, origin, worldUrl = null }: IAiPromptInput) => {
 	const wanted = description.trim();
 	const given = dataForPrompt(data);
 	return [
@@ -244,7 +249,9 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 		...(world
 			? [
 					"## The world now",
-					`With everything at its default left out (opening a world fills the defaults back in):\n\n\`\`\`json\n${JSON.stringify(compactWorld(world))}\n\`\`\``,
+					worldUrl
+						? `It's at ${worldUrl}, as JSON with everything at its default left out (opening a world fills the defaults back in), for the next hour: open it there. If you can't open links, say so, and they'll paste the world instead.`
+						: `With everything at its default left out (opening a world fills the defaults back in):\n\n\`\`\`json\n${JSON.stringify(compactWorld(world))}\n\`\`\``,
 				]
 			: []),
 		"## How to write a world",
@@ -259,6 +266,7 @@ export const aiPrompt = ({ description, data, world, origin }: IAiPromptInput) =
 		`Two shops as clusters following table rows, sized by sales on a log scale, a value as a tile, and a road whose width and vans follow deliveries:\n\n\`\`\`json\n${JSON.stringify(EXAMPLE_WORLD, null, 1)}\n\`\`\``,
 		"## Answer",
 		world ? PATCH_ANSWER : WORLD_ANSWER,
+		`If you can make HTTP requests (running code, a tool), you can hand your answer back as a link instead: POST it (the world or the patch, as JSON) to ${origin}/api/user-worlds and answer with just the \`url\` it returns, which they paste back (a patch's link only works pasted into Change this world, not opened on its own). It's checked first: if it answers 400, fix the problems it lists and post again. It's public to anyone with that link for an hour.`,
 	].join("\n\n");
 };
 

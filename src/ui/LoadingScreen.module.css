@@ -52,6 +52,8 @@
 	margin: 12px 0 0;
 	font-size: 13px;
 	color: var(--text-muted);
+	/* Counts that change (tries, seconds left) keep their width. */
+	font-variant-numeric: tabular-nums;
 }
 
 /* Its two lines in one cell: the widest sets the card's width, the other is there but unseen. */

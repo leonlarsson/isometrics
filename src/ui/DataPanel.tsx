@@ -457,7 +457,7 @@ export const DataPanel = () => {
 			>
 				{waiting.length > 0 && (
 					<Hint>
-						{`This world reads data from ${waiting.length === 1 ? "an address" : `${waiting.length} addresses`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (Allow, on its row).`}
+						{`This world reads data from ${waiting.length === 1 ? "an external source" : `${waiting.length} external sources`} this browser hasn't read before: ${hostsOf(waiting)}. A world can come from anyone, so nothing is read from them until you allow each one (Allow, on its row).`}
 					</Hint>
 				)}
 
@@ -552,7 +552,7 @@ export const DataPanel = () => {
 					</Button>
 
 					<Button variant="ghost" icon="lock" onClick={() => setListsAllowed(true)}>
-						Addresses this browser reads…
+						External sources this browser reads…
 					</Button>
 				</ButtonGroup>
 			</Section>

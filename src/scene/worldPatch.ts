@@ -227,7 +227,7 @@ const applyToList = (
 };
 
 /**
- * A patch applied to a world: the patched world (to read with `readWorld`
+ * A patch applied to a world: the patched world (to read with `repairWorld`
  * like any other), what's wrong with the patch, and what it changes. What's
  * wrong is left out of the patched world; the rest still applies.
  */

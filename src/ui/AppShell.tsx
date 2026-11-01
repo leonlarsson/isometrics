@@ -2,8 +2,17 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 
 import { rememberedView, UNSAVED_WORLD } from "#/editor/cameraMemory";
 import { useSceneHours } from "#/editor/dayClock";
+import { keepAddressInStep, linkInAddress, openLink } from "#/editor/openLink";
 import { setPanelOpen } from "#/editor/panelMemory";
-import { loadStoredScene, openWorldId, saveScene, startAutosave } from "#/editor/persistence";
+import {
+	hasNoWorldsLeft,
+	listWorlds,
+	loadStoredScene,
+	openWorldId,
+	saveScene,
+	startAutosave,
+} from "#/editor/persistence";
+import { readPreferences } from "#/editor/preferences";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useSourceRefresh } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
@@ -27,18 +36,23 @@ import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { FreshStartOffer } from "./FreshStartOffer";
 import { GroundContextMenu } from "./GroundContextMenu";
+import { HomeScreen } from "./HomeScreen";
 import { Icon } from "./Icon";
 import { Inspector, RailShortcuts } from "./Inspector";
 import { ItemContextMenu } from "./ItemContextMenu";
 import { JoinOfferBar } from "./JoinOfferBar";
+import { KeepPreviewDialog } from "./KeepPreviewDialog";
 import { LabelLayer } from "./LabelLayer";
+import { LinkQuestion } from "./LinkQuestion";
 import { LoadingScreen } from "./LoadingScreen";
 import { NavigationGizmo } from "./NavigationGizmo";
+import { NewWorldDialog } from "./NewWorldDialog";
 import { Outliner } from "./Outliner";
 import { PaintBar } from "./PaintBar";
 import { PaneStrip } from "./PaneStrip";
 import { PartsPalette } from "./PartsPalette";
 import { PreferencesDialog } from "./PreferencesDialog";
+import { PreviewBar } from "./PreviewBar";
 import { RecoveryBar, type TRecovery } from "./RecoveryBar";
 import { RenderDialog } from "./RenderDialog";
 import {
@@ -51,6 +65,7 @@ import {
 	useOutlinerHeight,
 	usePaletteWidth,
 } from "./ResizeHandle";
+import { ShareDialog } from "./ShareDialog";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
 import { Toolbar } from "./Toolbar";
@@ -206,8 +221,12 @@ export const AppShell = () => {
 		throw new Error("Test crash (opened with ?crash in development)");
 	}
 
-	const mode = useEditor((s) => s.mode);
-	const [ready, setReady] = useState(false);
+	// What's open (ADR-0121): the world's own panes and view only once a world is; while a link
+	// opens or on the home screen, nothing of the starter world the store begins with shows.
+	const whatIsOpen = useEditor((s) => s.whatIsOpen.kind);
+	const showsWorld = whatIsOpen === "world";
+	const isStarted = whatIsOpen !== "starting";
+	const mode = useEditor((s) => (s.whatIsOpen.kind === "world" ? s.mode : "view"));
 	// Links and APIs read again while the world is open (ADR-0113).
 	useSourceRefresh();
 	const [inspectorWidth, setInspectorWidth] = useInspectorWidth();
@@ -247,6 +266,22 @@ export const AppShell = () => {
 	}, [narrow, mode]);
 
 	useEffect(() => {
+		const { setWhatIsOpen } = useEditor.getState();
+		// A link (/w/<id>, /templates/<id>): nothing else loads; it's fetched and opened as a preview.
+		const link = linkInAddress();
+		if (link) {
+			void openLink(link);
+			return;
+		}
+		// No world of one's own to open: the home screen, by choice or because none are left.
+		if (hasNoWorldsLeft()) {
+			setWhatIsOpen({ kind: "home", why: { kind: "noWorlds" } });
+			return;
+		}
+		if (readPreferences().startWith === "home" && listWorlds().length > 0) {
+			setWhatIsOpen({ kind: "home", why: { kind: "chosen" } });
+			return;
+		}
 		const stored = loadStoredScene();
 		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
@@ -265,8 +300,14 @@ export const AppShell = () => {
 			// (and reporting) the same original again. Only once the original is safely backed up.
 			saveScene(stored.scene);
 		}
-		setReady(true);
+		// The starter world (nothing stored, or nothing readable) is the store's own: open it as it is.
+		if (stored.status === "empty" || stored.status === "unreadable") {
+			setWhatIsOpen({ kind: "world", preview: null });
+		}
 	}, []);
+
+	// The page's address follows what's open: a link's while it or its preview is (ADR-0121).
+	useEffect(() => keepAddressInStep(), []);
 
 	// Saving follows the store: in development a code change makes a new one (see editor/store.ts),
 	// and autosave has to move over to it.
@@ -311,79 +352,87 @@ export const AppShell = () => {
 							</aside>
 						)}
 
-						<Stage>
-							<SceneTitle
-								onOpenSky={() => {
-									setTab("light");
-									setSidePaneOpen("right", true);
-									setSheetOpen(true);
-								}}
-								onOpenOnScreen={() => {
-									setPanelOpen("world.onScreen", true);
-									setTab("world");
-									setSidePaneOpen("right", true);
-									setSheetOpen(true);
-								}}
-							/>
+						{whatIsOpen === "home" ? (
+							<HomeScreen />
+						) : (
+							<Stage>
+								{showsWorld && (
+									<SceneTitle
+										onOpenSky={() => {
+											setTab("light");
+											setSidePaneOpen("right", true);
+											setSheetOpen(true);
+										}}
+										onOpenOnScreen={() => {
+											setPanelOpen("world.onScreen", true);
+											setTab("world");
+											setSidePaneOpen("right", true);
+											setSheetOpen(true);
+										}}
+									/>
+								)}
 
-							{ready && <Viewport />}
+								{showsWorld && <Viewport />}
 
-							{ready && <CompositionGrid />}
+								{showsWorld && <CompositionGrid />}
 
-							{ready && <ViewLabel />}
+								{showsWorld && <ViewLabel />}
 
-							{ready && <NavigationGizmo />}
+								{showsWorld && <NavigationGizmo />}
 
-							{ready && <LabelLayer />}
+								{showsWorld && <LabelLayer />}
 
-							{/* Until the world is ready to look at (ADR-0100). */}
-							<LoadingScreen starting={!ready} />
+								{/* Until the world is ready to look at (ADR-0100). */}
+								<LoadingScreen />
 
-							<DrawingBar />
+								{showsWorld && <PreviewBar />}
 
-							<TransformBar />
+								<DrawingBar />
 
-							<BoxSelectBar />
+								<TransformBar />
 
-							<PaintBar />
+								<BoxSelectBar />
 
-							<JoinOfferBar />
+								<PaintBar />
 
-							<FollowOfferBar />
+								<JoinOfferBar />
 
-							<ViewpointBar />
+								<FollowOfferBar />
 
-							<CameraFollowBar />
+								<ViewpointBar />
 
-							{recovery && <RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />}
+								<CameraFollowBar />
 
-							<DetailSheet />
+								{recovery && (
+									<RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />
+								)}
 
-							<RoadDetailSheet />
+								<DetailSheet />
 
-							<ViewDock />
+								<RoadDetailSheet />
 
-							<WorldDataView />
+								<ViewDock />
 
-							<ItemContextMenu />
+								<WorldDataView />
 
-							<GroundContextMenu />
+								<ItemContextMenu />
 
-							<ViewpointContextMenu />
+								<GroundContextMenu />
 
-							<PreferencesDialog />
+								<ViewpointContextMenu />
 
-							<RenderDialog />
+								{showsWorld && <RenderDialog />}
 
-							<BuildWithAiDialog />
+								{showsWorld && <WaitingSourcesDialog />}
 
-							{/* Once the world is loaded: after a big update, offers to start fresh (ADR-0059). */}
-							{ready && <FreshStartOffer />}
+								{showsWorld && <ShareDialog />}
 
-							{ready && <Welcome />}
+								<KeepPreviewDialog />
 
-							{ready && <WaitingSourcesDialog />}
-						</Stage>
+								{/* A shared world that reads from outside, before it's built (ADR-0121). */}
+								<LinkQuestion />
+							</Stage>
+						)}
 
 						{mode === "edit" && !rightOpen && (
 							<PaneStrip
@@ -481,6 +530,18 @@ export const AppShell = () => {
 							</div>
 						)}
 					</div>
+
+					{/* App-wide, whatever is open: the home screen uses them too. */}
+					<PreferencesDialog />
+
+					<BuildWithAiDialog />
+
+					<NewWorldDialog />
+
+					{/* Once started: after a big update, offers to start fresh (ADR-0059). */}
+					{isStarted && <FreshStartOffer />}
+
+					{isStarted && <Welcome />}
 				</div>
 			</Toaster>
 		</TooltipProvider>
