@@ -1,11 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
+import { allowLink } from "./linkTrust";
 import { LinkError, nameOfLink, readableUrlOf, readLink } from "./readLink";
 
 const answer = (body: string, init: ResponseInit = {}) =>
 	(async () => new Response(body, init)) as typeof fetch;
 
 describe("reading links and APIs (ADR-0113)", () => {
+	beforeAll(() => {
+		for (const url of [
+			"https://x.test/a",
+			"https://x.test/b.csv",
+			"https://x.test",
+			"https://api.steampowered.com/x",
+			"not a link",
+		]) {
+			allowLink(url);
+		}
+	});
+
+	it("sends nothing to an address this browser hasn't allowed (ADR-0119)", async () => {
+		const fetcher = vi.fn(answer("{}"));
+		await expect(readLink("https://not-allowed.test/x", fetcher)).rejects.toMatchObject({
+			why: "notAllowed",
+		});
+		expect(fetcher).not.toHaveBeenCalled();
+	});
+
 	it("reads JSON and CSV", async () => {
 		expect(await readLink("https://x.test/a", answer('{"totalUsers": 4}'))).toEqual({
 			kind: "json",

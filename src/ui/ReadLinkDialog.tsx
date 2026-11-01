@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { allowLink } from "#/editor/linkTrust";
+import { allowLink, forgetLink, isLinkAllowed } from "#/editor/linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "#/editor/readLink";
 import { newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
@@ -284,10 +284,12 @@ export const ReadLinkDialog = ({
 	const read = async () => {
 		setReading(true);
 		setError(null);
+		// Typed here and read: this browser's yes to the address, given before it's read, so it's
+		// read again on its own (ADR-0119). Taken back if reading it fails.
+		const wasAllowed = isLinkAllowed(url.trim());
+		allowLink(url.trim());
 		try {
 			const got = await readLink(url);
-			// Typed here: this browser's yes to the address, so it's read again on its own (ADR-0119).
-			allowLink(url.trim());
 			if (got.kind === "csv") {
 				onSpreadsheet({
 					fileName: name.trim() || nameOfLink(url),
@@ -312,6 +314,9 @@ export const ReadLinkDialog = ({
 				),
 			);
 		} catch (caught) {
+			if (!wasAllowed) {
+				forgetLink(url.trim());
+			}
 			setContent(null);
 			setError(caught instanceof LinkError ? caught.message : "It couldn't be read.");
 		} finally {

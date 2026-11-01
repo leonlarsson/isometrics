@@ -2,6 +2,7 @@ import { textUpTo } from "#/lib/textUpTo";
 import { isLocalHost } from "#/lib/webAddress";
 import { parseCsv } from "#/scene/sheets";
 
+import { isLinkAllowed } from "./linkTrust";
 import type { ISpreadsheetSheet } from "./readSpreadsheet";
 
 /**
@@ -9,6 +10,11 @@ import type { ISpreadsheetSheet } from "./readSpreadsheet";
  * published sheet, or JSON. Sites that don't let browsers read them (no CORS
  * header) and being offline get errors that say what happened and what would
  * fix it; the world keeps what it last read either way.
+ *
+ * `readLink` is the only way the app requests an address outside this site
+ * (ADR-0119, ADR-0121; a test checks no other code calls `fetch`), and it
+ * refuses any address this browser hasn't allowed (`editor/linkTrust.ts`)
+ * before anything is sent: a person's yes always comes first.
  */
 
 /** What a link gave: JSON, or a sheet of CSV. */
@@ -19,7 +25,7 @@ export type TLinkContent =
 /** Why a link couldn't be read, with words for the user. */
 export class LinkError extends Error {
 	constructor(
-		readonly why: "offline" | "blocked" | "status" | "unreadable" | "address",
+		readonly why: "offline" | "blocked" | "status" | "unreadable" | "address" | "notAllowed",
 		message: string,
 	) {
 		super(message);
@@ -63,6 +69,13 @@ export const readLink = async (
 	url: string,
 	fetcher: typeof fetch = fetch,
 ): Promise<TLinkContent> => {
+	// Nothing is sent to an address this browser hasn't said yes to, whoever asks.
+	if (!isLinkAllowed(url.trim())) {
+		throw new LinkError(
+			"notAllowed",
+			"This browser hasn't allowed this address yet: allow it in the Data tab, under Sources.",
+		);
+	}
 	let address: URL;
 	try {
 		address = new URL(readableUrlOf(url));
