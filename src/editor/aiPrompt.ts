@@ -11,7 +11,7 @@ import {
 } from "#/scene/schema";
 
 /**
- * Build with your AI (ADR-0116): the prompt someone copies into the AI chat
+ * Build with AI (ADR-0116): the prompt someone copies into the AI chat
  * of their choice. It says what they want in their own words, carries their
  * data (and the world, to change one), and teaches the format: the guide's
  * rules, every part kind, and a small world that shows the moves. What comes

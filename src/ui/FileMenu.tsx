@@ -66,7 +66,7 @@ export const FileMenu = () => {
 						onClick={() => useEditor.getState().setNewWorld({ shows: "all", usesData: true })}
 					/>
 
-					<Menu.Submenu icon="sparkle" label="Build with your AI">
+					<Menu.Submenu icon="sparkle" label="Build with AI">
 						<Menu.Item
 							icon="file"
 							label="A new world…"

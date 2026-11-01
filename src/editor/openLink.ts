@@ -23,7 +23,7 @@ import type { ILinkAsked } from "./whatIsOpen";
 
 /** Why a link to a patch isn't opened. */
 export const PATCH_LINK =
-	"It holds changes to a world (a patch), not a world, so there's nothing to open on its own. Links like this are for handing changes back from an AI: open the world they're for, then paste the link into Build with your AI → Change this world.";
+	"It holds changes to a world (a patch), not a world, so there's nothing to open on its own. Links like this are for handing changes back from an AI: open the world they're for, then paste the link into Build with AI → Change this world.";
 
 const SHARED_ID = /^[A-Za-z0-9_-]{22}$/;
 const TEMPLATE_ID = /^[a-z0-9_]+$/;

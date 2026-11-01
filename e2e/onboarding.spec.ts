@@ -1,4 +1,4 @@
-import { act, buildWithAiMenu, expect, openEditor, read, test } from "./editor";
+import { act, buildWithAiMenu, expect, fileMenu, openEditor, read, test } from "./editor";
 
 /** A small world, as an AI might answer: words around JSON in fences. */
 const ANSWER = `Here's your world!
@@ -84,7 +84,7 @@ test.describe("the welcome (ADR-0116)", () => {
 	});
 });
 
-test.describe("Build with your AI (ADR-0116)", () => {
+test.describe("Build with AI (ADR-0116)", () => {
 	test("copies a prompt with the description, and opens the world pasted back", async ({
 		page,
 		context,
@@ -94,29 +94,41 @@ test.describe("Build with your AI (ADR-0116)", () => {
 		});
 		await openEditor(page);
 		await buildWithAiMenu(page, /A new world/);
-		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
 		const copy = dialog.getByRole("button", { name: "Copy the prompt" });
 		await expect(copy).toBeDisabled();
 
 		await dialog
-			.getByRole("textbox", { name: "How it looks and what it has" })
+			.getByRole("textbox", { name: "What should your AI build?" })
 			.fill("Two shops by a river, sized by sales");
+		await dialog.getByRole("button", { name: "Add your data" }).click();
 		await dialog
-			.getByRole("textbox", { name: "Data (optional)" })
+			.getByRole("textbox", { name: "Your data" })
 			.fill("shop,sales\nNorth,1200\nSouth,640");
 		await copy.click();
-		await expect(dialog.getByRole("button", { name: /Copied/ })).toBeVisible();
+		// Copied: the dialog moves on to bringing back what the AI writes.
+		await expect(dialog).toContainText("Copied. Paste it into your AI chat");
 		const prompt = await page.evaluate(() => navigator.clipboard.readText());
 		expect(prompt).toContain("> Two shops by a river, sized by sales");
 		expect(prompt).toContain("North,1200");
 
-		await dialog.getByRole("textbox", { name: "Its answer" }).fill(ANSWER);
+		await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(ANSWER);
 		// Checked as it's pasted (ADR-0117).
-		await expect(dialog).toContainText("It opens as written");
+		await expect(dialog).toContainText("Ready to open.");
 		await dialog.getByRole("button", { name: "Open it", exact: true }).click();
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.meta.title)).toBe("Two shops");
 		expect(await read(page, (s) => s.scene.entities.filter((e) => e.dataRow).length)).toBe(2);
+	});
+
+	test("New world offers Build with AI as one way to start", async ({ page }) => {
+		await openEditor(page);
+		await fileMenu(page, /New world/);
+		const newWorld = page.getByRole("dialog", { name: "New world" });
+		await expect(newWorld).toContainText("Or describe a world and let an AI build it.");
+		await newWorld.getByRole("button", { name: "Build with AI…" }).click();
+		await expect(newWorld).toBeHidden();
+		await expect(page.getByRole("dialog", { name: "Build with AI" })).toBeVisible();
 	});
 
 	test("File → Change this world opens it to change, and a broken answer lists its problems", async ({
@@ -124,10 +136,14 @@ test.describe("Build with your AI (ADR-0116)", () => {
 	}) => {
 		await openEditor(page);
 		await buildWithAiMenu(page, /Change this world/);
-		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
-		await expect(dialog.getByRole("radio", { name: /Change this world/ })).toBeChecked();
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
+		await expect(dialog.getByRole("button", { name: /^Change “/ })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await dialog.getByRole("button", { name: "I already have an answer" }).click();
 		await dialog
-			.getByRole("textbox", { name: "Its answer" })
+			.getByRole("textbox", { name: "What your AI wrote" })
 			.fill(
 				'{"version": 1, "entities": [{"id": "x", "kind": "spaceship_99", "position": [0, 0]}]}',
 			);
@@ -149,8 +165,9 @@ test.describe("changes as a patch (ADR-0118)", () => {
 			count: s.scene.entities.length,
 		}));
 		await buildWithAiMenu(page, /Change this world/);
-		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
-		await dialog.getByRole("textbox", { name: "Its answer" }).fill(
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
+		await dialog.getByRole("button", { name: "I already have an answer" }).click();
+		await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(
 			JSON.stringify({
 				isPatch: true,
 				lighting: { time: 19.5 },
@@ -162,9 +179,8 @@ test.describe("changes as a patch (ADR-0118)", () => {
 				},
 			}),
 		);
-		await expect(dialog).toContainText("Checked: a patch.");
 		await expect(dialog).toContainText("adds Patch boat");
-		await dialog.getByRole("button", { name: "Put it in place" }).click();
+		await dialog.getByRole("button", { name: "Apply the changes" }).click();
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.entities[0].scale)).toBe(1.7);
 		expect(await read(page, (s) => s.scene.entities.length)).toBe(target.count + 1);

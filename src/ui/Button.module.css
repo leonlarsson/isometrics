@@ -89,11 +89,16 @@
 	color: var(--text);
 }
 
-/* Looks like the text around it and takes its colour, e.g. a clickable line in the world's title. */
+/*
+ * Looks like the text around it and takes its colour, e.g. a clickable line in the world's title.
+ * It reaches 4px past its text (given back by a negative margin, so the text lines up): the room
+ * scrolling places (a dialog's body) leave for focus rings, and its ring is drawn inside that
+ * (below), so it's never clipped wherever the button sits.
+ */
 .button[data-variant="text"] {
 	height: auto;
-	margin: 0 -6px;
-	padding: 2px 6px;
+	margin: 0 -4px;
+	padding: 2px 4px;
 	background: transparent;
 	color: inherit;
 	font-size: inherit;
@@ -122,6 +127,11 @@
 .iconButton:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
+}
+
+/* A text button's ring sits just inside its own edge, which already reaches past its text. */
+.button[data-variant="text"]:focus-visible {
+	outline-offset: -2px;
 }
 
 /* ----------------------------------------------------------- icon button */

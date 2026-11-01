@@ -79,7 +79,7 @@ const GuideSection = ({ section, isPart }: { section: IGuideSection; isPart?: bo
 /**
  * The guide at /guide (ADR-0116): how a world is made, walked through with
  * the Battlefield Stats API, for people and the AIs they ask; the same text
- * as /guide.md and the prompt Build with your AI copies.
+ * as /guide.md and the prompt Build with AI copies.
  */
 export const GuidePage = () => {
 	const prefersDark = usePrefersDark();

@@ -33,7 +33,7 @@ export interface ISharedLink {
 	jsonUrl: string;
 	expiresAt: string;
 	deleteKey: string;
-	/** A world handed to an AI (Build with your AI), not shared with people. */
+	/** A world handed to an AI (Build with AI), not shared with people. */
 	isHandoff: boolean;
 }
 

@@ -133,7 +133,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 			.click();
 		await expect.poll(() => read(theirs, (s) => s.scene.meta.title)).toBe("Reads outside");
 		await expect(
-			theirs.getByText(/An external source waits for your yes, from example\.org\./),
+			theirs.getByText(/An external source waits for your yes: https:\/\/example\.org\/x\.json/),
 		).toBeVisible();
 		await theirs.waitForTimeout(1500);
 		expect(theirRequests).toBe(0);
@@ -161,7 +161,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 	test("a link that can't be opened lands on the home screen, which starts a world", async ({
 		page,
 	}) => {
-		// A link to a patch (changes for Build with your AI) isn't opened on its own, and says why.
+		// A link to a patch (changes for Build with AI) isn't opened on its own, and says why.
 		const response = await page.request.post("/api/user-worlds", {
 			data: { version: 1, isPatch: true, meta: { title: "Renamed" } },
 		});
@@ -194,9 +194,10 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		});
 		const { url } = await response.json();
 		await buildWithAiMenu(page, /A new world/);
-		const dialog = page.getByRole("dialog", { name: "Build with your AI" });
-		await dialog.getByRole("textbox", { name: "Its answer" }).fill(url);
-		await expect(dialog).toContainText("It opens as written");
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
+		await dialog.getByRole("button", { name: "I already have an answer" }).click();
+		await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(url);
+		await expect(dialog).toContainText("Ready to open.");
 		await dialog.getByRole("button", { name: "Open it", exact: true }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("From an AI");
 	});

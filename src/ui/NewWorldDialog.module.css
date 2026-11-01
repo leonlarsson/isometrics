@@ -15,6 +15,16 @@
 	min-width: 0;
 }
 
+/* Under the starters: the other way to start, building it with AI. */
+.withAi {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
 .details {
 	display: flex;
 	flex-direction: column;

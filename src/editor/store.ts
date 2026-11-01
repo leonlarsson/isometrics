@@ -371,7 +371,7 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
-	/** Build with your AI is open, for a new world or to change this one (ADR-0116); null: closed. */
+	/** Build with AI is open, for a new world or to change this one (ADR-0116); null: closed. */
 	buildWithAi: "new" | "change" | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from File → Welcome…. */
 	welcomeOpen: boolean;
@@ -488,7 +488,7 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
-	setBuildWithAi: (builds: "new" | "change" | null) => void;
+	setBuildWithAi: (builds: IEditorState["buildWithAi"]) => void;
 	setWelcomeOpen: (open: boolean) => void;
 	setShareOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;

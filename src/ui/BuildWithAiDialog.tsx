@@ -22,37 +22,31 @@ import { describeRepairs } from "#/scene/repair";
 import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
 import { Button } from "./Button";
+import { ChipGroup } from "./ChipGroup";
 import { Dialog } from "./Dialog";
-import {
-	FieldGroup,
-	Hint,
-	RadioGroupField,
-	resetToDefault,
-	SwitchField,
-	TextField,
-} from "./fields";
+import { Hint, resetToDefault, SwitchField, TextField } from "./fields";
 import { List, ListItem } from "./List";
-import { openGuide } from "./Welcome";
 
 import styles from "./BuildWithAiDialog.module.css";
 
 type TBuilds = "new" | "change";
 
+/** Where the dialog is: saying what to build, or bringing back what the AI wrote. */
+type TStep = "ask" | "answer";
+
 const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
-/** A pasted answer's check in a sentence: what it is, what it changes, and what's wrong. */
+/** A pasted answer's check in a sentence: what it is, and what's wrong. */
 const summaryOf = (check: IWorldValidation) => {
-	const what = check.changes ? `a patch. ${check.changes}` : `${check.contents}.`;
+	// A patch's summary already says what it does ("Changes lighting (time)").
+	const what = check.changes ?? `A world with ${check.contents}.`;
 	const wrong = [
-		check.problems.length > 0 &&
-			`${plural(check.problems.length, "problem")} (${check.changes ? "the rest still applies" : "opening repairs them"})`,
-		check.warnings.length > 0 &&
-			`${plural(check.warnings.length, "warning")} (it opens, but won't look as meant)`,
+		check.problems.length > 0 && plural(check.problems.length, "problem"),
+		check.warnings.length > 0 && plural(check.warnings.length, "warning"),
 	].filter(Boolean);
-	if (wrong.length === 0) {
-		return `Checked: ${what} ${check.changes ? "It applies as written." : "It opens as written."}`;
-	}
-	return `Checked: ${what} ${wrong.join(" and ")}. Go ahead anyway, or ask your AI to fix them.`;
+	return wrong.length === 0
+		? `${what} Ready to ${check.changes ? "apply" : "open"}.`
+		: `${what} ${wrong.join(" and ")}: it ${check.changes ? "still applies" : "still opens, repaired"}, or ask your AI to fix them.`;
 };
 
 /** How many of a pasted world's problems and warnings the dialog lists. */
@@ -62,40 +56,53 @@ const ISSUES_SHOWN = 6;
 const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
 
 /**
- * Build with your AI (ADR-0116): describe the world, add data, copy a prompt
- * into any AI chat, and paste back the world it writes. Nothing is sent
- * anywhere by the app; what comes back is read like any world file
- * (`repairWorld`), and opens as a new world or replaces this one (one undo step).
- * Keeps what's typed while the page is open.
+ * Build with AI (ADR-0116): two steps. Ask: say what to build (a new world, or
+ * a change to this one), with data and the world as a link behind folds, and
+ * copy the prompt into any AI chat. Then bring back what it writes: paste it,
+ * upload its file, or paste the link it gives; it's checked as it arrives, and
+ * opens as a new world or changes this one (one undo step). Nothing is sent
+ * anywhere by the app unless the world is handed over as a link. What comes
+ * back is read like any world file (`repairWorld`). Keeps what's typed, and
+ * which step it's on, while the page is open.
  */
 export const BuildWithAiDialog = () => {
 	const asked = useEditor((s) => s.buildWithAi);
 	const open = asked !== null;
 	const title = useEditor((s) => s.scene.meta.title);
+	// Changing a world needs one open (not on the home screen, nor while a link opens).
+	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
 	const [builds, setBuilds] = useState<TBuilds>("new");
+	const [step, setStep] = useState<TStep>("ask");
 	const [description, setDescription] = useState("");
+	const [showsData, setShowsData] = useState(false);
 	const [data, setData] = useState("");
+	const [showsOptions, setShowsOptions] = useState(false);
+	// Changing a world: hand it over as a public link for an hour instead of in the prompt (ADR-0120).
+	const [handsOverLink, setHandsOverLink] = useState(false);
 	const [answer, setAnswer] = useState("");
-	const [copied, setCopied] = useState(false);
+	// The prompt last copied: Copy the prompt again copies it as it was (no second link made).
+	const [lastPrompt, setLastPrompt] = useState<string | null>(null);
 	// The prompt to copy by hand, when the browser wouldn't put it on the clipboard.
 	const [promptByHand, setPromptByHand] = useState<string | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [issuesCopied, setIssuesCopied] = useState(false);
-	// Changing a world: hand it over as a public link for an hour instead of in the prompt (ADR-0120).
-	const [handsOverLink, setHandsOverLink] = useState(false);
 	const [makingPrompt, setMakingPrompt] = useState(false);
 	// A pasted link to a shared world, being read.
 	const [readingLink, setReadingLink] = useState<string | null>(null);
 	const close = () => useEditor.getState().setBuildWithAi(null);
 
-	// Opened for a new world or to change this one: that's what it builds.
+	// Opened for a new world or to change this one: that's what it builds, from the start.
 	useEffect(() => {
 		if (asked !== null) {
-			setBuilds(asked);
-			setCopied(false);
+			setBuilds(asked === "change" && hasWorld ? "change" : "new");
 		}
 	}, [asked]);
 	const isDescribed = description.trim() !== "";
+
+	const switchTo = (next: TBuilds) => {
+		setBuilds(next);
+		setStep("ask");
+	};
 
 	const copyPrompt = async () => {
 		const world = builds === "change" ? useEditor.getState().scene : null;
@@ -122,10 +129,17 @@ export const BuildWithAiDialog = () => {
 			origin: window.location.origin,
 			worldUrl,
 		});
+		setLastPrompt(prompt);
+		await copy(prompt);
+		setStep("answer");
+	};
+
+	/** Put the prompt on the clipboard, or show it to copy by hand if the browser won't. */
+	const copy = async (prompt: string) => {
 		try {
 			await navigator.clipboard.writeText(prompt);
-			setCopied(true);
 			setPromptByHand(null);
+			notify("Prompt copied", "Paste it into your AI chat.");
 		} catch {
 			setPromptByHand(prompt);
 		}
@@ -161,7 +175,7 @@ export const BuildWithAiDialog = () => {
 					? validatePatch(useEditor.getState().scene, parsed)
 					: {
 							unreadable:
-								"That's a patch: the changes to a world, not a whole one. Pick Change this world to put it in.",
+								"That's changes to a world, not a whole one: pick Change this world above to apply them.",
 						};
 			}
 			const checked = validateWorld(parsed);
@@ -202,7 +216,6 @@ export const BuildWithAiDialog = () => {
 		const file = await pickFile(DATA_FILES);
 		if (file) {
 			setData(await file.text());
-			setCopied(false);
 		}
 	};
 
@@ -241,170 +254,175 @@ export const BuildWithAiDialog = () => {
 				.filter(Boolean)
 				.join(" "),
 		);
+		// Done: a fresh start next time.
 		setAnswer("");
+		setDescription("");
+		setData("");
 		setProblem(null);
+		setStep("ask");
 		close();
 	};
 
+	const isAsking = step === "ask";
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={(next) => !next && close()}
-			title="Build with your AI"
-			description="Describe a world or a change, copy a prompt into any AI chat, and paste back what it writes. Nothing is sent anywhere from here."
+			title="Build with AI"
+			description={
+				isAsking
+					? "Say what you want, copy the prompt into any AI chat, and bring back what it writes."
+					: "Copied. Paste it into your AI chat, then bring back what it writes."
+			}
 			closeLabel="Cancel"
-			wide
-			confirm={{
-				label: builds === "new" ? "Open it" : "Put it in place",
-				// Something to open: a world, even one that needs repairs.
-				disabled: !check || "unreadable" in check,
-				keepOpen: true,
-				onConfirm: putInPlace,
-			}}
+			confirm={
+				isAsking
+					? {
+							label: makingPrompt ? "Making its link…" : "Copy the prompt",
+							disabled: !isDescribed || makingPrompt,
+							keepOpen: true,
+							onConfirm: () => void copyPrompt(),
+						}
+					: {
+							label: builds === "new" ? "Open it" : "Apply the changes",
+							// Something to open: a world, even one that needs repairs.
+							disabled: !check || "unreadable" in check,
+							keepOpen: true,
+							onConfirm: putInPlace,
+						}
+			}
 		>
-			<RadioGroupField<TBuilds>
-				label="Build"
-				value={builds}
-				options={[
-					{ value: "new", label: "A new world", meta: "Opens next to your other worlds" },
-					{ value: "change", label: "Change this world", meta: `“${title}”, one undo step` },
-				]}
-				onChange={(next) => {
-					setBuilds(next);
-					setCopied(false);
-				}}
-				hasNoDefault
-			/>
+			<div className={styles.body}>
+				{hasWorld && (
+					<ChipGroup<TBuilds>
+						label="What it builds"
+						value={builds}
+						onChange={switchTo}
+						chips={[
+							{ value: "new", label: "A new world", icon: "file" },
+							{ value: "change", label: `Change “${title}”`, icon: "edit" },
+						]}
+						size="sm"
+					/>
+				)}
 
-			<div className={styles.layout}>
-				<div className={styles.column}>
-					<FieldGroup title="1. Describe it">
+				{isAsking ? (
+					<>
 						<TextField
-							label={builds === "new" ? "How it looks and what it has" : "What to change"}
+							label={builds === "new" ? "What should your AI build?" : "What should it change?"}
 							value={description}
 							placeholder={
 								builds === "new"
-									? "A harbour town at dusk, with a lighthouse, warehouses along the quay for each of my shops, and roads as busy as the deliveries between them."
-									: "More trees along the roads, a park in the middle, and the shops' cards as chips."
+									? "A harbour town at dusk, with a lighthouse and a warehouse for each of my shops."
+									: "More trees along the roads, and a park in the middle."
 							}
-							onChange={(next) => {
-								setDescription(next);
-								setCopied(false);
-							}}
+							onChange={setDescription}
 							multiline
-							rows={6}
+							rows={5}
 							hasNoDefault
-							hint="Your words go into the prompt as they are: the more you say about the look, the places and what shows what, the closer it gets."
-						/>
-					</FieldGroup>
-
-					<FieldGroup title="2. Your data (optional)">
-						<TextField
-							label="Data (optional)"
-							value={data}
-							placeholder="Paste rows from a spreadsheet, a CSV or JSON…"
-							onChange={(next) => {
-								setData(next);
-								setCopied(false);
-							}}
-							multiline
-							rows={6}
-							hasNoDefault
-							hint={
-								builds === "change"
-									? "The world's own data goes along with it; add only what's new."
-									: "Skip it if you like: you can give your data to your AI instead, attached or pasted in the chat after the prompt. Or select cells in Excel or Google Sheets and paste them here. With none at all, it builds a plain world, or one with example numbers if you asked for numbers."
-							}
 						/>
 
-						<Button size="sm" icon="upload" onClick={() => void readDataFile()}>
-							Read a file…
-						</Button>
-					</FieldGroup>
-				</div>
+						{showsData ? (
+							<div className={styles.fold}>
+								<TextField
+									label="Your data"
+									value={data}
+									placeholder="Paste rows from a spreadsheet, a CSV or JSON…"
+									onChange={setData}
+									multiline
+									rows={4}
+									hasNoDefault
+									hint={
+										builds === "change"
+											? "The world's own data goes along with it: add only what's new."
+											: "Rows from Excel or Google Sheets, a CSV or JSON. Or skip it and give your data to your AI in the chat."
+									}
+								/>
 
-				<div className={styles.column}>
-					<FieldGroup title="3. Copy the prompt">
-						{builds === "change" && (
-							<SwitchField
-								label="Hand the world over as a link"
-								checked={handsOverLink}
-								onChange={(next) => {
-									setHandsOverLink(next);
-									setCopied(false);
-								}}
-								inherit={resetToDefault(handsOverLink, false, () => setHandsOverLink(false))}
-								hint="A short prompt with a link to the world instead of the whole world. The link is public to anyone who has it for an hour (Share a link… lists it), so your AI must be able to open links."
-							/>
+								<Button size="sm" icon="upload" onClick={() => void readDataFile()}>
+									Upload a file…
+								</Button>
+							</div>
+						) : null}
+
+						{builds === "change" && showsOptions && (
+							<div className={styles.fold}>
+								<SwitchField
+									label="Give your AI a link to the world"
+									checked={handsOverLink}
+									onChange={setHandsOverLink}
+									inherit={resetToDefault(handsOverLink, false, () => setHandsOverLink(false))}
+									hint="A short prompt with a link instead of the whole world. The link is public to anyone who has it for an hour, and your AI must be able to open links."
+								/>
+							</div>
 						)}
 
-						<Button
-							variant="primary"
-							icon={copied ? "check" : "copy"}
-							disabled={!isDescribed || makingPrompt}
-							onClick={() => void copyPrompt()}
-						>
-							{makingPrompt
-								? "Making its link…"
-								: copied
-									? "Copied: paste it into your AI"
-									: "Copy the prompt"}
-						</Button>
+						<div className={styles.links}>
+							{!showsData && (
+								<Button size="sm" variant="text" icon="plus" onClick={() => setShowsData(true)}>
+									Add your data
+								</Button>
+							)}
 
-						{!isDescribed && (
-							<Hint>
-								{builds === "new"
-									? "Describe the world first: it's what the prompt is about."
-									: "Say what to change first: it's what the prompt is about."}
-							</Hint>
-						)}
+							{builds === "change" && !showsOptions && (
+								<Button size="sm" variant="text" onClick={() => setShowsOptions(true)}>
+									More options
+								</Button>
+							)}
 
+							<Button size="sm" variant="text" onClick={() => setStep("answer")}>
+								I already have an answer
+							</Button>
+						</div>
+					</>
+				) : (
+					<>
 						{promptByHand !== null && (
 							<TextField
-								label="The prompt (this browser wouldn't copy it: select it all and copy it)"
+								label="This browser wouldn't copy the prompt: select it all and copy it"
 								value={promptByHand}
 								onChange={() => undefined}
 								multiline
-								rows={6}
+								rows={4}
 								hasNoDefault
 							/>
 						)}
 
-						<Hint>
-							Paste it into the AI chat you use. The prompt has the world format, every part and the
-							guide's rules, so it can answer with a world, or the changes to one.
-						</Hint>
-
-						<Button size="sm" icon="newTab" onClick={openGuide}>
-							Read the guide
-						</Button>
-					</FieldGroup>
-
-					<FieldGroup title="4. Paste its answer, or open its file">
 						<TextField
-							label="Its answer"
+							label="What your AI wrote"
 							value={answer}
-							placeholder="{ … }"
+							placeholder={
+								builds === "new"
+									? "Paste the world it wrote, or the link it gave you…"
+									: "Paste the changes it wrote, or the link it gave you…"
+							}
 							onChange={(next) => {
 								setAnswer(next);
 								setProblem(null);
 								setIssuesCopied(false);
 							}}
 							multiline
-							rows={6}
+							rows={7}
 							hasNoDefault
-							hint={
-								builds === "new"
-									? "The world it wrote, or a link to it on this site; words around the JSON are fine. It opens as a new world, repaired where it needs it."
-									: "The changes it wrote (a patch), a whole world, or a link to either on this site; words around the JSON are fine. Undo brings this world back."
-							}
 						/>
 
-						<Button size="sm" icon="upload" onClick={() => void readAnswerFile()}>
-							Open its file…
-						</Button>
+						<div className={styles.links}>
+							<Button size="sm" variant="text" icon="chevronLeft" onClick={() => setStep("ask")}>
+								Back
+							</Button>
 
-						{readingLink && <Hint>Reading the world from its link…</Hint>}
+							<Button size="sm" variant="text" icon="upload" onClick={() => void readAnswerFile()}>
+								Upload a file…
+							</Button>
+
+							{lastPrompt !== null && (
+								<Button size="sm" variant="text" icon="copy" onClick={() => void copy(lastPrompt)}>
+									Copy the prompt again
+								</Button>
+							)}
+						</div>
+
+						{readingLink && <Hint>Reading it from its link…</Hint>}
 
 						{check && "unreadable" in check && (
 							<Hint>
@@ -446,8 +464,8 @@ export const BuildWithAiDialog = () => {
 								<strong>That didn't work.</strong> {problem}
 							</Hint>
 						)}
-					</FieldGroup>
-				</div>
+					</>
+				)}
 			</div>
 		</Dialog>
 	);
