@@ -1,3 +1,4 @@
+import { dataRangeOf } from "#/editor/dataRange";
 import { matchingNameOf } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
@@ -164,7 +165,7 @@ export const TableRowSection = ({
 };
 
 /** How a prop's field shows a setting from data. */
-const rangeOf = (field: Extract<TFieldSpec, { type: "number" }>) => ({
+const fieldRangeOf = (field: Extract<TFieldSpec, { type: "number" }>) => ({
 	min: field.min,
 	max: field.max,
 	step: field.step,
@@ -193,6 +194,8 @@ const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPar
 			},
 			coalesce ? { coalesce: `${entity.id}:data:${setting}:${coalesce}` } : undefined,
 		);
+	// A value's lowest and highest, a row's column over the whole table: where a size starts.
+	const rangeOf = (key: string) => dataRangeOf(data, key, entity.dataRow);
 	const fields = dataDrivenFields(part).filter(
 		(field) => field.type === "number" || field.type === "boolean",
 	);
@@ -213,6 +216,9 @@ const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPar
 				kind="range"
 				binding={entity.data[SCALE_SETTING]}
 				data={values}
+				dataRangeOf={rangeOf}
+				// An object grows from a bit smaller to twice its size: ×4 fills the view.
+				startsAt={{ low: 0.6, high: 2 }}
 				range={{ ...SCALE_RANGE, step: 0.05, format: (value) => `×${value.toFixed(2)}` }}
 				onBindingChange={(binding, coalesce) => setBinding(SCALE_SETTING, binding, coalesce)}
 			>
@@ -250,7 +256,8 @@ const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPar
 					kind={field.type === "number" ? "range" : "switch"}
 					binding={entity.data[field.key]}
 					data={values}
-					range={field.type === "number" ? rangeOf(field) : undefined}
+					range={field.type === "number" ? fieldRangeOf(field) : undefined}
+					dataRangeOf={rangeOf}
 					onBindingChange={(binding, coalesce) => setBinding(field.key, binding, coalesce)}
 				>
 					{field.type === "number" ? (
