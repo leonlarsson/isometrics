@@ -140,10 +140,41 @@ export const valueArrived = (key: string, point: TDataPoint, history?: readonly 
 	useArrived.setState({ ...since, values: new Map(since.values).set(key, { point, history }) });
 };
 
-/** Whether anything arrived for the world open now, to offer to keep it. */
+const samePoints = (a: readonly TDataPoint[], b: readonly TDataPoint[]) =>
+	a.length === b.length &&
+	a.every((point, index) => point.at === b[index]?.at && point.value === b[index]?.value);
+
+/**
+ * Whether what arrived says anything the world doesn't keep: a value's number
+ * or past, a table's rows. A source read again that gave the same (as it does
+ * right after it's added) has nothing to keep.
+ */
+export const arrivedDiffers = (kept: TWorldData, since: Omit<IArrivedData, "forOpening">) => {
+	const now = mergeArrived(kept, since);
+	return (
+		now.values.some((value, index) => {
+			const was = kept.values[index];
+			if (!was || value === was) {
+				return value !== was;
+			}
+			return value.value !== was.value || !samePoints(value.history, was.history);
+		}) ||
+		now.tables.some((table, index) => {
+			const was = kept.tables[index];
+			return table !== was && JSON.stringify(table.rows) !== JSON.stringify(was?.rows);
+		})
+	);
+};
+
+/** Whether anything arrived for the world open now that it doesn't keep yet, to offer to keep it. */
 export const useHasArrived = () => {
+	const kept = useEditor((s) => s.scene.data);
 	const opening = useEditor((s) => s.openedWorldCount);
-	return useArrived((s) => s.forOpening === opening && (s.values.size > 0 || s.tables.size > 0));
+	const since = useArrived((s) => s);
+	return useMemo(
+		() => since.forOpening === opening && arrivedDiffers(kept, since),
+		[kept, since, opening],
+	);
 };
 
 /** A table's rows that arrived from a source. */

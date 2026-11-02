@@ -469,6 +469,13 @@ test.describe("links and APIs (ADR-0113)", () => {
 		await page.keyboard.press("Escape");
 		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Messages/)).toContainText("1,692");
+		// Read once more as it was added, it gave the same: nothing new to keep.
+		await expect(page.getByRole("button", { name: "Keep these values" })).toHaveCount(0);
+		// The toast saying what was added sits over the panel's lower rows: put it away, as a person would.
+		await page
+			.getByRole("region", { name: "Notifications" })
+			.getByRole("button", { name: "Dismiss" })
+			.click();
 		sentToday = 1750;
 		await page
 			.getByRole("region", { name: "Sources" })
