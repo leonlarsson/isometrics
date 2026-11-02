@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { sourceNameOf } from "#/editor/dataList";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
@@ -74,7 +74,10 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 	const setTab = useEditor((s) => s.setTab);
 	const openDataWindow = useEditor((s) => s.openDataWindow);
 	// A run of edits to its name and key, while the page is open, is one undo step.
-	const [editing] = useState(() => `data-page:${value.key}`);
+	const [editing, setEditing] = useState(() => `data-page:${value.key}`);
+	// The key this page just renamed it to: renamed here, it's the same value, still being edited
+	// (the page isn't rebuilt, so the field being typed in keeps its place).
+	const renamedTo = useRef<string | null>(null);
 	const [typedKey, setTypedKey] = useState(value.key);
 	const [typedValue, setTypedValue] = useState(String(value.value));
 	const [showsPast, setShowsPast] = useState(false);
@@ -84,10 +87,19 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 	const others = scene.data.values.filter((each) => each.key !== value.key);
 	const uses = dataUsesOf(scene, value.key);
 
-	// What's typed follows changes made elsewhere: undo, reading its source again.
+	// Another value opened here, or this one renamed elsewhere (undo): start afresh with it.
 	useEffect(() => {
+		if (renamedTo.current === value.key) {
+			renamedTo.current = null;
+			return;
+		}
 		if (asKey(typedKey) !== value.key) {
 			setTypedKey(value.key);
+			setTypedValue(String(value.value));
+			setEditing(`data-page:${value.key}`);
+			setShowsPast(false);
+			setConfirmsRemove(false);
+			setReadsFrom(false);
 		}
 	}, [value.key]);
 	useEffect(() => {
@@ -105,9 +117,12 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 				: null;
 
 	const rename = (typed: string) => {
-		// A made-up key becomes the name's, as long as no other value has it.
+		// A key that follows the name (made up by Add, or still the name's) becomes the new name's,
+		// as long as no other value has it; one typed by hand stays.
 		const key = toDataKey(typed);
-		if (isMadeUpKey(value.key) && typed.trim() && !others.some((each) => each.key === key)) {
+		const followsName = isMadeUpKey(value.key) || value.key === toDataKey(value.name);
+		if (followsName && typed.trim() && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, name: typed, key }, value.key, editing);
 			setTypedKey(key);
 			return;
@@ -119,6 +134,7 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 		setTypedKey(typed);
 		const key = asKey(typed);
 		if (key && key !== value.key && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, key }, value.key, editing);
 		}
 	};

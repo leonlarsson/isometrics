@@ -225,8 +225,11 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		await worldTab(page, "Data");
 		await addData(page, "Type a number");
 		await expect(dataWindow(page)).toContainText("Next: show it in the world");
-		// Named, the made-up key becomes the name's.
-		await box(page, "Name").fill("Orders");
+		// Named, the made-up key becomes the name's; typed key by key, the field keeps its focus
+		// though every key press renames the value.
+		await box(page, "Name").fill("");
+		await box(page, "Name").pressSequentially("Orders");
+		await expect(box(page, "Name")).toHaveValue("Orders");
 		await expect(box(page, "Key")).toHaveValue("orders");
 		await box(page, "Value").fill("42");
 		await act(page, (s) =>

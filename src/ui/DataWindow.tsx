@@ -188,7 +188,6 @@ export const DataWindow = () => {
 			</Section>
 
 			<DataValuePage
-				key={value.key}
 				value={value}
 				source={data.sources.find((each) => each.id === value.source?.sourceId) ?? null}
 				onReadAgain={(again) => void readFile(again)}
