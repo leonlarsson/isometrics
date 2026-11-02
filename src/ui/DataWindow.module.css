@@ -6,6 +6,19 @@
 	gap: 4px;
 }
 
+/* What the page shows ("Value", "Table", "Source"), above its title, with its list card's icon. */
+.eyebrow {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
 .pageTitle {
 	margin: 0;
 	font-size: 20px;

@@ -9,6 +9,7 @@ import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DataTableView } from "./DataTableView";
 import { Hint, Section } from "./fields";
+import { PageKind } from "./PageKind";
 import { ShowTableInWorld } from "./ShowInWorld";
 
 import styles from "./DataWindow.module.css";
@@ -47,6 +48,8 @@ export const DataTablePage = ({
 	return (
 		<>
 			<header className={styles.pageHead}>
+				<PageKind icon="list" kind="Table" />
+
 				<h3 className={styles.pageTitle}>{table.name || table.key}</h3>
 
 				<p className={styles.pageAbout}>

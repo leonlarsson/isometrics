@@ -30,7 +30,7 @@ import {
 import type { ISpreadsheetReading } from "./ReadSpreadsheetDialog";
 
 /** How often a link is read again while the world is open. */
-const REFRESH_OPTIONS = [
+export const REFRESH_OPTIONS = [
 	{ value: "", label: "Only when asked (and when the world opens)" },
 	{ value: "60", label: "Every minute" },
 	{ value: "300", label: "Every 5 minutes" },

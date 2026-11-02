@@ -1,3 +1,4 @@
+import type { Draft } from "immer";
 import { useState } from "react";
 
 import {
@@ -8,17 +9,21 @@ import {
 	tableInWords,
 	valueInWords,
 } from "#/editor/dataList";
+import { allowLink } from "#/editor/linkTrust";
 import { LINK_FAILURES } from "#/editor/readLink";
 import { refreshSource } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
+import { webAddress } from "#/lib/webAddress";
 import { formatEntry } from "#/scene/format";
 import type { TDataSource } from "#/scene/schema";
 
 import { AllowedLinksDialog } from "./AllowedLinksDialog";
 import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Hint, resetToDefault, Section, TextField } from "./fields";
+import { Hint, resetToDefault, Section, SelectField, TextField } from "./fields";
 import { List, ListItem } from "./List";
+import { PageKind } from "./PageKind";
+import { REFRESH_OPTIONS } from "./ReadLinkDialog";
 import { everyInWords, useSourceStatuses } from "./useSourceStatuses";
 
 import styles from "./DataWindow.module.css";
@@ -32,6 +37,78 @@ const kindInWords = (source: TDataSource) =>
 			: source.kind === "push"
 				? "Values pushed to the world from outside."
 				: "A link or API, read by this browser while the world is open.";
+
+/** How often it's read again: the usual choices, and the source's own if it's another (a world written outside the app). */
+const refreshOptionsFor = (seconds: number | null) =>
+	seconds === null || REFRESH_OPTIONS.some((option) => option.value === String(seconds))
+		? REFRESH_OPTIONS
+		: [
+				...REFRESH_OPTIONS,
+				{ value: String(seconds), label: everyInWords(seconds).replace(/^every/, "Every") },
+			];
+
+/**
+ * A link's or API's address, changed on purpose: typed, then Use this address.
+ * Typed here, it's this browser's yes to the new address (as in Read a link or
+ * API…, ADR-0119), and it's read at once; the values and tables it gave keep
+ * where in the answer they're read from. A source with no address gets one
+ * this way and can be read again.
+ */
+const SourceAddressField = ({
+	source,
+	onListAllowed,
+}: {
+	source: TDataSource;
+	onListAllowed: () => void;
+}) => {
+	const commit = useEditor((s) => s.commit);
+	const [typed, setTyped] = useState(source.url ?? "");
+	const next = typed.trim();
+	const isChanged = next !== (source.url ?? "");
+	const isValid = webAddress(next) !== null;
+
+	const use = () => {
+		allowLink(next);
+		commit((scene) => {
+			const found = scene.data.sources.find((each) => each.id === source.id);
+			if (found) {
+				found.url = next;
+			}
+		});
+		void refreshSource({ ...source, url: next }, { asked: true });
+	};
+
+	return (
+		<>
+			<TextField
+				label="Address"
+				value={typed}
+				placeholder="https://api.example.com/stats"
+				onChange={setTyped}
+				hasNoDefault
+				hint={
+					isChanged && next !== "" && !isValid
+						? "An address starts with https:// (or http://)."
+						: source.url
+							? "Where it's read from. A new address is allowed in this browser and read at once."
+							: "It has none, so it can't be read again. Give it one to read it from now on."
+				}
+			/>
+
+			<ButtonGroup>
+				<Button size="sm" icon="check" disabled={!isChanged || !isValid} onClick={use}>
+					Use this address
+				</Button>
+
+				{source.url && (
+					<Button size="sm" variant="ghost" icon="lock" onClick={onListAllowed}>
+						External sources this browser reads…
+					</Button>
+				)}
+			</ButtonGroup>
+		</>
+	);
+};
 
 /**
  * A source in the Data window (ADR-0123): what it is, how it's doing, Allow
@@ -57,22 +134,29 @@ export const DataSourcePage = ({
 	const isReadable = (source.kind === "link" || source.kind === "api") && Boolean(source.url);
 	const givesValues = values.filter((value) => value.source?.sourceId === source.id);
 	const givesTables = tables.filter((table) => table.source?.sourceId === source.id);
-	const rename = (name: string) =>
+	/** Change this source (typing in a field is one undo step per field, `coalesce`). */
+	const change = (recipe: (found: Draft<TDataSource>) => void, coalesce?: string) =>
 		commit(
 			(scene) => {
 				const found = scene.data.sources.find((each) => each.id === source.id);
 				if (found) {
-					found.name = name;
+					recipe(found);
 				}
 			},
-			{ coalesce: `source-name:${source.id}` },
+			coalesce ? { coalesce: `source-${coalesce}:${source.id}` } : undefined,
 		);
+	const rename = (name: string) =>
+		change((found) => {
+			found.name = name;
+		}, "name");
 	const failure = status.tone === "failed" ? status.detail : null;
 	const failureKind = useSourceFailure(source.id);
 
 	return (
 		<>
 			<header className={styles.pageHead}>
+				<PageKind icon="download" kind="Source" />
+
 				<h3 className={styles.pageTitle}>{sourceNameOf(source)}</h3>
 
 				<p className={styles.pageAbout}>{kindInWords(source)}</p>
@@ -96,19 +180,11 @@ export const DataSourcePage = ({
 				</Section>
 			)}
 
-			<Section icon="info" title="What it is">
+			<Section icon="info" title="How it's doing">
 				<dl className={styles.facts}>
 					<dt>Kind</dt>
 
 					<dd>{sourceKindOf(source)}</dd>
-
-					{source.url && (
-						<>
-							<dt>Address</dt>
-
-							<dd className={styles.address}>{source.url}</dd>
-						</>
-					)}
 
 					{source.fileName && (
 						<>
@@ -118,25 +194,13 @@ export const DataSourcePage = ({
 						</>
 					)}
 
-					{isReadable && source.refreshSeconds && (
-						<>
-							<dt>Read again</dt>
+					<dt>Status</dt>
 
-							<dd>{`${everyInWords(source.refreshSeconds)}, while the world is open`}</dd>
-						</>
-					)}
-
-					<dt>Now</dt>
-
-					<dd>{status.text}</dd>
-
-					{source.about && (
-						<>
-							<dt>About</dt>
-
-							<dd>{source.about}</dd>
-						</>
-					)}
+					<dd>
+						{isWaiting
+							? "Not read yet, until you allow it (above)"
+							: `${status.text.charAt(0).toUpperCase()}${status.text.slice(1)}`}
+					</dd>
 				</dl>
 
 				{failure && failureKind && (
@@ -147,36 +211,81 @@ export const DataSourcePage = ({
 					</Hint>
 				)}
 
-				<ButtonGroup>
-					{source.kind === "file" && (
-						<Button size="sm" icon="upload" onClick={() => onReadFileAgain(source)}>
-							Read it again…
-						</Button>
-					)}
+				{(source.kind === "file" || (isReadable && !isWaiting)) && (
+					<ButtonGroup>
+						{source.kind === "file" && (
+							<Button size="sm" icon="upload" onClick={() => onReadFileAgain(source)}>
+								Read it again…
+							</Button>
+						)}
 
-					{isReadable && !isWaiting && (
-						<Button
-							size="sm"
-							icon="download"
-							onClick={() => void refreshSource(source, { asked: true })}
-						>
-							Read it now
-						</Button>
-					)}
+						{isReadable && !isWaiting && (
+							<Button
+								size="sm"
+								icon="download"
+								onClick={() => void refreshSource(source, { asked: true })}
+							>
+								Read it now
+							</Button>
+						)}
+					</ButtonGroup>
+				)}
+			</Section>
 
-					{isReadable && (
-						<Button size="sm" variant="ghost" icon="lock" onClick={() => setListsAllowed(true)}>
-							External sources this browser reads…
-						</Button>
-					)}
-				</ButtonGroup>
-
+			<Section icon="edit" title="Settings">
 				<TextField
 					label="Name"
 					value={source.name}
 					placeholder={sourceNameOf({ ...source, name: "" })}
 					onChange={rename}
 					inherit={resetToDefault(source.name, "", () => rename(""), "its site or file")}
+				/>
+
+				{(source.kind === "link" || source.kind === "api") && (
+					<SourceAddressField source={source} onListAllowed={() => setListsAllowed(true)} />
+				)}
+
+				{isReadable && (
+					<SelectField
+						label="Read it again"
+						value={source.refreshSeconds === null ? "" : String(source.refreshSeconds)}
+						options={refreshOptionsFor(source.refreshSeconds)}
+						onChange={(seconds) =>
+							change((found) => {
+								found.refreshSeconds = seconds ? Number(seconds) : null;
+							})
+						}
+						inherit={resetToDefault(
+							source.refreshSeconds,
+							null,
+							() =>
+								change((found) => {
+									found.refreshSeconds = null;
+								}),
+							"only when asked",
+						)}
+						hint="While the world is open, by this browser. What arrives shows at once, and isn't saved until you keep it."
+					/>
+				)}
+
+				<TextField
+					label="Note"
+					value={source.about}
+					placeholder="What it is, for whoever opens the world"
+					onChange={(about) =>
+						change((found) => {
+							found.about = about;
+						}, "about")
+					}
+					inherit={resetToDefault(
+						source.about,
+						"",
+						() =>
+							change((found) => {
+								found.about = "";
+							}),
+						"none",
+					)}
 				/>
 			</Section>
 

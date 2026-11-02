@@ -16,6 +16,7 @@ import { DataTablePage } from "./DataTablePage";
 import { DataValuePage } from "./DataValuePage";
 import { Hint, SearchField, Section } from "./fields";
 import { Icon } from "./Icon";
+import { PageKind } from "./PageKind";
 import { ReadLinkDialog } from "./ReadLinkDialog";
 import { type ISpreadsheetReading, ReadSpreadsheetDialog } from "./ReadSpreadsheetDialog";
 import { ShowValueInWorld } from "./ShowInWorld";
@@ -166,6 +167,8 @@ export const DataWindow = () => {
 	const page = value ? (
 		<>
 			<header className={styles.pageHead}>
+				<PageKind icon="chart" kind="Value" />
+
 				<h3 className={styles.pageTitle}>{value.name || value.key}</h3>
 
 				<p className={styles.bigValue}>{formatEntry(value)}</p>
