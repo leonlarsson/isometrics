@@ -122,7 +122,7 @@ export const DataSourcePage = ({
 }: {
 	source: TDataSource;
 	onReadFileAgain: (source: TDataSource) => void;
-	/** Change what's kept from a link or API: read it again with what's kept ticked. */
+	/** Configure what's read from a link or API: read it again with what's kept ticked. */
 	onChangeKept: (source: TDataSource) => void;
 }) => {
 	const { values, tables } = useEditor((s) => s.scene.data);
@@ -324,7 +324,7 @@ export const DataSourcePage = ({
 				{isReadable && (
 					<ButtonGroup>
 						<Button size="sm" icon="edit" onClick={() => onChangeKept(source)}>
-							Change what's kept…
+							Configure what's read…
 						</Button>
 					</ButtonGroup>
 				)}

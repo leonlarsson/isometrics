@@ -404,7 +404,9 @@ export const ReadLinkDialog = ({
 			open
 			onOpenChange={(open) => !open && onClose()}
 			title={
-				existing ? `What to keep from ${existing.name || nameOfLink(url)}` : "Read a link or API"
+				existing
+					? `Configure what's read from ${existing.name || nameOfLink(url)}`
+					: "Read a link or API"
 			}
 			description={
 				existing

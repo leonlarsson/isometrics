@@ -201,6 +201,15 @@ export const DataWindow = () => {
 			table={table}
 			origin={tableInWords(table, data.sources).long}
 			isNew={newKey === table.key}
+			source={data.sources.find((each) => each.id === table.source?.sourceId) ?? null}
+			onConfigure={(from) => {
+				if (from.kind === "file") {
+					void readFile(from);
+					return;
+				}
+				setBefore(keysNow());
+				setKeepsFrom(from);
+			}}
 		/>
 	) : source ? (
 		<DataSourcePage

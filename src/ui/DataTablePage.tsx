@@ -1,14 +1,15 @@
+import type { Draft } from "immer";
 import { useState } from "react";
 
 import { followersByRow } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
-import type { TDataTable } from "#/scene/schema";
+import type { TDataSource, TDataTable } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DataTableView } from "./DataTableView";
-import { Hint, Section } from "./fields";
+import { FieldGroup, Hint, Section, SelectField, TextField } from "./fields";
 import { PageKind } from "./PageKind";
 import { ShowTableInWorld } from "./ShowInWorld";
 
@@ -25,8 +26,14 @@ export const DataTablePage = ({
 	table,
 	origin,
 	isNew,
+	source,
+	onConfigure,
 }: {
 	table: TDataTable;
+	/** The source it's read from, if it still exists. */
+	source: TDataSource | null;
+	/** Choose again how it's read: the source's Configure what's read (a link), or its file again. */
+	onConfigure: (source: TDataSource) => void;
 	/** Where its rows come from, in a sentence (`tableInWords`). */
 	origin: string;
 	/** Just added: Show it in the world comes first, said as the next step. */
@@ -34,6 +41,18 @@ export const DataTablePage = ({
 }) => {
 	const entities = useEditor((s) => s.scene.entities);
 	const removeDataTable = useEditor((s) => s.removeDataTable);
+	const commit = useEditor((s) => s.commit);
+	/** Change this table (typing in a field is one undo step per field, `coalesce`). */
+	const change = (recipe: (found: Draft<TDataTable>) => void, coalesce?: string) =>
+		commit(
+			(scene) => {
+				const found = scene.data.tables.find((each) => each.key === table.key);
+				if (found) {
+					recipe(found);
+				}
+			},
+			coalesce ? { coalesce: `table-${coalesce}:${table.key}` } : undefined,
+		);
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
 	const followers = new Map(
 		[...followersByRow(entities, table.key)].map(([rowKey, list]) => [
@@ -79,6 +98,83 @@ export const DataTablePage = ({
 					mostRows={MOST_ROWS}
 					followers={followers}
 				/>
+			</Section>
+
+			<Section icon="edit" title="Settings">
+				<TextField
+					label="Name"
+					value={table.name}
+					placeholder={table.key}
+					onChange={(name) =>
+						change((found) => {
+							found.name = name;
+						}, "name")
+					}
+					hasNoDefault
+				/>
+
+				<SelectField
+					label="Rows named by"
+					value={table.keyColumn}
+					options={[
+						{ value: "", label: "Their order" },
+						...table.columns.map((column) => ({
+							value: column.key,
+							label: column.name || column.key,
+						})),
+					]}
+					onChange={(keyColumn) =>
+						change((found) => {
+							found.keyColumn = keyColumn;
+						})
+					}
+					hasNoDefault
+					hint={
+						following > 0
+							? `Objects take a row by its name: ${following === 1 ? "the one following it" : `the ${following} following it`} lose their rows when this changes; give them theirs again with Show it in the world.`
+							: "A name or an id, different in every row: what objects and roads take a row by."
+					}
+				/>
+
+				<FieldGroup title="Column names">
+					{table.columns.map((column) => (
+						<TextField
+							key={column.key}
+							label={column.field || column.key}
+							value={column.name}
+							placeholder={column.key}
+							onChange={(name) =>
+								change((found) => {
+									const each = found.columns.find((one) => one.key === column.key);
+									if (each) {
+										each.name = name;
+									}
+								}, `column:${column.key}`)
+							}
+							hasNoDefault
+						/>
+					))}
+				</FieldGroup>
+
+				{source && (source.kind === "file" || source.url) && (
+					<ButtonGroup>
+						<Button
+							size="sm"
+							icon={source.kind === "file" ? "upload" : "edit"}
+							onClick={() => onConfigure(source)}
+						>
+							{source.kind === "file" ? "Read the file again…" : "Configure table…"}
+						</Button>
+					</ButtonGroup>
+				)}
+
+				{source && (source.kind === "file" || source.url) && (
+					<Hint>
+						{source.kind === "file"
+							? "Picks the file again, to choose how it's read: which columns, and what names the rows."
+							: "Reads its source again to choose which columns it keeps and how many rows, and what else to keep from it."}
+					</Hint>
+				)}
 			</Section>
 
 			<div className={styles.pageFoot}>

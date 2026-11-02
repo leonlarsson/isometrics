@@ -565,8 +565,8 @@ test.describe("what's kept from a source (ADR-0123)", () => {
 			.getByRole("button", { name: "Not now" })
 			.click();
 		await act(page, (s) => s.openDataWindow({ kind: "source", id: "s" }));
-		await dataWindow(page).getByRole("button", { name: "Change what's kept…" }).click();
-		const dialog = page.getByRole("dialog", { name: "What to keep from Stats" });
+		await dataWindow(page).getByRole("button", { name: "Configure what's read…" }).click();
+		const dialog = page.getByRole("dialog", { name: "Configure what's read from Stats" });
 		await expect(dialog.getByRole("checkbox", { name: /^Total users: 5/ })).toBeChecked();
 		await dialog.getByRole("checkbox", { name: /^Total users: 5/ }).click();
 		await dialog.getByRole("checkbox", { name: /^Status: “Good”/ }).click();
