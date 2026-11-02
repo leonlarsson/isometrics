@@ -589,6 +589,7 @@ const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: 
 			history: [],
 			threshold: null,
 			about: "",
+			numberStyle: null,
 		})),
 	];
 	const entities = members.map((member) => member.entity);

@@ -11,6 +11,7 @@ import {
 	type TDataSource,
 	type TDataTable,
 	type TDataValue,
+	type TNumberStyle,
 } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
@@ -28,6 +29,13 @@ import {
 import { List, ListItem } from "./List";
 import { ReadFromSourceDialog } from "./ReadFromSourceDialog";
 import { HistoryChart, numericPoints } from "./Sparkline";
+
+/** How a number can be written (`numberStyle`), each shown with the value's own number. */
+const NUMBER_STYLES: { value: TNumberStyle; label: string }[] = [
+	{ value: "full", label: "In full" },
+	{ value: "grouped", label: "With separators" },
+	{ value: "short", label: "Short" },
+];
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -84,6 +92,10 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
 	const [readsFrom, setReadsFrom] = useState(false);
 	const name = value.name || value.key;
+	// Unset, the style in effect: separators, short from 100,000.
+	const numberStyleShown: TNumberStyle =
+		value.numberStyle ??
+		(typeof value.value === "number" && Math.abs(value.value) >= 100_000 ? "short" : "grouped");
 	const others = scene.data.values.filter((each) => each.key !== value.key);
 	const uses = dataUsesOf(scene, value.key);
 
@@ -209,6 +221,27 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 					onChange={(unit) => upsertData({ ...value, unit })}
 					inherit={resetToDefault(value.unit, "", () => upsertData({ ...value, unit: "" }), "none")}
 					hint="Shown right after the value: type “ min” (with a space) or “%”."
+				/>
+
+				<SelectField
+					label="Numbers written as"
+					value={numberStyleShown}
+					options={NUMBER_STYLES.map((style) => ({
+						value: style.value,
+						label:
+							typeof value.value === "number"
+								? `${style.label}: ${formatValue(value.value, value.unit, style.value)}`
+								: `${style.label} (for numbers: it's text)`,
+						disabled: typeof value.value !== "number",
+					}))}
+					onChange={(numberStyle) => upsertData({ ...value, numberStyle })}
+					inherit={{
+						from: "default",
+						inherited: value.numberStyle === null,
+						onReset: () => upsertData({ ...value, numberStyle: null }),
+						value: "separators, short from 100,000",
+					}}
+					hint="How cards, tiles and lists write it."
 				/>
 
 				<TextField
@@ -374,7 +407,12 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 				keywords="history trend over time sparkline"
 			>
 				{numbers.length >= 2 && (
-					<HistoryChart points={value.history} label={`${name} over time`} unit={value.unit} />
+					<HistoryChart
+						points={value.history}
+						label={`${name} over time`}
+						unit={value.unit}
+						numberStyle={value.numberStyle}
+					/>
 				)}
 
 				{value.history.length > 0 ? (

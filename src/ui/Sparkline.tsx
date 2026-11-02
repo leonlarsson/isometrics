@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import { formatWhen } from "#/lib/when";
 import { formatValue } from "#/scene/format";
-import type { TDataPoint } from "#/scene/schema";
+import type { TDataPoint, TNumberStyle } from "#/scene/schema";
 
 import styles from "./Sparkline.module.css";
 
@@ -83,10 +83,13 @@ export const HistoryChart = ({
 	points,
 	label,
 	unit,
+	numberStyle = null,
 }: {
 	points: readonly TDataPoint[];
 	label: string;
 	unit: string;
+	/** How its numbers are written: the value's own style. */
+	numberStyle?: TNumberStyle | null;
 }) => {
 	const frame = useRef<HTMLDivElement>(null);
 	const [width, setWidth] = useState(0);
@@ -113,7 +116,7 @@ export const HistoryChart = ({
 		<div className={styles.chart}>
 			{shown && (
 				<p className={styles.readout} aria-live="polite">
-					<strong>{formatValue(shown.value, unit)}</strong>
+					<strong>{formatValue(shown.value, unit, numberStyle)}</strong>
 
 					<span>{hovered === null ? `latest, ${formatWhen(shown.at)}` : formatWhen(shown.at)}</span>
 				</p>

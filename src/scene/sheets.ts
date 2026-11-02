@@ -407,6 +407,7 @@ export const dataFromSheet = (
 		history,
 		threshold: null,
 		about: "",
+		numberStyle: null,
 	});
 
 	if (reading.readsAs === "table") {

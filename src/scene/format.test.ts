@@ -14,6 +14,14 @@ describe("formatValue", () => {
 		expect(formatValue(3_450_000)).toBe("3.5M");
 	});
 
+	it("writes a number in its own style: in full, with separators, or short", () => {
+		expect(formatValue(374160, "", "full")).toBe("374160");
+		expect(formatValue(374160, "", "grouped")).toBe("374,160");
+		expect(formatValue(374160, "", "short")).toBe("374.2K");
+		expect(formatValue(980, "", "short")).toBe("980");
+		expect(formatValue(1_500_000, " km", "grouped")).toBe("1,500,000 km");
+	});
+
 	it("passes text through", () => {
 		expect(formatValue("14 / 40")).toBe("14 / 40");
 	});
