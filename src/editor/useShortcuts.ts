@@ -12,6 +12,7 @@ import { openWorldFile, saveWorldFile } from "./fileActions";
 import { transformSelected, transformSelectedPoints } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
+import { sayWhySizeFollowsData, selectedSizedByData } from "./sizedByData";
 import {
 	FINE_NUDGE_STEP,
 	SNAP_STEP,
@@ -457,7 +458,16 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "S",
-			callback: () => start("scale"),
+			callback: () => {
+				// Sized by data, a resize would change nothing on screen: say why instead (ADR-0109).
+				const state = useEditor.getState();
+				const sized = selectedSizedByData(state);
+				if (sized.length > 0) {
+					sayWhySizeFollowsData(sized, state.scene);
+					return;
+				}
+				start("scale");
+			},
 			options: { enabled: canNudge, conflictBehavior: "allow", meta: { name: "Resize" } },
 		},
 		{

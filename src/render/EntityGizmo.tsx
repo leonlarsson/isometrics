@@ -1,5 +1,6 @@
 import { useRef } from "react";
 
+import { isSizedByData } from "#/editor/sizedByData";
 import { useEditor } from "#/editor/store";
 import type { TEntity, TVec2 } from "#/scene/schema";
 
@@ -17,12 +18,16 @@ const FOLLOWING_HANDLES: TGizmoHandle[] = ["xz", "y", "rotate", "scale"];
 
 /** The transform gizmo for the selected object: move, lift, turn (in all three axes) and resize it. */
 export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
+	// Sized by data, it's drawn at its data's size: no scale handle (ADR-0109).
+	const isSized = useEditor((s) => isSizedByData(entity, s.scene));
 	const start = useRef<IEntityStart | null>(null);
 	const route = useRef<IVehicleRouteDrag | null>(null);
 
 	return (
 		<TransformGizmo
-			handles={entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES}
+			handles={(entity.follow ? FOLLOWING_HANDLES : MOVE_HANDLES).filter(
+				(handle) => !isSized || handle !== "scale",
+			)}
 			heading={entity.rotation[1]}
 			followsGround
 			onStart={(token, handle, keys) => {
