@@ -133,13 +133,13 @@
 		border-right: none;
 	}
 
+	.page {
+		padding: 16px;
+	}
+
 	.columns[data-shows="page"] .nav,
 	.columns[data-shows="list"] .page {
 		display: none;
-	}
-
-	.page {
-		padding: 16px;
 	}
 }
 
