@@ -577,6 +577,63 @@ test.describe("what's kept from a source (ADR-0123)", () => {
 	});
 });
 
+test.describe("past values by hand (ADR-0123)", () => {
+	test("today's number is recorded, and past values are added, changed and removed", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			data: {
+				values: [
+					{
+						key: "visitors",
+						name: "Visitors",
+						value: 1410,
+						history: [{ at: "2026-10-27", value: 1180 }],
+					},
+				],
+			},
+		});
+		const pastOf = () =>
+			read(page, (s) =>
+				s.scene.data.values[0].history.map((point) => [point.at, point.value] as const),
+			);
+		await act(page, (s) => s.openDataWindow({ kind: "value", key: "visitors" }));
+		const record = dataWindow(page).getByRole("button", { name: "Record today's number" });
+		await record.click();
+		const today = await page.evaluate(() => {
+			const now = new Date();
+			return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+		});
+		expect(await pastOf()).toEqual([
+			["2026-10-27", 1180],
+			[today, 1410],
+		]);
+		await expect(record).toBeDisabled();
+
+		await dataWindow(page).getByRole("button", { name: "Edit past values…" }).click();
+		const dialog = page.getByRole("dialog", { name: "Past values of Visitors" });
+		await dialog.getByRole("button", { name: "Add an entry" }).click();
+		await dialog.getByRole("textbox", { name: "Visitors on 2026-10-26", exact: true }).fill("990");
+		await dialog
+			.getByRole("textbox", { name: "Date of Visitors on 2026-10-26" })
+			.fill("2026-10-20");
+		await dialog.getByRole("textbox", { name: "Date of Visitors on 2026-10-26" }).press("Tab");
+		await dialog.getByRole("textbox", { name: "Visitors on 2026-10-27", exact: true }).fill("1200");
+		expect(await pastOf()).toEqual([
+			["2026-10-20", 990],
+			["2026-10-27", 1200],
+			[today, 1410],
+		]);
+		await dialog.getByRole("button", { name: "Remove the entry of 2026-10-20" }).click();
+		expect(await pastOf()).toEqual([
+			["2026-10-27", 1200],
+			[today, 1410],
+		]);
+		await dialog.getByRole("button", { name: "Done" }).click();
+		await expect(dialog).toBeHidden();
+	});
+});
+
 test.describe("stories (ADR-0114)", () => {
 	test("the story bar shows the world's data as it was on a date, and Now brings it back", async ({
 		page,

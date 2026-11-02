@@ -63,7 +63,7 @@ const OTHER_COUNTS: [string, string, number][] = [
 	["segment", "Classes", 7125],
 ];
 
-/** Deliveries per month (api.battlefieldstats.com/outputs/daily-games, summed by month). */
+/** Deliveries per month (battlefieldstats-sent-monthly.csv). */
 const MONTHLY: [string, number][] = [
 	["2023-01", 5581],
 	["2023-02", 5063],
@@ -357,12 +357,11 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 				},
 				{
 					id: "bf_monthly",
-					name: "Battlefield Stats: deliveries per month",
-					// A snapshot (an API source with no address): read once, not a file anyone gave the world.
-					kind: "api",
+					name: "battlefieldstats-sent-monthly.csv",
+					kind: "file",
+					fileName: "battlefieldstats-sent-monthly.csv",
 					pageUrl: "https://battlefieldstats.com",
-					about:
-						"Deliveries the bot has made per month, read once from api.battlefieldstats.com/outputs/daily-games and summed by month",
+					about: "Deliveries the bot has made per month",
 					lastReadAt: READ_AT,
 				},
 			],

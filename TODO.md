@@ -21,6 +21,8 @@ Guard tests, old-world fixtures, renamed/removed props and keeping unknown props
 
 - [ ] **The viewpoint bar covers the preview's bar (owner, 2026-11-02):** a world from a link opens in View mode with its preview bar ("Keep a copy", "Close world") at the top, and the viewpoint bar ("1 / 3 · The territory", ◀ ▶) is drawn over it, hiding its icon and text. They should stack: the viewpoint bar under the preview bar while it shows (or the overlays at the top made room for it), at every width, phones too. Check the other notices that sit at the top of the view (`FloatingBar`) with the viewpoint bar as well.
 
+- [ ] **Templates' data must be something a person could do (owner, 2026-11-02):** everything in a template should be 100% doable by a real user in simple steps. Battlefield territory's deliveries per month come from a spreadsheet file (`battlefieldstats-sent-monthly.csv`) nobody gave the world, and other data templates may have the same. Idea: a mock API on this site (its own PR) that templates read from, so their sources are real links a person could add with Read a link or API….
+
 ## Naming
 
 - [ ] **Hyphens, not underscores (owner's rule, 2026-11-02):** ids people see or type use hyphens: template links (`/templates/extraction-shooters`, not `extraction_shooters`), and any new id in an address. Decide how far it goes: ids kept in worlds (part kinds like `office_tower_01`, fence and road kinds, data keys like `sent_per_month`) are written by people, AIs and every saved world, so changing them means converting the old ones on load (`src/scene/legacy.ts`, ADR-0053, ADR-0106), and `/api/worlds/schema` and the guide saying the new form. Old links with underscores keep working (they open the same template). Needs an ADR, as it changes a convention.
