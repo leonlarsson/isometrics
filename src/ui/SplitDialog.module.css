@@ -77,13 +77,32 @@
 	min-height: 0;
 }
 
+/* The left column: a head that stays put (a search, filters) over a list that scrolls. */
 .nav {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-	padding: 14px 12px;
+	min-height: 0;
 	border-right: 1px solid var(--border);
 	background: var(--surface);
+}
+
+.navHead {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: none;
+	/* The cards under it have their own 6px margin: this lines the search up with them. */
+	padding: 14px 18px 10px;
+	border-bottom: 1px solid var(--border);
+}
+
+.navList {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	flex: 1;
+	min-height: 0;
+	padding: 8px 12px 14px;
 	overflow-y: auto;
 }
 
@@ -126,6 +145,6 @@
 
 /* The page's panels keep their height and the page scrolls, rather than squeezing them. */
 .page > *,
-.nav > * {
+.navList > * {
 	flex: none;
 }

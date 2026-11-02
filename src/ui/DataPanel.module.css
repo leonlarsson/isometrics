@@ -15,3 +15,8 @@
 .start {
 	display: flex;
 }
+
+/* The chips that pick a kind, inset like the cards under them. */
+.kinds {
+	margin: 0 6px 2px;
+}

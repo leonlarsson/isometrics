@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
 	dataFoundIn,
 	hasNoAddress,
@@ -42,26 +40,60 @@ const isAt = (at: TDataWindowAt | null, kind: "value" | "table", key: string) =>
 const rowsOf = (table: TDataTable) =>
 	table.rows.length === 1 ? "1 row" : `${table.rows.length.toLocaleString()} rows`;
 
+/**
+ * Which kind of data the list shows (ADR-0123): All, Values, Tables or
+ * Sources, each with how many there are (of what the search finds).
+ */
+export const DataKindChips = ({
+	query,
+	kind,
+	onChange,
+}: {
+	query: string;
+	kind: TDataKind;
+	onChange: (kind: TDataKind) => void;
+}) => {
+	const found = dataFoundIn(
+		useEditor((s) => s.scene.data),
+		query,
+	);
+	return (
+		<ChipGroup
+			label="Show"
+			size="sm"
+			value={kind}
+			onChange={onChange}
+			chips={[
+				{ value: "all", label: "All" },
+				{ value: "values", label: "Values", count: found.values.length },
+				{ value: "tables", label: "Tables", count: found.tables.length },
+				{ value: "sources", label: "Sources", count: found.sources.length },
+			]}
+		/>
+	);
+};
+
 interface IDataListProps {
 	/** What the search above the list holds. */
 	query: string;
+	/** Which kind it shows (`DataKindChips`). */
+	kind: TDataKind;
 	/** What's open in the Data window, marked in the list. */
 	at: TDataWindowAt | null;
 	onOpen: (at: TDataWindowAt) => void;
 }
 
 /**
- * The world's data by kind (ADR-0123): chips to show all of it or only its
- * values, tables or sources, then a card for each kind. A value's or a table's
+ * The world's data by kind (ADR-0123): a card for each kind (or only the
+ * kind the chips above it chose). A value's or a table's
  * row says where it comes from (and whether that waits for a yes); a source's
  * row says what kind it is and how it's doing, with Allow while it waits.
  * Every row opens its page in the Data window. Shared by the Data tab and the
  * window.
  */
-export const DataList = ({ query, at, onOpen }: IDataListProps) => {
+export const DataList = ({ query, kind, at, onOpen }: IDataListProps) => {
 	const data = useEditor((s) => s.scene.data);
 	const { statusOf, waitingIds } = useSourceStatuses();
-	const [kind, setKind] = useState<TDataKind>("all");
 	const found = dataFoundIn(data, query);
 	const sourceOf = (item: TDataValue | TDataTable) =>
 		item.source ? data.sources.find((source) => source.id === item.source?.sourceId) : undefined;
@@ -95,21 +127,6 @@ export const DataList = ({ query, at, onOpen }: IDataListProps) => {
 
 	return (
 		<>
-			<div className={styles.kinds}>
-				<ChipGroup
-					label="Show"
-					size="sm"
-					value={kind}
-					onChange={setKind}
-					chips={[
-						{ value: "all", label: "All" },
-						{ value: "values", label: "Values", count: found.values.length },
-						{ value: "tables", label: "Tables", count: found.tables.length },
-						{ value: "sources", label: "Sources", count: found.sources.length },
-					]}
-				/>
-			</div>
-
 			{shows("values") && (kind !== "all" || found.values.length > 0) && (
 				<Section icon="chart" title="Values" isRegion>
 					{found.values.length > 0 ? (

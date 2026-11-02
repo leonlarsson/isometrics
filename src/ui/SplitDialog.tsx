@@ -13,7 +13,9 @@ interface ISplitDialogProps {
 	title: string;
 	/** Buttons in the title bar, before Close (e.g. Add data). */
 	actions?: ReactNode;
-	/** The left column: a list to pick from, often with a search. */
+	/** Above the left column's list, staying put while the list scrolls: a search, filters. */
+	navHead?: ReactNode;
+	/** The left column: a list to pick from. */
 	nav: ReactNode;
 	/** Its name for screen readers ("The world's data"). */
 	navLabel: string;
@@ -40,6 +42,7 @@ export const SplitDialog = ({
 	onOpenChange,
 	title,
 	actions,
+	navHead,
 	nav,
 	navLabel,
 	children,
@@ -72,7 +75,9 @@ export const SplitDialog = ({
 
 					<div className={styles.columns} data-shows={showsPage ? "page" : "list"}>
 						<nav className={styles.nav} aria-label={navLabel}>
-							{nav}
+							{navHead && <div className={styles.navHead}>{navHead}</div>}
+
+							<div className={styles.navList}>{nav}</div>
 						</nav>
 
 						<div className={styles.page}>{children}</div>

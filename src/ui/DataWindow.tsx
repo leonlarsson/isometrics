@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { hasAnyData, tableInWords, valueInWords } from "#/editor/dataList";
+import { hasAnyData, type TDataKind, tableInWords, valueInWords } from "#/editor/dataList";
 import { pickFile } from "#/editor/fileActions";
 import { readSpreadsheet, SPREADSHEET_TYPES } from "#/editor/readSpreadsheet";
 import { newId, type TDataWindowAt, useEditor } from "#/editor/store";
@@ -10,7 +10,7 @@ import { DataSourceSchema, DataValueSchema, type TDataSource } from "#/scene/sch
 
 import { AddDataPage } from "./AddDataPage";
 import { Button } from "./Button";
-import { DataList } from "./DataList";
+import { DataKindChips, DataList } from "./DataList";
 import { DataSourcePage } from "./DataSourcePage";
 import { DataTablePage } from "./DataTablePage";
 import { DataValuePage } from "./DataValuePage";
@@ -101,6 +101,7 @@ export const DataWindow = () => {
 	const upsertData = useEditor((s) => s.upsertData);
 	const narrow = useNarrowLayout();
 	const [query, setQuery] = useState("");
+	const [kind, setKind] = useState<TDataKind>("all");
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
 	const [readsLink, setReadsLink] = useState(false);
 	// What was there before a read, to open what it added; and the key of what was just added.
@@ -245,22 +246,25 @@ export const DataWindow = () => {
 					</Button>
 				}
 				navLabel="The world's data"
+				navHead={
+					isFirst ? undefined : (
+						<>
+							<SearchField
+								label="Find data"
+								placeholder="Find data…"
+								value={query}
+								onChange={setQuery}
+							/>
+
+							<DataKindChips query={query} kind={kind} onChange={setKind} />
+						</>
+					)
+				}
 				nav={
 					isFirst ? (
 						<Hint>Nothing added yet.</Hint>
 					) : (
-						<>
-							<div className={styles.search}>
-								<SearchField
-									label="Find data"
-									placeholder="Find data…"
-									value={query}
-									onChange={setQuery}
-								/>
-							</div>
-
-							<DataList query={query} at={at} onOpen={go} />
-						</>
+						<DataList query={query} kind={kind} at={at} onOpen={go} />
 					)
 				}
 				showsPage={showsPage}

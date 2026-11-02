@@ -1,10 +1,5 @@
 /* The world's data by kind: chips, then a card per kind (the kit's Section), a row per thing. */
 
-/* The chips that pick a kind, inset like the cards under them. */
-.kinds {
-	margin: 0 6px 2px;
-}
-
 /* A row's first line: its name, then what it holds on the right. */
 .line {
 	display: flex;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { hasAnyData } from "#/editor/dataList";
+import { hasAnyData, type TDataKind } from "#/editor/dataList";
 import { LINK_FAILURES } from "#/editor/readLink";
 import { keepArrivedValues, sitesOf } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
@@ -8,7 +8,7 @@ import { useHasArrived } from "#/editor/worldData";
 
 import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button, IconButton } from "./Button";
-import { DataList } from "./DataList";
+import { DataKindChips, DataList } from "./DataList";
 import { Hint, SearchField, Section } from "./fields";
 import { useSourceStatuses } from "./useSourceStatuses";
 
@@ -27,6 +27,7 @@ export const DataPanel = () => {
 	const { waiting, waitingAddresses, failures } = useSourceStatuses();
 	const hasArrived = useHasArrived();
 	const [query, setQuery] = useState("");
+	const [kind, setKind] = useState<TDataKind>("all");
 	const [isReviewingWaiting, setReviewingWaiting] = useState(false);
 	const isFirst = !hasAnyData(data);
 
@@ -121,7 +122,13 @@ export const DataPanel = () => {
 					</div>
 				</Section>
 			) : (
-				<DataList query={query} at={at} onOpen={openDataWindow} />
+				<>
+					<div className={styles.kinds}>
+						<DataKindChips query={query} kind={kind} onChange={setKind} />
+					</div>
+
+					<DataList query={query} kind={kind} at={at} onOpen={openDataWindow} />
+				</>
 			)}
 
 			<AllowSourcesDialog
