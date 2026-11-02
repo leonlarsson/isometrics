@@ -1,0 +1,150 @@
+/* A window with a list on the left and what's picked on the right. */
+.backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-dialog);
+	background: rgb(0 0 0 / 0.25);
+	transition: opacity 150ms;
+}
+
+.backdrop[data-starting-style],
+.backdrop[data-ending-style] {
+	opacity: 0;
+}
+
+.popup {
+	box-sizing: border-box;
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	z-index: calc(var(--z-dialog) + 1);
+	display: flex;
+	flex-direction: column;
+	width: 1000px;
+	max-width: calc(100vw - 32px);
+	height: min(720px, calc(100dvh - 64px));
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-panel);
+	overflow: hidden;
+	/* Focus starts on the window itself: no ring around all of it. */
+	outline: none;
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px)));
+	transition:
+		transform 120ms ease-out,
+		opacity 120ms ease-out;
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+	opacity: 0;
+	transform: translate(calc(-50% + var(--drag-x, 0px)), calc(-50% + var(--drag-y, 0px))) scale(0.97);
+}
+
+.popup[data-dragging] {
+	transition: none;
+}
+
+/* The title bar moves the window (useDialogDrag). */
+.header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px 10px 18px;
+	border-bottom: 1px solid var(--border);
+	cursor: grab;
+	user-select: none;
+	touch-action: none;
+}
+
+.popup[data-dragging] .header {
+	cursor: grabbing;
+}
+
+.title {
+	flex: 1;
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.columns {
+	display: grid;
+	grid-template-columns: 320px minmax(0, 1fr);
+	flex: 1;
+	min-height: 0;
+}
+
+/* The left column: a head that stays put (a search, filters) over a list that scrolls. */
+.nav {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border-right: 1px solid var(--border);
+	background: var(--surface);
+}
+
+.navHead {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: none;
+	/* The cards under it have their own 6px margin: this lines the search up with them. */
+	padding: 14px 18px 10px;
+	border-bottom: 1px solid var(--border);
+}
+
+.navList {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	flex: 1;
+	min-height: 0;
+	padding: 8px 12px 14px;
+	overflow-y: auto;
+}
+
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 18px 22px 24px;
+	overflow-y: auto;
+	min-width: 0;
+}
+
+/* Phones: the window fills the screen, one column at a time. */
+@media (max-width: 900px) {
+	.popup {
+		width: 100vw;
+		max-width: 100vw;
+		height: 100dvh;
+		border-radius: 0;
+		border: none;
+	}
+
+	.columns {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.nav {
+		border-right: none;
+	}
+
+	.columns[data-shows="page"] .nav,
+	.columns[data-shows="list"] .page {
+		display: none;
+	}
+
+	.page {
+		padding: 16px;
+	}
+}
+
+/* The page's panels keep their height and the page scrolls, rather than squeezing them. */
+.page > *,
+.navList > * {
+	flex: none;
+}

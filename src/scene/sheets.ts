@@ -232,6 +232,10 @@ const textOf = (cell: TSheetCell): string | null => {
 	if (cell instanceof Date) {
 		return isoOf(cell);
 	}
+	// A spreadsheet's TRUE and FALSE, as links' true and false read: yes and no (which switch things).
+	if (typeof cell === "boolean") {
+		return cell ? "yes" : "no";
+	}
 	const text = String(cell).trim();
 	return text === "" ? null : text;
 };
@@ -407,6 +411,7 @@ export const dataFromSheet = (
 		history,
 		threshold: null,
 		about: "",
+		numberStyle: null,
 	});
 
 	if (reading.readsAs === "table") {
@@ -470,14 +475,21 @@ export const dataFromSheet = (
 	};
 };
 
+/** Read from the same place: the same source, and the same spot in it (a list's values by their field). */
 const sameOrigin = (a: TDataValue["source"], b: TDataValue["source"]): boolean =>
-	a !== null && b !== null && a.sourceId === b.sourceId && a.path === b.path;
+	a !== null &&
+	b !== null &&
+	a.sourceId === b.sourceId &&
+	a.path === b.path &&
+	a.field === b.field &&
+	a.dateField === b.dateField;
 
 /**
  * The world's data with what a source gave put in: the source added or
  * updated, and each value and table it gave replacing the one it gave before
  * from the same place (keeping that one's key and name, so whatever follows
- * it still does), or added with a key not yet taken. What it gave before and
+ * it still does, and a value's own settings: its watch line, note and number
+ * style), or added with a key not yet taken. What it gave before and
  * doesn't now stays, as it last was.
  */
 export const putReadData = (data: TWorldData, source: TDataSource, read: IReadData): TWorldData => {
@@ -488,11 +500,14 @@ export const putReadData = (data: TWorldData, source: TDataSource, read: IReadDa
 		if (index === -1) {
 			values.push({ ...incoming, key: uniqueKey(incoming.key, valueKeys) });
 		} else {
+			// What was read replaces what was read before; what the value's own settings say stays
+			// (its name and key, its watch line, note and number style).
 			const before = values[index];
 			values[index] = {
-				...incoming,
-				key: before.key,
-				name: before.name,
+				...before,
+				value: incoming.value,
+				history: incoming.history,
+				source: incoming.source,
 				unit: incoming.unit || before.unit,
 			};
 		}

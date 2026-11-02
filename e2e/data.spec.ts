@@ -1,6 +1,17 @@
 import type { Page } from "@playwright/test";
 
-import { act, expect, fileMenu, labelCard, loadWorld, openEditor, read, test } from "./editor";
+import {
+	act,
+	addData,
+	dataWindow,
+	expect,
+	fileMenu,
+	labelCard,
+	loadWorld,
+	openEditor,
+	read,
+	test,
+} from "./editor";
 
 /** A small world with a table of clubs and two towers named after them. */
 const clubsWorld = (page: Page) =>
@@ -90,10 +101,9 @@ test.describe("rows become things (ADR-0108, ADR-0109)", () => {
 			["APES", "APES"],
 			["CGM", "CGM"],
 		]);
-		// Back in the table's viewer, which names what follows each row.
-		const viewer = page.getByRole("dialog", { name: "Clubs" });
-		await expect(viewer).toContainText("On the map");
-		await expect(viewer.getByRole("row", { name: /CGM.*CGM/ })).toBeVisible();
+		// Back at the table in the Data window, which names what follows each row.
+		await expect(dataWindow(page)).toContainText("2 objects follow its rows now");
+		await expect(dataWindow(page).getByRole("row", { name: /CGM.*CGM/ })).toBeVisible();
 	});
 });
 
@@ -219,6 +229,53 @@ test.describe("the dashboard (ADR-0110)", () => {
 });
 
 test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
+	test("many sources: each named by its site, and a search finds one", async ({ page }) => {
+		// Twelve sources in the software-drawn browser: slower than most.
+		test.setTimeout(120_000);
+		await openEditor(page);
+		const topics = [
+			"visitors",
+			"parking",
+			"weather",
+			"trains",
+			"energy",
+			"players",
+			"sales",
+			"traffic",
+			"bikes",
+			"buses",
+			"boats",
+			"lamps",
+		];
+		await act(
+			page,
+			(s, names) =>
+				s.commit((d) => {
+					d.data.isOn = true;
+					d.data.sources = names.map((name, i) => ({
+						id: `s${i}`,
+						kind: "api",
+						url: `https://${name}.example.org/now.json`,
+					})) as never;
+				}),
+			topics,
+		);
+		const asking = page.getByRole("alertdialog", { name: "This world uses external sources" });
+		await asking.getByRole("button", { name: "Not now" }).click();
+		await act(page, (s) => s.setTab("data"));
+		// Each source is a row named by its site, saying it waits, with its Allow.
+		const sourceRow = (name: string) =>
+			page.getByRole("region", { name: "Sources" }).getByRole("listitem").filter({ hasText: name });
+		const bikes = sourceRow("bikes.example.org");
+		await expect(bikes).toContainText("waiting for your yes");
+		await expect(bikes.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
+		await page.getByRole("searchbox", { name: "Find data" }).fill("bikes");
+		await expect(bikes).toBeVisible();
+		await expect(sourceRow("buses.example.org")).toHaveCount(0);
+		await page.getByRole("searchbox", { name: "Find data" }).fill("nothing like it");
+		await expect(page.getByText("Nothing matches “nothing like it”.")).toBeVisible();
+	});
+
 	test("a link that came with a world isn't read until it's allowed", async ({ page }) => {
 		let requests = 0;
 		await page.route("https://example.org/counts.json", (route) => {
@@ -260,11 +317,14 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 		// Not now: it waits in the Data tab, which can allow it later.
 		await asking.getByRole("button", { name: "Not now" }).click();
 		await act(page, (s) => s.setTab("data"));
-		await expect(page.getByText(/this browser hasn't read before: example.org/)).toBeVisible();
+		await expect(
+			page.getByText(/reads data from example.org, which this browser hasn't read before/),
+		).toBeVisible();
 		expect(requests).toBe(0);
 		await page
+			.getByRole("region", { name: "Sources" })
 			.getByRole("listitem")
-			.filter({ hasText: "https://example.org/counts.json" })
+			.filter({ hasText: "Counts" })
 			.getByRole("button", { name: "Allow", exact: true })
 			.click();
 		await expect.poll(() => requests).toBe(1);
@@ -384,7 +444,7 @@ test.describe("links and APIs (ADR-0113)", () => {
 		const dialog = page.getByRole("dialog", { name: "Read a link or API" });
 
 		// A site that doesn't let browsers read it says so, and what would fix it.
-		await page.getByRole("button", { name: "Read a link or API…" }).click();
+		await addData(page, "A link or API…");
 		await dialog.getByRole("textbox", { name: "Address" }).fill("https://api.steampowered.com/x");
 		await dialog.getByRole("button", { name: "Read", exact: true }).click();
 		await expect(dialog).toContainText("CORS");
@@ -400,18 +460,120 @@ test.describe("links and APIs (ADR-0113)", () => {
 		).toEqual([["sent", 1692, 2]]);
 
 		// Shown on the card, then read again: the card follows what arrived, the world keeps what it had.
+		// (An open window hides the view from the page's accessibility tree: close it to look.)
 		await act(page, (s) =>
 			s.updateEntity("c", (e) => {
 				e.label.dataKeys = ["sent"];
 			}),
 		);
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Messages/)).toContainText("1,692");
 		sentToday = 1750;
-		await page.getByRole("button", { name: "Read it again now" }).click();
+		await page
+			.getByRole("region", { name: "Sources" })
+			.getByRole("listitem")
+			.first()
+			.getByRole("button")
+			.first()
+			.click();
+		await dataWindow(page).getByRole("button", { name: "Read it now" }).click();
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Messages/)).toContainText("1,750");
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1692);
 		await page.getByRole("button", { name: "Keep these values" }).click();
 		expect(await read(page, (s) => s.scene.data.values[0].value)).toBe(1750);
+	});
+});
+
+test.describe("a value read from a source (ADR-0123)", () => {
+	test("a typed value is pointed at a field of an API, keeping its name, key and card", async ({
+		page,
+	}) => {
+		await page.route("https://example.org/counts.json", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ totalUsers: 41740, other: 3 }),
+			}),
+		);
+		await loadWorld(page, {
+			data: { values: [{ key: "users", name: "Registered users", value: 1 }] },
+			entities: [
+				{
+					id: "c",
+					kind: "office_tower_01",
+					name: "Bot",
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["users"],
+						offset: [0, 2, 0],
+						tag: "",
+						showsAsChip: false,
+					},
+				},
+			],
+		});
+		await act(page, (s) => s.openDataWindow({ kind: "value", key: "users" }));
+		await dataWindow(page).getByRole("button", { name: "Read it from a source…" }).click();
+		const dialog = page.getByRole("dialog", { name: "Read Registered users from a source" });
+		await dialog.getByRole("button", { name: /^A new link or API/ }).click();
+		await dialog.getByRole("textbox", { name: "Address" }).fill("https://example.org/counts.json");
+		await dialog.getByRole("button", { name: "Read", exact: true }).click();
+		await dialog.getByRole("button", { name: /“totalUsers”/ }).click();
+		await dialog.getByRole("button", { name: "Read it from here" }).click();
+		expect(
+			await read(page, (s) => {
+				const value = s.scene.data.values.find((each) => each.key === "users");
+				return [value?.name, value?.value, value?.source?.path];
+			}),
+		).toEqual(["Registered users", 41740, "totalUsers"]);
+		await expect(dataWindow(page)).toContainText(
+			"From example.org: the “totalUsers” in its answer.",
+		);
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
+		await expect(labelCard(page, /Bot/)).toContainText("41,740");
+	});
+});
+
+test.describe("what's kept from a source (ADR-0123)", () => {
+	test("reading it again lists everything in it: untick to remove, tick a text to keep it", async ({
+		page,
+	}) => {
+		await page.route("https://example.org/stats.json", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ totalUsers: 5, status: "Good" }),
+			}),
+		);
+		await loadWorld(page, {
+			data: {
+				sources: [{ id: "s", name: "Stats", kind: "api", url: "https://example.org/stats.json" }],
+				values: [
+					{ key: "users", name: "Users", value: 1, source: { sourceId: "s", path: "totalUsers" } },
+				],
+			},
+		});
+		await page
+			.getByRole("alertdialog", { name: "This world uses external sources" })
+			.getByRole("button", { name: "Not now" })
+			.click();
+		await act(page, (s) => s.openDataWindow({ kind: "source", id: "s" }));
+		await dataWindow(page).getByRole("button", { name: "Change what's kept…" }).click();
+		const dialog = page.getByRole("dialog", { name: "What to keep from Stats" });
+		await expect(dialog.getByRole("checkbox", { name: /^Total users: 5/ })).toBeChecked();
+		await dialog.getByRole("checkbox", { name: /^Total users: 5/ }).click();
+		await dialog.getByRole("checkbox", { name: /^Status: “Good”/ }).click();
+		await dialog.getByRole("button", { name: "Keep these" }).click();
+		expect(
+			await read(page, (s) => s.scene.data.values.map((value) => [value.key, value.value])),
+		).toEqual([["status", "Good"]]);
 	});
 });
 

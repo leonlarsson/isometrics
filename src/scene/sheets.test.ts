@@ -84,7 +84,8 @@ describe("readSheet", () => {
 			["When", "Open", "Visitors"],
 			[new Date(Date.UTC(2026, 9, 30)), true, 1200],
 		]);
-		expect(sheet.columns.map((column) => column.cells[0])).toEqual(["2026-10-30", "true", 1200]);
+		// TRUE and FALSE read as yes and no, as links' true and false do (both switch things on and off).
+		expect(sheet.columns.map((column) => column.cells[0])).toEqual(["2026-10-30", "yes", 1200]);
 	});
 });
 

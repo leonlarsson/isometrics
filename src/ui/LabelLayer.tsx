@@ -5,6 +5,7 @@ import { useStory } from "#/editor/story";
 import { useThemePalette } from "#/editor/useTheme";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
+import { formatWhen } from "#/lib/when";
 import { resolveLabelColor } from "#/parts/colorModel";
 import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partNameOf } from "#/parts/registry";
@@ -19,7 +20,6 @@ import { columnOfKey } from "#/scene/rowData";
 import type { TEntity } from "#/scene/schema";
 
 import { DataReading, FlagBadge, shownEntry } from "./DataReading";
-import { formatWhen } from "./Sparkline";
 
 import styles from "./LabelLayer.module.css";
 

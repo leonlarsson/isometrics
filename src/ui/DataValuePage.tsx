@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { sourceNameOf } from "#/editor/dataList";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
 import { useEditor } from "#/editor/store";
+import { formatWhen } from "#/lib/when";
 import { formatEntry, formatValue, toDataKey } from "#/scene/format";
 import {
 	DataColumnSchema,
@@ -9,9 +11,10 @@ import {
 	type TDataSource,
 	type TDataTable,
 	type TDataValue,
+	type TNumberStyle,
 } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DataTableDialog } from "./DataTableDialog";
 import {
@@ -24,9 +27,15 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
-import { formatWhen, HistoryChart, numericPoints } from "./Sparkline";
+import { ReadFromSourceDialog } from "./ReadFromSourceDialog";
+import { HistoryChart, numericPoints } from "./Sparkline";
 
-import styles from "./DataPanel.module.css";
+/** How a number can be written (`numberStyle`), each shown with the value's own number. */
+const NUMBER_STYLES: { value: TNumberStyle; label: string }[] = [
+	{ value: "full", label: "In full" },
+	{ value: "grouped", label: "With separators" },
+	{ value: "short", label: "Short" },
+];
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -57,37 +66,52 @@ interface IDataValuePageProps {
 	value: TDataValue;
 	/** The source it's read from, if it still exists. */
 	source: TDataSource | null;
-	/** Where it comes from, in words ("from sent.csv, sent"). */
-	origin: string;
 	onReadAgain: (source: TDataSource) => void;
 }
 
 /**
- * One data value's own page in the Data tab (data study): its name, key,
- * value and unit, where it comes from, its past values, and everything that
- * shows or follows it, each a way to go there. The header's breadcrumb names
- * it, with a way back to the list.
+ * One data value's page in the Data window (data study, ADR-0123): its name,
+ * key, value and unit, where it comes from, its past values, and everything
+ * that shows or follows it, each a way to go there (closing the window).
  */
-export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValuePageProps) => {
+export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProps) => {
 	const scene = useEditor((s) => s.scene);
 	const upsertData = useEditor((s) => s.upsertData);
 	const removeData = useEditor((s) => s.removeData);
 	const selectItems = useEditor((s) => s.selectItems);
 	const setTab = useEditor((s) => s.setTab);
+	const openDataWindow = useEditor((s) => s.openDataWindow);
 	// A run of edits to its name and key, while the page is open, is one undo step.
-	const [editing] = useState(() => `data-page:${value.key}`);
+	const [editing, setEditing] = useState(() => `data-page:${value.key}`);
+	// The key this page just renamed it to: renamed here, it's the same value, still being edited
+	// (the page isn't rebuilt, so the field being typed in keeps its place).
+	const renamedTo = useRef<string | null>(null);
 	const [typedKey, setTypedKey] = useState(value.key);
 	const [typedValue, setTypedValue] = useState(String(value.value));
 	const [showsPast, setShowsPast] = useState(false);
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
+	const [readsFrom, setReadsFrom] = useState(false);
 	const name = value.name || value.key;
+	// Unset, the style in effect: separators, short from 100,000.
+	const numberStyleShown: TNumberStyle =
+		value.numberStyle ??
+		(typeof value.value === "number" && Math.abs(value.value) >= 100_000 ? "short" : "grouped");
 	const others = scene.data.values.filter((each) => each.key !== value.key);
 	const uses = dataUsesOf(scene, value.key);
 
-	// What's typed follows changes made elsewhere: undo, reading its source again.
+	// Another value opened here, or this one renamed elsewhere (undo): start afresh with it.
 	useEffect(() => {
+		if (renamedTo.current === value.key) {
+			renamedTo.current = null;
+			return;
+		}
 		if (asKey(typedKey) !== value.key) {
 			setTypedKey(value.key);
+			setTypedValue(String(value.value));
+			setEditing(`data-page:${value.key}`);
+			setShowsPast(false);
+			setConfirmsRemove(false);
+			setReadsFrom(false);
 		}
 	}, [value.key]);
 	useEffect(() => {
@@ -105,9 +129,12 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				: null;
 
 	const rename = (typed: string) => {
-		// A made-up key becomes the name's, as long as no other value has it.
+		// A key that follows the name (made up by Add, or still the name's) becomes the new name's,
+		// as long as no other value has it; one typed by hand stays.
 		const key = toDataKey(typed);
-		if (isMadeUpKey(value.key) && typed.trim() && !others.some((each) => each.key === key)) {
+		const followsName = isMadeUpKey(value.key) || value.key === toDataKey(value.name);
+		if (followsName && typed.trim() && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, name: typed, key }, value.key, editing);
 			setTypedKey(key);
 			return;
@@ -119,6 +146,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 		setTypedKey(typed);
 		const key = asKey(typed);
 		if (key && key !== value.key && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, key }, value.key, editing);
 		}
 	};
@@ -128,6 +156,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 			selectItems([use.item]);
 		}
 		setTab(use.tab);
+		openDataWindow(null);
 	};
 
 	const numbers = numericPoints(value.history);
@@ -192,6 +221,27 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					onChange={(unit) => upsertData({ ...value, unit })}
 					inherit={resetToDefault(value.unit, "", () => upsertData({ ...value, unit: "" }), "none")}
 					hint="Shown right after the value: type “ min” (with a space) or “%”."
+				/>
+
+				<SelectField
+					label="Numbers written as"
+					value={numberStyleShown}
+					options={NUMBER_STYLES.map((style) => ({
+						value: style.value,
+						label:
+							typeof value.value === "number"
+								? `${style.label}: ${formatValue(value.value, value.unit, style.value)}`
+								: `${style.label} (for numbers: it's text)`,
+						disabled: typeof value.value !== "number",
+					}))}
+					onChange={(numberStyle) => upsertData({ ...value, numberStyle })}
+					inherit={{
+						from: "default",
+						inherited: value.numberStyle === null,
+						onReset: () => upsertData({ ...value, numberStyle: null }),
+						value: "separators, short from 100,000",
+					}}
+					hint="How cards, tiles and lists write it."
 				/>
 
 				<TextField
@@ -303,26 +353,50 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					<>
 						<Hint>
 							{source
-								? `Read ${origin}${source.lastReadAt ? `, ${formatWhen(source.lastReadAt)}` : ""}. Typing a value above changes it until it's read again.`
-								: `Read ${origin}: that source is gone, so it stays as last read.`}
+								? `It comes from ${sourceNameOf(source)}. Typing a value above changes it only until it's read again.`
+								: "Its source was removed, so it stays as last read."}
 						</Hint>
 
-						<div className={styles.buttons}>
+						<ButtonGroup>
+							{source && (
+								<Button
+									size="sm"
+									icon="info"
+									onClick={() => openDataWindow({ kind: "source", id: source.id })}
+								>
+									See the source
+								</Button>
+							)}
+
 							{source?.kind === "file" && (
-								<Button icon="upload" onClick={() => onReadAgain(source)}>
+								<Button size="sm" icon="upload" onClick={() => onReadAgain(source)}>
 									Read it again…
 								</Button>
 							)}
 
-							<Button onClick={() => upsertData({ ...value, source: null })}>
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from somewhere else…
+							</Button>
+
+							<Button size="sm" onClick={() => upsertData({ ...value, source: null })}>
 								Type it by hand instead
 							</Button>
-						</div>
+						</ButtonGroup>
 					</>
 				) : (
-					<Hint>
-						Typed by hand. Values can also be read from a spreadsheet: Sources, in the Data tab.
-					</Hint>
+					<>
+						<Hint>
+							Typed by hand: it shows what's typed above. Read it from a source to have it follow a
+							number there (a link, an API or a spreadsheet); it keeps its name and everything that
+							shows it.
+						</Hint>
+
+						<ButtonGroup>
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from a source…
+							</Button>
+						</ButtonGroup>
+					</>
 				)}
 			</Section>
 
@@ -333,20 +407,27 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				keywords="history trend over time sparkline"
 			>
 				{numbers.length >= 2 && (
-					<HistoryChart points={value.history} label={`${name} over time`} unit={value.unit} />
+					<HistoryChart
+						points={value.history}
+						label={`${name} over time`}
+						unit={value.unit}
+						numberStyle={value.numberStyle}
+					/>
 				)}
 
 				{value.history.length > 0 ? (
 					<>
 						<Hint>{pastInWords}</Hint>
 
-						<div className={styles.buttons}>
-							<Button onClick={() => setShowsPast(true)}>Show them all</Button>
+						<ButtonGroup>
+							<Button size="sm" onClick={() => setShowsPast(true)}>
+								Show them all
+							</Button>
 
-							<Button onClick={() => upsertData({ ...value, history: [] })}>
+							<Button size="sm" onClick={() => upsertData({ ...value, history: [] })}>
 								Clear past values
 							</Button>
-						</div>
+						</ButtonGroup>
 					</>
 				) : (
 					<Hint>
@@ -375,21 +456,19 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						))}
 					</List>
 				) : (
-					<Hint>
-						Nothing shows or follows it yet. Show it on an object's card (its Label tab), or make a
-						light or a colour follow it (From data).
-					</Hint>
+					<Hint>Nothing shows or follows it yet: Show it in the world, above.</Hint>
 				)}
 
-				<div className={styles.buttons}>
+				<ButtonGroup>
 					<Button
+						size="sm"
 						variant="danger"
 						icon="trash"
 						onClick={() => (uses.length > 0 ? setConfirmsRemove(true) : removeData(value.key))}
 					>
 						{uses.length > 0 ? `Remove value (unbinds ${uses.length})` : "Remove value"}
 					</Button>
-				</div>
+				</ButtonGroup>
 			</Section>
 
 			<ConfirmDialog
@@ -401,6 +480,8 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				danger
 				onConfirm={() => removeData(value.key)}
 			/>
+
+			{readsFrom && <ReadFromSourceDialog value={value} onClose={() => setReadsFrom(false)} />}
 
 			{showsPast && (
 				<DataTableDialog

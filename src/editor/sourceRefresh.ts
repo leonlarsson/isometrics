@@ -7,7 +7,7 @@ import type { TDataSource, TScene, TWorldData } from "#/scene/schema";
 import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/sheets";
 
 import { allowLink, isLinkAllowed, useAllowedLinks } from "./linkTrust";
-import { LinkError, nameOfLink, readLink, type TLinkContent } from "./readLink";
+import { LinkError, nameOfLink, readLink, type TLinkContent, type TLinkFailure } from "./readLink";
 import { useEditor } from "./store";
 import { clearArrived, keptWithArrived, tableArrived, valueArrived } from "./worldData";
 
@@ -25,6 +25,8 @@ export interface ISourceStatus {
 	readAt: string | null;
 	/** Why the last reading failed, in words; null when it worked. */
 	error: string | null;
+	/** Which kind of failure that was, for saying it once for all the sources that failed so. */
+	failure: TLinkFailure | null;
 	reading: boolean;
 }
 
@@ -32,7 +34,7 @@ export const useSourceStatus = keepOnHotReload("sourceStatus", () =>
 	create<Record<string, ISourceStatus>>(() => ({})),
 );
 
-const NOT_READ: ISourceStatus = { readAt: null, error: null, reading: false };
+const NOT_READ: ISourceStatus = { readAt: null, error: null, failure: null, reading: false };
 
 const setStatus = (id: string, change: Partial<ISourceStatus>) =>
 	useSourceStatus.setState((all) => ({ ...all, [id]: { ...(all[id] ?? NOT_READ), ...change } }));
@@ -97,10 +99,16 @@ export const refreshSource = async (source: TDataSource, { asked = false } = {})
 	try {
 		const content = await readLink(source.url);
 		arriveFrom(useEditor.getState().scene.data, source, content);
-		setStatus(source.id, { readAt: new Date().toISOString(), error: null, reading: false });
+		setStatus(source.id, {
+			readAt: new Date().toISOString(),
+			error: null,
+			failure: null,
+			reading: false,
+		});
 	} catch (error) {
 		setStatus(source.id, {
 			error: error instanceof LinkError ? error.message : "It couldn't be read.",
+			failure: error instanceof LinkError ? error.why : "unreadable",
 			reading: false,
 		});
 	}
@@ -177,6 +185,25 @@ export const MOST_SOURCES_READ = 10;
 /** Never read again sooner than this on its own, whatever a world asks (its own limit is 10 s). */
 export const LEAST_REFRESH_SECONDS = 60;
 
+/**
+ * Which of some allowed sources are read on their own: one per address, the first
+ * MOST_SOURCES_READ addresses in the world's order. The rest are read only when asked (Read it
+ * again now), so a world can't make a browser call a crowd of servers.
+ */
+export const readOnTheirOwn = <TSource extends Pick<TDataSource, "url">>(
+	allowed: readonly TSource[],
+): TSource[] => {
+	const seen = new Set<string>();
+	return allowed.filter((source) => {
+		const url = source.url ?? "";
+		if (seen.has(url) || seen.size >= MOST_SOURCES_READ) {
+			return false;
+		}
+		seen.add(url);
+		return true;
+	});
+};
+
 /** The open world's link and API sources (with data on), and which of them this browser has allowed. */
 const linkSources = (allowed: ReadonlySet<string>) => {
 	const { data } = useEditor.getState().scene;
@@ -236,15 +263,7 @@ export const useSourceRefresh = () => {
 		}
 		// One source per address, at most MOST_SOURCES_READ addresses: repeating an address
 		// doesn't multiply the calls to it.
-		const seen = new Set<string>();
-		const read = linkSources(allowed).allowed.filter((source) => {
-			const url = source.url ?? "";
-			if (seen.has(url) || seen.size >= MOST_SOURCES_READ) {
-				return false;
-			}
-			seen.add(url);
-			return true;
-		});
+		const read = readOnTheirOwn(linkSources(allowed).allowed);
 		for (const source of read) {
 			if (!readSinceOpening.current.urls.has(source.url ?? "")) {
 				readSinceOpening.current.urls.add(source.url ?? "");

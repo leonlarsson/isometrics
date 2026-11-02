@@ -1,21 +1,22 @@
-/* A group of values from one place, its heading above the list. */
-.group {
+/* The Data tab's top: a search, then Add data and the window as small icon buttons, inset like the cards under it. */
+.bar {
 	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-/* A value's row ends in its sparkline and its value. */
-.valueMeta {
-	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	font-variant-numeric: tabular-nums;
-	color: var(--text);
+	gap: 2px;
+	margin: 6px 6px 8px;
 }
 
-.buttons {
+.bar > :first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+/* An empty world's Add data: on its own line, at its own width. */
+.start {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
+}
+
+/* The chips that pick a kind, inset like the cards under them. */
+.kinds {
+	margin: 0 6px 2px;
 }

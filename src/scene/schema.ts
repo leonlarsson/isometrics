@@ -512,6 +512,10 @@ export const DataPointSchema = z
 	})
 	.describe("A value at a moment.");
 
+/** How a number is written: in full (374160), with separators (374,160) or short (374.6K). */
+export const NumberStyleSchema = z.enum(["full", "grouped", "short"]);
+export type TNumberStyle = z.output<typeof NumberStyleSchema>;
+
 export const DataValueSchema = z
 	.object({
 		key: DataKeySchema.describe(
@@ -537,6 +541,11 @@ export const DataValueSchema = z
 			.default("")
 			.describe(
 				'A note shown with it where it\'s shown in full (detail tiles), e.g. "Example numbers, not measured"; empty = none.',
+			),
+		numberStyle: NumberStyleSchema.nullable()
+			.default(null)
+			.describe(
+				'How its number is written: "full" (374160), "grouped" (374,160) or "short" (374.6K); null = grouped, and short from 100,000 (1.5M).',
 			),
 	})
 	.describe("A named value that cards, detail tiles and settings show or follow.");

@@ -51,7 +51,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read: external sources. Every one starts disabled: when such a world opens, a dialog lists the external sources it reads, to allow now or later in the Data tab under **Sources** (each with **Allow**). Only links you read yourself, with **Read a link or API…**, are read without asking; **External sources this browser reads…** lists every one you've allowed, to forget any.",
+				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read: external sources. Every one starts disabled: when such a world opens, a dialog lists the external sources it reads, to allow now or later in the Data tab (each under **Sources** has **Allow**). Only links you read yourself, with **Read a link or API…**, are read without asking; **External sources this browser reads…** lists every one you've allowed, to forget any.",
 			},
 		],
 	},
@@ -72,12 +72,12 @@ export const GUIDE: IGuideSection[] = [
 					{
 						kind: "steps",
 						steps: [
-							"Open the **Data** tab on the right (the chart icon).",
-							"Under **Sources**, click **Read a link or API…**.",
+							"Open the **Data** tab on the right (the chart icon) and click **Add data**: the Data window opens.",
+							"Click **A link or API…**.",
 							`In **Address**, type \`${GUIDE_API.counts}\` and click **Read**.`,
 							"It answers with a list. Under it, set **Keep it as** to **A table: a row for each entry**, call it `Deliveries`, keep the columns `category`, `item` and `sent`, and set **Rows named by** to `item` (a game, a language or a part of the bot).",
 							"Set **Read it again** to **Every hour**.",
-							"Click **Add to the world**. The table is listed under **Tables**.",
+							"Click **Add to the world**. The Data window shows the new table, under its source, with **Show it in the world** first.",
 						],
 					},
 				],
@@ -89,8 +89,7 @@ export const GUIDE: IGuideSection[] = [
 					{
 						kind: "steps",
 						steps: [
-							"Click the table under **Tables**: it opens with its rows.",
-							"Click **Place one for each row…**.",
+							"Under **Show it in the world**, click **Place one for each row…** (later: click the table in the Data tab to open it again).",
 							"**Part**: Tower cluster (many buildings that grow with a number). **Layout**: A circle. **Sized by**: `sent`, **Which grows**: Built, with **Log scale** on (the numbers go from hundreds to tens of thousands). **On each card**: `sent`.",
 							"Click **Place … objects**. Each is named by its row and follows it: its card shows its deliveries, and the busiest games have the most buildings.",
 						],
@@ -109,7 +108,7 @@ export const GUIDE: IGuideSection[] = [
 						kind: "steps",
 						steps: [
 							"Place a few clusters from **Add to scene** (Buildings) and name them as the rows are: `Battlefield 6`, `Battlefield 2042`, `Battlefield V`.",
-							"Select them all, open their **Data** tab, pick **Table**: Deliveries, and click **Give each the row matching its name**.",
+							"Select them all, open their **Data** tab, pick **Table**: Deliveries, and click **Give each the row matching its name**. (Or, in the Data window, the table's **Show it in the world** offers to give every object named like a row its row.)",
 							"In one's **Data** tab, under **Sizes from data**, set **Built** to **From data**: `Row: sent`, on a log scale. Select them all to set it for every one.",
 							"In its **Label** tab, add `Row: sent` to **Values shown**.",
 						],
@@ -123,9 +122,10 @@ export const GUIDE: IGuideSection[] = [
 					{
 						kind: "steps",
 						steps: [
-							`**Read a link or API…** again, with \`${GUIDE_API.users}\`, then **Read**.`,
+							`**Add data**, **A link or API…** again, with \`${GUIDE_API.users}\`, then **Read**.`,
 							"Under **Values**, tick `totalUsers`, set **Read it again** to **Every minute**, and click **Add to the world**.",
-							"Show it in View mode: in **Legend and tiles** (the Data tab), add it to **Tiles**. Or put it on a card: an object's **Label** tab, **Values shown**.",
+							"Under **Show it in the world**, click **Add it as a tile in View mode**. Or select an object first and put it on that object's card from there (or its **Label** tab, **Values shown**).",
+							"Already have a value typed by hand that cards show? Open it in the Data window and click **Read it from a source…**: pick the source and the number, and it follows that from now on, keeping its name and its cards.",
 						],
 					},
 				],
@@ -139,7 +139,7 @@ export const GUIDE: IGuideSection[] = [
 						steps: [
 							"Click **View** at the top. Cards show the numbers; click one for its details.",
 							"While the world is open, the API is read again on its timer and what arrives shows at once. To save it with the world, click **Keep these values** in the Data tab.",
-							"Add a **legend** under **Legend and tiles** so viewers know what sizes mean: Size, deliveries per game, log scale.",
+							"Add a **legend** so viewers know what sizes mean: in the **World** tab, under **Legend and tiles**, click **Suggest chips** (Size: Deliveries, log scale), and edit them.",
 						],
 					},
 				],

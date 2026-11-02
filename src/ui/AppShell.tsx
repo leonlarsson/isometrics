@@ -31,6 +31,7 @@ import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
 import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
+import { DataWindow } from "./DataWindow";
 import { DetailSheet, RoadDetailSheet } from "./DetailSheet";
 import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
@@ -426,6 +427,8 @@ export const AppShell = () => {
 								{showsWorld && <WaitingSourcesDialog />}
 
 								{showsWorld && <ShareDialog />}
+
+								{showsWorld && <DataWindow />}
 
 								<KeepPreviewDialog />
 

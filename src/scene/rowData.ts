@@ -99,6 +99,7 @@ export const rowEntries = (table: TDataTable, rowKey: string): TDataValue[] => {
 				history: columnHistory(table, rowKey, column.key),
 				threshold: column.threshold,
 				about: column.about,
+				numberStyle: null,
 			},
 		];
 	});

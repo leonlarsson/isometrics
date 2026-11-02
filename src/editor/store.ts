@@ -114,6 +114,17 @@ export type TSelectionTab =
  */
 export type TInspectorTab = "add" | "outliner" | TWorldTab | TSelectionTab;
 
+/**
+ * Where the Data window is open: its start (what data is for, or nothing
+ * picked), a value or a table by key, a source by id, or Add data.
+ */
+export type TDataWindowAt =
+	| { kind: "start" }
+	| { kind: "add" }
+	| { kind: "value"; key: string }
+	| { kind: "table"; key: string }
+	| { kind: "source"; id: string };
+
 const SELECTION_TABS: readonly TInspectorTab[] = [
 	"object",
 	"shape",
@@ -304,8 +315,8 @@ export interface IEditorState {
 	followOffer: IFollowOffer | null;
 	mode: TEditorMode;
 	tab: TInspectorTab;
-	/** The data value whose own page the Data tab shows, by key; null = the list of them. Runtime only. */
-	openValueKey: string | null;
+	/** Where the Data window is open (a value, a table, a source, Add data); null = closed. Runtime only. */
+	dataWindow: TDataWindowAt | null;
 	dragging: boolean;
 	/**
 	 * A world being opened (at start, or loaded): which opening, until the view
@@ -464,8 +475,8 @@ export interface IEditorState {
 	setSelectedFlag: (flag: "isHidden" | "isLocked", value: boolean) => void;
 	setMode: (mode: TEditorMode) => void;
 	setTab: (tab: TInspectorTab) => void;
-	/** Shows a data value's own page in the Data tab; null goes back to the list. */
-	openValue: (key: string | null) => void;
+	/** Opens the Data window at a value, a table, a source or Add data; null closes it. */
+	openDataWindow: (at: TDataWindowAt | null) => void;
 	setDragging: (dragging: boolean) => void;
 	/** The view has this opening of a world ready to look at: the loading screen goes. */
 	worldShown: (opening: number) => void;
@@ -624,6 +635,16 @@ export interface IEditorState {
 	 * (data study, `putReadData`).
 	 */
 	putReadData: (source: TDataSource, read: IReadData) => void;
+	/**
+	 * What's kept from a source, changed (ADR-0123): what was read put in, and
+	 * the values and tables it gave that are no longer kept removed (whatever
+	 * showed or followed a removed value stops). One undo step.
+	 */
+	keepFromSource: (
+		source: TDataSource,
+		read: IReadData,
+		removed: { valueKeys: readonly string[]; tableKeys: readonly string[] },
+	) => void;
 	/** Removes a table from the world's data. */
 	removeDataTable: (key: string) => void;
 	/** Removes a source; its values and tables stay, as typed by hand. */
@@ -1060,6 +1081,13 @@ export const createEditorStore = (openScene?: TScene) => {
 			rawSet((state) =>
 				withSelectedItems(state, typeof partial === "function" ? partial(state) : partial),
 			);
+		// Something open in the Data window is gone: it goes back to its start.
+		const leaveDataWindowAt = (gone: TDataWindowAt) => {
+			const at = get().dataWindow;
+			if (at && JSON.stringify(at) === JSON.stringify(gone)) {
+				set({ dataWindow: { kind: "start" } });
+			}
+		};
 		return {
 			scene: initialScene,
 			past: [],
@@ -1084,7 +1112,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			followOffer: null,
 			mode: "edit",
 			tab: "world",
-			openValueKey: null,
+			dataWindow: null,
 			dragging: false,
 			openingWorld: 1,
 			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
@@ -1177,7 +1205,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					activeViewpointId: null,
 					flight: null,
 					cameraFollow: null,
-					openValueKey: null,
+					dataWindow: null,
 				}));
 			},
 
@@ -1580,9 +1608,8 @@ export const createEditorStore = (openScene?: TScene) => {
 							viewpointMenu: null,
 						}),
 			// Leaving the Data tab closes a value's page: it opens on the list next time.
-			setTab: (tab) =>
-				set((state) => ({ tab, openValueKey: tab === "data" ? state.openValueKey : null })),
-			openValue: (key) => set({ tab: "data", openValueKey: key }),
+			setTab: (tab) => set({ tab }),
+			openDataWindow: (at) => set({ dataWindow: at }),
 			setDragging: (dragging) => set({ dragging }),
 			worldShown: (opening) =>
 				set((state) => (state.openingWorld === opening ? { openingWorld: null } : state)),
@@ -2055,13 +2082,15 @@ export const createEditorStore = (openScene?: TScene) => {
 					},
 					{ coalesce: coalesce ?? `data:${previousKey ?? input.key}` },
 				);
-				// Its page stays open under its new key.
+				// The Data window stays open at it under its new key.
+				const at = get().dataWindow;
 				if (
 					previousKey &&
-					get().openValueKey === previousKey &&
+					at?.kind === "value" &&
+					at.key === previousKey &&
 					get().scene.data.values.some((d) => d.key === entry.key)
 				) {
-					set({ openValueKey: entry.key });
+					set({ dataWindow: { kind: "value", key: entry.key } });
 				}
 			},
 
@@ -2070,9 +2099,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					scene.data.values = scene.data.values.filter((d) => d.key !== key);
 					renameDataReferences(scene, key, null);
 				});
-				if (get().openValueKey === key) {
-					set({ openValueKey: null });
-				}
+				leaveDataWindowAt({ kind: "value", key });
 			},
 
 			putReadData: (source, read) =>
@@ -2080,12 +2107,36 @@ export const createEditorStore = (openScene?: TScene) => {
 					scene.data = putReadData(scene.data, source, read);
 				}),
 
-			removeDataTable: (key) =>
+			keepFromSource: (source, read, removed) => {
+				get().commit((scene) => {
+					scene.data = putReadData(scene.data, source, read);
+					scene.data.values = scene.data.values.filter(
+						(each) => !removed.valueKeys.includes(each.key),
+					);
+					scene.data.tables = scene.data.tables.filter(
+						(each) => !removed.tableKeys.includes(each.key),
+					);
+					for (const key of removed.valueKeys) {
+						renameDataReferences(scene, key, null);
+					}
+				});
+				const at = get().dataWindow;
+				if (
+					(at?.kind === "value" && removed.valueKeys.includes(at.key)) ||
+					(at?.kind === "table" && removed.tableKeys.includes(at.key))
+				) {
+					set({ dataWindow: { kind: "start" } });
+				}
+			},
+
+			removeDataTable: (key) => {
 				get().commit((scene) => {
 					scene.data.tables = scene.data.tables.filter((table) => table.key !== key);
-				}),
+				});
+				leaveDataWindowAt({ kind: "table", key });
+			},
 
-			removeDataSource: (id) =>
+			removeDataSource: (id) => {
 				get().commit((scene) => {
 					scene.data.sources = scene.data.sources.filter((source) => source.id !== id);
 					for (const each of [...scene.data.values, ...scene.data.tables]) {
@@ -2093,7 +2144,9 @@ export const createEditorStore = (openScene?: TScene) => {
 							each.source = null;
 						}
 					}
-				}),
+				});
+				leaveDataWindowAt({ kind: "source", id });
+			},
 
 			addRoad: (input) => {
 				const road = RoadSchema.parse({ ...input, id: input.id ?? newId("road") });

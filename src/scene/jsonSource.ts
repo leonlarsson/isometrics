@@ -85,11 +85,21 @@ export interface IJsonNumber {
 	value: number;
 }
 
-/** What a response holds that a world can keep (ADR-0113). */
+/** A short text found in a response ("Good", "online"): a value can hold text. */
+export interface IJsonText {
+	path: TJsonPath;
+	value: string;
+}
+
+/** What a response holds that a world can keep (ADR-0113, ADR-0123). */
 export interface IJsonContents {
 	numbers: IJsonNumber[];
+	texts: IJsonText[];
 	lists: IJsonList[];
 }
+
+/** Texts longer than this aren't offered as values: a value is a short word or phrase. */
+const LONGEST_TEXT = 80;
 
 /** How many entries of a list are looked at to find its fields. */
 const ENTRIES_LOOKED_AT = 50;
@@ -131,14 +141,20 @@ const fieldsOf = (entries: readonly unknown[]): IJsonField[] => {
 };
 
 /**
- * Everything worth keeping in a response: its numbers (not inside lists), and
- * its lists of entries with their fields. Looked for a few levels deep.
+ * Everything worth keeping in a response: its numbers and short texts (not
+ * inside lists; yes/no as text), and its lists of entries with their fields.
+ * Looked for a few levels deep.
  */
 export const describeJson = (json: unknown, depth = 4): IJsonContents => {
-	const contents: IJsonContents = { numbers: [], lists: [] };
+	const contents: IJsonContents = { numbers: [], texts: [], lists: [] };
 	const visit = (value: unknown, path: TJsonPath, left: number) => {
 		if (typeof value === "number" && Number.isFinite(value)) {
 			contents.numbers.push({ path, value });
+		} else if (
+			(typeof value === "string" && value.trim() !== "" && value.length <= LONGEST_TEXT) ||
+			typeof value === "boolean"
+		) {
+			contents.texts.push({ path, value: String(jsonCell(value)) });
 		} else if (Array.isArray(value)) {
 			if (value.some(isRecord)) {
 				contents.lists.push({ path, length: value.length, fields: fieldsOf(value) });
@@ -273,6 +289,7 @@ export const dataFromJson = (
 				source,
 				threshold: null,
 				about: "",
+				numberStyle: null,
 				...value,
 			});
 		}
