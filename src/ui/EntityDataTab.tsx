@@ -1,26 +1,23 @@
-import { dataRangeOf } from "#/editor/dataRange";
+import { dataRangeOf, rangeBindingFor, withDataRange } from "#/editor/dataRange";
 import { matchingNameOf } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { useWorldData } from "#/editor/worldData";
 import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/parts/propData";
-import { resolveProps, type TAnyPart } from "#/parts/registry";
+import type { TAnyPart } from "#/parts/registry";
 import type { TFieldSpec } from "#/parts/types";
 import { formatEntry } from "#/scene/format";
 import { columnOfKey, rowKeyMatching, rowKeysOf, tableOfRow, valuesWithRow } from "#/scene/rowData";
-import type { TDataBinding, TDataRowRef, TEntity } from "#/scene/schema";
-
-import { Button } from "./Button";
-import { DataDrivenField } from "./DataDrivenField";
 import {
-	ComboboxField,
-	Hint,
-	resetToDefault,
-	Section,
-	SelectField,
-	SliderField,
-	SwitchField,
-} from "./fields";
+	DataBindingSchema,
+	type TDataBinding,
+	type TDataRowRef,
+	type TEntity,
+} from "#/scene/schema";
+
+import { Button, ButtonGroup } from "./Button";
+import { DataBindingFields } from "./DataBindingFields";
+import { ComboboxField, FieldGroup, Hint, resetToDefault, Section, SelectField } from "./fields";
 import { List, ListItem } from "./List";
 
 /** A table with more rows than this picks its row from a list with a search. */
@@ -171,17 +168,28 @@ const fieldRangeOf = (field: Extract<TFieldSpec, { type: "number" }>) => ({
 	step: field.step,
 });
 
+/** A setting of an object that can follow data: its size, or a number or switch of its part. */
+interface IFollowingSetting {
+	key: string;
+	label: string;
+	kind: "range" | "switch";
+	range?: { min: number; max: number; step: number; format?: (setting: number) => string };
+	/** What it starts at, low and high, when it starts following data. */
+	startsAt?: { low: number; high: number };
+}
+
 /**
- * Its size and its part's settings, each by hand or from data (ADR-0109): a
- * number placed between two values on a straight or log scale, an on/off
- * setting switched by a value.
+ * What of an object follows data (ADR-0109, ADR-0123): only the settings that
+ * do, each with what it follows and how ("Size follows Visitors: 1,180 → ×0.6
+ * to 1,410 → ×2"), its fields to change that, Use its lowest and highest, and
+ * Stop following; then one row to make another follow data. Settings set by
+ * hand stay in the Object and Shape tabs, which say when one follows data.
  */
-const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
+const FollowsDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const data = useWorldData();
 	const values = valuesOfEntity(entity, data);
 	const updateEntity = useEditor((s) => s.updateEntity);
-	const setEntityProp = useEditor((s) => s.setEntityProp);
-	const props = resolveProps(part, entity.props) as Record<string, unknown>;
+	const openDataWindow = useEditor((s) => s.openDataWindow);
 	const setBinding = (setting: string, binding: TDataBinding | null, coalesce?: string) =>
 		updateEntity(
 			entity.id,
@@ -196,96 +204,134 @@ const SizesFromDataSection = ({ entity, part }: { entity: TEntity; part: TAnyPar
 		);
 	// A value's lowest and highest, a row's column over the whole table: where a size starts.
 	const rangeOf = (key: string) => dataRangeOf(data, key, entity.dataRow);
-	const fields = dataDrivenFields(part).filter(
-		(field) => field.type === "number" || field.type === "boolean",
-	);
+	const settings: IFollowingSetting[] = [
+		{
+			key: SCALE_SETTING,
+			label: "Size",
+			kind: "range",
+			range: { ...SCALE_RANGE, step: 0.05, format: (value) => `×${value.toFixed(2)}` },
+			// An object grows from a bit smaller to twice its size: ×4 fills the view.
+			startsAt: { low: 0.6, high: 2 },
+		},
+		...dataDrivenFields(part).flatMap((field): IFollowingSetting[] =>
+			field.type === "number"
+				? [{ key: field.key, label: field.label, kind: "range", range: fieldRangeOf(field) }]
+				: field.type === "boolean"
+					? [{ key: field.key, label: field.label, kind: "switch" }]
+					: [],
+		),
+	];
+	const following = settings.filter((setting) => entity.data[setting.key]);
+	const free = settings.filter((setting) => !entity.data[setting.key]);
+	// A size starts on a value it can use (a number); a switch on any.
+	const firstKeyFor = (kind: IFollowingSetting["kind"]) =>
+		(kind === "range" ? values.find((entry) => typeof entry.value === "number") : values[0])?.key ??
+		"";
+
+	const start = (key: string) => {
+		const setting = settings.find((each) => each.key === key);
+		if (!setting) {
+			return;
+		}
+		const valueKey = firstKeyFor(setting.kind);
+		setBinding(
+			key,
+			setting.kind === "range"
+				? rangeBindingFor(data, valueKey, entity.dataRow, setting.startsAt)
+				: DataBindingSchema.parse({ key: valueKey }),
+		);
+	};
 
 	return (
 		<Section
 			id="data.sizes"
 			icon="chart"
-			title="Sizes from data"
-			keywords="size scale props floors grow log scale data follows"
+			title="Follows data"
+			keywords="size scale props floors grow log scale data follows switch"
 		>
-			<Hint>
-				A size or setting can follow a value or a column of its row: bigger numbers, bigger
-				buildings.
-			</Hint>
+			{following.length === 0 && (
+				<Hint>
+					Nothing of it follows data yet. Make its size or a setting follow a value or a column of
+					its row: bigger numbers, bigger buildings.
+				</Hint>
+			)}
 
-			<DataDrivenField
-				kind="range"
-				binding={entity.data[SCALE_SETTING]}
-				data={values}
-				dataRangeOf={rangeOf}
-				// An object grows from a bit smaller to twice its size: ×4 fills the view.
-				startsAt={{ low: 0.6, high: 2 }}
-				range={{ ...SCALE_RANGE, step: 0.05, format: (value) => `×${value.toFixed(2)}` }}
-				onBindingChange={(binding, coalesce) => setBinding(SCALE_SETTING, binding, coalesce)}
-			>
-				<SliderField
-					label="Size"
-					value={entity.scale}
-					min={0.1}
-					max={10}
-					sliderMax={4}
-					step={0.05}
-					onChange={(scale) =>
-						updateEntity(
-							entity.id,
-							(draft) => {
-								draft.scale = scale;
-							},
-							{ coalesce: `${entity.id}:scale` },
-						)
-					}
-					inherit={resetToDefault(
-						entity.scale,
-						1,
-						() =>
-							updateEntity(entity.id, (draft) => {
-								draft.scale = 1;
-							}),
-						"1",
-					)}
-				/>
-			</DataDrivenField>
-
-			{fields.map((field) => (
-				<DataDrivenField
-					key={field.key}
-					kind={field.type === "number" ? "range" : "switch"}
-					binding={entity.data[field.key]}
-					data={values}
-					range={field.type === "number" ? fieldRangeOf(field) : undefined}
-					dataRangeOf={rangeOf}
-					onBindingChange={(binding, coalesce) => setBinding(field.key, binding, coalesce)}
-				>
-					{field.type === "number" ? (
-						<SliderField
-							label={field.label}
-							value={Number(props[field.key])}
-							min={field.min}
-							max={field.max}
-							step={field.step}
-							onChange={(value) =>
-								setEntityProp(entity.id, field.key, value, {
-									coalesce: `${entity.id}:prop:${field.key}`,
-								})
+			{following.map((setting) => {
+				const binding = entity.data[setting.key];
+				if (!binding) {
+					return null;
+				}
+				const found = setting.kind === "range" ? rangeOf(binding.key) : null;
+				const isDataRange =
+					found !== null &&
+					binding.valueAtLowSetting === found.min &&
+					binding.valueAtHighSetting === found.max;
+				return (
+					<FieldGroup key={setting.key} title={`${setting.label} follows data`}>
+						<DataBindingFields
+							kind={setting.kind}
+							binding={binding}
+							data={values}
+							range={setting.range}
+							// Another value picked: its range comes with it.
+							onChange={(next, coalesce) =>
+								setBinding(
+									setting.key,
+									setting.kind === "range" && next.key !== binding.key
+										? withDataRange(next, data, entity.dataRow)
+										: next,
+									coalesce,
+								)
 							}
-							hasNoDefault
-							hint="Also in the Shape tab."
 						/>
-					) : (
-						<SwitchField
-							label={field.label}
-							checked={Boolean(props[field.key])}
-							onChange={(on) => setEntityProp(entity.id, field.key, on)}
-							hasNoDefault
-							hint="Also in the Shape tab."
-						/>
-					)}
-				</DataDrivenField>
-			))}
+
+						<ButtonGroup>
+							{setting.kind === "range" && (
+								<Button
+									size="sm"
+									icon="reset"
+									disabled={found === null || isDataRange}
+									onClick={() =>
+										setBinding(setting.key, withDataRange(binding, data, entity.dataRow))
+									}
+								>
+									Use its lowest and highest
+								</Button>
+							)}
+
+							<Button size="sm" icon="close" onClick={() => setBinding(setting.key, null)}>
+								Stop following
+							</Button>
+						</ButtonGroup>
+					</FieldGroup>
+				);
+			})}
+
+			{values.length === 0 ? (
+				<>
+					<Hint>No values yet: add data first, then make its size or a setting follow it.</Hint>
+
+					<ButtonGroup>
+						<Button size="sm" icon="plus" onClick={() => openDataWindow({ kind: "add" })}>
+							Add data
+						</Button>
+					</ButtonGroup>
+				</>
+			) : (
+				free.length > 0 && (
+					<SelectField
+						label="Make follow data"
+						value=""
+						options={[
+							{ value: "", label: "Pick a setting…", disabled: true },
+							...free.map((setting) => ({ value: setting.key, label: setting.label })),
+						]}
+						onChange={start}
+						hasNoDefault
+						hint="Its range starts from the data's lowest to its highest."
+					/>
+				)
+			)}
 		</Section>
 	);
 };
@@ -305,7 +351,7 @@ export const EntityDataTab = ({ entity, part }: { entity: TEntity; part: TAnyPar
 				}
 			/>
 
-			<SizesFromDataSection entity={entity} part={part} />
+			<FollowsDataSection entity={entity} part={part} />
 		</>
 	);
 };

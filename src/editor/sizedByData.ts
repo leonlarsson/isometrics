@@ -41,7 +41,7 @@ export const sayWhySizeFollowsData = (sized: readonly TEntity[], scene: TScene) 
 			? `${first.name || "Its"} size follows data`
 			: `${sized.length} of these are sized by data`,
 		sized.length === 1
-			? `It's sized by ${follows}. To resize it by hand, set Source to By hand under Sizes from data, in its Data tab.`
-			: "Their sizes follow values or columns. To resize them by hand, set Source to By hand under Sizes from data, in their Data tab.",
+			? `It's sized by ${follows}. To resize it by hand, click Stop following under Follows data, in its Data tab.`
+			: "Their sizes follow values or columns. To resize them by hand, stop their sizes following data under Follows data, in their Data tab.",
 	);
 };

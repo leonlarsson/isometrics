@@ -109,7 +109,7 @@ export const GUIDE: IGuideSection[] = [
 						steps: [
 							"Place a few clusters from **Add to scene** (Buildings) and name them as the rows are: `Battlefield 6`, `Battlefield 2042`, `Battlefield V`.",
 							"Select them all, open their **Data** tab, pick **Table**: Deliveries, and click **Give each the row matching its name**. (Or, in the Data window, the table's **Show it in the world** offers to give every object named like a row its row.)",
-							"In one's **Data** tab, under **Sizes from data**, set **Built** to **From data**: `Row: sent`, on a log scale. Select them all to set it for every one.",
+							"In one's **Data** tab, under **Follows data**, pick **Built** in **Make follow data**, then `Row: sent` as its **Data value**, on a log scale. Select them all to set it for every one.",
 							"In its **Label** tab, add `Row: sent` to **Values shown**.",
 						],
 					},
