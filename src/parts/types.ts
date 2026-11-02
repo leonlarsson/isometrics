@@ -109,7 +109,8 @@ export type TPartCategory =
 	| "nature"
 	| "furniture"
 	| "infrastructure"
-	| "markers";
+	| "markers"
+	| "shapes";
 
 export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	buildings: "Buildings",
@@ -118,6 +119,7 @@ export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	furniture: "Street furniture",
 	infrastructure: "Ground & props",
 	markers: "Markers",
+	shapes: "Shapes",
 };
 
 /**
