@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { WorldDataSchema } from "#/scene/schema";
 
-import { dataFoundIn, originOf, sourceNameOf, tableInWords, valueInWords } from "./dataList";
+import {
+	addInWords,
+	dataFoundIn,
+	originOf,
+	sourceNameOf,
+	tableInWords,
+	valueInWords,
+} from "./dataList";
 
 const data = WorldDataSchema.parse({
 	sources: [
@@ -102,5 +109,12 @@ describe("the world's data by kind", () => {
 		expect(tableInWords(data.tables[0], data.sources).long).toBe(
 			"From the list api.example.org answers: one row for each entry, 1 row.",
 		);
+	});
+
+	it("says what a reading adds on its button", () => {
+		expect(addInWords(0, 1)).toBe("Add 1 table");
+		expect(addInWords(3, 0)).toBe("Add 3 values");
+		expect(addInWords(2, 1)).toBe("Add 2 values and 1 table");
+		expect(addInWords(0, 0)).toBe("Add");
 	});
 });

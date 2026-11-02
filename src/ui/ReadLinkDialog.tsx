@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { addInWords } from "#/editor/dataList";
 import { allowLink, forgetLink, isLinkAllowed } from "#/editor/linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "#/editor/readLink";
 import { newId, useEditor } from "#/editor/store";
@@ -413,7 +414,12 @@ export const ReadLinkDialog = ({
 			closeLabel="Cancel"
 			wide
 			confirm={{
-				label: existing ? "Keep these" : "Add to the world",
+				label: existing
+					? "Keep these"
+					: addInWords(
+							picks.filter((pick) => pick.kind !== "table").length,
+							picks.filter((pick) => pick.kind === "table").length,
+						),
 				disabled: !content || (!existing && picks.length === 0),
 				onConfirm: () => {
 					if (!content) {

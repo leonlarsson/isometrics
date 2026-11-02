@@ -77,7 +77,7 @@ export const GUIDE: IGuideSection[] = [
 							`In **Address**, type \`${GUIDE_API.counts}\` and click **Read**.`,
 							"It answers with a list. Under it, set **Keep it as** to **A table: a row for each entry**, call it `Deliveries`, keep the columns `category`, `item` and `sent`, and set **Rows named by** to `item` (a game, a language or a part of the bot).",
 							"Set **Read it again** to **Every hour**.",
-							"Click **Add to the world**. The Data window shows the new table, under its source, with **Show it in the world** first.",
+							"Click **Add 1 table**. The Data window shows the new table, under its source, with **Show it in the world** first.",
 						],
 					},
 				],
@@ -123,7 +123,7 @@ export const GUIDE: IGuideSection[] = [
 						kind: "steps",
 						steps: [
 							`**Add data**, **A link or API…** again, with \`${GUIDE_API.users}\`, then **Read**.`,
-							"Under **Values**, tick `totalUsers`, set **Read it again** to **Every minute**, and click **Add to the world**.",
+							"Under **Values**, tick `totalUsers`, set **Read it again** to **Every minute**, and click **Add 1 value**.",
 							"Under **Show it in the world**, click **Add it as a tile in View mode**. Or select an object first and put it on that object's card from there (or its **Label** tab, **Values shown**).",
 							"Already have a value typed by hand that cards show? Open it in the Data window and click **Read it from a source…**: pick the source and the number, and it follows that from now on, keeping its name and its cards.",
 						],

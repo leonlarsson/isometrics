@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { addInWords } from "#/editor/dataList";
 import type { ISpreadsheetSheet } from "#/editor/readSpreadsheet";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
@@ -164,7 +165,7 @@ export const ReadSpreadsheetDialog = ({
 			description={fileName}
 			wide
 			confirm={{
-				label: isAgain ? "Read again" : "Add to the world",
+				label: isAgain ? "Read again" : addInWords(read.values.length, read.tables.length),
 				onConfirm: confirm,
 				disabled: read.values.length === 0 && read.tables.length === 0,
 			}}

@@ -454,7 +454,7 @@ test.describe("links and APIs (ADR-0113)", () => {
 			.fill("https://api.battlefieldstats.com/outputs/daily");
 		await dialog.getByRole("button", { name: "Read", exact: true }).click();
 		await expect(dialog).toContainText("2 entries");
-		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		await dialog.getByRole("button", { name: /^Add \d/ }).click();
 		expect(
 			await read(page, (s) => s.scene.data.values.map((v) => [v.key, v.value, v.history.length])),
 		).toEqual([["sent", 1692, 2]]);

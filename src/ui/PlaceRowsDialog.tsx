@@ -160,11 +160,23 @@ export const PlaceRowsDialog = ({ table, onClose }: { table: TDataTable; onClose
 
 			<CheckboxGroupField
 				label="On each card"
-				options={table.columns
-					.filter((column) => column.key !== table.keyColumn)
-					.map((column) => ({ value: column.key, label: column.name || column.key }))}
-				value={cardColumns}
-				onChange={setCardColumns}
+				options={[
+					// The column naming the rows names each object, which is its card's title: always on it.
+					...table.columns
+						.filter((column) => column.key === table.keyColumn)
+						.map((column) => ({
+							value: column.key,
+							label: `${column.name || column.key} (each card's title: the row's name)`,
+							disabled: true,
+						})),
+					...table.columns
+						.filter((column) => column.key !== table.keyColumn)
+						.map((column) => ({ value: column.key, label: column.name || column.key })),
+				]}
+				value={table.keyColumn ? [table.keyColumn, ...cardColumns] : cardColumns}
+				onChange={(columns) =>
+					setCardColumns(columns.filter((column) => column !== table.keyColumn))
+				}
 				hasNoDefault
 			/>
 

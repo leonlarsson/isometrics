@@ -309,7 +309,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		// Dates and numbers: a value with its past values, the latest its value now.
 		await readCsv(fromAddData, "sent.csv", "day,sent\n2026-10-29,5\n2026-10-30,7\n");
 		await expect(dialog).toContainText("Adds 1 value with 2 past values.");
-		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		await dialog.getByRole("button", { name: /^Add \d/ }).click();
 		expect(
 			await read(page, (s) => s.scene.data.values.find((v) => v.key === "sent")),
 		).toMatchObject({
@@ -337,7 +337,7 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		// Rows of things: a table, its rows named by club, to open and look at.
 		await readCsv(fromAddData, "top-clubs.csv", "club,players,best_rank\nAPES,71,43\nOG,65,67\n");
 		await expect(dialog).toContainText("Adds a table of 2 rows and 3 columns.");
-		await dialog.getByRole("button", { name: "Add to the world" }).click();
+		await dialog.getByRole("button", { name: /^Add \d/ }).click();
 		expect(await read(page, (s) => s.scene.data.tables.map((t) => [t.key, t.keyColumn]))).toEqual([
 			["top_clubs", "club"],
 		]);

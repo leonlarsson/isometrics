@@ -215,3 +215,19 @@ export const tableInWords = (table: TDataTable, sources: readonly TDataSource[])
 		short,
 	};
 };
+
+/** "3 values", "1 table". */
+const countOf = (count: number, thing: string) =>
+	`${count.toLocaleString()} ${thing}${count === 1 ? "" : "s"}`;
+
+/**
+ * A reading's main button, saying what it adds: "Add 1 table", "Add 3 values",
+ * "Add 2 values and 1 table" (ADR-0123), so it's clear what Add puts where.
+ */
+export const addInWords = (valueCount: number, tableCount: number) => {
+	const parts = [
+		valueCount > 0 && countOf(valueCount, "value"),
+		tableCount > 0 && countOf(tableCount, "table"),
+	].filter(Boolean);
+	return parts.length > 0 ? `Add ${parts.join(" and ")}` : "Add";
+};
