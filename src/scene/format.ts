@@ -72,3 +72,12 @@ export const toDataKey = (text: string): string => {
 			.replace(/^_+|_+$/g, "") || "value"
 	);
 };
+
+/** A value as typed: a number when it reads as one (kept numeric, so it's formatted), else the text. */
+export const parseValue = (raw: string): number | string => {
+	const trimmed = raw.trim();
+	if (trimmed !== "" && /^-?\d+(\.\d+)?$/.test(trimmed)) {
+		return Number(trimmed);
+	}
+	return raw;
+};
