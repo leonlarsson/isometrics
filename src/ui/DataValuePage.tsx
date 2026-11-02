@@ -26,6 +26,7 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
+import { ReadFromSourceDialog } from "./ReadFromSourceDialog";
 import { HistoryChart, numericPoints } from "./Sparkline";
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
@@ -78,6 +79,7 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 	const [typedValue, setTypedValue] = useState(String(value.value));
 	const [showsPast, setShowsPast] = useState(false);
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
+	const [readsFrom, setReadsFrom] = useState(false);
 	const name = value.name || value.key;
 	const others = scene.data.values.filter((each) => each.key !== value.key);
 	const uses = dataUsesOf(scene, value.key);
@@ -323,16 +325,29 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 								</Button>
 							)}
 
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from somewhere else…
+							</Button>
+
 							<Button size="sm" onClick={() => upsertData({ ...value, source: null })}>
 								Type it by hand instead
 							</Button>
 						</ButtonGroup>
 					</>
 				) : (
-					<Hint>
-						Typed by hand: it shows what's typed above. Add data reads values from a spreadsheet or
-						a link instead.
-					</Hint>
+					<>
+						<Hint>
+							Typed by hand: it shows what's typed above. Read it from a source to have it follow a
+							number there (a link, an API or a spreadsheet); it keeps its name and everything that
+							shows it.
+						</Hint>
+
+						<ButtonGroup>
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from a source…
+							</Button>
+						</ButtonGroup>
+					</>
 				)}
 			</Section>
 
@@ -411,6 +426,8 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 				danger
 				onConfirm={() => removeData(value.key)}
 			/>
+
+			{readsFrom && <ReadFromSourceDialog value={value} onClose={() => setReadsFrom(false)} />}
 
 			{showsPast && (
 				<DataTableDialog

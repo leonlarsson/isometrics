@@ -485,6 +485,59 @@ test.describe("links and APIs (ADR-0113)", () => {
 	});
 });
 
+test.describe("a value read from a source (ADR-0123)", () => {
+	test("a typed value is pointed at a field of an API, keeping its name, key and card", async ({
+		page,
+	}) => {
+		await page.route("https://example.org/counts.json", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ totalUsers: 41740, other: 3 }),
+			}),
+		);
+		await loadWorld(page, {
+			data: { values: [{ key: "users", name: "Registered users", value: 1 }] },
+			entities: [
+				{
+					id: "c",
+					kind: "office_tower_01",
+					name: "Bot",
+					label: {
+						isShown: true,
+						title: "",
+						dataKeys: ["users"],
+						offset: [0, 2, 0],
+						tag: "",
+						showsAsChip: false,
+					},
+				},
+			],
+		});
+		await act(page, (s) => s.openDataWindow({ kind: "value", key: "users" }));
+		await dataWindow(page).getByRole("button", { name: "Read it from a source…" }).click();
+		const dialog = page.getByRole("dialog", { name: "Read Registered users from a source" });
+		await dialog.getByRole("button", { name: /^A new link or API/ }).click();
+		await dialog.getByRole("textbox", { name: "Address" }).fill("https://example.org/counts.json");
+		await dialog.getByRole("button", { name: "Read", exact: true }).click();
+		await dialog.getByRole("button", { name: /“totalUsers”/ }).click();
+		await dialog.getByRole("button", { name: "Read it from here" }).click();
+		expect(
+			await read(page, (s) => {
+				const value = s.scene.data.values.find((each) => each.key === "users");
+				return [value?.name, value?.value, value?.source?.path];
+			}),
+		).toEqual(["Registered users", 41740, "totalUsers"]);
+		await expect(dataWindow(page)).toContainText(
+			"From example.org: the “totalUsers” in its answer.",
+		);
+		await page.keyboard.press("Escape");
+		await expect(dataWindow(page)).toBeHidden();
+		await expect(labelCard(page, /Bot/)).toContainText("41,740");
+	});
+});
+
 test.describe("stories (ADR-0114)", () => {
 	test("the story bar shows the world's data as it was on a date, and Now brings it back", async ({
 		page,

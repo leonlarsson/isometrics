@@ -125,6 +125,7 @@ export const GUIDE: IGuideSection[] = [
 							`**Add data**, **A link or API…** again, with \`${GUIDE_API.users}\`, then **Read**.`,
 							"Under **Values**, tick `totalUsers`, set **Read it again** to **Every minute**, and click **Add to the world**.",
 							"Under **Show it in the world**, click **Add it as a tile in View mode**. Or select an object first and put it on that object's card from there (or its **Label** tab, **Values shown**).",
+							"Already have a value typed by hand that cards show? Open it in the Data window and click **Read it from a source…**: pick the source and the number, and it follows that from now on, keeping its name and its cards.",
 						],
 					},
 				],
