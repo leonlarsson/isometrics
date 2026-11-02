@@ -22,6 +22,14 @@ describe("formatValue", () => {
 		expect(formatValue(1_500_000, " km", "grouped")).toBe("1,500,000 km");
 	});
 
+	it("writes a yes or no in its own style, and leaves other text as it is", () => {
+		expect(formatValue("yes")).toBe("yes");
+		expect(formatValue("yes", "", null, "trueFalse")).toBe("true");
+		expect(formatValue("no", "", null, "onOff")).toBe("off");
+		expect(formatValue("no", "", null, "checks")).toBe("✗");
+		expect(formatValue("Good", "", null, "trueFalse")).toBe("Good");
+	});
+
 	it("passes text through", () => {
 		expect(formatValue("14 / 40")).toBe("14 / 40");
 	});

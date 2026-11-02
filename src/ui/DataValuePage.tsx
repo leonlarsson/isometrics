@@ -4,7 +4,7 @@ import { sourceNameOf } from "#/editor/dataList";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
 import { useEditor } from "#/editor/store";
 import { formatWhen } from "#/lib/when";
-import { formatEntry, formatValue, toDataKey } from "#/scene/format";
+import { formatEntry, formatValue, toDataKey, YES_NO_WORDS, yesNoOf } from "#/scene/format";
 import {
 	DataColumnSchema,
 	DataThresholdSchema,
@@ -12,6 +12,7 @@ import {
 	type TDataTable,
 	type TDataValue,
 	type TNumberStyle,
+	type TYesNoStyle,
 } from "#/scene/schema";
 
 import { Button, ButtonGroup } from "./Button";
@@ -36,6 +37,9 @@ const NUMBER_STYLES: { value: TNumberStyle; label: string }[] = [
 	{ value: "grouped", label: "With separators" },
 	{ value: "short", label: "Short" },
 ];
+
+/** The ways a yes or no can be written (`yesNoStyle`). */
+const YES_NO_STYLES: TYesNoStyle[] = ["yesNo", "trueFalse", "onOff", "checks"];
 
 /** Values may be numbers or text; keep numbers numeric so formatting works. */
 const parseValue = (raw: string): number | string => {
@@ -92,6 +96,7 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
 	const [readsFrom, setReadsFrom] = useState(false);
 	const name = value.name || value.key;
+	const yesNo = yesNoOf(value.value);
 	// Unset, the style in effect: separators, short from 100,000.
 	const numberStyleShown: TNumberStyle =
 		value.numberStyle ??
@@ -223,26 +228,44 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 					hint="Shown right after the value: type “ min” (with a space) or “%”."
 				/>
 
-				<SelectField
-					label="Numbers written as"
-					value={numberStyleShown}
-					options={NUMBER_STYLES.map((style) => ({
-						value: style.value,
-						label:
-							typeof value.value === "number"
-								? `${style.label}: ${formatValue(value.value, value.unit, style.value)}`
-								: `${style.label} (for numbers: it's text)`,
-						disabled: typeof value.value !== "number",
-					}))}
-					onChange={(numberStyle) => upsertData({ ...value, numberStyle })}
-					inherit={{
-						from: "default",
-						inherited: value.numberStyle === null,
-						onReset: () => upsertData({ ...value, numberStyle: null }),
-						value: "separators, short from 100,000",
-					}}
-					hint="How cards, tiles and lists write it."
-				/>
+				{/* How it's written, for what it holds: a number, or a yes or no (other text is as typed). */}
+				{typeof value.value === "number" && (
+					<SelectField
+						label="Numbers written as"
+						value={numberStyleShown}
+						options={NUMBER_STYLES.map((style) => ({
+							value: style.value,
+							label: `${style.label}: ${formatValue(value.value, value.unit, style.value)}`,
+						}))}
+						onChange={(numberStyle) => upsertData({ ...value, numberStyle })}
+						inherit={{
+							from: "default",
+							inherited: value.numberStyle === null,
+							onReset: () => upsertData({ ...value, numberStyle: null }),
+							value: "separators, short from 100,000",
+						}}
+						hint="How cards, tiles and lists write it."
+					/>
+				)}
+
+				{yesNo && (
+					<SelectField
+						label="Yes/no written as"
+						value={value.yesNoStyle ?? "yesNo"}
+						options={YES_NO_STYLES.map((style) => ({
+							value: style,
+							label: `${YES_NO_WORDS[style].yes} / ${YES_NO_WORDS[style].no}`,
+						}))}
+						onChange={(yesNoStyle) => upsertData({ ...value, yesNoStyle })}
+						inherit={{
+							from: "default",
+							inherited: value.yesNoStyle === null,
+							onReset: () => upsertData({ ...value, yesNoStyle: null }),
+							value: "yes / no",
+						}}
+						hint={`How cards, tiles and lists write it: “${formatEntry(value)}” now. Things that follow it still read it as on or off.`}
+					/>
+				)}
 
 				<TextField
 					label="Note"
@@ -387,8 +410,8 @@ export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProp
 					<>
 						<Hint>
 							Typed by hand: it shows what's typed above. Read it from a source to have it follow a
-							number there (a link, an API or a spreadsheet); it keeps its name and everything that
-							shows it.
+							number, a text or a yes/no there (a link, an API or a spreadsheet); it keeps its name
+							and everything that shows it.
 						</Hint>
 
 						<ButtonGroup>

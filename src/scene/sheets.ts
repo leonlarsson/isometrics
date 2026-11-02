@@ -412,6 +412,7 @@ export const dataFromSheet = (
 		threshold: null,
 		about: "",
 		numberStyle: null,
+		yesNoStyle: null,
 	});
 
 	if (reading.readsAs === "table") {

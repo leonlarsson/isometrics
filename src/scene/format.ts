@@ -1,4 +1,4 @@
-import type { TDataValue, TNumberStyle } from "./schema";
+import type { TDataValue, TNumberStyle, TYesNoStyle } from "./schema";
 
 const plain = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const full = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, useGrouping: false });
@@ -6,6 +6,26 @@ const compact = new Intl.NumberFormat("en-US", {
 	notation: "compact",
 	maximumFractionDigits: 1,
 });
+
+/** How each style writes yes and no. */
+export const YES_NO_WORDS: Record<TYesNoStyle, { yes: string; no: string }> = {
+	yesNo: { yes: "yes", no: "no" },
+	trueFalse: { yes: "true", no: "false" },
+	onOff: { yes: "on", no: "off" },
+	checks: { yes: "✓", no: "✗" },
+};
+
+/** Whether a value is a yes or a no (what true and false are read as), or neither. */
+export const yesNoOf = (value: number | string): "yes" | "no" | null => {
+	const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+	return text === "yes" || text === "no" ? text : null;
+};
+
+/** A yes or no in a style (yes / no without one); null when the value is neither. */
+const yesNoText = (value: string, style: TYesNoStyle | null) => {
+	const yesNo = yesNoOf(value);
+	return yesNo && style ? YES_NO_WORDS[style][yesNo] : null;
+};
 
 /**
  * Format a data value for display, in its number style: "full" (374160),
@@ -16,9 +36,10 @@ export const formatValue = (
 	value: number | string,
 	unit = "",
 	style: TNumberStyle | null = null,
+	yesNoStyle: TYesNoStyle | null = null,
 ): string => {
 	if (typeof value !== "number") {
-		return `${value}${unit}`;
+		return `${yesNoText(value, yesNoStyle) ?? value}${unit}`;
 	}
 	const base =
 		style === "full"
@@ -39,7 +60,7 @@ export const formatEntry = (entry: TDataValue | undefined): string => {
 	if (!entry) {
 		return "—";
 	}
-	return formatValue(entry.value, entry.unit, entry.numberStyle);
+	return formatValue(entry.value, entry.unit, entry.numberStyle, entry.yesNoStyle);
 };
 
 /** Turn free text into a valid data key: "Orders packed" → "orders_packed". */

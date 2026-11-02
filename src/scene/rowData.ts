@@ -100,6 +100,7 @@ export const rowEntries = (table: TDataTable, rowKey: string): TDataValue[] => {
 				threshold: column.threshold,
 				about: column.about,
 				numberStyle: null,
+				yesNoStyle: null,
 			},
 		];
 	});

@@ -290,6 +290,7 @@ export const dataFromJson = (
 				threshold: null,
 				about: "",
 				numberStyle: null,
+				yesNoStyle: null,
 				...value,
 			});
 		}

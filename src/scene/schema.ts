@@ -516,6 +516,10 @@ export const DataPointSchema = z
 export const NumberStyleSchema = z.enum(["full", "grouped", "short"]);
 export type TNumberStyle = z.output<typeof NumberStyleSchema>;
 
+/** How a yes or no is written: yes / no, true / false, on / off, or ✓ / ✗. */
+export const YesNoStyleSchema = z.enum(["yesNo", "trueFalse", "onOff", "checks"]);
+export type TYesNoStyle = z.output<typeof YesNoStyleSchema>;
+
 export const DataValueSchema = z
 	.object({
 		key: DataKeySchema.describe(
@@ -546,6 +550,11 @@ export const DataValueSchema = z
 			.default(null)
 			.describe(
 				'How its number is written: "full" (374160), "grouped" (374,160) or "short" (374.6K); null = grouped, and short from 100,000 (1.5M).',
+			),
+		yesNoStyle: YesNoStyleSchema.nullable()
+			.default(null)
+			.describe(
+				'How it\'s written when it\'s yes or no (as true and false are read): "yesNo" (yes / no), "trueFalse" (true / false), "onOff" (on / off) or "checks" (✓ / ✗); null = yes / no. What\'s kept stays "yes" or "no".',
 			),
 	})
 	.describe("A named value that cards, detail tiles and settings show or follow.");
