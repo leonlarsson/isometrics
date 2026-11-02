@@ -117,4 +117,61 @@ describe("JSON sources (ADR-0113)", () => {
 		// What the response no longer has is left out, so it stays as it last was.
 		expect(readSourceAgain(first, source, {}).values).toEqual([]);
 	});
+
+	it("finds short texts and yes/no too, which a value can hold", () => {
+		expect(
+			describeJson({ status: "Good", online: true, long: "x".repeat(200), empty: "" }).texts,
+		).toEqual([
+			{ path: "status", value: "Good" },
+			{ path: "online", value: "yes" },
+		]);
+	});
+
+	it("keeps a value's own settings when it's read again, and tells a list's values apart by field", () => {
+		const source = DataSourceSchema.parse({ id: "bf", kind: "api", url: "https://example.com" });
+		const days = [
+			{ day: "2026-10-30", sent: 7, views: 70 },
+			{ day: "2026-10-31", sent: 9, views: 90 },
+		];
+		const picks = [
+			{ kind: "history" as const, path: "days", field: "sent", dateField: "day", name: "Sent" },
+			{ kind: "history" as const, path: "days", field: "views", dateField: "day", name: "Views" },
+		];
+		const first = putReadData(
+			WorldDataSchema.parse({}),
+			source,
+			dataFromJson({ days }, "bf", picks),
+		);
+		expect(first.values.map((value) => [value.key, value.value])).toEqual([
+			["sent", 9],
+			["views", 90],
+		]);
+		const watched = {
+			...first,
+			values: first.values.map((value) =>
+				value.key === "sent"
+					? {
+							...value,
+							about: "Per day",
+							numberStyle: "full" as const,
+							threshold: { line: 5, flagsWhen: "below" as const, word: "Quiet" },
+						}
+					: value,
+			),
+		};
+		const again = putReadData(
+			watched,
+			source,
+			dataFromJson({ days: [...days, { day: "2026-11-01", sent: 11, views: 110 }] }, "bf", picks),
+		);
+		expect(again.values.map((value) => [value.key, value.value])).toEqual([
+			["sent", 11],
+			["views", 110],
+		]);
+		expect(again.values[0]).toMatchObject({
+			about: "Per day",
+			numberStyle: "full",
+			threshold: { line: 5 },
+		});
+	});
 });

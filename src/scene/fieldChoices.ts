@@ -20,15 +20,24 @@ export interface IFieldChoice {
 	history: TDataPoint[];
 }
 
-/** The numbers a value could follow in what a link or API answered: single numbers, and lists over time. */
+/** What a value could follow in what a link or API answered: single numbers and texts, and lists over time. */
 export const fieldChoicesInJson = (json: unknown): IFieldChoice[] => {
-	const { numbers, lists } = describeJson(json);
+	const { numbers, texts, lists } = describeJson(json);
 	const singles = numbers.map(
 		(number): IFieldChoice => ({
 			id: `value:${number.path}`,
 			label: `“${number.path}”`,
 			ref: { path: number.path, field: "", dateField: "" },
 			value: number.value,
+			history: [],
+		}),
+	);
+	const words = texts.map(
+		(text): IFieldChoice => ({
+			id: `value:${text.path}`,
+			label: `“${text.path}”`,
+			ref: { path: text.path, field: "", dateField: "" },
+			value: text.value,
 			history: [],
 		}),
 	);
@@ -55,7 +64,7 @@ export const fieldChoicesInJson = (json: unknown): IFieldChoice[] => {
 					: [];
 			});
 	});
-	return [...singles, ...overTime];
+	return [...singles, ...words, ...overTime];
 };
 
 /**

@@ -635,6 +635,16 @@ export interface IEditorState {
 	 * (data study, `putReadData`).
 	 */
 	putReadData: (source: TDataSource, read: IReadData) => void;
+	/**
+	 * What's kept from a source, changed (ADR-0123): what was read put in, and
+	 * the values and tables it gave that are no longer kept removed (whatever
+	 * showed or followed a removed value stops). One undo step.
+	 */
+	keepFromSource: (
+		source: TDataSource,
+		read: IReadData,
+		removed: { valueKeys: readonly string[]; tableKeys: readonly string[] },
+	) => void;
 	/** Removes a table from the world's data. */
 	removeDataTable: (key: string) => void;
 	/** Removes a source; its values and tables stay, as typed by hand. */
@@ -2096,6 +2106,28 @@ export const createEditorStore = (openScene?: TScene) => {
 				get().commit((scene) => {
 					scene.data = putReadData(scene.data, source, read);
 				}),
+
+			keepFromSource: (source, read, removed) => {
+				get().commit((scene) => {
+					scene.data = putReadData(scene.data, source, read);
+					scene.data.values = scene.data.values.filter(
+						(each) => !removed.valueKeys.includes(each.key),
+					);
+					scene.data.tables = scene.data.tables.filter(
+						(each) => !removed.tableKeys.includes(each.key),
+					);
+					for (const key of removed.valueKeys) {
+						renameDataReferences(scene, key, null);
+					}
+				});
+				const at = get().dataWindow;
+				if (
+					(at?.kind === "value" && removed.valueKeys.includes(at.key)) ||
+					(at?.kind === "table" && removed.tableKeys.includes(at.key))
+				) {
+					set({ dataWindow: { kind: "start" } });
+				}
+			},
 
 			removeDataTable: (key) => {
 				get().commit((scene) => {

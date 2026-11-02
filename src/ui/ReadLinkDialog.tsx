@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { allowLink, forgetLink, isLinkAllowed } from "#/editor/linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "#/editor/readLink";
@@ -14,7 +14,7 @@ import {
 	readJsonPath,
 	type TJsonPick,
 } from "#/scene/jsonSource";
-import { DataSourceSchema, type TDataSource } from "#/scene/schema";
+import { DataSourceSchema, type TDataSource, type TDataValue } from "#/scene/schema";
 
 import { Button } from "./Button";
 import { DataTableView } from "./DataTableView";
@@ -252,13 +252,27 @@ const ListChoice = ({
 export const ReadLinkDialog = ({
 	onClose,
 	onSpreadsheet,
+	source: existing,
 }: {
 	onClose: () => void;
 	/** The link is a spreadsheet: read it in the spreadsheet dialog, as this source. */
 	onSpreadsheet: (reading: ISpreadsheetReading) => void;
+	/**
+	 * A link or API already in the world: change what's kept from it (ADR-0123). It's read at
+	 * once, what's kept is ticked, and Keep these adds what's ticked and removes what's not.
+	 */
+	source?: TDataSource;
 }) => {
 	const putReadData = useEditor((s) => s.putReadData);
-	const [url, setUrl] = useState("");
+	const keepFromSource = useEditor((s) => s.keepFromSource);
+	const data = useEditor((s) => s.scene.data);
+	const keptValues = existing
+		? data.values.filter((value) => value.source?.sourceId === existing.id)
+		: [];
+	const keptTables = existing
+		? data.tables.filter((table) => table.source?.sourceId === existing.id)
+		: [];
+	const [url, setUrl] = useState(existing?.url ?? "");
 	const [name, setName] = useState("");
 	const [refresh, setRefresh] = useState("");
 	const [content, setContent] = useState<Extract<TLinkContent, { kind: "json" }> | null>(null);
@@ -268,18 +282,58 @@ export const ReadLinkDialog = ({
 	const [choices, setChoices] = useState<Record<string, IListChoice>>({});
 	const contents = content ? describeJson(content.json) : null;
 	const numbers = contents?.numbers.slice(0, MOST_NUMBERS) ?? [];
+	const texts = contents?.texts.slice(0, MOST_NUMBERS) ?? [];
 	const lists = contents?.lists.slice(0, 6) ?? [];
 	const picks = contents ? picksOf(values, lists, choices) : [];
 
 	const sourceFor = (kind: TDataSource["kind"]): TDataSource =>
-		DataSourceSchema.parse({
-			id: newId("source"),
-			name: name.trim() || nameOfLink(url),
-			kind,
-			url: url.trim(),
-			refreshSeconds: refresh ? Number(refresh) : null,
-			lastReadAt: new Date().toISOString(),
-		});
+		existing
+			? { ...existing, lastReadAt: new Date().toISOString() }
+			: DataSourceSchema.parse({
+					id: newId("source"),
+					name: name.trim() || nameOfLink(url),
+					kind,
+					url: url.trim(),
+					refreshSeconds: refresh ? Number(refresh) : null,
+					lastReadAt: new Date().toISOString(),
+				});
+
+	/** How a list starts when changing what's kept: as its kept table, its kept values over time, or nothing. */
+	const keptChoice = (json: unknown, list: IJsonList): IListChoice => {
+		const start = startingChoice(json, list);
+		const table = keptTables.find((each) => each.source?.path === list.path);
+		if (table) {
+			const fieldOf = (key: string) =>
+				table.columns.find((column) => column.key === key)?.field || key;
+			return {
+				...start,
+				use: "table",
+				name: table.name,
+				fields: table.columns.map((column) => column.field || column.key),
+				keyField: table.keyColumn ? fieldOf(table.keyColumn) : "",
+				rowLimit: table.source?.maxRowCount ? String(table.source.maxRowCount) : "",
+			};
+		}
+		const overTime = keptValues.filter(
+			(value) => value.source?.path === list.path && value.source.dateField,
+		);
+		if (overTime.length > 0) {
+			return {
+				...start,
+				use: "history",
+				dateField: overTime[0].source?.dateField ?? start.dateField,
+				valueFields: overTime.map((value) => value.source?.field ?? ""),
+			};
+		}
+		return { ...start, use: "nothing" };
+	};
+
+	// Changing what's kept: read it at once (choosing to here is this browser's yes, as typing it is).
+	useEffect(() => {
+		if (existing) {
+			void read();
+		}
+	}, []);
 
 	const read = async () => {
 		setReading(true);
@@ -292,15 +346,29 @@ export const ReadLinkDialog = ({
 			const got = await readLink(url);
 			if (got.kind === "csv") {
 				onSpreadsheet({
-					fileName: name.trim() || nameOfLink(url),
+					fileName: name.trim() || existing?.fileName || nameOfLink(url),
 					sheets: [got.sheet],
 					source: sourceFor("link"),
-					isAgain: false,
+					isAgain: existing !== undefined,
 				});
 				return;
 			}
 			const found = describeJson(got.json);
 			setContent(got);
+			if (existing) {
+				// What's kept from it, ticked: its single values, and each list as its table or values over time.
+				setValues(
+					keptValues
+						.filter((value) => !value.source?.dateField)
+						.map((value) => value.source?.path ?? ""),
+				);
+				setChoices(
+					Object.fromEntries(
+						found.lists.slice(0, 6).map((list) => [list.path, keptChoice(got.json, list)]),
+					),
+				);
+				return;
+			}
 			setValues(found.lists.length === 0 ? found.numbers.slice(0, 3).map((n) => n.path) : []);
 			setChoices(
 				Object.fromEntries(
@@ -328,15 +396,61 @@ export const ReadLinkDialog = ({
 		<Dialog
 			open
 			onOpenChange={(open) => !open && onClose()}
-			title="Read a link or API"
-			description="A CSV file, a published Google Sheet, or an API that answers in JSON, read by this browser. Keys and secrets can't be kept in a world yet."
+			title={
+				existing ? `What to keep from ${existing.name || nameOfLink(url)}` : "Read a link or API"
+			}
+			description={
+				existing
+					? "Ticked is kept. Tick more to add them; untick one to remove it, and whatever shows or follows it stops."
+					: "A CSV file, a published Google Sheet, or an API that answers in JSON, read by this browser. Keys and secrets can't be kept in a world yet."
+			}
 			closeLabel="Cancel"
 			wide
 			confirm={{
-				label: "Add to the world",
-				disabled: !content || picks.length === 0,
+				label: existing ? "Keep these" : "Add to the world",
+				disabled: !content || (!existing && picks.length === 0),
 				onConfirm: () => {
 					if (!content) {
+						return;
+					}
+					if (existing) {
+						const source = sourceFor("api");
+						const got = dataFromJson(content.json, source.id, picks);
+						// Only what this dialog shows can be unticked: anything it doesn't list stays.
+						const shown = new Set([
+							...numbers.map((each) => each.path),
+							...texts.map((each) => each.path),
+							...lists.map((each) => each.path),
+						]);
+						const stillKept = (ref: TDataValue["source"]) =>
+							got.values.some(
+								(each) =>
+									each.source?.path === ref?.path &&
+									each.source?.field === ref?.field &&
+									each.source?.dateField === ref?.dateField,
+							);
+						const valueKeys = keptValues
+							.filter((value) => shown.has(value.source?.path ?? "") && !stillKept(value.source))
+							.map((value) => value.key);
+						const tableKeys = keptTables
+							.filter(
+								(table) =>
+									shown.has(table.source?.path ?? "") &&
+									!got.tables.some((each) => each.source?.path === table.source?.path),
+							)
+							.map((table) => table.key);
+						keepFromSource(source, got, { valueKeys, tableKeys });
+						notify(
+							`Kept from ${source.name || nameOfLink(url)}`,
+							[
+								`${got.values.length} value${got.values.length === 1 ? "" : "s"}`,
+								`${got.tables.length} table${got.tables.length === 1 ? "" : "s"}`,
+								valueKeys.length + tableKeys.length > 0 &&
+									`${valueKeys.length + tableKeys.length} removed`,
+							]
+								.filter(Boolean)
+								.join(", "),
+						);
 						return;
 					}
 					const source = sourceFor("api");
@@ -358,13 +472,17 @@ export const ReadLinkDialog = ({
 				},
 			}}
 		>
-			<TextField
-				label="Address"
-				value={url}
-				placeholder="https://api.example.com/stats"
-				onChange={setUrl}
-				hasNoDefault
-			/>
+			{existing ? (
+				<Hint>{`From ${url}. Its address and how often it's read are its settings, on its page.`}</Hint>
+			) : (
+				<TextField
+					label="Address"
+					value={url}
+					placeholder="https://api.example.com/stats"
+					onChange={setUrl}
+					hasNoDefault
+				/>
+			)}
 
 			<Button icon="download" onClick={read} disabled={reading || url.trim() === ""}>
 				{reading ? "Reading…" : content ? "Read it again" : "Read"}
@@ -378,36 +496,46 @@ export const ReadLinkDialog = ({
 
 			{content && contents && (
 				<>
-					<TextField
-						label="Source name"
-						value={name}
-						placeholder={nameOfLink(url)}
-						onChange={setName}
-						inherit={resetToDefault(name, "", () => setName(""), "its address")}
-					/>
+					{!existing && (
+						<TextField
+							label="Source name"
+							value={name}
+							placeholder={nameOfLink(url)}
+							onChange={setName}
+							inherit={resetToDefault(name, "", () => setName(""), "its address")}
+						/>
+					)}
 
-					<SelectField
-						label="Read it again"
-						value={refresh}
-						options={REFRESH_OPTIONS}
-						onChange={setRefresh}
-						inherit={resetToDefault(refresh, "", () => setRefresh(""), "only when asked")}
-						hint="While the world is open, by this browser. What arrives shows at once, and isn't saved until you keep it."
-					/>
+					{!existing && (
+						<SelectField
+							label="Read it again"
+							value={refresh}
+							options={REFRESH_OPTIONS}
+							onChange={setRefresh}
+							inherit={resetToDefault(refresh, "", () => setRefresh(""), "only when asked")}
+							hint="While the world is open, by this browser. What arrives shows at once, and isn't saved until you keep it."
+						/>
+					)}
 
-					{numbers.length > 0 ? (
+					{numbers.length + texts.length > 0 ? (
 						<CheckboxGroupField
 							label="Values"
-							options={numbers.map((number) => ({
-								value: number.path,
-								label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
-							}))}
+							options={[
+								...numbers.map((number) => ({
+									value: number.path,
+									label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
+								})),
+								...texts.map((text) => ({
+									value: text.path,
+									label: `${nameOfField(text.path)}: “${text.value}” (${text.path})`,
+								})),
+							]}
 							value={values}
 							onChange={setValues}
 							hasNoDefault
 						/>
 					) : (
-						<Hint>No single numbers in it outside lists.</Hint>
+						<Hint>No single numbers or texts in it outside lists.</Hint>
 					)}
 
 					{lists.map((list) => (
@@ -420,7 +548,13 @@ export const ReadLinkDialog = ({
 						/>
 					))}
 
-					{picks.length === 0 && <Hint>Pick a value or keep a list to add something.</Hint>}
+					{picks.length === 0 && (
+						<Hint>
+							{existing
+								? "Nothing ticked: Keep these removes everything it gave that's listed here."
+								: "Pick a value or keep a list to add something."}
+						</Hint>
+					)}
 				</>
 			)}
 		</Dialog>

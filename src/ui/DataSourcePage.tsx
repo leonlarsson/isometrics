@@ -118,9 +118,12 @@ const SourceAddressField = ({
 export const DataSourcePage = ({
 	source,
 	onReadFileAgain,
+	onChangeKept,
 }: {
 	source: TDataSource;
 	onReadFileAgain: (source: TDataSource) => void;
+	/** Change what's kept from a link or API: read it again with what's kept ticked. */
+	onChangeKept: (source: TDataSource) => void;
 }) => {
 	const { values, tables } = useEditor((s) => s.scene.data);
 	const commit = useEditor((s) => s.commit);
@@ -315,6 +318,21 @@ export const DataSourcePage = ({
 				) : (
 					<Hint>
 						{isWaiting ? "Nothing until it's allowed and read." : "Nothing from it is kept now."}
+					</Hint>
+				)}
+
+				{isReadable && (
+					<ButtonGroup>
+						<Button size="sm" icon="edit" onClick={() => onChangeKept(source)}>
+							Change what's kept…
+						</Button>
+					</ButtonGroup>
+				)}
+
+				{isReadable && (
+					<Hint>
+						Reads it again and shows everything in it: tick more numbers, texts or lists to keep
+						them, untick one to remove it.
 					</Hint>
 				)}
 			</Section>

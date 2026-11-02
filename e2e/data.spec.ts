@@ -230,6 +230,8 @@ test.describe("the dashboard (ADR-0110)", () => {
 
 test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 	test("many sources: each named by its site, and a search finds one", async ({ page }) => {
+		// Twelve sources in the software-drawn browser: slower than most.
+		test.setTimeout(120_000);
 		await openEditor(page);
 		const topics = [
 			"visitors",
@@ -535,6 +537,43 @@ test.describe("a value read from a source (ADR-0123)", () => {
 		await page.keyboard.press("Escape");
 		await expect(dataWindow(page)).toBeHidden();
 		await expect(labelCard(page, /Bot/)).toContainText("41,740");
+	});
+});
+
+test.describe("what's kept from a source (ADR-0123)", () => {
+	test("reading it again lists everything in it: untick to remove, tick a text to keep it", async ({
+		page,
+	}) => {
+		await page.route("https://example.org/stats.json", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				headers: { "access-control-allow-origin": "*" },
+				body: JSON.stringify({ totalUsers: 5, status: "Good" }),
+			}),
+		);
+		await loadWorld(page, {
+			data: {
+				sources: [{ id: "s", name: "Stats", kind: "api", url: "https://example.org/stats.json" }],
+				values: [
+					{ key: "users", name: "Users", value: 1, source: { sourceId: "s", path: "totalUsers" } },
+				],
+			},
+		});
+		await page
+			.getByRole("alertdialog", { name: "This world uses external sources" })
+			.getByRole("button", { name: "Not now" })
+			.click();
+		await act(page, (s) => s.openDataWindow({ kind: "source", id: "s" }));
+		await dataWindow(page).getByRole("button", { name: "Change what's kept…" }).click();
+		const dialog = page.getByRole("dialog", { name: "What to keep from Stats" });
+		await expect(dialog.getByRole("checkbox", { name: /^Total users: 5/ })).toBeChecked();
+		await dialog.getByRole("checkbox", { name: /^Total users: 5/ }).click();
+		await dialog.getByRole("checkbox", { name: /^Status: “Good”/ }).click();
+		await dialog.getByRole("button", { name: "Keep these" }).click();
+		expect(
+			await read(page, (s) => s.scene.data.values.map((value) => [value.key, value.value])),
+		).toEqual([["status", "Good"]]);
 	});
 });
 

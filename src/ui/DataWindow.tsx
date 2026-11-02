@@ -104,6 +104,8 @@ export const DataWindow = () => {
 	const [kind, setKind] = useState<TDataKind>("all");
 	const [reading, setReading] = useState<ISpreadsheetReading | null>(null);
 	const [readsLink, setReadsLink] = useState(false);
+	// A link or API whose kept values and tables are being changed.
+	const [keepsFrom, setKeepsFrom] = useState<TDataSource | null>(null);
 	// What was there before a read, to open what it added; and the key of what was just added.
 	const [before, setBefore] = useState<ReturnType<typeof keysNow> | null>(null);
 	const [newKey, setNewKey] = useState<string | null>(null);
@@ -205,6 +207,10 @@ export const DataWindow = () => {
 			key={source.id}
 			source={source}
 			onReadFileAgain={(again) => void readFile(again)}
+			onChangeKept={(kept) => {
+				setBefore(keysNow());
+				setKeepsFrom(kept);
+			}}
 		/>
 	) : at?.kind === "add" || isFirst ? (
 		addPage
@@ -279,6 +285,20 @@ export const DataWindow = () => {
 					onClose={() => {
 						setReading(null);
 						finishReading();
+					}}
+				/>
+			)}
+
+			{keepsFrom && (
+				<ReadLinkDialog
+					source={keepsFrom}
+					onClose={() => {
+						setKeepsFrom(null);
+						setBefore(null);
+					}}
+					onSpreadsheet={(sheet) => {
+						setKeepsFrom(null);
+						setReading(sheet);
 					}}
 				/>
 			)}
