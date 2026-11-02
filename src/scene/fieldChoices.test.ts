@@ -38,7 +38,7 @@ describe("what a value could be read from", () => {
 				value,
 				history.length,
 			]),
-		).toEqual([["the “sent” column", "sent", 9, 2]]);
+		).toEqual([["the “Sent” column", "sent", 9, 2]]);
 		const plain = readSheet([
 			["visitors", "rain"],
 			["10", "2"],
@@ -49,7 +49,7 @@ describe("what a value could be read from", () => {
 				{ name: "Stats", sheet: plain },
 				{ name: "Other", sheet: plain },
 			])[0],
-		).toMatchObject({ label: "Stats › “visitors”", ref: { path: "Stats!visitors" }, value: 12 });
+		).toMatchObject({ label: "Stats › “Visitors”", ref: { path: "Stats!visitors" }, value: 12 });
 	});
 
 	it("offers yes/no and texts over time too, as a value can hold them", () => {

@@ -22,7 +22,9 @@ export type TSheetCell = string | number | boolean | Date | null;
 export type TColumnKind = "number" | "date" | "text";
 
 export interface ISheetColumn {
-	/** Its header as written, or "Column 3" without one. */
+	/** Its header as written, or "Column 3" without one: where a value is read from in it (its `path`). */
+	heading: string;
+	/** Its header as people read it: "visitors" → "Visitors", "rain_mm" → "Rain mm". */
 	name: string;
 	/** Its header as a data key, unique among the sheet's columns. */
 	key: string;
@@ -251,6 +253,16 @@ const uniqueKey = (base: string, taken: Set<string>) => {
 };
 
 /**
+ * A header as a name people read (ADR-0123), as links' fields are named: underscores as
+ * spaces and a capital first letter ("visitors" → "Visitors", "rain_mm" → "Rain mm").
+ * The rest stays as written ("CO2 level" keeps its capitals).
+ */
+export const nameOfHeading = (heading: string) => {
+	const words = heading.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+	return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/**
  * A sheet's rows (the first is the header) read and typed: each column as
  * dates, numbers or text, whichever all its cells read as. Empty rows and
  * empty columns without a header are left out.
@@ -272,11 +284,13 @@ export const readSheet = (
 		}
 		const name = heading ?? `Column ${index + 1}`;
 		const dates = readDates(name, raw);
+		const shown = nameOfHeading(name);
 		const numbers = dates ? null : readNumbers(raw, decimalComma);
 		const cells = dates ?? numbers?.cells ?? raw.map(textOf);
 		const named = cells.filter((cell) => cell !== null).map(String);
 		columns.push({
-			name,
+			heading: name,
+			name: shown,
 			key: uniqueKey(toDataKey(name), keys),
 			kind: dates ? "date" : numbers ? "number" : "text",
 			unit: numbers?.unit ?? "",
@@ -451,7 +465,7 @@ export const dataFromSheet = (
 								typeof point.at === "string" && typeof point.value === "number",
 						)
 						.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-					return value(each.name, history.at(-1)?.value ?? null, each.unit, each.name, history);
+					return value(each.name, history.at(-1)?.value ?? null, each.unit, each.heading, history);
 				}),
 			tables: [],
 		};
@@ -459,7 +473,9 @@ export const dataFromSheet = (
 	if (reading.readsAs === "valuePerColumn") {
 		const last = sheet.rowCount - 1;
 		return {
-			values: sheet.columns.map((each) => value(each.name, each.cells[last], each.unit, each.name)),
+			values: sheet.columns.map((each) =>
+				value(each.name, each.cells[last], each.unit, each.heading),
+			),
 			tables: [],
 		};
 	}
