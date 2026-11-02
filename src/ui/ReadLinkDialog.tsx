@@ -10,7 +10,10 @@ import {
 	dataFromJson,
 	describeJson,
 	guessKeyField,
+	type IJsonContents,
 	type IJsonList,
+	JSON_DEPTH,
+	LONGEST_TEXT,
 	nameOfField,
 	readJsonPath,
 	type TJsonPick,
@@ -25,6 +28,7 @@ import {
 	FieldGroup,
 	Hint,
 	resetToDefault,
+	SearchField,
 	SelectField,
 	TextField,
 } from "./fields";
@@ -53,6 +57,12 @@ const BIG_LIST = 500;
 /** The most numbers offered as values: a response can hold many. */
 const MOST_NUMBERS = 40;
 
+/** The most lists offered at once; more are named in a note. */
+const MOST_LISTS = 12;
+
+/** From this many single values on, the values get a search. */
+const SEARCHABLE_FROM = 12;
+
 type TListUse = "nothing" | "table" | "history";
 
 /** What's chosen for one list of entries in the response. */
@@ -65,6 +75,28 @@ interface IListChoice {
 	dateField: string;
 	valueFields: string[];
 }
+
+/** What a reading left out of a response, in sentences: more lists than it shows, plain lists, deeper places, long texts. */
+const leftOutOf = (contents: IJsonContents): string[] => {
+	const plain = contents.plainLists
+		.slice(0, 4)
+		.map((list) => `“${list.path || "the answer"}” (${list.length})`);
+	return [
+		contents.lists.length > MOST_LISTS &&
+			`${contents.lists.length - MOST_LISTS} more lists of entries (${contents.lists
+				.slice(MOST_LISTS, MOST_LISTS + 3)
+				.map((list) => `“${list.path}”`)
+				.join(
+					", ",
+				)}${contents.lists.length > MOST_LISTS + 3 ? "…" : ""}): only the first ${MOST_LISTS} are shown.`,
+		contents.plainLists.length > 0 &&
+			`Lists of plain values, not entries with fields, can't be kept yet: ${plain.join(", ")}${contents.plainLists.length > 4 ? ` and ${contents.plainLists.length - 4} more` : ""}.`,
+		contents.deeperCount > 0 &&
+			`${contents.deeperCount === 1 ? "1 place" : `${contents.deeperCount} places`} more than ${JSON_DEPTH} levels deep ${contents.deeperCount === 1 ? "isn't" : "aren't"} read.`,
+		contents.longTextCount > 0 &&
+			`${contents.longTextCount === 1 ? "1 text is" : `${contents.longTextCount} texts are`} over ${LONGEST_TEXT} characters, too long to be a value.`,
+	].filter((line): line is string => typeof line === "string");
+};
 
 /** How a list starts: a table of its first fields, or values over time when it has dates and numbers. */
 const startingChoice = (json: unknown, list: IJsonList): IListChoice => {
@@ -288,9 +320,27 @@ export const ReadLinkDialog = ({
 	const [values, setValues] = useState<string[]>([]);
 	const [choices, setChoices] = useState<Record<string, IListChoice>>({});
 	const contents = content ? describeJson(content.json) : null;
-	const numbers = contents?.numbers.slice(0, MOST_NUMBERS) ?? [];
-	const texts = contents?.texts.slice(0, MOST_NUMBERS) ?? [];
-	const lists = contents?.lists.slice(0, 6) ?? [];
+	// Every single value found (what's ticked is among them); a search and a cap decide what's listed.
+	const numbers = contents?.numbers ?? [];
+	const texts = contents?.texts ?? [];
+	const lists = contents?.lists.slice(0, MOST_LISTS) ?? [];
+	const [valueQuery, setValueQuery] = useState("");
+	const valueOptions = [
+		...numbers.map((number) => ({
+			value: number.path,
+			label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
+		})),
+		...texts.map((text) => ({
+			value: text.path,
+			label: `${nameOfField(text.path)}: “${text.value}” (${text.path})`,
+		})),
+	];
+	const wanted = valueQuery.trim().toLowerCase();
+	const matching = wanted
+		? valueOptions.filter((option) => option.label.toLowerCase().includes(wanted))
+		: valueOptions;
+	const listed = matching.slice(0, MOST_NUMBERS);
+	const listedPaths = new Set(listed.map((option) => option.value));
 	const picks = contents ? picksOf(values, lists, choices) : [];
 
 	const sourceFor = (kind: TDataSource["kind"]): TDataSource =>
@@ -371,7 +421,7 @@ export const ReadLinkDialog = ({
 				);
 				setChoices(
 					Object.fromEntries(
-						found.lists.slice(0, 6).map((list) => [list.path, keptChoice(got.json, list)]),
+						found.lists.slice(0, MOST_LISTS).map((list) => [list.path, keptChoice(got.json, list)]),
 					),
 				);
 				return;
@@ -379,7 +429,7 @@ export const ReadLinkDialog = ({
 			setValues(found.lists.length === 0 ? found.numbers.slice(0, 3).map((n) => n.path) : []);
 			setChoices(
 				Object.fromEntries(
-					found.lists.slice(0, 6).map((list, index) => [
+					found.lists.slice(0, MOST_LISTS).map((list, index) => [
 						list.path,
 						// The first list is kept; others start as nothing.
 						index === 0
@@ -531,25 +581,40 @@ export const ReadLinkDialog = ({
 						/>
 					)}
 
-					{numbers.length + texts.length > 0 ? (
+					{valueOptions.length >= SEARCHABLE_FROM && (
+						<SearchField
+							label="Find a value"
+							placeholder="Find a value…"
+							value={valueQuery}
+							onChange={setValueQuery}
+						/>
+					)}
+
+					{listed.length > 0 && (
 						<CheckboxGroupField
 							label="Values"
-							options={[
-								...numbers.map((number) => ({
-									value: number.path,
-									label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
-								})),
-								...texts.map((text) => ({
-									value: text.path,
-									label: `${nameOfField(text.path)}: “${text.value}” (${text.path})`,
-								})),
-							]}
-							value={values}
-							onChange={setValues}
+							options={listed}
+							// What's ticked but not listed (a search, the cap) stays ticked.
+							value={values.filter((path) => listedPaths.has(path))}
+							onChange={(next) =>
+								setValues([...values.filter((path) => !listedPaths.has(path)), ...next])
+							}
 							hasNoDefault
 						/>
-					) : (
+					)}
+
+					{valueOptions.length === 0 && (
 						<Hint>No single numbers or texts in it outside lists.</Hint>
+					)}
+
+					{valueOptions.length > 0 && matching.length === 0 && (
+						<Hint>{`No value matches “${valueQuery.trim()}”.`}</Hint>
+					)}
+
+					{matching.length > listed.length && (
+						<Hint>
+							{`And ${(matching.length - listed.length).toLocaleString()} more not listed: find them by name with the search.`}
+						</Hint>
 					)}
 
 					{lists.map((list) => (
@@ -561,6 +626,15 @@ export const ReadLinkDialog = ({
 							onChange={(choice) => setChoices({ ...choices, [list.path]: choice })}
 						/>
 					))}
+
+					{/* What the reader left out, and why: nothing is dropped without a word. */}
+					{contents && leftOutOf(contents).length > 0 && (
+						<Hint>
+							<strong>Not offered: </strong>
+
+							{leftOutOf(contents).join(" ")}
+						</Hint>
+					)}
 
 					{picks.length === 0 && (
 						<Hint>

@@ -174,4 +174,17 @@ describe("JSON sources (ADR-0113)", () => {
 			threshold: { line: 5 },
 		});
 	});
+
+	it("counts what it leaves out: lists of plain values, places too deep, texts too long", () => {
+		const contents = describeJson({
+			tags: ["beauty", "mascara"],
+			a: { b: { c: { d: { e: 1 } } } },
+			description: "x".repeat(200),
+			reviews: [{ rating: 3 }],
+		});
+		expect(contents.plainLists).toEqual([{ path: "tags", length: 2 }]);
+		expect(contents.deeperCount).toBe(1);
+		expect(contents.longTextCount).toBe(1);
+		expect(contents.lists.map((list) => list.path)).toEqual(["reviews"]);
+	});
 });
