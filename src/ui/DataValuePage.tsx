@@ -1,19 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { sourceNameOf } from "#/editor/dataList";
 import { dataUsesOf, type IDataUse } from "#/editor/dataUses";
 import { useEditor } from "#/editor/store";
-import { formatEntry, formatValue, toDataKey } from "#/scene/format";
+import { formatWhen } from "#/lib/when";
 import {
-	DataColumnSchema,
+	formatEntry,
+	formatValue,
+	parseValue,
+	toDataKey,
+	YES_NO_WORDS,
+	yesNoOf,
+} from "#/scene/format";
+import { recordPoint, todayAsDate } from "#/scene/pastValues";
+import {
 	DataThresholdSchema,
 	type TDataSource,
-	type TDataTable,
 	type TDataValue,
+	type TNumberStyle,
+	type TYesNoStyle,
 } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, ButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DataTableDialog } from "./DataTableDialog";
 import {
 	Hint,
 	NumberField,
@@ -24,18 +33,20 @@ import {
 	TextField,
 } from "./fields";
 import { List, ListItem } from "./List";
-import { formatWhen, HistoryChart, numericPoints } from "./Sparkline";
+import { PastValuesDialog } from "./PastValuesDialog";
+import { ReadFromSourceDialog } from "./ReadFromSourceDialog";
+import { HistoryChart, numericPoints } from "./Sparkline";
+import { Tooltip } from "./Tooltip";
 
-import styles from "./DataPanel.module.css";
+/** How a number can be written (`numberStyle`), each shown with the value's own number. */
+const NUMBER_STYLES: { value: TNumberStyle; label: string }[] = [
+	{ value: "full", label: "In full" },
+	{ value: "grouped", label: "With separators" },
+	{ value: "short", label: "Short" },
+];
 
-/** Values may be numbers or text; keep numbers numeric so formatting works. */
-const parseValue = (raw: string): number | string => {
-	const trimmed = raw.trim();
-	if (trimmed !== "" && /^-?\d+(\.\d+)?$/.test(trimmed)) {
-		return Number(trimmed);
-	}
-	return raw;
-};
+/** The ways a yes or no can be written (`yesNoStyle`). */
+const YES_NO_STYLES: TYesNoStyle[] = ["yesNo", "trueFalse", "onOff", "checks"];
 
 /** A key as it's typed: lowercase letters, numbers and underscores. */
 const asKey = (typed: string) =>
@@ -57,37 +68,58 @@ interface IDataValuePageProps {
 	value: TDataValue;
 	/** The source it's read from, if it still exists. */
 	source: TDataSource | null;
-	/** Where it comes from, in words ("from sent.csv, sent"). */
-	origin: string;
 	onReadAgain: (source: TDataSource) => void;
 }
 
 /**
- * One data value's own page in the Data tab (data study): its name, key,
- * value and unit, where it comes from, its past values, and everything that
- * shows or follows it, each a way to go there. The header's breadcrumb names
- * it, with a way back to the list.
+ * One data value's page in the Data window (data study, ADR-0123): its name,
+ * key, value and unit, where it comes from, its past values, and everything
+ * that shows or follows it, each a way to go there (closing the window).
  */
-export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValuePageProps) => {
+export const DataValuePage = ({ value, source, onReadAgain }: IDataValuePageProps) => {
 	const scene = useEditor((s) => s.scene);
 	const upsertData = useEditor((s) => s.upsertData);
 	const removeData = useEditor((s) => s.removeData);
 	const selectItems = useEditor((s) => s.selectItems);
 	const setTab = useEditor((s) => s.setTab);
+	const openDataWindow = useEditor((s) => s.openDataWindow);
 	// A run of edits to its name and key, while the page is open, is one undo step.
-	const [editing] = useState(() => `data-page:${value.key}`);
+	const [editing, setEditing] = useState(() => `data-page:${value.key}`);
+	// The key this page just renamed it to: renamed here, it's the same value, still being edited
+	// (the page isn't rebuilt, so the field being typed in keeps its place).
+	const renamedTo = useRef<string | null>(null);
 	const [typedKey, setTypedKey] = useState(value.key);
 	const [typedValue, setTypedValue] = useState(String(value.value));
-	const [showsPast, setShowsPast] = useState(false);
+	const [editsPast, setEditsPast] = useState(false);
+	// Today's number, recorded: today's entry holds what it shows now.
+	const today = todayAsDate();
+	const isRecordedToday = value.history.some(
+		(point) => point.at === today && point.value === value.value,
+	);
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
+	const [readsFrom, setReadsFrom] = useState(false);
 	const name = value.name || value.key;
+	const yesNo = yesNoOf(value.value);
+	// Unset, the style in effect: separators, short from 100,000.
+	const numberStyleShown: TNumberStyle =
+		value.numberStyle ??
+		(typeof value.value === "number" && Math.abs(value.value) >= 100_000 ? "short" : "grouped");
 	const others = scene.data.values.filter((each) => each.key !== value.key);
 	const uses = dataUsesOf(scene, value.key);
 
-	// What's typed follows changes made elsewhere: undo, reading its source again.
+	// Another value opened here, or this one renamed elsewhere (undo): start afresh with it.
 	useEffect(() => {
+		if (renamedTo.current === value.key) {
+			renamedTo.current = null;
+			return;
+		}
 		if (asKey(typedKey) !== value.key) {
 			setTypedKey(value.key);
+			setTypedValue(String(value.value));
+			setEditing(`data-page:${value.key}`);
+			setEditsPast(false);
+			setConfirmsRemove(false);
+			setReadsFrom(false);
 		}
 	}, [value.key]);
 	useEffect(() => {
@@ -105,9 +137,12 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				: null;
 
 	const rename = (typed: string) => {
-		// A made-up key becomes the name's, as long as no other value has it.
+		// A key that follows the name (made up by Add, or still the name's) becomes the new name's,
+		// as long as no other value has it; one typed by hand stays.
 		const key = toDataKey(typed);
-		if (isMadeUpKey(value.key) && typed.trim() && !others.some((each) => each.key === key)) {
+		const followsName = isMadeUpKey(value.key) || value.key === toDataKey(value.name);
+		if (followsName && typed.trim() && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, name: typed, key }, value.key, editing);
 			setTypedKey(key);
 			return;
@@ -119,6 +154,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 		setTypedKey(typed);
 		const key = asKey(typed);
 		if (key && key !== value.key && !others.some((each) => each.key === key)) {
+			renamedTo.current = key;
 			upsertData({ ...value, key }, value.key, editing);
 		}
 	};
@@ -128,6 +164,7 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 			selectItems([use.item]);
 		}
 		setTab(use.tab);
+		openDataWindow(null);
 	};
 
 	const numbers = numericPoints(value.history);
@@ -140,20 +177,6 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 	]
 		.filter(Boolean)
 		.join("; ");
-	const past: TDataTable = {
-		key: "past_values",
-		name: `${name}: past values`,
-		source: null,
-		keyColumn: "",
-		columns: [
-			DataColumnSchema.parse({ key: "at", name: "When" }),
-			DataColumnSchema.parse({ key: "value", name, unit: value.unit }),
-		],
-		rows: [...value.history]
-			.reverse()
-			.map((point) => ({ at: formatWhen(point.at), value: point.value })),
-		history: [],
-	};
 
 	return (
 		<>
@@ -193,6 +216,45 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					inherit={resetToDefault(value.unit, "", () => upsertData({ ...value, unit: "" }), "none")}
 					hint="Shown right after the value: type “ min” (with a space) or “%”."
 				/>
+
+				{/* How it's written, for what it holds: a number, or a yes or no (other text is as typed). */}
+				{typeof value.value === "number" && (
+					<SelectField
+						label="Numbers written as"
+						value={numberStyleShown}
+						options={NUMBER_STYLES.map((style) => ({
+							value: style.value,
+							label: `${style.label}: ${formatValue(value.value, value.unit, style.value)}`,
+						}))}
+						onChange={(numberStyle) => upsertData({ ...value, numberStyle })}
+						inherit={{
+							from: "default",
+							inherited: value.numberStyle === null,
+							onReset: () => upsertData({ ...value, numberStyle: null }),
+							value: "separators, short from 100,000",
+						}}
+						hint="How cards, tiles and lists write it."
+					/>
+				)}
+
+				{yesNo && (
+					<SelectField
+						label="Yes/no written as"
+						value={value.yesNoStyle ?? "yesNo"}
+						options={YES_NO_STYLES.map((style) => ({
+							value: style,
+							label: `${YES_NO_WORDS[style].yes} / ${YES_NO_WORDS[style].no}`,
+						}))}
+						onChange={(yesNoStyle) => upsertData({ ...value, yesNoStyle })}
+						inherit={{
+							from: "default",
+							inherited: value.yesNoStyle === null,
+							onReset: () => upsertData({ ...value, yesNoStyle: null }),
+							value: "yes / no",
+						}}
+						hint={`How cards, tiles and lists write it: “${formatEntry(value)}” now. Things that follow it still read it as on or off.`}
+					/>
+				)}
 
 				<TextField
 					label="Note"
@@ -303,26 +365,50 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 					<>
 						<Hint>
 							{source
-								? `Read ${origin}${source.lastReadAt ? `, ${formatWhen(source.lastReadAt)}` : ""}. Typing a value above changes it until it's read again.`
-								: `Read ${origin}: that source is gone, so it stays as last read.`}
+								? `It comes from ${sourceNameOf(source)}. Typing a value above changes it only until it's read again.`
+								: "Its source was removed, so it stays as last read."}
 						</Hint>
 
-						<div className={styles.buttons}>
+						<ButtonGroup>
+							{source && (
+								<Button
+									size="sm"
+									icon="info"
+									onClick={() => openDataWindow({ kind: "source", id: source.id })}
+								>
+									See the source
+								</Button>
+							)}
+
 							{source?.kind === "file" && (
-								<Button icon="upload" onClick={() => onReadAgain(source)}>
+								<Button size="sm" icon="upload" onClick={() => onReadAgain(source)}>
 									Read it again…
 								</Button>
 							)}
 
-							<Button onClick={() => upsertData({ ...value, source: null })}>
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from somewhere else…
+							</Button>
+
+							<Button size="sm" onClick={() => upsertData({ ...value, source: null })}>
 								Type it by hand instead
 							</Button>
-						</div>
+						</ButtonGroup>
 					</>
 				) : (
-					<Hint>
-						Typed by hand. Values can also be read from a spreadsheet: Sources, in the Data tab.
-					</Hint>
+					<>
+						<Hint>
+							Typed by hand: it shows what's typed above. Read it from a source to have it follow a
+							number, a text or a yes/no there (a link, an API or a spreadsheet); it keeps its name
+							and everything that shows it.
+						</Hint>
+
+						<ButtonGroup>
+							<Button size="sm" icon="download" onClick={() => setReadsFrom(true)}>
+								Read it from a source…
+							</Button>
+						</ButtonGroup>
+					</>
 				)}
 			</Section>
 
@@ -333,27 +419,53 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				keywords="history trend over time sparkline"
 			>
 				{numbers.length >= 2 && (
-					<HistoryChart points={value.history} label={`${name} over time`} unit={value.unit} />
+					<HistoryChart
+						points={value.history}
+						label={`${name} over time`}
+						unit={value.unit}
+						numberStyle={value.numberStyle}
+					/>
 				)}
 
-				{value.history.length > 0 ? (
-					<>
-						<Hint>{pastInWords}</Hint>
+				<Hint>
+					{value.history.length > 0
+						? pastInWords
+						: "None yet. Record today's number to start one, or read it from a spreadsheet or link with a date in each row."}
+				</Hint>
 
-						<div className={styles.buttons}>
-							<Button onClick={() => setShowsPast(true)}>Show them all</Button>
+				<ButtonGroup>
+					<Tooltip
+						label={
+							isRecordedToday
+								? `Today's entry already holds ${formatEntry(value)}.`
+								: `Writes ${formatEntry(value)} into its past values, dated today (${today}).`
+						}
+					>
+						<Button
+							size="sm"
+							icon="plus"
+							disabled={isRecordedToday}
+							onClick={() =>
+								upsertData({
+									...value,
+									history: recordPoint(value.history, { at: today, value: value.value }),
+								})
+							}
+						>
+							Record today's number
+						</Button>
+					</Tooltip>
 
-							<Button onClick={() => upsertData({ ...value, history: [] })}>
-								Clear past values
-							</Button>
-						</div>
-					</>
-				) : (
-					<Hint>
-						None kept. A value read from a spreadsheet with dates keeps its past values here, drawn
-						as a line.
-					</Hint>
-				)}
+					<Button size="sm" icon="edit" onClick={() => setEditsPast(true)}>
+						Edit past values…
+					</Button>
+
+					{value.history.length > 0 && (
+						<Button size="sm" onClick={() => upsertData({ ...value, history: [] })}>
+							Clear past values
+						</Button>
+					)}
+				</ButtonGroup>
 			</Section>
 
 			<Section
@@ -375,21 +487,19 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 						))}
 					</List>
 				) : (
-					<Hint>
-						Nothing shows or follows it yet. Show it on an object's card (its Label tab), or make a
-						light or a colour follow it (From data).
-					</Hint>
+					<Hint>Nothing shows or follows it yet: Show it in the world, above.</Hint>
 				)}
 
-				<div className={styles.buttons}>
+				<ButtonGroup>
 					<Button
+						size="sm"
 						variant="danger"
 						icon="trash"
 						onClick={() => (uses.length > 0 ? setConfirmsRemove(true) : removeData(value.key))}
 					>
 						{uses.length > 0 ? `Remove value (unbinds ${uses.length})` : "Remove value"}
 					</Button>
-				</div>
+				</ButtonGroup>
 			</Section>
 
 			<ConfirmDialog
@@ -402,14 +512,9 @@ export const DataValuePage = ({ value, source, origin, onReadAgain }: IDataValue
 				onConfirm={() => removeData(value.key)}
 			/>
 
-			{showsPast && (
-				<DataTableDialog
-					table={past}
-					origin="newest first"
-					onClose={() => setShowsPast(false)}
-					offersPlacing={false}
-				/>
-			)}
+			{readsFrom && <ReadFromSourceDialog value={value} onClose={() => setReadsFrom(false)} />}
+
+			{editsPast && <PastValuesDialog value={value} onClose={() => setEditsPast(false)} />}
 		</>
 	);
 };

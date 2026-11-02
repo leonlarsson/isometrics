@@ -8,17 +8,17 @@ import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useViewShowsData } from "#/editor/viewData";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { webAddress } from "#/lib/webAddress";
+import { formatWhen } from "#/lib/when";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
 import { formatValue } from "#/scene/format";
-import { columnOfKey, tableOfRow } from "#/scene/rowData";
+import { columnOfKey, nameOfDataKey, tableOfRow } from "#/scene/rowData";
 import type { TDataSource, TDataValue, TWorldData } from "#/scene/schema";
 
 import { ButtonGroup, IconButton } from "./Button";
 import { CameraFollowButtons } from "./CameraFollowBar";
 import { DataReading } from "./DataReading";
 import { FollowsDataField } from "./FollowsDataField";
-import { formatWhen } from "./Sparkline";
 
 import styles from "./DetailSheet.module.css";
 
@@ -99,7 +99,11 @@ export const DetailSheet = () => {
 				<div className={styles.tiles}>
 					{entries.map(({ key, entry }) => (
 						<div key={key} className={styles.tile}>
-							<DataReading entry={entry} label={columnOfKey(key) ?? key} size="huge" />
+							<DataReading
+								entry={entry}
+								label={nameOfDataKey(worldData, key, entity.dataRow)}
+								size="huge"
+							/>
 
 							{entry?.about && <span className={styles.about}>{entry.about}</span>}
 						</div>

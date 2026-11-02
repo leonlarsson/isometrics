@@ -1272,3 +1272,9 @@ textarea.input {
 	padding: 8px 10px;
 	color: var(--text-muted);
 }
+
+/* A checkbox that can't be changed here: greyed, its reason in its label. */
+.check[data-disabled] {
+	opacity: 0.55;
+	cursor: default;
+}

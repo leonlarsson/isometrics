@@ -1,0 +1,95 @@
+/* The world's data by kind: chips, then a card per kind (the kit's Section), a row per thing. */
+
+/* A row's first line: its name, then what it holds on the right. */
+.line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.value {
+	flex: none;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.rows {
+	flex: none;
+	font-size: 12px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Where a value or table comes from, under its name. */
+.origin {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	max-width: 100%;
+}
+
+/* "· waiting for your yes" stays whole; the source's name shortens instead. */
+.originTail {
+	flex: none;
+	white-space: nowrap;
+}
+
+.originName {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* A source's kind as an icon; its tooltip says it in words. */
+.kindIcon {
+	display: grid;
+	place-items: center;
+	flex: none;
+	color: var(--text-muted);
+}
+
+/* How a source is doing, under its name: an icon and words. */
+.status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.status[data-tone="failed"] {
+	color: var(--danger);
+}
+
+.status[data-tone="waiting"] {
+	color: var(--text);
+}
+
+/* An exact error, whole on hover (a tooltip). */
+.detail {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* Allow, at the end of a waiting source's row. */
+.allow {
+	display: flex;
+	align-items: center;
+	padding-right: 4px;
+}
+
+/* A search that found nothing, inset like the cards. */
+.none {
+	margin: 6px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+}

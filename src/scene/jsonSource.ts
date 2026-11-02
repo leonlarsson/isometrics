@@ -85,11 +85,30 @@ export interface IJsonNumber {
 	value: number;
 }
 
-/** What a response holds that a world can keep (ADR-0113). */
+/** A short text found in a response ("Good", "online"): a value can hold text. */
+export interface IJsonText {
+	path: TJsonPath;
+	value: string;
+}
+
+/** What a response holds that a world can keep (ADR-0113, ADR-0123), and what it left out and why. */
 export interface IJsonContents {
 	numbers: IJsonNumber[];
+	texts: IJsonText[];
 	lists: IJsonList[];
+	/** Lists of plain values (["red", "blue"]): no entries with fields, so neither a table nor values over time. */
+	plainLists: { path: TJsonPath; length: number }[];
+	/** Objects deeper than it looks (`depth`), not opened. */
+	deeperCount: number;
+	/** Texts too long to be a value (`LONGEST_TEXT`). */
+	longTextCount: number;
 }
+
+/** How many levels deep a response is looked into. */
+export const JSON_DEPTH = 4;
+
+/** Texts longer than this aren't offered as values: a value is a short word or phrase. */
+export const LONGEST_TEXT = 80;
 
 /** How many entries of a list are looked at to find its fields. */
 const ENTRIES_LOOKED_AT = 50;
@@ -131,19 +150,40 @@ const fieldsOf = (entries: readonly unknown[]): IJsonField[] => {
 };
 
 /**
- * Everything worth keeping in a response: its numbers (not inside lists), and
- * its lists of entries with their fields. Looked for a few levels deep.
+ * Everything worth keeping in a response: its numbers and short texts (not
+ * inside lists; yes/no as text), and its lists of entries with their fields.
+ * Looked for a few levels deep.
  */
-export const describeJson = (json: unknown, depth = 4): IJsonContents => {
-	const contents: IJsonContents = { numbers: [], lists: [] };
+export const describeJson = (json: unknown, depth = JSON_DEPTH): IJsonContents => {
+	const contents: IJsonContents = {
+		numbers: [],
+		texts: [],
+		lists: [],
+		plainLists: [],
+		deeperCount: 0,
+		longTextCount: 0,
+	};
 	const visit = (value: unknown, path: TJsonPath, left: number) => {
 		if (typeof value === "number" && Number.isFinite(value)) {
 			contents.numbers.push({ path, value });
+		} else if (
+			(typeof value === "string" && value.trim() !== "" && value.length <= LONGEST_TEXT) ||
+			typeof value === "boolean"
+		) {
+			contents.texts.push({ path, value: String(jsonCell(value)) });
+		} else if (typeof value === "string" && value.length > LONGEST_TEXT) {
+			contents.longTextCount += 1;
 		} else if (Array.isArray(value)) {
 			if (value.some(isRecord)) {
 				contents.lists.push({ path, length: value.length, fields: fieldsOf(value) });
+			} else if (value.length > 0) {
+				contents.plainLists.push({ path, length: value.length });
 			}
-		} else if (isRecord(value) && left > 0) {
+		} else if (isRecord(value)) {
+			if (left === 0) {
+				contents.deeperCount += 1;
+				return;
+			}
 			for (const [key, inner] of Object.entries(value)) {
 				visit(inner, join(path, key), left - 1);
 			}
@@ -273,6 +313,8 @@ export const dataFromJson = (
 				source,
 				threshold: null,
 				about: "",
+				numberStyle: null,
+				yesNoStyle: null,
 				...value,
 			});
 		}

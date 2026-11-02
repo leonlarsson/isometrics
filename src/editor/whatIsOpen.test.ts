@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { linkInAddress } from "./openLink";
-import { sitesOf } from "./sourceRefresh";
+import { MOST_SOURCES_READ, readOnTheirOwn, sitesOf } from "./sourceRefresh";
 import { keepsOpenWorld, previewOf } from "./whatIsOpen";
 
 describe("what's open (ADR-0121)", () => {
@@ -38,5 +38,26 @@ describe("naming the sites of external sources (ADR-0121)", () => {
 		expect(sitesOf(["a.com", "b.org", "c.net"].map((host) => source(`https://${host}/z`)))).toBe(
 			"a.com, b.org and 1 other site",
 		);
+	});
+});
+
+describe("sources read on their own (ADR-0119)", () => {
+	it("are the first few addresses, each once; the rest wait to be asked", () => {
+		const sources = Array.from({ length: 14 }, (_, i) => ({
+			id: `s${i}`,
+			url: `https://site-${i % 12}.test/x`,
+		}));
+		const read = readOnTheirOwn(sources);
+		expect(read).toHaveLength(MOST_SOURCES_READ);
+		expect(read.map((source) => source.id)).toEqual(
+			sources.slice(0, MOST_SOURCES_READ).map((s) => s.id),
+		);
+		// An address repeated isn't read twice, and doesn't use up a place.
+		const repeated = readOnTheirOwn([
+			{ id: "a", url: "https://same.test" },
+			{ id: "b", url: "https://same.test" },
+			{ id: "c", url: "https://other.test" },
+		]);
+		expect(repeated.map((source) => source.id)).toEqual(["a", "c"]);
 	});
 });

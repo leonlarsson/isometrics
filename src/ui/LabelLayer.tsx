@@ -5,6 +5,7 @@ import { useStory } from "#/editor/story";
 import { useThemePalette } from "#/editor/useTheme";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { pastDragThreshold } from "#/lib/pointer";
+import { formatWhen } from "#/lib/when";
 import { resolveLabelColor } from "#/parts/colorModel";
 import { valuesOfEntity } from "#/parts/propData";
 import { getPart, partNameOf } from "#/parts/registry";
@@ -15,11 +16,10 @@ import {
 	registerLabelElement,
 	registerLabelLeader,
 } from "#/render/labelRegistry";
-import { columnOfKey } from "#/scene/rowData";
+import { columnOfKey, nameOfDataKey } from "#/scene/rowData";
 import type { TEntity } from "#/scene/schema";
 
 import { DataReading, FlagBadge, shownEntry } from "./DataReading";
-import { formatWhen } from "./Sparkline";
 
 import styles from "./LabelLayer.module.css";
 
@@ -94,7 +94,10 @@ const useLabelColor = (entity: TEntity) => {
 };
 
 const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boolean }) => {
-	const data = valuesOfEntity(entity, useWorldData());
+	const worldData = useWorldData();
+	const data = valuesOfEntity(entity, worldData);
+	// What a shown key is called (a column's name for a row's), said even where it has no value.
+	const nameOf = (key: string) => nameOfDataKey(worldData, key, entity.dataRow);
 	const select = useEditor((s) => s.select);
 	const color = useLabelColor(entity);
 	// With data off (ADR-0115), a card is its title only.
@@ -164,21 +167,18 @@ const LabelCard = memo(({ entity, selected }: { entity: TEntity; selected: boole
 				{entries.length === 1 ? (
 					<DataReading
 						entry={entries[0].entry}
-						label={columnOfKey(entries[0].key) ?? entries[0].key}
+						label={nameOf(entries[0].key)}
 						size={selected ? "huge" : "big"}
 						// What the value means, under it ("Deliveries so far"), so a total doesn't read as
 						// the month's; left out where the card's title already says it.
-						showsMeaning={
-							selected ||
-							(entries[0].entry?.name || columnOfKey(entries[0].key) || entries[0].key) !== title
-						}
+						showsMeaning={selected || (entries[0].entry?.name || nameOf(entries[0].key)) !== title}
 						// A row's card stays compact among many until it's opened; a world value's shows its past.
 						showsPast={selected || columnOfKey(entries[0].key) === null}
 					/>
 				) : (
 					entries.map(({ key, entry }) => (
 						<span key={key} className={styles.row}>
-							<span className={styles.rowLabel}>{entry?.name || columnOfKey(key) || key}</span>
+							<span className={styles.rowLabel}>{entry?.name || nameOf(key)}</span>
 
 							<span className={styles.rowValue} data-no-data={entry ? undefined : ""}>
 								{shownEntry(entry)}

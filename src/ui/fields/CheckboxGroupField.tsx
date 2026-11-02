@@ -12,7 +12,8 @@ import styles from "./Fields.module.css";
 
 interface ICheckboxGroupFieldProps {
 	label: string;
-	options: { value: string; label: string }[];
+	/** A `disabled` option is shown greyed, as it is, its reason in its label (it can't be changed here). */
+	options: { value: string; label: string; disabled?: boolean }[];
 	value: string[];
 	onChange: (value: string[]) => void;
 }
@@ -39,8 +40,16 @@ export const CheckboxGroupField = ({
 			>
 				{options.map((option) => (
 					// biome-ignore lint/a11y/noLabelWithoutControl: the checkbox inside is the labelled control
-					<label key={option.value} className={styles.check}>
-						<Checkbox.Root value={option.value} className={styles.checkbox}>
+					<label
+						key={option.value}
+						className={styles.check}
+						data-disabled={option.disabled || undefined}
+					>
+						<Checkbox.Root
+							value={option.value}
+							className={styles.checkbox}
+							disabled={option.disabled}
+						>
 							<Checkbox.Indicator className={styles.checkboxIndicator}>
 								<Icon name="check" size={12} />
 							</Checkbox.Indicator>

@@ -22,7 +22,9 @@ export type TSheetCell = string | number | boolean | Date | null;
 export type TColumnKind = "number" | "date" | "text";
 
 export interface ISheetColumn {
-	/** Its header as written, or "Column 3" without one. */
+	/** Its header as written, or "Column 3" without one: where a value is read from in it (its `path`). */
+	heading: string;
+	/** Its header as people read it: "visitors" → "Visitors", "rain_mm" → "Rain mm". */
 	name: string;
 	/** Its header as a data key, unique among the sheet's columns. */
 	key: string;
@@ -232,6 +234,10 @@ const textOf = (cell: TSheetCell): string | null => {
 	if (cell instanceof Date) {
 		return isoOf(cell);
 	}
+	// A spreadsheet's TRUE and FALSE, as links' true and false read: yes and no (which switch things).
+	if (typeof cell === "boolean") {
+		return cell ? "yes" : "no";
+	}
 	const text = String(cell).trim();
 	return text === "" ? null : text;
 };
@@ -244,6 +250,16 @@ const uniqueKey = (base: string, taken: Set<string>) => {
 	}
 	taken.add(key);
 	return key;
+};
+
+/**
+ * A header as a name people read (ADR-0123), as links' fields are named: underscores as
+ * spaces and a capital first letter ("visitors" → "Visitors", "rain_mm" → "Rain mm").
+ * The rest stays as written ("CO2 level" keeps its capitals).
+ */
+export const nameOfHeading = (heading: string) => {
+	const words = heading.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+	return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
 /**
@@ -268,11 +284,13 @@ export const readSheet = (
 		}
 		const name = heading ?? `Column ${index + 1}`;
 		const dates = readDates(name, raw);
+		const shown = nameOfHeading(name);
 		const numbers = dates ? null : readNumbers(raw, decimalComma);
 		const cells = dates ?? numbers?.cells ?? raw.map(textOf);
 		const named = cells.filter((cell) => cell !== null).map(String);
 		columns.push({
-			name,
+			heading: name,
+			name: shown,
 			key: uniqueKey(toDataKey(name), keys),
 			kind: dates ? "date" : numbers ? "number" : "text",
 			unit: numbers?.unit ?? "",
@@ -407,6 +425,8 @@ export const dataFromSheet = (
 		history,
 		threshold: null,
 		about: "",
+		numberStyle: null,
+		yesNoStyle: null,
 	});
 
 	if (reading.readsAs === "table") {
@@ -445,7 +465,7 @@ export const dataFromSheet = (
 								typeof point.at === "string" && typeof point.value === "number",
 						)
 						.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-					return value(each.name, history.at(-1)?.value ?? null, each.unit, each.name, history);
+					return value(each.name, history.at(-1)?.value ?? null, each.unit, each.heading, history);
 				}),
 			tables: [],
 		};
@@ -453,7 +473,9 @@ export const dataFromSheet = (
 	if (reading.readsAs === "valuePerColumn") {
 		const last = sheet.rowCount - 1;
 		return {
-			values: sheet.columns.map((each) => value(each.name, each.cells[last], each.unit, each.name)),
+			values: sheet.columns.map((each) =>
+				value(each.name, each.cells[last], each.unit, each.heading),
+			),
 			tables: [],
 		};
 	}
@@ -470,14 +492,21 @@ export const dataFromSheet = (
 	};
 };
 
+/** Read from the same place: the same source, and the same spot in it (a list's values by their field). */
 const sameOrigin = (a: TDataValue["source"], b: TDataValue["source"]): boolean =>
-	a !== null && b !== null && a.sourceId === b.sourceId && a.path === b.path;
+	a !== null &&
+	b !== null &&
+	a.sourceId === b.sourceId &&
+	a.path === b.path &&
+	a.field === b.field &&
+	a.dateField === b.dateField;
 
 /**
  * The world's data with what a source gave put in: the source added or
  * updated, and each value and table it gave replacing the one it gave before
  * from the same place (keeping that one's key and name, so whatever follows
- * it still does), or added with a key not yet taken. What it gave before and
+ * it still does, and a value's own settings: its watch line, note and number
+ * style), or added with a key not yet taken. What it gave before and
  * doesn't now stays, as it last was.
  */
 export const putReadData = (data: TWorldData, source: TDataSource, read: IReadData): TWorldData => {
@@ -488,11 +517,14 @@ export const putReadData = (data: TWorldData, source: TDataSource, read: IReadDa
 		if (index === -1) {
 			values.push({ ...incoming, key: uniqueKey(incoming.key, valueKeys) });
 		} else {
+			// What was read replaces what was read before; what the value's own settings say stays
+			// (its name and key, its watch line, note and number style).
 			const before = values[index];
 			values[index] = {
-				...incoming,
-				key: before.key,
-				name: before.name,
+				...before,
+				value: incoming.value,
+				history: incoming.history,
+				source: incoming.source,
 				unit: incoming.unit || before.unit,
 			};
 		}

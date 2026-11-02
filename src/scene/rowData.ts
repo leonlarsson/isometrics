@@ -99,6 +99,8 @@ export const rowEntries = (table: TDataTable, rowKey: string): TDataValue[] => {
 				history: columnHistory(table, rowKey, column.key),
 				threshold: column.threshold,
 				about: column.about,
+				numberStyle: null,
+				yesNoStyle: null,
 			},
 		];
 	});
@@ -144,3 +146,21 @@ export const rowColumnChoices = (table: TDataTable | undefined) =>
 		key: rowKeyFor(column.key),
 		name: column.name || column.key,
 	}));
+
+/**
+ * What a data key is called, for people: a value's name, or for a row key
+ * ("row.sent") the name of that column in the table the thing follows. Shown
+ * where a key has no value to say it (a row without that cell: "no data").
+ */
+export const nameOfDataKey = (
+	data: Pick<TWorldData, "tables" | "values">,
+	key: string,
+	dataRow: TDataRowRef | null,
+) => {
+	const column = columnOfKey(key);
+	if (column !== null) {
+		const found = tableOfRow(data, dataRow)?.columns.find((each) => each.key === column);
+		return found?.name || column;
+	}
+	return data.values.find((each) => each.key === key)?.name || key;
+};

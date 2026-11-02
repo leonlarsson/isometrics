@@ -5,6 +5,7 @@ import { DataSourceSchema, WorldDataSchema } from "./schema";
 import {
 	dataFromSheet,
 	guessReading,
+	nameOfHeading,
 	parseCsv,
 	putReadData,
 	readNumber,
@@ -84,7 +85,8 @@ describe("readSheet", () => {
 			["When", "Open", "Visitors"],
 			[new Date(Date.UTC(2026, 9, 30)), true, 1200],
 		]);
-		expect(sheet.columns.map((column) => column.cells[0])).toEqual(["2026-10-30", "true", 1200]);
+		// TRUE and FALSE read as yes and no, as links' true and false do (both switch things on and off).
+		expect(sheet.columns.map((column) => column.cells[0])).toEqual(["2026-10-30", "yes", 1200]);
 	});
 });
 
@@ -178,5 +180,29 @@ describe("dataFromSheet and putReadData", () => {
 			["air_quality", "Air quality", "Poor"],
 		]);
 		expect(second.sources).toHaveLength(1);
+	});
+});
+
+describe("names made from headers", () => {
+	it("read as names, while values still read from the header as written", () => {
+		expect(nameOfHeading("visitors")).toBe("Visitors");
+		expect(nameOfHeading("rain_mm")).toBe("Rain mm");
+		expect(nameOfHeading("CO2 level")).toBe("CO2 level");
+		const sheet = readSheet([
+			["day", "visitors"],
+			["2026-10-30", "7"],
+			["2026-10-31", "9"],
+		]);
+		const read = dataFromSheet(
+			sheet,
+			{ readsAs: "history", dateColumn: "day" },
+			{
+				sourceId: "s",
+				tableName: "",
+			},
+		);
+		expect(read.values.map((value) => [value.name, value.source?.path])).toEqual([
+			["Visitors", "visitors"],
+		]);
 	});
 });

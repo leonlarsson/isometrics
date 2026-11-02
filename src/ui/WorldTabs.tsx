@@ -24,6 +24,7 @@ import {
 	SwitchField,
 	TextField,
 } from "./fields";
+import { LegendSection } from "./LegendSection";
 import { ColorSettingFields } from "./PartSettings";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
@@ -116,6 +117,7 @@ export const WorldTab = () => {
 	const resetView = useEditor((s) => s.resetView);
 	const palette = useThemePalette();
 	const data = useWorldData().values;
+	const usesData = useEditor((s) => s.scene.data.isOn);
 
 	return (
 		<>
@@ -280,6 +282,9 @@ export const WorldTab = () => {
 			</Section>
 
 			<OnScreenSection />
+
+			{/* About data: not offered with data off (ADR-0115). */}
+			{usesData && <LegendSection />}
 		</>
 	);
 };

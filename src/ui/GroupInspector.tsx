@@ -589,6 +589,8 @@ const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: 
 			history: [],
 			threshold: null,
 			about: "",
+			numberStyle: null,
+			yesNoStyle: null,
 		})),
 	];
 	const entities = members.map((member) => member.entity);
@@ -679,7 +681,7 @@ const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: 
 			<Section
 				id="data.sizes"
 				icon="chart"
-				title="Sizes from data"
+				title="Follows data"
 				keywords="size scale props grow log scale data"
 			>
 				<DataDrivenField

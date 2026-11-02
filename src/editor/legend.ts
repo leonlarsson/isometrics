@@ -1,5 +1,5 @@
 import { getPart } from "#/parts/registry";
-import { columnOfKey, tableOfRow } from "#/scene/rowData";
+import { nameOfDataKey } from "#/scene/rowData";
 import type { TDataBinding, TScene } from "#/scene/schema";
 
 /**
@@ -11,16 +11,8 @@ import type { TDataBinding, TScene } from "#/scene/schema";
 type TLegendEntry = TScene["onScreen"]["legend"][number];
 
 /** What a binding's key names: a value's name, or a column's of the table the thing follows. */
-const nameOfKey = (scene: TScene, key: string, dataRow: TScene["entities"][number]["dataRow"]) => {
-	const column = columnOfKey(key);
-	if (column !== null) {
-		const table = tableOfRow(scene.data, dataRow);
-		const found = table?.columns.find((each) => each.key === column);
-		return found?.name || column;
-	}
-	const value = scene.data.values.find((each) => each.key === key);
-	return value?.name || key;
-};
+const nameOfKey = (scene: TScene, key: string, dataRow: TScene["entities"][number]["dataRow"]) =>
+	nameOfDataKey(scene.data, key, dataRow);
 
 const scaleWords = (binding: TDataBinding) => (binding.usesLogScale ? ", log scale" : "");
 

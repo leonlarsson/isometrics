@@ -28,7 +28,29 @@ interface IDataDrivenFieldProps {
 	children: ReactNode;
 	/** Several things are selected and follow data differently (ADR-0064): Source says Mixed. */
 	mixed?: boolean;
+	/**
+	 * Sizes and amounts: a value's lowest and highest number, for the range a binding starts with
+	 * (ADR-0123); a row's column over the whole table. Without it, from the value's own past.
+	 */
+	dataRangeOf?: (key: string) => { min: number; max: number } | null;
+	/** Sizes and amounts: what the setting starts at, low and high (else its own smallest and largest). */
+	startsAt?: { low: number; high: number };
 }
+
+/** A value's lowest and highest number, over its past and now (the fallback of `dataRangeOf`). */
+const ownRangeOf = (entry: TDataValue | undefined) => {
+	const numbers = entry
+		? [...entry.history.map((point) => point.value), entry.value].filter(
+				(each): each is number => typeof each === "number",
+			)
+		: [];
+	if (numbers.length === 0) {
+		return null;
+	}
+	const min = Math.min(...numbers);
+	const max = Math.max(...numbers);
+	return min < max ? { min, max } : max > 0 ? { min: 0, max } : null;
+};
 
 type TSource = "hand" | "data";
 
@@ -49,8 +71,27 @@ export const DataDrivenField = ({
 	range,
 	children,
 	mixed,
+	dataRangeOf,
+	startsAt,
 }: IDataDrivenFieldProps) => {
 	const hasData = data.length > 0;
+	/**
+	 * A size or amount following `key` starts from the data's lowest to its highest, so it moves
+	 * at once (a fixed 0 to 100 left numbers like 1,410 always at the top); others are as they are.
+	 */
+	const withRange = (next: TDataBinding): TDataBinding => {
+		if (kind !== "range") {
+			return next;
+		}
+		const found =
+			dataRangeOf?.(next.key) ?? ownRangeOf(data.find((entry) => entry.key === next.key));
+		return found ? { ...next, valueAtLowSetting: found.min, valueAtHighSetting: found.max } : next;
+	};
+	// From data starts on a value it can use: a number, for sizes and amounts.
+	const firstKey =
+		(kind === "range" ? data.find((entry) => typeof entry.value === "number") : undefined)?.key ??
+		data[0]?.key ??
+		"";
 	// With data off (ADR-0115), set by hand only: no Source, no From data.
 	if (!useUsesData()) {
 		return <>{children}</>;
@@ -71,7 +112,15 @@ export const DataDrivenField = ({
 				]}
 				onChange={(source) =>
 					onBindingChange(
-						source === "data" ? DataBindingSchema.parse({ key: data[0]?.key ?? "" }) : null,
+						source === "data"
+							? withRange(
+									DataBindingSchema.parse({
+										key: firstKey,
+										lowSetting: startsAt?.low ?? null,
+										highSetting: startsAt?.high ?? null,
+									}),
+								)
+							: null,
 					)
 				}
 				inherit={resetToDefault(
@@ -87,7 +136,10 @@ export const DataDrivenField = ({
 					kind={kind}
 					binding={binding}
 					data={data}
-					onChange={onBindingChange}
+					// Another value picked: its range comes with it.
+					onChange={(next, coalesce) =>
+						onBindingChange(next.key !== binding.key ? withRange(next) : next, coalesce)
+					}
 					formatScale={formatScale}
 					max={max}
 					range={range}

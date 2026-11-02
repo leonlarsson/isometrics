@@ -7,11 +7,9 @@ import { useEditor } from "#/editor/store";
 import { previewOf } from "#/editor/whatIsOpen";
 import { localDateTime } from "#/lib/when";
 
+import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button } from "./Button";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { FloatingBar, FloatingBarNote } from "./FloatingBar";
-
-import dialogStyles from "./WaitingSourcesDialog.module.css";
 
 /**
  * While a world from a link is open as a preview (ADR-0121): says it isn't
@@ -81,32 +79,11 @@ export const PreviewBar = () => {
 			</FloatingBar>
 
 			{/* Every address in full before any is allowed: none hidden behind "and 3 more". */}
-			<ConfirmDialog
+			<AllowSourcesDialog
 				open={isReviewing && addresses.length > 1}
 				onOpenChange={setReviewing}
-				title={`Allow these ${addresses.length} external sources?`}
-				description={
-					<div className={dialogStyles.body}>
-						<p>
-							This browser reads each of them from then on, for any world that uses them. Reading
-							one lets whoever runs it see your visit (your IP address, and when).
-						</p>
-
-						<ul className={dialogStyles.addresses}>
-							{addresses.map((url) => (
-								<li key={url}>{url}</li>
-							))}
-						</ul>
-
-						<p>
-							Not now leaves them waiting. You can forget any you allow later, from the Data tab
-							(External sources this browser reads…).
-						</p>
-					</div>
-				}
-				confirmLabel="Allow all"
-				cancelLabel="Not now"
-				onConfirm={allow}
+				addresses={addresses}
+				later="Not now leaves them waiting. You can forget any you allow later, from the Data tab (External sources this browser reads…)."
 			/>
 		</>
 	);

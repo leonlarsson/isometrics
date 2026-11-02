@@ -13,7 +13,7 @@ import styles from "./WaitingSourcesDialog.module.css";
  * Asks before a world reads from outside (ADR-0119): when a world opens, or a
  * change to it (a patch, a paste) brings addresses this browser hasn't
  * allowed, it says which, and why they wait. Allow and read them, or not now:
- * they stay listed in the Data tab under Sources, with a button to go there.
+ * they stay listed in the Data tab, each with Allow, with a button to go there.
  * Each address is asked about once per opening, once the world is on screen
  * (not over its loading screen).
  */
@@ -61,7 +61,7 @@ export const WaitingSourcesDialog = () => {
 					</ul>
 
 					<p>
-						{`Until then the world shows what it last read. You can allow ${one ? "it" : "them"} later ${isPreview ? "from the bar at the top" : "in the Data tab, under Sources"}.`}
+						{`Until then the world shows what it last read. You can allow ${one ? "it" : "them"} later ${isPreview ? "from the bar at the top" : "in the Data tab (Allow, on each source)"}.`}
 					</p>
 				</div>
 			}

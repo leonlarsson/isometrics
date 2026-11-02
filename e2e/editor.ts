@@ -375,6 +375,26 @@ export const paletteTile = async (page: Page, category: string, name: string) =>
 	return palette.getByRole("button", { name, exact: true }).first();
 };
 
+/** The Data window (ADR-0123). */
+export const dataWindow = (page: Page) => page.getByRole("dialog", { name: "Data", exact: true });
+
+/**
+ * Add data (ADR-0123): opens the Data window at Add data (from the Data tab, which must be
+ * open, or from the window when it is) and picks one of its cards.
+ */
+export const addData = async (
+	page: Page,
+	how: "A spreadsheet file…" | "A link or API…" | "Type a number",
+) => {
+	const window = dataWindow(page);
+	if (await window.isVisible()) {
+		await window.getByRole("button", { name: "Add data", exact: true }).click();
+	} else {
+		await page.getByRole("button", { name: "Add data", exact: true }).click();
+	}
+	await window.getByRole("button", { name: how }).click();
+};
+
 /** Unfold a panel (a Section with an id) if it's folded. */
 export const openPanel = async (page: Page, title: string | RegExp) => {
 	const header = page

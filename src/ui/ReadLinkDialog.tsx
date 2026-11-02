@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { addInWords } from "#/editor/dataList";
 import { allowLink, forgetLink, isLinkAllowed } from "#/editor/linkTrust";
 import { LinkError, nameOfLink, readLink, type TLinkContent } from "#/editor/readLink";
 import { newId, useEditor } from "#/editor/store";
@@ -9,12 +10,15 @@ import {
 	dataFromJson,
 	describeJson,
 	guessKeyField,
+	type IJsonContents,
 	type IJsonList,
+	JSON_DEPTH,
+	LONGEST_TEXT,
 	nameOfField,
 	readJsonPath,
 	type TJsonPick,
 } from "#/scene/jsonSource";
-import { DataSourceSchema, type TDataSource } from "#/scene/schema";
+import { DataSourceSchema, type TDataSource, type TDataValue } from "#/scene/schema";
 
 import { Button } from "./Button";
 import { DataTableView } from "./DataTableView";
@@ -24,13 +28,14 @@ import {
 	FieldGroup,
 	Hint,
 	resetToDefault,
+	SearchField,
 	SelectField,
 	TextField,
 } from "./fields";
 import type { ISpreadsheetReading } from "./ReadSpreadsheetDialog";
 
 /** How often a link is read again while the world is open. */
-const REFRESH_OPTIONS = [
+export const REFRESH_OPTIONS = [
 	{ value: "", label: "Only when asked (and when the world opens)" },
 	{ value: "60", label: "Every minute" },
 	{ value: "300", label: "Every 5 minutes" },
@@ -52,6 +57,12 @@ const BIG_LIST = 500;
 /** The most numbers offered as values: a response can hold many. */
 const MOST_NUMBERS = 40;
 
+/** The most lists offered at once; more are named in a note. */
+const MOST_LISTS = 12;
+
+/** From this many single values on, the values get a search. */
+const SEARCHABLE_FROM = 12;
+
 type TListUse = "nothing" | "table" | "history";
 
 /** What's chosen for one list of entries in the response. */
@@ -64,6 +75,28 @@ interface IListChoice {
 	dateField: string;
 	valueFields: string[];
 }
+
+/** What a reading left out of a response, in sentences: more lists than it shows, plain lists, deeper places, long texts. */
+const leftOutOf = (contents: IJsonContents): string[] => {
+	const plain = contents.plainLists
+		.slice(0, 4)
+		.map((list) => `“${list.path || "the answer"}” (${list.length})`);
+	return [
+		contents.lists.length > MOST_LISTS &&
+			`${contents.lists.length - MOST_LISTS} more lists of entries (${contents.lists
+				.slice(MOST_LISTS, MOST_LISTS + 3)
+				.map((list) => `“${list.path}”`)
+				.join(
+					", ",
+				)}${contents.lists.length > MOST_LISTS + 3 ? "…" : ""}): only the first ${MOST_LISTS} are shown.`,
+		contents.plainLists.length > 0 &&
+			`Lists of plain values, not entries with fields, can't be kept yet: ${plain.join(", ")}${contents.plainLists.length > 4 ? ` and ${contents.plainLists.length - 4} more` : ""}.`,
+		contents.deeperCount > 0 &&
+			`${contents.deeperCount === 1 ? "1 place" : `${contents.deeperCount} places`} more than ${JSON_DEPTH} levels deep ${contents.deeperCount === 1 ? "isn't" : "aren't"} read.`,
+		contents.longTextCount > 0 &&
+			`${contents.longTextCount === 1 ? "1 text is" : `${contents.longTextCount} texts are`} over ${LONGEST_TEXT} characters, too long to be a value.`,
+	].filter((line): line is string => typeof line === "string");
+};
 
 /** How a list starts: a table of its first fields, or values over time when it has dates and numbers. */
 const startingChoice = (json: unknown, list: IJsonList): IListChoice => {
@@ -129,7 +162,10 @@ const ListChoice = ({
 	onChange: (choice: IListChoice) => void;
 }) => {
 	const dates = list.fields.filter((field) => field.kind === "date");
-	const numbers = list.fields.filter((field) => field.kind === "number");
+	// What can be a value over time: numbers, and texts and yes/no (a value holds either).
+	const overTimeFields = list.fields.filter(
+		(field) => field.kind === "number" || field.kind === "text",
+	);
 	const fieldOptions = list.fields.map((field) => ({
 		value: field.path,
 		label: `${nameOfField(field.path)} (${field.path})`,
@@ -151,10 +187,10 @@ const ListChoice = ({
 					{
 						value: "history",
 						label:
-							dates.length > 0 && numbers.length > 0
-								? "Values over time: a date and numbers in each entry"
-								: "Values over time (no field of dates and numbers)",
-						disabled: dates.length === 0 || numbers.length === 0,
+							dates.length > 0 && overTimeFields.length > 0
+								? "Values over time: a date in each entry, and what it held then"
+								: "Values over time (no field of dates)",
+						disabled: dates.length === 0 || overTimeFields.length === 0,
 					},
 				]}
 				onChange={(use) => onChange({ ...choice, use })}
@@ -226,9 +262,12 @@ const ListChoice = ({
 
 					<CheckboxGroupField
 						label="Values"
-						options={numbers.map((field) => ({
+						options={overTimeFields.map((field) => ({
 							value: field.path,
-							label: nameOfField(field.path),
+							label:
+								field.kind === "number"
+									? nameOfField(field.path)
+									: `${nameOfField(field.path)} (text or yes/no)`,
 						}))}
 						value={choice.valueFields}
 						onChange={(valueFields) => onChange({ ...choice, valueFields })}
@@ -252,13 +291,27 @@ const ListChoice = ({
 export const ReadLinkDialog = ({
 	onClose,
 	onSpreadsheet,
+	source: existing,
 }: {
 	onClose: () => void;
 	/** The link is a spreadsheet: read it in the spreadsheet dialog, as this source. */
 	onSpreadsheet: (reading: ISpreadsheetReading) => void;
+	/**
+	 * A link or API already in the world: change what's kept from it (ADR-0123). It's read at
+	 * once, what's kept is ticked, and Keep these adds what's ticked and removes what's not.
+	 */
+	source?: TDataSource;
 }) => {
 	const putReadData = useEditor((s) => s.putReadData);
-	const [url, setUrl] = useState("");
+	const keepFromSource = useEditor((s) => s.keepFromSource);
+	const data = useEditor((s) => s.scene.data);
+	const keptValues = existing
+		? data.values.filter((value) => value.source?.sourceId === existing.id)
+		: [];
+	const keptTables = existing
+		? data.tables.filter((table) => table.source?.sourceId === existing.id)
+		: [];
+	const [url, setUrl] = useState(existing?.url ?? "");
 	const [name, setName] = useState("");
 	const [refresh, setRefresh] = useState("");
 	const [content, setContent] = useState<Extract<TLinkContent, { kind: "json" }> | null>(null);
@@ -267,19 +320,140 @@ export const ReadLinkDialog = ({
 	const [values, setValues] = useState<string[]>([]);
 	const [choices, setChoices] = useState<Record<string, IListChoice>>({});
 	const contents = content ? describeJson(content.json) : null;
-	const numbers = contents?.numbers.slice(0, MOST_NUMBERS) ?? [];
-	const lists = contents?.lists.slice(0, 6) ?? [];
+	// Every single value found (what's ticked is among them); a search and a cap decide what's listed.
+	const numbers = contents?.numbers ?? [];
+	const texts = contents?.texts ?? [];
+	const lists = contents?.lists.slice(0, MOST_LISTS) ?? [];
+	const [valueQuery, setValueQuery] = useState("");
+	const valueOptions = [
+		...numbers.map((number) => ({
+			value: number.path,
+			label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
+		})),
+		...texts.map((text) => ({
+			value: text.path,
+			label: `${nameOfField(text.path)}: “${text.value}” (${text.path})`,
+		})),
+	];
+	const wanted = valueQuery.trim().toLowerCase();
+	const matching = wanted
+		? valueOptions.filter((option) => option.label.toLowerCase().includes(wanted))
+		: valueOptions;
+	const listed = matching.slice(0, MOST_NUMBERS);
+	const listedPaths = new Set(listed.map((option) => option.value));
+
+	/**
+	 * What Keep these removes, given what's picked: what the source gave that's listed here and no
+	 * longer ticked. Only what this dialog lists can be unticked: anything it doesn't list stays.
+	 */
+	const removedBy = (got: ReturnType<typeof dataFromJson>) => {
+		const shown = new Set([
+			...numbers.map((each) => each.path),
+			...texts.map((each) => each.path),
+			...lists.map((each) => each.path),
+		]);
+		const stillKept = (ref: TDataValue["source"]) =>
+			got.values.some(
+				(each) =>
+					each.source?.path === ref?.path &&
+					each.source?.field === ref?.field &&
+					each.source?.dateField === ref?.dateField,
+			);
+		return {
+			valueKeys: keptValues
+				.filter((value) => shown.has(value.source?.path ?? "") && !stillKept(value.source))
+				.map((value) => value.key),
+			tableKeys: keptTables
+				.filter(
+					(table) =>
+						shown.has(table.source?.path ?? "") &&
+						!got.tables.some((each) => each.source?.path === table.source?.path),
+				)
+				.map((table) => table.key),
+		};
+	};
+
+	/** What Add (or Keep these) will do, in a sentence: always shown, so nothing jumps as picks change. */
+	const summary = () => {
+		const names = picks.map((pick) =>
+			pick.kind === "table" ? `the table “${pick.name}”` : pick.name,
+		);
+		const listedNames =
+			names.length <= 4
+				? names.join(", ").replace(/, ([^,]*)$/, " and $1")
+				: `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+		if (!existing) {
+			return picks.length === 0
+				? "Pick a value or keep a list to add something."
+				: `Adds ${listedNames}.`;
+		}
+		const removed = content
+			? (() => {
+					const { valueKeys, tableKeys } = removedBy(
+						dataFromJson(content.json, existing.id, picks),
+					);
+					return valueKeys.length + tableKeys.length;
+				})()
+			: 0;
+		const removes =
+			removed > 0
+				? `removes ${removed === 1 ? "1 thing" : `${removed} things`} it gave before`
+				: "";
+		if (picks.length === 0) {
+			return removes ? `Keeps nothing: ${removes}.` : "Nothing ticked: nothing is kept from it.";
+		}
+		return `Keeps ${listedNames}${removes ? `; ${removes}` : ""}.`;
+	};
 	const picks = contents ? picksOf(values, lists, choices) : [];
 
 	const sourceFor = (kind: TDataSource["kind"]): TDataSource =>
-		DataSourceSchema.parse({
-			id: newId("source"),
-			name: name.trim() || nameOfLink(url),
-			kind,
-			url: url.trim(),
-			refreshSeconds: refresh ? Number(refresh) : null,
-			lastReadAt: new Date().toISOString(),
-		});
+		existing
+			? { ...existing, lastReadAt: new Date().toISOString() }
+			: DataSourceSchema.parse({
+					id: newId("source"),
+					name: name.trim() || nameOfLink(url),
+					kind,
+					url: url.trim(),
+					refreshSeconds: refresh ? Number(refresh) : null,
+					lastReadAt: new Date().toISOString(),
+				});
+
+	/** How a list starts when changing what's kept: as its kept table, its kept values over time, or nothing. */
+	const keptChoice = (json: unknown, list: IJsonList): IListChoice => {
+		const start = startingChoice(json, list);
+		const table = keptTables.find((each) => each.source?.path === list.path);
+		if (table) {
+			const fieldOf = (key: string) =>
+				table.columns.find((column) => column.key === key)?.field || key;
+			return {
+				...start,
+				use: "table",
+				name: table.name,
+				fields: table.columns.map((column) => column.field || column.key),
+				keyField: table.keyColumn ? fieldOf(table.keyColumn) : "",
+				rowLimit: table.source?.maxRowCount ? String(table.source.maxRowCount) : "",
+			};
+		}
+		const overTime = keptValues.filter(
+			(value) => value.source?.path === list.path && value.source.dateField,
+		);
+		if (overTime.length > 0) {
+			return {
+				...start,
+				use: "history",
+				dateField: overTime[0].source?.dateField ?? start.dateField,
+				valueFields: overTime.map((value) => value.source?.field ?? ""),
+			};
+		}
+		return { ...start, use: "nothing" };
+	};
+
+	// Changing what's kept: read it at once (choosing to here is this browser's yes, as typing it is).
+	useEffect(() => {
+		if (existing) {
+			void read();
+		}
+	}, []);
 
 	const read = async () => {
 		setReading(true);
@@ -292,19 +466,33 @@ export const ReadLinkDialog = ({
 			const got = await readLink(url);
 			if (got.kind === "csv") {
 				onSpreadsheet({
-					fileName: name.trim() || nameOfLink(url),
+					fileName: name.trim() || existing?.fileName || nameOfLink(url),
 					sheets: [got.sheet],
 					source: sourceFor("link"),
-					isAgain: false,
+					isAgain: existing !== undefined,
 				});
 				return;
 			}
 			const found = describeJson(got.json);
 			setContent(got);
+			if (existing) {
+				// What's kept from it, ticked: its single values, and each list as its table or values over time.
+				setValues(
+					keptValues
+						.filter((value) => !value.source?.dateField)
+						.map((value) => value.source?.path ?? ""),
+				);
+				setChoices(
+					Object.fromEntries(
+						found.lists.slice(0, MOST_LISTS).map((list) => [list.path, keptChoice(got.json, list)]),
+					),
+				);
+				return;
+			}
 			setValues(found.lists.length === 0 ? found.numbers.slice(0, 3).map((n) => n.path) : []);
 			setChoices(
 				Object.fromEntries(
-					found.lists.slice(0, 6).map((list, index) => [
+					found.lists.slice(0, MOST_LISTS).map((list, index) => [
 						list.path,
 						// The first list is kept; others start as nothing.
 						index === 0
@@ -328,15 +516,46 @@ export const ReadLinkDialog = ({
 		<Dialog
 			open
 			onOpenChange={(open) => !open && onClose()}
-			title="Read a link or API"
-			description="A CSV file, a published Google Sheet, or an API that answers in JSON, read by this browser. Keys and secrets can't be kept in a world yet."
+			title={
+				existing
+					? `Configure what's read from ${existing.name || nameOfLink(url)}`
+					: "Read a link or API"
+			}
+			description={
+				existing
+					? "Ticked is kept. Tick more to add them; untick one to remove it, and whatever shows or follows it stops."
+					: "A CSV file, a published Google Sheet, or an API that answers in JSON, read by this browser. Keys and secrets can't be kept in a world yet."
+			}
 			closeLabel="Cancel"
 			wide
 			confirm={{
-				label: "Add to the world",
-				disabled: !content || picks.length === 0,
+				label: existing
+					? "Keep these"
+					: addInWords(
+							picks.filter((pick) => pick.kind !== "table").length,
+							picks.filter((pick) => pick.kind === "table").length,
+						),
+				disabled: !content || (!existing && picks.length === 0),
 				onConfirm: () => {
 					if (!content) {
+						return;
+					}
+					if (existing) {
+						const source = sourceFor("api");
+						const got = dataFromJson(content.json, source.id, picks);
+						const { valueKeys, tableKeys } = removedBy(got);
+						keepFromSource(source, got, { valueKeys, tableKeys });
+						notify(
+							`Kept from ${source.name || nameOfLink(url)}`,
+							[
+								`${got.values.length} value${got.values.length === 1 ? "" : "s"}`,
+								`${got.tables.length} table${got.tables.length === 1 ? "" : "s"}`,
+								valueKeys.length + tableKeys.length > 0 &&
+									`${valueKeys.length + tableKeys.length} removed`,
+							]
+								.filter(Boolean)
+								.join(", "),
+						);
 						return;
 					}
 					const source = sourceFor("api");
@@ -358,16 +577,20 @@ export const ReadLinkDialog = ({
 				},
 			}}
 		>
-			<TextField
-				label="Address"
-				value={url}
-				placeholder="https://api.example.com/stats"
-				onChange={setUrl}
-				hasNoDefault
-			/>
+			{existing ? (
+				<Hint>{`From ${url}. Its address and how often it's read are its settings, on its page.`}</Hint>
+			) : (
+				<TextField
+					label="Address"
+					value={url}
+					placeholder="https://api.example.com/stats"
+					onChange={setUrl}
+					hasNoDefault
+				/>
+			)}
 
 			<Button icon="download" onClick={read} disabled={reading || url.trim() === ""}>
-				{reading ? "Reading…" : content ? "Read it again" : "Read"}
+				{reading ? "Reading…" : content ? "Read it now" : "Read"}
 			</Button>
 
 			{error && (
@@ -378,36 +601,61 @@ export const ReadLinkDialog = ({
 
 			{content && contents && (
 				<>
-					<TextField
-						label="Source name"
-						value={name}
-						placeholder={nameOfLink(url)}
-						onChange={setName}
-						inherit={resetToDefault(name, "", () => setName(""), "its address")}
-					/>
+					{!existing && (
+						<TextField
+							label="Source name"
+							value={name}
+							placeholder={nameOfLink(url)}
+							onChange={setName}
+							inherit={resetToDefault(name, "", () => setName(""), "its address")}
+						/>
+					)}
 
-					<SelectField
-						label="Read it again"
-						value={refresh}
-						options={REFRESH_OPTIONS}
-						onChange={setRefresh}
-						inherit={resetToDefault(refresh, "", () => setRefresh(""), "only when asked")}
-						hint="While the world is open, by this browser. What arrives shows at once, and isn't saved until you keep it."
-					/>
+					{!existing && (
+						<SelectField
+							label="Read it again"
+							value={refresh}
+							options={REFRESH_OPTIONS}
+							onChange={setRefresh}
+							inherit={resetToDefault(refresh, "", () => setRefresh(""), "only when asked")}
+							hint="While the world is open, by this browser. What arrives shows at once, and isn't saved until you keep it."
+						/>
+					)}
 
-					{numbers.length > 0 ? (
+					{valueOptions.length >= SEARCHABLE_FROM && (
+						<SearchField
+							label="Find a value"
+							placeholder="Find a value…"
+							value={valueQuery}
+							onChange={setValueQuery}
+						/>
+					)}
+
+					{listed.length > 0 && (
 						<CheckboxGroupField
 							label="Values"
-							options={numbers.map((number) => ({
-								value: number.path,
-								label: `${nameOfField(number.path)}: ${formatValue(number.value)} (${number.path})`,
-							}))}
-							value={values}
-							onChange={setValues}
+							options={listed}
+							// What's ticked but not listed (a search, the cap) stays ticked.
+							value={values.filter((path) => listedPaths.has(path))}
+							onChange={(next) =>
+								setValues([...values.filter((path) => !listedPaths.has(path)), ...next])
+							}
 							hasNoDefault
 						/>
-					) : (
-						<Hint>No single numbers in it outside lists.</Hint>
+					)}
+
+					{valueOptions.length === 0 && (
+						<Hint>No single numbers or texts in it outside lists.</Hint>
+					)}
+
+					{valueOptions.length > 0 && matching.length === 0 && (
+						<Hint>{`No value matches “${valueQuery.trim()}”.`}</Hint>
+					)}
+
+					{matching.length > listed.length && (
+						<Hint>
+							{`And ${(matching.length - listed.length).toLocaleString()} more not listed: find them by name with the search.`}
+						</Hint>
 					)}
 
 					{lists.map((list) => (
@@ -420,7 +668,18 @@ export const ReadLinkDialog = ({
 						/>
 					))}
 
-					{picks.length === 0 && <Hint>Pick a value or keep a list to add something.</Hint>}
+					{/* What the reader left out, and why: nothing is dropped without a word. */}
+					{contents && leftOutOf(contents).length > 0 && (
+						<Hint>
+							<strong>Not offered: </strong>
+
+							{leftOutOf(contents).join(" ")}
+						</Hint>
+					)}
+
+					<Hint>
+						<strong>{summary()}</strong>
+					</Hint>
 				</>
 			)}
 		</Dialog>

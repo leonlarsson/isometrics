@@ -9,7 +9,7 @@ import styles from "./WaitingSourcesDialog.module.css";
  * Before a shared world that reads from outside is built (ADR-0121): over its
  * own loading card, naming each address it reads, which nothing has asked
  * yet. Open and allow (they're read from now on), Open (they wait in the Data
- * tab under Sources), or Don't open it (the home screen). The one question
+ * tab, Allow on its source), or Don't open it (the home screen). The one question
  * about them: the usual one isn't asked again once it's open.
  */
 export const LinkQuestion = () => {
@@ -37,8 +37,8 @@ export const LinkQuestion = () => {
 
 					<p>
 						{one
-							? "Reading it lets whoever runs it see your visit (your IP address, and when). Open and allow reads it from now on in this browser; Open leaves it waiting in the Data tab, under Sources, to allow later."
-							: "Reading them lets whoever runs each one see your visit (your IP address, and when). Open and allow reads them from now on in this browser; Open leaves them waiting in the Data tab, under Sources, to allow later."}
+							? "Reading it lets whoever runs it see your visit (your IP address, and when). Open and allow reads it from now on in this browser; Open leaves it waiting in the Data tab, to allow later (Allow, on its source)."
+							: "Reading them lets whoever runs each one see your visit (your IP address, and when). Open and allow reads them from now on in this browser; Open leaves them waiting in the Data tab, to allow later (Allow, on its source)."}
 					</p>
 				</div>
 			}

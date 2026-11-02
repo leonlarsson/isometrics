@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { notify } from "#/editor/toasts";
 
+import { ActionCards } from "./ActionCards";
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards } from "./ChoiceCards";
@@ -485,6 +486,24 @@ export const KitPage = () => {
 													title: "Starter",
 													description:
 														"A longer description is cut off after two lines like this one",
+												},
+											]}
+										/>
+									</Section>
+
+									<Section title="Action cards">
+										<ActionCards
+											cards={[
+												{
+													title: "Do this",
+													about: "What it does, in a line.",
+													onChoose: () => notify("Chose Do this"),
+												},
+												{
+													title: "Not yet (select one first)",
+													about: "Greyed, its reason in its words: not hidden.",
+													onChoose: () => undefined,
+													disabled: true,
 												},
 											]}
 										/>

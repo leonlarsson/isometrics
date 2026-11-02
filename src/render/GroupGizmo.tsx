@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 
 import { groupStart, groupStartOf, type IGroupStart } from "#/editor/groupTransform";
+import { selectedSizedByData } from "#/editor/sizedByData";
 import { drawnModeOf, selectMovesAsGroup, useEditor } from "#/editor/store";
 
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
@@ -18,6 +19,8 @@ export const GroupGizmo = () => {
 	const editing = useEditor((s) => drawnModeOf(s) === "edit" && s.drawing === null);
 	const scene = useEditor((s) => s.scene);
 	const items = useEditor((s) => s.selectedItems);
+	// Resizing a group resizes each object: none while one of them is sized by data (ADR-0109).
+	const anySized = useEditor((s) => selectedSizedByData(s).length > 0);
 	const start = useRef<IGroupStart | null>(null);
 	// From what it subscribes to, so it follows what it moves (ADR-0093: a gizmo that worked it out
 	// from the store by itself stayed where the drag began).
@@ -40,7 +43,7 @@ export const GroupGizmo = () => {
 		<group position={movable.center}>
 			<TransformGizmo
 				// The lift arrow raises areas too: their Raised by (ADR-0096).
-				handles={HANDLES}
+				handles={anySized ? HANDLES.filter((handle) => handle !== "scale") : HANDLES}
 				onStart={(token, _handle, keys) => {
 					// Ctrl: copy them in place (the same undo step), then move, turn or resize the copies.
 					if (keys.copy) {
