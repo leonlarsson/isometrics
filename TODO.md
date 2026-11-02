@@ -17,6 +17,10 @@ Guard tests, old-world fixtures, renamed/removed props and keeping unknown props
 - [ ] **Old worlds look the same:** render each old-world fixture before and after a change and compare the pictures (the thumbnails of ADR-0036 could do it), so a default that changes the look of existing worlds is caught too.
 - [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links (ADR-0106).
 
+## Naming
+
+- [ ] **Hyphens, not underscores (owner's rule, 2026-11-02):** ids people see or type use hyphens: template links (`/templates/extraction-shooters`, not `extraction_shooters`), and any new id in an address. Decide how far it goes: ids kept in worlds (part kinds like `office_tower_01`, fence and road kinds, data keys like `sent_per_month`) are written by people, AIs and every saved world, so changing them means converting the old ones on load (`src/scene/legacy.ts`, ADR-0053, ADR-0106), and `/api/worlds/schema` and the guide saying the new form. Old links with underscores keep working (they open the same template). Needs an ADR, as it changes a convention.
+
 ## Ideas backlog (2026-10-21)
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
