@@ -46,8 +46,9 @@ export const fieldChoicesInJson = (json: unknown): IFieldChoice[] => {
 		if (!dateField) {
 			return [];
 		}
+		// Numbers, and texts and yes/no too: a value can hold either, and so can its past values.
 		return list.fields
-			.filter((field) => field.kind === "number")
+			.filter((field) => field.kind === "number" || field.kind === "text")
 			.flatMap((field): IFieldChoice[] => {
 				const ref = { path: list.path, field: field.path, dateField };
 				const read = readValue(json, { sourceId: "", maxRowCount: null, ...ref });

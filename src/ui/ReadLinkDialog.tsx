@@ -129,7 +129,10 @@ const ListChoice = ({
 	onChange: (choice: IListChoice) => void;
 }) => {
 	const dates = list.fields.filter((field) => field.kind === "date");
-	const numbers = list.fields.filter((field) => field.kind === "number");
+	// What can be a value over time: numbers, and texts and yes/no (a value holds either).
+	const overTimeFields = list.fields.filter(
+		(field) => field.kind === "number" || field.kind === "text",
+	);
 	const fieldOptions = list.fields.map((field) => ({
 		value: field.path,
 		label: `${nameOfField(field.path)} (${field.path})`,
@@ -151,10 +154,10 @@ const ListChoice = ({
 					{
 						value: "history",
 						label:
-							dates.length > 0 && numbers.length > 0
-								? "Values over time: a date and numbers in each entry"
-								: "Values over time (no field of dates and numbers)",
-						disabled: dates.length === 0 || numbers.length === 0,
+							dates.length > 0 && overTimeFields.length > 0
+								? "Values over time: a date in each entry, and what it held then"
+								: "Values over time (no field of dates)",
+						disabled: dates.length === 0 || overTimeFields.length === 0,
 					},
 				]}
 				onChange={(use) => onChange({ ...choice, use })}
@@ -226,9 +229,12 @@ const ListChoice = ({
 
 					<CheckboxGroupField
 						label="Values"
-						options={numbers.map((field) => ({
+						options={overTimeFields.map((field) => ({
 							value: field.path,
-							label: nameOfField(field.path),
+							label:
+								field.kind === "number"
+									? nameOfField(field.path)
+									: `${nameOfField(field.path)} (text or yes/no)`,
 						}))}
 						value={choice.valueFields}
 						onChange={(valueFields) => onChange({ ...choice, valueFields })}

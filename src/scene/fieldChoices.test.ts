@@ -51,4 +51,16 @@ describe("what a value could be read from", () => {
 			])[0],
 		).toMatchObject({ label: "Stats › “visitors”", ref: { path: "Stats!visitors" }, value: 12 });
 	});
+
+	it("offers yes/no and texts over time too, as a value can hold them", () => {
+		const choices = fieldChoicesInJson({
+			days: [
+				{ day: "2026-10-30", online: false },
+				{ day: "2026-10-31", online: true },
+			],
+		});
+		expect(choices.map(({ label, value, history }) => [label, value, history.length])).toEqual([
+			["each entry's “online”, by its “day” (the list at “days”)", "yes", 2],
+		]);
+	});
 });

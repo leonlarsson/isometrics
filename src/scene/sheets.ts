@@ -232,6 +232,10 @@ const textOf = (cell: TSheetCell): string | null => {
 	if (cell instanceof Date) {
 		return isoOf(cell);
 	}
+	// A spreadsheet's TRUE and FALSE, as links' true and false read: yes and no (which switch things).
+	if (typeof cell === "boolean") {
+		return cell ? "yes" : "no";
+	}
 	const text = String(cell).trim();
 	return text === "" ? null : text;
 };
