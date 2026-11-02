@@ -341,6 +341,69 @@ export const ReadLinkDialog = ({
 		: valueOptions;
 	const listed = matching.slice(0, MOST_NUMBERS);
 	const listedPaths = new Set(listed.map((option) => option.value));
+
+	/**
+	 * What Keep these removes, given what's picked: what the source gave that's listed here and no
+	 * longer ticked. Only what this dialog lists can be unticked: anything it doesn't list stays.
+	 */
+	const removedBy = (got: ReturnType<typeof dataFromJson>) => {
+		const shown = new Set([
+			...numbers.map((each) => each.path),
+			...texts.map((each) => each.path),
+			...lists.map((each) => each.path),
+		]);
+		const stillKept = (ref: TDataValue["source"]) =>
+			got.values.some(
+				(each) =>
+					each.source?.path === ref?.path &&
+					each.source?.field === ref?.field &&
+					each.source?.dateField === ref?.dateField,
+			);
+		return {
+			valueKeys: keptValues
+				.filter((value) => shown.has(value.source?.path ?? "") && !stillKept(value.source))
+				.map((value) => value.key),
+			tableKeys: keptTables
+				.filter(
+					(table) =>
+						shown.has(table.source?.path ?? "") &&
+						!got.tables.some((each) => each.source?.path === table.source?.path),
+				)
+				.map((table) => table.key),
+		};
+	};
+
+	/** What Add (or Keep these) will do, in a sentence: always shown, so nothing jumps as picks change. */
+	const summary = () => {
+		const names = picks.map((pick) =>
+			pick.kind === "table" ? `the table “${pick.name}”` : pick.name,
+		);
+		const listedNames =
+			names.length <= 4
+				? names.join(", ").replace(/, ([^,]*)$/, " and $1")
+				: `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+		if (!existing) {
+			return picks.length === 0
+				? "Pick a value or keep a list to add something."
+				: `Adds ${listedNames}.`;
+		}
+		const removed = content
+			? (() => {
+					const { valueKeys, tableKeys } = removedBy(
+						dataFromJson(content.json, existing.id, picks),
+					);
+					return valueKeys.length + tableKeys.length;
+				})()
+			: 0;
+		const removes =
+			removed > 0
+				? `removes ${removed === 1 ? "1 thing" : `${removed} things`} it gave before`
+				: "";
+		if (picks.length === 0) {
+			return removes ? `Keeps nothing: ${removes}.` : "Nothing ticked: nothing is kept from it.";
+		}
+		return `Keeps ${listedNames}${removes ? `; ${removes}` : ""}.`;
+	};
 	const picks = contents ? picksOf(values, lists, choices) : [];
 
 	const sourceFor = (kind: TDataSource["kind"]): TDataSource =>
@@ -480,29 +543,7 @@ export const ReadLinkDialog = ({
 					if (existing) {
 						const source = sourceFor("api");
 						const got = dataFromJson(content.json, source.id, picks);
-						// Only what this dialog shows can be unticked: anything it doesn't list stays.
-						const shown = new Set([
-							...numbers.map((each) => each.path),
-							...texts.map((each) => each.path),
-							...lists.map((each) => each.path),
-						]);
-						const stillKept = (ref: TDataValue["source"]) =>
-							got.values.some(
-								(each) =>
-									each.source?.path === ref?.path &&
-									each.source?.field === ref?.field &&
-									each.source?.dateField === ref?.dateField,
-							);
-						const valueKeys = keptValues
-							.filter((value) => shown.has(value.source?.path ?? "") && !stillKept(value.source))
-							.map((value) => value.key);
-						const tableKeys = keptTables
-							.filter(
-								(table) =>
-									shown.has(table.source?.path ?? "") &&
-									!got.tables.some((each) => each.source?.path === table.source?.path),
-							)
-							.map((table) => table.key);
+						const { valueKeys, tableKeys } = removedBy(got);
 						keepFromSource(source, got, { valueKeys, tableKeys });
 						notify(
 							`Kept from ${source.name || nameOfLink(url)}`,
@@ -549,7 +590,7 @@ export const ReadLinkDialog = ({
 			)}
 
 			<Button icon="download" onClick={read} disabled={reading || url.trim() === ""}>
-				{reading ? "Reading…" : content ? "Read it again" : "Read"}
+				{reading ? "Reading…" : content ? "Read it now" : "Read"}
 			</Button>
 
 			{error && (
@@ -636,13 +677,9 @@ export const ReadLinkDialog = ({
 						</Hint>
 					)}
 
-					{picks.length === 0 && (
-						<Hint>
-							{existing
-								? "Nothing ticked: Keep these removes everything it gave that's listed here."
-								: "Pick a value or keep a list to add something."}
-						</Hint>
-					)}
+					<Hint>
+						<strong>{summary()}</strong>
+					</Hint>
 				</>
 			)}
 		</Dialog>
