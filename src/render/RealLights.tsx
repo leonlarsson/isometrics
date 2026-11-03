@@ -85,17 +85,40 @@ export const realLightIntensity = (light: IResolvedLight, shape: TLightShape) =>
 	BRIGHTNESS[shape] *
 	(shape === "windows" ? Math.min(1, 0.4 + light.litPaneShare * 2) : 1);
 
-/** The `count` candidates nearest, by `distanceTo` (any measure that grows with distance). */
+/**
+ * The `count` candidates nearest, nearest first, by `distanceTo` (any measure that grows with
+ * distance; null leaves a candidate out). Kept as they come, only the nearest few at a time, not
+ * every one sorted: it runs each frame over every lit source. Of equal distances, the earlier wins.
+ */
 export const pickNearest = <T,>(
-	candidates: T[],
+	candidates: Iterable<T>,
 	count: number,
-	distanceTo: (candidate: T) => number,
-): T[] =>
-	candidates
-		.map((candidate) => ({ candidate, distance: distanceTo(candidate) }))
-		.sort((a, b) => a.distance - b.distance)
-		.slice(0, count)
-		.map(({ candidate }) => candidate);
+	distanceTo: (candidate: T) => number | null,
+): T[] => {
+	const nearest: T[] = [];
+	const distances: number[] = [];
+	if (count <= 0) {
+		return nearest;
+	}
+	for (const candidate of candidates) {
+		const distance = distanceTo(candidate);
+		if (distance === null || (nearest.length === count && distance >= distances[count - 1])) {
+			continue;
+		}
+		// After every one as near or nearer, so the earlier of equals stays first.
+		let at = nearest.length;
+		while (at > 0 && distances[at - 1] > distance) {
+			at--;
+		}
+		nearest.splice(at, 0, candidate);
+		distances.splice(at, 0, distance);
+		if (nearest.length > count) {
+			nearest.pop();
+			distances.pop();
+		}
+	}
+	return nearest;
+};
 
 const where = new THREE.Vector3();
 const centre = new THREE.Vector3();
@@ -128,10 +151,11 @@ export const RealLights = ({ count }: IRealLightsProps) => {
 		} else {
 			camera.getWorldPosition(centre);
 		}
-		const lit = [...sources].filter(([, source]) => source.light.level > 0.01);
 		const nearest = new Set(
-			pickNearest(lit, lights.length, ([, source]) =>
-				source.anchor.getWorldPosition(where).distanceToSquared(centre),
+			pickNearest(sources, lights.length, ([, source]) =>
+				source.light.level > 0.01
+					? source.anchor.getWorldPosition(where).distanceToSquared(centre)
+					: null,
 			).map(([id]) => id),
 		);
 		// Point lights keep the sources they show while those are still among the nearest; the rest go

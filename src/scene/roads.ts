@@ -11,6 +11,14 @@ import { variantName } from "./variants";
  */
 
 interface IRoadKind {
+	/** Its family's name; variants of a family are told apart by number (scene/variants). */
+	name: string;
+	/** What it's for, in Add to scene. */
+	description: string;
+	/** More words it's found by in Add to scene's search. */
+	keywords: string;
+	/** Its width when a new one is drawn. */
+	defaultWidth: number;
 	/** Whether it's drawn at all: a hidden route is only followed by vehicles. */
 	isDrawn: boolean;
 	/** Whether it has a centre line to show (`showsCentreLine`). */
@@ -32,32 +40,42 @@ const EMBANKMENT: IColorSpec = {
  */
 export const ROAD_KINDS: Record<TRoadKind, IRoadKind> = {
 	road_01: {
+		name: "Road",
+		description: "Paved road with a centre line",
+		keywords: "street",
+		defaultWidth: 2.4,
 		isDrawn: true,
 		centreLine: true,
 		colors: [{ id: "surface", name: "Surface", default: (palette) => palette.road }, EMBANKMENT],
 	},
 	dirt_path_01: {
+		name: "Dirt path",
+		description: "Unpaved path",
+		keywords: "trail footpath track",
+		defaultWidth: 1.4,
 		isDrawn: true,
 		centreLine: false,
 		colors: [{ id: "surface", name: "Surface", default: (palette) => palette.dirt }, EMBANKMENT],
 	},
-	hidden_route_01: { isDrawn: false, centreLine: false, colors: [] },
+	hidden_route_01: {
+		name: "Hidden route",
+		description: "Invisible route that vehicles follow, e.g. a forklift path",
+		keywords: "path track ferry route",
+		defaultWidth: 1.6,
+		isDrawn: false,
+		centreLine: false,
+		colors: [],
+	},
 };
 
 /** An invisible route: vehicles follow it, but nothing is drawn outside the editor. */
 export const isHiddenRoute = (kind: TRoadKind) => !ROAD_KINDS[kind].isDrawn;
 
-/** Each style's family name; variants of a family are told apart by number (scene/variants). */
-const ROAD_KIND_NAMES: Record<TRoadKind, string> = {
-	road_01: "Road",
-	dirt_path_01: "Dirt path",
-	hidden_route_01: "Hidden route",
-};
-
-const ROAD_KIND_IDS = Object.keys(ROAD_KIND_NAMES) as TRoadKind[];
+/** Every road kind, in the order they're offered. */
+export const ROAD_KIND_IDS = Object.keys(ROAD_KINDS) as TRoadKind[];
 
 export const ROAD_KIND_LABELS = Object.fromEntries(
-	ROAD_KIND_IDS.map((style) => [style, variantName(style, ROAD_KIND_NAMES[style], ROAD_KIND_IDS)]),
+	ROAD_KIND_IDS.map((style) => [style, variantName(style, ROAD_KINDS[style].name, ROAD_KIND_IDS)]),
 ) as Record<TRoadKind, string>;
 
 /** What a road is called: its own name, else its kind's. */
@@ -100,11 +118,9 @@ export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
 	turns === "sharp" ? 0 : Math.min(Math.max(vehicleLength / 2, 0.3), 3);
 
 /** Default width per style when drawing a new road. */
-export const ROAD_KIND_WIDTH: Record<TRoadKind, number> = {
-	road_01: 2.4,
-	dirt_path_01: 1.4,
-	hidden_route_01: 1.6,
-};
+export const ROAD_KIND_WIDTH = Object.fromEntries(
+	ROAD_KIND_IDS.map((style) => [style, ROAD_KINDS[style].defaultWidth]),
+) as Record<TRoadKind, number>;
 
 /**
  * The road width after switching from one style to another: a width still at

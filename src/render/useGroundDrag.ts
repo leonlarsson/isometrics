@@ -10,6 +10,13 @@ import type { TArea, TVec2 } from "#/scene/schema";
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
+const level = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+/** Where a ray meets the level plane at height `y`, as a point of its own; null when it never does. */
+export const levelHitOnRay = (ray: THREE.Ray, y: number): THREE.Vector3 | null => {
+	level.constant = -y;
+	return ray.intersectPlane(level, new THREE.Vector3());
+};
 
 /**
  * Where the ray meets the ground (or a raised plane at `planeY`), snapped to

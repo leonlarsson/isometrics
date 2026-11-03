@@ -11,7 +11,7 @@ import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
-import { surfaceHitOnRay } from "./useGroundDrag";
+import { levelHitOnRay, surfaceHitOnRay } from "./useGroundDrag";
 import { setViewCursor } from "./viewCursor";
 
 /** The handles a gizmo can show. `xz` is the square that slides freely on the ground. */
@@ -88,9 +88,7 @@ const ARROW_HIT_LENGTH = 0.7;
 /** The gizmo's extent around its centre, in gizmo units (for keeping label cards off it). */
 const EXTENT = { side: 1.6, up: 1.3, down: 2.0 };
 
-const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const center = new THREE.Vector3();
-const hit = new THREE.Vector3();
 const up = new THREE.Vector3();
 
 /** Handles that move the target: the cursor hides while they're dragged, so it doesn't cover the spot. */
@@ -357,10 +355,7 @@ export const TransformGizmo = ({
 		finish(null);
 	};
 
-	const groundHit = (e: ThreeEvent<PointerEvent>, y: number) => {
-		plane.constant = -y;
-		return e.ray.intersectPlane(plane, hit) ? hit.clone() : null;
-	};
+	const groundHit = (e: ThreeEvent<PointerEvent>, y: number) => levelHitOnRay(e.ray, y);
 
 	/** Where the pointer meets the ground as it stands, lifted as the object was (ADR-0098). */
 	const surfaceAt = (e: ThreeEvent<PointerEvent>, current: IDragSession) =>

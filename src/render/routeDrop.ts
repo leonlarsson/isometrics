@@ -8,16 +8,16 @@ import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, type IRoadProjection, projectOntoRoad } from "#/scene/routes";
 import type { TRoad, TVec2, TVec3 } from "#/scene/schema";
 
+import { levelHitOnRay } from "./useGroundDrag";
+
 /** How far beyond a road's edge a drop still counts as on the road. */
 const DROP_MARGIN = 0.3;
 
-const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const hit = new THREE.Vector3();
 const shifted = new THREE.Ray();
 
 const pointAtHeight = (ray: THREE.Ray, y: number): TVec2 | null => {
-	plane.constant = -y;
-	return ray.intersectPlane(plane, hit) ? [hit.x, hit.z] : null;
+	const hit = levelHitOnRay(ray, y);
+	return hit ? [hit.x, hit.z] : null;
 };
 
 /** A spot on a road where a dragged vehicle would park, ready to drive along it. */
