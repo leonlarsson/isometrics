@@ -5,6 +5,7 @@ import { createBrightwaterScene } from "./brightwater";
 import { createExtractionShootersScene } from "./extractionShooters";
 import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
+import { createShapeCastleScene } from "./shapeCastle";
 
 export { createEmptyScene } from "./empty";
 
@@ -47,6 +48,14 @@ export const TEMPLATES: ITemplateInfo[] = [
 		description: "F1 street circuit around a harbour: Casino hill, hairpin, tunnel, race data",
 		category: "places",
 		create: createMonacoScene,
+	},
+	{
+		id: "shape-castle",
+		name: "Shape Castle",
+		description:
+			"A castle by a river built only from shapes: walls, towers, a keep lit after dark, an arch bridge. No data, a world to build on",
+		category: "places",
+		create: createShapeCastleScene,
 	},
 	{
 		id: "battlefield_territory",

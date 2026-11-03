@@ -63,12 +63,19 @@ const overlapOf = (a: TBody, b: TBody) => {
 
 describe("templates", () => {
 	// Objects that stand still mustn't stand in each other (a pine inside a house, two roofs in
-	// one place); vehicles on a route move, flat parts are meant to be stood on, and markers
-	// (beacons, text) mark a spot, beside or over what's there.
+	// one place); vehicles on a route move, flat parts are meant to be stood on, markers (beacons,
+	// text) mark a spot, beside or over what's there, and shapes are pieces of one build, meant to
+	// meet and join (a tower's cone on its cylinder, ADR-0124).
 	it.each(templates)("%s has no objects inside each other", (_, create) => {
 		const standing = create().entities.filter((entity) => {
 			const part = getPart(entity.kind);
-			return !entity.follow && !entity.isHidden && !part?.flat && part?.category !== "markers";
+			return (
+				!entity.follow &&
+				!entity.isHidden &&
+				!part?.flat &&
+				part?.category !== "markers" &&
+				part?.category !== "shapes"
+			);
 		});
 		const clashes: string[] = [];
 		standing.forEach((a, i) => {
