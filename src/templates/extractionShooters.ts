@@ -538,19 +538,23 @@ export const createExtractionShootersScene = (): TScene =>
 		data: {
 			sources: [
 				{
-					id: "steam",
-					name: "Steam Web API",
-					kind: "api",
-					about: "Steam players now, read from Steam's API",
+					id: "games_file",
+					name: "extraction-shooters-games.csv",
+					kind: "file",
+					fileName: "extraction-shooters-games.csv",
+					exampleFileUrl: "/examples/extraction-shooters-games.csv",
+					about:
+						"Steam players on 31 Oct 2026, a snapshot (Steam's own API needs a key and can't be read from a browser), and example numbers: a spreadsheet kept on this site, to download from this source's page",
 					pageUrl: "https://store.steampowered.com/charts/mostplayed",
 					lastReadAt: READ_AT,
 				},
 				{
-					id: "examples",
-					name: "Example numbers",
+					id: "overlap_file",
+					name: "extraction-shooters-overlap.csv",
 					kind: "file",
-					fileName: "made up for this example",
-					about: EXAMPLE,
+					fileName: "extraction-shooters-overlap.csv",
+					exampleFileUrl: "/examples/extraction-shooters-overlap.csv",
+					about: `${EXAMPLE}: a spreadsheet kept on this site, to download from this source's page`,
 					lastReadAt: READ_AT,
 				},
 			],
@@ -559,7 +563,7 @@ export const createExtractionShootersScene = (): TScene =>
 					key: "steam_players_total",
 					name: "Players now in these games, on Steam",
 					value: GAMES.reduce((sum, game) => sum + (game.players ?? 0), 0),
-					source: { sourceId: "steam" },
+					about: "Typed: the games' Steam players on 31 Oct 2026, added up",
 				},
 			],
 			tables: [
@@ -567,7 +571,7 @@ export const createExtractionShootersScene = (): TScene =>
 					key: "games",
 					name: "Games",
 					keyColumn: "game",
-					source: { sourceId: "steam" },
+					source: { sourceId: "games_file" },
 					columns: [
 						{ key: "game", name: "Game" },
 						{ key: "appid", name: "Steam app" },
@@ -606,7 +610,7 @@ export const createExtractionShootersScene = (): TScene =>
 					key: "overlap",
 					name: "Audience overlap",
 					keyColumn: "pair",
-					source: { sourceId: "examples" },
+					source: { sourceId: "overlap_file" },
 					columns: [
 						{ key: "pair", name: "Pair" },
 						{ key: "from", name: "From" },

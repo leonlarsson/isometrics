@@ -29,6 +29,17 @@ import { everyInWords, useSourceStatuses } from "./useSourceStatuses";
 import styles from "./DataWindow.module.css";
 
 /** What a kind of source is, in a sentence. */
+/**
+ * Download one of this site's own example files (`/examples/<name>.csv`, all the schema allows):
+ * a link clicked, as Save to file does, nothing requested by the page itself.
+ */
+const downloadExampleFile = (url: string) => {
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = url.split("/").pop() ?? "example.csv";
+	link.click();
+};
+
 const kindInWords = (source: TDataSource) =>
 	source.kind === "file"
 		? "A spreadsheet file, read from someone's computer. It's read again only when you pick the file again."
@@ -178,6 +189,27 @@ export const DataSourcePage = ({
 							onClick={() => void refreshSource(source, { asked: true })}
 						>
 							Allow and read it
+						</Button>
+					</ButtonGroup>
+				</Section>
+			)}
+
+			{source.kind === "file" && source.exampleFileUrl && (
+				<Section icon="file" title="The example file">
+					<Hint>
+						This world read these numbers from an example spreadsheet kept on this site. Download it
+						to see how it's laid out. To do the same with your own numbers, make a file like it,
+						then pick it with Add data → A spreadsheet file… (or with Read it again… below, to read
+						yours into what's here).
+					</Hint>
+
+					<ButtonGroup>
+						<Button
+							size="sm"
+							icon="download"
+							onClick={() => downloadExampleFile(source.exampleFileUrl ?? "")}
+						>
+							Download the example file
 						</Button>
 					</ButtonGroup>
 				</Section>

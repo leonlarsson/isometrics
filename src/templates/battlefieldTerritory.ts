@@ -63,7 +63,7 @@ const OTHER_COUNTS: [string, string, number][] = [
 	["segment", "Classes", 7125],
 ];
 
-/** Deliveries per month (battlefieldstats-sent-monthly.csv). */
+/** Deliveries per month (battlefieldstats-sent-monthly.csv, kept on this site: /examples/). */
 const MONTHLY: [string, number][] = [
 	["2023-01", 5581],
 	["2023-02", 5063],
@@ -360,8 +360,10 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 					name: "battlefieldstats-sent-monthly.csv",
 					kind: "file",
 					fileName: "battlefieldstats-sent-monthly.csv",
+					exampleFileUrl: "/examples/battlefieldstats-sent-monthly.csv",
 					pageUrl: "https://battlefieldstats.com",
-					about: "Deliveries the bot has made per month",
+					about:
+						"Deliveries the bot has made per month: a spreadsheet kept on this site, to download from this source's page",
 					lastReadAt: READ_AT,
 				},
 			],
