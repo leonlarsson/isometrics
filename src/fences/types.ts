@@ -3,6 +3,7 @@ import type { IFenceLayout } from "#/scene/fences";
 import type { TFenceKind } from "#/scene/schema";
 
 import type { IFenceBuilder } from "./builder";
+import type { IFenceGateLook } from "./gates";
 
 /** What a style's `build` gets: where the posts and spans are, how tall, and the builder. */
 export interface IFenceBuildContext<C extends string = string> {
@@ -39,6 +40,8 @@ export interface IFenceStyle<C extends string = string> {
 	showsPosts?: boolean;
 	/** Its colours, as parts list theirs (ADR-0060): ids are stable, never rename one. */
 	colors: readonly IColorSpec<C>[];
+	/** How its swinging gates look (ADR-0133): their leaves are built for it, in these of its colours. */
+	gate: IFenceGateLook<C>;
 	build: (context: IFenceBuildContext<C>) => void;
 }
 

@@ -16,6 +16,7 @@ import { roadNameOf } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
 import type { TArea, TEntity, TFence, TRoad, TVec2 } from "#/scene/schema";
 
+import { FenceAlongEdgeItems } from "./AreaInspector";
 import { ContextMenu, Menu } from "./Menu";
 import { RenamePopover } from "./RenamePopover";
 import { useLastNonNull } from "./useLastNonNull";
@@ -205,17 +206,23 @@ const AreaActions = ({ id, point }: { id: string; point?: TVec2 }) => {
 	}
 	const liftable = takesCornerHeights(area);
 	return (
-		<Menu.Item
-			icon="plus"
-			label="Add a peak here"
-			description={
-				liftable
-					? "A point with a height of its own, for a hill (also: double-click the area)"
-					: "Water stays level, so it has no peaks"
-			}
-			disabled={!liftable}
-			onClick={() => useEditor.getState().addAreaPeak(id, point)}
-		/>
+		<>
+			<Menu.Item
+				icon="plus"
+				label="Add a peak here"
+				description={
+					liftable
+						? "A point with a height of its own, for a hill (also: double-click the area)"
+						: "Water stays level, so it has no peaks"
+				}
+				disabled={!liftable}
+				onClick={() => useEditor.getState().addAreaPeak(id, point)}
+			/>
+
+			<Menu.Submenu icon="fence" label="Fence along the edge">
+				<FenceAlongEdgeItems areaId={id} />
+			</Menu.Submenu>
+		</>
 	);
 };
 

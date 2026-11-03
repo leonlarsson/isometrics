@@ -11,6 +11,7 @@ import {
 	buildFence,
 	builtShareOf,
 	fenceHeightOf,
+	gateIsOpen,
 	layoutOfFence,
 	resolveFenceColors,
 } from "#/fences/fenceModel";
@@ -53,9 +54,18 @@ interface IFenceBodyProps {
  * (scenePictures) use it as it is.
  */
 export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: IFenceBodyProps) => {
-	// Data only rebuilds it when it changes how much is built.
+	// Data only rebuilds it when it changes how much is built, or opens or shuts a gate.
 	const built = builtShareOf(fence, data);
-	const shape = useMemo(() => ({ ...fence, builtShare: built, data: {} }), [fence, built]);
+	const openGates = fence.gates.map((gate) => (gateIsOpen(gate, data) ? "1" : "0")).join("");
+	const shape = useMemo(
+		() => ({
+			...fence,
+			builtShare: built,
+			data: {},
+			gates: fence.gates.map((gate, i) => ({ ...gate, isOpen: openGates[i] === "1", data: {} })),
+		}),
+		[fence, built, openGates],
+	);
 	const geometries = useMemo(() => buildFence(shape, areas, []), [shape, areas]);
 	useLayoutEffect(
 		() => () => {
@@ -75,7 +85,8 @@ export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: I
 			return null;
 		}
 		const builder = createFenceBuilder();
-		for (const span of layout.spans) {
+		// Its gates take clicks too, shut or open, across their opening.
+		for (const span of [...layout.spans, ...layout.gates]) {
 			builder.beam(span, {
 				color: "hit",
 				bottom: 0,
@@ -96,7 +107,11 @@ export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: I
 					number,
 				],
 		);
-		if (fence.loops && points.length > 2 && layout.spans.length === points.length) {
+		if (
+			fence.loops &&
+			points.length > 2 &&
+			layout.spans.length + layout.gates.length === points.length
+		) {
 			points.push(points[0]);
 		}
 		return points;

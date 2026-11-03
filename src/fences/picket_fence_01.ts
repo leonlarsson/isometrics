@@ -21,6 +21,7 @@ export const picketFence01 = defineFenceStyle({
 		{ id: "pickets", name: "Pickets", default: "#f3efe6" },
 		{ id: "posts", name: "Posts and rails", default: "#ded8ca" },
 	],
+	gate: { infill: "boards", frameColor: "posts", infillColor: "pickets", leafInset: 0.06 },
 	build: ({ layout, height, builder, colorIds }) => {
 		for (const post of layout.posts) {
 			builder.post(post, {

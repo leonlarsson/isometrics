@@ -50,6 +50,56 @@ describe("fence styles", () => {
 		}
 	});
 
+	it("builds every style's gates, shut, open and from data, in colours it lists (ADR-0133)", () => {
+		const count = (geometries: ReturnType<typeof buildFence>) =>
+			[...geometries.values()].reduce((sum, g) => sum + g.getAttribute("position").count, 0);
+		const highest = (geometries: ReturnType<typeof buildFence>) =>
+			Math.max(
+				...[...geometries.values()].flatMap((g) =>
+					[...g.getAttribute("position").array].filter((_, i) => i % 3 === 2),
+				),
+			);
+		for (const style of FENCE_STYLE_LIST) {
+			const fence = (gates: unknown[]) =>
+				FenceSchema.parse({
+					id: "f",
+					kind: style.id,
+					points: [
+						[0, 0],
+						[6, 0],
+					],
+					gates,
+				});
+			const ids = new Set(style.colors.map((spec) => spec.id));
+			expect(ids.has(style.gate.frameColor), style.id).toBe(true);
+			expect(ids.has(style.gate.infillColor), style.id).toBe(true);
+			const shut = buildFence(fence([{ spanIndex: 0, alongShare: 0.5, width: 1.4 }]), [], []);
+			const gap = buildFence(fence([{ kind: "gap", width: 1.4, alongShare: 0.5 }]), [], []);
+			for (const [id] of shut) {
+				expect(ids.has(id), `${style.id}'s gate draws in a colour it doesn't list: ${id}`).toBe(
+					true,
+				);
+			}
+			expect(count(shut), style.id).toBeGreaterThan(count(gap));
+			// Open, it swings out of the fence's line (to its right, +z here).
+			const open = buildFence(
+				fence([{ spanIndex: 0, alongShare: 0.5, width: 1.4, isOpen: true }]),
+				[],
+				[],
+			);
+			expect(highest(open), style.id).toBeGreaterThan(highest(shut) + 0.5);
+			const fromData = fence([
+				{
+					spanIndex: 0,
+					width: 1.4,
+					data: { isOpen: DataBindingSchema.parse({ key: "open", switchesOnAbove: 0 }) },
+				},
+			]);
+			const data = [{ key: "open", name: "", value: 1, unit: "" }];
+			expect(highest(buildFence(fromData, [], data)), style.id).toBeCloseTo(highest(open));
+		}
+	});
+
 	it("gives every colour a name and a default", () => {
 		for (const style of FENCE_STYLE_LIST) {
 			expect(style.colors.length, style.id).toBeGreaterThan(0);

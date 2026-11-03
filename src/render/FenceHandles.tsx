@@ -10,6 +10,7 @@ import {
 } from "#/editor/groupTransform";
 import {
 	drawnModeOf,
+	type IJoinOffer,
 	isToggleClick,
 	selectSelectedFence,
 	selectSeveral,
@@ -19,7 +20,7 @@ import { usePalette } from "#/editor/useTheme";
 import { fenceHeightOf } from "#/fences/fenceModel";
 import { isClick, pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
-import { segmentMidpoints } from "#/scene/roads";
+import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TArea, TFence, TFencePoint } from "#/scene/schema";
 
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
@@ -41,6 +42,21 @@ const HANDLE_LIFT = 0.12;
 /** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
 const HANDLE_PX = 24;
 const POINT_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y"];
+/** Dragged fence ends snap onto another fence end within this distance, as road ends do. */
+const JOIN_SNAP = 0.8;
+
+/** Open fence ends a dragged end could join (ADR-0133), not the dragged end itself. */
+const joinTargets = (fences: readonly TFence[], fence: TFence, end: TRoadEnd) =>
+	fences.flatMap((other) =>
+		roadEnds(other)
+			.filter(
+				(candidate) =>
+					!(other.id === fence.id && candidate.end === end) &&
+					// A fence's own other end only works if joining makes a real loop.
+					!(other.id === fence.id && fence.points.length < 3),
+			)
+			.map((candidate) => ({ fenceId: other.id, end: candidate.end, point: candidate.point })),
+	);
 
 /** Where a fence point stands: the ground there, plus its lift. */
 const standsAt = (areas: readonly TArea[], point: readonly number[]) =>
@@ -59,6 +75,8 @@ interface IFencePointHandleProps {
 
 interface IPointDrag {
 	token: string;
+	/** The other fence end it was let go on, to offer joining them. */
+	join: IJoinOffer | null;
 	from: { clientX: number; clientY: number };
 	moving: boolean;
 	/** Pressed on one of several selected points: they all move, from where they were. */
@@ -75,8 +93,12 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 	// Survives the drag ending (pointer up comes before the click).
 	const keepsOthers = useRef(false);
 
+	const end: TRoadEnd | null =
+		roadEnds(fence).find((candidate) => candidate.index === index)?.end ?? null;
+
 	const finish = (event: ThreeEvent<PointerEvent>) => {
-		if (!drag.current) {
+		const state = drag.current;
+		if (!state) {
 			return;
 		}
 		drag.current = null;
@@ -85,7 +107,11 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 		if (controls) {
 			controls.enabled = true;
 		}
-		useEditor.getState().setDragging(false);
+		const store = useEditor.getState();
+		store.setDragging(false);
+		if (state.join) {
+			store.setJoinOffer(state.join);
+		}
 	};
 
 	return (
@@ -104,9 +130,11 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 				if (!several) {
 					store.selectFencePoint(fence.id, index);
 				}
+				store.setJoinOffer(null);
 				keepsOthers.current = several;
 				drag.current = {
 					token: `fence-point:${performance.now()}`,
+					join: null,
 					from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 					moving: false,
 					group: null,
@@ -135,11 +163,30 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 				}
 				// Under the pointer on the ground as it stands, so it follows the pointer onto raised land,
 				// at the height the handle is drawn (the fence's top), so it stays under the pointer.
-				const target = surfacePointFrom(e, point[2] + fenceHeightOf(fence));
+				let target = surfacePointFrom(e, point[2] + fenceHeightOf(fence));
 				const group = state.group;
 				const start = group?.points.find((p) => p.index === index)?.point;
 				if (!target || !group || !start) {
 					return;
+				}
+				// An end dragged on its own onto another fence's end snaps to it, to offer joining them.
+				state.join = null;
+				if (end && group.points.length === 1) {
+					const spot = target;
+					const near = joinTargets(useEditor.getState().scene.fences, fence, end).find(
+						(candidate) =>
+							Math.hypot(candidate.point[0] - spot[0], candidate.point[1] - spot[1]) < JOIN_SNAP,
+					);
+					if (near) {
+						target = [near.point[0], near.point[1]];
+						state.join = {
+							target: "fence",
+							aId: fence.id,
+							aEnd: end,
+							bId: near.fenceId,
+							bEnd: near.end,
+						};
+					}
 				}
 				// This point lands on the grid; any others selected move by as much.
 				transformPoints(

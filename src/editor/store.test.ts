@@ -638,6 +638,121 @@ describe("editor store", () => {
 		expect(s().scene.fences.find((f) => f.id === id)?.colors).toEqual({});
 	});
 
+	it("keeps a fence's gates where they stand as its points change, and follows data renames into them (ADR-0133)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const id = s().addFence({
+			kind: "rail_fence_01",
+			points: [
+				[0, 0],
+				[10, 0],
+				[10, 6],
+			],
+		});
+		const fence = () => s().scene.fences.find((f) => f.id === id);
+		expect(s().addFenceGate(id)).toBe(0); // on the longest stretch, in its middle
+		expect(fence()?.gates[0]).toMatchObject({ kind: "swinging", spanIndex: 0, alongShare: 0.5 });
+		s().addFenceGate(id, 1);
+		expect(fence()?.gates[1]).toMatchObject({ spanIndex: 1, alongShare: 0.5 });
+
+		// A point added before them: each is on the stretch it now stands on, where it stood.
+		s().insertFencePoint(id, 1, [2, 0, 0]);
+		expect(fence()?.gates.map((g) => [g.spanIndex, g.alongShare])).toEqual([
+			[1, 0.375],
+			[2, 0.5],
+		]);
+		s().removeFencePoint(id, 1);
+		expect(fence()?.gates.map((g) => [g.spanIndex, g.alongShare])).toEqual([
+			[0, 0.5],
+			[1, 0.5],
+		]);
+
+		// Split at the corner: each gate goes with its half.
+		const second = s().splitFence(id, 1);
+		expect(fence()?.gates).toHaveLength(1);
+		expect(s().scene.fences.find((f) => f.id === second)?.gates).toMatchObject([
+			{ spanIndex: 0, alongShare: 0.5 },
+		]);
+
+		// A gate's open and shut from data is renamed and dropped with its value.
+		s().updateFence(id, (f) => {
+			f.gates[0].data.isOpen = DataBindingSchema.parse({ key: "orders" });
+		});
+		s().upsertData({ key: "parcels", name: "Orders", value: 3, unit: "" }, "orders");
+		expect(fence()?.gates[0].data.isOpen?.key).toBe("parcels");
+		s().removeData("parcels");
+		expect(fence()?.gates[0].data).toEqual({});
+		s().removeFenceGate(id, 0);
+		expect(fence()?.gates).toEqual([]);
+	});
+
+	it("joins two fences end to end into one, gates and all, and a fence's own ends into a loop (ADR-0133)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const a = s().addFence({
+			kind: "picket_fence_01",
+			points: [
+				[0, 0],
+				[4, 0],
+			],
+		});
+		const b = s().addFence({
+			kind: "hedge_01",
+			points: [
+				[8, 4],
+				[8, 0],
+				[4, 0],
+			],
+			gates: [{ spanIndex: 0, alongShare: 0.25, isOpen: true }],
+		});
+		s().joinFences(a, "end", b, "end");
+		expect(s().scene.fences).toHaveLength(1);
+		const joined = s().scene.fences[0];
+		expect(joined).toMatchObject({ id: a, kind: "picket_fence_01" });
+		expect(joined.points).toEqual([
+			[0, 0, 0],
+			[4, 0, 0],
+			[8, 0, 0],
+			[8, 4, 0],
+		]);
+		// The gate stood a quarter of the way from (8, 4) to (8, 0): it still does.
+		expect(joined.gates).toMatchObject([{ spanIndex: 2, alongShare: 0.75, isOpen: true }]);
+		expect(s().selectedFenceId).toBe(a);
+
+		s().joinFences(a, "start", a, "end");
+		expect(s().scene.fences[0].loops).toBe(true);
+		expect(s().scene.fences[0].gates).toMatchObject([{ spanIndex: 2, alongShare: 0.75 }]);
+		s().undo();
+		s().undo();
+		expect(s().scene.fences).toHaveLength(2);
+	});
+
+	it("puts a fence along an area's edge: inside it, outside for water (ADR-0133)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		const square = [
+			[0, 0],
+			[4, 0],
+			[4, 4],
+			[0, 4],
+		] as [number, number][];
+		const land = s().addArea({ kind: "raised_land_01", points: square, height: 2 });
+		const id = s().addFenceAlongEdge(land, "stone_wall_01");
+		const fence = s().scene.fences.find((f) => f.id === id);
+		expect(fence).toMatchObject({ kind: "stone_wall_01", loops: true, name: "Stone wall 1" });
+		expect(s().selectedFenceId).toBe(id);
+		expect(fence?.points).toEqual([
+			[0.22, 0.22, 0],
+			[3.78, 0.22, 0],
+			[3.78, 3.78, 0],
+			[0.22, 3.78, 0],
+		]);
+		const pond = s().addArea({ kind: "water_01", points: square });
+		const bankId = s().addFenceAlongEdge(pond, "railing_01");
+		const bank = s().scene.fences.find((f) => f.id === bankId);
+		expect(bank?.points[0]).toEqual([-0.22, -0.22, 0]);
+	});
+
 	it("edits area corners, keeps at least three, and undoes", () => {
 		const store = makeStore();
 		const s = () => store.getState();

@@ -6,6 +6,7 @@ import {
 	type TArea,
 	type TEntity,
 	type TFence,
+	type TFenceGate,
 	type TRoad,
 	type TViewPose,
 	WorldDataSchema,
@@ -114,7 +115,7 @@ export interface ITestWorld {
 	entities?: Partial<TEntity>[];
 	roads?: Partial<TRoad>[];
 	areas?: Partial<TArea>[];
-	fences?: Partial<TFence>[];
+	fences?: (Partial<Omit<TFence, "gates">> & { gates?: Partial<TFenceGate>[] })[];
 	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
 	data?: unknown;
 }
@@ -192,6 +193,17 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 			isHidden: false,
 			isLocked: false,
 			...f,
+			gates: (f.gates ?? []).map((gate) => ({
+				kind: "swinging",
+				spanIndex: 0,
+				alongShare: 0.5,
+				width: 1,
+				isOpen: false,
+				opensToTheLeft: false,
+				hasTwoLeaves: false,
+				data: {},
+				...gate,
+			})),
 			points: (f.points ?? []).map(([x, z, lift]) => [x, z, lift ?? 0]),
 		})) as typeof scene.fences;
 		if (world.data) {

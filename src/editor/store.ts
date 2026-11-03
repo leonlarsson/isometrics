@@ -1,4 +1,4 @@
-import { type Draft, produce } from "immer";
+import { current, type Draft, produce } from "immer";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 
@@ -15,12 +15,19 @@ import {
 	cornerWithLift,
 	groundHeightAt,
 	isInsidePolygon,
+	isWaterArea,
 	liftForTop,
 	middleOf,
 	takesCornerHeights,
 } from "#/scene/areas";
 import { bindingMapsOf, fenceBindingMapsOf, worldBindingMapsOf } from "#/scene/dataBindings";
-import { fenceLength } from "#/scene/fences";
+import {
+	EDGE_FENCE_INSET,
+	fenceLength,
+	fenceStretches,
+	gatesMovedOnto,
+	insetOutline,
+} from "#/scene/fences";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
@@ -43,6 +50,7 @@ import {
 	DataValueSchema,
 	EntityLightSchema,
 	EntitySchema,
+	FenceGateSchema,
 	FenceSchema,
 	FollowSchema,
 	RoadSchema,
@@ -161,6 +169,20 @@ const withPoint = (
 	return width === null || width === undefined ? [x, z, height] : [x, z, height, width];
 };
 
+/**
+ * A fence's gates once its points changed (one added or taken out, it opened or
+ * closed): each where it stood on the ground (ADR-0133). `before` is the fence
+ * as it was, e.g. immer's `current` of the draft before the change.
+ */
+const keepGatesInPlace = (
+	fence: Draft<TFence>,
+	before: Pick<TFence, "points" | "loops" | "gates">,
+) => {
+	if (before.gates.length > 0) {
+		fence.gates = gatesMovedOnto(before, [fence])[0];
+	}
+};
+
 /** A fence point at a spot, `lift` above the ground there (ADR-0103). */
 const fencePoint = (x: number, z: number, lift = 0): TFencePoint => [
 	round(x),
@@ -234,8 +256,10 @@ export interface ITransformSession {
 	undo?: { scene: TScene; items: ISceneItem[] };
 }
 
-/** Two road ends that touch after a drag; the UI offers to join them. */
+/** Two road ends, or two fence ends (ADR-0133), that touch after a drag; the UI offers to join them. */
 export interface IJoinOffer {
+	/** What the two ends are of. */
+	target: "road" | "fence";
 	aId: string;
 	aEnd: TRoadEnd;
 	bId: string;
@@ -736,6 +760,24 @@ export interface IEditorState {
 	 * (returns the new fence's id); a loop opens there (returns its own id).
 	 */
 	splitFence: (id: string, index: number) => string | null;
+	/**
+	 * Join two fence ends into one fence, the first's kind and settings; joining a
+	 * fence's own two ends makes a loop (ADR-0133).
+	 */
+	joinFences: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
+	/** Whether a fence closes back to its first point, its gates staying where they stand. */
+	setFenceLoops: (id: string, loops: boolean) => void;
+	/**
+	 * Add a gate to a fence (ADR-0133): on the stretch after point `spanIndex`
+	 * (else its longest), in the middle. Returns the gate's index, or null.
+	 */
+	addFenceGate: (id: string, spanIndex?: number) => number | null;
+	removeFenceGate: (id: string, index: number) => void;
+	/**
+	 * A new fence of this kind just inside an area's edge, all the way round
+	 * (outside it, for water), selected (ADR-0133). Returns its id, or null.
+	 */
+	addFenceAlongEdge: (areaId: string, kind: TFenceKind) => string | null;
 
 	startDrawing: (style: TRoadKind) => void;
 	startAreaDrawing: (type: TAreaKind) => void;
@@ -1405,9 +1447,13 @@ export const createEditorStore = (openScene?: TScene) => {
 							? draft.fences.find((f) => f.id === fence.id)
 							: draft.areas.find((a) => a.id === area?.id);
 					if (shape) {
+						const before = current(shape);
 						shape.points = shape.points.filter(
 							(_, index) => !doomed.has(index),
 						) as typeof shape.points;
+						if ("gates" in shape && "gates" in before) {
+							keepGatesInPlace(shape, before);
+						}
 					}
 				});
 				set({ selectedPointIndex: null });
@@ -2422,7 +2468,9 @@ export const createEditorStore = (openScene?: TScene) => {
 				get().updateFence(
 					id,
 					(fence) => {
+						const before = current(fence);
 						fence.points.splice(index, 0, fencePoint(point[0], point[1], point[2]));
+						keepGatesInPlace(fence, before);
 					},
 					options,
 				),
@@ -2430,7 +2478,9 @@ export const createEditorStore = (openScene?: TScene) => {
 			removeFencePoint: (id, index) => {
 				get().updateFence(id, (fence) => {
 					if (fence.points.length > 2) {
+						const before = current(fence);
 						fence.points.splice(index, 1);
+						keepGatesInPlace(fence, before);
 					}
 				});
 				set((state) =>
@@ -2448,8 +2498,10 @@ export const createEditorStore = (openScene?: TScene) => {
 				if (fence.loops) {
 					// Open the loop at this point: it becomes both the start and the end.
 					get().updateFence(id, (f) => {
+						const before = current(f);
 						f.points = [...f.points.slice(index), ...f.points.slice(0, index + 1)];
 						f.loops = false;
+						keepGatesInPlace(f, before);
 					});
 					set({ selectedPointIndex: 0 });
 					return id;
@@ -2462,11 +2514,17 @@ export const createEditorStore = (openScene?: TScene) => {
 				const share = (part: TFencePoint[]) => fenceLength({ ...fence, points: part });
 				const [firstLength, total] = [share(fence.points.slice(0, index + 1)), share(fence.points)];
 				const builtLength = fence.builtShare * total;
+				// Each gate stays where it stands, in whichever half it's in.
+				const [firstGates, secondGates] = gatesMovedOnto(fence, [
+					{ points: fence.points.slice(0, index + 1), loops: false },
+					{ points: fence.points.slice(index), loops: false },
+				]);
 				const second = FenceSchema.parse({
 					...structuredClone(fence),
 					id: newId("fence"),
 					name: fence.name ? `${fence.name} (2)` : "",
 					points: fence.points.slice(index),
+					gates: secondGates,
 					builtShare:
 						total - firstLength > 1e-6
 							? round(Math.max(0, (builtLength - firstLength) / (total - firstLength)))
@@ -2476,6 +2534,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					const first = scene.fences.find((f) => f.id === id);
 					if (first) {
 						first.points = first.points.slice(0, index + 1);
+						first.gates = firstGates;
 						if (firstLength > 1e-6) {
 							first.builtShare = round(Math.min(1, builtLength / firstLength));
 						}
@@ -2484,6 +2543,113 @@ export const createEditorStore = (openScene?: TScene) => {
 				});
 				set({ ...NOTHING_SELECTED, selectedFenceId: second.id, selectedPointIndex: 0 });
 				return second.id;
+			},
+
+			joinFences: (aId, aEnd, bId, bEnd) => {
+				const { fences } = get().scene;
+				const a = fences.find((f) => f.id === aId);
+				const b = fences.find((f) => f.id === bId);
+				if (!a || !b || a.loops || b.loops) {
+					set({ joinOffer: null });
+					return;
+				}
+				if (aId === bId) {
+					if (aEnd !== bEnd && a.points.length > 2) {
+						get().updateFence(aId, (f) => {
+							const before = current(f);
+							const first = f.points[0];
+							const last = f.points[f.points.length - 1];
+							if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
+								f.points.pop(); // ends touch: keep one shared point
+							}
+							f.loops = true;
+							keepGatesInPlace(f, before);
+						});
+					}
+					set({ joinOffer: null, selectedFenceId: aId, selectedPointIndex: null });
+					return;
+				}
+				const points = joinedPoints(a.points, aEnd, b.points, bEnd);
+				const joined = { points, loops: false };
+				const gates = [...gatesMovedOnto(a, [joined])[0], ...gatesMovedOnto(b, [joined])[0]];
+				// How much is built: as much of each as was, shared out over the joined length.
+				const total = fenceLength({ ...a, points });
+				const builtShare =
+					a.builtShare === 1 && b.builtShare === 1
+						? 1
+						: total > 1e-6
+							? round(
+									Math.min(
+										1,
+										(a.builtShare * fenceLength(a) + b.builtShare * fenceLength(b)) / total,
+									),
+								)
+							: a.builtShare;
+				get().commit((scene) => {
+					const target = scene.fences.find((f) => f.id === aId);
+					if (!target) {
+						return;
+					}
+					target.points = points;
+					target.gates = gates;
+					target.builtShare = builtShare;
+					scene.fences = scene.fences.filter((f) => f.id !== bId);
+				});
+				set({ ...NOTHING_SELECTED, joinOffer: null, selectedFenceId: aId });
+			},
+
+			setFenceLoops: (id, loops) =>
+				get().updateFence(
+					id,
+					(fence) => {
+						const before = current(fence);
+						fence.loops = loops;
+						keepGatesInPlace(fence, before);
+					},
+					{ coalesce: `${id}:loops` },
+				),
+
+			addFenceGate: (id, spanIndex) => {
+				const fence = get().scene.fences.find((f) => f.id === id);
+				const stretches = fence ? fenceStretches(fence) : [];
+				if (!fence || stretches.length === 0) {
+					return null;
+				}
+				const lengths = stretches.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]));
+				const on =
+					spanIndex === undefined
+						? lengths.indexOf(Math.max(...lengths))
+						: Math.min(Math.max(0, spanIndex), stretches.length - 1);
+				// A garden gate's width, or most of a short stretch.
+				const width = round(Math.max(0.3, Math.min(1, lengths[on] * 0.8)));
+				get().updateFence(id, (f) => {
+					f.gates.push(FenceGateSchema.parse({ spanIndex: on, alongShare: 0.5, width }));
+				});
+				return fence.gates.length;
+			},
+
+			removeFenceGate: (id, index) =>
+				get().updateFence(id, (fence) => {
+					fence.gates.splice(index, 1);
+				}),
+
+			addFenceAlongEdge: (areaId, kind) => {
+				const area = get().scene.areas.find((a) => a.id === areaId);
+				if (!area || area.points.length < 3) {
+					return null;
+				}
+				// Just inside, so it stands on the area's top if it's raised; water's on the bank outside.
+				const points = insetOutline(
+					area.points,
+					isWaterArea(area) ? -EDGE_FENCE_INSET : EDGE_FENCE_INSET,
+				);
+				const count = get().scene.fences.filter((f) => f.kind === kind).length;
+				return get().addFence({
+					name: `${FENCE_STYLE_LABELS[kind]} ${count + 1}`,
+					kind,
+					points,
+					loops: true,
+				});
 			},
 
 			startFenceDrawing: (fenceStyle) =>
@@ -2752,8 +2918,10 @@ export const createEditorStore = (openScene?: TScene) => {
 					if (drawing.fenceId) {
 						const fenceId = drawing.fenceId;
 						get().updateFence(fenceId, (fence) => {
+							const before = current(fence);
 							fence.points = points;
 							fence.loops = loops;
+							keepGatesInPlace(fence, before);
 						});
 						set({ ...NOTHING_SELECTED, selectedFenceId: fenceId, tab: "object" });
 						return fenceId;
