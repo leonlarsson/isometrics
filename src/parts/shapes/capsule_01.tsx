@@ -4,8 +4,12 @@ import { definePart } from "../types";
 
 import {
 	arcSteps,
+	finishField,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -13,6 +17,7 @@ import {
 } from "./shapeKit";
 
 const CapsuleSchema = z.object({
+	...lookProps,
 	...sizeProps({ width: 0.5, depth: 0.5 }),
 	sideCount: sideCountProp(16),
 });
@@ -30,11 +35,13 @@ export const capsule01 = definePart({
 		sizeField("depth", "Depth"),
 		sizeField("height", "Height"),
 		sideCountField("sideCount"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => {
+	Component: ({ props: p, colors, transparency, lights }) => {
 		// Its ends are as round as its narrower side allows, at most half its height each.
 		const end = Math.min(Math.min(p.width, p.depth) / 2, p.height / 2);
 		const steps = Math.max(2, Math.round(p.sideCount / 4));
@@ -56,8 +63,7 @@ export const capsule01 = definePart({
 						})),
 					],
 				}}
-				color={colors.surface}
-				transparency={transparency.surface}
+				look={lookOf({ props: p, colors, transparency, lights })}
 			/>
 		);
 	},

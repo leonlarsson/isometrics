@@ -5,8 +5,12 @@ import { definePart } from "../types";
 import {
 	arcAngleField,
 	arcAngleProp,
+	finishField,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -18,6 +22,7 @@ import {
 } from "./shapeKit";
 
 const CylinderSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	sideCount: sideCountProp(16),
 	isHollow: z.boolean().default(false),
@@ -55,11 +60,13 @@ export const cylinder01 = definePart({
 		{ key: "isHollow", label: "Hollow (only its walls)", type: "boolean" },
 		wallThicknessField("wallThickness"),
 		arcAngleField("arcAngle"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => (
+	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="cylinder"
 			options={{
@@ -76,8 +83,7 @@ export const cylinder01 = definePart({
 							{ out: 0, y: p.height },
 						],
 			}}
-			color={colors.surface}
-			transparency={transparency.surface}
+			look={lookOf({ props: p, colors, transparency, lights })}
 		/>
 	),
 });

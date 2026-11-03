@@ -2,12 +2,16 @@ import { z } from "zod";
 
 import { definePart } from "../types";
 
-import type { IProfilePoint } from "./shapeKit";
 import {
 	arcAngleField,
 	arcAngleProp,
+	finishField,
+	type IProfilePoint,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -18,6 +22,7 @@ import {
 } from "./shapeKit";
 
 const ConeSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	topWidthShare: z.number().min(0).max(1).default(0),
 	sideCount: sideCountProp(16),
@@ -62,11 +67,13 @@ export const cone01 = definePart({
 		{ key: "isHollow", label: "Hollow (only its walls)", type: "boolean" },
 		wallThicknessField("wallThickness"),
 		arcAngleField("arcAngle"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => (
+	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="cone"
 			options={{
@@ -80,8 +87,7 @@ export const cone01 = definePart({
 					p.isHollow ? wallThicknessFor(p.width, p.depth, p.wallThickness) : null,
 				),
 			}}
-			color={colors.surface}
-			transparency={transparency.surface}
+			look={lookOf({ props: p, colors, transparency, lights })}
 		/>
 	),
 });

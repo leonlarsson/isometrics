@@ -79,10 +79,12 @@ import { roundTree01 } from "./nature/round_tree_01";
 import { roundTree02 } from "./nature/round_tree_02";
 import { tallGrass01 } from "./nature/tall_grass_01";
 import { waterLilies01 } from "./nature/water_lilies_01";
+import { arch01 } from "./shapes/arch_01";
 import { ball01 } from "./shapes/ball_01";
 import { box01 } from "./shapes/box_01";
 import { capsule01 } from "./shapes/capsule_01";
 import { cone01 } from "./shapes/cone_01";
+import { cornerWedge01 } from "./shapes/corner_wedge_01";
 import { cylinder01 } from "./shapes/cylinder_01";
 import { dome01 } from "./shapes/dome_01";
 import { panel01 } from "./shapes/panel_01";
@@ -214,10 +216,12 @@ export const PARTS: TAnyPart[] = [
 	cone01,
 	pyramid01,
 	wedge01,
+	cornerWedge01,
 	dome01,
 	capsule01,
 	torus01,
 	panel01,
+	arch01,
 	stairs01,
 ];
 

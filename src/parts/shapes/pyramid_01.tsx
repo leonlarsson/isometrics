@@ -2,9 +2,19 @@ import { z } from "zod";
 
 import { definePart } from "../types";
 
-import { SHAPE_COLORS, SweptShape, sizeField, sizeProps } from "./shapeKit";
+import {
+	finishField,
+	lookOf,
+	lookProps,
+	SHAPE_COLORS,
+	SweptShape,
+	shapeLights,
+	sizeField,
+	sizeProps,
+} from "./shapeKit";
 
 const PyramidSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	topWidthShare: z.number().min(0).max(1).default(0),
 });
@@ -29,11 +39,13 @@ export const pyramid01 = definePart({
 			max: 1,
 			step: 0.05,
 		},
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => (
+	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="pyramid"
 			options={{
@@ -47,8 +59,7 @@ export const pyramid01 = definePart({
 					...(p.topWidthShare > 0 ? [{ out: 0, y: p.height }] : []),
 				],
 			}}
-			color={colors.surface}
-			transparency={transparency.surface}
+			look={lookOf({ props: p, colors, transparency, lights })}
 		/>
 	),
 });

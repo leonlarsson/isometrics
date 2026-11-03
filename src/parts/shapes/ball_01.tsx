@@ -4,8 +4,12 @@ import { definePart } from "../types";
 
 import {
 	arcSteps,
+	finishField,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -13,6 +17,7 @@ import {
 } from "./shapeKit";
 
 const BallSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	sideCount: sideCountProp(12),
 });
@@ -30,11 +35,13 @@ export const ball01 = definePart({
 		sizeField("depth", "Depth"),
 		sizeField("height", "Height"),
 		sideCountField("sideCount"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => (
+	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="ball"
 			options={{
@@ -46,8 +53,7 @@ export const ball01 = definePart({
 					y: (p.height / 2) * (1 - Math.cos(angle)),
 				})),
 			}}
-			color={colors.surface}
-			transparency={transparency.surface}
+			look={lookOf({ props: p, colors, transparency, lights })}
 		/>
 	),
 });

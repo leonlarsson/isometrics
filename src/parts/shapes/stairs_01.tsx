@@ -2,9 +2,19 @@ import { z } from "zod";
 
 import { definePart } from "../types";
 
-import { BoxMesh, SHAPE_COLORS, sizeField, sizeProps } from "./shapeKit";
+import {
+	BoxMesh,
+	finishField,
+	lookOf,
+	lookProps,
+	SHAPE_COLORS,
+	shapeLights,
+	sizeField,
+	sizeProps,
+} from "./shapeKit";
 
 const StairsSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	stepCount: z.number().int().min(1).max(40).default(5),
 });
@@ -22,11 +32,13 @@ export const stairs01 = definePart({
 		sizeField("depth", "Depth"),
 		sizeField("height", "Height"),
 		{ key: "stepCount", label: "Steps", type: "number", min: 1, max: 40, step: 1 },
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => {
+	Component: ({ props: p, colors, transparency, lights }) => {
 		const tread = p.depth / p.stepCount;
 		const rise = p.height / p.stepCount;
 		return (
@@ -36,8 +48,7 @@ export const stairs01 = definePart({
 						key={step}
 						size={[p.width, rise * step, tread]}
 						position={[0, 0, p.depth / 2 - tread * (step - 0.5)]}
-						color={colors.surface}
-						transparency={transparency.surface}
+						look={lookOf({ props: p, colors, transparency, lights })}
 					/>
 				))}
 			</group>

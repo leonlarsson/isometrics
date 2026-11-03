@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import { type IProfilePoint, sweptGeometry, wallsProfile } from "./shapeKit";
+import { type IProfilePoint, solidGeometry, sweptGeometry, wallsProfile } from "./shapeKit";
 
 /** Its volume from its faces: positive only if every face points out. */
 const volumeOf = (geometry: THREE.BufferGeometry) => {
@@ -66,5 +66,26 @@ describe("swept shapes", () => {
 			);
 			expect(part / whole).toBeCloseTo(arcAngle / 360, 2);
 		}
+	});
+
+	it("turns a solid's faces out, whatever order their corners are listed in", () => {
+		// The corner wedge: a pyramid with its top over a corner, a third of its box.
+		const geometry = solidGeometry(
+			[
+				[-1, 0, -0.5],
+				[1, 0, -0.5],
+				[1, 0, 0.5],
+				[-1, 0, 0.5],
+				[-1, 3, -0.5],
+			],
+			[
+				[0, 1, 2, 3],
+				[0, 1, 4],
+				[4, 3, 0],
+				[1, 2, 4],
+				[2, 4, 3],
+			],
+		);
+		expect(volumeOf(geometry)).toBeCloseTo((2 * 1 * 3) / 3);
 	});
 });

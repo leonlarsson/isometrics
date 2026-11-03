@@ -5,9 +5,13 @@ import { definePart } from "../types";
 import {
 	arcAngleField,
 	arcAngleProp,
+	finishField,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SIZE,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -15,6 +19,7 @@ import {
 } from "./shapeKit";
 
 const TorusSchema = z.object({
+	...lookProps,
 	...sizeProps({ height: 0.25 }),
 	ringThickness: z.number().min(SIZE.min).max(25).default(0.25),
 	sideCount: sideCountProp(24),
@@ -56,11 +61,13 @@ export const torus01 = definePart({
 		sideCountField("sideCount"),
 		{ key: "ringSideCount", label: "Sides of the band", type: "number", min: 3, max: 32, step: 1 },
 		arcAngleField("arcAngle"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => {
+	Component: ({ props: p, colors, transparency, lights }) => {
 		// Half the band across, leaving a hole in the middle.
 		const band = Math.min(p.ringThickness, Math.min(p.width, p.depth) / 2 - 0.005) / 2;
 		return (
@@ -80,8 +87,7 @@ export const torus01 = definePart({
 						};
 					}),
 				}}
-				color={colors.surface}
-				transparency={transparency.surface}
+				look={lookOf({ props: p, colors, transparency, lights })}
 			/>
 		);
 	},

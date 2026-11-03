@@ -69,6 +69,12 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	 */
 	when?: "dark" | "driving" | "always";
 	/**
+	 * How objects switch it until they say otherwise (the Lights tab's When):
+	 * "auto" (the default) as `when` says; "off" for a light that's there to be
+	 * turned on, like a shape's glow.
+	 */
+	whenOn?: "auto" | "off";
+	/**
 	 * Settings older worlds kept elsewhere (props, the accent colour) before this
 	 * light had its own: read once when a world is opened (`repairWorld`), into the
 	 * object's settings for it where they're unset.
@@ -134,6 +140,12 @@ export type TFieldSpec<K extends string = string> =
 			min: number;
 			max: number;
 			step: number;
+			/**
+			 * Where its slider starts when typed values may go lower (`min`): the
+			 * slider's steps count from here, so quarters land on 0.25, 0.5, … while
+			 * a size of 0.05 can still be typed.
+			 */
+			sliderMin?: number;
 			/**
 			 * Values worth one click, shown as chips under the slider (the chip of
 			 * the value it has looks chosen), e.g. standard container lengths.
@@ -248,7 +260,7 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * it by its id. The part draws them where they are, from `lights` in its
 	 * render props.
 	 */
-	lights?: ILightSpec<P>[];
+	lights?: ILightSpec<NoInfer<P>>[];
 	/**
 	 * Lights whose id changed: old id → new id, so objects keep their settings
 	 * for them (like renamedProps). Never remove an entry.

@@ -3,15 +3,20 @@ import { z } from "zod";
 import { definePart } from "../types";
 
 import {
+	finishField,
+	lookOf,
+	lookProps,
 	prismGeometry,
 	SHAPE_COLORS,
 	ShapeMesh,
+	shapeLights,
 	sizeField,
 	sizeProps,
 	useShapeGeometry,
 } from "./shapeKit";
 
 const WedgeSchema = z.object({
+	...lookProps,
 	...sizeProps(),
 	ridgeShare: z.number().min(0).max(1).default(1),
 });
@@ -41,11 +46,13 @@ export const wedge01 = definePart({
 				{ label: "Back", value: 1 },
 			],
 		},
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => {
+	Component: ({ props: p, colors, transparency, lights }) => {
 		const ridge = p.depth / 2 - p.ridgeShare * p.depth;
 		const geometry = useShapeGeometry(
 			`shape:wedge:${p.width},${p.depth},${p.height},${ridge}`,
@@ -60,7 +67,7 @@ export const wedge01 = definePart({
 				),
 		);
 		return (
-			<ShapeMesh geometry={geometry} color={colors.surface} transparency={transparency.surface} />
+			<ShapeMesh geometry={geometry} look={lookOf({ props: p, colors, transparency, lights })} />
 		);
 	},
 });

@@ -126,6 +126,7 @@ const describeLight = (light: ILightSpec) =>
 			driving: "on after dark only while driving",
 			always: "on day and night",
 		}[light.when ?? "dark"],
+		light.whenOn === "off" ? "off until the entity's whenOn (or data on) turns it on" : "",
 		`comes on ${{ atOnce: "at once", oneByOne: "one pane at a time", gradually: "gradually" }[light.comesOn ?? "atOnce"]}`,
 	]
 		.filter(Boolean)

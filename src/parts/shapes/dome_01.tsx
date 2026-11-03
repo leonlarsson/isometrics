@@ -6,9 +6,13 @@ import {
 	arcAngleField,
 	arcAngleProp,
 	arcSteps,
+	finishField,
 	type IProfilePoint,
+	lookOf,
+	lookProps,
 	SHAPE_COLORS,
 	SweptShape,
+	shapeLights,
 	sideCountField,
 	sideCountProp,
 	sizeField,
@@ -19,6 +23,7 @@ import {
 } from "./shapeKit";
 
 const DomeSchema = z.object({
+	...lookProps,
 	...sizeProps({ height: 0.5 }),
 	sideCount: sideCountProp(16),
 	isHollow: z.boolean().default(false),
@@ -67,11 +72,13 @@ export const dome01 = definePart({
 		{ key: "isHollow", label: "Hollow (only its walls)", type: "boolean" },
 		wallThicknessField("wallThickness"),
 		arcAngleField("arcAngle"),
+		finishField("finish"),
 	],
 	colors: SHAPE_COLORS,
+	lights: shapeLights(),
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
-	Component: ({ props: p, colors, transparency }) => (
+	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="dome"
 			options={{
@@ -87,8 +94,7 @@ export const dome01 = definePart({
 						: null,
 				),
 			}}
-			color={colors.surface}
-			transparency={transparency.surface}
+			look={lookOf({ props: p, colors, transparency, lights })}
 		/>
 	),
 });

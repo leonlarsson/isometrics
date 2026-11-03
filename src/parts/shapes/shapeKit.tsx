@@ -2,8 +2,15 @@ import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { z } from "zod";
 
+import { lightEmission } from "../lights";
 import { shareGeometryAs, type TV3 } from "../primitives";
-import type { IColorSpec, TFieldSpec } from "../types";
+import type {
+	IColorSpec,
+	ILightSpec,
+	IPartRenderProps,
+	IResolvedLight,
+	TFieldSpec,
+} from "../types";
 
 /**
  * What every shape (the Shapes category) is built from: plain solids sized
@@ -17,8 +24,9 @@ import type { IColorSpec, TFieldSpec } from "../types";
 export const SIZE = { min: 0.05, max: 50 };
 
 /**
- * Sizes set by hand go in quarters of a grid unit, from a quarter up, so
- * shapes fit the grid and each other; thicknesses go finer.
+ * Sizes set by hand go in quarters of a grid unit on the slider (from a
+ * quarter up), so shapes fit the grid and each other; any size from 0.05 can
+ * be typed. Thicknesses go finer.
  */
 export const SIZE_STEP = 0.25;
 
@@ -35,7 +43,8 @@ export const sizeField = <K extends string>(key: K, label: string): TFieldSpec<K
 	key,
 	label,
 	type: "number",
-	min: SIZE_STEP,
+	min: SIZE.min,
+	sliderMin: SIZE_STEP,
 	max: SIZE.max,
 	step: SIZE_STEP,
 });
@@ -97,18 +106,99 @@ export const SHAPE_COLORS = [
 	},
 ] as const satisfies readonly IColorSpec<"surface">[];
 
-/** A shape's material: flat-shaded, see-through only while its transparency is above 0. */
-export const ShapeMat = ({ color, transparency }: { color: string; transparency: number }) => {
+/** How a shape's surface takes the light: how rough or shiny, and whether it's metal. */
+export const FINISHES = [
+	{ value: "matte", label: "Matte" },
+	{ value: "satin", label: "Satin" },
+	{ value: "glossy", label: "Glossy" },
+	{ value: "metal", label: "Metal" },
+] as const;
+
+export type TFinish = (typeof FINISHES)[number]["value"];
+
+const FINISH_LOOKS: Record<TFinish, { roughness: number; metalness: number }> = {
+	matte: { roughness: 0.85, metalness: 0 },
+	satin: { roughness: 0.55, metalness: 0 },
+	glossy: { roughness: 0.2, metalness: 0 },
+	metal: { roughness: 0.35, metalness: 0.6 },
+};
+
+/** Settings every shape has besides its size: its finish. */
+export const lookProps = {
+	finish: z
+		.enum(FINISHES.map((finish) => finish.value) as [TFinish, ...TFinish[]])
+		.default("matte"),
+};
+
+export const finishField = <K extends string>(key: K): TFieldSpec<K> => ({
+	key,
+	label: "Finish",
+	type: "select",
+	options: [...FINISHES],
+});
+
+/**
+ * Every shape's light: the whole shape glows, off until the object says
+ * when (After dark, Always, On a schedule or From data, ADR-0058), so a shape
+ * can be a lamp, a sign or a status light. Lights its surroundings from its
+ * middle where the graphics settings draw real lights.
+ */
+export const shapeLights = <P extends { width: number; height: number }>(): ILightSpec<P>[] => [
+	{
+		id: "glow",
+		name: "Glow",
+		description: "The whole shape glows in this colour.",
+		shape: "glow",
+		whenOn: "off",
+		realLight: (p) => ({ at: [0, p.height / 2, 0], reach: Math.max(p.width, p.height) + 1 }),
+	},
+];
+
+/** What a shape's surface looks like right now: its colour, see-through, finish and glow. */
+export interface IShapeLook {
+	color: string;
+	transparency: number;
+	finish: TFinish;
+	glow?: IResolvedLight;
+}
+
+export const lookOf = ({
+	props,
+	colors,
+	transparency,
+	lights,
+}: Pick<
+	IPartRenderProps<{ finish: TFinish }, "surface">,
+	"props" | "colors" | "transparency" | "lights"
+>): IShapeLook => ({
+	color: colors.surface,
+	transparency: transparency.surface,
+	finish: props.finish,
+	glow: lights.glow,
+});
+
+/**
+ * A shape's material: flat-shaded, in its finish, glowing while its glow is
+ * on, see-through only while its transparency is above 0.
+ */
+export const ShapeMat = ({ look }: { look: IShapeLook }) => {
+	const { color, transparency, finish, glow } = look;
 	const isSeeThrough = transparency > 0;
+	const { roughness, metalness } = FINISH_LOOKS[finish];
+	const { emissive, emissiveIntensity } = glow
+		? lightEmission(glow)
+		: { emissive: undefined, emissiveIntensity: 0 };
 	// A new material when it turns see-through or solid, every setting given: one kept from glass
 	// would stay at its opacity (invisible after 100%) while copies of solid ones are drawn together.
 	return (
 		<meshStandardMaterial
 			key={isSeeThrough ? "seeThrough" : "solid"}
 			color={color}
-			roughness={isSeeThrough ? 0.4 : 0.85}
-			metalness={0}
+			roughness={isSeeThrough ? Math.min(roughness, 0.4) : roughness}
+			metalness={metalness}
 			flatShading
+			emissive={emissive ?? "#000000"}
+			emissiveIntensity={emissiveIntensity}
 			transparent={isSeeThrough}
 			forceSinglePass={isSeeThrough}
 			opacity={isSeeThrough ? 1 - transparency : 1}
@@ -122,23 +212,21 @@ export const ShapeMesh = ({
 	geometry,
 	position,
 	scale,
-	color,
-	transparency,
+	look,
 }: {
 	geometry: THREE.BufferGeometry;
 	position?: TV3;
 	scale?: TV3;
-	color: string;
-	transparency: number;
+	look: IShapeLook;
 }) => (
 	<mesh
 		geometry={geometry}
 		position={position}
 		scale={scale}
-		castShadow={transparency < 0.5}
+		castShadow={look.transparency < 0.5}
 		receiveShadow
 	>
-		<ShapeMat color={color} transparency={transparency} />
+		<ShapeMat look={look} />
 	</mesh>
 );
 
@@ -301,16 +389,14 @@ export const sweepKey = (name: string, options: ISweepOptions) =>
 export const SweptShape = ({
 	name,
 	options,
-	color,
-	transparency,
+	look,
 }: {
 	name: string;
 	options: ISweepOptions;
-	color: string;
-	transparency: number;
+	look: IShapeLook;
 }) => {
 	const geometry = useShapeGeometry(sweepKey(name, options), () => sweptGeometry(options));
-	return <ShapeMesh geometry={geometry} color={color} transparency={transparency} />;
+	return <ShapeMesh geometry={geometry} look={look} />;
 };
 
 /** A hollow shape's walls from the side: `thickness` thick, open at the bottom and top. */
@@ -329,23 +415,21 @@ export const wallThicknessFor = (width: number, depth: number, thickness: number
 export const BoxMesh = ({
 	size: [x, y, z],
 	position = [0, 0, 0],
-	color,
-	transparency,
+	look,
 }: {
 	size: TV3;
 	position?: TV3;
-	color: string;
-	transparency: number;
+	look: IShapeLook;
 }) => (
 	<mesh
 		position={[position[0], position[1] + y / 2, position[2]]}
 		scale={[x, y, z]}
-		castShadow={transparency < 0.5}
+		castShadow={look.transparency < 0.5}
 		receiveShadow
 	>
 		<boxGeometry args={[1, 1, 1]} />
 
-		<ShapeMat color={color} transparency={transparency} />
+		<ShapeMat look={look} />
 	</mesh>
 );
 
@@ -359,6 +443,36 @@ export const prismGeometry = (outline: readonly [z: number, y: number][], length
 	const geometry = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false });
 	geometry.translate(0, 0, -length / 2);
 	geometry.rotateY(Math.PI / 2);
+	geometry.computeVertexNormals();
+	return geometry;
+};
+
+/**
+ * A solid from its corners and faces (each face its corners' indices, any
+ * order round): every face is turned to point away from the middle, so a
+ * convex shape comes out closed and the right way out.
+ */
+export const solidGeometry = (corners: readonly TV3[], faces: readonly number[][]) => {
+	const points = corners.map((corner) => new THREE.Vector3(...corner));
+	const middle = points
+		.reduce((sum, point) => sum.add(point), new THREE.Vector3())
+		.divideScalar(points.length);
+	const positions: number[] = [];
+	for (const face of faces) {
+		const ring = face.map((index) => points[index]);
+		const normal = ring[1].clone().sub(ring[0]).cross(ring[2].clone().sub(ring[0]));
+		const centre = ring
+			.reduce((sum, point) => sum.add(point), new THREE.Vector3())
+			.divideScalar(ring.length);
+		const ordered = normal.dot(centre.sub(middle)) < 0 ? [...ring].reverse() : ring;
+		for (let i = 1; i < ordered.length - 1; i++) {
+			for (const point of [ordered[0], ordered[i], ordered[i + 1]]) {
+				positions.push(point.x, point.y, point.z);
+			}
+		}
+	}
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
 	geometry.computeVertexNormals();
 	return geometry;
 };

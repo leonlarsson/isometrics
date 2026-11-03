@@ -54,6 +54,18 @@ describe("resolveLights (ADR-0058)", () => {
 		});
 	});
 
+	it("leaves a light its part starts off dark at night, until the object says when", () => {
+		const glow: IPartLights = {
+			lights: [{ id: "glow", name: "Glow", shape: "glow", whenOn: "off" }],
+		};
+		expect(resolveLights(glow, entity(), { palette: night, driving: false }).glow.on).toBe(false);
+		const afterDark = entity({ glow: setting({ whenOn: "auto" }) });
+		expect(resolveLights(glow, afterDark, { palette: night, driving: false }).glow.on).toBe(true);
+		expect(resolveLights(glow, afterDark, { palette: day, driving: false }).glow.on).toBe(false);
+		const always = entity({ glow: setting({ whenOn: "on" }) });
+		expect(resolveLights(glow, always, { palette: day, driving: false }).glow.on).toBe(true);
+	});
+
 	it("follows an object's own settings per light: always, never, colour, strength, reach", () => {
 		const lights = resolveLights(
 			car,
