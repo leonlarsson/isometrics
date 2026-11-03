@@ -79,6 +79,19 @@ import { roundTree01 } from "./nature/round_tree_01";
 import { roundTree02 } from "./nature/round_tree_02";
 import { tallGrass01 } from "./nature/tall_grass_01";
 import { waterLilies01 } from "./nature/water_lilies_01";
+import { arch01 } from "./shapes/arch_01";
+import { ball01 } from "./shapes/ball_01";
+import { box01 } from "./shapes/box_01";
+import { capsule01 } from "./shapes/capsule_01";
+import { cone01 } from "./shapes/cone_01";
+import { cornerWedge01 } from "./shapes/corner_wedge_01";
+import { cylinder01 } from "./shapes/cylinder_01";
+import { dome01 } from "./shapes/dome_01";
+import { panel01 } from "./shapes/panel_01";
+import { pyramid01 } from "./shapes/pyramid_01";
+import { stairs01 } from "./shapes/stairs_01";
+import { torus01 } from "./shapes/torus_01";
+import { wedge01 } from "./shapes/wedge_01";
 import type { IPartDefinition, TPartCategory } from "./types";
 import { ambulance01 } from "./vehicles/ambulance_01";
 import { bicycle01 } from "./vehicles/bicycle_01";
@@ -197,6 +210,19 @@ export const PARTS: TAnyPart[] = [
 	solarPanels01,
 	beacon01,
 	text01,
+	box01,
+	ball01,
+	cylinder01,
+	cone01,
+	pyramid01,
+	wedge01,
+	cornerWedge01,
+	dome01,
+	capsule01,
+	torus01,
+	panel01,
+	arch01,
+	stairs01,
 ];
 
 const byKind = new Map(PARTS.map((part) => [part.kind, part]));

@@ -83,6 +83,11 @@ export const PreferencesSchema = z.object({
 	 * "Tower 3"…
 	 */
 	namesOfCopies: z.enum(["copy", "numbered"]).catch("copy"),
+	/**
+	 * Things placed and moved by hand land on the grid, and sizes and turns go in steps (the
+	 * toolbar's Snap to grid); Alt skips it for one move.
+	 */
+	snapToGrid: z.boolean().catch(true),
 	/** What the app opens with (ADR-0121): the world that was open last, or the home screen. */
 	startWith: z.enum(["lastWorld", "home"]).catch("lastWorld"),
 	/** The view drawn as wireframe (ADR-0080): every surface as lines in its colour, with Standard's look. */

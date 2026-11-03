@@ -32,7 +32,7 @@ const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"viewpointsInWorld",
 	"compositionGrid",
 ];
-const EDITING_PAGE: (keyof TPreferences)[] = ["startWith", "namesOfCopies"];
+const EDITING_PAGE: (keyof TPreferences)[] = ["startWith", "snapToGrid", "namesOfCopies"];
 
 /** A page's reset: back to the defaults, offered once any of them changed. */
 const pageReset = (preferences: TPreferences, keys: (keyof TPreferences)[]) => ({
@@ -328,6 +328,24 @@ export const PreferencesDialog = () => {
 											? "The world you had open last time opens again."
 											: "Start on the home screen: your worlds, a new one, a file or your AI, to pick from."
 									}
+								/>
+							),
+						},
+					],
+				},
+				{
+					title: "Placing and moving",
+					rows: [
+						{
+							id: "snapToGrid",
+							keywords: "snap snapping grid align steps",
+							field: (
+								<SwitchField
+									label="Snap to grid"
+									checked={preferences.snapToGrid}
+									onChange={(v) => setPreference("snapToGrid", v)}
+									inherit={preferenceDefault(preferences, "snapToGrid", "on")}
+									hint="Things placed and moved by hand land on the grid, and sizes and turns go in steps. Hold Alt to skip it for one move; the toolbar's Snap to grid button switches it too."
 								/>
 							),
 						},

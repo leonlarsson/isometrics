@@ -66,6 +66,10 @@ const periodRamp = (hour: number, period: TTimePeriod) => {
 const panesLitByDark = (night: number) => Math.min(1, Math.max(0, (night - 0.1) / 0.5));
 
 /** How a light comes on after dark, as set or as its part has it; one by one only for window lights. */
+/** How a light is switched on an object: as the object says, else as its part starts it. */
+export const whenOnOf = (spec: ILightSpec, setting: TEntityLight | undefined) =>
+	setting?.whenOn ?? spec.whenOn ?? "auto";
+
 export const comesOnOf = (spec: ILightSpec, setting: TEntityLight | undefined): TComesOn => {
 	const comesOn = setting?.comesOn ?? spec.comesOn ?? "atOnce";
 	return comesOn === "oneByOne" && spec.shape !== "windows" ? "atOnce" : comesOn;
@@ -133,7 +137,7 @@ export const resolveLight = (
 		// Switched by a value: on while it says so, day and night (off without the value).
 		level = readSwitch(bound.on, data) ? strength : 0;
 	} else {
-		const mode = setting?.whenOn ?? "auto";
+		const mode = whenOnOf(spec, setting);
 		if (mode === "off") {
 			level = 0;
 		} else if (mode === "on") {

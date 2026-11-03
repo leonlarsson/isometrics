@@ -7,6 +7,7 @@ import {
 	LIGHT_DATA,
 	MAX_STRENGTH,
 	type TLightDataTarget,
+	whenOnOf,
 } from "#/parts/lightModel";
 import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import type { TEntityLightChange } from "#/scene/objectSettings";
@@ -167,7 +168,7 @@ export const LightSettings = ({
 	const comesOn = comesOnOf(spec, setting);
 	const schedule = setting?.schedule ?? [];
 	const scheduledOn = hour !== null && schedule.some((period) => inPeriod(hour, period));
-	const turnsOn: TTurnsOn = bound.on ? "data" : (setting?.whenOn ?? "auto");
+	const turnsOn: TTurnsOn = bound.on ? "data" : whenOnOf(spec, setting);
 	const reach = REACH[spec.shape];
 
 	return (
@@ -214,7 +215,7 @@ export const LightSettings = ({
 						from: "default",
 						inherited: setting?.whenOn == null && !bound.on,
 						onReset: () => onChange({ whenOn: null, data: { on: null } }),
-						value: turnsOnLabels.auto.toLowerCase(),
+						value: turnsOnLabels[spec.whenOn ?? "auto"].toLowerCase(),
 					}}
 					hint={
 						turnsOn === "auto" && spec.when === "driving"
@@ -227,7 +228,9 @@ export const LightSettings = ({
 										: spec.when === "always"
 											? "Glowing fully, by day too."
 											: "Day and night."
-									: undefined
+									: turnsOn === "off" && spec.whenOn === "off"
+										? "Off until you pick when: After dark, Always, On a schedule or From data."
+										: undefined
 					}
 				/>
 

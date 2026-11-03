@@ -127,6 +127,7 @@ export const PropField = ({
 						min={spec.min}
 						max={spec.max}
 						step={spec.step}
+						sliderMin={spec.sliderMin}
 						onChange={onChange}
 						mixed={mixed}
 						hint={hint}

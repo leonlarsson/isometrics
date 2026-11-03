@@ -69,6 +69,12 @@ export interface ILightSpec<P extends object = Record<string, unknown>> {
 	 */
 	when?: "dark" | "driving" | "always";
 	/**
+	 * How objects switch it until they say otherwise (the Lights tab's When):
+	 * "auto" (the default) as `when` says; "off" for a light that's there to be
+	 * turned on, like a shape's glow.
+	 */
+	whenOn?: "auto" | "off";
+	/**
 	 * Settings older worlds kept elsewhere (props, the accent colour) before this
 	 * light had its own: read once when a world is opened (`repairWorld`), into the
 	 * object's settings for it where they're unset.
@@ -109,7 +115,8 @@ export type TPartCategory =
 	| "nature"
 	| "furniture"
 	| "infrastructure"
-	| "markers";
+	| "markers"
+	| "shapes";
 
 export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	buildings: "Buildings",
@@ -118,6 +125,7 @@ export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	furniture: "Street furniture",
 	infrastructure: "Ground & props",
 	markers: "Markers",
+	shapes: "Shapes",
 };
 
 /**
@@ -132,6 +140,12 @@ export type TFieldSpec<K extends string = string> =
 			min: number;
 			max: number;
 			step: number;
+			/**
+			 * Where its slider starts when typed values may go lower (`min`): the
+			 * slider's steps count from here, so quarters land on 0.25, 0.5, … while
+			 * a size of 0.05 can still be typed.
+			 */
+			sliderMin?: number;
 			/**
 			 * Values worth one click, shown as chips under the slider (the chip of
 			 * the value it has looks chosen), e.g. standard container lengths.
@@ -215,6 +229,17 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * its main colour (label pins, swatches). Leave out what it doesn't have.
 	 */
 	colors: readonly IColorSpec<C>[];
+	/**
+	 * Its size along each of its own axes, by the prop that holds it (a box's
+	 * width, height and depth): the selected object gets a handle on each of its
+	 * sides and its top to drag that side out or in, the opposite one staying
+	 * where it is (ADR-0124). Its `footprint` and `height` must grow with them.
+	 */
+	sizeAlong?: {
+		x?: Extract<keyof P, string>;
+		y?: Extract<keyof P, string>;
+		z?: Extract<keyof P, string>;
+	};
 	/** Width (x) and depth (z) at scale 1, used for selection and placement. */
 	footprint: (props: P) => [number, number];
 	/** Height at scale 1, used to anchor labels. */
@@ -246,7 +271,7 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * it by its id. The part draws them where they are, from `lights` in its
 	 * render props.
 	 */
-	lights?: ILightSpec<P>[];
+	lights?: ILightSpec<NoInfer<P>>[];
 	/**
 	 * Lights whose id changed: old id → new id, so objects keep their settings
 	 * for them (like renamedProps). Never remove an entry.

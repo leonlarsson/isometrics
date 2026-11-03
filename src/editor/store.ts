@@ -82,7 +82,7 @@ import {
 	PAINT_SIZE,
 	paintStamp,
 } from "./paint";
-import { readPreferences } from "./preferences";
+import { readPreferences, setPreference, subscribePreferences } from "./preferences";
 import { notify } from "./toasts";
 import { type IPreview, previewOf, type TWhatIsOpen } from "./whatIsOpen";
 
@@ -392,7 +392,11 @@ export interface IEditorState {
 	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
 	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
 	 */
-	newWorld: { shows: "all" | "places" | "dataMaps"; usesData: boolean } | null;
+	newWorld: {
+		shows: "all" | "places" | "dataMaps";
+		/** Whether it'll use data (ADR-0115); null: as the picked world has it (a starter as made). */
+		usesData: boolean | null;
+	} | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
@@ -1118,7 +1122,8 @@ export const createEditorStore = (openScene?: TScene) => {
 			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
 			isAskingToKeep: false,
 			openedWorldCount: 1,
-			snapping: true,
+			// Remembered in this browser, like the other ways of working (Preferences → Editing).
+			snapping: readPreferences().snapToGrid,
 			playing: true,
 			projection: "orthographic",
 			previewTiltShift: false,
@@ -1629,7 +1634,11 @@ export const createEditorStore = (openScene?: TScene) => {
 				set((s) => (s.transform ? { transform: { ...s.transform, ...patch } } : s)),
 			endTransform: () => set({ transform: null }),
 			setViewInset: (pixels) => set({ viewInset: pixels }),
-			toggleSnapping: () => set((s) => ({ snapping: !s.snapping })),
+			toggleSnapping: () => {
+				const snapping = !get().snapping;
+				set({ snapping });
+				setPreference("snapToGrid", snapping);
+			},
 			togglePlaying: () => set((s) => ({ playing: !s.playing })),
 			setProjection: (projection) => set({ projection }),
 			toggleProjection: () =>
@@ -2765,6 +2774,16 @@ export const drawnModeOf = (s: Pick<IEditorState, "mode" | "stillRender">): TEdi
 	s.stillRender ? "view" : s.mode;
 
 export const useEditor = createEditorStore();
+
+// Snapping follows its preference when it changes elsewhere: Preferences' reset, another tab.
+if (typeof window !== "undefined") {
+	subscribePreferences(() => {
+		const { snapToGrid } = readPreferences();
+		if (useEditor.getState().snapping !== snapToGrid) {
+			useEditor.setState({ snapping: snapToGrid });
+		}
+	});
+}
 
 // Development: a code change in anything this module imports re-runs it, making a new store. The
 // new store takes over the previous one's state (the open world, its history, the selection, mode

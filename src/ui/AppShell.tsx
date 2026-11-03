@@ -240,14 +240,17 @@ export const AppShell = () => {
 	const panes = useSidePanes();
 	const leftOpen = narrow || panes.left;
 	const rightOpen = narrow || panes.right;
-	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when something is
-	// selected or a tab is picked, and folds down to its tab bar when the selection is cleared.
+	// Narrow layout: the inspector is a bottom sheet over the scene. It opens when a tab is picked
+	// (the selection's own tabs show in its tab bar), not by selecting, which would cover half the
+	// scene at each tap (ADR-0125); it folds down to its tab bar when the selection is cleared.
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const selection = useEditor(
 		(s) => s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId ?? s.selectedFenceId,
 	);
 	useEffect(() => {
-		setSheetOpen(selection !== null);
+		if (selection === null) {
+			setSheetOpen(false);
+		}
 	}, [selection]);
 	// Tell the camera how much of the scene the sheet covers, so it can keep the selection in view.
 	const sheet = useRef<HTMLDivElement>(null);

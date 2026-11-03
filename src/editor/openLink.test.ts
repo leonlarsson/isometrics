@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { openLink, PATCH_LINK } from "./openLink";
+import { linkInAddress, openLink, PATCH_LINK } from "./openLink";
 import { useEditor } from "./store";
 
 const answering = (body: unknown) =>
@@ -12,6 +12,15 @@ const answering = (body: unknown) =>
 describe("opening a link (ADR-0121)", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
+	});
+
+	it("reads a template's id from the address, with hyphens or underscores", () => {
+		expect(linkInAddress("?template=shape-castle")).toEqual({
+			from: "template",
+			id: "shape-castle",
+		});
+		expect(linkInAddress("?template=lantern_bay")).toEqual({ from: "template", id: "lantern_bay" });
+		expect(linkInAddress("?template=Not%20one")).toBeNull();
 	});
 
 	it("refuses a link to a patch, saying why, and opens nothing", async () => {

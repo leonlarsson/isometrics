@@ -65,10 +65,10 @@ interface ITransformGizmoProps {
 }
 
 /** Gizmo size on screen: one gizmo unit is this many pixels at any zoom. */
-const UNIT_PX = 64;
+export const UNIT_PX = 64;
 const RING_RADIUS = 1.35;
 const SCALE_DISTANCE = 1.8;
-const RENDER_ORDER = 1000;
+export const RENDER_ORDER = 1000;
 /**
  * The tilt arcs (ADR-0097): how much of a ring each is, and how they stand. A
  * torus arc starts on its own +X and runs towards its +Y; each runs from 20° to
@@ -190,7 +190,14 @@ interface IHandleProps extends IHandleEvents {
 }
 
 /** One grabbable part of the gizmo. Its group takes the pointer capture, so it gets the whole drag. */
-const Handle = ({ color, hoverColor, active, children, hitArea, ...events }: IHandleProps) => {
+export const Handle = ({
+	color,
+	hoverColor,
+	active,
+	children,
+	hitArea,
+	...events
+}: IHandleProps) => {
 	const [hovered, setHovered] = useState(false);
 	const shown = hovered || active ? hoverColor : color;
 	return (
@@ -215,7 +222,7 @@ const Handle = ({ color, hoverColor, active, children, hitArea, ...events }: IHa
 };
 
 /** Material for visible gizmo parts: always on top, unlit. */
-const GizmoMaterial = ({ color, opacity = 1 }: { color: string; opacity?: number }) => {
+export const GizmoMaterial = ({ color, opacity = 1 }: { color: string; opacity?: number }) => {
 	return (
 		<meshBasicMaterial
 			color={color}
@@ -229,7 +236,7 @@ const GizmoMaterial = ({ color, opacity = 1 }: { color: string; opacity?: number
 };
 
 /** Invisible, generous hit area so thin handles are easy to grab. */
-const HitMaterial = () => {
+export const HitMaterial = () => {
 	return <meshBasicMaterial visible={false} />;
 };
 

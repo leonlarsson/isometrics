@@ -28,6 +28,7 @@ import { markInstancedRoot } from "./instancing";
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
+import { SizeHandles } from "./SizeHandles";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
 import { surfaceHitOnRay } from "./useGroundDrag";
@@ -635,6 +636,11 @@ export const EntityNode = memo(
 								color={palette.selection}
 								dashed={!selected || (boxed && unboxing)}
 							/>
+						)}
+
+						{/* Its sides' size handles, for parts sized along each axis (ADR-0124). */}
+						{mode === "edit" && alone && !entity.isLocked && !drawing && !following && (
+							<SizeHandles entity={entity} part={part} props={props} />
 						)}
 					</group>
 

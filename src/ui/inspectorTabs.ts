@@ -21,4 +21,5 @@ export const CATEGORY_ICONS: Record<TPartCategory, TIconName> = {
 	furniture: "bench",
 	infrastructure: "cone",
 	markers: "pin",
+	shapes: "cube",
 };

@@ -17,7 +17,7 @@ import {
 	resolveColorDefault,
 	resolveTransparency,
 } from "#/parts/colorModel";
-import { comesOnOf, lightDefaults } from "#/parts/lightModel";
+import { comesOnOf, lightDefaults, whenOnOf } from "#/parts/lightModel";
 import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
@@ -511,7 +511,7 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 					const setting = entity.lights[spec.id];
 					const defaults = lightDefaults(own, palette);
 					return {
-						mode: setting?.whenOn ?? "auto",
+						mode: whenOnOf(own, setting),
 						comesOn: comesOnOf(own, setting),
 						schedule: setting?.schedule ?? [],
 						color: setting?.color ?? defaults.color,
