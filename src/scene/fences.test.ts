@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { fenceLayout, fenceLength, GROUND_STEP } from "./fences";
+import {
+	fenceLayout,
+	fenceLength,
+	fenceStretches,
+	GROUND_STEP,
+	gatePlaceAt,
+	gatesMovedOnto,
+	insetOutline,
+} from "./fences";
 import type { TFencePoint } from "./schema";
 
 const flat = () => 0;
@@ -176,5 +184,109 @@ describe("fenceLayout, at the edges", () => {
 				0,
 			).posts,
 		).toEqual([]);
+	});
+});
+
+describe("gates (ADR-0133)", () => {
+	const straight = (gates: { spanIndex: number; alongShare: number; width: number }[]) => ({
+		...fence([
+			[0, 0, 0],
+			[10, 0, 0],
+		]),
+		gates,
+	});
+
+	it("puts a post at each side of a gate and no fence across it", () => {
+		const { posts, spans, gates } = fenceLayout(
+			straight([{ spanIndex: 0, alongShare: 0.5, width: 2 }]),
+			3,
+			flat,
+		);
+		expect(posts.map((p) => p.x)).toEqual([0, 2, 4, 6, 8, 10]);
+		expect(spans.map((span) => [span.from[0], span.to[0]])).toEqual([
+			[0, 2],
+			[2, 4],
+			[6, 8],
+			[8, 10],
+		]);
+		expect(gates).toHaveLength(1);
+		expect(gates[0]).toMatchObject({ index: 0, from: [4, 0, 0], to: [6, 0, 0], length: 2 });
+	});
+
+	it("keeps a gate on the fence, goes straight across a corner inside one, and leaves out gates not built", () => {
+		const atEnd = fenceLayout(straight([{ spanIndex: 0, alongShare: 1, width: 2 }]), 20, flat);
+		expect(atEnd.gates[0]).toMatchObject({ from: [8, 0, 0], to: [10, 0, 0] });
+		const corner = fenceLayout(
+			{ ...L, gates: [{ spanIndex: 0, alongShare: 1, width: 2 }] },
+			20,
+			flat,
+		);
+		expect(corner.posts.map((p) => [p.x, p.z])).toEqual([
+			[0, 0],
+			[9, 0],
+			[10, 1],
+			[10, 4],
+		]);
+		expect(corner.gates[0].length).toBeCloseTo(Math.SQRT2);
+		const half = fenceLayout(straight([{ spanIndex: 0, alongShare: 0.8, width: 2 }]), 3, flat, 0.5);
+		expect(half.gates).toEqual([]);
+	});
+
+	it("finds where a spot is on a fence's stretches, and moves gates onto the pieces they stand on", () => {
+		const square = {
+			points: [
+				[0, 0, 0],
+				[4, 0, 0],
+				[4, 4, 0],
+				[0, 4, 0],
+			] as TFencePoint[],
+			loops: true,
+		};
+		expect(fenceStretches(square)).toHaveLength(4);
+		expect(gatePlaceAt(square, [0, 1])).toMatchObject({ spanIndex: 3, alongShare: 0.75 });
+		const before = { ...square, gates: [{ spanIndex: 3, alongShare: 0.75 }] };
+		const opened = { points: [...square.points, square.points[0]], loops: false };
+		expect(gatesMovedOnto(before, [opened])).toEqual([[{ spanIndex: 3, alongShare: 0.75 }]]);
+		const [first, second] = gatesMovedOnto(
+			{ ...square, loops: false, gates: [{ spanIndex: 2, alongShare: 0.5 }] },
+			[
+				{ points: square.points.slice(0, 2), loops: false },
+				{ points: square.points.slice(1), loops: false },
+			],
+		);
+		expect(first).toEqual([]);
+		expect(second).toEqual([{ spanIndex: 1, alongShare: 0.5 }]);
+	});
+});
+
+describe("insetOutline", () => {
+	const square = [
+		[0, 0],
+		[4, 0],
+		[4, 4],
+		[0, 4],
+	];
+
+	it("moves every corner inwards, whichever way round the outline goes, or outwards", () => {
+		expect(insetOutline(square, 0.5)).toEqual([
+			[0.5, 0.5, 0],
+			[3.5, 0.5, 0],
+			[3.5, 3.5, 0],
+			[0.5, 3.5, 0],
+		]);
+		expect(insetOutline([...square].reverse(), 0.5)[0]).toEqual([0.5, 3.5, 0]);
+		expect(insetOutline(square, -0.5)[0]).toEqual([-0.5, -0.5, 0]);
+	});
+
+	it("moves a very sharp corner no further than three times the inset", () => {
+		const [tip] = insetOutline(
+			[
+				[0, 0],
+				[10, 0.5],
+				[10, -0.5],
+			],
+			0.1,
+		);
+		expect(Math.hypot(tip[0], tip[1])).toBeCloseTo(0.3, 2);
 	});
 });

@@ -748,7 +748,8 @@ describe("editor store", () => {
 			[0.22, 3.78, 0],
 		]);
 		const pond = s().addArea({ kind: "water_01", points: square });
-		const bank = s().scene.fences.find((f) => f.id === s().addFenceAlongEdge(pond, "railing_01"));
+		const bankId = s().addFenceAlongEdge(pond, "railing_01");
+		const bank = s().scene.fences.find((f) => f.id === bankId);
 		expect(bank?.points[0]).toEqual([-0.22, -0.22, 0]);
 	});
 
