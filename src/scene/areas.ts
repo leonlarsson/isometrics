@@ -8,6 +8,12 @@ import { variantName } from "./variants";
 /** Free-form areas: water, lawns, beaches, squares and raised land. See docs/adr/0021. */
 
 interface IAreaKind {
+	/** Its family's name; variants of a family are told apart by number (scene/variants). */
+	name: string;
+	/** What it's for, in Add to scene. */
+	description: string;
+	/** More words it's found by in Add to scene's search. */
+	keywords: string;
 	/** Its colours (ADR-0060): what an area's `colors` keeps settings for, by id. */
 	colors: readonly IColorSpec[];
 	startHeight: number;
@@ -30,6 +36,9 @@ const surface = (of: keyof IScenePalette["areas"]): readonly IColorSpec[] => [
  */
 export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 	water_01: {
+		name: "Water",
+		description: "Sea, lake, harbour or pond",
+		keywords: "river ocean bay",
 		colors: surface("water"),
 		startHeight: 0,
 		roughness: 0.4,
@@ -37,6 +46,9 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		isWater: true,
 	},
 	grass_01: {
+		name: "Grass",
+		description: "Lawn, park or field",
+		keywords: "garden meadow green",
 		colors: surface("grass"),
 		startHeight: 0,
 		roughness: 0.95,
@@ -44,6 +56,9 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		isWater: false,
 	},
 	sand_01: {
+		name: "Sand",
+		description: "Beach or sand",
+		keywords: "desert dune",
 		colors: surface("sand"),
 		startHeight: 0,
 		roughness: 0.95,
@@ -51,6 +66,9 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		isWater: false,
 	},
 	plaza_01: {
+		name: "Plaza",
+		description: "Paved square, quay or car park",
+		keywords: "parking pavement",
 		colors: surface("plaza"),
 		startHeight: 0,
 		roughness: 0.95,
@@ -58,6 +76,9 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		isWater: false,
 	},
 	raised_land_01: {
+		name: "Raised land",
+		description: "Raised ground with cliff sides, e.g. a rock or plateau",
+		keywords: "hill mountain cliff terrain",
 		colors: surface("land"),
 		startHeight: 1.5,
 		roughness: 0.95,
@@ -66,22 +87,14 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 	},
 };
 
-/** Each type's family name; variants of a family are told apart by number (scene/variants). */
-const AREA_KIND_NAMES: Record<TAreaKind, string> = {
-	water_01: "Water",
-	grass_01: "Grass",
-	sand_01: "Sand",
-	plaza_01: "Plaza",
-	raised_land_01: "Raised land",
-};
-
 /** Whether an area is water, by its kind's record (never its id, so variants count). */
 export const isWaterArea = (area: Pick<TArea, "kind">) => AREA_KINDS[area.kind].isWater;
 
-const AREA_KIND_IDS = Object.keys(AREA_KIND_NAMES) as TAreaKind[];
+/** Every area kind, in the order they're offered. */
+export const AREA_KIND_IDS = Object.keys(AREA_KINDS) as TAreaKind[];
 
 export const AREA_KIND_LABELS = Object.fromEntries(
-	AREA_KIND_IDS.map((type) => [type, variantName(type, AREA_KIND_NAMES[type], AREA_KIND_IDS)]),
+	AREA_KIND_IDS.map((type) => [type, variantName(type, AREA_KINDS[type].name, AREA_KIND_IDS)]),
 ) as Record<TAreaKind, string>;
 
 /** An outline's corners: [x, z], maybe followed by more (an area corner's lift). */

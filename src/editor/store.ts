@@ -911,6 +911,40 @@ export const listOf = <T extends Pick<TScene, "entities" | "roads" | "areas" | "
 
 const sameItem = (a: ISceneItem) => (b: ISceneItem) => a.kind === b.kind && a.id === b.id;
 
+/**
+ * Take things out of the world, one or several, with what pointed at them: vehicles that drove
+ * along a removed road are parked where it was. Every removal goes through here, so a rule for
+ * what else goes with a thing is written once. Lists that lose nothing are left as they are (the
+ * same list, so what's worked out once per list stays).
+ */
+const removeFromScene = (scene: Draft<TScene>, items: readonly ISceneItem[]) => {
+	const idsOf = (kind: ISceneItem["kind"]) =>
+		new Set(items.filter((item) => item.kind === kind).map((item) => item.id));
+	const [entities, roads, areas, fences] = [
+		idsOf("entity"),
+		idsOf("road"),
+		idsOf("area"),
+		idsOf("fence"),
+	];
+	if (entities.size > 0) {
+		scene.entities = scene.entities.filter((entity) => !entities.has(entity.id));
+	}
+	if (roads.size > 0) {
+		scene.roads = scene.roads.filter((road) => !roads.has(road.id));
+		for (const entity of scene.entities) {
+			if (entity.follow && roads.has(entity.follow.roadId)) {
+				entity.follow = null;
+			}
+		}
+	}
+	if (areas.size > 0) {
+		scene.areas = scene.areas.filter((area) => !areas.has(area.id));
+	}
+	if (fences.size > 0) {
+		scene.fences = scene.fences.filter((fence) => !fences.has(fence.id));
+	}
+};
+
 /** The selection fields for one active item (or none), with no point selected. */
 const activeFields = (item: ISceneItem | null) => ({
 	...NOTHING_SELECTED,
@@ -1456,26 +1490,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			setBoxDrag: (drag) => set({ boxDrag: drag }),
 			removeSelected: () => {
 				const items = get().selectedItems;
-				const ids = (kind: ISceneItem["kind"]) =>
-					new Set(items.filter((item) => item.kind === kind).map((item) => item.id));
-				const [entities, roads, areas, fences] = [
-					ids("entity"),
-					ids("road"),
-					ids("area"),
-					ids("fence"),
-				];
-				get().commit((scene) => {
-					scene.entities = scene.entities.filter((e) => !entities.has(e.id));
-					scene.roads = scene.roads.filter((r) => !roads.has(r.id));
-					scene.areas = scene.areas.filter((a) => !areas.has(a.id));
-					scene.fences = scene.fences.filter((f) => !fences.has(f.id));
-					// Vehicles that drove along a deleted road are parked where the road was.
-					for (const entity of scene.entities) {
-						if (entity.follow && roads.has(entity.follow.roadId)) {
-							entity.follow = null;
-						}
-					}
-				});
+				get().commit((scene) => removeFromScene(scene, items));
 				set({ ...NOTHING_SELECTED, joinOffer: null, followOffer: null });
 			},
 			duplicateSelected: ({ step = 1, coalesce, leaveBehind = false } = {}) => {
@@ -2047,9 +2062,7 @@ export const createEditorStore = (openScene?: TScene) => {
 				),
 
 			removeEntity: (id) => {
-				get().commit((scene) => {
-					scene.entities = scene.entities.filter((e) => e.id !== id);
-				});
+				get().commit((scene) => removeFromScene(scene, [{ kind: "entity", id }]));
 				if (get().selectedId === id) {
 					set({ selectedId: null });
 				}
@@ -2180,15 +2193,7 @@ export const createEditorStore = (openScene?: TScene) => {
 				}, options),
 
 			removeRoad: (id) => {
-				get().commit((scene) => {
-					scene.roads = scene.roads.filter((r) => r.id !== id);
-					// Vehicles that drove along it are parked where the road was.
-					for (const entity of scene.entities) {
-						if (entity.follow?.roadId === id) {
-							entity.follow = null;
-						}
-					}
-				});
+				get().commit((scene) => removeFromScene(scene, [{ kind: "road", id }]));
 				if (get().selectedRoadId === id) {
 					set({ selectedRoadId: null, selectedPointIndex: null });
 				}
@@ -2383,9 +2388,7 @@ export const createEditorStore = (openScene?: TScene) => {
 				}, options),
 
 			removeFence: (id) => {
-				get().commit((scene) => {
-					scene.fences = scene.fences.filter((f) => f.id !== id);
-				});
+				get().commit((scene) => removeFromScene(scene, [{ kind: "fence", id }]));
 				if (get().selectedFenceId === id) {
 					set({ selectedFenceId: null, selectedPointIndex: null });
 				}
@@ -2588,9 +2591,7 @@ export const createEditorStore = (openScene?: TScene) => {
 				}, options),
 
 			removeArea: (id) => {
-				get().commit((scene) => {
-					scene.areas = scene.areas.filter((a) => a.id !== id);
-				});
+				get().commit((scene) => removeFromScene(scene, [{ kind: "area", id }]));
 				if (get().selectedAreaId === id) {
 					set({ selectedAreaId: null, selectedPointIndex: null });
 				}

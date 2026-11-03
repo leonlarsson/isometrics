@@ -20,9 +20,9 @@ import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { fencePictureKey, usePartThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
-import { AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
-import type { TAreaKind, TRoadKind } from "#/scene/schema";
+import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
+import { ROAD_KIND_IDS, ROAD_KIND_LABELS, ROAD_KINDS } from "#/scene/roads";
+import type { TRoadKind } from "#/scene/schema";
 import { groupByFamily } from "#/scene/variants";
 
 import { IconButton, IconButtonGroup } from "./Button";
@@ -35,31 +35,11 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { ContextMenu, Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
+import { HIDDEN_ROUTE_SWATCH } from "./swatches";
 import { Tooltip } from "./Tooltip";
 import { useNarrowLayout } from "./useNarrowLayout";
 
 import styles from "./PartsPalette.module.css";
-
-// Keyed by id, so a new road style or area type (a variant) can't be left out of the palette.
-const ROAD_TOOL_INFO: Record<TRoadKind, { description: string; keywords: string }> = {
-	road_01: { description: "Paved road with a centre line", keywords: "street" },
-	dirt_path_01: { description: "Unpaved path", keywords: "trail footpath track" },
-	hidden_route_01: {
-		description: "Invisible route that vehicles follow, e.g. a forklift path",
-		keywords: "path track ferry route",
-	},
-};
-
-const AREA_TOOL_INFO: Record<TAreaKind, { description: string; keywords: string }> = {
-	water_01: { description: "Sea, lake, harbour or pond", keywords: "river ocean bay" },
-	grass_01: { description: "Lawn, park or field", keywords: "garden meadow green" },
-	sand_01: { description: "Beach or sand", keywords: "desert dune" },
-	plaza_01: { description: "Paved square, quay or car park", keywords: "parking pavement" },
-	raised_land_01: {
-		description: "Raised ground with cliff sides, e.g. a rock or plateau",
-		keywords: "hill mountain cliff terrain",
-	},
-};
 
 /** Each section's icon on its heading. */
 const SECTION_ICONS: Record<string, TIconName> = {
@@ -76,15 +56,10 @@ const SECTION_ICONS: Record<string, TIconName> = {
 	),
 };
 
-const ROAD_TOOLS = (Object.keys(ROAD_TOOL_INFO) as TRoadKind[]).map((style) => ({
-	style,
-	...ROAD_TOOL_INFO[style],
-}));
+// From the kinds' own records, so a new road style or area type (a variant) can't be left out.
+const ROAD_TOOLS = ROAD_KIND_IDS.map((style) => ({ style, ...ROAD_KINDS[style] }));
 
-const AREA_TOOLS = (Object.keys(AREA_TOOL_INFO) as TAreaKind[]).map((type) => ({
-	type,
-	...AREA_TOOL_INFO[type],
-}));
+const AREA_TOOLS = AREA_KIND_IDS.map((type) => ({ type, ...AREA_KINDS[type] }));
 
 /** What the chips choose between: roads, areas, fences, then the parts' categories. */
 type TPaletteCategory = "roads" | "areas" | "fences" | TPartCategory;
@@ -223,7 +198,7 @@ export const PartsPalette = () => {
 	const roadSwatch: Record<TRoadKind, string> = {
 		road_01: `linear-gradient(180deg, ${palette.road} 42%, ${palette.roadMark} 42% 58%, ${palette.road} 58%)`,
 		dirt_path_01: palette.dirt,
-		hidden_route_01: `repeating-linear-gradient(90deg, ${palette.selection} 0 5px, transparent 5px 9px)`,
+		hidden_route_01: HIDDEN_ROUTE_SWATCH,
 	};
 
 	const items: IPaletteItem[] = [

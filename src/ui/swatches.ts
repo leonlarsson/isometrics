@@ -6,8 +6,8 @@ import { isHiddenRoute } from "#/scene/roads";
 import type { TArea, TDataValue, TFence, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
-/** Dashed chip for hidden routes, which have no colour of their own. */
-const HIDDEN_ROUTE_SWATCH =
+/** Dashed chip for hidden routes, which have no colour of their own (lists and Add to scene). */
+export const HIDDEN_ROUTE_SWATCH =
 	"repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)";
 
 /** The colour chip for a road in lists (CSS background). */
