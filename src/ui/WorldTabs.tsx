@@ -71,7 +71,7 @@ const ON_SCREEN_SWITCHES: { key: TOnScreenSwitch; label: string; hint?: string }
  */
 const OnScreenSection = () => {
 	const onScreen = useEditor((s) => s.scene.onScreen);
-	const usesData = useEditor((s) => s.scene.data.isOn);
+	const usesData = useEditor((s) => s.scene.data.enabled);
 	const commit = useEditor((s) => s.commit);
 	const set = (key: TOnScreenSwitch, value: boolean) =>
 		commit((s) => {
@@ -118,7 +118,7 @@ export const WorldTab = () => {
 	const resetView = useEditor((s) => s.resetView);
 	const palette = useThemePalette();
 	const data = useWorldData().values;
-	const usesData = useEditor((s) => s.scene.data.isOn);
+	const usesData = useEditor((s) => s.scene.data.enabled);
 
 	return (
 		<>

@@ -169,7 +169,7 @@ export const RoadDetailSheet = () => {
 	);
 	const { vehicleCountAlong: along, vehicleCountAgainst: against } = road.flow;
 	const title = road.name || "Road";
-	const way = !road.flow.isOn
+	const way = !road.flow.enabled
 		? null
 		: along > 0 && against > 0
 			? "Vehicles drive both ways: the amount has no direction."

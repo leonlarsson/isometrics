@@ -184,7 +184,7 @@ export const flowRoad = ({
 		showsCentreLine: isTwoWay,
 		dataRow: { tableKey, rowKey },
 		flow: {
-			isOn: true,
+			enabled: true,
 			vehicleKind,
 			vehicleCountAlong: 2,
 			vehicleCountAgainst: isTwoWay ? 2 : 0,

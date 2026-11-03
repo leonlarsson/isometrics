@@ -89,13 +89,13 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 				actions={
 					<SwitchField
 						label="Show"
-						checked={road.flow.isOn}
-						onChange={(isOn) => editFlow("isOn", { isOn })}
-						inherit={{ ...reset("isOn"), isCompact: true }}
+						checked={road.flow.enabled}
+						onChange={(enabled) => editFlow("enabled", { enabled })}
+						inherit={{ ...reset("enabled"), isCompact: true }}
 					/>
 				}
 			>
-				{road.flow.isOn ? (
+				{road.flow.enabled ? (
 					<>
 						<Hint>
 							Vehicles show how much goes each way: more vehicles, more flow; they drive the way it

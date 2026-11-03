@@ -876,8 +876,8 @@ describe("editor store", () => {
 			scene.camera.fieldOfView = 90;
 			scene.camera.highestElevation = 60;
 			scene.camera.keepsOverGround = false;
-			scene.camera.turntable.isOn = true;
-			scene.camera.tiltShift.isOn = true;
+			scene.camera.turntable.enabled = true;
+			scene.camera.tiltShift.enabled = true;
 			scene.camera.tiltShift.blurStrength = 0.9;
 		});
 		store.getState().toggleProjection();
@@ -885,8 +885,8 @@ describe("editor store", () => {
 		store.getState().resetCamera();
 		const { camera } = store.getState().scene;
 		expect(camera).toMatchObject({ fieldOfView: 40, highestElevation: 87, keepsOverGround: true });
-		expect(camera.turntable.isOn).toBe(true);
-		expect(camera.tiltShift).toMatchObject({ isOn: true, blurStrength: 0.9 });
+		expect(camera.turntable.enabled).toBe(true);
+		expect(camera.tiltShift).toMatchObject({ enabled: true, blurStrength: 0.9 });
 		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().viewNonce).toBe(nonce + 1);
 		store.getState().undo();

@@ -892,7 +892,7 @@ const SKY: TSceneInput["sky"] = { starDensity: 0.9 };
 const WEATHER: TSceneInput["weather"] = { cloudCover: 0.2 };
 const WATER: TSceneInput["water"] = { rippleStrength: 0.45 };
 const TILT_SHIFT: TTiltShiftInput = {
-	isOn: true,
+	enabled: true,
 	blurStrength: 0.45,
 	sharpBandHeight: 0.38,
 	sharpBandPosition: 0.5,

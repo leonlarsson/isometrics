@@ -123,7 +123,7 @@ const moveColor = (record: TRecord, field: string, id: string) => {
 	setting.color ??= value;
 };
 
-/** A group once kept as a switch with its settings beside it (`turntableOn`): one record with `isOn`. */
+/** A group once kept as a switch with its settings beside it (`turntableOn`): one record with `enabled`. */
 const gatherGroup = (
 	record: TRecord,
 	groupKey: string,
@@ -132,7 +132,7 @@ const gatherGroup = (
 	const old = record[groupKey];
 	if (typeof old === "boolean") {
 		// The switch's oldest name was the group's own (`turntable: true`).
-		record[groupKey] = { isOn: old };
+		record[groupKey] = { enabled: old };
 	}
 	moveInto(record, groupKey, names);
 };
@@ -196,7 +196,7 @@ const CLOUD_FIELDS = {
 };
 
 const TILT_SHIFT_FIELDS = {
-	tiltShiftOn: "isOn",
+	tiltShiftOn: "enabled",
 	tiltShiftBlur: "blurStrength",
 	tiltShiftFocus: "sharpBandHeight",
 	tiltShiftPosition: "sharpBandPosition",
@@ -241,6 +241,9 @@ const upgradeLook = (look: TRecord) => {
 	}
 };
 
+/** A feature's switch, `isOn` before features said `enabled` (ADR-0128). */
+const RENAMED_FEATURE_SWITCH = { isOn: "enabled" };
+
 const upgradeCamera = (camera: unknown) => {
 	if (!isRecord(camera)) {
 		return;
@@ -250,11 +253,13 @@ const upgradeCamera = (camera: unknown) => {
 		steepestElevation: "highestElevation",
 	});
 	gatherGroup(camera, "turntable", {
-		turntableOn: "isOn",
+		turntableOn: "enabled",
 		turntableSpeed: "speed",
 		turntableDelay: "delay",
 	});
 	gatherGroup(camera, "tiltShift", TILT_SHIFT_FIELDS);
+	renameFields(camera.turntable, RENAMED_FEATURE_SWITCH);
+	renameFields(camera.tiltShift, RENAMED_FEATURE_SWITCH);
 };
 
 const upgradeMood = (mood: TRecord) => {
@@ -268,6 +273,7 @@ const upgradeMood = (mood: TRecord) => {
 			mood.tiltShift = camera.tiltShift;
 		}
 	}
+	renameFields(mood.tiltShift, RENAMED_FEATURE_SWITCH);
 };
 
 /** Numbers of an object's old turn (`rotation`), `pitch` and `roll`: one rotation, [x, y, z]. */
@@ -326,6 +332,7 @@ const upgradeRoad = (road: TRecord) => {
 		turnStyle: "turnStyle",
 		leansInTurns: "leansInTurns",
 	});
+	renameFields(road.flow, RENAMED_FEATURE_SWITCH);
 	moveColor(road, "color", "surface");
 	moveColor(road, "embankmentColor", "embankment");
 	upgradeColors(road.colors);
@@ -420,6 +427,7 @@ export const upgradeLegacyIds = (input: unknown): unknown => {
 		world.data = { values: world.data };
 	}
 	if (isRecord(world.data)) {
+		renameFields(world.data, RENAMED_FEATURE_SWITCH);
 		for (const entry of recordsIn(world.data.values)) {
 			renameFields(entry, { label: "name" });
 		}

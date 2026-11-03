@@ -16,7 +16,7 @@ describe("objects sized by data", () => {
 	it("are those whose size follows data, while the world's data is on", () => {
 		expect(isSizedByData(scene.entities[0], scene)).toBe(true);
 		expect(isSizedByData(scene.entities[1], scene)).toBe(false);
-		const off = { ...scene, data: { ...scene.data, isOn: false } };
+		const off = { ...scene, data: { ...scene.data, enabled: false } };
 		expect(isSizedByData(scene.entities[0], off)).toBe(false);
 	});
 

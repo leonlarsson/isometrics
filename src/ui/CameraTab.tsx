@@ -315,9 +315,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Circle the view in View mode"
-					checked={camera.turntable.isOn}
-					onChange={(v) => setTurntable("isOn", v)}
-					inherit={turntableByDefault("isOn", "off")}
+					checked={camera.turntable.enabled}
+					onChange={(v) => setTurntable("enabled", v)}
+					inherit={turntableByDefault("enabled", "off")}
 					hint={
 						camera.keepsIsometricAngle
 							? "It doesn’t circle while the world keeps the isometric angle (in the View panel), which turns only a quarter at a time."
@@ -359,9 +359,9 @@ export const CameraTab = () => {
 			>
 				<SwitchField
 					label="Miniature blur in View mode"
-					checked={camera.tiltShift.isOn}
-					onChange={(v) => setTiltShift("isOn", v)}
-					inherit={tiltShiftByDefault("isOn", "off")}
+					checked={camera.tiltShift.enabled}
+					onChange={(v) => setTiltShift("enabled", v)}
+					inherit={tiltShiftByDefault("enabled", "off")}
 				/>
 
 				<SwitchField

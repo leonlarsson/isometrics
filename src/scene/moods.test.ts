@@ -13,7 +13,7 @@ describe("moods (ADR-0078)", () => {
 			s.weather.cloudCover = 0.7;
 			s.water.rippleStrength = 0.1;
 			s.weather.rainAmount = 0.4;
-			s.camera.tiltShift.isOn = true;
+			s.camera.tiltShift.enabled = true;
 		});
 		const golden = moodOf(scene, "golden", "Golden hour");
 		expect(wearsMood(scene, golden)).toBe(true);
@@ -22,13 +22,13 @@ describe("moods (ADR-0078)", () => {
 			s.lighting.time = 22;
 			s.weather.cloudCover = 0;
 			s.weather.rainAmount = 0;
-			s.camera.tiltShift.isOn = false;
+			s.camera.tiltShift.enabled = false;
 		});
 		expect(wearsMood(night, golden)).toBe(false);
 		const back = produce(night, (s) => putOnMood(s, golden));
 		expect(wearsMood(back, golden)).toBe(true);
 		expect(back.lighting.time).toBe(18.3);
-		expect(back.camera.tiltShift.isOn).toBe(true);
+		expect(back.camera.tiltShift.enabled).toBe(true);
 		expect(back.weather.rainAmount).toBe(0.4);
 	});
 
@@ -48,6 +48,6 @@ describe("moods (ADR-0078)", () => {
 		expect(world().viewpoints).toEqual([]);
 		const scene = SceneSchema.parse({ version: 1, moods: [{ id: "a", name: "A" }] });
 		expect(scene.moods[0].lighting).toEqual(world().lighting);
-		expect(scene.moods[0].tiltShift.isOn).toBe(false);
+		expect(scene.moods[0].tiltShift.enabled).toBe(false);
 	});
 });

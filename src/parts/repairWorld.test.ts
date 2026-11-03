@@ -93,8 +93,8 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			highestElevation: 80,
 			keepsOverGround: false,
 			keepsIsometricAngle: true,
-			turntable: { isOn: true, speed: -6, delay: 20 },
-			tiltShift: { isOn: true, blurStrength: 0.6, sharpBandHeight: 0.2, sharpBandPosition: 0.4 },
+			turntable: { enabled: true, speed: -6, delay: 20 },
+			tiltShift: { enabled: true, blurStrength: 0.6, sharpBandHeight: 0.2, sharpBandPosition: 0.4 },
 		});
 		expect(scene.backdrop).toMatchObject({ kind: "gradient", gradientAngle: 90 });
 	});
@@ -113,7 +113,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 		});
 		expect(mood.water.rippleStrength).toBe(0.7);
 		expect(mood.tiltShift).toEqual({
-			isOn: true,
+			enabled: true,
 			blurStrength: 0.7,
 			sharpBandHeight: 0.4,
 			sharpBandPosition: 0.6,
@@ -298,6 +298,27 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 
 	it("has a place for every field once upgraded, so none is dropped unread", () => {
 		const raw = upgradePartSettings(upgradeLegacyIds(fixture("every-field-1a50d84")));
+		expect(fieldsWithoutAPlace(raw, scene)).toEqual([]);
+	});
+});
+
+describe("reading a world saved while features said isOn (ADR-0128)", () => {
+	const { scene, report } = repairWorld(fixture("every-field-500c046"));
+
+	it("needs no repairs", () => {
+		expect(report).toBeNull();
+	});
+
+	it("keeps every feature's switch, now enabled", () => {
+		expect(scene.data.enabled).toBe(false);
+		expect(scene.camera.turntable.enabled).toBe(true);
+		expect(scene.camera.tiltShift.enabled).toBe(true);
+		expect(scene.moods[0].tiltShift.enabled).toBe(true);
+		expect(scene.roads[0].flow.enabled).toBe(true);
+	});
+
+	it("has a place for every field once upgraded, so none is dropped unread", () => {
+		const raw = upgradePartSettings(upgradeLegacyIds(fixture("every-field-500c046")));
 		expect(fieldsWithoutAPlace(raw, scene)).toEqual([]);
 	});
 });

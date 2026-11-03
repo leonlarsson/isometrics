@@ -90,10 +90,10 @@ const withoutData = (data: TWorldData) => {
  * With data off (ADR-0115), none: everything is drawn as set by hand.
  */
 const asOf = (data: TWorldData, at: string | null, inView: boolean) =>
-	!data.isOn ? withoutData(data) : at !== null && inView ? worldDataAt(data, at) : data;
+	!data.enabled ? withoutData(data) : at !== null && inView ? worldDataAt(data, at) : data;
 
 /** Whether the world uses data (ADR-0115): off hides every data tool, value and tile. */
-export const useUsesData = () => useEditor((s) => s.scene.data.isOn);
+export const useUsesData = () => useEditor((s) => s.scene.data.enabled);
 
 /**
  * The world's data now, for components: changes as the world, what arrived

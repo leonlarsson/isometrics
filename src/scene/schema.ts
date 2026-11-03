@@ -664,7 +664,7 @@ export const DataSourceSchema = z
 /** The world's data (data study): its values, tables and where they come from. */
 export const WorldDataSchema = z
 	.object({
-		isOn: z
+		enabled: z
 			.boolean()
 			.default(true)
 			.describe(
@@ -738,7 +738,7 @@ export const RoadTrafficSchema = z
  */
 export const RoadFlowSchema = z
 	.object({
-		isOn: z
+		enabled: z
 			.boolean()
 			.default(false)
 			.describe(
@@ -1123,7 +1123,7 @@ export const ViewpointSchema = z
 // See docs/adr/0062-camera-settings.md.
 export const TurntableSchema = z
 	.object({
-		isOn: z
+		enabled: z
 			.boolean()
 			.default(false)
 			.describe(
@@ -1148,7 +1148,7 @@ export const TurntableSchema = z
 
 export const TiltShiftSchema = z
 	.object({
-		isOn: z
+		enabled: z
 			.boolean()
 			.default(false)
 			.describe(

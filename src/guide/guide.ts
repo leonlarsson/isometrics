@@ -221,7 +221,7 @@ export const GUIDE: IGuideSection[] = [
 					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield-territory` and `extraction-shooters` are data maps.",
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",
-					"Roads follow rows the same way, with `flow: { isOn: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
+					"Roads follow rows the same way, with `flow: { enabled: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
 					"Long worlds are best handed over as a file, `world.json`: **Upload a file…** in Build with AI opens it.",

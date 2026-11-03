@@ -133,7 +133,7 @@ test.describe("roads that show flows (ADR-0112)", () => {
 		await expect(page.getByText("Drew 1 of 1 roads")).toBeVisible();
 		const road = await read(page, (s) => s.scene.roads.at(-1));
 		expect(road?.name).toBe("Hunt → Tarkov");
-		expect(road?.flow.isOn).toBe(true);
+		expect(road?.flow.enabled).toBe(true);
 		expect(road?.data.width?.key).toBe("row.players");
 
 		// Opened in View mode, it shows its flow in data terms.
@@ -251,7 +251,7 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 			page,
 			(s, names) =>
 				s.commit((d) => {
-					d.data.isOn = true;
+					d.data.enabled = true;
 					d.data.sources = names.map((name, i) => ({
 						id: `s${i}`,
 						kind: "api",

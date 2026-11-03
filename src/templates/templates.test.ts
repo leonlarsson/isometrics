@@ -77,7 +77,7 @@ describe("template ids (ADR-0126)", () => {
 
 describe("data in new worlds (ADR-0127)", () => {
 	it("a new world starts without data", () => {
-		expect(createEmptyScene().data.isOn).toBe(false);
+		expect(createEmptyScene().data.enabled).toBe(false);
 	});
 
 	it.each(TEMPLATES.map((template) => [template.id, template.create] as const))(
@@ -85,7 +85,7 @@ describe("data in new worlds (ADR-0127)", () => {
 		(_, create) => {
 			const { data } = create();
 			const hasData = data.values.length + data.tables.length + data.sources.length > 0;
-			expect(data.isOn).toBe(hasData);
+			expect(data.enabled).toBe(hasData);
 		},
 	);
 });

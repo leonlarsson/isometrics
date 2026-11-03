@@ -273,7 +273,7 @@ export const applyWorldPatch = (
 			continue;
 		}
 		if (key === "data") {
-			// The data group's own settings (isOn); its lists were patched above.
+			// The data group's own settings (enabled); its lists were patched above.
 			if (!isRecord(value)) {
 				issues.push({ where: "data", what: "the data group's changes, { ... }" });
 				continue;

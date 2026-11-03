@@ -74,5 +74,5 @@ export const bandBlurSettings = (tiltShift: TTiltShift, width: number, height: n
 /** Whether the world's tilt-shift shows: in View mode, and in Edit mode while previewing it. */
 export const useTiltShiftShown = () =>
 	useEditor(
-		(s) => s.scene.camera.tiltShift.isOn && (drawnModeOf(s) === "view" || s.previewTiltShift),
+		(s) => s.scene.camera.tiltShift.enabled && (drawnModeOf(s) === "view" || s.previewTiltShift),
 	);
