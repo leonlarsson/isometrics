@@ -52,12 +52,14 @@ const WORLD_TABS: IInspectorTab[] = [
 	{ value: "data", label: "Data", icon: "chart", content: <DataPanel /> },
 ];
 
-/** The tabs about data, the world's and a thing's: gone while the world's data is off (ADR-0115). */
-const DATA_TABS = new Set<TInspectorTab>(["data", "objectData"]);
-const WORLD_TABS_WITHOUT_DATA = WORLD_TABS.filter((tab) => !DATA_TABS.has(tab.value));
+/**
+ * A thing's data tab: gone while the world's data is off (ADR-0115). The world's Data tab stays,
+ * with the switch that turns it on (ADR-0127).
+ */
+const DATA_TABS = new Set<TInspectorTab>(["objectData"]);
 
-/** The world's tabs, without Data while the world's data is off. */
-const useWorldTabs = () => (useUsesData() ? WORLD_TABS : WORLD_TABS_WITHOUT_DATA);
+/** The world's tabs. */
+const useWorldTabs = () => WORLD_TABS;
 
 /** Narrow layout only: the left column's panel and the outliner become tabs of the sheet. */
 const NARROW_TABS: IInspectorTab[] = [

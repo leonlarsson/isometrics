@@ -53,7 +53,7 @@ interface INewWorldChoices {
 	drivingSide: TDrivingSide;
 	/**
 	 * Whether the new world uses data (ADR-0115), a world setting; null while it's as the picked
-	 * world has it: a starter's own (Shape Castle's is off), on for a blank world.
+	 * world has it: a starter's own (on for those that show data), off for a blank world (ADR-0127).
 	 */
 	usesData: boolean | null;
 }
@@ -170,8 +170,8 @@ export const NewWorldDialog = () => {
 	);
 	const starter = starters.find(({ template }) => template.id === choices.startFrom)?.scene;
 	const defaultName = starter?.meta.title ?? BLANK_TITLE;
-	/** Whether the picked world uses data as it comes: a starter as made, a blank world does. */
-	const usesDataAsMade = starter?.data.isOn ?? true;
+	/** Whether the picked world uses data as it comes: a starter as made, a blank world doesn't. */
+	const usesDataAsMade = starter?.data.isOn ?? false;
 	const usesData = choices.usesData ?? usesDataAsMade;
 	const update = (patch: Partial<INewWorldChoices>) => setChoices({ ...choices, ...patch });
 
@@ -193,7 +193,7 @@ export const NewWorldDialog = () => {
 						ground: { width, depth },
 						theme: choices.theme,
 						drivingSide: choices.drivingSide,
-						usesData: choices.usesData ?? true,
+						usesData: choices.usesData ?? false,
 					}),
 		);
 	};

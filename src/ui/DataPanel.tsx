@@ -4,12 +4,13 @@ import { hasAnyData, type TDataKind } from "#/editor/dataList";
 import { LINK_FAILURES } from "#/editor/readLink";
 import { keepArrivedValues, sitesOf } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
-import { useHasArrived } from "#/editor/worldData";
+import { useHasArrived, useUsesData } from "#/editor/worldData";
 
 import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button, IconButton } from "./Button";
 import { DataKindChips, DataList } from "./DataList";
 import { Hint, SearchField, Section } from "./fields";
+import { UsesDataSwitch } from "./UsesDataSwitch";
 import { useSourceStatuses } from "./useSourceStatuses";
 
 import styles from "./DataPanel.module.css";
@@ -18,7 +19,8 @@ import styles from "./DataPanel.module.css";
  * The Data tab (ADR-0123): the world's data at a glance, by kind (values,
  * tables, sources), with what needs an answer on top (values that
  * arrived, sources waiting for a yes, sources that couldn't be read). A row
- * opens it in the Data window, where the work is done; so does Add data.
+ * opens it in the Data window, where the work is done; so does Add data. While
+ * the world doesn't use data, only the switch that turns it on (ADR-0127).
  */
 export const DataPanel = () => {
 	const data = useEditor((s) => s.scene.data);
@@ -30,6 +32,16 @@ export const DataPanel = () => {
 	const [kind, setKind] = useState<TDataKind>("all");
 	const [isReviewingWaiting, setReviewingWaiting] = useState(false);
 	const isFirst = !hasAnyData(data);
+	const usesData = useUsesData();
+
+	// Off, the tab stays, holding the one switch that turns data on (ADR-0127).
+	if (!usesData) {
+		return (
+			<Section icon="chart" title="This world doesn't use data">
+				<UsesDataSwitch />
+			</Section>
+		);
+	}
 
 	return (
 		<>
@@ -130,6 +142,10 @@ export const DataPanel = () => {
 					<DataList query={query} kind={kind} at={at} onOpen={openDataWindow} />
 				</>
 			)}
+
+			<Section id="data.usesData" icon="chart" title="Data in this world" keywords="off plain">
+				<UsesDataSwitch />
+			</Section>
 
 			<AllowSourcesDialog
 				open={isReviewingWaiting && waitingAddresses.length > 1}

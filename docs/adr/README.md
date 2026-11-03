@@ -130,3 +130,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0124](0124-shapes-and-size-handles.md) | Shapes to build from, and handles that size an object along each axis | proposed |
 | [0125](0125-selecting-on-phones-leaves-the-sheet.md) | On phones, selecting leaves the sheet as it is | proposed |
 | [0126](0126-ids-in-addresses-use-hyphens.md) | Ids in addresses use hyphens: template ids first | proposed |
+| [0127](0127-new-worlds-start-without-data.md) | New worlds start without data; the Data tab stays, one click from turning it on | proposed |

@@ -26,6 +26,7 @@ import {
 } from "./fields";
 import { LegendSection } from "./LegendSection";
 import { ColorSettingFields } from "./PartSettings";
+import { UsesDataSwitch } from "./UsesDataSwitch";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
 const ON_SCREEN_DEFAULTS = OnScreenSchema.parse({});
@@ -191,29 +192,7 @@ export const WorldTab = () => {
 					}
 				/>
 
-				<SwitchField
-					label="Uses data"
-					checked={scene.data.isOn}
-					onChange={(isOn) =>
-						commit((s) => {
-							s.data.isOn = isOn;
-						})
-					}
-					inherit={{
-						from: "default",
-						inherited: scene.data.isOn,
-						onReset: () =>
-							commit((s) => {
-								s.data.isOn = true;
-							}),
-						value: "on",
-					}}
-					hint={
-						scene.data.isOn
-							? "Things can show and follow values and tables: the Data tab, From data, values on cards. Off for a plain world to build."
-							: "Off: a plain world to build, with nothing about data anywhere. Its values, tables and sources are kept, back when this is on."
-					}
-				/>
+				<UsesDataSwitch />
 			</Section>
 
 			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
