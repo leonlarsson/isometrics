@@ -19,6 +19,15 @@ describe("real night lights (ADR-0072)", () => {
 		expect(pickNearest(at, 3, (x) => x)).toEqual([1, 3, 5]);
 		expect(pickNearest(at, 10, (x) => x)).toEqual([1, 3, 5, 7, 9]);
 		expect(pickNearest(at, 0, (x) => x)).toEqual([]);
+		// Of equal distances the earlier wins; null leaves one out (a source that isn't lit).
+		const ties = ["a", "b", "c", "d"];
+		const distance = { a: 2, b: 1, c: 2, d: null };
+		expect(pickNearest(ties, 2, (x) => distance[x as keyof typeof distance])).toEqual(["b", "a"]);
+		expect(pickNearest(ties, 3, (x) => distance[x as keyof typeof distance])).toEqual([
+			"b",
+			"a",
+			"c",
+		]);
 	});
 
 	it("are as bright as the light is now, and windows as bright as their lit panes", () => {
