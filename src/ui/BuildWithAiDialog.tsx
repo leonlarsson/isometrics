@@ -61,8 +61,9 @@ const DATA_FILES = ".csv,.tsv,.txt,.json,text/csv,text/plain,application/json";
  * upload its file, or paste the link it gives; it's checked as it arrives, and
  * opens as a new world or changes this one (one undo step). Nothing is sent
  * anywhere by the app unless the world is handed over as a link. What comes
- * back is read like any world file (`repairWorld`). Keeps what's typed, and
- * which step it's on, while the page is open.
+ * back is read like any world file (`repairWorld`). Keeps what's typed while
+ * the page is open; it opens asking, unless a prompt was just copied (then at
+ * its answer) or it's opened for an answer (I already have an answer…).
  */
 export const BuildWithAiDialog = () => {
 	const asked = useEditor((s) => s.buildWithAi);
@@ -83,6 +84,9 @@ export const BuildWithAiDialog = () => {
 	const [lastPrompt, setLastPrompt] = useState<string | null>(null);
 	// The prompt to copy by hand, when the browser wouldn't put it on the clipboard.
 	const [promptByHand, setPromptByHand] = useState<string | null>(null);
+	// Whether the answer step follows a prompt just copied, rather than coming straight to it (I
+	// already have an answer): only then does it say the prompt was copied.
+	const [answersCopiedPrompt, setAnswersCopiedPrompt] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [issuesCopied, setIssuesCopied] = useState(false);
 	const [makingPrompt, setMakingPrompt] = useState(false);
@@ -90,13 +94,19 @@ export const BuildWithAiDialog = () => {
 	const [readingLink, setReadingLink] = useState<string | null>(null);
 	const close = () => useEditor.getState().setBuildWithAi(null);
 
-	// Opened for a new world or to change this one: that's what it builds, from the start; opened
-	// for an answer (I already have an answer…), at that step, else at the step it was left on.
+	// Opened for a new world or to change this one: that's what it builds, from the start. Opened
+	// for an answer (I already have an answer…), at that step. Otherwise asking, unless a prompt
+	// for the same was just copied: back from the AI chat, its answer is what comes next.
 	useEffect(() => {
 		if (asked !== null) {
-			setBuilds(asked.builds === "change" && hasWorld ? "change" : "new");
+			const next = asked.builds === "change" && hasWorld ? "change" : "new";
+			const resumes = answersCopiedPrompt && next === builds;
+			setBuilds(next);
 			if (asked.opensAt === "answer") {
 				setStep("answer");
+				setAnswersCopiedPrompt(false);
+			} else if (!resumes) {
+				setStep("ask");
 			}
 		}
 	}, [asked]);
@@ -138,6 +148,7 @@ export const BuildWithAiDialog = () => {
 		});
 		setLastPrompt(prompt);
 		await copy(prompt);
+		setAnswersCopiedPrompt(true);
 		setStep("answer");
 	};
 
@@ -295,7 +306,11 @@ export const BuildWithAiDialog = () => {
 			description={
 				isAsking
 					? "Say what you want, copy the prompt into any AI chat, and bring back what it writes."
-					: "Copied. Paste it into your AI chat, then bring back what it writes."
+					: !answersCopiedPrompt
+						? "Bring back what your AI wrote: paste it, or open its file."
+						: promptByHand !== null
+							? "Copy the prompt below into your AI chat, then bring back what it writes."
+							: "Copied. Paste it into your AI chat, then bring back what it writes."
 			}
 			closeLabel="Cancel"
 			confirm={
@@ -393,7 +408,14 @@ export const BuildWithAiDialog = () => {
 								</Button>
 							)}
 
-							<Button size="sm" variant="text" onClick={() => setStep("answer")}>
+							<Button
+								size="sm"
+								variant="text"
+								onClick={() => {
+									setAnswersCopiedPrompt(false);
+									setStep("answer");
+								}}
+							>
 								I already have an answer
 							</Button>
 						</div>
