@@ -54,6 +54,8 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		const theirs = await other.newPage();
 		await openEditor(theirs, new URL(link).pathname);
 		await expect.poll(() => read(theirs, (s) => s.scene.meta.title)).toBe("Shared world");
+		// The editor is at the link itself, no redirect (ADR-0129).
+		expect(new URL(theirs.url()).pathname).toBe(new URL(link).pathname);
 		expect(await read(theirs, (s) => s.scene.entities.map((e) => e.name))).toContain(
 			"Shared house",
 		);
@@ -68,7 +70,11 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect
 			.poll(() => theirs.evaluate(() => localStorage.getItem("isometrics:world-index") ?? ""))
 			.toContain("Shared world");
-		expect(await theirs.evaluate(() => window.location.search)).toBe("");
+		expect(await theirs.evaluate(() => window.location.pathname + window.location.search)).toBe(
+			"/",
+		);
+		// In place: the editor carried on, its world open.
+		expect(await read(theirs, (s) => s.scene.meta.title)).toBe("Shared world");
 		await other.close();
 
 		// Stop sharing: the link is gone.
@@ -186,6 +192,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 	test("a template opens by its address, and an AI's answer can be a link", async ({ page }) => {
 		await openEditor(page, "/templates/monaco");
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
+		expect(new URL(page.url()).pathname).toBe("/templates/monaco");
 		await expect(page.getByText("Preview of a template")).toBeVisible();
 
 		// An AI that posted its world answers with the link; the dialog reads it from this site.

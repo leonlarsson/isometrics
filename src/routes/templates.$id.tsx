@@ -1,9 +1,12 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-// A template by its id (/templates/brightwater): the editor opens a copy of it next to the others
-// (SharedWorldOpener, ADR-0120), from its own page.
+import { AppShell } from "#/ui/AppShell";
+import { ErrorScreen } from "#/ui/ErrorScreen";
+
+// A template by its id (/templates/lantern-bay): the editor itself, at the template's own address,
+// which it opens as a preview (openLink); back to / in place once anything else is open (ADR-0129).
 export const Route = createFileRoute("/templates/$id")({
-	beforeLoad: ({ params }) => {
-		throw redirect({ href: `/?template=${encodeURIComponent(params.id)}`, replace: true });
-	},
+	ssr: false,
+	component: AppShell,
+	errorComponent: ErrorScreen,
 });

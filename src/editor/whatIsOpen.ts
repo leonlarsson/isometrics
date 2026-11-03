@@ -5,7 +5,7 @@ import type { TScene } from "#/scene/schema";
  * the home screen, saving and the dialogs all go by the same thing:
  *
  * - `starting`: nothing yet, while the page starts;
- * - `link`: a world from a link (`/w/<id>`, `/templates/<id>`) being fetched,
+ * - `link`: a world from a link (`/w/<id>`, `/templates/<id>`, the address it's at) being fetched,
  *   or waiting for an answer before it's built; no other world is loaded;
  * - `home`: no world open (the home screen), and why;
  * - `world`: a world is open; `preview` while it's one from a link that isn't
