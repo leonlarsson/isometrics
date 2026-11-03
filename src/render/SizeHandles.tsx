@@ -32,9 +32,13 @@ const SIDES: readonly { axis: TAxis; sign: 1 | -1 }[] = [
 	{ axis: "y", sign: 1 },
 ];
 
-/** How far out from its side a handle stands, and its size, in gizmo units (the same on screen). */
+/**
+ * How far out from its side a handle stands, and its size, in gizmo units (the same on screen):
+ * a ball in its axis's colour, like the move arrows, told from the gizmo's cube that resizes the
+ * whole object by its shape as well as its colour (ADR-0089).
+ */
 const STAND_OFF = 0.3;
-const KNOB = 0.17;
+const BALL_RADIUS = 0.1;
 const HIT = 0.34;
 
 interface ISession {
@@ -214,7 +218,7 @@ const SideHandle = ({
 	return (
 		<group ref={root} position={position}>
 			<Handle
-				color={colors.size}
+				color={colors[axis]}
 				hoverColor={colors.hover}
 				active={active}
 				onPointerDown={onPointerDown}
@@ -239,7 +243,7 @@ const SideHandle = ({
 				{(color) => (
 					<group ref={knob} name={`size handle ${sign > 0 ? "+" : "−"}${axis}`}>
 						<mesh renderOrder={RENDER_ORDER}>
-							<boxGeometry args={[KNOB, KNOB, KNOB]} />
+							<sphereGeometry args={[BALL_RADIUS, 16, 12]} />
 
 							<GizmoMaterial color={color} />
 						</mesh>
