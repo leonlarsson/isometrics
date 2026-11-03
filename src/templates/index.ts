@@ -75,10 +75,5 @@ export const TEMPLATES: ITemplateInfo[] = [
 	},
 ];
 
-/**
- * A template by its id, or by the id it had with underscores before ids took hyphens
- * (`lantern_bay` for `lantern-bay`, ADR-0126), so links and tools made before keep working.
- */
-export const templateById = (id: string) =>
-	TEMPLATES.find((template) => template.id === id) ??
-	TEMPLATES.find((template) => template.id === id.replaceAll("_", "-"));
+/** A template by its id (`lantern-bay`, ADR-0126). */
+export const templateById = (id: string) => TEMPLATES.find((template) => template.id === id);

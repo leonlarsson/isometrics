@@ -188,10 +188,6 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
 		await expect(page.getByText("Preview of a template")).toBeVisible();
 
-		// An id from before ids took hyphens still opens its template (ADR-0126).
-		await openEditor(page, "/templates/extraction_shooters");
-		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Extraction shooter/);
-
 		// An AI that posted its world answers with the link; the dialog reads it from this site.
 		const response = await page.request.post("/api/user-worlds", {
 			data: { version: 1, meta: { title: "From an AI" } },

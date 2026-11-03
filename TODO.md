@@ -25,7 +25,7 @@ Guard tests, old-world fixtures, renamed/removed props and keeping unknown props
 
 ## Naming
 
-- [ ] **Hyphens, not underscores (owner's rule, 2026-11-02):** ids people see or type use hyphens. Template ids are done (ADR-0126: `lantern-bay`, `battlefield-territory`, `extraction-shooters`; old links with underscores still open them), and any new id in an address follows. Still to decide: ids kept in worlds (part kinds like `office_tower_01`, fence and road kinds, data keys like `sent_per_month`) are written by people, AIs and every saved world, so changing them means converting the old ones on load (`src/scene/legacy.ts`, ADR-0053, ADR-0106), and `/api/worlds/schema` and the guide saying the new form.
+- [ ] **Hyphens, not underscores (owner's rule, 2026-11-02):** ids people see or type use hyphens. Template ids are done (ADR-0126: `lantern-bay`, `battlefield-territory`, `extraction-shooters`; no redirects from the old ones), and any new id in an address follows. Still to decide: ids kept in worlds (part kinds like `office_tower_01`, fence and road kinds, data keys like `sent_per_month`) are written by people, AIs and every saved world, so changing them means converting the old ones on load (`src/scene/legacy.ts`, ADR-0053, ADR-0106), and `/api/worlds/schema` and the guide saying the new form.
 
 ## Ideas backlog (2026-10-21)
 

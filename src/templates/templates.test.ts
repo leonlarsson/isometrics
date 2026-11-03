@@ -68,11 +68,9 @@ describe("template ids (ADR-0126)", () => {
 		}
 	});
 
-	it("still find a template by the id it had with underscores", () => {
-		expect(templateById("lantern_bay")?.id).toBe("lantern-bay");
-		expect(templateById("battlefield_territory")?.id).toBe("battlefield-territory");
-		expect(templateById("extraction_shooters")?.id).toBe("extraction-shooters");
-		expect(templateById("brightwater")?.id).toBe("brightwater");
+	it("find a template by its id only", () => {
+		expect(templateById("lantern-bay")?.id).toBe("lantern-bay");
+		expect(templateById("lantern_bay")).toBeUndefined();
 		expect(templateById("nowhere")).toBeUndefined();
 	});
 });

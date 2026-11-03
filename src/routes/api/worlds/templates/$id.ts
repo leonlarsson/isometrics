@@ -7,7 +7,7 @@ export const Route = createFileRoute("/api/worlds/templates/$id")({
 	server: {
 		handlers: {
 			GET: ({ params }) => {
-				// `lantern-bay` or `lantern-bay.json` (or `lantern_bay`, its id before hyphens, ADR-0126).
+				// `lantern-bay` or `lantern-bay.json`: both name the same world.
 				const id = params.id.replace(/\.json$/, "");
 				const template = templateById(id);
 				const headers = { "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" };
