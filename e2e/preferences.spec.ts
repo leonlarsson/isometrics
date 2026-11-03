@@ -32,6 +32,22 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 	// Wide enough for the toolbar's shading buttons, which fold into More below 1300px.
 	test.use({ viewport: { width: 1440, height: 800 } });
 
+	test("Snap to grid is remembered after a reload, and Preferences switch it too", async ({
+		page,
+	}) => {
+		const button = page.getByRole("button", { name: "Snap to grid: on" });
+		await button.click();
+		await expect(page.getByRole("button", { name: "Snap to grid: off" })).toBeVisible();
+		await page.reload();
+		await reopened(page);
+		expect(await read(page, (s) => s.snapping)).toBe(false);
+
+		await appMenu(page, /^Preferences/);
+		await page.getByRole("button", { name: "Editing" }).click();
+		await preferences(page).getByRole("switch", { name: "Snap to grid" }).click();
+		expect(await read(page, (s) => s.snapping)).toBe(true);
+	});
+
 	test("opens from File, keeps a change after a reload, and resets", async ({ page }) => {
 		await appMenu(page, /^Preferences/);
 		await choose(page, "Camera control", "Free, like Blender");
