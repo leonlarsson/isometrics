@@ -207,7 +207,7 @@ export const readOnTheirOwn = <TSource extends Pick<TDataSource, "url">>(
 /** The open world's link and API sources (with data on), and which of them this browser has allowed. */
 const linkSources = (allowed: ReadonlySet<string>) => {
 	const { data } = useEditor.getState().scene;
-	const sources = data.isOn
+	const sources = data.enabled
 		? data.sources.filter(
 				(source) => (source.kind === "link" || source.kind === "api") && source.url,
 			)
@@ -222,8 +222,8 @@ const linkSources = (allowed: ReadonlySet<string>) => {
 export const useWaitingSources = () => {
 	const allowed = useAllowedLinks((s) => s.links);
 	const sources = useEditor((s) => s.scene.data.sources);
-	const isOn = useEditor((s) => s.scene.data.isOn);
-	return isOn
+	const enabled = useEditor((s) => s.scene.data.enabled);
+	return enabled
 		? sources.filter(
 				(source) =>
 					(source.kind === "link" || source.kind === "api") &&
@@ -242,7 +242,7 @@ export const useWaitingSources = () => {
 export const useSourceRefresh = () => {
 	const opening = useEditor((s) => s.openedWorldCount);
 	// With data off (ADR-0115), nothing is read.
-	const schedule = useEditor((s) => (s.scene.data.isOn ? scheduleOf(s.scene.data.sources) : ""));
+	const schedule = useEditor((s) => (s.scene.data.enabled ? scheduleOf(s.scene.data.sources) : ""));
 	const allowed = useAllowedLinks((s) => s.links);
 	// The addresses read since the world opened: a change to its sources or to what's allowed
 	// reads only what's new, the rest wait for their timers.

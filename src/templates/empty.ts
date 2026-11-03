@@ -31,5 +31,5 @@ export const createEmptyScene = ({
 		...(ground && { ground }),
 		...(theme && { theme }),
 		...(drivingSide && { traffic: { drivingSide } }),
-		...(!usesData && { data: { isOn: false } }),
+		...(!usesData && { data: { enabled: false } }),
 	} satisfies TSceneInput);

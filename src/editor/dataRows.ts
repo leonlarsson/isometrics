@@ -270,7 +270,7 @@ export const drawRoadsForEachRow = (
 			showsCentreLine: false,
 			dataRow: { tableKey: table.key, rowKey },
 			width: Math.min(2, widest),
-			flow: { isOn: true, vehicleCountAlong: 2 },
+			flow: { enabled: true, vehicleCountAlong: 2 },
 			data: amountColumn
 				? {
 						width: {

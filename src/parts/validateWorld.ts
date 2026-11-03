@@ -170,7 +170,7 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 
 	scene.roads.forEach((road, index) => {
 		const where = `roads[${index}] "${road.id}"`;
-		if (road.flow.isOn && !getPart(road.flow.vehicleKind)) {
+		if (road.flow.enabled && !getPart(road.flow.vehicleKind)) {
 			warn(`${where}.flow.vehicleKind`, `"${road.flow.vehicleKind}" isn't a part kind`);
 		}
 		rowRead(where, road.dataRow);

@@ -13,7 +13,7 @@ import { notify } from "./toasts";
 
 /** Whether an object is sized by data now (with the world's data on, ADR-0115). */
 export const isSizedByData = (entity: TEntity, scene: Pick<TScene, "data">) =>
-	scene.data.isOn && entity.data[SCALE_SETTING] !== undefined;
+	scene.data.enabled && entity.data[SCALE_SETTING] !== undefined;
 
 /** The selected objects sized by data. */
 export const selectedSizedByData = (state: {

@@ -303,7 +303,7 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 	const road = roadAsDrawn(stored, data);
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
-	const usesData = useEditor((s) => s.scene.data.isOn);
+	const usesData = useEditor((s) => s.scene.data.enabled);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
 		(s) =>

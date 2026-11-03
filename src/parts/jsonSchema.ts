@@ -238,7 +238,7 @@ export const worldPatchJsonSchema = () => {
 			properties.data = {
 				type: "object",
 				description:
-					"Changes to the world's data: its own settings (isOn) merged, and its lists by key or id.",
+					"Changes to the world's data: its own settings (enabled) merged, and its lists by key or id.",
 				properties: Object.fromEntries(
 					PATCH_LISTS.filter((each) => each.path[0] === "data").map((each) => [
 						each.path[1],

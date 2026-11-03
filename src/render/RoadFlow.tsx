@@ -223,7 +223,7 @@ export const RoadFlow = ({
 	surfaceY: number;
 }) => {
 	const driving = useEditor((s) => s.scene.traffic.drivingSide);
-	if (!road.flow.isOn) {
+	if (!road.flow.enabled) {
 		return null;
 	}
 	return (

@@ -1,0 +1,891 @@
+{
+	"version": 1,
+	"meta": {
+		"title": "Every field",
+		"subtitle": "The format as of 500c046, every field set"
+	},
+	"theme": "dark",
+	"ground": {
+		"width": 30,
+		"depth": 20,
+		"colors": {
+			"surface": {
+				"color": "#a0b0c0",
+				"transparency": null,
+				"data": {}
+			}
+		}
+	},
+	"traffic": {
+		"drivingSide": "left",
+		"turnStyle": "sharp",
+		"leansInTurns": false,
+		"keepsDistance": false,
+		"overtakes": false
+	},
+	"lighting": {
+		"time": 18.5,
+		"timeSource": "data",
+		"dayLength": 90,
+		"sunAzimuth": 200,
+		"sunElevation": 30,
+		"sunColor": "#ffcc88",
+		"sunStrength": 1.2,
+		"sunShadeContrast": 0.7,
+		"whenLightsAreOn": "on",
+		"data": {
+			"time": {
+				"key": "hour",
+				"switchesOnAbove": null,
+				"valueAtFull": null,
+				"valueAtLowColor": null,
+				"valueAtHighColor": null,
+				"lowColor": null,
+				"highColor": null,
+				"valueAtLowSetting": null,
+				"valueAtHighSetting": null,
+				"lowSetting": null,
+				"highSetting": null,
+				"usesLogScale": false
+			}
+		}
+	},
+	"sky": {
+		"showsInPerspective": false,
+		"colorOverhead": "#112233",
+		"colorAtHorizon": "#445566",
+		"showsSun": false,
+		"showsMoon": false,
+		"starDensity": 0.9
+	},
+	"water": {
+		"rippleStrength": 0.2,
+		"reflectionStrength": 0.9
+	},
+	"weather": {
+		"cloudCover": 0.8,
+		"cloudColor": "#dddddd",
+		"cloudSpeed": 2,
+		"rainAmount": 0.5,
+		"snowAmount": 0.1,
+		"fogDensity": 0.2,
+		"hazeAmount": 0.3,
+		"lightningRate": 0.4,
+		"groundWetness": 0.6,
+		"snowCover": 0.25,
+		"showsSplashes": false,
+		"softensLight": false,
+		"data": {
+			"rainAmount": {
+				"key": "rain",
+				"switchesOnAbove": null,
+				"valueAtFull": 10,
+				"valueAtLowColor": null,
+				"valueAtHighColor": null,
+				"lowColor": null,
+				"highColor": null,
+				"valueAtLowSetting": null,
+				"valueAtHighSetting": null,
+				"lowSetting": null,
+				"highSetting": null,
+				"usesLogScale": false
+			}
+		}
+	},
+	"moods": [
+		{
+			"name": "Dusk",
+			"lighting": {
+				"time": 19,
+				"timeSource": "data",
+				"data": {
+					"time": {
+						"key": "hour",
+						"switchesOnAbove": null,
+						"valueAtFull": null,
+						"valueAtLowColor": null,
+						"valueAtHighColor": null,
+						"lowColor": null,
+						"highColor": null,
+						"valueAtLowSetting": null,
+						"valueAtHighSetting": null,
+						"lowSetting": null,
+						"highSetting": null,
+						"usesLogScale": false
+					}
+				}
+			},
+			"sky": {
+				"showsSun": false
+			},
+			"water": {
+				"rippleStrength": 0.7
+			},
+			"weather": {
+				"cloudCover": 0.5,
+				"cloudColor": "#ccbbaa",
+				"cloudSpeed": 0.5,
+				"rainAmount": 0.2,
+				"data": {
+					"fogDensity": {
+						"key": "rain",
+						"switchesOnAbove": null,
+						"valueAtFull": 4,
+						"valueAtLowColor": null,
+						"valueAtHighColor": null,
+						"lowColor": null,
+						"highColor": null,
+						"valueAtLowSetting": null,
+						"valueAtHighSetting": null,
+						"lowSetting": null,
+						"highSetting": null,
+						"usesLogScale": false
+					}
+				}
+			},
+			"tiltShift": {
+				"isOn": true,
+				"blurStrength": 0.7,
+				"sharpBandHeight": 0.4,
+				"sharpBandPosition": 0.6
+			},
+			"id": "dusk"
+		}
+	],
+	"backdrop": {
+		"kind": "gradient",
+		"color": "#010203",
+		"gradientStart": "#000000",
+		"gradientEnd": "#ffffff",
+		"gradientAngle": 90
+	},
+	"entities": [
+		{
+			"name": "Home",
+			"position": [
+				1,
+				2
+			],
+			"altitude": 1.5,
+			"rotation": [
+				-10,
+				90,
+				5
+			],
+			"scale": 1.2,
+			"colors": {
+				"roof": {
+					"color": "#c0392b",
+					"transparency": null,
+					"data": {
+						"color": {
+							"key": "rain",
+							"switchesOnAbove": null,
+							"valueAtFull": null,
+							"valueAtLowColor": 1,
+							"valueAtHighColor": 9,
+							"lowColor": "#00ff00",
+							"highColor": "#ff0000",
+							"valueAtLowSetting": null,
+							"valueAtHighSetting": null,
+							"lowSetting": null,
+							"highSetting": null,
+							"usesLogScale": false
+						}
+					}
+				},
+				"door": {
+					"color": "#123456",
+					"transparency": null,
+					"data": {}
+				}
+			},
+			"props": {
+				"roofHeight": 0.8,
+				"showsChimney": false
+			},
+			"label": {
+				"title": "Home",
+				"dataKeys": [
+					"hour"
+				],
+				"offset": [
+					0,
+					3,
+					0
+				]
+			},
+			"details": {
+				"description": "Where the heart is",
+				"dataKeys": [
+					"rain"
+				]
+			},
+			"lights": {
+				"windows": {
+					"whenOn": "schedule",
+					"comesOn": "gradually",
+					"schedule": [
+						{
+							"from": 18,
+							"until": 23
+						}
+					],
+					"color": "#ffeeaa",
+					"strength": 1.5,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {
+						"strength": {
+							"key": "rain",
+							"switchesOnAbove": null,
+							"valueAtFull": 5,
+							"valueAtLowColor": null,
+							"valueAtHighColor": null,
+							"lowColor": null,
+							"highColor": null,
+							"valueAtLowSetting": null,
+							"valueAtHighSetting": null,
+							"lowSetting": null,
+							"highSetting": null,
+							"usesLogScale": false
+						},
+						"on": {
+							"key": "rain",
+							"switchesOnAbove": 2,
+							"valueAtFull": null,
+							"valueAtLowColor": null,
+							"valueAtHighColor": null,
+							"lowColor": null,
+							"highColor": null,
+							"valueAtLowSetting": null,
+							"valueAtHighSetting": null,
+							"lowSetting": null,
+							"highSetting": null,
+							"usesLogScale": false
+						},
+						"schedule": {
+							"key": "hours",
+							"switchesOnAbove": null,
+							"valueAtFull": null,
+							"valueAtLowColor": null,
+							"valueAtHighColor": null,
+							"lowColor": null,
+							"highColor": null,
+							"valueAtLowSetting": null,
+							"valueAtHighSetting": null,
+							"lowSetting": null,
+							"highSetting": null,
+							"usesLogScale": false
+						}
+					}
+				}
+			},
+			"isLocked": true,
+			"id": "home",
+			"kind": "house_01"
+		},
+		{
+			"colors": {
+				"body": {
+					"color": "#00ff00",
+					"transparency": null,
+					"data": {}
+				}
+			},
+			"follow": {
+				"roadId": "high_street",
+				"speed": 3,
+				"startDistance": 2,
+				"drivesTheOtherWay": true,
+				"turnStyle": "smooth",
+				"leansInTurns": true
+			},
+			"lights": {
+				"headlights": {
+					"whenOn": "on",
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "car",
+			"kind": "car_01"
+		},
+		{
+			"scale": 3,
+			"isHidden": true,
+			"id": "tree",
+			"kind": "round_tree_01"
+		},
+		{
+			"scale": 10,
+			"id": "big_tree",
+			"kind": "round_tree_02"
+		},
+		{
+			"props": {
+				"text": "Hi",
+				"dataKey": "hour"
+			},
+			"label": {
+				"isShown": true,
+				"title": "Sign"
+			},
+			"id": "sign",
+			"kind": "text_01"
+		},
+		{
+			"props": {
+				"beamSecondsPerTurn": 8,
+				"beamRotates": false
+			},
+			"id": "beam",
+			"kind": "lighthouse_01"
+		},
+		{
+			"lights": {
+				"windows": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": null,
+					"reach": null,
+					"litPaneShare": 0.5,
+					"paneWeight": 3,
+					"data": {
+						"litPaneShare": {
+							"key": "rain",
+							"switchesOnAbove": null,
+							"valueAtFull": 10,
+							"valueAtLowColor": null,
+							"valueAtHighColor": null,
+							"lowColor": null,
+							"highColor": null,
+							"valueAtLowSetting": null,
+							"valueAtHighSetting": null,
+							"lowSetting": null,
+							"highSetting": null,
+							"usesLogScale": false
+						}
+					}
+				},
+				"screens": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": 2,
+					"data": {}
+				}
+			},
+			"id": "tower",
+			"kind": "office_tower_01"
+		},
+		{
+			"props": {
+				"rainLight": "#ff00ff"
+			},
+			"lights": {
+				"rainLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ff00ff",
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "racer",
+			"kind": "race_car_01"
+		},
+		{
+			"lights": {
+				"rainLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ff0000",
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "racer_set",
+			"kind": "race_car_01"
+		},
+		{
+			"props": {
+				"brightness": 2,
+				"reach": 4
+			},
+			"lights": {
+				"lamp": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ffaa00",
+					"strength": 2,
+					"reach": 4,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "lamp",
+			"kind": "street_lamp_01"
+		},
+		{
+			"lights": {
+				"warningLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": 2,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "forklift",
+			"kind": "forklift_01"
+		},
+		{
+			"props": {
+				"width": 3,
+				"depth": 5
+			},
+			"id": "church",
+			"kind": "church_01"
+		},
+		{
+			"props": {
+				"depth": 4
+			},
+			"id": "barn",
+			"kind": "barn_01"
+		},
+		{
+			"props": {
+				"depth": 3
+			},
+			"id": "greenhouse",
+			"kind": "greenhouse_01"
+		},
+		{
+			"props": {
+				"buildingHeight": 2.2
+			},
+			"id": "tunnel",
+			"kind": "tunnel_01"
+		},
+		{
+			"props": {
+				"showsCrowd": false
+			},
+			"id": "stand",
+			"kind": "grandstand_01"
+		},
+		{
+			"props": {
+				"containerLayerCount": 3
+			},
+			"lights": {
+				"mastheadLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ffffff",
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "ship",
+			"kind": "cargo_ship_01"
+		},
+		{
+			"props": {
+				"showsSails": false
+			},
+			"lights": {
+				"mastheadLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": 2,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "boat",
+			"kind": "sailing_boat_01"
+		},
+		{
+			"props": {
+				"containerCount": 3
+			},
+			"id": "box",
+			"kind": "shipping_container_01"
+		},
+		{
+			"props": {
+				"rotorSpins": false
+			},
+			"id": "turbine",
+			"kind": "wind_turbine_01"
+		},
+		{
+			"props": {
+				"showsRider": false
+			},
+			"lights": {
+				"headlight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ffffff",
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "bike",
+			"kind": "bicycle_01"
+		},
+		{
+			"props": {
+				"showsOutriggers": false
+			},
+			"lights": {
+				"warningLight": {
+					"whenOn": "off",
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "crane",
+			"kind": "mobile_crane_01"
+		},
+		{
+			"lights": {
+				"warningLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": null,
+					"strength": 0.5,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "gantry",
+			"kind": "gantry_crane_01"
+		},
+		{
+			"lights": {
+				"warningLight": {
+					"whenOn": null,
+					"comesOn": null,
+					"schedule": null,
+					"color": "#ff0000",
+					"strength": null,
+					"reach": null,
+					"litPaneShare": null,
+					"paneWeight": null,
+					"data": {}
+				}
+			},
+			"id": "pylon",
+			"kind": "pylon_01"
+		}
+	],
+	"roads": [
+		{
+			"name": "High Street",
+			"width": 2,
+			"cornerRadius": 1,
+			"showsCentreLine": false,
+			"heldUpBy": "embankment",
+			"pillarSpacing": 5,
+			"embankmentAngle": 60,
+			"embankmentWidth": 0.8,
+			"showsRailings": false,
+			"traffic": {
+				"drivingLane": "centre",
+				"turnStyle": "sharp",
+				"leansInTurns": false
+			},
+			"colors": {
+				"surface": {
+					"color": "#333333",
+					"transparency": null,
+					"data": {}
+				},
+				"embankment": {
+					"color": "#887766",
+					"transparency": null,
+					"data": {}
+				}
+			},
+			"flow": {
+				"isOn": true
+			},
+			"isLocked": true,
+			"id": "high_street",
+			"kind": "road_01",
+			"points": [
+				[
+					-5,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					1
+				],
+				[
+					5,
+					0,
+					1,
+					3
+				]
+			]
+		},
+		{
+			"kind": "hidden_route_01",
+			"isHidden": true,
+			"id": "ferry_line",
+			"points": [
+				[
+					0,
+					5,
+					0
+				],
+				[
+					5,
+					5,
+					0
+				]
+			]
+		}
+	],
+	"areas": [
+		{
+			"kind": "water_01",
+			"name": "Lake",
+			"colors": {
+				"surface": {
+					"color": "#2244aa",
+					"transparency": null,
+					"data": {}
+				}
+			},
+			"water": {
+				"rippleStrength": 0.1,
+				"reflectionStrength": 0.3
+			},
+			"isHidden": true,
+			"id": "lake",
+			"points": [
+				[
+					-8,
+					-8
+				],
+				[
+					-4,
+					-8
+				],
+				[
+					-4,
+					-4
+				]
+			]
+		},
+		{
+			"kind": "raised_land_01",
+			"height": 2,
+			"peaks": [
+				[
+					4,
+					3,
+					1
+				]
+			],
+			"isLocked": true,
+			"id": "hill",
+			"points": [
+				[
+					2,
+					2
+				],
+				[
+					6,
+					2,
+					1
+				],
+				[
+					6,
+					6,
+					-0.5
+				]
+			]
+		}
+	],
+	"fences": [
+		{
+			"kind": "hedge_01",
+			"name": "Hedge",
+			"loops": true,
+			"cornerRadius": 1,
+			"height": 0.8,
+			"postSpacing": 2,
+			"colors": {
+				"leaves": {
+					"color": "#336633",
+					"transparency": null,
+					"data": {}
+				}
+			},
+			"builtShare": 0.5,
+			"data": {
+				"builtShare": {
+					"key": "rain",
+					"switchesOnAbove": null,
+					"valueAtFull": 10,
+					"valueAtLowColor": null,
+					"valueAtHighColor": null,
+					"lowColor": null,
+					"highColor": null,
+					"valueAtLowSetting": null,
+					"valueAtHighSetting": null,
+					"lowSetting": null,
+					"highSetting": null,
+					"usesLogScale": false
+				}
+			},
+			"isLocked": true,
+			"id": "hedge",
+			"points": [
+				[
+					-2,
+					-2,
+					0
+				],
+				[
+					2,
+					-2,
+					0.5
+				],
+				[
+					2,
+					2,
+					0
+				]
+			]
+		}
+	],
+	"data": {
+		"isOn": false,
+		"values": [
+			{
+				"name": "Hour",
+				"unit": "h",
+				"key": "hour",
+				"value": 18
+			},
+			{
+				"name": "Rain",
+				"unit": "mm",
+				"key": "rain",
+				"value": 3
+			},
+			{
+				"name": "Opening hours",
+				"key": "hours",
+				"value": "09:00-17:30"
+			}
+		]
+	},
+	"viewpoints": [
+		{
+			"name": "Overview",
+			"description": "All of it",
+			"target": [
+				1,
+				2
+			],
+			"targetAltitude": 1,
+			"azimuth": 300,
+			"elevation": 40,
+			"span": 20,
+			"projection": "perspective",
+			"fieldOfView": 50,
+			"moodId": "dusk",
+			"id": "overview"
+		}
+	],
+	"onScreen": {
+		"showsTitle": false,
+		"showsSubtitle": false,
+		"showsTimeOfDay": false,
+		"showsLabelCards": false,
+		"showsDetails": false,
+		"showsViewpointBar": false
+	},
+	"camera": {
+		"openingViewpointId": "overview",
+		"openingProjection": "perspective",
+		"fieldOfView": 35,
+		"closestSpan": 3,
+		"farthestSpan": 200,
+		"lowestElevation": 5,
+		"highestElevation": 80,
+		"keepsOverGround": false,
+		"keepsIsometricAngle": true,
+		"turntable": {
+			"isOn": true,
+			"speed": -6,
+			"delay": 20
+		},
+		"tiltShift": {
+			"isOn": true,
+			"blurStrength": 0.6,
+			"sharpBandHeight": 0.2,
+			"sharpBandPosition": 0.4
+		}
+	}
+}

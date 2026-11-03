@@ -197,8 +197,8 @@ describe("renamed fields (ADR-0071)", () => {
 		const { showsDataSwitch: _, legend: __, tileKeys: ___, ...switches } = scene.onScreen;
 		expect(Object.values(switches).every((shown) => shown === false)).toBe(true);
 		expect(scene.lighting.whenLightsAreOn).toBe("on");
-		expect(scene.camera.turntable.isOn).toBe(true);
-		expect(scene.camera.tiltShift.isOn).toBe(true);
+		expect(scene.camera.turntable.enabled).toBe(true);
+		expect(scene.camera.tiltShift.enabled).toBe(true);
 		expect(scene.roads[0]).toMatchObject({
 			loops: true,
 			showsCentreLine: false,

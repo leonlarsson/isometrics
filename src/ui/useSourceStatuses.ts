@@ -36,7 +36,7 @@ const FAILURE_ORDER: readonly TLinkFailure[] = [
  */
 export const useSourceStatuses = () => {
 	const sources = useEditor((s) => s.scene.data.sources);
-	const dataIsOn = useEditor((s) => s.scene.data.isOn);
+	const dataIsOn = useEditor((s) => s.scene.data.enabled);
 	const statuses = useSourceStatus();
 	const waiting = useWaitingSources();
 	const allowedLinks = useAllowedLinks((s) => s.links);

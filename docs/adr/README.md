@@ -131,3 +131,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0125](0125-selecting-on-phones-leaves-the-sheet.md) | On phones, selecting leaves the sheet as it is | proposed |
 | [0126](0126-ids-in-addresses-use-hyphens.md) | Ids in addresses use hyphens: template ids first | proposed |
 | [0127](0127-new-worlds-start-without-data.md) | New worlds start without data; the Data tab stays, one click from turning it on | proposed |
+| [0128](0128-features-switch-with-enabled.md) | A feature's on/off switch is `enabled` | proposed |

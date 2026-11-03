@@ -171,7 +171,7 @@ export const NewWorldDialog = () => {
 	const starter = starters.find(({ template }) => template.id === choices.startFrom)?.scene;
 	const defaultName = starter?.meta.title ?? BLANK_TITLE;
 	/** Whether the picked world uses data as it comes: a starter as made, a blank world doesn't. */
-	const usesDataAsMade = starter?.data.isOn ?? false;
+	const usesDataAsMade = starter?.data.enabled ?? false;
 	const usesData = choices.usesData ?? usesDataAsMade;
 	const update = (patch: Partial<INewWorldChoices>) => setChoices({ ...choices, ...patch });
 
@@ -186,7 +186,7 @@ export const NewWorldDialog = () => {
 				? {
 						...picked,
 						meta: { ...picked.meta, title },
-						data: { ...picked.data, isOn: choices.usesData ?? picked.data.isOn },
+						data: { ...picked.data, enabled: choices.usesData ?? picked.data.enabled },
 					}
 				: createEmptyScene({
 						title,

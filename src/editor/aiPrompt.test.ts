@@ -41,7 +41,7 @@ describe("the prompt for your own AI", () => {
 
 	it("asks for a plain world when there's no data, and carries the world to change", () => {
 		expect(aiPrompt({ description: "", data: "", world: null, origin: ORIGIN })).toContain(
-			'"isOn": false',
+			'"enabled": false',
 		);
 		const world = createEmptyScene({ title: "Mine" });
 		const changing = aiPrompt({ description: "More trees", data: "", world, origin: ORIGIN });

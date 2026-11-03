@@ -308,7 +308,7 @@ export const createShapeCastleScene = (): TScene =>
 				span: 24,
 			},
 		],
-		data: { isOn: false },
+		data: { enabled: false },
 		areas: AREAS,
 		entities: buildCastle(),
 	} satisfies TSceneInput);

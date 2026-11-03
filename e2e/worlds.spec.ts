@@ -73,7 +73,7 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 			.toBe("http://localhost:3000/templates/shape-castle");
 		await dialog.getByRole("button", { name: "Create" }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Shape Castle");
-		expect(await read(page, (s) => s.scene.data.isOn)).toBe(false);
+		expect(await read(page, (s) => s.scene.data.enabled)).toBe(false);
 	});
 
 	test("Duplicate world keeps the original, and Delete world removes the open one", async ({

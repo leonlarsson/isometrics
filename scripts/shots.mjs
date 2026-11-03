@@ -13,7 +13,7 @@
  *   --graphics standard|nice|ultra   the Graphics preset (default standard)
  *   --pref key=value                 a preference, e.g. --pref ambientOcclusion=off (repeatable)
  *   --world path=value               a world setting, e.g. --world lighting.sunShadeContrast=0.75,
- *                                    --world theme=dark, --world camera.tiltShift.isOn=true (repeatable)
+ *                                    --world theme=dark, --world camera.tiltShift.enabled=true (repeatable)
  *   --hours 12,18.6,22               times of day (default 12,18.6,22); "world" keeps the world's own
  *                                    (or the mood's), stopped there
  *   --mood mood_golden               a mood of the world's put on first (its look: light, sky, water,
