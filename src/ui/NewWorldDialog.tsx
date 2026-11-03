@@ -17,6 +17,7 @@ import { ChipGroup } from "./ChipGroup";
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
 import {
+	FieldGroup,
 	Hint,
 	RadioGroupField,
 	resetToDefault,
@@ -24,6 +25,7 @@ import {
 	SwitchField,
 	TextField,
 } from "./fields";
+import { useCopy } from "./useCopy";
 
 import styles from "./NewWorldDialog.module.css";
 
@@ -49,8 +51,11 @@ interface INewWorldChoices {
 	groundPreset: TGroundPreset;
 	theme: TThemePreference;
 	drivingSide: TDrivingSide;
-	/** Whether a blank world uses data (ADR-0115). */
-	usesData: boolean;
+	/**
+	 * Whether the new world uses data (ADR-0115), a world setting; null while it's as the picked
+	 * world has it: a starter's own (Shape Castle's is off), on for a blank world.
+	 */
+	usesData: boolean | null;
 }
 
 const DEFAULT_CHOICES: INewWorldChoices = {
@@ -58,7 +63,7 @@ const DEFAULT_CHOICES: INewWorldChoices = {
 	groundPreset: "blocks",
 	theme: "system",
 	drivingSide: "right",
-	usesData: true,
+	usesData: null,
 };
 
 const blankPictureId = (preset: TGroundPreset) => `${BLANK}:${preset}`;
@@ -122,6 +127,9 @@ const contentsOf = (scene: TScene) => {
  * keeps its choices while the page is open; nothing is stored. The new world
  * opens next to the others (ADR-0044).
  */
+/** A starter's own address (/templates/<id>), which opens a copy of it for anyone (ADR-0120). */
+const templateLink = (id: string) => `${window.location.origin}/templates/${id}`;
+
 export const NewWorldDialog = () => {
 	const asked = useEditor((s) => s.newWorld);
 	const open = asked !== null;
@@ -131,6 +139,7 @@ export const NewWorldDialog = () => {
 		}
 	};
 	const [choices, setChoices] = useState(DEFAULT_CHOICES);
+	const { copiedKey, copy } = useCopy();
 	// Which starters show: all, or one category's (places, data maps).
 	const [category, setCategory] = useState<TTemplateCategory | "all">("all");
 	// Empty means the placeholder: the starter's own title, or "Untitled world".
@@ -161,6 +170,9 @@ export const NewWorldDialog = () => {
 	);
 	const starter = starters.find(({ template }) => template.id === choices.startFrom)?.scene;
 	const defaultName = starter?.meta.title ?? BLANK_TITLE;
+	/** Whether the picked world uses data as it comes: a starter as made, a blank world does. */
+	const usesDataAsMade = starter?.data.isOn ?? true;
+	const usesData = choices.usesData ?? usesDataAsMade;
 	const update = (patch: Partial<INewWorldChoices>) => setChoices({ ...choices, ...patch });
 
 	/** Create the world from the picked card, or from `startFrom` (a card that was double-clicked). */
@@ -174,14 +186,14 @@ export const NewWorldDialog = () => {
 				? {
 						...picked,
 						meta: { ...picked.meta, title },
-						data: { ...picked.data, isOn: choices.usesData },
+						data: { ...picked.data, isOn: choices.usesData ?? picked.data.isOn },
 					}
 				: createEmptyScene({
 						title,
 						ground: { width, depth },
 						theme: choices.theme,
 						drivingSide: choices.drivingSide,
-						usesData: choices.usesData,
+						usesData: choices.usesData ?? true,
 					}),
 		);
 	};
@@ -269,12 +281,10 @@ export const NewWorldDialog = () => {
 
 					<SwitchField
 						label="Uses data"
-						checked={choices.usesData}
-						onChange={(usesData) => update({ usesData })}
-						inherit={resetToDefault(choices.usesData, DEFAULT_CHOICES.usesData, () =>
-							update({ usesData: DEFAULT_CHOICES.usesData }),
-						)}
-						hint="Off for a plain world to build, with nothing about data anywhere (a starter's data is kept, hidden). The World tab can turn it on later."
+						checked={usesData}
+						onChange={(next) => update({ usesData: next })}
+						inherit={resetToDefault(usesData, usesDataAsMade, () => update({ usesData: null }))}
+						hint="Off for a plain world to build, with nothing about data anywhere (a starter's data is kept, hidden). It starts as the starter has it, and the World tab can change it later."
 					/>
 
 					{/*
@@ -358,6 +368,26 @@ export const NewWorldDialog = () => {
 									A copy opens as a new world; change anything. Its label cards show how data is
 									wired to objects.
 								</Hint>
+
+								<FieldGroup title="Its link">
+									<p className={styles.link}>{templateLink(template.id)}</p>
+
+									<Button
+										size="sm"
+										icon={copiedKey === template.id ? "check" : "copy"}
+										showsSuccess={copiedKey === template.id}
+										onClick={() =>
+											copy(templateLink(template.id), "Link copied", {
+												key: template.id,
+												detail: templateLink(template.id),
+											})
+										}
+									>
+										Copy the link
+									</Button>
+
+									<Hint>Opens a copy of this starter for anyone, as a preview they can keep.</Hint>
+								</FieldGroup>
 							</div>
 						))}
 					</div>

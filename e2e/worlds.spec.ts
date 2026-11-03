@@ -54,6 +54,28 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
 	});
 
+	test("New world: a starter comes as made (Shape Castle without data), and its link copies", async ({
+		page,
+		context,
+	}) => {
+		await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+			origin: "http://localhost:3000",
+		});
+		await openEditor(page);
+		await fileMenu(page, /New world/);
+		const dialog = page.getByRole("dialog", { name: "New world" });
+		await dialog.getByRole("radio", { name: /Shape Castle/ }).click();
+		// Uses data follows the starter: Shape Castle is made without.
+		await expect(dialog.getByRole("switch", { name: "Uses data" })).not.toBeChecked();
+		await dialog.getByRole("button", { name: "Copy the link" }).click();
+		await expect
+			.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+			.toBe("http://localhost:3000/templates/shape-castle");
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Shape Castle");
+		expect(await read(page, (s) => s.scene.data.isOn)).toBe(false);
+	});
+
 	test("Duplicate world keeps the original, and Delete world removes the open one", async ({
 		page,
 	}) => {

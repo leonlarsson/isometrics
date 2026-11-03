@@ -94,7 +94,7 @@ export const HomeScreen = () => {
 						<Button
 							variant="primary"
 							icon="file"
-							onClick={() => store().setNewWorld({ shows: "all", usesData: true })}
+							onClick={() => store().setNewWorld({ shows: "all", usesData: null })}
 						>
 							New world…
 						</Button>

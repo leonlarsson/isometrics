@@ -392,7 +392,11 @@ export interface IEditorState {
 	 * New world… is open (null: closed): showing all starters or one category's, and whether the new
 	 * world uses data to begin with (ADR-0116: the welcome opens it for a city or an example).
 	 */
-	newWorld: { shows: "all" | "places" | "dataMaps"; usesData: boolean } | null;
+	newWorld: {
+		shows: "all" | "places" | "dataMaps";
+		/** Whether it'll use data (ADR-0115); null: as the picked world has it (a starter as made). */
+		usesData: boolean | null;
+	} | null;
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
