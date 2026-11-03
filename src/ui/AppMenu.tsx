@@ -46,6 +46,7 @@ export const AppMenuItems = () => {
 				icon="user"
 				label="Preferences…"
 				description="How the camera moves for you, graphics and overlays, in this browser"
+				shortcut="Ctrl+,"
 				onClick={() => store().setPreferencesOpen(true)}
 			/>
 

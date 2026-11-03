@@ -3,7 +3,7 @@ import { useEditor } from "#/editor/store";
 import type { TThemePreference } from "#/scene/schema";
 
 import { AppMenu } from "./AppMenu";
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
@@ -69,6 +69,18 @@ export const Toolbar = () => {
 				<AppMenu />
 
 				<FileMenu />
+
+				{/* Build with AI one click away (ADR-0116), a new world; at phone width, in File only. */}
+				{!isNarrow && (
+					<Button
+						variant="ghost"
+						icon="sparkle"
+						iconTone="accent"
+						onClick={() => useEditor.getState().setBuildWithAi("new")}
+					>
+						AI
+					</Button>
+				)}
 
 				<SaveStatus />
 			</div>

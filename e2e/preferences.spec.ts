@@ -48,6 +48,12 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		expect(await read(page, (s) => s.snapping)).toBe(true);
 	});
 
+	test("Ctrl+, opens it, as in most apps", async ({ page }) => {
+		await expect(preferences(page)).toBeHidden();
+		await keys(page, "Control+Comma");
+		await expect(preferences(page)).toBeVisible();
+	});
+
 	test("opens from File, keeps a change after a reload, and resets", async ({ page }) => {
 		await appMenu(page, /^Preferences/);
 		await choose(page, "Camera control", "Free, like Blender");
