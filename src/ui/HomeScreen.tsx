@@ -44,6 +44,8 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 		// Nothing to explain: the empty list of worlds says it, without reading like an error.
 		case "noWorlds":
 		case "chosen":
+		// The toast says it was deleted, and where its copy is kept.
+		case "deleted":
 			return null;
 	}
 };
