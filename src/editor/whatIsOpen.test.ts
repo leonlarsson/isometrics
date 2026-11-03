@@ -10,6 +10,10 @@ describe("what's open (ADR-0121)", () => {
 			from: "shared",
 			id: "5ttCNb8m9AVF1wwYCij3gA",
 		});
+		expect(linkInAddress("/p/5ttCNb8m9AVF1wwYCij3gA")).toEqual({
+			from: "prefab",
+			id: "5ttCNb8m9AVF1wwYCij3gA",
+		});
 		expect(linkInAddress("/templates/brightwater")).toEqual({
 			from: "template",
 			id: "brightwater",

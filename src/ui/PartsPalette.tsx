@@ -39,6 +39,7 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { ContextMenu, Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
+import { SharePrefabDialog } from "./SharePrefabDialog";
 import { HIDDEN_ROUTE_SWATCH } from "./swatches";
 import { Tooltip } from "./Tooltip";
 import { useNarrowLayout } from "./useNarrowLayout";
@@ -194,6 +195,8 @@ export const PartsPalette = () => {
 	const narrow = useNarrowLayout();
 	const memory = usePaletteMemory();
 	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+	/** A prefab whose Share a link… is open (ADR-0134). */
+	const [sharingPrefab, setSharingPrefab] = useState<TPrefab | null>(null);
 	/** The family whose variants are shown, by its id ("part:race_car"). */
 	const [openFamily, setOpenFamily] = useState<string | null>(null);
 
@@ -416,6 +419,8 @@ export const PartsPalette = () => {
 	const menuItem = menu ? byKey.get(menu.key) : undefined;
 	// The prefab a tile is, of this world's or My prefabs (ADR-0134).
 	const menuPrefabId = menuItem?.prefabId ?? menuItem?.libraryPrefab?.id;
+	const menuPrefab =
+		menuItem?.libraryPrefab ?? prefabs.find((prefab) => prefab.id === menuItem?.prefabId) ?? null;
 
 	const tile = (item: IPaletteItem, section: string, family?: IFamilyOfTile) => {
 		const favourite = memory.favourites.includes(item.key);
@@ -663,6 +668,15 @@ export const PartsPalette = () => {
 					/>
 				)}
 
+				{menuPrefab && (
+					<Menu.Item
+						icon="newTab"
+						label="Share a link…"
+						description="Public until it expires: others add it to their own prefabs"
+						onClick={() => setSharingPrefab(menuPrefab)}
+					/>
+				)}
+
 				{menuPrefabId && library.some((prefab) => prefab.id === menuPrefabId) && (
 					<Menu.Item
 						icon="trash"
@@ -695,6 +709,8 @@ export const PartsPalette = () => {
 			</ContextMenu>
 
 			{preview && !placing && <PartPreview kind={preview.kind} anchor={preview.anchor} />}
+
+			<SharePrefabDialog prefab={sharingPrefab} onClose={() => setSharingPrefab(null)} />
 		</nav>
 	);
 };

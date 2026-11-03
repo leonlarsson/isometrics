@@ -49,7 +49,8 @@ export interface IWorkshop {
 
 /** A link the page's address asked to open. */
 export interface ILinkAsked {
-	from: "shared" | "template";
+	/** A shared world (`/w/<id>`), a template (`/templates/<id>`) or a shared prefab (`/p/<id>`, ADR-0134). */
+	from: "shared" | "template" | "prefab";
 	id: string;
 }
 

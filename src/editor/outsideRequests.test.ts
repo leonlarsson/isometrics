@@ -14,6 +14,8 @@ const ROOT = join(import.meta.dirname, "..");
 const MAY_REQUEST: Record<string, "outside, checked" | "this site only"> = {
 	"editor/readLink.ts": "outside, checked",
 	"editor/userWorlds.ts": "this site only",
+	// Prefabs shared by link (ADR-0134).
+	"editor/userPrefabs.ts": "this site only",
 };
 
 /** Ways to send a request from a browser. */

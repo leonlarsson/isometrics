@@ -140,4 +140,43 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		await act(page, (s) => s.undo());
 		expect(await prefabsNow(page)).toEqual([{ name: "Kiosk", pieces: 1, copies: 2 }]);
 	});
+
+	test("share a prefab by link, and add it to My prefabs from the link", async ({ page }) => {
+		await openEditor(page);
+		await loadWorld(page, {});
+		await (await paletteTile(page, "Prefabs", "Make a prefab…")).click();
+		await (await paletteTile(page, "Shapes", "Dome")).click();
+		await page.getByRole("textbox", { name: "Prefab's name", exact: true }).fill("Observatory");
+		await page.getByRole("button", { name: "Save the prefab" }).click();
+
+		const palette = page.getByRole("navigation", { name: "Parts" });
+		await palette
+			.getByRole("button", { name: "Observatory", exact: true })
+			.click({ button: "right" });
+		await menuItem(page, "Share a link…").click();
+		const dialog = page.getByRole("dialog", { name: "Share a link" });
+		await expect(dialog).toContainText("anyone with the link");
+		await dialog.getByRole("button", { name: "Create a public link" }).click();
+		await expect(dialog.getByRole("button", { name: "Copy the link" })).toBeVisible();
+		const url = await page.evaluate(
+			() =>
+				(
+					JSON.parse(localStorage.getItem("isometrics:shared-prefab-links") ?? "[]") as {
+						url: string;
+					}[]
+				)[0]?.url,
+		);
+		expect(url).toMatch(/\/p\/[A-Za-z0-9_-]{22}$/);
+
+		// Opened from its link in a browser without it in My prefabs.
+		await page.evaluate(() => localStorage.removeItem("isometrics:prefabs"));
+		await page.goto(new URL(url).pathname);
+		const bar = page.getByRole("status").filter({ hasText: "Preview of a shared prefab" });
+		await expect(bar).toBeVisible({ timeout: 90_000 });
+		await bar.getByRole("button", { name: "Add to My prefabs" }).click();
+		const library = await page.evaluate(() => localStorage.getItem("isometrics:prefabs"));
+		expect(
+			(JSON.parse(library ?? "[]") as { name: string }[]).map((prefab) => prefab.name),
+		).toEqual(["Observatory"]);
+	});
 });

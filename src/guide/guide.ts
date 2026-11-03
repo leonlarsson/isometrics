@@ -71,6 +71,7 @@ export const GUIDE: IGuideSection[] = [
 					"Name it in the bar at the top and click **Save the prefab**. You're back in your world with a copy: where the selected things were (in their place), or where you were looking. **Leave without saving** goes back with nothing changed.",
 					"Place more from the **Prefabs** chip. To change it, select a copy and click **Edit in the Workshop** in its properties (or right-click its tile).",
 					"Every prefab you save is also kept in this browser, under **My prefabs** in the **Prefabs** chip of your other worlds: click one to add it there. Right-click its tile for **Remove from My prefabs** (worlds that use it keep it).",
+					"To give a prefab to someone, right-click its tile and choose **Share a link…**, then **Create a public link**: anyone with the link sees it and can click **Add to My prefabs**, until it expires. Share nothing private.",
 				],
 			},
 			{
