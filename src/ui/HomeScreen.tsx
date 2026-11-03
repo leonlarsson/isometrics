@@ -103,7 +103,7 @@ export const HomeScreen = () => {
 							Open file…
 						</Button>
 
-						<Button icon="sparkle" onClick={() => store().setBuildWithAi("new")}>
+						<Button icon="sparkle" iconTone="accent" onClick={() => store().setBuildWithAi("new")}>
 							Build with AI…
 						</Button>
 					</div>

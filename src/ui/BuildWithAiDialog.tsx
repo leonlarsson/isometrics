@@ -90,17 +90,25 @@ export const BuildWithAiDialog = () => {
 	const [readingLink, setReadingLink] = useState<string | null>(null);
 	const close = () => useEditor.getState().setBuildWithAi(null);
 
-	// Opened for a new world or to change this one: that's what it builds, from the start.
+	// Opened for a new world or to change this one: that's what it builds, from the start; opened
+	// for an answer (I already have an answer…), at that step, else at the step it was left on.
 	useEffect(() => {
 		if (asked !== null) {
-			setBuilds(asked === "change" && hasWorld ? "change" : "new");
+			setBuilds(asked.builds === "change" && hasWorld ? "change" : "new");
+			if (asked.opensAt === "answer") {
+				setStep("answer");
+			}
 		}
 	}, [asked]);
 	const isDescribed = description.trim() !== "";
 
+	// A prompt copied was for what it built: another needs its own. With none copied (an answer
+	// brought straight back), the answer step stays, for one or the other.
 	const switchTo = (next: TBuilds) => {
 		setBuilds(next);
-		setStep("ask");
+		if (lastPrompt !== null) {
+			setStep("ask");
+		}
 	};
 
 	const copyPrompt = async () => {

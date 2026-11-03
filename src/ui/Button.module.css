@@ -239,3 +239,8 @@
 		width: 28px;
 	}
 }
+
+/* An accent icon on any button but a primary one (that is the accent). */
+.button[data-icon-tone="accent"]:not([data-variant="primary"]) > svg {
+	color: var(--accent);
+}

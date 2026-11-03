@@ -382,8 +382,11 @@ export interface IEditorState {
 	} | null;
 	/** Render a picture… is open. */
 	renderDialogOpen: boolean;
-	/** Build with AI is open, for a new world or to change this one (ADR-0116); null: closed. */
-	buildWithAi: "new" | "change" | null;
+	/**
+	 * Build with AI is open (ADR-0116), for a new world or to change this one, and the step it
+	 * opened at: asking (the default), or straight at the answer (I already have an answer…); null: closed.
+	 */
+	buildWithAi: { builds: "new" | "change"; opensAt: "ask" | "answer" } | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from the app menu's Welcome… (the logo). */
 	welcomeOpen: boolean;
 	/** Share a link… is open (ADR-0120). */
@@ -503,7 +506,8 @@ export interface IEditorState {
 	/** Opens or closes Preferences, opening on `page` if given. */
 	setPreferencesOpen: (open: boolean, page?: string) => void;
 	setRenderDialogOpen: (open: boolean) => void;
-	setBuildWithAi: (builds: IEditorState["buildWithAi"]) => void;
+	/** Open Build with AI for a new world or to change this one, at a step (asking, unless given); null closes it. */
+	setBuildWithAi: (builds: "new" | "change" | null, opensAt?: "ask" | "answer") => void;
 	setWelcomeOpen: (open: boolean) => void;
 	setShareOpen: (open: boolean) => void;
 	setNewWorld: (newWorld: IEditorState["newWorld"]) => void;
@@ -1647,7 +1651,8 @@ export const createEditorStore = (openScene?: TScene) => {
 				})),
 			setPreviewTiltShift: (preview) => set({ previewTiltShift: preview }),
 			setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
-			setBuildWithAi: (builds) => set({ buildWithAi: builds }),
+			setBuildWithAi: (builds, opensAt = "ask") =>
+				set({ buildWithAi: builds === null ? null : { builds, opensAt } }),
 			setWelcomeOpen: (open) => set({ welcomeOpen: open }),
 			setShareOpen: (open) => set({ shareOpen: open }),
 			setNewWorld: (newWorld) => set({ newWorld }),

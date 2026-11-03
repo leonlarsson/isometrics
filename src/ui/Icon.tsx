@@ -38,6 +38,9 @@ const PATHS = {
 	plus: "M12 5v14M5 12h14",
 	close: "M6 6l12 12M18 6 6 18",
 	edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
+	// The pencil with a small sparkle: Change this world with AI (ADR-0116).
+	editSparkle:
+		"M4 20h4L19 9l-4-4L4 16zM14 6l4 4M6 2.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z",
 	// A four-pointed sparkle and a small one: Build with AI (ADR-0116).
 	sparkle:
 		"M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z",
@@ -53,6 +56,8 @@ const PATHS = {
 	chevronLeft: "m15 6-6 6 6 6",
 	camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 10.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
+	// A page with a sparkle on it: a new world built with AI (ADR-0116).
+	fileSparkle: "M6 3h8l4 4v14H6zM14 3v4h4M12 10.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z",
 	folder: "M3 6h6l2 2h10v11H3z",
 	layers: "M12 3 2 8l10 5 10-5zM2 13l10 5 10-5",
 	perspective: "M3 7l6-3h6l6 3v10l-6 3H9l-6-3zM9 4v16M15 4v16M3 7l6 2h6l6-2",

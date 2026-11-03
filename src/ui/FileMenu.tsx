@@ -70,20 +70,30 @@ export const FileMenu = () => {
 						onClick={() => useEditor.getState().setNewWorld({ shows: "all", usesData: null })}
 					/>
 
-					<Menu.Submenu icon="sparkle" label="Build with AI">
+					<Menu.Submenu icon="sparkle" iconTone="accent" label="Build with AI">
 						<Menu.Item
-							icon="file"
+							icon="fileSparkle"
 							label="A new world…"
 							description="Describe it, copy a prompt to any AI chat, open what it writes"
 							onClick={() => useEditor.getState().setBuildWithAi("new")}
 						/>
 
 						<Menu.Item
-							icon="edit"
+							icon="editSparkle"
 							label="Change this world…"
 							description={notOnHome ?? "Say what to change; your AI rewrites it, one undo step"}
 							disabled={!hasWorld}
 							onClick={() => useEditor.getState().setBuildWithAi("change")}
+						/>
+
+						<Menu.Separator />
+
+						{/* Back with what an AI wrote (a prompt copied earlier, or one of their own): straight there. */}
+						<Menu.Item
+							icon="paste"
+							label="I already have an answer…"
+							description="Paste what your AI wrote, or open its file"
+							onClick={() => useEditor.getState().setBuildWithAi("new", "answer")}
 						/>
 					</Menu.Submenu>
 

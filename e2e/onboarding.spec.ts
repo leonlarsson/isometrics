@@ -79,7 +79,7 @@ test.describe("the welcome (ADR-0116)", () => {
 		await expect(welcome).toBeHidden();
 		await expect(page.getByRole("dialog", { name: "Build with AI" })).toBeVisible();
 		await expect(page.getByRole("dialog", { name: "New world" })).toHaveCount(0);
-		expect(await read(page, (s) => s.buildWithAi)).toBe("new");
+		expect(await read(page, (s) => s.buildWithAi)).toEqual({ builds: "new", opensAt: "ask" });
 	});
 
 	test("Explore an example opens Brightwater as a world of one's own", async ({ page }) => {
@@ -129,6 +129,18 @@ test.describe("Build with AI (ADR-0116)", () => {
 		await expect(dialog).toBeHidden();
 		expect(await read(page, (s) => s.scene.meta.title)).toBe("Two shops");
 		expect(await read(page, (s) => s.scene.entities.filter((e) => e.dataRow).length)).toBe(2);
+	});
+
+	test("File → Build with AI → I already have an answer opens it at the answer, for either", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await buildWithAiMenu(page, /^I already have an answer/);
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
+		await expect(dialog.getByRole("textbox", { name: "What your AI wrote" })).toBeVisible();
+		// No prompt copied yet: picking a change instead keeps the answer step.
+		await dialog.getByRole("button", { name: /^Change “/ }).click();
+		await expect(dialog.getByRole("textbox", { name: "What your AI wrote" })).toBeVisible();
 	});
 
 	test("New world offers Build with AI as one way to start", async ({ page }) => {

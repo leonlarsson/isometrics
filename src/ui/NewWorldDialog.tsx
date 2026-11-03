@@ -259,6 +259,7 @@ export const NewWorldDialog = () => {
 						<Button
 							size="sm"
 							icon="sparkle"
+							iconTone="accent"
 							onClick={() => {
 								onOpenChange(false);
 								useEditor.getState().setBuildWithAi("new");

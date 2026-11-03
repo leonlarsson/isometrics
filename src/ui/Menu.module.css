@@ -109,6 +109,10 @@
 	color: var(--text-muted);
 }
 
+.icon[data-tone="accent"] {
+	color: var(--accent);
+}
+
 .text {
 	display: flex;
 	flex-direction: column;
