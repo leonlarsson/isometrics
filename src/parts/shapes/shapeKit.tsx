@@ -13,8 +13,14 @@ import type { IColorSpec, TFieldSpec } from "../types";
  * of the same sizes placed side by side or on top of each other meet.
  */
 
-/** The smallest and largest a shape's sizes go, and their step. */
-export const SIZE = { min: 0.05, max: 50, step: 0.05 };
+/** The smallest and largest a shape's sizes can be (from data, a file or an AI too). */
+export const SIZE = { min: 0.05, max: 50 };
+
+/**
+ * Sizes set by hand go in quarters of a grid unit, from a quarter up, so
+ * shapes fit the grid and each other; thicknesses go finer.
+ */
+export const SIZE_STEP = 0.25;
 
 const sizeProp = (size: number) => z.number().min(SIZE.min).max(SIZE.max).default(size);
 
@@ -29,7 +35,9 @@ export const sizeField = <K extends string>(key: K, label: string): TFieldSpec<K
 	key,
 	label,
 	type: "number",
-	...SIZE,
+	min: SIZE_STEP,
+	max: SIZE.max,
+	step: SIZE_STEP,
 });
 
 /** How many sides a round shape has: few for a faceted look, many for a smooth one. */
@@ -82,7 +90,8 @@ export const SHAPE_COLORS = [
 	{
 		id: "surface",
 		name: "Surface",
-		default: "#d9d4c7",
+		// Mid grey, the colour presets' Grey.
+		default: "#9a9a96",
 		legacy: "color",
 		seeThrough: { transparency: 0 },
 	},

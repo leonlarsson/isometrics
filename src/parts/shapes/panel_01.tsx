@@ -20,8 +20,8 @@ const PanelSchema = z.object({
 	height: z.number().min(SIZE.min).max(SIZE.max).default(1),
 	thickness: z.number().min(0.01).max(SIZE.max).default(0.1),
 	opening: z.enum(OPENINGS.map((o) => o.value) as [TOpening, ...TOpening[]]).default("none"),
-	openingWidth: z.number().min(SIZE.min).max(SIZE.max).default(0.4),
-	openingHeight: z.number().min(SIZE.min).max(SIZE.max).default(0.6),
+	openingWidth: z.number().min(SIZE.min).max(SIZE.max).default(0.5),
+	openingHeight: z.number().min(SIZE.min).max(SIZE.max).default(0.75),
 });
 
 type TPanel = z.output<typeof PanelSchema>;

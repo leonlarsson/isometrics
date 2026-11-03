@@ -51,7 +51,7 @@ export const torus01 = definePart({
 			type: "number",
 			min: SIZE.min,
 			max: 10,
-			step: SIZE.step,
+			step: 0.05,
 		},
 		sideCountField("sideCount"),
 		{ key: "ringSideCount", label: "Sides of the band", type: "number", min: 3, max: 32, step: 1 },
