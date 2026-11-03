@@ -35,6 +35,7 @@ export const flowerBed01 = definePart({
 		{ id: "leaves", name: "Leaves", default: "#4e8a3e" },
 		{ id: "edging", name: "Edging", default: "#a59f94" },
 	],
+	sizeAlong: { x: "length", z: "width" },
 	footprint: (p) => [p.length, p.width],
 	height: () => 0.2,
 	Component: ({ props: p, colors }) => {

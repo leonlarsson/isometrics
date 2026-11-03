@@ -21,6 +21,7 @@ export const picnicTable01 = definePart({
 	schema: PicnicTableSchema,
 	fields: [{ key: "length", label: "Length", type: "number", min: 0.4, max: 3, step: 0.05 }],
 	colors: [{ id: "wood", name: "Wood", default: "#b07d4b", legacy: "color" }],
+	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, metres(1.5)],
 	height: () => metres(0.77),
 	Component: ({ props: p, colors }) => {

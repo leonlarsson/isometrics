@@ -149,6 +149,7 @@ export const shippingContainer01 = definePart({
 		{ id: "corners", name: "Corners and door bars", default: "#7a2c1f", legacy: "accent" },
 	],
 	removedProps: ["containerLength"],
+	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, WIDTH],
 	height: (p) => p.containerCount * HEIGHT,
 	Component: ({ props: p, colors }) => (

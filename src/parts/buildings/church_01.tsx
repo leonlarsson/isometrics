@@ -43,6 +43,7 @@ export const church01 = definePart({
 			realLight: (p) => ({ at: [0, 1, 0], reach: Math.max(p.width, p.depth) * 1.2 }),
 		},
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width + 0.3, p.depth + TOWER.side / 2],
 	height: (p) => p.towerHeight + TOWER.spire,
 	Component: ({ props: p, colors, palette, lights }) => {

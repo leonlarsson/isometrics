@@ -50,6 +50,7 @@ export const school01 = definePart({
 			realLight: (p) => ({ at: [0, 1, p.depth / 2 + 1.3], reach: p.width }),
 		},
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width + (p.showsFlagpole ? 0.8 : 0), p.depth + 0.6],
 	height: (p) => p.floorCount * FLOOR_HEIGHT + PARAPET,
 	Component: ({ props: p, colors, palette, lights }) => {
