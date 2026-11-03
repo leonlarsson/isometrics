@@ -373,7 +373,7 @@ export const BuildWithAiDialog = () => {
 									hint={
 										builds === "change"
 											? "The world's own data goes along with it: add only what's new."
-											: "Rows from Excel or Google Sheets, a CSV or JSON. Or skip it and give your data to your AI in the chat."
+											: "Rows from Excel or Google Sheets, a CSV or JSON, or an API's address. Or skip it and give your data to your AI in the chat."
 									}
 								/>
 

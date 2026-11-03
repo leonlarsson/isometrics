@@ -211,6 +211,13 @@ const PATCH_ANSWER = [
 	"Answer with the patch alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back (or as a file, `patch.json`, if it's long and you can make files).",
 ].join("\n\n");
 
+/**
+ * Data given as an address (an API, a CSV or JSON link): a live source the world reads itself,
+ * not numbers copied in. The viewer still allows it before it's read (ADR-0119).
+ */
+const ADDRESSES_AS_SOURCES =
+	"If their data is, or has, the address of an API or of a CSV or JSON file, don't copy its numbers in: add it as a source (`kind: \"api\"` for a JSON API, `\"link\"` for a file at an address) with that `url`, and point the values and tables read from it at it (`source: { sourceId, path }`, `path` saying where in the response), so the world reads it itself, live (`refreshSeconds` if it changes often). If you can open links, read it first to learn its shape and fill in today's numbers, so the world shows them before it's read; if you can't, ask them to paste one response into this chat.";
+
 /** Pasted data, cut to a size a chat takes, saying how much was left out. */
 const dataForPrompt = (data: string) => {
 	const trimmed = data.trim();
@@ -242,10 +249,10 @@ export const aiPrompt = ({ description, data, world, origin, worldUrl = null }: 
 			: "> (Nothing described: make a calm, pleasant small town.)",
 		"## Their data",
 		given
-			? `Show this data in the world: put it in \`data\` (tables and values, as in the example), and make things follow it (rows become things, amounts sizes, from → to → amount roads). Use the numbers as they are; don't invent more.\n\n\`\`\`\n${given}\n\`\`\``
+			? `Show this data in the world: put it in \`data\` (tables and values, as in the example), and make things follow it (rows become things, amounts sizes, from → to → amount roads). Use the numbers as they are; don't invent more. ${ADDRESSES_AS_SOURCES}\n\n\`\`\`\n${given}\n\`\`\``
 			: world
-				? "No new data in this prompt: keep the world's own, and add any they give you in this chat (a file, or rows pasted after this prompt) the same way, with the numbers as they are."
-				: 'None in this prompt. They may give you data in this chat instead (a file, or rows pasted after this prompt): if they do, put it in `data` (tables and values, as in the example) and make things follow it, with the numbers as they are. With no data at all: if what they want shows no numbers, set `"data": { "enabled": false }` for a plain world to build; if it does, use example numbers, and say so in each source\'s and column\'s `about` ("Example numbers").',
+				? `No new data in this prompt: keep the world's own, and add any they give you in this chat (a file, rows pasted after this prompt, or an address) the same way, with the numbers as they are. ${ADDRESSES_AS_SOURCES}`
+				: `None in this prompt. They may give you data in this chat instead (a file, rows pasted after this prompt, or an address): if they do, put it in \`data\` (tables and values, as in the example) and make things follow it, with the numbers as they are. ${ADDRESSES_AS_SOURCES} With no data at all: if what they want shows no numbers, set \`"data": { "enabled": false }\` for a plain world to build; if it does, use example numbers, and say so in each source's and column's \`about\` ("Example numbers").`,
 		...(world
 			? [
 					"## The world now",
