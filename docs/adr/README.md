@@ -134,3 +134,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0128](0128-features-switch-with-enabled.md) | A feature's on/off switch is `enabled` | proposed |
 | [0129](0129-links-open-at-their-own-address.md) | Links open at their own address, without a redirect | proposed |
 | [0130](0130-templates-example-spreadsheets.md) | Templates' spreadsheets are example files kept on this site | proposed |
+| [0131](0131-welcome-build-with-ai-tile.md) | The welcome has four ways in: Build with AI is a tile of its own | proposed |

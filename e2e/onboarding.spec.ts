@@ -72,14 +72,27 @@ test.describe("the welcome (ADR-0116)", () => {
 		await expect(page.getByRole("dialog", { name: /Welcome to/ })).toHaveCount(0);
 	});
 
-	test("Show my data opens Build with AI for a new world", async ({ page }) => {
+	test("Build with AI opens Build with AI for a new world; Show my data, New world with data on", async ({
+		page,
+	}) => {
 		await openEditor(page);
 		const welcome = page.getByRole("dialog", { name: /Welcome to/ });
-		await welcome.getByRole("radio", { name: /Show my data/ }).dblclick();
+		await welcome.getByRole("radio", { name: /Build with AI/ }).dblclick();
 		await expect(welcome).toBeHidden();
-		await expect(page.getByRole("dialog", { name: "Build with AI" })).toBeVisible();
+		const buildWithAi = page.getByRole("dialog", { name: "Build with AI" });
+		await expect(buildWithAi).toBeVisible();
 		await expect(page.getByRole("dialog", { name: "New world" })).toHaveCount(0);
 		expect(await read(page, (s) => s.buildWithAi)).toBe("new");
+
+		// Welcome… again, from the app menu (the logo): Show my data opens New world with data on.
+		await act(page, (s) => {
+			s.setBuildWithAi(null);
+			s.setWelcomeOpen(true);
+		});
+		await welcome.getByRole("radio", { name: /Show my data/ }).dblclick();
+		const newWorld = page.getByRole("dialog", { name: "New world" });
+		await expect(newWorld).toBeVisible();
+		await expect(newWorld.getByRole("switch", { name: "Uses data" })).toBeChecked();
 	});
 
 	test("Explore an example opens New world on the data maps", async ({ page }) => {

@@ -29,7 +29,7 @@ export const AppMenuItems = () => {
 			<Menu.Item
 				icon="info"
 				label="Welcome…"
-				description="The ways to start: build a city, show your data, or open an example"
+				description="The ways to start: build a city, show your data, build with AI, or open an example"
 				onClick={() => store().setWelcomeOpen(true)}
 			/>
 

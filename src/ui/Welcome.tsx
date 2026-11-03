@@ -12,7 +12,7 @@ import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
 import { Hint } from "./fields";
 
-type TWelcomeChoice = "city" | "data" | "example";
+type TWelcomeChoice = "city" | "data" | "ai" | "example";
 
 /** Each way in, the starter its picture shows, and what it opens. */
 const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; picture: string }[] = [
@@ -25,8 +25,14 @@ const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; pict
 	{
 		value: "data",
 		title: "Show my data",
-		description: "Your own AI builds it.",
+		description: "Map your own numbers.",
 		picture: "battlefield-territory",
+	},
+	{
+		value: "ai",
+		title: "Build with AI",
+		description: "Your own AI builds it.",
+		picture: "shape-castle",
 	},
 	{
 		value: "example",
@@ -50,8 +56,12 @@ const go = (choice: TWelcomeChoice) => {
 	if (choice === "city") {
 		state.setNewWorld({ shows: "places", usesData: false });
 	}
-	// Your data, a world built round it by your own AI: the one way in that isn't New world.
+	// A world that uses data, built by hand.
 	if (choice === "data") {
+		state.setNewWorld({ shows: "all", usesData: true });
+	}
+	// Described in words, built by the person's own AI (ADR-0116).
+	if (choice === "ai") {
 		state.setBuildWithAi("new");
 	}
 	if (choice === "example") {
@@ -60,10 +70,11 @@ const go = (choice: TWelcomeChoice) => {
 };
 
 /**
- * The welcome (ADR-0116): three ways in, each with a picture, for someone who
- * has just arrived: build a city, show their data with their own AI (Build
- * with AI, a new world), or open an example. Shown once to a browser with no
- * worlds; the app menu's Welcome… (the logo) shows it again. Closing it leaves the starter world to look around in.
+ * The welcome (ADR-0116, ADR-0131): four ways in, each with a picture, for
+ * someone who has just arrived: build a city, show their data (New world with
+ * data on), build with their own AI (Build with AI, a new world), or open an
+ * example. Shown once to a browser with no worlds; the app menu's Welcome…
+ * (the logo) shows it again. Closing it leaves the starter world to look around in.
  */
 export const Welcome = () => {
 	const open = useEditor((s) => s.welcomeOpen);
