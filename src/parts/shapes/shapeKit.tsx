@@ -89,21 +89,24 @@ export const SHAPE_COLORS = [
 ] as const satisfies readonly IColorSpec<"surface">[];
 
 /** A shape's material: flat-shaded, see-through only while its transparency is above 0. */
-export const ShapeMat = ({ color, transparency }: { color: string; transparency: number }) =>
-	transparency > 0 ? (
+export const ShapeMat = ({ color, transparency }: { color: string; transparency: number }) => {
+	const isSeeThrough = transparency > 0;
+	// A new material when it turns see-through or solid, every setting given: one kept from glass
+	// would stay at its opacity (invisible after 100%) while copies of solid ones are drawn together.
+	return (
 		<meshStandardMaterial
+			key={isSeeThrough ? "seeThrough" : "solid"}
 			color={color}
-			roughness={0.4}
+			roughness={isSeeThrough ? 0.4 : 0.85}
 			metalness={0}
 			flatShading
-			transparent
-			forceSinglePass
-			opacity={1 - transparency}
-			depthWrite={false}
+			transparent={isSeeThrough}
+			forceSinglePass={isSeeThrough}
+			opacity={isSeeThrough ? 1 - transparency : 1}
+			depthWrite={!isSeeThrough}
 		/>
-	) : (
-		<meshStandardMaterial color={color} roughness={0.85} metalness={0} flatShading />
 	);
+};
 
 /** A mesh of a shape: casts and takes shadows, in the shape's material. */
 export const ShapeMesh = ({
