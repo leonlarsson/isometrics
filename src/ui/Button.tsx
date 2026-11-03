@@ -25,6 +25,8 @@ interface IButtonProps {
 	variant?: TButtonVariant;
 	size?: "sm" | "md";
 	icon?: TIconName;
+	/** The icon's colour: the text's, or the accent, marking one button apart (Build with AI's sparkle). Not on primary buttons, which are the accent. */
+	iconTone?: "text" | "accent";
 	disabled?: boolean;
 	/** Stretch to the container's width, with the content left-aligned. */
 	block?: boolean;
@@ -42,6 +44,7 @@ export const Button = ({
 	variant = "secondary",
 	size = "md",
 	icon,
+	iconTone = "text",
 	disabled,
 	block,
 	centered,
@@ -54,6 +57,7 @@ export const Button = ({
 			data-variant={variant}
 			data-success={showsSuccess || undefined}
 			data-size={size}
+			data-icon-tone={iconTone}
 			data-block={block || undefined}
 			data-centered={centered || undefined}
 			disabled={disabled}

@@ -3,7 +3,7 @@ import { useEditor } from "#/editor/store";
 import type { TThemePreference } from "#/scene/schema";
 
 import { AppMenu } from "./AppMenu";
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
@@ -69,6 +69,19 @@ export const Toolbar = () => {
 				<AppMenu />
 
 				<FileMenu />
+
+				{/* Build with AI one click away (ADR-0116): changing the world open, else a new one (the
+				other a click away in it); at phone width, in File only. */}
+				{!isNarrow && (
+					<Button
+						variant="ghost"
+						icon="sparkle"
+						iconTone="accent"
+						onClick={() => useEditor.getState().setBuildWithAi(hasWorld ? "change" : "new")}
+					>
+						AI
+					</Button>
+				)}
 
 				<SaveStatus />
 			</div>

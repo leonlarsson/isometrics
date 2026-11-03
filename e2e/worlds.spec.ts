@@ -87,14 +87,18 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await saved(page);
 		expect(await storedWorlds(page)).toBe(2);
 
+		// Deleting never opens another world in its place: the home screen, with the rest listed (ADR-0132).
 		await fileMenu(page, /Delete world/);
 		await page.getByRole("button", { name: "Delete", exact: true }).click();
 		await expect.poll(() => storedWorlds(page)).toBe(1);
+		const home = page.getByRole("main", { name: "Home" });
+		await expect(page.locator("canvas")).toHaveCount(0);
+		await home.getByRole("button", { name: /^Original/ }).click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Original");
 
 		// Deleting the last one leaves no world open: the home screen (ADR-0121), on reload too.
 		await fileMenu(page, /Delete world/);
 		await page.getByRole("button", { name: "Delete", exact: true }).click();
-		const home = page.getByRole("main", { name: "Home" });
 		await expect(home).toContainText("None in this browser yet.");
 		expect(await storedWorlds(page)).toBe(0);
 		await openPage(page, "/");

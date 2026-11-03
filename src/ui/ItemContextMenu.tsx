@@ -8,12 +8,12 @@ import {
 	selectedThingsText,
 	settingsOf,
 } from "#/editor/clipboard";
-import type { ISceneItem } from "#/editor/framing";
+import { type ISceneItem, itemKindName } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
-import { FENCE_STYLE_LABELS } from "#/fences/registry";
-import { getPart, partNameOf } from "#/parts/registry";
-import { AREA_KIND_LABELS, takesCornerHeights } from "#/scene/areas";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
+import { getPart } from "#/parts/registry";
+import { takesCornerHeights } from "#/scene/areas";
+import { roadNameOf } from "#/scene/roads";
+import { followAlong } from "#/scene/routes";
 import type { TArea, TEntity, TFence, TRoad, TVec2 } from "#/scene/schema";
 
 import { ContextMenu, Menu } from "./Menu";
@@ -41,8 +41,6 @@ const copySelection = () => {
 };
 
 /** What to call a road in a menu: its name, or its style. */
-const roadName = (road: { name: string; kind: keyof typeof ROAD_KIND_LABELS }) =>
-	road.name || ROAD_KIND_LABELS[road.kind];
 
 /** Actions only objects have: driving and the camera for vehicles, the label card for all. */
 const EntityActions = ({ id }: { id: string }) => {
@@ -56,16 +54,7 @@ const EntityActions = ({ id }: { id: string }) => {
 
 	const driveAlong = (roadId: string | null) =>
 		store().updateEntity(entity.id, (e) => {
-			e.follow = roadId
-				? {
-						roadId,
-						speed: e.follow?.speed ?? 2,
-						startDistance: e.follow?.startDistance ?? 0,
-						drivesTheOtherWay: e.follow?.drivesTheOtherWay ?? false,
-						turnStyle: e.follow?.turnStyle ?? null,
-						leansInTurns: e.follow?.leansInTurns ?? null,
-					}
-				: null;
+			e.follow = roadId ? followAlong(e.follow, roadId) : null;
 		});
 
 	return (
@@ -94,7 +83,7 @@ const EntityActions = ({ id }: { id: string }) => {
 						<Menu.Item
 							key={road.id}
 							icon={entity.follow?.roadId === road.id ? "check" : undefined}
-							label={roadName(road)}
+							label={roadNameOf(road)}
 							onClick={() => driveAlong(road.id)}
 						/>
 					))}
@@ -237,15 +226,6 @@ const useItem = (item: ISceneItem | undefined) =>
 	);
 
 /** What an item is called without a name: its part, road style, area type or fence style. */
-const kindName = (item: ISceneItem, thing: TEntity | TRoad | TArea | TFence) =>
-	item.kind === "entity"
-		? (partNameOf((thing as TEntity).kind) ?? (thing as TEntity).kind)
-		: item.kind === "road"
-			? ROAD_KIND_LABELS[(thing as TRoad).kind]
-			: item.kind === "fence"
-				? FENCE_STYLE_LABELS[(thing as TFence).kind]
-				: AREA_KIND_LABELS[(thing as TArea).kind];
-
 interface IItemMenuProps {
 	item: ISceneItem;
 	kindActions: ReactNode;
@@ -455,10 +435,10 @@ export const ItemContextMenu = () => {
 					showGroup
 						? `${group} selected`
 						: item && thing
-							? thing.name || kindName(item, thing)
+							? thing.name || itemKindName(item, thing)
 							: undefined
 				}
-				subtitle={!showGroup && item && thing?.name ? kindName(item, thing) : undefined}
+				subtitle={!showGroup && item && thing?.name ? itemKindName(item, thing) : undefined}
 			>
 				{showGroup && <GroupMenu />}
 
@@ -486,9 +466,9 @@ export const ItemContextMenu = () => {
 				onClose={() => setRenaming(null)}
 				x={renaming?.x ?? 0}
 				y={renaming?.y ?? 0}
-				label={renaming && renamed ? renamed.name || kindName(renaming.item, renamed) : ""}
+				label={renaming && renamed ? renamed.name || itemKindName(renaming.item, renamed) : ""}
 				value={renamed?.name ?? ""}
-				placeholder={renaming && renamed ? kindName(renaming.item, renamed) : undefined}
+				placeholder={renaming && renamed ? itemKindName(renaming.item, renamed) : undefined}
 				onCommit={(name) => renaming && useEditor.getState().renameItem(renaming.item, name)}
 			/>
 		</>

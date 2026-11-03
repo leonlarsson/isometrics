@@ -8,10 +8,12 @@ import {
 	AREA_KINDS,
 	cornerLift,
 	cornerTop,
+	isWaterArea,
 	MAX_CORNER_LIFT,
 	polygonArea,
 	takesCornerHeights,
 } from "#/scene/areas";
+import { percent } from "#/scene/format";
 import { changeColorSetting } from "#/scene/objectSettings";
 import type { TArea, TAreaKind } from "#/scene/schema";
 
@@ -362,7 +364,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 					}
 				/>
 
-				{area.kind === "water_01" && (
+				{isWaterArea(area) && (
 					<>
 						<SliderField
 							label="Ripples on the water"
@@ -383,7 +385,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 									edit("rippleStrength", (a) => {
 										a.water.rippleStrength = null;
 									}),
-								value: `${Math.round(worldWater.rippleStrength * 100)}%`,
+								value: percent(worldWater.rippleStrength),
 							}}
 							hint="0% is mirror-calm, 100% choppy."
 						/>
@@ -409,7 +411,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 									edit("reflectionStrength", (a) => {
 										a.water.reflectionStrength = null;
 									}),
-								value: `${Math.round(worldWater.reflectionStrength * 100)}%`,
+								value: percent(worldWater.reflectionStrength),
 							}}
 							hint="How strongly it mirrors the world: 0% shows only its ripples catching the lights."
 						/>

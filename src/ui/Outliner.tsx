@@ -51,6 +51,17 @@ const OTHER = "Other";
 
 const keyOf = (item: ISceneItem) => `${item.kind}:${item.id}`;
 
+/** The selection as one string, once per selection (it's replaced, never changed), not on every change. */
+const keysBySelection = new WeakMap<readonly ISceneItem[], string>();
+const selectedKeysOf = (items: readonly ISceneItem[]) => {
+	let keys = keysBySelection.get(items);
+	if (keys === undefined) {
+		keys = items.map(keyOf).join(" ");
+		keysBySelection.set(items, keys);
+	}
+	return keys;
+};
+
 /**
  * Each object's row as last made, for as long as the object, the palette and the world's data are
  * the same: a change to one object in a world of thousands makes one row again, not all of them.
@@ -342,7 +353,7 @@ export const Outliner = () => {
 						: null,
 	);
 	// Every selected row, the active one included (ADR-0064), as one string so it only changes with them.
-	const selectedKeys = useEditor((s) => s.selectedItems.map(keyOf).join(" "));
+	const selectedKeys = useEditor((s) => selectedKeysOf(s.selectedItems));
 	const palette = useThemePalette();
 	const [query, setQuery] = useState("");
 	const [onlyData, setOnlyData] = useState(false);

@@ -1,11 +1,10 @@
 import { useGraphics } from "#/editor/graphics";
 import { useEditor } from "#/editor/store";
+import { percent } from "#/scene/format";
 import { type TWater, WaterSchema } from "#/scene/schema";
 
 import { Button } from "./Button";
 import { Hint, Section, SliderField } from "./fields";
-
-const percent = (amount: number) => `${Math.round(amount * 100)}%`;
 
 const WATER_DEFAULTS = WaterSchema.parse({});
 

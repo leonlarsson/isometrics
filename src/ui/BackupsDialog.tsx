@@ -7,6 +7,7 @@ import {
 	type ISceneBackup,
 	listSceneBackups,
 } from "#/editor/persistence";
+import { localDateTime } from "#/lib/when";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -24,10 +25,7 @@ const titleOf = (raw: string) => {
 	}
 };
 
-const formatDate = (ms: number) =>
-	ms
-		? `Kept ${new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
-		: "Kept at an unknown time";
+const formatDate = (ms: number) => (ms ? `Kept ${localDateTime(ms)}` : "Kept at an unknown time");
 
 interface IBackupsDialogProps {
 	open: boolean;

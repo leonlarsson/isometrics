@@ -20,7 +20,7 @@ import {
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
-import type { TDataValue, TRoad, TRoadPoint } from "#/scene/schema";
+import type { TDataValue, TEntity, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -108,6 +108,24 @@ interface IRoadBodyProps {
 }
 
 /**
+ * The roads something visible drives along, once per objects list (lists are
+ * replaced, never changed): every road asks on every change, drags included.
+ */
+const roadsUsed = new WeakMap<readonly TEntity[], ReadonlySet<string>>();
+const roadsInUse = (entities: readonly TEntity[]) => {
+	let ids = roadsUsed.get(entities);
+	if (!ids) {
+		ids = new Set(
+			entities.flatMap((entity) =>
+				entity.follow && !entity.isHidden ? [entity.follow.roadId] : [],
+			),
+		);
+		roadsUsed.set(entities, ids);
+	}
+	return ids;
+};
+
+/**
  * How a road looks, from its props alone: the editor's RoadMesh adds the
  * selection and clicks, and world pictures (scenePictures) use it as is.
  */
@@ -182,9 +200,7 @@ export const RoadBody = ({
 	);
 
 	// A road with traffic keeps clearer of snow (ADR-0102): its share, a uniform the shading reads.
-	const used = useEditor((s) =>
-		s.scene.entities.some((entity) => entity.follow?.roadId === road.id && !entity.isHidden),
-	);
+	const used = useEditor((s) => roadsInUse(s.scene.entities).has(road.id));
 	const snowFactor = useMemo(() => ({ value: 1 }), []);
 	const snowShare = useMemo(() => ({ snowFactor }), [snowFactor]);
 	useLayoutEffect(() => {

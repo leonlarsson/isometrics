@@ -1,3 +1,5 @@
+import { isRecord } from "#/lib/record";
+
 import { toDataKey } from "./format";
 import {
 	DataColumnSchema,
@@ -21,9 +23,6 @@ import type { IReadData } from "./sheets";
 
 /** Where something is in a JSON response: keys and list indexes joined by dots ("data.0.rank"); "" = the whole. */
 export type TJsonPath = string;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** What's at a path in a response; undefined if nothing is. */
 export const readJsonPath = (json: unknown, path: TJsonPath): unknown => {

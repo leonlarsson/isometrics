@@ -60,7 +60,16 @@
 }
 
 .title {
+	display: flex;
+	align-items: center;
+	gap: 5px;
 	font-weight: 600;
+}
+
+.titleIcon {
+	display: flex;
+	flex: none;
+	color: var(--accent);
 }
 
 .description {

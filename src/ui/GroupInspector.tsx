@@ -4,12 +4,11 @@ import { type ReactNode, useState } from "react";
 import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard";
 import { assignRowsByName, type IRowAssignment } from "#/editor/dataRows";
 import { useSceneHours } from "#/editor/dayClock";
-import type { ISceneItem } from "#/editor/framing";
+import { type ISceneItem, itemKindName } from "#/editor/framing";
 import { type ICommitOptions, listOf, newId, useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
-import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { round } from "#/lib/math";
 import {
 	COLOR_DATA,
@@ -19,11 +18,10 @@ import {
 } from "#/parts/colorModel";
 import { comesOnOf, lightDefaults, whenOnOf } from "#/parts/lightModel";
 import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/parts/propData";
-import { getPart, partName, partNameOf, resolveProps, type TAnyPart } from "#/parts/registry";
+import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
-import { AREA_KIND_LABELS, groundHeightAt } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/areas";
 import type { TColorSettingChange } from "#/scene/objectSettings";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
 import { columnOfKey, rowColumnChoices, tableOfRow } from "#/scene/rowData";
 import type { TDataBinding, TEntity, TScene } from "#/scene/schema";
 
@@ -41,6 +39,7 @@ import {
 	Section,
 	SelectField,
 	SliderField,
+	valuesDiffer,
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { LightSettings, type TLightSettingKey } from "./LightSettings";
@@ -52,10 +51,6 @@ interface IMember {
 	entity: TEntity;
 	part: TAnyPart;
 }
-
-/** Whether values differ (compared as JSON, so arrays and bindings compare by content). */
-const differ = (values: readonly unknown[]) =>
-	new Set(values.map((value) => JSON.stringify(value ?? null))).size > 1;
 
 /**
  * Write to several objects as one undo step (ADR-0064): edits of the same
@@ -73,20 +68,8 @@ const writeTo = (entities: readonly TEntity[]) => {
 
 /** What an item is: its part, road style, fence style or area type. */
 const kindNameOf = (scene: TScene, item: ISceneItem) => {
-	if (item.kind === "entity") {
-		const entity = scene.entities.find((e) => e.id === item.id);
-		return entity ? (partNameOf(entity.kind) ?? entity.kind) : "";
-	}
-	if (item.kind === "road") {
-		const road = scene.roads.find((r) => r.id === item.id);
-		return road ? ROAD_KIND_LABELS[road.kind] : "";
-	}
-	if (item.kind === "fence") {
-		const fence = scene.fences.find((f) => f.id === item.id);
-		return fence ? FENCE_STYLE_LABELS[fence.kind] : "";
-	}
-	const area = scene.areas.find((a) => a.id === item.id);
-	return area ? AREA_KIND_LABELS[area.kind] : "";
+	const thing = listOf(scene, item.kind).find((t) => t.id === item.id);
+	return thing ? itemKindName(item, thing) : "";
 };
 
 /** The selected things by what they are, in the order first selected: "Round tree", 2 of them… */
@@ -226,7 +209,7 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 					<SliderField
 						label="Rotation"
 						value={entities.at(-1)?.rotation[1] ?? 0}
-						mixed={differ(entities.map((entity) => entity.rotation[1]))}
+						mixed={valuesDiffer(entities.map((entity) => entity.rotation[1]))}
 						min={0}
 						max={359}
 						step={15}
@@ -250,7 +233,7 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 					<SliderField
 						label="Size"
 						value={entities.at(-1)?.scale ?? 1}
-						mixed={differ(entities.map((entity) => entity.scale))}
+						mixed={valuesDiffer(entities.map((entity) => entity.scale))}
 						min={0.25}
 						max={4}
 						step={0.05}
@@ -274,7 +257,7 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 					<SliderField
 						label="Altitude"
 						value={entities.at(-1)?.altitude ?? 0}
-						mixed={differ(entities.map((entity) => entity.altitude))}
+						mixed={valuesDiffer(entities.map((entity) => entity.altitude))}
 						min={0}
 						max={20}
 						step={0.1}
@@ -334,7 +317,7 @@ const GroupShapeTab = ({ members, total }: { members: readonly IMember[]; total:
 					spec={spec}
 					value={props.at(-1)?.[spec.key]}
 					fallback={(part.schema.parse({}) as Record<string, unknown>)[spec.key]}
-					mixed={differ(props.map((values) => values[spec.key]))}
+					mixed={valuesDiffer(props.map((values) => values[spec.key]))}
 					data={data}
 					onChange={(v) =>
 						writeAll(
@@ -442,7 +425,7 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 							<DataDrivenField
 								kind={COLOR_DATA.color}
 								binding={active ? colorSettingOf(active, spec.id)?.data.color : undefined}
-								mixed={differ(bindings)}
+								mixed={valuesDiffer(bindings)}
 								data={data}
 								onBindingChange={(binding, field) =>
 									change({ data: { color: binding } }, field && `data.${field}`)
@@ -451,7 +434,7 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 								<ColorField
 									label="Colour"
 									value={shown.at(-1) ?? ""}
-									mixed={differ(shown)}
+									mixed={valuesDiffer(shown)}
 									onChange={(color) => change({ color }, "color")}
 									inherit={{
 										from: "default",
@@ -466,7 +449,7 @@ const GroupLookTab = ({ members, total }: { members: readonly IMember[]; total: 
 								<SliderField
 									label="Transparency"
 									value={Math.round((transparencies.at(-1) ?? 0) * 100)}
-									mixed={differ(transparencies)}
+									mixed={valuesDiffer(transparencies)}
 									min={0}
 									max={100}
 									step={1}
@@ -523,8 +506,8 @@ const GroupLightsTab = ({ members, total }: { members: readonly IMember[]; total
 				});
 				const mixed = (key: TLightSettingKey) =>
 					key.startsWith("data.")
-						? differ(shown.map((light) => light.data[key.slice(5)]))
-						: differ(shown.map((light) => light[key as keyof (typeof shown)[number]]));
+						? valuesDiffer(shown.map((light) => light.data[key.slice(5)]))
+						: valuesDiffer(shown.map((light) => light[key as keyof (typeof shown)[number]]));
 				const { entity: active, part: activePart } = holders[holders.length - 1];
 				const setting = active.lights[spec.id];
 				const windowWeights = (activePart.lights ?? [])
@@ -687,7 +670,7 @@ const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: 
 				<DataDrivenField
 					kind="range"
 					binding={bindingsOf(SCALE_SETTING).at(-1)}
-					mixed={differ(bindingsOf(SCALE_SETTING))}
+					mixed={valuesDiffer(bindingsOf(SCALE_SETTING))}
 					data={values}
 					range={{ ...SCALE_RANGE, step: 0.05, format: (value) => `×${value.toFixed(2)}` }}
 					onBindingChange={(binding, coalesce) => setBinding(SCALE_SETTING, binding, coalesce)}
@@ -701,7 +684,7 @@ const GroupDataTab = ({ members, total }: { members: readonly IMember[]; total: 
 							key={field.key}
 							kind="range"
 							binding={bindingsOf(field.key).at(-1)}
-							mixed={differ(bindingsOf(field.key))}
+							mixed={valuesDiffer(bindingsOf(field.key))}
 							data={values}
 							range={{ min: field.min, max: field.max, step: field.step }}
 							onBindingChange={(binding, coalesce) => setBinding(field.key, binding, coalesce)}

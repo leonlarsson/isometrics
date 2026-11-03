@@ -5,6 +5,7 @@ import { useEditor } from "#/editor/store";
 import { type TWeatherDataTarget, weatherNow } from "#/editor/weather";
 import { useWorldData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
+import { percent } from "#/scene/format";
 import { type TDataBinding, type TScene, type TWeather, WeatherSchema } from "#/scene/schema";
 import { skyLookAt } from "#/scene/sky";
 
@@ -15,8 +16,6 @@ import { ColorField, Hint, Section, SliderField, SwitchField } from "./fields";
 
 const DEFAULTS = WeatherSchema.parse({});
 const AMOUNT: TBindingKind = "scale";
-
-const percent = (amount: number) => `${Math.round(amount * 100)}%`;
 
 /** The amounts a quick pick sets: nothing falling, no fog or haze, no lightning, unless it says. */
 const CALM = {

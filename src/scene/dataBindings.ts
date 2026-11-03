@@ -1,4 +1,4 @@
-import type { TColorSetting, TDataBinding, TEntity, TFence, TScene } from "./schema";
+import type { TArea, TColorSetting, TDataBinding, TEntity, TFence, TRoad, TScene } from "./schema";
 
 /**
  * Every place an object keeps data bindings (ADR-0058, ADR-0060, ADR-0109):
@@ -29,6 +29,15 @@ export const colorBindingMapsOf = (
 	colors: Readonly<Record<string, TColorSetting>>,
 ): Record<string, TDataBinding>[] => Object.values(colors).map((color) => color.data);
 
+/** A road's data bindings: its own (width, flow) and its colours'. */
+export const roadBindingMapsOf = (
+	road: Pick<TRoad, "data" | "colors">,
+): Record<string, TDataBinding>[] => [road.data, ...colorBindingMapsOf(road.colors)];
+
+/** An area's data bindings: its colours'. */
+export const areaBindingMapsOf = (area: Pick<TArea, "colors">): Record<string, TDataBinding>[] =>
+	colorBindingMapsOf(area.colors);
+
 /**
  * Every place the world keeps data bindings besides its objects and fences:
  * the time of day and the weather, each mood's too, the colours of the
@@ -42,6 +51,6 @@ export const worldBindingMapsOf = (
 	scene.weather.data,
 	...scene.moods.flatMap((mood) => [mood.lighting.data, mood.weather.data]),
 	...colorBindingMapsOf(scene.ground.colors),
-	...scene.roads.flatMap((road) => [road.data, ...colorBindingMapsOf(road.colors)]),
-	...scene.areas.flatMap((area) => colorBindingMapsOf(area.colors)),
+	...scene.roads.flatMap(roadBindingMapsOf),
+	...scene.areas.flatMap(areaBindingMapsOf),
 ];

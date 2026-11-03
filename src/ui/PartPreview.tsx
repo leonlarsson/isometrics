@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { getPart, partName, resolveProps } from "#/parts/registry";
+import { getPart, partName, resolveProps, sizeInWords } from "#/parts/registry";
 import { PartPreviewModel } from "#/render/PartPreviewModel";
 
 import styles from "./PartPreview.module.css";
@@ -11,8 +11,6 @@ export interface IPreviewAnchor {
 	left: number;
 	centerY: number;
 }
-
-const round = (value: number) => Math.round(value * 10) / 10;
 
 /** The card's CSS width, and about its height until it's measured, to keep it inside the window. */
 const CARD_WIDTH = 240;
@@ -38,9 +36,7 @@ export const PartPreview = ({ kind, anchor }: { kind: string; anchor: IPreviewAn
 	if (!part) {
 		return null;
 	}
-	const props = resolveProps(part, {});
-	const [width, depth] = part.footprint(props);
-	const height = part.height(props);
+	const size = sizeInWords(part, resolveProps(part, {}));
 	// Centred on the tile, but never off the top or bottom of the window.
 	const top = Math.max(
 		Math.min(anchor.centerY - cardHeight / 2, window.innerHeight - cardHeight - MARGIN),
@@ -65,7 +61,7 @@ export const PartPreview = ({ kind, anchor }: { kind: string; anchor: IPreviewAn
 				<span>{part.description}.</span>
 
 				<span className={styles.meta}>
-					{`${round(width)} × ${round(depth)} wide, ${round(height)} tall`}
+					{size}
 
 					{part.canFollowPath ? " · can drive along roads" : ""}
 				</span>

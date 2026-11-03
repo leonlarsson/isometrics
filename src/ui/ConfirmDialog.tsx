@@ -1,5 +1,5 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useLayoutEffect, useState } from "react";
 
 import { Button } from "./Button";
 import { useDialogDrag } from "./useDialogDrag";
@@ -44,7 +44,8 @@ export const ConfirmDialog = ({
 }: IConfirmDialogProps) => {
 	const [waiting, setWaiting] = useState(0);
 	const dragHandle = useDialogDrag();
-	useEffect(() => {
+	// Before paint, so the first frame already holds Confirm back.
+	useLayoutEffect(() => {
 		if (!open || confirmDelaySeconds <= 0) {
 			setWaiting(0);
 			return;

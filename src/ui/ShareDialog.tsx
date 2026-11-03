@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
@@ -44,15 +44,22 @@ export const ShareDialog = () => {
 	const { copiedKey, copy } = useCopy();
 	const copyLink = (link: ISharedLink, key: string) =>
 		copy(link.url, "Link copied", { key, detail: link.url });
+	// Bumped on closing: a share that finishes after it is in the list, not shown as the next one's.
+	const asking = useRef(0);
 	const close = () => {
+		asking.current += 1;
 		useEditor.getState().setShareOpen(false);
 		setMade(null);
 	};
 
 	const share = async () => {
+		const ask = asking.current;
 		setSharing(true);
 		try {
-			setMade(await shareWorld(useEditor.getState().scene, seconds));
+			const link = await shareWorld(useEditor.getState().scene, seconds);
+			if (asking.current === ask) {
+				setMade(link);
+			}
 		} catch (error) {
 			notify(
 				"It couldn't be shared",

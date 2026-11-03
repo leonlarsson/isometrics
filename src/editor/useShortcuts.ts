@@ -33,7 +33,7 @@ const isTextEntry = (target: EventTarget | null) =>
  * Editor keyboard shortcuts, registered with TanStack Hotkeys (ADR-0016):
  *   Mod+Z undo · Mod+Shift+Z / Mod+Y redo · Space pause/play motion
  *   Esc cancels a gizmo drag or a drag from the palette, dismisses the drive-along offer, else deselects
- *   Mod+O open a world file · Mod+S save the world to a file
+ *   Mod+O open a world file · Mod+S save the world to a file · Mod+, Preferences (as in most apps)
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°)
  *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×, Alt: 0.1)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
@@ -254,6 +254,11 @@ export const useShortcuts = () => {
 			hotkey: "Mod+S",
 			callback: () => saveWorldFile(),
 			options: { meta: { name: "Save to file" } },
+		},
+		{
+			hotkey: "Mod+,",
+			callback: () => useEditor.getState().setPreferencesOpen(true),
+			options: { meta: { name: "Preferences" } },
 		},
 		{
 			// Ctrl on every system: Cmd+Space is the Mac's Spotlight.

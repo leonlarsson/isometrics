@@ -32,6 +32,16 @@ describe("parseOrRepairScene", () => {
 		expect(report?.removed.roads).toBe(0);
 	});
 
+	it("keeps data's own settings, not only its lists", () => {
+		const { scene, report } = repairScene({
+			version: 1,
+			data: { enabled: false, values: [] },
+			roads: [road({ style: "cobblestone" })],
+		});
+		expect(report.fixed).toBe(1);
+		expect(scene.data.enabled).toBe(false);
+	});
+
 	it("keeps the world's settings, turns included", () => {
 		const { scene } = repairScene({
 			version: 1,

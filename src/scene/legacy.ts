@@ -1,3 +1,5 @@
+import { groupOf, isRecord, type TRecord } from "#/lib/record";
+
 /**
  * Worlds as earlier versions saved them, brought up to date on load: old ids
  * (ADR-0050, ADR-0053), renamed fields (ADR-0071) and fields that moved
@@ -43,22 +45,6 @@ export const LEGACY_AREA_KINDS: Readonly<Record<string, string>> = {
 	sand: "sand_01",
 	plaza: "plaza_01",
 	land: "raised_land_01",
-};
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
-/** The record under `key`, made if it isn't one (a missing group, say). */
-const groupOf = (record: TRecord, key: string): TRecord => {
-	const group = record[key];
-	if (isRecord(group)) {
-		return group;
-	}
-	const made: TRecord = {};
-	record[key] = made;
-	return made;
 };
 
 /** Each record in a list. */

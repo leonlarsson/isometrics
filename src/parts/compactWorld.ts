@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { isRecord, type TRecord } from "#/lib/record";
 import {
 	AreaSchema,
 	DataSourceSchema,
@@ -23,11 +24,6 @@ import { getPart } from "./registry";
  * For the prompt Build with AI copies, so neither it nor the answer is a
  * wall of defaults. No React.
  */
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
 
 const isSame = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

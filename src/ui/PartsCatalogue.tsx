@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { usePrefersDark } from "#/editor/useTheme";
 import { APP_NAME } from "#/lib/app";
-import { PARTS, partName, resolveProps, type TAnyPart } from "#/parts/registry";
+import { PARTS, partName, resolveProps, sizeInWords, type TAnyPart } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { PartPreviewModel } from "#/render/PartPreviewModel";
 import {
@@ -48,8 +48,6 @@ const LOOKS: { look: IPictureLook; label: string }[] = [
 ];
 
 const LOOKS_SHOWN = LOOKS.map(({ look }) => look);
-
-const round = (value: number) => Math.round(value * 10) / 10;
 
 /** Every word of the query in the part's name, kind, category, description or search words. */
 const matches = (part: TAnyPart, query: string) => {
@@ -138,7 +136,6 @@ const PartDetails = ({
 	const palette = pictureLookPalette({ theme, night });
 	const hour = pictureLookHour({ theme, night });
 	const props = resolveProps(part, settings.props) as Record<string, unknown>;
-	const [width, depth] = part.footprint(props);
 	const object = { ...settings, color: null, accent: null };
 	const changed = hasObjectSettings(settings);
 	const json = useCopy();
@@ -204,7 +201,7 @@ const PartDetails = ({
 
 					<dt>Size</dt>
 
-					<dd>{`${round(width)} × ${round(depth)} wide, ${round(part.height(props))} tall`}</dd>
+					<dd>{sizeInWords(part, props)}</dd>
 
 					{part.canFollowPath && (
 						<>

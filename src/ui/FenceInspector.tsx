@@ -5,6 +5,7 @@ import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { builtShareOf, fenceHeightOf, fenceSpacingOf, layoutOfFence } from "#/fences/fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "#/fences/registry";
+import { percent } from "#/scene/format";
 import { changeColorSetting } from "#/scene/objectSettings";
 import { roadEnds, type TRoadEnd } from "#/scene/roads";
 import type { TFence, TFenceKind } from "#/scene/schema";
@@ -42,8 +43,6 @@ const useFenceEdit = (fence: TFence) => {
 	return (field: string, recipe: (f: Draft<TFence>) => void) =>
 		updateFence(fence.id, recipe, { coalesce: `${fence.id}:${field}` });
 };
-
-const percent = (share: number) => `${Math.round(share * 100)}%`;
 
 /** The Fence tab: its name and style. */
 const FenceTab = ({ fence }: { fence: TFence }) => {

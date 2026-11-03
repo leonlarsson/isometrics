@@ -175,7 +175,7 @@ export const PartsPalette = () => {
 	const drawingStyle = useEditor((s) => (s.drawing?.target === "road" ? s.drawing.style : null));
 	const drawingArea = useEditor((s) => (s.drawing?.target === "area" ? s.drawing.areaType : null));
 	const drawingFence = useEditor((s) =>
-		s.drawing?.target === "fence" ? (s.drawing.fenceStyle ?? null) : null,
+		s.drawing?.target === "fence" ? s.drawing.fenceStyle : null,
 	);
 	const startFenceDrawing = useEditor((s) => s.startFenceDrawing);
 	const startDrawing = useEditor((s) => s.startDrawing);

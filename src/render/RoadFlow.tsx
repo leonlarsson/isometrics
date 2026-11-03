@@ -8,6 +8,7 @@ import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel
 import { resolveLights } from "#/parts/lightModel";
 import { shareGeometryAs } from "#/parts/primitives";
 import { getPart, resolveProps } from "#/parts/registry";
+import { isHiddenRoute } from "#/scene/roads";
 import { createOneWaySampler } from "#/scene/routes";
 import type { TDataValue, TDrivingSide, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
@@ -29,8 +30,8 @@ const ARROW_SPACING = 5;
 
 const NO_LIGHT_SETTINGS = { lights: {} };
 
-/** A chevron lying flat, pointing +X, made once and shared by every road's arrows. */
-const chevronGeometry = () => {
+/** A chevron lying flat, pointing +X. */
+const makeChevron = () => {
 	const shape = new THREE.Shape();
 	shape.moveTo(0.35, 0);
 	shape.lineTo(-0.15, 0.35);
@@ -42,6 +43,13 @@ const chevronGeometry = () => {
 	const geometry = new THREE.ShapeGeometry(shape);
 	geometry.rotateX(-Math.PI / 2);
 	return shareGeometryAs(geometry, "flowChevron");
+};
+
+/** The chevron, made once and shared by every road's arrows (so none is left undisposed). */
+let chevron: THREE.BufferGeometry | null = null;
+const chevronGeometry = () => {
+	chevron ??= makeChevron();
+	return chevron;
 };
 
 /** One vehicle of a flow: its part drawn as an object would be, batched with others like it. */
@@ -123,14 +131,31 @@ const Stream = ({
 	);
 	const groups = useRef<(THREE.Group | null)[]>([]);
 	const travelled = useRef(0);
+	// Paused, the vehicles stand still: placed once for what they're placed by, not every frame.
+	const placed = useRef<{
+		offsets: number[];
+		sampler: typeof sampler;
+		altitude: number;
+		groups: (THREE.Group | null)[];
+	} | null>(null);
 
 	useFrame((_, delta) => {
+		const was = placed.current;
 		if (playing) {
 			travelled.current += road.flow.speed * Math.min(delta, 0.1);
+		} else if (
+			was?.offsets === offsets &&
+			was.sampler === sampler &&
+			was.altitude === altitude &&
+			was.groups.every((group, i) => group === groups.current[i])
+		) {
+			return;
 		}
+		let placedAll = true;
 		for (let i = 0; i < offsets.length; i++) {
 			const group = groups.current[i];
 			if (!group) {
+				placedAll = false;
 				continue;
 			}
 			const distance = offsets[i] + travelled.current;
@@ -142,6 +167,10 @@ const Stream = ({
 			group.rotation.set(0, sample.heading, sample.pitch, "YZX");
 			group.scale.setScalar(Math.max(0.001, ease));
 		}
+		placed.current =
+			placedAll && !playing
+				? { offsets, sampler, altitude, groups: groups.current.slice(0, offsets.length) }
+				: null;
 	});
 
 	return (
@@ -177,7 +206,7 @@ const FlowArrows = ({ road, color, y }: { road: TRoad; color: string; y: number 
 			return { position: sample.position, height: sample.height, heading: sample.heading };
 		});
 	}, [road, direction]);
-	const geometry = useMemo(chevronGeometry, []);
+	const geometry = chevronGeometry();
 	const scale = Math.min(1.6, road.width * 0.45);
 	return (
 		<>
@@ -248,7 +277,7 @@ export const RoadFlow = ({
 				altitude={0}
 			/>
 
-			{road.flow.showsArrows && road.kind !== "hidden_route_01" && (
+			{road.flow.showsArrows && !isHiddenRoute(road.kind) && (
 				<FlowArrows road={road} color={arrowColorOn(surfaceColor)} y={surfaceY + 0.01} />
 			)}
 		</>

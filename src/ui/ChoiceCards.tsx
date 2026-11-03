@@ -2,11 +2,15 @@ import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import type { ReactNode } from "react";
 
+import { Icon, type TIconName } from "./Icon";
+
 import styles from "./ChoiceCards.module.css";
 
 export interface IChoiceCard<TValue extends string> {
 	value: TValue;
 	title: string;
+	/** An icon before the title, in the accent colour, marking a card apart (Build with AI's sparkle). */
+	titleIcon?: TIconName;
 	/** A muted line or two under the title. */
 	description?: string;
 	/** Shown above the title, e.g. a rendered picture; the card keeps the space while it loads. */
@@ -52,7 +56,15 @@ export const ChoiceCards = <TValue extends string>({
 					<span className={styles.picture}>{card.picture}</span>
 
 					<span className={styles.text}>
-						<span className={styles.title}>{card.title}</span>
+						<span className={styles.title}>
+							{card.titleIcon && (
+								<span className={styles.titleIcon}>
+									<Icon name={card.titleIcon} size={15} />
+								</span>
+							)}
+
+							{card.title}
+						</span>
 
 						{card.description && <span className={styles.description}>{card.description}</span>}
 					</span>

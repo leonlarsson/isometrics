@@ -1,5 +1,5 @@
 import { useEditor } from "#/editor/store";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
+import { roadNameOf } from "#/scene/roads";
 
 import { Button } from "./Button";
 
@@ -17,7 +17,6 @@ export const JoinOfferBar = () => {
 	if (!a || !b) {
 		return null;
 	}
-	const name = (road: typeof a) => road.name || ROAD_KIND_LABELS[road.kind];
 	const sameRoad = a.id === b.id;
 
 	return (
@@ -27,8 +26,8 @@ export const JoinOfferBar = () => {
 
 				<span>
 					{sameRoad
-						? `Join the two ends of “${name(a)}” into a loop?`
-						: `Join “${name(a)}” and “${name(b)}” into one road?`}
+						? `Join the two ends of “${roadNameOf(a)}” into a loop?`
+						: `Join “${roadNameOf(a)}” and “${roadNameOf(b)}” into one road?`}
 				</span>
 			</div>
 

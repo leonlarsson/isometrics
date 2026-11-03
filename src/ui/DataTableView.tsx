@@ -43,7 +43,8 @@ export const DataTableView = ({
 
 				<tbody>
 					{shown.map((row, index) => (
-						<tr key={String(cellOf(row, keyColumn) ?? index)}>
+						// biome-ignore lint/suspicious/noArrayIndexKey: rows named by any column may share a name
+						<tr key={`${index}:${String(cellOf(row, keyColumn) ?? "")}`}>
 							{columns.map((column) => {
 								const cell = cellOf(row, column.key) ?? null;
 								return (

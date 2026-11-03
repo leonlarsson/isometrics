@@ -1,15 +1,22 @@
 import { useEditor } from "#/editor/store";
-import { pointWidth, ROAD_KIND_LABELS, roadEnds, type TRoadEnd } from "#/scene/roads";
+import { pointWidth, roadEnds, roadNameOf, type TRoadEnd } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton } from "./Button";
-import { GroupLabel, Hint, Kbd, resetToDefault, Section, SliderField, VectorField } from "./fields";
+import {
+	GroupLabel,
+	Hint,
+	Kbd,
+	resetToDefault,
+	Section,
+	SliderField,
+	VectorField,
+	valuesDiffer,
+} from "./fields";
 
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
 const MAX_JOIN_OPTIONS = 3;
-
-const roadLabel = (road: TRoad) => road.name || ROAD_KIND_LABELS[road.kind];
 
 /** Controls for the selected control point: position, height, and point actions. */
 export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) => {
@@ -137,7 +144,7 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 						>
 							{option.road.id === road.id
 								? "Its own other end (make a loop)"
-								: `${roadLabel(option.road)} (${option.end})`}
+								: `${roadNameOf(option.road)} (${option.end})`}
 						</Button>
 					))}
 				</ButtonGroup>
@@ -145,10 +152,6 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 		</Section>
 	);
 };
-
-/** Whether values differ (compared as JSON). */
-const differ = (values: readonly unknown[]) =>
-	new Set(values.map((value) => JSON.stringify(value ?? null))).size > 1;
 
 /**
  * Several selected points of a road (ADR-0065): their height and width, Mixed
@@ -195,7 +198,7 @@ export const RoadPointsPanel = ({ road, indices }: { road: TRoad; indices: reado
 				)}
 				label="Altitude"
 				value={last[2]}
-				mixed={differ(points.map((point) => point[2]))}
+				mixed={valuesDiffer(points.map((point) => point[2]))}
 				min={0}
 				max={15}
 				step={0.25}
@@ -209,7 +212,7 @@ export const RoadPointsPanel = ({ road, indices }: { road: TRoad; indices: reado
 			<SliderField
 				label="Width here"
 				value={widths.at(-1) ?? road.width}
-				mixed={differ(widths)}
+				mixed={valuesDiffer(widths)}
 				min={0.4}
 				max={8}
 				step={0.1}

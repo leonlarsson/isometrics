@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { saveWorldFile } from "#/editor/fileActions";
 import { listSceneBackups, listWorlds, wipeEverything } from "#/editor/persistence";
 import { notify } from "#/editor/toasts";
+import { plural } from "#/scene/format";
 
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -10,8 +11,6 @@ interface IWipeEverythingProps {
 	open: boolean;
 	onClose: () => void;
 }
-
-const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /**
  * Deleting everything this app keeps in the browser, behind two confirmations

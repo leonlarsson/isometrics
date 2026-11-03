@@ -156,9 +156,10 @@ export const resetThisBrowsersSettings = () => {
 };
 
 /**
- * Delete the open world (it's kept as a backup first) and open the most
- * recently edited other one, or the home screen if there's none (ADR-0121).
- * A world from a link that isn't kept isn't in the list: nothing to delete.
+ * Delete the open world (it's kept as a backup first) and show the home
+ * screen, never another world in its place (ADR-0132): one's other worlds
+ * are listed there to pick from. A world from a link that isn't kept isn't
+ * in the list: nothing to delete.
  */
 export const deleteOpenWorld = () => {
 	if (!keepsOpenWorld(useEditor.getState().whatIsOpen)) {
@@ -173,13 +174,10 @@ export const deleteOpenWorld = () => {
 		);
 		return;
 	}
-	const next = listWorlds()[0];
-	const result = next ? openStoredWorld(next.id) : null;
-	if (result && (result.status === "ok" || result.status === "repaired")) {
-		showWorld(result.scene);
-	} else {
-		useEditor.getState().setWhatIsOpen({ kind: "home", why: { kind: "noWorlds" } });
-	}
+	useEditor.getState().setWhatIsOpen({
+		kind: "home",
+		why: listWorlds().length === 0 ? { kind: "noWorlds" } : { kind: "deleted" },
+	});
 	notify("World deleted", "A copy is kept under File → Backups.", "success");
 };
 

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import * as THREE from "three";
 
 import { pointerSpot } from "#/editor/pointerSpot";
+import { isOverWorld } from "#/lib/pointer";
 import type { TViewPose } from "#/scene/schema";
 
 import { drawCallsPerFrame } from "./drawCalls";
@@ -36,9 +37,7 @@ export const PointerSpot = () => {
 				return null;
 			}
 			const under = document.elementFromPoint(last.x, last.y);
-			const overWorld =
-				under !== null && (element.contains(under) || under.closest("[data-label-layer]") !== null);
-			if (!overWorld) {
+			if (!isOverWorld(element, under)) {
 				return null;
 			}
 			const rect = element.getBoundingClientRect();

@@ -1,3 +1,5 @@
+import { snap } from "#/lib/math";
+
 /**
  * Periods of the day for PeriodsField, without React: reading and writing
  * 24-hour times, where a period lies on the 24-hour strip, and dragging it.
@@ -60,8 +62,6 @@ export const periodSpans = (periods: readonly ITimePeriod[]): IPeriodSpan[] =>
 /** Dragged times snap to quarter hours. */
 const SNAP = 0.25;
 
-const snap = (hours: number) => Math.round(hours / SNAP) * SNAP;
-
 /** An hour back within the day, 0 to under 24. */
 const wrap = (hours: number) => ((hours % 24) + 24) % 24;
 
@@ -87,7 +87,7 @@ export const dragPeriods = (
 	const next = [...periods];
 	switch (drag.kind) {
 		case "move": {
-			const shift = snap(hour - drag.from);
+			const shift = snap(hour - drag.from, SNAP);
 			const { from, until } = drag.original;
 			next[drag.index] = {
 				from: wrap(from + shift),
@@ -97,7 +97,7 @@ export const dragPeriods = (
 		}
 		case "start": {
 			const period = periods[drag.index];
-			const from = wrap(snap(hour));
+			const from = wrap(snap(hour, SNAP));
 			if (from !== wrap(period.until)) {
 				next[drag.index] = { ...period, from };
 			}
@@ -105,15 +105,15 @@ export const dragPeriods = (
 		}
 		case "end": {
 			const period = periods[drag.index];
-			const until = snap(hour);
+			const until = snap(hour, SNAP);
 			if (wrap(until) !== period.from) {
 				next[drag.index] = { ...period, until };
 			}
 			return next;
 		}
 		case "add": {
-			const a = snap(drag.from);
-			const b = snap(hour);
+			const a = snap(drag.from, SNAP);
+			const b = snap(hour, SNAP);
 			if (Math.abs(b - a) < SNAP) {
 				return drag.index === null ? next : next.filter((_, i) => i !== drag.index);
 			}

@@ -1,8 +1,9 @@
 import { fenceHeightOf, layoutOfFence } from "#/fences/fenceModel";
-import { getPart, resolveProps } from "#/parts/registry";
-import { cornerTop } from "#/scene/areas";
-import { roadCenterlineOf } from "#/scene/roads";
-import type { TScene, TVec3 } from "#/scene/schema";
+import { FENCE_STYLE_LABELS } from "#/fences/registry";
+import { getPart, partNameOf, resolveProps } from "#/parts/registry";
+import { AREA_KIND_LABELS, cornerTop } from "#/scene/areas";
+import { ROAD_KIND_LABELS, roadCenterlineOf } from "#/scene/roads";
+import type { TArea, TEntity, TFence, TRoad, TScene, TVec3 } from "#/scene/schema";
 
 /** A box in the world for the camera to frame: its centre and size [x, y, z]. */
 export interface IFrameBox {
@@ -15,6 +16,16 @@ export interface ISceneItem {
 	kind: "entity" | "road" | "area" | "fence";
 	id: string;
 }
+
+/** What kind of thing an item is, in words: its part's, road's, fence's or area's kind ("Round tree"). */
+export const itemKindName = (item: ISceneItem, thing: TEntity | TRoad | TArea | TFence) =>
+	item.kind === "entity"
+		? (partNameOf((thing as TEntity).kind) ?? (thing as TEntity).kind)
+		: item.kind === "road"
+			? ROAD_KIND_LABELS[(thing as TRoad).kind]
+			: item.kind === "fence"
+				? FENCE_STYLE_LABELS[(thing as TFence).kind]
+				: AREA_KIND_LABELS[(thing as TArea).kind];
 
 /** The box around a set of [x, z, height] points, `up` taller than their highest point. */
 const boxAround = (points: readonly (readonly number[])[], up: number): IFrameBox | null => {

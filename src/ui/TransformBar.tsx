@@ -13,9 +13,10 @@ import {
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { partNameOf } from "#/parts/registry";
 import { AREA_KIND_LABELS } from "#/scene/areas";
+import { roadNameOf } from "#/scene/roads";
 
 import { Button } from "./Button";
-import { roadName, useRouteHint } from "./FollowOfferBar";
+import { useRouteHint } from "./FollowOfferBar";
 import { Kbd } from "./fields";
 
 // Same floating bar as road drawing: both are short modal states over the scene.
@@ -126,7 +127,7 @@ const TransformControls = () => {
 	}
 
 	const shapeName = road
-		? roadName(road)
+		? roadNameOf(road)
 		: area
 			? area.name || `${AREA_KIND_LABELS[area.kind].toLowerCase()} area`
 			: fence
@@ -159,8 +160,8 @@ const TransformControls = () => {
 		: !route.road
 			? "Off the roads: confirm to park it here."
 			: route.rerouting
-				? `On “${roadName(route.road)}”: confirm and it drives on from here.`
-				: `On “${roadName(route.road)}”: confirm, then choose whether it drives along it.`;
+				? `On “${roadNameOf(route.road)}”: confirm and it drives on from here.`
+				: `On “${roadNameOf(route.road)}”: confirm, then choose whether it drives along it.`;
 	const hint = routeHint
 		? routeHint
 		: transform.mode === "grab"

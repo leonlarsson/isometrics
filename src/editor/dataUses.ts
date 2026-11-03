@@ -1,7 +1,7 @@
 import { FENCE_STYLE_LABELS, FENCE_STYLES } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
 import { AREA_KIND_LABELS } from "#/scene/areas";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
+import { roadNameOf } from "#/scene/roads";
 import type { TColorSetting, TDataBinding, TScene } from "#/scene/schema";
 
 import type { TInspectorTab } from "./store";
@@ -133,7 +133,7 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 		);
 	}
 	for (const road of scene.roads) {
-		const thing = road.name || ROAD_KIND_LABELS[road.kind];
+		const thing = roadNameOf(road);
 		const item = { kind: "road", id: road.id } as const;
 		add(
 			thing,

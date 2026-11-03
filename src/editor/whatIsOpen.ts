@@ -41,6 +41,8 @@ export type THomeReason =
 	| { kind: "chosen" }
 	/** No worlds in this browser (the last one was deleted). */
 	| { kind: "noWorlds" }
+	/** The open world was just deleted (ADR-0132): never another world in its place. */
+	| { kind: "deleted" }
 	/** A link couldn't be opened; `message` says why, in words. */
 	| { kind: "linkFailed"; from: ILinkAsked["from"]; message: string }
 	/** A world from a link wasn't opened, by choice. */

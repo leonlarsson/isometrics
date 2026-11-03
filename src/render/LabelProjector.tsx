@@ -3,6 +3,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { type ILabelItem, type ILabelPlacement, type IRect, layoutLabels } from "#/lib/labelLayout";
+import type { TEntity } from "#/scene/schema";
 
 import {
 	gizmoArea,
@@ -89,6 +90,18 @@ const previous = new Map<string, ILabelPlacement>();
 /** When each chip last shrank from a card (clock seconds). */
 const shrankAt = new Map<string, number>();
 
+const NONE_DRIVING: ReadonlySet<string> = new Set();
+/** The objects that drive, once per objects list (lists are replaced, never changed), not every frame. */
+const drivingByList = new WeakMap<readonly TEntity[], ReadonlySet<string>>();
+const drivingIn = (entities: readonly TEntity[]) => {
+	let ids = drivingByList.get(entities);
+	if (!ids) {
+		ids = new Set(entities.flatMap((entity) => (entity.follow ? [entity.id] : [])));
+		drivingByList.set(entities, ids);
+	}
+	return ids;
+};
+
 /**
  * Projects every label to screen space, lays the cards out so they don't
  * overlap each other or the UI over the scene (lib/labelLayout), and moves
@@ -113,9 +126,7 @@ export const LabelProjector = () => {
 		const obstacles = readObstacles(canvas);
 		const { selectedId, playing, scene } = useEditor.getState();
 		// Cards on driving vehicles move anyway, so they're the ones that step aside.
-		const driving = new Set(
-			playing ? scene.entities.filter((entity) => entity.follow).map((entity) => entity.id) : [],
-		);
+		const driving = playing ? drivingIn(scene.entities) : NONE_DRIVING;
 		const items: ILabelItem[] = [];
 		const pins = new Map<string, { x: number; y: number }>();
 		const underGizmo = new Set<string>();

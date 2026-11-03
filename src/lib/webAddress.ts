@@ -16,6 +16,23 @@ export const webAddress = (address: string | null | undefined): string | null =>
 };
 
 /**
+ * An IPv4 address written as IPv6 (`::ffff:127.0.0.1`, which URLs write
+ * `::ffff:7f00:1`) as plain IPv4, so it's checked as the address it reaches.
+ */
+const ipv4Of = (host: string) => {
+	const mapped =
+		/^::ffff:(?:0:)?(?:(\d{1,3}(?:\.\d{1,3}){3})|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/.exec(host);
+	if (!mapped) {
+		return host;
+	}
+	if (mapped[1]) {
+		return mapped[1];
+	}
+	const [high, low] = [Number.parseInt(mapped[2], 16), Number.parseInt(mapped[3], 16)];
+	return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+};
+
+/**
  * Whether a host is this computer or its own network (ADR-0119): localhost,
  * loopback, private and link-local addresses, `.local` names. A world from
  * anyone mustn't make a browser on the web reach into the network it sits on.
@@ -33,7 +50,7 @@ export const isLocalHost = (hostname: string) => {
 	) {
 		return true;
 	}
-	const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+	const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ipv4Of(host));
 	if (!ipv4) {
 		return false;
 	}

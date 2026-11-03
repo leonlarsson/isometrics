@@ -1,6 +1,13 @@
 import { createPathSampler, type IPathSample } from "./paths";
 import { laneOffset, roadCenterlineOf } from "./roads";
-import type { TDrivingSide, TRoad, TRoadPoint, TVec2 } from "./schema";
+import {
+	FollowSchema,
+	type TDrivingSide,
+	type TFollow,
+	type TRoad,
+	type TRoadPoint,
+	type TVec2,
+} from "./schema";
 
 /**
  * Roads as vehicle routes: where a vehicle on a road is (in either direction),
@@ -234,3 +241,12 @@ export const createOneWaySampler = (
 		at: (distance: number) => sampler.at(sampler.length > 0 ? wrap(distance, sampler.length) : 0),
 	};
 };
+
+/**
+ * A vehicle's way of driving, along another road: how it drove kept (speed,
+ * where it starts, its turns), or the defaults if it was parked.
+ */
+export const followAlong = (follow: TFollow | null, roadId: string): TFollow => ({
+	...(follow ?? FollowSchema.parse({ roadId })),
+	roadId,
+});

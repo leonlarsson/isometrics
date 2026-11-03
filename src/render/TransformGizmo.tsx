@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { wrapDegrees } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
 import type { TScene, TVec2 } from "#/scene/schema";
@@ -166,9 +167,6 @@ const toViewer = new THREE.Vector3();
 
 const angleOf = (point: THREE.Vector3, center: THREE.Vector3) =>
 	(Math.atan2(-(point.z - center.z), point.x - center.x) * 180) / Math.PI;
-
-/** Wrap an angle difference into (-180, 180]. */
-const wrap = (degrees: number) => ((((degrees + 180) % 360) + 360) % 360) - 180;
 
 interface IHandleEvents {
 	onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
@@ -465,7 +463,7 @@ export const TransformGizmo = ({
 		const angle = current.screen
 			? screenAngleOf(e.nativeEvent.clientX, e.nativeEvent.clientY, current.screen)
 			: angleOf(point, current.center);
-		current.turn += wrap(angle - current.angle);
+		current.turn += wrapDegrees(angle - current.angle);
 		current.angle = angle;
 		const startDistance = Math.hypot(
 			current.anchor.x - current.center.x,

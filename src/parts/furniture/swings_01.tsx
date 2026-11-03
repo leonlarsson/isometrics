@@ -1,10 +1,9 @@
 import { z } from "zod";
 
-import { Box, spread } from "../primitives";
+import { Box, Strut, spread } from "../primitives";
 import { definePart } from "../types";
 
 import { metres, UNITS_PER_METRE } from "./furnitureSize";
-import { Rod } from "./playKit";
 
 const SwingsSchema = z.object({
 	seatCount: z.number().int().min(1).max(4).default(2),
@@ -38,7 +37,7 @@ export const swings01 = definePart({
 				{/* An A-frame at each end, and the beam along the top. */}
 				{[length / 2, -length / 2].flatMap((x) =>
 					[FRAME.spread, -FRAME.spread].map((z) => (
-						<Rod
+						<Strut
 							key={`${x}:${z}`}
 							from={[x, 0, z]}
 							to={[x, FRAME.height, 0]}
@@ -48,7 +47,7 @@ export const swings01 = definePart({
 					)),
 				)}
 
-				<Rod
+				<Strut
 					from={[-length / 2 - 0.05, FRAME.height, 0]}
 					to={[length / 2 + 0.05, FRAME.height, 0]}
 					color={colors.frame}
@@ -59,7 +58,7 @@ export const swings01 = definePart({
 				{spread(p.seatCount, p.seatCount * SEAT_SPACING).map((x) => (
 					<group key={x}>
 						{[0.2, -0.2].map((dx) => (
-							<Rod
+							<Strut
 								key={dx}
 								from={[x + dx, FRAME.height, 0]}
 								to={[x + dx, 0.48, 0]}

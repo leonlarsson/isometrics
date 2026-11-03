@@ -746,6 +746,6 @@ test.describe("the example worlds (data study)", () => {
 		});
 		const sheet = page.getByRole("complementary", { name: "Hunt: Showdown 1896 details" });
 		await expect(sheet).toContainText("Example numbers, not from Steam");
-		await expect(sheet.getByRole("link", { name: "Steam Web API" })).toBeVisible();
+		await expect(sheet.getByRole("link", { name: "extraction-shooters-games.csv" })).toBeVisible();
 	});
 });

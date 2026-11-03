@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { ISceneItem } from "#/editor/framing";
 import { isItemSelected, useEditor } from "#/editor/store";
 import { fenceHeightOf } from "#/fences/fenceModel";
+import { isOverWorld } from "#/lib/pointer";
 import { getPart, resolveProps } from "#/parts/registry";
 import { cornerTop, groundHeightAt } from "#/scene/areas";
 import type { TScene } from "#/scene/schema";
@@ -150,10 +151,7 @@ export const BoxSelect = () => {
 			event.preventDefault();
 			event.stopPropagation();
 		};
-		// Label cards float over the canvas in their own DOM layer, but they're part of the scene.
-		const inScene = (target: EventTarget | null) =>
-			target instanceof Element &&
-			(element.contains(target) || target.closest("[data-label-layer]") !== null);
+		const inScene = (target: EventTarget | null) => isOverWorld(element, target);
 		const finish = () => {
 			from = null;
 			store().setBoxSelect(null);

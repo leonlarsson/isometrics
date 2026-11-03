@@ -39,6 +39,14 @@ describe("the prompt for your own AI", () => {
 		expect(prompt).not.toContain("## The world now");
 	});
 
+	it("has an API's or link's address read live, as a source, not copied in", () => {
+		for (const data of ["https://api.example.com/counts", ""]) {
+			const prompt = aiPrompt({ description: "", data, world: null, origin: ORIGIN });
+			expect(prompt).toContain('`kind: "api"`');
+			expect(prompt).toContain("don't copy its numbers in");
+		}
+	});
+
 	it("asks for a plain world when there's no data, and carries the world to change", () => {
 		expect(aiPrompt({ description: "", data: "", world: null, origin: ORIGIN })).toContain(
 			'"enabled": false',

@@ -1,3 +1,5 @@
+import { isRecord, type TRecord } from "#/lib/record";
+
 import { safeJson, UNSAFE_KEYS } from "./safeJson";
 import type { TScene } from "./schema";
 
@@ -37,11 +39,6 @@ import type { TScene } from "./schema";
  * merge patch": merge patch for objects, lists merged by a key), and it reads
  * like the world itself: whoever knows the world format can read a patch.
  */
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** A problem with a patch, where it is in the patch and what's wrong. */
 export interface IPatchIssue {

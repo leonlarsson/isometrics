@@ -13,6 +13,7 @@ import {
 	AREA_KINDS,
 	cornerTop,
 	isRaised,
+	isWaterArea,
 	type TAreaShape,
 	topSurface,
 	triangulateOutline,
@@ -144,7 +145,7 @@ export const AreaBody = ({
 	const y = areaBaseY(layer);
 	const raised = isRaised(area);
 	// Water stays level (ADR-0096), so it mirrors raised too: its surface on top of cliff sides.
-	const mirrors = reflective && area.kind === "water_01";
+	const mirrors = reflective && isWaterArea(area);
 	const geometry = useMemo(() => {
 		if (raised && !mirrors) {
 			return solidGeometry(area);
@@ -216,7 +217,7 @@ export const AreaBody = ({
 						polygonOffset
 						polygonOffsetFactor={-1}
 						// Water takes no snow or wetness (ADR-0102).
-						userData={area.kind === "water_01" ? NO_WEATHER : undefined}
+						userData={isWaterArea(area) ? NO_WEATHER : undefined}
 					/>
 				)}
 			</mesh>
@@ -252,7 +253,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const worldWater = useEditor((s) => s.scene.water);
 	const areas = useEditor((s) => s.scene.areas);
 	const seams = useMemo(
-		() => (reflective && area.kind === "water_01" ? waterSeams(area, areas) : NO_SEAMS),
+		() => (reflective && isWaterArea(area) ? waterSeams(area, areas) : NO_SEAMS),
 		[reflective, area, areas],
 	);
 	const palette = usePalette();

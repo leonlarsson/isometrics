@@ -44,6 +44,8 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 		// Nothing to explain: the empty list of worlds says it, without reading like an error.
 		case "noWorlds":
 		case "chosen":
+		// The toast says it was deleted, and where its copy is kept.
+		case "deleted":
 			return null;
 	}
 };
@@ -103,7 +105,7 @@ export const HomeScreen = () => {
 							Open file…
 						</Button>
 
-						<Button icon="sparkle" onClick={() => store().setBuildWithAi("new")}>
+						<Button icon="sparkle" iconTone="accent" onClick={() => store().setBuildWithAi("new")}>
 							Build with AI…
 						</Button>
 					</div>
@@ -142,7 +144,7 @@ export const HomeScreen = () => {
 					</h2>
 
 					<div className={styles.actions}>
-						<Button icon="sparkle" onClick={() => store().setWelcomeOpen(true)}>
+						<Button icon="info" onClick={() => store().setWelcomeOpen(true)}>
 							Welcome…
 						</Button>
 

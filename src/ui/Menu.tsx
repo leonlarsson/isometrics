@@ -66,9 +66,13 @@ const MenuPopup = ({ children }: IMenuPopupProps) => {
 	);
 };
 
+/** An icon's colour: muted as every menu's, or the accent, marking one item apart (Build with AI's sparkle). */
+type TMenuIconTone = "muted" | "accent";
+
 interface IMenuItemProps {
 	label: string;
 	icon?: TIconName;
+	iconTone?: TMenuIconTone;
 	/** A second, muted line under the label. */
 	description?: string;
 	/** Keyboard shortcut shown on the right, e.g. "Ctrl+O". */
@@ -77,11 +81,19 @@ interface IMenuItemProps {
 	onClick: () => void;
 }
 
-const MenuItem = ({ label, icon, description, shortcut, disabled, onClick }: IMenuItemProps) => {
+const MenuItem = ({
+	label,
+	icon,
+	iconTone = "muted",
+	description,
+	shortcut,
+	disabled,
+	onClick,
+}: IMenuItemProps) => {
 	return (
 		<BaseMenu.Item className={styles.item} disabled={disabled} onClick={onClick}>
 			{icon && (
-				<span className={styles.icon}>
+				<span className={styles.icon} data-tone={iconTone}>
 					<Icon name={icon} size={16} />
 				</span>
 			)}
@@ -145,15 +157,16 @@ const MenuCheckboxItem = ({
 interface IMenuSubmenuProps {
 	label: string;
 	icon?: TIconName;
+	iconTone?: TMenuIconTone;
 	children: ReactNode;
 }
 
-const MenuSubmenu = ({ label, icon, children }: IMenuSubmenuProps) => {
+const MenuSubmenu = ({ label, icon, iconTone = "muted", children }: IMenuSubmenuProps) => {
 	return (
 		<BaseMenu.SubmenuRoot>
 			<BaseMenu.SubmenuTrigger className={styles.item}>
 				{icon && (
-					<span className={styles.icon}>
+					<span className={styles.icon} data-tone={iconTone}>
 						<Icon name={icon} size={16} />
 					</span>
 				)}

@@ -1,3 +1,4 @@
+import { round } from "#/lib/math";
 import { variantName } from "#/scene/variants";
 
 import { apartmentBlock01 } from "./buildings/apartment_block_01";
@@ -268,6 +269,16 @@ const withRenamedProps = (part: TAnyPart, raw: Record<string, unknown>) => {
 	}
 	return props;
 };
+
+/** A part's size with these props, in words to a tenth of a unit: "2 × 1.5 wide, 3 tall". */
+export const sizeInWords = (part: TAnyPart, props: Record<string, unknown>) => {
+	const [width, depth] = part.footprint(props);
+	return `${round(width, 1)} × ${round(depth, 1)} wide, ${round(part.height(props), 1)} tall`;
+};
+
+/** A vehicle's length at a scale: vehicles face +X, so it's the footprint's X (smooth turns, leans and rides go by it). */
+export const vehicleLengthOf = (part: TAnyPart, props: Record<string, unknown>, scale: number) =>
+	part.footprint(props)[0] * scale;
 
 /**
  * A part's props from what's stored: every valid prop as it is, renamed ones

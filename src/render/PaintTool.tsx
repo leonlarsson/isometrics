@@ -6,6 +6,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { isOverWorld } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
@@ -57,10 +58,7 @@ export const PaintTool = () => {
 			event.preventDefault();
 			event.stopPropagation();
 		};
-		// Label cards float over the canvas in their own DOM layer, but they're part of the scene.
-		const inScene = (target: EventTarget | null) =>
-			target instanceof Element &&
-			(element.contains(target) || target.closest("[data-label-layer]") !== null);
+		const inScene = (target: EventTarget | null) => isOverWorld(element, target);
 		/** The ground under the pointer, on raised land where it stands (unsnapped). */
 		const groundAt = (event: PointerEvent): { point: TVec2; height: number } | null => {
 			const rect = element.getBoundingClientRect();

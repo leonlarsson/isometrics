@@ -202,7 +202,7 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		const { url } = await response.json();
 		await buildWithAiMenu(page, /A new world/);
 		const dialog = page.getByRole("dialog", { name: "Build with AI" });
-		await dialog.getByRole("button", { name: "I already have an answer" }).click();
+		await dialog.getByRole("button", { name: "Paste what your AI wrote" }).click();
 		await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(url);
 		await expect(dialog).toContainText("Ready to open.");
 		await dialog.getByRole("button", { name: "Open it", exact: true }).click();

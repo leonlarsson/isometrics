@@ -207,15 +207,15 @@ const useOrbitAroundCursor = () => {
 			if (pivot.distanceTo(camera.position) > reach) {
 				pivot.copy(controls.target);
 			}
-			return true;
 		};
 
 		const onDown = (event: PointerEvent) => {
 			const modified = event.ctrlKey || event.metaKey || event.shiftKey;
 			const wants = event.button === 2 || (event.button === 0 && modified);
-			if (!wants || !controls.enabled || useEditor.getState().placingKind || !pivotAt(event)) {
+			if (!wants || !controls.enabled || useEditor.getState().placingKind) {
 				return;
 			}
+			pivotAt(event);
 			orbiting = { id: event.pointerId, x: event.clientX, y: event.clientY, turned: 0 };
 		};
 

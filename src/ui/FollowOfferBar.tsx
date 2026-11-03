@@ -1,13 +1,10 @@
 import { useEditor } from "#/editor/store";
 import { partNameOf } from "#/parts/registry";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
-import type { TRoad } from "#/scene/schema";
+import { roadNameOf } from "#/scene/roads";
 
 import { Button } from "./Button";
 
 import styles from "./DrawingBar.module.css";
-
-export const roadName = (road: TRoad) => road.name || ROAD_KIND_LABELS[road.kind];
 
 /**
  * While a vehicle is being moved by hand: the road it's snapped onto (if any),
@@ -60,7 +57,7 @@ export const FollowOfferBar = () => {
 		}
 		return (
 			<DragHint
-				title={`Drop it on “${roadName(road)}”`}
+				title={`Drop it on “${roadNameOf(road)}”`}
 				keys={
 					rerouting
 						? "It drives on from here · Alt: park it"
@@ -89,7 +86,7 @@ export const FollowOfferBar = () => {
 	return (
 		<div className={styles.bar} data-label-obstacle="" role="status">
 			<div className={styles.text}>
-				<strong>Drive along “{roadName(road)}”?</strong>
+				<strong>Drive along “{roadNameOf(road)}”?</strong>
 
 				<span>The {vehicle} will follow the road’s route from here, the way the arrows point.</span>
 			</div>

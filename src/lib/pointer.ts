@@ -25,3 +25,11 @@ export const isClick = (event: { delta: number }) => event.delta < DRAG_THRESHOL
 export const setCursorHidden = (hidden: boolean) => {
 	document.documentElement.toggleAttribute("data-cursor-hidden", hidden);
 };
+
+/**
+ * Whether a pointer's target is in the world: the canvas's `element`, or the
+ * label cards, which float over the canvas in their own DOM layer but are part of it.
+ */
+export const isOverWorld = (element: Element, target: EventTarget | null) =>
+	target instanceof Element &&
+	(element.contains(target) || target.closest("[data-label-layer]") !== null);

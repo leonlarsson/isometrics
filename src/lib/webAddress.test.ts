@@ -31,6 +31,9 @@ describe("hosts on this computer or its network", () => {
 			"[::1]",
 			"fd12:3456::1",
 			"fe80::1",
+			new URL("http://[::ffff:127.0.0.1]/").hostname,
+			new URL("http://[::ffff:192.168.1.1]/").hostname,
+			"::ffff:10.0.0.1",
 		]) {
 			expect(isLocalHost(host), host).toBe(true);
 		}
@@ -40,6 +43,7 @@ describe("hosts on this computer or its network", () => {
 			"172.32.0.1",
 			"8.8.8.8",
 			"192.169.0.1",
+			new URL("http://[::ffff:8.8.8.8]/").hostname,
 		]) {
 			expect(isLocalHost(host), host).toBe(false);
 		}

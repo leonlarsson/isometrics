@@ -1,7 +1,14 @@
 import { mixColor } from "#/lib/color";
 
 import type { TBackdrop, TLighting, TSky } from "./schema";
-import { CLASSIC_SUN, darknessAt, moonPositionFor, skyLightAt, sunPositionAt } from "./sun";
+import {
+	CLASSIC_SUN,
+	darknessAt,
+	keysAround,
+	moonPositionFor,
+	skyLightAt,
+	sunPositionAt,
+} from "./sun";
 
 /**
  * The sky around the world in perspective, and the backdrop behind the
@@ -40,11 +47,7 @@ export const skyColorsAt = (hour: number | null) => {
 	if (hour === null) {
 		return CLASSIC_SKY;
 	}
-	const h = ((hour % 24) + 24) % 24;
-	const next = SKY_KEYS.findIndex((key) => key.hour > h);
-	const a = SKY_KEYS[(next === -1 ? SKY_KEYS.length : next) - 1];
-	const b = next === -1 ? { ...SKY_KEYS[0], hour: 24 } : SKY_KEYS[next];
-	const t = (h - a.hour) / (b.hour - a.hour);
+	const { a, b, t } = keysAround(SKY_KEYS, hour);
 	return {
 		colorOverhead: mixColor(a.colorOverhead, b.colorOverhead, t),
 		colorAtHorizon: mixColor(a.colorAtHorizon, b.colorAtHorizon, t),

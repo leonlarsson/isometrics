@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { isRecord, type TRecord } from "#/lib/record";
 import {
 	AreaSchema,
 	DataSourceSchema,
@@ -32,11 +33,6 @@ import { type IWorldIssue, validateWorld } from "./validateWorld";
  *   (`props`, `colors`, `lights`) depend on its kind, which only its world
  *   knows: checked there, when the patch is put in place.
  */
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** Each list's things' schema, by the list's path. */
 const ITEM_SCHEMAS: Record<string, z.ZodObject> = {

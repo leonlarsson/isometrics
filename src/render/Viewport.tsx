@@ -166,6 +166,17 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 	);
 };
 
+/** Objects' ids, once per objects list (lists are replaced, never changed), not on every change. */
+const idsByList = new WeakMap<readonly TEntity[], readonly string[]>();
+const idsOf = (entities: readonly TEntity[]) => {
+	let ids = idsByList.get(entities);
+	if (!ids) {
+		ids = entities.map((entity) => entity.id);
+		idsByList.set(entities, ids);
+	}
+	return ids;
+};
+
 /**
  * Every object, with what they all read from the editor read once here (ADR-0092): thousands of
  * objects each subscribing to a dozen things ran tens of thousands of selectors on every change. A
@@ -173,7 +184,7 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
  * the world renders the list, and each object's node only if its own props changed.
  */
 const Entities = memo(() => {
-	const ids = useEditor(useShallow((s) => s.scene.entities.map((entity) => entity.id)));
+	const ids = useEditor(useShallow((s) => idsOf(s.scene.entities)));
 	const palette = usePalette();
 	const graphics = useGraphics();
 	const settings = useEditor(

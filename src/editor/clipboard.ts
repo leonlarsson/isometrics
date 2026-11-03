@@ -6,7 +6,12 @@ import { colorSettingOf } from "#/parts/colorModel";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
 import { repairWorld } from "#/parts/repairWorld";
 import { altitudeMovedTo, cornerLift, cornerWithLift } from "#/scene/areas";
-import { bindingMapsOf, fenceBindingMapsOf } from "#/scene/dataBindings";
+import {
+	areaBindingMapsOf,
+	bindingMapsOf,
+	fenceBindingMapsOf,
+	roadBindingMapsOf,
+} from "#/scene/dataBindings";
 import { copyNamer } from "#/scene/naming";
 import { safeJson } from "#/scene/safeJson";
 import {
@@ -652,9 +657,11 @@ const pasteThings = (
 	warnAboutMissingData(
 		missingDataKeys([
 			...newEntities.flatMap(dataKeysOf),
-			...newFences.flatMap((fence) =>
-				fenceBindingMapsOf(fence).flatMap((map) => Object.values(map).map((b) => b.key)),
-			),
+			...[
+				...newFences.flatMap(fenceBindingMapsOf),
+				...newRoads.flatMap(roadBindingMapsOf),
+				...newAreas.flatMap(areaBindingMapsOf),
+			].flatMap((map) => Object.values(map).map((b) => b.key)),
 		]),
 	);
 };

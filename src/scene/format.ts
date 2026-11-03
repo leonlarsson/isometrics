@@ -81,3 +81,10 @@ export const parseValue = (raw: string): number | string => {
 	}
 	return raw;
 };
+
+/** A share from 0 to 1 as a whole percentage: 0.25 → "25%". */
+export const percent = (share: number) => `${Math.round(share * 100)}%`;
+
+/** A count with its noun, the plural for any count but one: "1 road", "3 roads". */
+export const plural = (count: number, one: string, many = `${one}s`) =>
+	`${count} ${count === 1 ? one : many}`;

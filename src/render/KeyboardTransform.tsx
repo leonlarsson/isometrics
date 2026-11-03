@@ -9,6 +9,8 @@ import {
 	pointsStart,
 } from "#/editor/groupTransform";
 import { type ITransformSession, selectMovesAsGroup, useEditor } from "#/editor/store";
+import { wrapDegrees } from "#/lib/math";
+import { isOverWorld } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
@@ -72,8 +74,6 @@ interface IContext {
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const raycaster = new THREE.Raycaster();
 const up = new THREE.Vector3();
-
-const wrap = (degrees: number) => ((((degrees + 180) % 360) + 360) % 360) - 180;
 
 /**
  * Blender-style keyboard transforms (G move, R turn, S resize) for the
@@ -401,7 +401,7 @@ export const KeyboardTransform = () => {
 			const nowPx = toPx(ctx.now);
 			const angle =
 				(Math.atan2(nowPx.y - ctx.centerPx.y, nowPx.x - ctx.centerPx.x) * 180) / Math.PI;
-			ctx.turn += wrap(angle - ctx.angle);
+			ctx.turn += wrapDegrees(angle - ctx.angle);
 			ctx.angle = angle;
 			apply(session);
 		};
@@ -411,10 +411,7 @@ export const KeyboardTransform = () => {
 			event.preventDefault();
 			event.stopPropagation();
 		};
-		// Label cards float over the canvas in their own DOM layer, but they're part of the scene.
-		const inScene = (target: EventTarget | null) =>
-			target instanceof Element &&
-			(element.contains(target) || target.closest("[data-label-layer]") !== null);
+		const inScene = (target: EventTarget | null) => isOverWorld(element, target);
 		const onDown = (event: PointerEvent) => {
 			if (!inScene(event.target)) {
 				return;

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { deleteSavedWorld, duplicateSavedWorld, openSavedWorld } from "#/editor/fileActions";
 import { type IWorldInfo, listWorlds, openWorldId } from "#/editor/persistence";
+import { localDateTime } from "#/lib/when";
 
 import { IconButton } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -12,9 +13,7 @@ import { StorageMeter } from "./StorageMeter";
 
 /** "Edited 23 Oct 2026, 13:55", for a world's last save. */
 export const formatEdited = (ms: number) =>
-	ms
-		? `Edited ${new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
-		: "Edited at an unknown time";
+	ms ? `Edited ${localDateTime(ms)}` : "Edited at an unknown time";
 
 interface IWorldsDialogProps {
 	open: boolean;
