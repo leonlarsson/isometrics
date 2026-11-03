@@ -1,11 +1,12 @@
 import { resolveColor, resolveTransparency } from "#/parts/colorModel";
-import { readScale } from "#/parts/dataBinding";
+import { readScale, readSwitch } from "#/parts/dataBinding";
 import { groundHeightAt } from "#/scene/areas";
 import { fenceLayout } from "#/scene/fences";
-import type { TArea, TFence, TReadableValues } from "#/scene/schema";
+import type { TArea, TFence, TFenceGate, TReadableValues } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { createFenceBuilder } from "./builder";
+import { buildGateLeaves } from "./gates";
 import { FENCE_STYLES } from "./registry";
 
 /**
@@ -17,7 +18,15 @@ import { FENCE_STYLES } from "./registry";
 /** The settings that say how a fence is laid out. */
 export type TFenceShape = Pick<
 	TFence,
-	"kind" | "points" | "loops" | "cornerRadius" | "height" | "postSpacing" | "builtShare" | "data"
+	| "kind"
+	| "points"
+	| "loops"
+	| "cornerRadius"
+	| "height"
+	| "postSpacing"
+	| "builtShare"
+	| "data"
+	| "gates"
 >;
 
 /** Its height: its own, else its style's. */
@@ -33,6 +42,12 @@ export const builtShareOf = (
 	fence: Pick<TFence, "builtShare" | "data">,
 	data: TReadableValues | undefined,
 ) => readScale(fence.data.builtShare, data, { min: 0, max: 1 }) ?? fence.builtShare;
+
+/** Whether a gate stands open now (ADR-0133): a gap always; a swinging gate from data while it follows a value, else as set. */
+export const gateIsOpen = (
+	gate: Pick<TFenceGate, "kind" | "isOpen" | "data">,
+	data: TReadableValues | undefined,
+) => gate.kind === "gap" || (readSwitch(gate.data.isOpen, data) ?? gate.isOpen);
 
 /** Where its posts and spans are, on the ground (the areas) under it. */
 export const layoutOfFence = (
@@ -55,12 +70,27 @@ export const buildFence = (
 ) => {
 	const style = FENCE_STYLES[fence.kind];
 	const builder = createFenceBuilder();
+	const layout = layoutOfFence(fence, areas, data);
+	const height = fenceHeightOf(fence);
 	style.build({
-		layout: layoutOfFence(fence, areas, data),
-		height: fenceHeightOf(fence),
+		layout,
+		height,
 		builder,
 		colorIds: Object.fromEntries(style.colors.map((spec) => [spec.id, spec.id])),
 	});
+	// Swinging gates' leaves, in the style's colours; a gap is only its two posts.
+	for (const place of layout.gates) {
+		const gate = fence.gates[place.index];
+		if (gate?.kind === "swinging") {
+			buildGateLeaves(
+				builder,
+				place,
+				{ ...gate, isOpen: gateIsOpen(gate, data) },
+				style.gate,
+				height,
+			);
+		}
+	}
 	return builder.geometries();
 };
 

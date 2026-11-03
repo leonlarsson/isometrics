@@ -11,6 +11,7 @@ export const chainLinkFence01 = defineFenceStyle({
 		{ id: "posts", name: "Posts and top rail", default: "#8e979c" },
 		{ id: "mesh", name: "Mesh", default: "#a9b3b8", seeThrough: { transparency: 0.55 } },
 	],
+	gate: { infill: "mesh", frameColor: "posts", infillColor: "mesh", leafInset: 0.045 },
 	build: ({ layout, height, builder, colorIds }) => {
 		for (const post of layout.posts) {
 			builder.post(post, { color: colorIds.posts, width: 0.05, height, round: true });

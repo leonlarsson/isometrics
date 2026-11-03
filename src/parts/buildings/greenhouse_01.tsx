@@ -58,6 +58,7 @@ export const greenhouse01 = definePart({
 			realLight: (p) => ({ at: [0, WALL_HEIGHT, 0], reach: Math.max(p.width, p.depth) }),
 		},
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width + 0.1, p.depth + 0.1],
 	height: (p) => WALL_HEIGHT + roofRise(p.width),
 	Component: ({ props: p, colors, transparency, lights }) => {

@@ -11,6 +11,7 @@ export const railFence01 = defineFenceStyle({
 		{ id: "posts", name: "Posts", default: "#7a5534" },
 		{ id: "rails", name: "Rails", default: "#9c7148" },
 	],
+	gate: { infill: "rails", frameColor: "rails", infillColor: "rails", leafInset: 0.07 },
 	build: ({ layout, height, builder, colorIds }) => {
 		for (const post of layout.posts) {
 			builder.post(post, { color: colorIds.posts, width: 0.08, height });

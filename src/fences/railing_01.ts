@@ -9,6 +9,7 @@ export const railing01 = defineFenceStyle({
 	height: 0.42,
 	postSpacing: 1,
 	colors: [{ id: "metal", name: "Metal", default: "#3b4248" }],
+	gate: { infill: "bars", frameColor: "metal", infillColor: "metal", leafInset: 0.04 },
 	build: ({ layout, height, builder, colorIds }) => {
 		for (const post of layout.posts) {
 			builder.post(post, { color: colorIds.metal, width: 0.045, height: height + 0.01 });

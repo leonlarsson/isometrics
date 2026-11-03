@@ -3,17 +3,25 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
-import { builtShareOf, fenceHeightOf, fenceSpacingOf, layoutOfFence } from "#/fences/fenceModel";
+import {
+	builtShareOf,
+	fenceHeightOf,
+	fenceSpacingOf,
+	gateIsOpen,
+	layoutOfFence,
+} from "#/fences/fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "#/fences/registry";
+import { fenceStretches } from "#/scene/fences";
 import { percent } from "#/scene/format";
 import { changeColorSetting } from "#/scene/objectSettings";
 import { roadEnds, type TRoadEnd } from "#/scene/roads";
-import type { TFence, TFenceKind } from "#/scene/schema";
+import type { TFence, TFenceGate, TFenceGateKind, TFenceKind } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
 import { DataDrivenField } from "./DataDrivenField";
 import { FollowDataNote } from "./FollowDataNote";
 import {
+	FieldGroup,
 	Hint,
 	Kbd,
 	resetToDefault,
@@ -37,6 +45,11 @@ const STYLE_OPTIONS = FENCE_STYLE_LIST.map((style) => ({
 	value: style.id,
 	label: FENCE_STYLE_LABELS[style.id],
 }));
+
+const GATE_KIND_OPTIONS: { value: TFenceGateKind; label: string }[] = [
+	{ value: "swinging", label: "Swinging gate" },
+	{ value: "gap", label: "Gap" },
+];
 
 const useFenceEdit = (fence: TFence) => {
 	const updateFence = useEditor((s) => s.updateFence);
@@ -188,6 +201,17 @@ const FencePointPanel = ({ fence, index }: { fence: TFence; index: number }) => 
 						Continue drawing
 					</Button>
 				)}
+
+				<Button
+					size="sm"
+					icon="gate"
+					onClick={() =>
+						// The stretch on from this point; from the last point of an open fence, the one before.
+						store().addFenceGate(fence.id, end === "end" ? index - 1 : index)
+					}
+				>
+					{end === "end" ? "Add a gate before it" : "Add a gate after it"}
+				</Button>
 			</ButtonGroup>
 		</Section>
 	);
@@ -254,6 +278,209 @@ const FencePointsPanel = ({ fence, indices }: { fence: TFence; indices: readonly
 		</Section>
 	);
 };
+
+/** One gate's settings: what it is, where, how wide, and whether it's open, by hand or from data. */
+const FenceGateFields = ({ fence, index }: { fence: TFence; index: number }) => {
+	const data = useWorldData().values;
+	const edit = useFenceEdit(fence);
+	const gate = fence.gates[index];
+	if (!gate) {
+		return null;
+	}
+	const stretches = fenceStretches(fence);
+	const n = fence.points.length;
+	const stretchOptions = stretches.map((_, i) => ({
+		value: String(i),
+		label: `Points ${i + 1} to ${((i + 1) % n) + 1}`,
+	}));
+	const editGate = (field: string, recipe: (gate: TFenceGate) => void) =>
+		edit(`gate:${index}:${field}`, (f) => {
+			const draft = f.gates[index];
+			if (draft) {
+				recipe(draft);
+			}
+		});
+	const isSwinging = gate.kind === "swinging";
+
+	return (
+		<FieldGroup title={`Gate ${index + 1}`}>
+			<SelectField<TFenceGateKind>
+				inherit={resetToDefault(gate.kind, "swinging", () =>
+					editGate("kind", (g) => {
+						g.kind = "swinging";
+					}),
+				)}
+				label="Kind"
+				value={gate.kind}
+				options={GATE_KIND_OPTIONS}
+				onChange={(v) =>
+					editGate("kind", (g) => {
+						g.kind = v;
+					})
+				}
+			/>
+
+			<SelectField
+				hasNoDefault
+				label="On the stretch"
+				value={String(Math.min(gate.spanIndex, stretches.length - 1))}
+				options={stretchOptions}
+				onChange={(v) =>
+					editGate("spanIndex", (g) => {
+						g.spanIndex = Number(v);
+					})
+				}
+			/>
+
+			<SliderField
+				hasNoDefault
+				label="Along it"
+				value={Math.round(gate.alongShare * 100)}
+				min={0}
+				max={100}
+				step={1}
+				suffix="%"
+				hint="Where its middle is, from the stretch's first point (0%) to its next (100%)."
+				onChange={(v) =>
+					editGate("alongShare", (g) => {
+						g.alongShare = v / 100;
+					})
+				}
+			/>
+
+			<SliderField
+				inherit={resetToDefault(gate.width, 1, () =>
+					editGate("width", (g) => {
+						g.width = 1;
+					}),
+				)}
+				label="Width"
+				value={gate.width}
+				min={0.2}
+				max={6}
+				step={0.05}
+				onChange={(v) =>
+					editGate("width", (g) => {
+						g.width = v;
+					})
+				}
+			/>
+
+			{isSwinging ? (
+				<>
+					<DataDrivenField
+						kind="switch"
+						binding={gate.data.isOpen}
+						data={data}
+						onBindingChange={(binding, field) =>
+							editGate(field ? `data.isOpen.${field}` : "data.isOpen", (g) => {
+								if (binding) {
+									g.data.isOpen = binding;
+								} else {
+									delete g.data.isOpen;
+								}
+							})
+						}
+					>
+						<SwitchField
+							inherit={resetToDefault(gate.isOpen, false, () =>
+								editGate("isOpen", (g) => {
+									g.isOpen = false;
+								}),
+							)}
+							label="Open"
+							checked={gate.isOpen}
+							onChange={(v) =>
+								editGate("isOpen", (g) => {
+									g.isOpen = v;
+								})
+							}
+						/>
+					</DataDrivenField>
+
+					<SwitchField
+						inherit={resetToDefault(gate.opensToTheLeft, false, () =>
+							editGate("opensToTheLeft", (g) => {
+								g.opensToTheLeft = false;
+							}),
+						)}
+						label="Swings to the left"
+						checked={gate.opensToTheLeft}
+						onChange={(v) =>
+							editGate("opensToTheLeft", (g) => {
+								g.opensToTheLeft = v;
+							})
+						}
+						hint="Looking along the fence from its first point; off, it swings to the right."
+					/>
+
+					<SwitchField
+						inherit={resetToDefault(gate.hasTwoLeaves, false, () =>
+							editGate("hasTwoLeaves", (g) => {
+								g.hasTwoLeaves = false;
+							}),
+						)}
+						label="Two leaves, meeting in the middle"
+						checked={gate.hasTwoLeaves}
+						onChange={(v) =>
+							editGate("hasTwoLeaves", (g) => {
+								g.hasTwoLeaves = v;
+							})
+						}
+					/>
+
+					{gate.data.isOpen && (
+						<Hint>{gateIsOpen(gate, data) ? "Open now, from data." : "Shut now, from data."}</Hint>
+					)}
+				</>
+			) : (
+				<Hint>A gap is always open: nothing hangs across it. A swinging gate opens and shuts.</Hint>
+			)}
+
+			<ButtonGroup>
+				<Button
+					size="sm"
+					icon="trash"
+					onClick={() => useEditor.getState().removeFenceGate(fence.id, index)}
+				>
+					Remove this gate
+				</Button>
+			</ButtonGroup>
+		</FieldGroup>
+	);
+};
+
+/** The fence's gates and gaps (ADR-0133), and adding one. */
+const FenceGatesSection = ({ fence }: { fence: TFence }) => (
+	<Section
+		id="fence.gates"
+		icon="gate"
+		title="Gates"
+		keywords="gate gates gap opening entrance way through open shut closed swing leaves data"
+	>
+		{fence.gates.length === 0 && (
+			<Hint>
+				No gates yet. A gate is a way through: a swinging gate, open or shut (from data too), or a
+				gap. Add one here, or select a point and Add a gate after it.
+			</Hint>
+		)}
+
+		{fence.gates.map((_, index) => (
+			<FenceGateFields
+				// biome-ignore lint/suspicious/noArrayIndexKey: gates have no ids; each is its place in the list
+				key={index}
+				fence={fence}
+				index={index}
+			/>
+		))}
+
+		<ButtonGroup>
+			<Button size="sm" icon="plus" onClick={() => useEditor.getState().addFenceGate(fence.id)}>
+				Add a gate
+			</Button>
+		</ButtonGroup>
+	</Section>
+);
 
 /** The Shape tab: the selected points, then the whole fence's height, posts, curves and how much is built. */
 const FenceShapeTab = ({ fence }: { fence: TFence }) => {
@@ -357,17 +584,11 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 
 				<SwitchField
 					inherit={resetToDefault(fence.loops, false, () =>
-						edit("loops", (f) => {
-							f.loops = false;
-						}),
+						useEditor.getState().setFenceLoops(fence.id, false),
 					)}
 					label="Loop (join the ends)"
 					checked={fence.loops}
-					onChange={(v) =>
-						edit("loops", (f) => {
-							f.loops = v;
-						})
-					}
+					onChange={(v) => useEditor.getState().setFenceLoops(fence.id, v)}
 				/>
 
 				<Hint>
@@ -377,6 +598,8 @@ const FenceShapeTab = ({ fence }: { fence: TFence }) => {
 					one; double-click a point to remove it.
 				</Hint>
 			</Section>
+
+			<FenceGatesSection fence={fence} />
 
 			<Section
 				id="fence.built"

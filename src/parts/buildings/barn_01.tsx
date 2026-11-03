@@ -40,6 +40,7 @@ export const barn01 = definePart({
 			realLight: (p) => ({ at: [0, LAMP.height - 0.12, p.depth / 2 + LAMP.reach] }),
 		},
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width + 0.3, p.depth + 0.3],
 	height: (p) => WALL_HEIGHT + p.width * 0.55,
 	Component: ({ props: p, colors, lights }) => {

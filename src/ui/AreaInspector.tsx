@@ -3,6 +3,7 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
+import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import {
 	AREA_KIND_LABELS,
 	AREA_KINDS,
@@ -29,7 +30,9 @@ import {
 	TextField,
 	VectorField,
 } from "./fields";
+import { Icon } from "./Icon";
 import type { IInspectorTab } from "./inspectorTabs";
+import { Menu } from "./Menu";
 import { ColorSettingFields } from "./PartSettings";
 import { RipplesNote } from "./WaterSettings";
 
@@ -37,6 +40,25 @@ const TYPE_OPTIONS = (Object.keys(AREA_KIND_LABELS) as TAreaKind[]).map((value) 
 	value,
 	label: AREA_KIND_LABELS[value],
 }));
+
+/**
+ * Fence along the edge's choices (ADR-0133): each fence kind, making a new
+ * fence of it just inside the area's edge all the way round (outside, for
+ * water), standing on its top. In the Area tab and the area's right-click menu.
+ */
+export const FenceAlongEdgeItems = ({ areaId }: { areaId: string }) => (
+	<>
+		{FENCE_STYLE_LIST.map((style) => (
+			<Menu.Item
+				key={style.id}
+				icon="fence"
+				label={FENCE_STYLE_LABELS[style.id]}
+				description={style.description}
+				onClick={() => useEditor.getState().addFenceAlongEdge(areaId, style.id)}
+			/>
+		))}
+	</>
+);
 
 /** Position and height of the selected corner, with delete. */
 const CornerPanel = ({ area, index }: { area: TArea; index: number }) => {
@@ -255,6 +277,23 @@ const AreaTab = ({ area }: { area: TArea }) => {
 
 			<Hint>
 				{Math.round(size)} square units · {area.points.length} corners
+			</Hint>
+
+			<Menu.Root>
+				<Menu.Trigger label="Fence along the edge">
+					<Icon name="fence" size={16} />
+					Fence along the edge
+				</Menu.Trigger>
+
+				<Menu.Popup>
+					<FenceAlongEdgeItems areaId={area.id} />
+				</Menu.Popup>
+			</Menu.Root>
+
+			<Hint>
+				{isWaterArea(area)
+					? "A new fence all the way round it, on the bank just outside its edge. To leave sides open, select it, then Open loop here at a point, or delete points."
+					: "A new fence all the way round it, just inside its edge, on its top if it's raised. To leave sides open, select it, then Open loop here at a point, or delete points."}
 			</Hint>
 		</Section>
 	);

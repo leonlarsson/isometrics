@@ -28,10 +28,17 @@ export const bindingMapsOf = (
 export const usesDataBindings = (entity: Pick<TEntity, "lights" | "colors" | "data" | "dataRow">) =>
 	entity.dataRow !== null || bindingMapsOf(entity).some((map) => Object.keys(map).length > 0);
 
-/** Every place a fence keeps data bindings (ADR-0103): its colours' and its own (`builtShare`). */
+/**
+ * Every place a fence keeps data bindings (ADR-0103, ADR-0133): its colours',
+ * its own (`builtShare`) and each gate's (`isOpen`).
+ */
 export const fenceBindingMapsOf = (
-	fence: Pick<TFence, "colors" | "data">,
-): Record<string, TDataBinding>[] => [fence.data, ...colorBindingMapsOf(fence.colors)];
+	fence: Pick<TFence, "colors" | "data" | "gates">,
+): Record<string, TDataBinding>[] => [
+	fence.data,
+	...colorBindingMapsOf(fence.colors),
+	...fence.gates.map((gate) => gate.data),
+];
 
 /** The data bindings of each colour in a `colors` map (ADR-0060). */
 export const colorBindingMapsOf = (

@@ -16,7 +16,9 @@ export const stoneWall01 = defineFenceStyle({
 	colors: [
 		{ id: "stone", name: "Stone", default: "#a39a8c" },
 		{ id: "topStones", name: "Top stones", default: "#8c8376" },
+		{ id: "gate", name: "Gate", default: "#8a6a48" },
 	],
+	gate: { infill: "boards", frameColor: "gate", infillColor: "gate", leafInset: 0.15 },
 	build: ({ layout, height, builder, colorIds }) => {
 		const body = height * (1 - TOP_STONES);
 		// A block at each post fills the corners where two lengths of wall meet.

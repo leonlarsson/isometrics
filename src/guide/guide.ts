@@ -38,7 +38,7 @@ export const GUIDE: IGuideSection[] = [
 				kind: "points",
 				points: [
 					"**Objects**: buildings, vehicles, trees, lamps and more, from **Add to scene** on the left. Each has its own settings: size, colours, lights.",
-					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point.",
+					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point. A fence can have gates, open or shut by hand or from data, and an area makes one round itself with **Fence along the edge**.",
 					"**Label cards** float over objects with a title and values.",
 					"**Data**: **values** (one number, like registered users), **tables** (rows, one for each warehouse, game or city) and the **sources** they're read from: a spreadsheet, a link or an API.",
 					"Things **follow data**: an object follows a table row, and its size, colours, lights and card show the row's columns. Roads show flows (from, to, amount) with their width and vehicles.",

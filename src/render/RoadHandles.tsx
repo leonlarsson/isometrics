@@ -184,7 +184,13 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 					);
 					if (near) {
 						target = [near.point[0], near.point[1]];
-						state.join = { aId: road.id, aEnd: end, bId: near.roadId, bEnd: near.end };
+						state.join = {
+							target: "road",
+							aId: road.id,
+							aEnd: end,
+							bId: near.roadId,
+							bEnd: near.end,
+						};
 					}
 				}
 				store.moveRoadPoint(road.id, index, target, { coalesce: state.token });

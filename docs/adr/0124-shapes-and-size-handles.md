@@ -30,13 +30,14 @@ Chosen option: **1**.
 - **Every shape has one colour,** Surface, mid grey by default and see-through when set (ADR-0090), a **Finish** (matte, satin, glossy, metal) and a **Glow** light.
 - **Lights that start off:** a part's light can say `whenOn: "off"`, how objects switch it until they say otherwise (the Lights tab shows When: Never as its default). The shapes' glow uses it: a shape glows only when it's told when (After dark, Always, On a schedule or From data).
 - **Size handles:** a part lists the props that size it along its own axes (`sizeAlong: { x, y, z }`). The selected object then gets a handle on each side and on its top (`render/SizeHandles.tsx`): a ball in its axis's colour, like the move arrows (X red, up green, Z blue), so it's told from the gizmo's cube that resizes the whole object by its shape too, drawn inside its turned and scaled group so they sit on its sides however it's turned or tipped. Dragging one moves that side along its axis: the size changes by the distance, snapped to the field's step (Alt or snapping off: freely), and the middle moves half of it, so the opposite side stays where it is; the top grows from the base, so nothing moves. One undo step per drag; Esc or a right click cancels it. A size that follows data has no handle (it's drawn as the data says, ADR-0109).
+- **Size handles on other parts:** parts whose props are their drawn size list them too: the buildings' width and depth (warehouse, house, barn, depot, factory, school, both shops, café, church, greenhouse), the warehouse's, depot's and house's height (the house's wall height, the roof riding on it), the Zone's width and depth, and long things' length and width (shipping container, bench, picnic table, planter, log, flower bed, tunnel). A handle sits on the side of the object's footprint, as its selection frame does, so where the footprint takes in an eave, an awning or a flagpole it stands that far out; a test checks that each listed size grows its footprint or height by just as much (`parts/registry.test.ts`).
 
 ### Consequences
 
 - Good: anything can be built from shapes, and built things are ordinary objects (copy, paste, paint, data, viewpoints).
 - Good: any part can get size handles by listing its size props (zones, buildings, containers), with no code of its own.
 - Bad: a build of many shapes is many objects: moving it is a group move, and there's no "one thing" until prefabs.
-- Later: stacking, where a shape dragged onto another lands on its top as it does on raised land (ADR-0098); handles on parts beyond the shapes.
+- Later: stacking, where a shape dragged onto another lands on its top as it does on raised land (ADR-0098); handles on buildings sized in floors, the top handle adding whole floors.
 
 ## More information
 

@@ -241,6 +241,63 @@ describe("prefabs in the world format", () => {
 	});
 });
 
+describe("a prefab whose fence has a gate (ADR-0133, ADR-0134)", () => {
+	const gated = PrefabSchema.parse({
+		id: "prefab_paddock",
+		name: "Paddock",
+		fences: [
+			{
+				id: "rails",
+				kind: "rail_fence_01",
+				points: [
+					[-3, 2],
+					[3, 2],
+				],
+				gates: [{ spanIndex: 0, alongShare: 0.5, width: 1.5, data: { isOpen: { key: "open" } } }],
+			},
+		],
+	});
+
+	it("keeps the gate through a round trip, with no repairs", () => {
+		const world = worldWith({ prefabs: [gated], entities: [{ id: "c", kind: "prefab_paddock" }] });
+		const { scene, report } = repairWorld(JSON.parse(JSON.stringify(world)));
+		expect(report).toBeNull();
+		expect(scene.prefabs[0].fences[0].gates).toEqual(gated.fences[0].gates);
+	});
+
+	it("has the gate's binding among the world's, and follows data by it", () => {
+		const keys = worldBindingMapsOf(worldWith({ prefabs: [gated] })).flatMap((map) =>
+			Object.values(map).map((binding) => binding.key),
+		);
+		expect(keys).toContain("open");
+		expect(prefabPartOf(gated).readsData).toBe(true);
+	});
+
+	it("leaves out a gate it can't read, as a world's fence does, keeping the fence", () => {
+		const { scene } = repairWorld({
+			version: 1,
+			prefabs: [
+				{
+					id: "prefab_paddock",
+					fences: [
+						{
+							id: "rails",
+							points: [
+								[0, 0],
+								[4, 0],
+							],
+							gates: [{ width: "wide" }, { alongShare: 0.25 }],
+						},
+					],
+				},
+			],
+		});
+		expect(scene.prefabs[0].fences).toHaveLength(1);
+		expect(scene.prefabs[0].fences[0].gates).toHaveLength(1);
+		expect(scene.prefabs[0].fences[0].gates[0]).toMatchObject({ alongShare: 0.25 });
+	});
+});
+
 describe("checking a world with prefabs (ADR-0117)", () => {
 	it("knows copies of its prefabs, and warns about a piece whose part doesn't exist", () => {
 		const result = validateWorld({

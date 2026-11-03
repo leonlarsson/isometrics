@@ -8,7 +8,9 @@ import {
 	groundSpot,
 	keys,
 	loadWorld,
+	menuItem,
 	openEditor,
+	openPanel,
 	outlinerRow,
 	paletteTile,
 	read,
@@ -139,5 +141,102 @@ test.describe("fences (ADR-0103)", () => {
 		expect(await read(page, (s) => s.selectedPointIndices)).toEqual([0, 1]);
 		await clickWith(page, ["Shift"], b.x, b.y);
 		expect(await read(page, (s) => s.selectedPointIndices)).toEqual([0]);
+	});
+});
+
+test.describe("gates, joining and the edge (ADR-0133)", () => {
+	test("a gate is added in the Gates panel, opened, and turned into a gap", async ({ page }) => {
+		await loadWorld(page, { fences: [PICKETS] });
+		await page.evaluate(() => globalThis.__editorStore.getState().selectFence("pickets"));
+		await page.getByRole("tab", { name: "Shape" }).click();
+		await openPanel(page, "Gates");
+		await page.getByRole("button", { name: "Add a gate", exact: true }).click();
+		expect((await fence(page))?.gates).toMatchObject([
+			{ kind: "swinging", spanIndex: 0, alongShare: 0.5, isOpen: false },
+		]);
+		await page.getByRole("switch", { name: "Open", exact: true }).click();
+		expect((await fence(page))?.gates[0].isOpen).toBe(true);
+		await choose(page, "On the stretch", "Points 2 to 3");
+		expect((await fence(page))?.gates[0].spanIndex).toBe(1);
+		await choose(page, "Kind", "Gap");
+		expect((await fence(page))?.gates[0].kind).toBe("gap");
+		await expect(page.getByText("A gap is always open")).toBeVisible();
+
+		// From a selected point: a second gate on the stretch after it.
+		await page.evaluate(() => globalThis.__editorStore.getState().selectFencePoint("pickets", 0));
+		await page.getByRole("button", { name: "Add a gate after it", exact: true }).click();
+		expect((await fence(page))?.gates.map((gate) => gate.spanIndex)).toEqual([1, 0]);
+		await page.getByRole("button", { name: "Remove this gate", exact: true }).first().click();
+		expect((await fence(page))?.gates.map((gate) => gate.spanIndex)).toEqual([0]);
+	});
+
+	test("dragging a fence's end onto another's offers to join them into one", async ({ page }) => {
+		await loadWorld(page, {
+			fences: [
+				{
+					id: "west",
+					kind: "picket_fence_01",
+					points: [
+						[-6, 2, 0],
+						[-1, 2, 0],
+					],
+				},
+				{
+					id: "east",
+					kind: "picket_fence_01",
+					points: [
+						[1, 2, 0],
+						[6, 2, 0],
+					],
+					gates: [{ spanIndex: 0, alongShare: 0.5 }],
+				},
+			],
+		});
+		await showView(page, [0, 2], 20);
+		await page.evaluate(() => globalThis.__editorStore.getState().selectFence("west"));
+		// The handles sit on the fence's top (0.42 for pickets), and drag at that height.
+		const end = await groundSpot(page, [-1, 2], 0.54);
+		const onto = await groundSpot(page, [0.8, 2], 0.42);
+		await dragBy(page, end, onto.x - end.x, onto.y - end.y);
+		expect((await fence(page))?.points[1]).toEqual([1, 2, 0]);
+		await expect(page.getByText("These fence ends touch")).toBeVisible();
+		await page.getByRole("button", { name: "Join", exact: true }).click();
+		const fences = await read(page, (s) => s.scene.fences);
+		expect(fences).toHaveLength(1);
+		expect(fences[0].id).toBe("west");
+		expect(fences[0].points).toEqual([
+			[-6, 2, 0],
+			[1, 2, 0],
+			[6, 2, 0],
+		]);
+		expect(fences[0].gates).toMatchObject([{ spanIndex: 1, alongShare: 0.5 }]);
+		await expect(page.getByText("These fence ends touch")).toBeHidden();
+	});
+
+	test("Fence along the edge puts a fence round an area, on its top", async ({ page }) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "plateau",
+					kind: "raised_land_01",
+					height: 1,
+					points: [
+						[-4, -3],
+						[4, -3],
+						[4, 3],
+						[-4, 3],
+					],
+				},
+			],
+		});
+		await page.evaluate(() => globalThis.__editorStore.getState().selectArea("plateau"));
+		await page.getByRole("button", { name: "Fence along the edge" }).click();
+		await menuItem(page, /^Hedge/).click();
+		const made = await fence(page);
+		expect(made).toMatchObject({ kind: "hedge_01", loops: true });
+		expect(made?.points).toHaveLength(4);
+		expect(made?.points.every(([x, z]) => Math.abs(x) < 4 && Math.abs(z) < 3)).toBe(true);
+		expect(await read(page, (s) => s.selectedFenceId)).toBe(made?.id);
+		await expect(outlinerRow(page, "Hedge 1")).toBeVisible();
 	});
 });
