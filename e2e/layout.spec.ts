@@ -24,13 +24,26 @@ test.describe("the side panes (ADR-0055)", () => {
 test.describe("phones (ADR-0030, ADR-0046)", () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-	test("the panels live in a bottom sheet; selecting opens it", async ({ page }) => {
+	test("the panels live in a bottom sheet; selecting leaves it folded, its tabs open it", async ({
+		page,
+	}) => {
 		await openEditor(page);
+		const sheet = page.locator("[data-sheet]");
 		await expect(page.getByRole("tab", { name: "Add to scene" })).toBeVisible();
 		await page.getByRole("tab", { name: "Outliner" }).click();
 		await expect(page.getByRole("searchbox", { name: "Search the world" })).toBeVisible();
+		await expect(sheet).toHaveAttribute("data-sheet", "open");
+
+		// Cleared, the selection folds it; selected again, it stays folded, the object's tabs in its bar.
 		await act(page, (s) => s.select(s.scene.entities[0].id));
-		await expect(page.getByRole("tab", { name: "Object" })).toBeVisible();
+		await act(page, (s) => s.select(null));
+		await expect(sheet).toHaveAttribute("data-sheet", "closed");
+		await act(page, (s) => s.select(s.scene.entities[0].id));
+		const objectTab = page.getByRole("tab", { name: "Object" });
+		await expect(objectTab).toBeVisible();
+		await expect(sheet).toHaveAttribute("data-sheet", "closed");
+		await objectTab.click();
+		await expect(sheet).toHaveAttribute("data-sheet", "open");
 	});
 
 	test("the sheet's panels scroll when they're taller than it", async ({ page }) => {

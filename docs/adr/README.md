@@ -128,3 +128,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0122](0122-content-security-policy.md) | A full Content Security Policy, with a nonce for each page | proposed |
 | [0123](0123-the-data-tab-and-the-data-window.md) | The Data tab and the Data window: lists by kind, and every path ends in the world | proposed |
 | [0124](0124-shapes-and-size-handles.md) | Shapes to build from, and handles that size an object along each axis | proposed |
+| [0125](0125-selecting-on-phones-leaves-the-sheet.md) | On phones, selecting leaves the sheet as it is | proposed |
