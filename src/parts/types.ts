@@ -229,6 +229,17 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * its main colour (label pins, swatches). Leave out what it doesn't have.
 	 */
 	colors: readonly IColorSpec<C>[];
+	/**
+	 * Its size along each of its own axes, by the prop that holds it (a box's
+	 * width, height and depth): the selected object gets a handle on each of its
+	 * sides and its top to drag that side out or in, the opposite one staying
+	 * where it is (ADR-0124). Its `footprint` and `height` must grow with them.
+	 */
+	sizeAlong?: {
+		x?: Extract<keyof P, string>;
+		y?: Extract<keyof P, string>;
+		z?: Extract<keyof P, string>;
+	};
 	/** Width (x) and depth (z) at scale 1, used for selection and placement. */
 	footprint: (props: P) => [number, number];
 	/** Height at scale 1, used to anchor labels. */

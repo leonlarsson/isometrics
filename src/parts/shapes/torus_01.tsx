@@ -65,6 +65,7 @@ export const torus01 = definePart({
 	],
 	colors: SHAPE_COLORS,
 	lights: shapeLights(),
+	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
 	Component: ({ props: p, colors, transparency, lights }) => {

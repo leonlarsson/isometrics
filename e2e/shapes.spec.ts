@@ -1,4 +1,15 @@
-import { act, expect, loadWorld, openEditor, showView, test } from "./editor";
+import {
+	act,
+	dragBy,
+	entity,
+	expect,
+	gizmoSpot,
+	loadWorld,
+	openEditor,
+	screenOf,
+	showView,
+	test,
+} from "./editor";
 
 test.describe("shapes", () => {
 	test("a shape made see-through and solid again looks as it did", async ({ page }) => {
@@ -24,5 +35,42 @@ test.describe("shapes", () => {
 		expect((await view()).equals(solid)).toBe(false);
 		await setTransparency(0);
 		expect((await view()).equals(solid)).toBe(true);
+	});
+
+	test("a side's handle drags that side out, the opposite one staying; the top's grows it up", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await loadWorld(page, {
+			entities: [
+				{ id: "box", kind: "box_01", position: [0, 0], props: { width: 4, depth: 4, height: 2 } },
+			],
+		});
+		const span = 14;
+		await showView(page, [0, 0], span);
+		await act(page, (s) => s.select("box"));
+
+		// The +X side's handle, dragged a unit further out along X on screen (and a little more, for
+		// the few pixels a drag takes to start).
+		const handle = await gizmoSpot(page, [2, 1, 0], [0.3, 0, 0], span);
+		const [from, to] = [await screenOf(page, [2, 1, 0]), await screenOf(page, [3.1, 1, 0])];
+		await dragBy(page, handle, to.x - from.x, to.y - from.y);
+		const widened = await entity(page, "box");
+		expect(widened?.props.width).toBe(5);
+		// Its −X side stayed where it was.
+		expect((widened?.position[0] ?? 0) - 5 / 2).toBeCloseTo(-2);
+		expect(widened?.props.depth).toBe(4);
+
+		// The top's handle, dragged up a unit: taller, standing where it stood.
+		const top = await gizmoSpot(page, [0.5, 2, 0], [0, 0.3, 0], span);
+		const [low, high] = [await screenOf(page, [0.5, 2, 0]), await screenOf(page, [0.5, 3.1, 0])];
+		await dragBy(page, top, high.x - low.x, high.y - low.y);
+		const raised = await entity(page, "box");
+		expect(raised?.props.height).toBe(3);
+		expect(raised?.altitude).toBe(0);
+
+		// Undone in one step each.
+		await act(page, (s) => s.undo());
+		expect((await entity(page, "box"))?.props.height).toBe(2);
 	});
 });

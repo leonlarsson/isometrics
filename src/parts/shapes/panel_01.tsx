@@ -57,6 +57,7 @@ export const panel01 = definePart({
 	],
 	colors: SHAPE_COLORS,
 	lights: shapeLights(),
+	sizeAlong: { x: "width", y: "height", z: "thickness" },
 	footprint: (p) => [p.width, p.thickness],
 	height: (p) => p.height,
 	Component: ({ props: p, colors, transparency, lights }) => {
