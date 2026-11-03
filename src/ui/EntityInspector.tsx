@@ -4,12 +4,16 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { whyNoWorkshop } from "#/editor/whatIsOpen";
+import { editPrefab } from "#/editor/workshop";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
+import { describePrefab } from "#/parts/prefabParts";
 import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import type { ILightSpec } from "#/parts/types";
+import { currentView } from "#/render/viewpoints";
 import { groundHeightAt } from "#/scene/areas";
 import {
 	polylineLength,
@@ -22,7 +26,14 @@ import {
 } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
 import { rowColumnChoices, tableOfRow } from "#/scene/rowData";
-import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
+import {
+	FollowSchema,
+	isPrefabKind,
+	NO_LABEL,
+	type TEntity,
+	type TTurnStyle,
+	type TVec3,
+} from "#/scene/schema";
 
 /** A vehicle's driving as a new one has it, for Default / Reset. */
 const FOLLOW_DEFAULTS = FollowSchema.parse({ roadId: "" });
@@ -97,6 +108,35 @@ const useEntityEdit = (entity: TEntity) => {
 	};
 };
 
+/**
+ * A prefab's copy (ADR-0134): what it's made of, and Edit in the Workshop, which changes its
+ * design and so every copy; greyed out with the reason where prefabs can't be changed.
+ */
+const PrefabPanel = ({ kind }: { kind: string }) => {
+	const prefab = useEditor((s) => s.scene.prefabs.find((each) => each.id === kind));
+	const copies = useEditor((s) => s.scene.entities.filter((entity) => entity.kind === kind).length);
+	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
+	if (!prefab) {
+		return null;
+	}
+	return (
+		<Section id="object.prefab" icon="prefab" title="Prefab" keywords="workshop design copies">
+			<Hint>
+				{`${describePrefab(prefab)}. ${copies === 1 ? "This is its only copy" : `It has ${copies} copies here`}: changing it changes them all.`}
+			</Hint>
+
+			<Button
+				icon="workshop"
+				block
+				disabled={why !== null}
+				onClick={() => editPrefab(prefab.id, currentView.read?.() ?? null)}
+			>
+				{why ? `Edit in the Workshop (${why})` : "Edit in the Workshop"}
+			</Button>
+		</Section>
+	);
+};
+
 /** The Object tab: what it is, its name, and where it stands. */
 const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const removeEntity = useEditor((s) => s.removeEntity);
@@ -156,6 +196,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					)}
 				/>
 			</Section>
+
+			{isPrefabKind(entity.kind) && <PrefabPanel kind={entity.kind} />}
 
 			<Section
 				id="object.transform"

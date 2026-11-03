@@ -85,7 +85,14 @@ import {
 } from "./paint";
 import { readPreferences, setPreference, subscribePreferences } from "./preferences";
 import { notify } from "./toasts";
-import { type IPreview, previewOf, type TWhatIsOpen } from "./whatIsOpen";
+import {
+	type IPreview,
+	type IWorkshop,
+	OWN_WORLD,
+	previewOf,
+	type TWhatIsOpen,
+	workshopOf,
+} from "./whatIsOpen";
 
 export type TEditorMode = "edit" | "view";
 
@@ -414,6 +421,16 @@ export interface IEditorState {
 	loadScene: (scene: TScene, options?: { preview?: IPreview }) => void;
 	setWhatIsOpen: (whatIsOpen: TWhatIsOpen) => void;
 	setAskingToKeep: (isAskingToKeep: boolean) => void;
+	/**
+	 * Open the Workshop (ADR-0134): `world` in place of the open one, which waits in `workshop.from`
+	 * with its undo history. Nothing is saved meanwhile (`keepsOpenWorld`).
+	 */
+	enterWorkshop: (world: TScene, workshop: IWorkshop) => void;
+	/**
+	 * Go back from the Workshop to the world it came from, as it was, with its view; `change`, if
+	 * given, is then made to it as one undo step (saving the prefab). Returns whether it was open.
+	 */
+	leaveWorkshop: (change?: (scene: Draft<TScene>) => void) => boolean;
 	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
 	revertTo: (before: TScene) => void;
 	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
@@ -1159,7 +1176,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			dataWindow: null,
 			dragging: false,
 			openingWorld: 1,
-			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
+			whatIsOpen: openScene ? OWN_WORLD : { kind: "starting" },
 			isAskingToKeep: false,
 			openedWorldCount: 1,
 			// Remembered in this browser, like the other ways of working (Preferences → Editing).
@@ -1229,7 +1246,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			loadScene: (scene, options = {}) => {
 				warnAboutUnknownParts(scene);
 				set((state) => ({
-					whatIsOpen: { kind: "world", preview: options.preview ?? null },
+					whatIsOpen: { kind: "world", preview: options.preview ?? null, workshop: null },
 					isAskingToKeep: false,
 					// A world from a link opens to be looked at (Edit asks to keep it first); leaving one for a
 					// world of one's own goes back to editing.
@@ -1614,6 +1631,70 @@ export const createEditorStore = (openScene?: TScene) => {
 			},
 			setWhatIsOpen: (whatIsOpen) => set({ whatIsOpen }),
 			setAskingToKeep: (isAskingToKeep) => set({ isAskingToKeep }),
+			enterWorkshop: (world, workshop) => {
+				set({
+					whatIsOpen: { kind: "world", preview: null, workshop },
+					scene: world,
+					past: [],
+					future: [],
+					lastCommit: null,
+					mode: "edit",
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					activeViewpointId: null,
+					cameraFollow: null,
+					dataWindow: null,
+					// Things are built from Add to scene.
+					tab: "add",
+				});
+				get().resetView();
+			},
+			leaveWorkshop: (change) => {
+				const workshop = workshopOf(get().whatIsOpen);
+				if (!workshop) {
+					return false;
+				}
+				const { scene, past, future, view } = workshop.from;
+				set({
+					whatIsOpen: OWN_WORLD,
+					scene,
+					past,
+					future,
+					lastCommit: null,
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					cameraFollow: null,
+					dataWindow: null,
+				});
+				if (change) {
+					get().commit(change);
+				}
+				if (view) {
+					set((s) => ({
+						projection: view.projection,
+						flight: { pose: view, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
+					}));
+				} else {
+					get().resetView();
+				}
+				return true;
+			},
 			setMode: (mode) =>
 				// Editing a world from a link keeps a copy of it: asked first (ADR-0121).
 				mode === "edit" && previewOf(get().whatIsOpen)

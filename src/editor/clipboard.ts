@@ -36,6 +36,7 @@ import type { ISceneItem } from "./framing";
 import { readPreferences } from "./preferences";
 import { type ICommitOptions, newId, renameEntity, useEditor } from "./store";
 import { notify } from "./toasts";
+import { workshopOf } from "./whatIsOpen";
 
 /**
  * Copying and pasting (ADR-0068): things (objects, roads, areas, fences) and a
@@ -534,10 +535,14 @@ const pasteThings = (
 	const { roads, areas, fences } = repaired;
 	// Copies of prefabs bring their designs: added where this world lacks them, and a design
 	// it has is kept as it has it (ADR-0134). A copy whose design came with neither is left out.
+	// Inside the Workshop, none: a prefab can't hold another.
+	const inWorkshop = workshopOf(state.whatIsOpen) !== null;
 	const known = new Set(state.scene.prefabs.map((prefab) => prefab.id));
 	const newPrefabs = repaired.prefabs.filter(
 		(prefab) =>
-			!known.has(prefab.id) && repaired.entities.some((entity) => entity.kind === prefab.id),
+			!inWorkshop &&
+			!known.has(prefab.id) &&
+			repaired.entities.some((entity) => entity.kind === prefab.id),
 	);
 	const designs = new Set([...known, ...newPrefabs.map((prefab) => prefab.id)]);
 	const entities = repaired.entities.filter(

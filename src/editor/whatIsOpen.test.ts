@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { linkInAddress } from "./openLink";
 import { MOST_SOURCES_READ, readOnTheirOwn, sitesOf } from "./sourceRefresh";
-import { keepsOpenWorld, previewOf } from "./whatIsOpen";
+import { keepsOpenWorld, OWN_WORLD, previewOf } from "./whatIsOpen";
 
 describe("what's open (ADR-0121)", () => {
 	it("reads a link from the page's address, and nothing else", () => {
@@ -21,11 +21,11 @@ describe("what's open (ADR-0121)", () => {
 
 	it("only a world of one's own is kept: not a preview, a link or the home screen", () => {
 		const preview = { from: "shared" as const, id: "a", expiresAt: null };
-		expect(keepsOpenWorld({ kind: "world", preview: null })).toBe(true);
-		expect(keepsOpenWorld({ kind: "world", preview })).toBe(false);
+		expect(keepsOpenWorld(OWN_WORLD)).toBe(true);
+		expect(keepsOpenWorld({ ...OWN_WORLD, preview })).toBe(false);
 		expect(keepsOpenWorld({ kind: "home", why: { kind: "noWorlds" } })).toBe(false);
 		expect(keepsOpenWorld({ kind: "starting" })).toBe(false);
-		expect(previewOf({ kind: "world", preview })).toBe(preview);
+		expect(previewOf({ ...OWN_WORLD, preview })).toBe(preview);
 		expect(previewOf({ kind: "home", why: { kind: "chosen" } })).toBeNull();
 	});
 });

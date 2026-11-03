@@ -10,7 +10,10 @@ import {
 } from "#/editor/clipboard";
 import { type ISceneItem, itemKindName } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
+import { whyNoWorkshop } from "#/editor/whatIsOpen";
+import { makePrefabFromSelection, piecesOfSelection } from "#/editor/workshop";
 import { getPart } from "#/parts/registry";
+import { currentView } from "#/render/viewpoints";
 import { takesCornerHeights } from "#/scene/areas";
 import { roadNameOf } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
@@ -38,6 +41,29 @@ const copySelection = () => {
 			"Paste with Ctrl+V where the mouse points, here or in another world.",
 		);
 	}
+};
+
+/**
+ * Make a prefab from these… (or from it, one thing): the selected objects and fences, into the
+ * Workshop (ADR-0134); greyed out with the reason where prefabs can't be made.
+ */
+const MakePrefabItem = ({ isOne }: { isOne: boolean }) => {
+	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
+	const hasPieces = useEditor(
+		(s) => piecesOfSelection(s.scene, s.selectedItems).pieces.entities.length > 0,
+	);
+	const hasFences = useEditor((s) => s.selectedItems.some((item) => item.kind === "fence"));
+	const label = isOne ? "Make a prefab from it…" : "Make a prefab from these…";
+	const reason = why ?? (hasPieces || hasFences ? null : "not a prefab's copy");
+	return (
+		<Menu.Item
+			icon="prefab"
+			label={reason ? `${label} (${reason})` : label}
+			description="In the Workshop: one thing to place again and again, here in their place"
+			disabled={reason !== null}
+			onClick={() => makePrefabFromSelection(currentView.read?.() ?? null)}
+		/>
+	);
 };
 
 /** What to call a road in a menu: its name, or its style. */
@@ -257,6 +283,8 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 
 			<Menu.Item icon="copy" label="Copy" shortcut="Ctrl+C" onClick={copySelection} />
 
+			{(item.kind === "entity" || item.kind === "fence") && <MakePrefabItem isOne />}
+
 			<Menu.Item icon="edit" label="Rename" shortcut="F2" onClick={onRename} />
 
 			<Menu.Item
@@ -364,6 +392,8 @@ const GroupMenu = () => {
 				shortcut="Shift+D"
 				onClick={() => store().duplicateAndGrab()}
 			/>
+
+			<MakePrefabItem isOne={false} />
 
 			<Menu.Separator />
 

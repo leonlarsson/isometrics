@@ -18,7 +18,7 @@ import {
 } from "./persistence";
 import { useEditor } from "./store";
 import { notify } from "./toasts";
-import { keepsOpenWorld } from "./whatIsOpen";
+import { keepsOpenWorld, OWN_WORLD } from "./whatIsOpen";
 
 /**
  * File menu actions, shared by the menu and the keyboard shortcuts. They act on
@@ -249,7 +249,7 @@ export const keepPreview = () => {
 	const title = uniqueTitle(scene.meta.title);
 	const kept = title === scene.meta.title ? scene : { ...scene, meta: { ...scene.meta, title } };
 	createWorld(kept);
-	useEditor.setState({ scene: kept, whatIsOpen: { kind: "world", preview: null } });
+	useEditor.setState({ scene: kept, whatIsOpen: OWN_WORLD });
 	saveCameraNow();
 };
 

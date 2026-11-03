@@ -1,0 +1,4 @@
+/* The name field takes the bar's width, up to a comfortable line. */
+.name {
+	max-width: 22rem;
+}

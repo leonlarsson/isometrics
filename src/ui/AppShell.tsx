@@ -20,6 +20,7 @@ import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
+import { OWN_WORLD } from "#/editor/whatIsOpen";
 import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
@@ -78,6 +79,7 @@ import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
 import { WaitingSourcesDialog } from "./WaitingSourcesDialog";
 import { Welcome } from "./Welcome";
+import { WorkshopBar } from "./WorkshopBar";
 
 import styles from "./AppShell.module.css";
 
@@ -306,7 +308,7 @@ export const AppShell = () => {
 		}
 		// The starter world (nothing stored, or nothing readable) is the store's own: open it as it is.
 		if (stored.status === "empty" || stored.status === "unreadable") {
-			setWhatIsOpen({ kind: "world", preview: null });
+			setWhatIsOpen(OWN_WORLD);
 		}
 	}, []);
 
@@ -392,6 +394,8 @@ export const AppShell = () => {
 								{/* The bars over the top of the view, one under another when several show. */}
 								<div className={styles.topBars}>
 									{showsWorld && <PreviewBar />}
+
+									{showsWorld && <WorkshopBar />}
 
 									<DrawingBar />
 

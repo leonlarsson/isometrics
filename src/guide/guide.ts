@@ -56,6 +56,29 @@ export const GUIDE: IGuideSection[] = [
 		],
 	},
 	{
+		id: "prefabs",
+		title: "Prefabs: objects of your own",
+		blocks: [
+			{
+				kind: "text",
+				text: "A **prefab** is something you build once from shapes, parts and fences (a farmyard, a kiosk, a castle gate) and then place again and again, like a part. Each copy is one object: it moves, turns and resizes as one, and changing the prefab changes every copy.",
+			},
+			{
+				kind: "steps",
+				steps: [
+					"Open **Add to scene**, pick the **Prefabs** chip and click **Make a prefab…**. Or select things in the world, right-click them and choose **Make a prefab from these…** (**Make a prefab from it…** for one thing).",
+					"You're in **the Workshop**: a small world of its own with your world's light and data. Build with everything in **Add to scene**, as anywhere else; only objects and fences become the prefab.",
+					"Name it in the bar at the top and click **Save the prefab**. You're back in your world with a copy: where the selected things were (in their place), or where you were looking. **Leave without saving** goes back with nothing changed.",
+					"Place more from the **Prefabs** chip. To change it, select a copy and click **Edit in the Workshop** in its properties (or right-click its tile).",
+				],
+			},
+			{
+				kind: "note",
+				text: "A prefab can't hold another prefab, and prefabs can't be made in a world from a link until you **Keep a copy**. Copying a copy to another world takes its prefab along.",
+			},
+		],
+	},
+	{
 		id: "walkthrough",
 		title: "Walkthrough: a world from the Battlefield Stats API",
 		blocks: [

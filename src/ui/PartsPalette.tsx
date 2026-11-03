@@ -13,12 +13,15 @@ import { findFreeSpot } from "#/editor/placement";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
+import { whyNoWorkshop } from "#/editor/whatIsOpen";
+import { editPrefab, makeNewPrefab } from "#/editor/workshop";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
 import { colorOf, resolvePartColors, swatchColors } from "#/parts/colorModel";
+import { describePrefab, prefabName, prefabPartOf } from "#/parts/prefabParts";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
-import { fencePictureKey, usePartThumbnails } from "#/render/thumbnails";
+import { fencePictureKey, usePartThumbnails, usePrefabThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
 import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
 import { ROAD_KIND_IDS, ROAD_KIND_LABELS, ROAD_KINDS } from "#/scene/roads";
@@ -70,6 +73,8 @@ const CHIPS: IChip<TPaletteCategory>[] = [
 	{ value: "areas", label: "Areas" },
 	{ value: "fences", label: "Fences" },
 	...partsByCategory().map(([category]) => ({ value: category, label: CATEGORY_LABELS[category] })),
+	// One's own designs (ADR-0134), which no part registry has.
+	{ value: "prefabs", label: CATEGORY_LABELS.prefabs },
 ];
 
 /** Shown until another chip is chosen. */
@@ -95,6 +100,10 @@ interface IPaletteItem {
 	thumbnail?: string;
 	/** Highlighted while this tool is active (drawing this road or area). */
 	pressed?: boolean;
+	/** Greyed out, its name saying why (Make a prefab… in a preview). */
+	disabled?: boolean;
+	/** A prefab of this world's (ADR-0134): its tile's menu offers Edit in the Workshop. */
+	prefabId?: string;
 	/** Part kind, for items that can also be dragged onto the scene. */
 	kind?: string;
 	onSelect: () => void;
@@ -156,7 +165,12 @@ export const PartsPalette = () => {
 	const startDrawing = useEditor((s) => s.startDrawing);
 	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
 	const palette = useThemePalette();
-	const thumbnails = usePartThumbnails(useResolvedTheme());
+	const theme = useResolvedTheme();
+	const thumbnails = usePartThumbnails(theme);
+	// The world's own prefabs (ADR-0134), and why none can be made now, if so.
+	const prefabs = useEditor((s) => s.scene.prefabs);
+	const prefabThumbnails = usePrefabThumbnails(prefabs, theme);
+	const noWorkshop = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 	// Set once a press turned into a drag, so the click that may follow doesn't add a second copy.
@@ -271,6 +285,44 @@ export const PartsPalette = () => {
 				};
 			}),
 		),
+		// Prefabs (ADR-0134): making one in the Workshop, then this world's own.
+		{
+			key: "prefab:new",
+			category: "prefabs" as const,
+			group: CATEGORY_LABELS.prefabs,
+			name: noWorkshop ? `Make a prefab… (${noWorkshop})` : "Make a prefab…",
+			familyName: "Make a prefab…",
+			description: "Build one of your own from shapes, parts and fences, in the Workshop",
+			tooltip:
+				"Build one of your own from shapes, parts and fences, in the Workshop, to place again and again.",
+			searchText: "prefab workshop make build my own design",
+			swatch: `repeating-linear-gradient(135deg, ${palette.selection} 0 6px, transparent 6px 12px)`,
+			disabled: noWorkshop !== null,
+			onSelect: () => makeNewPrefab(currentView.read?.() ?? null),
+		},
+		...prefabs.map((prefab) => {
+			const description = describePrefab(prefab);
+			return {
+				key: `part:${prefab.id}`,
+				category: "prefabs" as const,
+				group: CATEGORY_LABELS.prefabs,
+				name: prefabName(prefab),
+				familyName: prefabName(prefab),
+				description,
+				tooltip: `${description}. Click to add, or drag onto the scene.`,
+				searchText: `${description} prefab`,
+				swatch: `linear-gradient(135deg, ${palette.selection} 55%, ${palette.ground} 55%)`,
+				thumbnail: prefabThumbnails[prefab.id],
+				kind: prefab.id,
+				prefabId: prefab.id,
+				onSelect: () => {
+					const scene = useEditor.getState().scene;
+					const near = currentView.read?.()?.target ?? [0, 0];
+					const part = prefabPartOf(prefab);
+					addEntity({ kind: prefab.id, name: "", position: findFreeSpot(scene, part, near) });
+				},
+			};
+		}),
 	];
 
 	/** Watch a press on a part tile; past the threshold it becomes a drag onto the scene. */
@@ -324,7 +376,8 @@ export const PartsPalette = () => {
 						id: categoryItems[0]?.group ?? category,
 						label: categoryItems[0]?.group ?? category,
 						items: categoryItems,
-						byFamily: true,
+						// Prefabs' ids aren't numbered variants of a family.
+						byFamily: category !== "prefabs",
 					},
 				]),
 	].filter((section) => section.items.length > 0);
@@ -345,6 +398,7 @@ export const PartsPalette = () => {
 						className={styles.part}
 						data-draggable={item.kind ? "" : undefined}
 						aria-pressed={item.pressed}
+						disabled={item.disabled}
 						aria-description={item.kind ? item.tooltip : undefined}
 						onPointerEnter={(event) => {
 							if (item.kind && event.pointerType === "mouse") {
@@ -540,7 +594,7 @@ export const PartsPalette = () => {
 						onOpenChange={(open) => setSectionCollapsed(section.id, !open)}
 					>
 						<div className={styles.grid}>
-							{"byFamily" in section
+							{"byFamily" in section && section.byFamily
 								? familyTiles(section.items, section.id)
 								: section.items.map((item) => tile(item, section.id))}
 						</div>
@@ -564,7 +618,20 @@ export const PartsPalette = () => {
 					<Menu.Item
 						icon={menuItem.kind ? "plus" : "edit"}
 						label={menuItem.kind ? "Add where you're looking" : "Draw it"}
+						disabled={menuItem.disabled}
 						onClick={() => use(menuItem)}
+					/>
+				)}
+
+				{menuItem?.prefabId && (
+					<Menu.Item
+						icon="workshop"
+						label={noWorkshop ? `Edit in the Workshop (${noWorkshop})` : "Edit in the Workshop"}
+						description="Changes it, and every copy of it in this world"
+						disabled={noWorkshop !== null}
+						onClick={() =>
+							menuItem.prefabId && editPrefab(menuItem.prefabId, currentView.read?.() ?? null)
+						}
 					/>
 				)}
 

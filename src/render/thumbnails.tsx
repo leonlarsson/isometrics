@@ -5,17 +5,20 @@ import * as THREE from "three";
 import { FENCE_STYLE_LIST } from "#/fences/registry";
 import { resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
+import { prefabPartOf } from "#/parts/prefabParts";
 import { PARTS, resolveProps, type TAnyPart } from "#/parts/registry";
 import {
 	hasObjectSettings,
 	NO_OBJECT_SETTINGS,
 	type TObjectSettings,
 } from "#/scene/objectSettings";
-import { FenceSchema, type TFenceKind } from "#/scene/schema";
+import { FenceSchema, type TFenceKind, type TPrefab } from "#/scene/schema";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { VIEW_DIRECTION } from "./CameraRig";
 import { FenceBody } from "./FenceMesh";
+// Prefabs' pictures draw their pieces with it (ADR-0134).
+import "./PrefabPieces";
 
 /**
  * Pictures of every part, rendered in the browser from the parts themselves:
@@ -434,6 +437,88 @@ export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails =>
 
 /** Pictures of one part with an object's settings, taken one batch at a time. */
 let settingsShots = Promise.resolve();
+
+/**
+ * Prefabs' pictures (ADR-0134), by theme and design (a changed design gets a new one): replaced,
+ * never changed, so components that read them draw again when one's added.
+ */
+let prefabPictures: Readonly<Record<string, string>> = {};
+const PREFAB_PICTURES_KEPT = 200;
+const prefabListeners = new Set<() => void>();
+const subscribePrefabPictures = (listener: () => void) => {
+	prefabListeners.add(listener);
+	return () => {
+		prefabListeners.delete(listener);
+	};
+};
+const keepPrefabPicture = (key: string, url: string) => {
+	// Oldest first: designs changed many times keep only their latest pictures.
+	const kept = Object.entries(prefabPictures).slice(-(PREFAB_PICTURES_KEPT - 1));
+	prefabPictures = { ...Object.fromEntries(kept), [key]: url };
+	for (const listener of prefabListeners) {
+		listener();
+	}
+};
+/** Each design's text, once: the key its picture is kept under. */
+const designKeys = new WeakMap<TPrefab, string>();
+const designKeyOf = (prefab: TPrefab) => {
+	let key = designKeys.get(prefab);
+	if (key === undefined) {
+		key = JSON.stringify({ ...prefab, name: "", description: "" });
+		designKeys.set(prefab, key);
+	}
+	return key;
+};
+const prefabPictureKey = (prefab: TPrefab, theme: TResolvedTheme) =>
+	`${theme}|${designKeyOf(prefab)}`;
+
+/**
+ * Add to scene's pictures of prefabs, by prefab id, taken as the parts' are (a part made from the
+ * design, by day, in the theme): none at first, each filling in once it's rendered, and taken
+ * again only when its design changes.
+ */
+export const usePrefabThumbnails = (
+	prefabs: readonly TPrefab[],
+	theme: TResolvedTheme,
+): TThumbnails => {
+	const pictures = useSyncExternalStore(
+		subscribePrefabPictures,
+		() => prefabPictures,
+		() => prefabPictures,
+	);
+	const missing = prefabs.filter(
+		(prefab) => !Object.hasOwn(pictures, prefabPictureKey(prefab, theme)),
+	);
+	const missingKey = missing.map((prefab) => prefabPictureKey(prefab, theme)).join("\n");
+	useEffect(() => {
+		if (missing.length === 0) {
+			return;
+		}
+		settingsShots = settingsShots.then(() =>
+			withPictureCanvas(THUMBNAIL_SIZE, async (take) => {
+				for (const prefab of missing) {
+					const key = prefabPictureKey(prefab, theme);
+					if (Object.hasOwn(prefabPictures, key)) {
+						continue;
+					}
+					await idle();
+					const url = await take({
+						part: prefabPartOf(prefab),
+						settings: NO_OBJECT_SETTINGS,
+						look: { theme, night: false },
+					});
+					keepPrefabPicture(key, url);
+				}
+			}).catch((error) => console.warn("Could not render prefab pictures", error)),
+		);
+	}, [missingKey]);
+	return Object.fromEntries(
+		prefabs.flatMap((prefab) => {
+			const key = prefabPictureKey(prefab, theme);
+			return Object.hasOwn(pictures, key) ? [[prefab.id, pictures[key]]] : [];
+		}),
+	);
+};
 
 /** The last batches taken, by part, settings, looks and size: reopening a part shows them at once. */
 const settingsCache = new Map<string, string[]>();

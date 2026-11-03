@@ -50,6 +50,12 @@
 	transition: border-color 120ms ease;
 }
 
+/* Greyed out, its name saying why (Make a prefab… in a preview, ADR-0134), as the kit's buttons. */
+.part:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
 .part[data-draggable] {
 	position: relative;
 	cursor: grab;

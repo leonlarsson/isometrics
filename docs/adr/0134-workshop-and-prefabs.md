@@ -67,6 +67,20 @@ The parts are code: 91 of them, each a file (ADR-0043). People want objects of t
 - Bad: lights in a prefab's pieces glow and switch, but don't light their surroundings with real lights (ADR-0074), as those are registered per object.
 - Bad: a prefab has no colours of its own yet, so all its copies look the same unless their pieces follow data.
 
+## Notes from building it
+
+Where the code made the design more exact, or simpler:
+
+- **Drawing the pieces:** the parts layer can't reach the fences or the 3D view (dependencies point downward), so `render/PrefabPieces` hands `parts/prefabParts` its way of drawing pieces and measuring fences (`drawPrefabPiecesWith`) instead of the parts reaching up. A copy's pieces are drawn inside its own node, so its meshes are still drawn together with other copies' (ADR-0086).
+- **Size:** a copy's footprint is kept centred on its origin (twice the furthest reach either way), since the selection frame and placement are drawn round the origin; a design saved from the Workshop is centred anyway.
+- **Pieces follow data:** a copy whose pieces follow data (or a piece's light on a schedule, or the sun) says so through two new part fields, `readsData` and `followsTheHour`, so the view hands it the data and the hour as it does other objects. Pieces read the world's values, and "row.<column>" the row their copy follows.
+- **Repair:** a prefab's pieces are each repaired on their own, as the world's objects are, so one bad field resets that field rather than dropping the piece or the prefab. A piece that's a prefab is left out.
+- **The other world's parts:** `getPart` knows the open world's prefabs (`setWorldPrefabs`, called by the store whenever `scene.prefabs` changes); code reading another world (world pictures, `validateWorld` on the server, unknown-part warnings while a world opens) asks `partIn(kind, scene.prefabs)`.
+- **`whatIsOpen`:** the Workshop is a `workshop` field of an open world, beside `preview`, holding the world it came from (its scene, undo history and view) to go back to. Nothing is saved and the camera isn't remembered while it's open (`keepsOpenWorld`). It keeps the world's data, sources and look; changes to those inside the Workshop are left there, and only its objects and fences become the prefab (roads and areas drawn there aren't kept).
+- **"Ready to place":** saving a new prefab made from nothing puts one copy where one was looking, selected, as clicking a part's tile does, and Add to scene shows the Prefabs chip to place more. From a selection, the copy takes the selection's place instead.
+- **Greyed out, not hidden:** Make a prefab…, Make a prefab from these… (from it…, for one thing) and Edit in the Workshop say why when they can't be used: "(keep a copy first)" in a preview, "(not inside the Workshop)" in it.
+- **Copy and paste:** a copy's design travels with it on the clipboard; pasting adds it where the world lacks it (a design the world has is kept as it is), and inside the Workshop copies of prefabs are left out.
+
 ## More information
 
 ADR-0124 (shapes and size handles), ADR-0068 (copy and paste), ADR-0120 (worlds shared by link), ADR-0121 (what's open), ADR-0104 (the world's vocabulary). The TODO item "Prefabs" is folded into this.
