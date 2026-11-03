@@ -1,7 +1,7 @@
 import { repairWorld } from "#/parts/repairWorld";
 import type { TScene } from "#/scene/schema";
 import { isWorldPatch } from "#/scene/worldPatch";
-import { TEMPLATES } from "#/templates";
+import { templateById } from "#/templates";
 
 import { allowLink } from "./linkTrust";
 import { markAddressesAsked, outsideAddressesOf } from "./sourceRefresh";
@@ -26,7 +26,10 @@ export const PATCH_LINK =
 	"It holds changes to a world (a patch), not a world, so there's nothing to open on its own. Links like this are for handing changes back from an AI: open the world they're for, then paste the link into Build with AI → Change this world.";
 
 const SHARED_ID = /^[A-Za-z0-9_-]{22}$/;
-/** A template's id: new ones have hyphens (shape-castle), older ones underscores (lantern_bay). */
+/**
+ * What could be a template's id (they're lowercase words joined by hyphens, ADR-0126): one that
+ * isn't, an old `lantern_bay` say, is still read, and says there's no such template.
+ */
 const TEMPLATE_ID = /^[a-z0-9_-]+$/;
 
 /** What the page's address asks to open, if anything. */
@@ -73,7 +76,7 @@ const fetchLinked = async (
 	link: ILinkAsked,
 ): Promise<{ scene: TScene; expiresAt: string | null }> => {
 	if (link.from === "template") {
-		const template = TEMPLATES.find((each) => each.id === link.id);
+		const template = templateById(link.id);
 		if (!template) {
 			throw new ShareError(`There's no template called “${link.id}”.`);
 		}

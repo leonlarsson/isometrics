@@ -9,7 +9,7 @@
  *   node scripts/bench.mjs <world> [runs] [options]
  *
  * <world>: a world file (.json, as File → Save to file writes it) or a template id (brightwater,
- * lantern_bay, …). [runs]: comma-separated, each a mode and words (default edit,view-ultra):
+ * lantern-bay, …). [runs]: comma-separated, each a mode and words (default edit,view-ultra):
  *   edit | view            the editor's mode
  *   standard|nice|ultra    the Graphics preset (default standard)
  *   close                  a close perspective view instead of the overview

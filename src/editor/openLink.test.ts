@@ -14,11 +14,12 @@ describe("opening a link (ADR-0121)", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("reads a template's id from the address, with hyphens or underscores", () => {
+	it("reads a template's id from the address, and leaves out what can't be one", () => {
 		expect(linkInAddress("?template=shape-castle")).toEqual({
 			from: "template",
 			id: "shape-castle",
 		});
+		// An old id is read, to say there's no such template, rather than opening something else.
 		expect(linkInAddress("?template=lantern_bay")).toEqual({ from: "template", id: "lantern_bay" });
 		expect(linkInAddress("?template=Not%20one")).toBeNull();
 	});
