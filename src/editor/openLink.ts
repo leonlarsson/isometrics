@@ -45,8 +45,8 @@ export const linkInAddress = (pathname = window.location.pathname): ILinkAsked |
 };
 
 /**
- * The editor's own address, `/`, once what's open isn't the link: in place, without the router,
- * so the editor carries on as it is (the router would start it over on another route).
+ * The editor's own address, `/`, once what's open isn't the link: in place. The router sees it,
+ * and the editor carries on as it is: its route is the one around `/` and the links (ADR-0129).
  */
 const leaveLinkAddress = () => {
 	if (linkInAddress()) {

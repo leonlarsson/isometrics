@@ -17,7 +17,7 @@ A world shared by link (`/w/<id>`, ADR-0120) and a template (`/templates/<id>`, 
 
 ## Considered options
 
-1. The editor at the links' own addresses: `/w/$id` and `/templates/$id` are the editor's routes too.
+1. The editor at the links' own addresses: one route around `/`, `/w/$id` and `/templates/$id`.
 2. Links as `/?shared=` and `/?template=` only, no short addresses.
 3. Keep the redirect.
 
@@ -25,16 +25,16 @@ A world shared by link (`/w/<id>`, ADR-0120) and a template (`/templates/<id>`, 
 
 Chosen option: **1**.
 
-- `/w/$id` and `/templates/$id` render the editor (`AppShell`, no server rendering), like `/`. It reads the link from the path (`linkInAddress`), and opens it as before (ADR-0121): fetched, asked about if it reads from outside, a preview in View mode.
-- The address stays the link while it's being opened or its preview is open, so a reload opens it again. Once anything else is open (a kept copy, another world, the home screen) it goes back to `/` with `history.replaceState`, in place: never through the router, which would start the editor over on another route.
+- The editor (`AppShell`, no server rendering) is a pathless route, `_editor`, around three that draw nothing of their own: `/`, `/w/$id` and `/templates/$id`. Going from one to another (a link back to `/`) changes only the child, so the editor stays mounted, whatever notices the address. It reads the link from the path (`linkInAddress`), and opens it as before (ADR-0121): fetched, asked about if it reads from outside, a preview in View mode.
+- The address stays the link while it's being opened or its preview is open, so a reload opens it again. Once anything else is open (a kept copy, another world, the home screen) it goes back to `/` with `history.replaceState`, in place. The router sees the change (with three routes side by side it started the editor over, which the end-to-end tests caught); with one route around them, it doesn't.
 - Every id after `/w/` or `/templates/` is read. One that names nothing (an old `lantern_bay`, a mistyped link) lands on the home screen saying it can't be opened, rather than opening the last world under that address; a shared id this site can't have made is refused before anything is fetched.
 - `?shared=` and `?template=` aren't read any more, and there are no redirects from them: they were only ever in the address bar while a preview was open.
 
 ### Consequences
 
 - Good: the link people click is the address they see, and Edit (keep a copy) still carries on in place.
-- Bad: the editor is mounted by three routes; anything that navigates with the router between them would start it over (nothing does; address changes go through `history.replaceState`).
+- Bad: the editor's route is pathless, so its files are `_editor.*.tsx` rather than `index.tsx`.
 
 ## More information
 
-`src/routes/w.$id.tsx`, `src/routes/templates.$id.tsx`, `src/editor/openLink.ts`, `e2e/sharing.spec.ts`. Changes that point of ADR-0121.
+`src/routes/_editor.tsx` and its `_editor.index.tsx`, `_editor.w.$id.tsx`, `_editor.templates.$id.tsx`, `src/editor/openLink.ts`, `e2e/sharing.spec.ts`. Changes that point of ADR-0121.
