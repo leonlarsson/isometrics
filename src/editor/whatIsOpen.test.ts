@@ -6,14 +6,17 @@ import { keepsOpenWorld, previewOf } from "./whatIsOpen";
 
 describe("what's open (ADR-0121)", () => {
 	it("reads a link from the page's address, and nothing else", () => {
-		expect(linkInAddress("?shared=5ttCNb8m9AVF1wwYCij3gA")).toEqual({
+		expect(linkInAddress("/w/5ttCNb8m9AVF1wwYCij3gA")).toEqual({
 			from: "shared",
 			id: "5ttCNb8m9AVF1wwYCij3gA",
 		});
-		expect(linkInAddress("?template=brightwater")).toEqual({ from: "template", id: "brightwater" });
-		expect(linkInAddress("?shared=short")).toBeNull();
-		expect(linkInAddress("?template=../x")).toBeNull();
-		expect(linkInAddress("")).toBeNull();
+		expect(linkInAddress("/templates/brightwater")).toEqual({
+			from: "template",
+			id: "brightwater",
+		});
+		expect(linkInAddress("/?shared=5ttCNb8m9AVF1wwYCij3gA")).toBeNull();
+		expect(linkInAddress("/templates/../x")).toBeNull();
+		expect(linkInAddress("/")).toBeNull();
 	});
 
 	it("only a world of one's own is kept: not a preview, a link or the home screen", () => {

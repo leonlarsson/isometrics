@@ -9,13 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as EditorRouteImport } from './routes/_editor'
 import { Route as GuideRouteImport } from './routes/guide'
 import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
-import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
-import { Route as WIdRouteImport } from './routes/w.$id'
+import { Route as EditorIndexRouteImport } from './routes/_editor.index'
+import { Route as EditorTemplatesIdRouteImport } from './routes/_editor.templates.$id'
+import { Route as EditorWIdRouteImport } from './routes/_editor.w.$id'
 import { Route as ApiUserWorldsIndexRouteImport } from './routes/api/user-worlds/index'
 import { Route as ApiUserWorldsIdRouteImport } from './routes/api/user-worlds/$id'
 import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
@@ -24,9 +25,8 @@ import { Route as ApiWorldsSchemaPatchRouteImport } from './routes/api/worlds/sc
 import { Route as ApiWorldsTemplatesIndexRouteImport } from './routes/api/worlds/templates/index'
 import { Route as ApiWorldsTemplatesIdRouteImport } from './routes/api/worlds/templates/$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const EditorRoute = EditorRouteImport.update({
+  id: '/_editor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuideRoute = GuideRouteImport.update({
@@ -49,15 +49,20 @@ const PartsRoute = PartsRouteImport.update({
   path: '/parts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesIdRoute = TemplatesIdRouteImport.update({
+const EditorIndexRoute = EditorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EditorRoute,
+} as any)
+const EditorTemplatesIdRoute = EditorTemplatesIdRouteImport.update({
   id: '/templates/$id',
   path: '/templates/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => EditorRoute,
 } as any)
-const WIdRoute = WIdRouteImport.update({
+const EditorWIdRoute = EditorWIdRouteImport.update({
   id: '/w/$id',
   path: '/w/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => EditorRoute,
 } as any)
 const ApiUserWorldsIndexRoute = ApiUserWorldsIndexRouteImport.update({
   id: '/api/user-worlds/',
@@ -96,13 +101,13 @@ const ApiWorldsTemplatesIdRoute = ApiWorldsTemplatesIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof EditorIndexRoute
   '/guide': typeof GuideRoute
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/templates/$id': typeof TemplatesIdRoute
-  '/w/$id': typeof WIdRoute
+  '/templates/$id': typeof EditorTemplatesIdRoute
+  '/w/$id': typeof EditorWIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
@@ -112,13 +117,13 @@ export interface FileRoutesByFullPath {
   '/api/worlds/templates/': typeof ApiWorldsTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/guide': typeof GuideRoute
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/templates/$id': typeof TemplatesIdRoute
-  '/w/$id': typeof WIdRoute
+  '/': typeof EditorIndexRoute
+  '/templates/$id': typeof EditorTemplatesIdRoute
+  '/w/$id': typeof EditorWIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/user-worlds': typeof ApiUserWorldsIndexRoute
@@ -129,13 +134,14 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_editor': typeof EditorRouteWithChildren
   '/guide': typeof GuideRoute
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
-  '/templates/$id': typeof TemplatesIdRoute
-  '/w/$id': typeof WIdRoute
+  '/_editor/': typeof EditorIndexRoute
+  '/_editor/templates/$id': typeof EditorTemplatesIdRoute
+  '/_editor/w/$id': typeof EditorWIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
   '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
@@ -163,11 +169,11 @@ export interface FileRouteTypes {
     | '/api/worlds/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/guide'
     | '/guide.md'
     | '/kit'
     | '/parts'
+    | '/'
     | '/templates/$id'
     | '/w/$id'
     | '/api/user-worlds/$id'
@@ -179,13 +185,14 @@ export interface FileRouteTypes {
     | '/api/worlds/templates'
   id:
     | '__root__'
-    | '/'
+    | '/_editor'
     | '/guide'
     | '/guide.md'
     | '/kit'
     | '/parts'
-    | '/templates/$id'
-    | '/w/$id'
+    | '/_editor/'
+    | '/_editor/templates/$id'
+    | '/_editor/w/$id'
     | '/api/user-worlds/$id'
     | '/api/worlds/validate'
     | '/api/user-worlds/'
@@ -196,13 +203,11 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  EditorRoute: typeof EditorRouteWithChildren
   GuideRoute: typeof GuideRoute
   GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
-  TemplatesIdRoute: typeof TemplatesIdRoute
-  WIdRoute: typeof WIdRoute
   ApiUserWorldsIdRoute: typeof ApiUserWorldsIdRoute
   ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
   ApiUserWorldsIndexRoute: typeof ApiUserWorldsIndexRoute
@@ -214,11 +219,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_editor': {
+      id: '/_editor'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof EditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guide': {
@@ -249,19 +254,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$id': {
-      id: '/templates/$id'
+    '/_editor/': {
+      id: '/_editor/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof EditorIndexRouteImport
+      parentRoute: typeof EditorRoute
+    }
+    '/_editor/templates/$id': {
+      id: '/_editor/templates/$id'
       path: '/templates/$id'
       fullPath: '/templates/$id'
-      preLoaderRoute: typeof TemplatesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof EditorTemplatesIdRouteImport
+      parentRoute: typeof EditorRoute
     }
-    '/w/$id': {
-      id: '/w/$id'
+    '/_editor/w/$id': {
+      id: '/_editor/w/$id'
       path: '/w/$id'
       fullPath: '/w/$id'
-      preLoaderRoute: typeof WIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof EditorWIdRouteImport
+      parentRoute: typeof EditorRoute
     }
     '/api/user-worlds/': {
       id: '/api/user-worlds/'
@@ -315,14 +327,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface EditorRouteChildren {
+  EditorIndexRoute: typeof EditorIndexRoute
+  EditorTemplatesIdRoute: typeof EditorTemplatesIdRoute
+  EditorWIdRoute: typeof EditorWIdRoute
+}
+
+const EditorRouteChildren: EditorRouteChildren = {
+  EditorIndexRoute: EditorIndexRoute,
+  EditorTemplatesIdRoute: EditorTemplatesIdRoute,
+  EditorWIdRoute: EditorWIdRoute,
+}
+
+const EditorRouteWithChildren =
+  EditorRoute._addFileChildren(EditorRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  EditorRoute: EditorRouteWithChildren,
   GuideRoute: GuideRoute,
   GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
-  TemplatesIdRoute: TemplatesIdRoute,
-  WIdRoute: WIdRoute,
   ApiUserWorldsIdRoute: ApiUserWorldsIdRoute,
   ApiWorldsValidateRoute: ApiWorldsValidateRoute,
   ApiUserWorldsIndexRoute: ApiUserWorldsIndexRoute,

@@ -10,15 +10,16 @@ import { fetchSharedWorld, ShareError } from "./userWorlds";
 import type { ILinkAsked } from "./whatIsOpen";
 
 /**
- * Opening a world from a link (ADR-0121): `/w/<id>` (a shared world) and
- * `/templates/<id>` redirect to the editor as `/?shared=<id>` and
- * `/?template=<id>`, and the editor then loads nothing else. The world is
+ * Opening a world from a link (ADR-0121, ADR-0129): `/w/<id>` (a shared world)
+ * and `/templates/<id>` are the editor itself, which reads the link from its
+ * address and loads nothing else. The world is
  * fetched (waiting out the minute a new link can take to arrive) and read; a
  * shared world that reads from addresses this browser hasn't allowed waits
  * for an answer before it's built (Open and allow, Open, Don't open it). It
  * opens as a preview in View mode: nothing is kept in this browser until
- * Edit (or Keep a copy) keeps it. The address keeps `?shared=` while the
- * preview is open, so a reload opens it again; it goes once the preview does.
+ * Edit (or Keep a copy) keeps it. The address stays the link while the
+ * preview is open, so a reload opens it again; it goes back to `/`, in place,
+ * once the preview does.
  */
 
 /** Why a link to a patch isn't opened. */
@@ -26,24 +27,27 @@ export const PATCH_LINK =
 	"It holds changes to a world (a patch), not a world, so there's nothing to open on its own. Links like this are for handing changes back from an AI: open the world they're for, then paste the link into Build with AI → Change this world.";
 
 const SHARED_ID = /^[A-Za-z0-9_-]{22}$/;
-/**
- * What could be a template's id (they're lowercase words joined by hyphens, ADR-0126): one that
- * isn't, an old `lantern_bay` say, is still read, and says there's no such template.
- */
-const TEMPLATE_ID = /^[a-z0-9_-]+$/;
 
-/** What the page's address asks to open, if anything. */
-export const linkInAddress = (search = window.location.search): ILinkAsked | null => {
-	const params = new URLSearchParams(search);
-	const shared = params.get("shared");
-	if (shared && SHARED_ID.test(shared)) {
-		return { from: "shared", id: shared };
+/** The link a page's address is, if it's one: `/w/<id>` or `/templates/<id>`. */
+export const linkInAddress = (pathname = window.location.pathname): ILinkAsked | null => {
+	const [, from, encoded, ...rest] = pathname.split("/");
+	if (rest.some(Boolean) || !encoded || (from !== "w" && from !== "templates")) {
+		return null;
 	}
-	const template = params.get("template");
-	return template && TEMPLATE_ID.test(template) ? { from: "template", id: template } : null;
+	// Any id is read, one that names nothing too (an old `lantern_bay`): opening it says so.
+	let id = encoded;
+	try {
+		id = decodeURIComponent(encoded);
+	} catch {
+		// Not percent-encoding after all: read as it is.
+	}
+	return { from: from === "w" ? "shared" : "template", id };
 };
 
-/** The editor's own address, without a link to open. */
+/**
+ * The editor's own address, `/`, once what's open isn't the link: in place. The router sees it,
+ * and the editor carries on as it is: its route is the one around `/` and the links (ADR-0129).
+ */
 const leaveLinkAddress = () => {
 	if (linkInAddress()) {
 		window.history.replaceState(window.history.state, "", "/");
@@ -75,6 +79,9 @@ const openAsPreview = (
 const fetchLinked = async (
 	link: ILinkAsked,
 ): Promise<{ scene: TScene; expiresAt: string | null }> => {
+	if (link.from === "shared" && !SHARED_ID.test(link.id)) {
+		throw new ShareError("It isn't a link to a world shared from this site.");
+	}
 	if (link.from === "template") {
 		const template = templateById(link.id);
 		if (!template) {
@@ -162,8 +169,8 @@ export const answerLink = (answer: "allow" | "open" | "decline") => {
 };
 
 /**
- * Keep the page's address in step with what's open: `?shared=` / `?template=`
- * while the link or its preview is, the editor's own address once something
+ * Keep the page's address in step with what's open: the link (`/w/<id>`,
+ * `/templates/<id>`) while it or its preview is, the editor's own address once something
  * else is (kept, another world, the home screen). Returns an unsubscribe.
  */
 export const keepAddressInStep = () =>

@@ -1,15 +1,10 @@
-/* Over the top of the view, centred, like the drawing and transform bars. */
+/* Over the top of the view, in the stack with the drawing and transform bars (AppShell's topBars). */
 .bar {
-	position: absolute;
-	top: 16px;
-	left: 50%;
-	z-index: 40;
 	display: flex;
 	gap: 12px;
 	width: max-content;
-	max-width: min(560px, calc(100% - 32px));
+	max-width: min(560px, 100%);
 	padding: 12px 12px 12px 14px;
-	transform: translateX(-50%);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	background: var(--surface-raised);

@@ -389,27 +389,30 @@ export const AppShell = () => {
 								{/* Until the world is ready to look at (ADR-0100). */}
 								<LoadingScreen />
 
-								{showsWorld && <PreviewBar />}
+								{/* The bars over the top of the view, one under another when several show. */}
+								<div className={styles.topBars}>
+									{showsWorld && <PreviewBar />}
 
-								<DrawingBar />
+									<DrawingBar />
 
-								<TransformBar />
+									<TransformBar />
 
-								<BoxSelectBar />
+									<BoxSelectBar />
+
+									<JoinOfferBar />
+
+									<FollowOfferBar />
+
+									<ViewpointBar />
+
+									<CameraFollowBar />
+
+									{recovery && (
+										<RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />
+									)}
+								</div>
 
 								<PaintBar />
-
-								<JoinOfferBar />
-
-								<FollowOfferBar />
-
-								<ViewpointBar />
-
-								<CameraFollowBar />
-
-								{recovery && (
-									<RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />
-								)}
 
 								<DetailSheet />
 

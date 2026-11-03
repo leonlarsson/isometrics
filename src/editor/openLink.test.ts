@@ -14,14 +14,32 @@ describe("opening a link (ADR-0121)", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("reads a template's id from the address, and leaves out what can't be one", () => {
-		expect(linkInAddress("?template=shape-castle")).toEqual({
+	it("reads a link from the address it's at: /w/<id> or /templates/<id>", () => {
+		expect(linkInAddress("/w/5ttCNb8m9AVF1wwYCij3gA")).toEqual({
+			from: "shared",
+			id: "5ttCNb8m9AVF1wwYCij3gA",
+		});
+		expect(linkInAddress("/templates/shape-castle")).toEqual({
 			from: "template",
 			id: "shape-castle",
 		});
-		// An old id is read, to say there's no such template, rather than opening something else.
-		expect(linkInAddress("?template=lantern_bay")).toEqual({ from: "template", id: "lantern_bay" });
-		expect(linkInAddress("?template=Not%20one")).toBeNull();
+		// One that names nothing is read too, so opening it says so.
+		expect(linkInAddress("/templates/lantern_bay")).toEqual({
+			from: "template",
+			id: "lantern_bay",
+		});
+		expect(linkInAddress("/")).toBeNull();
+		expect(linkInAddress("/parts")).toBeNull();
+		expect(linkInAddress("/w/")).toBeNull();
+		expect(linkInAddress("/w/a/b")).toBeNull();
+	});
+
+	it("says a shared link with an id this site never makes can't be opened, asking nothing", async () => {
+		const fetching = vi.fn();
+		vi.stubGlobal("fetch", fetching);
+		await openLink({ from: "shared", id: "not-a-world" });
+		expect(fetching).not.toHaveBeenCalled();
+		expect(useEditor.getState().whatIsOpen.kind).toBe("home");
 	});
 
 	it("refuses a link to a patch, saying why, and opens nothing", async () => {
