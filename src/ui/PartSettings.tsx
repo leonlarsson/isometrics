@@ -11,7 +11,7 @@ import { lightDefaults } from "#/parts/lightModel";
 import { propFromData } from "#/parts/propData";
 import { partName, resolveProps, type TAnyPart } from "#/parts/registry";
 import type { IColorSpec, ILightSpec, TFieldSpec } from "#/parts/types";
-import { formatValue } from "#/scene/format";
+import { formatValue, percent } from "#/scene/format";
 import type { TColorSettingChange, TEntityLightChange } from "#/scene/objectSettings";
 import type { TColorSetting, TDataBinding, TDataValue, TEntity } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
@@ -342,7 +342,7 @@ export const ColorSettingFields = ({
 					from: "default",
 					inherited: setting?.transparency == null,
 					onReset: () => onChange({ transparency: null }),
-					value: `${Math.round(spec.seeThrough.transparency * 100)}%`,
+					value: percent(spec.seeThrough.transparency),
 				}}
 				hint="0% is solid, 100% clear."
 			/>

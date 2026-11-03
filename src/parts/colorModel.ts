@@ -25,8 +25,6 @@ export interface IStoredColors {
 /** Settings that can follow data, and how each reads its value (`readColor` for now). */
 export const COLOR_DATA = { color: "color" } as const;
 
-export type TColorDataTarget = keyof typeof COLOR_DATA;
-
 /** A fixed or theme colour as hex. */
 export const resolveColorDefault = (value: TColorDefault, palette: IScenePalette) =>
 	typeof value === "function" ? value(palette) : value;

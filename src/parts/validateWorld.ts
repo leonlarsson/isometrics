@@ -1,5 +1,8 @@
 import type { z } from "zod";
 
+import { turnedHalfSize } from "#/lib/math";
+import { isRecord, type TRecord } from "#/lib/record";
+import { plural } from "#/scene/format";
 import { describeRepairs } from "#/scene/repair";
 import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
@@ -46,11 +49,6 @@ const MOST_ROWS = 100_000;
 const MOST_ISSUES = 40;
 
 const LISTS = ["entities", "roads", "areas", "fences", "viewpoints", "moods"] as const;
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** A path with each list entry named by its id where it has one. */
 const pathWithIds = (root: unknown, path: readonly PropertyKey[]) => {
@@ -153,11 +151,7 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		if (!entity.follow && !part.flat && part.category !== "markers") {
 			// Its footprint turned as it stands: how far it reaches along x and along z.
 			const [width, depth] = part.footprint(resolveProps(part, entity.props));
-			const turn = (entity.rotation[1] * Math.PI) / 180;
-			const cos = Math.abs(Math.cos(turn));
-			const sin = Math.abs(Math.sin(turn));
-			const reachX = ((width * cos + depth * sin) / 2) * entity.scale;
-			const reachZ = ((width * sin + depth * cos) / 2) * entity.scale;
+			const [reachX, reachZ] = turnedHalfSize(width, depth, entity.rotation[1], entity.scale);
 			const [x, z] = entity.position;
 			if (Math.abs(x) + reachX > halfWidth + 0.05 || Math.abs(z) + reachZ > halfDepth + 0.05) {
 				warn(
@@ -241,8 +235,6 @@ const duplicateIds = (raw: TRecord): IWorldIssue[] =>
 			return [];
 		});
 	});
-
-const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /** At most MOST_ISSUES, the rest summed up. */
 const capped = (issues: IWorldIssue[]) =>

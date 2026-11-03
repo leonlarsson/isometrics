@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { plural } from "./format";
 import { upgradeLegacyIds } from "./legacy";
 import { parseScene } from "./migrate";
 import {
@@ -15,6 +16,7 @@ import {
 	SceneSchema,
 	type TScene,
 	ViewpointSchema,
+	WorldDataSchema,
 } from "./schema";
 
 /**
@@ -157,6 +159,17 @@ const SETTINGS = (Object.keys(SceneSchema.shape) as TSceneKey[]).filter(
 	(key) => key !== "version" && !LIST_KEYS.has(key),
 );
 
+/**
+ * Data holds lists, but settings of its own too (whether it's on): those are
+ * repaired one by one like the world's, again taken from the schema.
+ */
+const DATA_LIST_KEYS = new Set<string>(
+	LISTS.flatMap(({ path }) => (path.length === 2 && path[0] === "data" ? [path[1]] : [])),
+);
+const DATA_SETTINGS = (
+	Object.keys(WorldDataSchema.shape) as (keyof typeof WorldDataSchema.shape)[]
+).filter((key) => !DATA_LIST_KEYS.has(key));
+
 /** Repair a world (see above). Throws if the input doesn't look like a world at all. */
 export const repairScene = (input: unknown): { scene: TScene; report: IRepairReport } => {
 	if (typeof input !== "object" || input === null || Array.isArray(input)) {
@@ -198,6 +211,16 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 		}
 	}
 
+	for (const key of DATA_SETTINGS) {
+		const repaired = repairValue(WorldDataSchema.shape[key], readPath(raw, ["data", key]));
+		if (repaired) {
+			writePath(cleaned, ["data", key], repaired.value);
+			report.fixed += repaired.fixes;
+		} else {
+			report.fixed += 1;
+		}
+	}
+
 	for (const { path, schema, id, counter } of LISTS) {
 		const items = readPath(raw, path);
 		if (items !== undefined && !Array.isArray(items)) {
@@ -235,8 +258,6 @@ export const parseOrRepairScene = (
 		return repairScene(input);
 	}
 };
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /** A short, plain description of what a repair changed, for the user. */
 export const describeRepairs = (report: IRepairReport) => {

@@ -18,6 +18,7 @@ import {
 	validatePatch,
 	validateWorld,
 } from "#/parts/validateWorld";
+import { plural } from "#/scene/format";
 import { describeRepairs } from "#/scene/repair";
 import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
@@ -33,8 +34,6 @@ type TBuilds = "new" | "change";
 
 /** Where the dialog is: saying what to build, or bringing back what the AI wrote. */
 type TStep = "ask" | "answer";
-
-const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /** A pasted answer's check in a sentence: what it is, and what's wrong. */
 const summaryOf = (check: IWorldValidation) => {
@@ -152,13 +151,29 @@ export const BuildWithAiDialog = () => {
 		if (!id) {
 			return;
 		}
+		// Replaced before it's read (another link, an answer): what this link gives is dropped.
+		let isReplaced = false;
 		setReadingLink(answer.trim());
 		fetchSharedWorld(id)
-			.then(({ text }) => setAnswer(text))
-			.catch((error) =>
-				setProblem(error instanceof ShareError ? error.message : "The link couldn't be read."),
-			)
-			.finally(() => setReadingLink(null));
+			.then(({ text }) => {
+				if (!isReplaced) {
+					setAnswer(text);
+				}
+			})
+			.catch((error) => {
+				if (!isReplaced) {
+					setProblem(error instanceof ShareError ? error.message : "The link couldn't be read.");
+				}
+			})
+			.finally(() => {
+				if (!isReplaced) {
+					setReadingLink(null);
+				}
+			});
+		return () => {
+			isReplaced = true;
+			setReadingLink(null);
+		};
 	}, [answer]);
 
 	// The answer checked as it's pasted (ADR-0117): the same check as POST /api/worlds/validate.

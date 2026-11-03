@@ -13,13 +13,14 @@ import type { ILightSpec } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
 import {
 	polylineLength,
-	ROAD_KIND_LABELS,
 	resolveLeansInTurns,
 	resolveTurnStyle,
 	roadCenterlineOf,
+	roadNameOf,
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 } from "#/scene/roads";
+import { followAlong } from "#/scene/routes";
 import { rowColumnChoices, tableOfRow } from "#/scene/rowData";
 import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
 
@@ -662,20 +663,11 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 				value={entity.follow?.roadId ?? ""}
 				options={[
 					{ value: "", label: "Nothing (parked)" },
-					...roads.map((r) => ({ value: r.id, label: r.name || ROAD_KIND_LABELS[r.kind] })),
+					...roads.map((r) => ({ value: r.id, label: roadNameOf(r) })),
 				]}
 				onChange={(roadId) =>
 					edit("follow", (e) => {
-						e.follow = roadId
-							? {
-									roadId,
-									speed: e.follow?.speed ?? 2,
-									startDistance: e.follow?.startDistance ?? 0,
-									drivesTheOtherWay: e.follow?.drivesTheOtherWay ?? false,
-									turnStyle: e.follow?.turnStyle ?? null,
-									leansInTurns: e.follow?.leansInTurns ?? null,
-								}
-							: null;
+						e.follow = roadId ? followAlong(e.follow, roadId) : null;
 					})
 				}
 				inherit={resetToDefault(

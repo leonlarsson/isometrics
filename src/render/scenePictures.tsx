@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { toRadians } from "#/lib/math";
 import { colorOf, resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
-import { getPart, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { GROUND } from "#/scene/ground";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
@@ -88,7 +88,7 @@ const startPose = (entity: TEntity, scene: TScene) => {
 		};
 	}
 	const props = resolveProps(part, entity.props);
-	const length = part.footprint(props)[0] * entity.scale;
+	const length = vehicleLengthOf(part, props, entity.scale);
 	const turns = resolveTurnStyle(
 		scene.traffic.turnStyle,
 		road.traffic.turnStyle,

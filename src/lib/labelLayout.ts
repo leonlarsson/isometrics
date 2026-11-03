@@ -51,12 +51,6 @@ export interface ILabelLayoutOptions {
 	step?: number;
 }
 
-const overlaps = (a: IRect, b: IRect, gap: number) =>
-	a.left < b.right + gap &&
-	b.left < a.right + gap &&
-	a.top < b.bottom + gap &&
-	b.top < a.bottom + gap;
-
 /** A card's box when its bottom-centre is at (x, y). */
 const boxAt = (x: number, y: number, size: ISize): IRect => ({
 	left: x - size.width / 2,
@@ -106,26 +100,46 @@ export const layoutLabels = (
 	const shifts = shiftsFor(reach, step);
 	const order = [...items].sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : 1));
 
-	const free = (box: IRect) => !placed.some((other) => overlaps(box, other, gap));
+	/**
+	 * Whether a card's box with its bottom-centre at (x, y), the one `boxAt` gives, keeps `gap`
+	 * clear of everything placed: worked out without making the box, as hundreds of spots are tried a frame.
+	 */
+	const freeAt = (x: number, y: number, size: ISize) => {
+		const left = x - size.width / 2;
+		const top = y - size.height;
+		const right = x + size.width / 2;
+		for (const other of placed) {
+			if (
+				left < other.right + gap &&
+				other.left < right + gap &&
+				top < other.bottom + gap &&
+				other.top < y + gap
+			) {
+				return false;
+			}
+		}
+		return true;
+	};
 
 	/** Its own spot if free, else last frame's if still free (no jumping between near-equal spots), else the nearest free one. */
 	const tryPlace = (item: ILabelItem, compact: boolean) => {
 		const size = compact ? item.chip : item.card;
-		const own = boxAt(item.x, item.y, size);
-		if (free(own)) {
-			return { box: own, placement: { dx: 0, dy: 0, compact } };
+		const at = (dx: number, dy: number) => ({
+			box: boxAt(item.x + dx, item.y + dy, size),
+			placement: { dx, dy, compact },
+		});
+		if (freeAt(item.x, item.y, size)) {
+			return at(0, 0);
 		}
 		const previous = item.previous;
 		if (previous && previous.compact === compact) {
-			const box = boxAt(item.x + previous.dx, item.y + previous.dy, size);
-			if (free(box)) {
-				return { box, placement: { dx: previous.dx, dy: previous.dy, compact } };
+			if (freeAt(item.x + previous.dx, item.y + previous.dy, size)) {
+				return at(previous.dx, previous.dy);
 			}
 		}
 		for (const { dx, dy } of shifts) {
-			const box = boxAt(item.x + dx, item.y + dy, size);
-			if (free(box)) {
-				return { box, placement: { dx, dy, compact } };
+			if (freeAt(item.x + dx, item.y + dy, size)) {
+				return at(dx, dy);
 			}
 		}
 		return null;

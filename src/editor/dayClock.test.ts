@@ -26,6 +26,7 @@ describe("sceneHours", () => {
 		};
 		expect(sceneHours(fromData, [{ key: "hour", value: 18.5 }], 0, 0)).toBe(18.5);
 		expect(sceneHours(fromData, [{ key: "hour", value: "late" }], 0, 0)).toBe(9);
+		expect(sceneHours(fromData, [{ key: "hour", value: "" }], 0, 0)).toBe(9);
 		expect(sceneHours(fromData, [], 0, 0)).toBe(9);
 	});
 

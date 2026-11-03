@@ -3,6 +3,7 @@ import type { Draft } from "immer";
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
+import { percent } from "#/scene/format";
 import { SkySchema, type TBackdrop, type TScene, type TSky } from "#/scene/schema";
 import { skyColorsAt } from "#/scene/sky";
 
@@ -18,8 +19,6 @@ const BACKDROPS: { value: TBackdrop["kind"]; label: string }[] = [
 	{ value: "gradient", label: "A gradient" },
 	{ value: "greenScreen", label: "Green screen" },
 ];
-
-const percent = (amount: number) => `${Math.round(amount * 100)}%`;
 
 /**
  * The sky around the world in perspective (ADR-0070): whether it's drawn, its

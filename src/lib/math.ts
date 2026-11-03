@@ -21,3 +21,19 @@ export const round = (value: number, digits = 3) => {
 	// "+ 0" turns -0 into 0, so a turned position doesn't come out as -0.
 	return Math.round(value * factor) / factor + 0;
 };
+
+/**
+ * How far a width × depth footprint reaches along x and along z (half the box
+ * round it) once turned by `degrees` about its centre and scaled.
+ */
+export const turnedHalfSize = (
+	width: number,
+	depth: number,
+	degrees: number,
+	scale: number,
+): [number, number] => {
+	const turn = (degrees * Math.PI) / 180;
+	const cos = Math.abs(Math.cos(turn));
+	const sin = Math.abs(Math.sin(turn));
+	return [((width * cos + depth * sin) * scale) / 2, ((width * sin + depth * cos) * scale) / 2];
+};

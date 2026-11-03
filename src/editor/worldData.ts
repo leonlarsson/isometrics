@@ -86,11 +86,37 @@ const withoutData = (data: TWorldData) => {
 };
 
 /**
+ * The data with what arrived on top, and the data as on a story's date: one
+ * remembered result per data (it's replaced, never changed), so every frame's
+ * readers and every component share one object and the caches keyed on it.
+ */
+const merges = new WeakMap<TWorldData, { since: IArrivedData; merged: TWorldData }>();
+const mergedOf = (kept: TWorldData, since: IArrivedData) => {
+	const known = merges.get(kept);
+	if (known?.since === since) {
+		return known.merged;
+	}
+	const merged = mergeArrived(kept, since);
+	merges.set(kept, { since, merged });
+	return merged;
+};
+const storyViews = new WeakMap<TWorldData, { at: string; data: TWorldData }>();
+const dataOn = (data: TWorldData, at: string) => {
+	const known = storyViews.get(data);
+	if (known?.at === at) {
+		return known.data;
+	}
+	const then = worldDataAt(data, at);
+	storyViews.set(data, { at, data: then });
+	return then;
+};
+
+/**
  * The data as a story shows it (ADR-0114): as it was on its date in View mode, else as it is.
  * With data off (ADR-0115), none: everything is drawn as set by hand.
  */
 const asOf = (data: TWorldData, at: string | null, inView: boolean) =>
-	!data.enabled ? withoutData(data) : at !== null && inView ? worldDataAt(data, at) : data;
+	!data.enabled ? withoutData(data) : at !== null && inView ? dataOn(data, at) : data;
 
 /** Whether the world uses data (ADR-0115): off hides every data tool, value and tile. */
 export const useUsesData = () => useEditor((s) => s.scene.data.enabled);
@@ -106,18 +132,14 @@ export const useWorldData = (): TWorldData => {
 	const since = useArrived((s) => s);
 	const at = useStory((s) => s.at);
 	// The same object until something changes, so selectors that use it stay settled.
-	const merged = useMemo(
-		() => mergeArrived(kept, since.forOpening === opening ? since : NOTHING_ARRIVED),
-		[kept, since, opening],
-	);
-	return useMemo(() => asOf(merged, at, inView), [merged, at, inView]);
+	return asOf(mergedOf(kept, since.forOpening === opening ? since : NOTHING_ARRIVED), at, inView);
 };
 
 /** What the world keeps with what arrived on top, whatever date a story shows (for keeping it). */
 export const keptWithArrived = (): TWorldData => {
 	const { scene, openedWorldCount } = useEditor.getState();
 	const since = useArrived.getState();
-	return mergeArrived(scene.data, since.forOpening === openedWorldCount ? since : NOTHING_ARRIVED);
+	return mergedOf(scene.data, since.forOpening === openedWorldCount ? since : NOTHING_ARRIVED);
 };
 
 /** The world's data now, for code outside components (each frame, the store's actions). */

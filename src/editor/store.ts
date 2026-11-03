@@ -202,7 +202,7 @@ export interface IRoadDrawing {
 	/** Area type (areas only). */
 	areaType: TAreaKind;
 	/** Fence style (fences only). */
-	fenceStyle?: TFenceKind;
+	fenceStyle: TFenceKind;
 	points: TRoadPoint[];
 	/** When continuing an existing road: its id. Finishing replaces that road's points. */
 	roadId?: string;
@@ -2517,7 +2517,13 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			startDrawing: (style) =>
 				set({
-					drawing: { target: "road", style, areaType: "grass_01", points: [] },
+					drawing: {
+						target: "road",
+						style,
+						areaType: "grass_01",
+						fenceStyle: "picket_fence_01",
+						points: [],
+					},
 					...NOTHING_SELECTED,
 					joinOffer: null,
 					followOffer: null,
@@ -2525,7 +2531,13 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			startAreaDrawing: (areaType) =>
 				set({
-					drawing: { target: "area", style: "road_01", areaType, points: [] },
+					drawing: {
+						target: "area",
+						style: "road_01",
+						areaType,
+						fenceStyle: "picket_fence_01",
+						points: [],
+					},
 					...NOTHING_SELECTED,
 					joinOffer: null,
 					followOffer: null,
@@ -2539,7 +2551,14 @@ export const createEditorStore = (openScene?: TScene) => {
 				// Orient the points so new ones are added after the chosen end.
 				const points = end === "end" ? [...road.points] : [...road.points].reverse();
 				set({
-					drawing: { target: "road", style: road.kind, areaType: "grass_01", points, roadId },
+					drawing: {
+						target: "road",
+						style: road.kind,
+						areaType: "grass_01",
+						fenceStyle: "picket_fence_01",
+						points,
+						roadId,
+					},
 					...NOTHING_SELECTED,
 					joinOffer: null,
 					followOffer: null,
@@ -2733,7 +2752,7 @@ export const createEditorStore = (openScene?: TScene) => {
 						set({ ...NOTHING_SELECTED, selectedFenceId: fenceId, tab: "object" });
 						return fenceId;
 					}
-					const fenceStyle = drawing.fenceStyle ?? "picket_fence_01";
+					const { fenceStyle } = drawing;
 					const count = scene.fences.filter((f) => f.kind === fenceStyle).length;
 					return get().addFence({
 						name: `${FENCE_STYLE_LABELS[fenceStyle]} ${count + 1}`,

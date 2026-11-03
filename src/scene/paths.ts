@@ -112,13 +112,19 @@ export const createPathSampler = (
 	const along = (d: number) =>
 		looped ? ((d % total) + total) % total : Math.min(Math.max(d, 0), total);
 
+	/** The first segment ending at or past d (the last one past the end), by halving: ends only grow. */
 	const segmentAt = (d: number) => {
-		for (const s of segments) {
-			if (d <= s.start + s.length) {
-				return s;
+		let low = 0;
+		let high = segments.length - 1;
+		while (low < high) {
+			const middle = (low + high) >> 1;
+			if (d <= segments[middle].start + segments[middle].length) {
+				high = middle;
+			} else {
+				low = middle + 1;
 			}
 		}
-		return segments[segments.length - 1];
+		return segments[low];
 	};
 
 	/** The point on the centre line at distance d, with the segment it lies on. */

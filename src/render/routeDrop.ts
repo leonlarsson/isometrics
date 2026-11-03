@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { type ICommitOptions, SNAP_STEP, useEditor } from "#/editor/store";
 import { keepOnHotReload } from "#/lib/hot";
 import { DEG2RAD, normalizeDegrees, round, snap } from "#/lib/math";
-import { getPart, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, type IRoadProjection, projectOntoRoad } from "#/scene/routes";
 import type { TRoad, TVec2, TVec3 } from "#/scene/schema";
@@ -178,7 +178,7 @@ export const createVehicleRouteDrag = (
 	if (!entity || !part?.canFollowPath || (entity.follow && !pose)) {
 		return null;
 	}
-	const vehicleLength = part.footprint(resolveProps(part, entity.props))[0] * entity.scale;
+	const vehicleLength = vehicleLengthOf(part, resolveProps(part, entity.props), entity.scale);
 	const follow = entity.follow;
 	// How it stood when picked up, to go back to when it leaves a road again. One picked up off
 	// a road (parked on a bridge, or driving) goes back down to the ground instead of hovering.

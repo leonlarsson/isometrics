@@ -1,10 +1,9 @@
 import { z } from "zod";
 
-import { Box } from "../primitives";
+import { Box, Strut } from "../primitives";
 import { definePart } from "../types";
 
 import { metres, UNITS_PER_METRE } from "./furnitureSize";
-import { Rod } from "./playKit";
 
 const SlideSchema = z.object({});
 
@@ -38,7 +37,7 @@ export const slide01 = definePart({
 					{/* Four posts up to the roof, the deck between them, a ladder at the back. */}
 					{[half, -half].flatMap((x) =>
 						[half, -half].map((z) => (
-							<Rod
+							<Strut
 								key={`${x}:${z}`}
 								from={[x, 0, z]}
 								to={[x, DECK.height + 1.1, z]}
@@ -64,7 +63,7 @@ export const slide01 = definePart({
 					))}
 
 					{[half - 0.04, -half + 0.04].map((z) => (
-						<Rod
+						<Strut
 							key={z}
 							from={[-half - 0.45, 0, z]}
 							to={[-half, DECK.height, z]}

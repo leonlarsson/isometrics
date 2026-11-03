@@ -1,3 +1,4 @@
+import { groupOf, isRecord, type TRecord } from "#/lib/record";
 import { upgradeLegacyIds } from "#/scene/legacy";
 import { parseOrRepairScene } from "#/scene/repair";
 import { safeJson } from "#/scene/safeJson";
@@ -18,11 +19,6 @@ export const upgradeWorld = (input: unknown) =>
 	// A safe copy first (ADR-0119): no prototype keys, no nesting deep enough to overflow.
 	upgradePartSettings(upgradeLegacyIds(safeJson(input)));
 
-type TRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is TRecord =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
 /**
  * Old keys under their new names, in place: a value under the new name wins,
  * and of several old names for it, the latest listed (as `renamedProps` says).
@@ -38,17 +34,6 @@ const renameKeys = (record: TRecord, names: Readonly<Record<string, string>>) =>
 		}
 		delete record[from];
 	}
-};
-
-/** The record under `key`, made if it isn't one. */
-const groupOf = (record: TRecord, key: string): TRecord => {
-	const group = record[key];
-	if (isRecord(group)) {
-		return group;
-	}
-	const made: TRecord = {};
-	record[key] = made;
-	return made;
 };
 
 /**

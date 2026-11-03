@@ -19,6 +19,6 @@ export const formatWhen = (at: string): string => {
 		return at;
 	}
 	return at.length > 10
-		? new Date(time).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+		? localDateTime(time)
 		: new Date(time).toLocaleDateString(undefined, { dateStyle: "medium" });
 };

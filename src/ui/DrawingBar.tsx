@@ -52,7 +52,7 @@ const DrawingControls = () => {
 	const what = isArea
 		? `${AREA_KIND_LABELS[drawing.areaType].toLowerCase()} area`
 		: drawing.target === "fence"
-			? FENCE_STYLE_LABELS[drawing.fenceStyle ?? "picket_fence_01"].toLowerCase()
+			? FENCE_STYLE_LABELS[drawing.fenceStyle].toLowerCase()
 			: ROAD_KIND_LABELS[drawing.style].toLowerCase();
 
 	return (

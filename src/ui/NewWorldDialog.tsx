@@ -4,6 +4,7 @@ import { startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
+import { plural } from "#/scene/format";
 import { SceneSchema, type TDrivingSide, type TScene, type TThemePreference } from "#/scene/schema";
 import {
 	createEmptyScene,
@@ -94,8 +95,6 @@ const PICTURE_SOURCES: IScenePictureSource[] = [
 	...TEMPLATES,
 ];
 const NO_PICTURES: IScenePictureSource[] = [];
-
-const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
 
 /** What a starter comes with, data first (it's what worlds are for, ADR-0019); zero counts are left out. */
 const contentsOf = (scene: TScene) => {

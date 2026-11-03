@@ -10,6 +10,7 @@ import {
 	whenOnOf,
 } from "#/parts/lightModel";
 import { type ILightSpec, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
+import { percent } from "#/scene/format";
 import type { TEntityLightChange } from "#/scene/objectSettings";
 import {
 	DataBindingSchema,
@@ -109,8 +110,6 @@ export const COMES_ON: Record<
 
 /** The first period of a new schedule, and what Add period adds: an evening. */
 const NEW_PERIOD = { from: 18, until: 23 };
-
-const percent = (strength: number) => `${Math.round(strength * 100)}%`;
 
 /** What a shape's reach is called, and what it does. */
 const REACH: Record<string, { label: string; hint: string }> = {

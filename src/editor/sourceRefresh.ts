@@ -6,8 +6,9 @@ import { readSourceAgain } from "#/scene/jsonSource";
 import type { TDataSource, TScene, TWorldData } from "#/scene/schema";
 import { dataFromSheet, guessReading, putReadData, readSheet } from "#/scene/sheets";
 
+import { siteOf } from "./dataList";
 import { allowLink, isLinkAllowed, useAllowedLinks } from "./linkTrust";
-import { LinkError, nameOfLink, readLink, type TLinkContent, type TLinkFailure } from "./readLink";
+import { LinkError, readLink, type TLinkContent, type TLinkFailure } from "./readLink";
 import { useEditor } from "./store";
 import { clearArrived, keptWithArrived, tableArrived, valueArrived } from "./worldData";
 
@@ -96,8 +97,15 @@ export const refreshSource = async (source: TDataSource, { asked = false } = {})
 		return;
 	}
 	setStatus(source.id, { reading: true });
+	// Another world opened while this was read: what came is that world's no more.
+	const opening = useEditor.getState().openedWorldCount;
+	const isStale = () => useEditor.getState().openedWorldCount !== opening;
 	try {
 		const content = await readLink(source.url);
+		if (isStale()) {
+			setStatus(source.id, { reading: false });
+			return;
+		}
 		arriveFrom(useEditor.getState().scene.data, source, content);
 		setStatus(source.id, {
 			readAt: new Date().toISOString(),
@@ -106,6 +114,10 @@ export const refreshSource = async (source: TDataSource, { asked = false } = {})
 			reading: false,
 		});
 	} catch (error) {
+		if (isStale()) {
+			setStatus(source.id, { reading: false });
+			return;
+		}
 		setStatus(source.id, {
 			error: error instanceof LinkError ? error.message : "It couldn't be read.",
 			failure: error instanceof LinkError ? error.why : "unreadable",
@@ -149,30 +161,12 @@ export const outsideAddressesOf = (scene: TScene) => [
 	),
 ];
 
-/** The hosts of some sources, the first few named and the rest counted: "a.com, b.org and 3 more". */
-export const hostsOf = (sources: readonly TDataSource[], most = 5) => {
-	const hosts = [...new Set(sources.map((source) => nameOfLink(source.url ?? "")))];
-	return hosts.length <= most
-		? hosts.join(", ")
-		: `${hosts.slice(0, most).join(", ")} and ${hosts.length - most} more`;
-};
-
 /**
  * The sites some sources are on, by host only, the first few named and the
  * rest counted, for a short line: "api.a.com, b.org and 3 other sites".
  */
 export const sitesOf = (sources: readonly TDataSource[], most = 2) => {
-	const sites = [
-		...new Set(
-			sources.map((source) => {
-				try {
-					return new URL(source.url ?? "").host;
-				} catch {
-					return source.url ?? "";
-				}
-			}),
-		),
-	];
+	const sites = [...new Set(sources.map((source) => siteOf(source.url) ?? source.url ?? ""))];
 	const rest = sites.length - most;
 	return rest <= 0
 		? sites.join(" and ").replace(/ and (?=.* and )/g, ", ")

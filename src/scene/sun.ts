@@ -163,13 +163,21 @@ const KEYS: IKey[] = [
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+/**
+ * The two keyframes around an hour of the day (the first again at 24 after the
+ * last), and how far it is from the one to the other (0 to 1).
+ */
+export const keysAround = <T extends { hour: number }>(keys: readonly T[], hour: number) => {
+	const h = ((hour % 24) + 24) % 24;
+	const next = keys.findIndex((key) => key.hour > h);
+	const a = keys[(next === -1 ? keys.length : next) - 1];
+	const b = next === -1 ? { ...keys[0], hour: 24 } : keys[next];
+	return { a, b, t: (h - a.hour) / (b.hour - a.hour) };
+};
+
 /** The keyframe values at an hour, blended between the two around it. */
 const keyAt = (hour: number): Omit<IKey, "hour"> => {
-	const h = ((hour % 24) + 24) % 24;
-	const next = KEYS.findIndex((key) => key.hour > h);
-	const a = KEYS[(next === -1 ? KEYS.length : next) - 1];
-	const b = next === -1 ? { ...KEYS[0], hour: 24 } : KEYS[next];
-	const t = (h - a.hour) / (b.hour - a.hour);
+	const { a, b, t } = keysAround(KEYS, hour);
 	return {
 		light: mixColor(a.light, b.light, t),
 		strength: lerp(a.strength, b.strength, t),

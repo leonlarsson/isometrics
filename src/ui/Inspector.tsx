@@ -13,7 +13,7 @@ import { useUsesData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
 import { AREA_KIND_LABELS } from "#/scene/areas";
-import { ROAD_KIND_LABELS } from "#/scene/roads";
+import { roadNameOf } from "#/scene/roads";
 
 import { areaTabs } from "./AreaInspector";
 import { IconButton } from "./Button";
@@ -119,7 +119,7 @@ const selectionContext = (
 	}
 	if (road) {
 		return {
-			name: road.name || ROAD_KIND_LABELS[road.kind],
+			name: roadNameOf(road),
 			icon: "road",
 			tabs: roadTabs(road),
 		};

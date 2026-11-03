@@ -21,6 +21,7 @@ export { Hint } from "./Hint";
 export type { IInherit, TResettable } from "./InheritAction";
 export { Input } from "./Input";
 export { Kbd } from "./Kbd";
+export { valuesDiffer } from "./MixedTag";
 export { NumberField } from "./NumberField";
 export { PeriodsField } from "./PeriodsField";
 export { formatClock, type ITimePeriod } from "./periods";

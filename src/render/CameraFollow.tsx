@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { DEG2RAD } from "#/lib/math";
-import { getPart, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 
 import { livePoses } from "./routeDrop";
 import { resetViewShift } from "./viewShift";
@@ -39,7 +39,7 @@ export const CameraFollow = () => {
 	const length = useMemo(() => {
 		const part = entity ? getPart(entity.kind) : undefined;
 		return part
-			? part.footprint(resolveProps(part, entity?.props ?? {}))[0] * (entity?.scale ?? 1)
+			? vehicleLengthOf(part, resolveProps(part, entity?.props ?? {}), entity?.scale ?? 1)
 			: 1.5;
 	}, [entity?.kind, entity?.props, entity?.scale]);
 

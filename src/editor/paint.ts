@@ -1,3 +1,4 @@
+import { turnedHalfSize } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
 import { groundHeightAt } from "#/scene/areas";
 import { isHiddenRoute, pointWidth, roadCenterlineOf } from "#/scene/roads";
@@ -112,15 +113,8 @@ const boxOf = (entity: TEntity) => {
 		return null;
 	}
 	const [width, depth] = part.footprint(resolveProps(part, entity.props));
-	const turn = (entity.rotation[1] * Math.PI) / 180;
-	const cos = Math.abs(Math.cos(turn));
-	const sin = Math.abs(Math.sin(turn));
-	return {
-		x: entity.position[0],
-		z: entity.position[1],
-		halfX: ((width * cos + depth * sin) * entity.scale) / 2,
-		halfZ: ((width * sin + depth * cos) * entity.scale) / 2,
-	};
+	const [halfX, halfZ] = turnedHalfSize(width, depth, entity.rotation[1], entity.scale);
+	return { x: entity.position[0], z: entity.position[1], halfX, halfZ };
 };
 
 /** How far a point is from a segment, on the ground. */

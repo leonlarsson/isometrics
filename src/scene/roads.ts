@@ -60,6 +60,10 @@ export const ROAD_KIND_LABELS = Object.fromEntries(
 	ROAD_KIND_IDS.map((style) => [style, variantName(style, ROAD_KIND_NAMES[style], ROAD_KIND_IDS)]),
 ) as Record<TRoadKind, string>;
 
+/** What a road is called: its own name, else its kind's. */
+export const roadNameOf = (road: Pick<TRoad, "name" | "kind">) =>
+	road.name || ROAD_KIND_LABELS[road.kind];
+
 export const TURN_STYLE_LABELS: Record<TTurnStyle, string> = {
 	smooth: "Smoothly",
 	sharp: "Sharply",

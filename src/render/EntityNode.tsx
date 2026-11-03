@@ -10,7 +10,7 @@ import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
-import { getPart, resolveProps } from "#/parts/registry";
+import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
@@ -232,8 +232,8 @@ export const EntityNode = memo(
 			() => (part ? resolveProps(part, entity.props) : {}),
 			[part, entity.props],
 		);
-		// Vehicles face +X, so their length is the footprint's X; smooth turns take about half of it.
-		const vehicleLength = part ? part.footprint(props)[0] * entity.scale : 1;
+		// Smooth turns take about half of its length.
+		const vehicleLength = part ? vehicleLengthOf(part, props, entity.scale) : 1;
 		const turns = resolveTurnStyle(sceneTurns, road?.traffic.turnStyle, entity.follow?.turnStyle);
 		const reverse = entity.follow?.drivesTheOtherWay ?? false;
 		// How it leans in turns (ADR-0082), if its kind does and the settings let it.

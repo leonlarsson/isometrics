@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { keepOnHotReload } from "#/lib/hot";
+import { dataNumber } from "#/parts/dataBinding";
 import type { TLighting, TReadableValues } from "#/scene/schema";
 import { skyLightAt } from "#/scene/sun";
 
@@ -37,7 +38,8 @@ export const sceneHours = (
 		case "clock":
 			return local(now);
 		case "data": {
-			const value = Number(data.find((entry) => entry.key === lighting.data.time?.key)?.value);
+			// Read as every data number is: empty text is no value, not midnight.
+			const value = dataNumber(data.find((entry) => entry.key === lighting.data.time?.key)?.value);
 			return Number.isFinite(value) ? ((value % 24) + 24) % 24 : lighting.time;
 		}
 		default:

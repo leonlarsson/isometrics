@@ -33,8 +33,9 @@ export const LegendChips = () => {
 	}
 	return (
 		<ul className={styles.legend} aria-label="Legend">
-			{legend.map((entry) => (
-				<li key={`${entry.label}:${entry.meaning}`} className={styles.chip}>
+			{legend.map((entry, index) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: chips have no ids and may repeat
+				<li key={index} className={styles.chip}>
 					<strong>{entry.label}</strong> {entry.meaning}
 				</li>
 			))}

@@ -13,6 +13,8 @@ interface IAreaKind {
 	startHeight: number;
 	roughness: number;
 	staysLevel: boolean;
+	/** Water: see-through ripples and reflections, no snow or wetness, seams with other water. */
+	isWater: boolean;
 }
 
 /** An area kind's one colour, its surface, as the theme has it. */
@@ -27,11 +29,41 @@ const surface = (of: keyof IScenePalette["areas"]): readonly IColorSpec[] => [
  * (ADR-0096), so water stays a level surface that can mirror the world.
  */
 export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
-	water_01: { colors: surface("water"), startHeight: 0, roughness: 0.4, staysLevel: true },
-	grass_01: { colors: surface("grass"), startHeight: 0, roughness: 0.95, staysLevel: false },
-	sand_01: { colors: surface("sand"), startHeight: 0, roughness: 0.95, staysLevel: false },
-	plaza_01: { colors: surface("plaza"), startHeight: 0, roughness: 0.95, staysLevel: false },
-	raised_land_01: { colors: surface("land"), startHeight: 1.5, roughness: 0.95, staysLevel: false },
+	water_01: {
+		colors: surface("water"),
+		startHeight: 0,
+		roughness: 0.4,
+		staysLevel: true,
+		isWater: true,
+	},
+	grass_01: {
+		colors: surface("grass"),
+		startHeight: 0,
+		roughness: 0.95,
+		staysLevel: false,
+		isWater: false,
+	},
+	sand_01: {
+		colors: surface("sand"),
+		startHeight: 0,
+		roughness: 0.95,
+		staysLevel: false,
+		isWater: false,
+	},
+	plaza_01: {
+		colors: surface("plaza"),
+		startHeight: 0,
+		roughness: 0.95,
+		staysLevel: false,
+		isWater: false,
+	},
+	raised_land_01: {
+		colors: surface("land"),
+		startHeight: 1.5,
+		roughness: 0.95,
+		staysLevel: false,
+		isWater: false,
+	},
 };
 
 /** Each type's family name; variants of a family are told apart by number (scene/variants). */
@@ -42,6 +74,9 @@ const AREA_KIND_NAMES: Record<TAreaKind, string> = {
 	plaza_01: "Plaza",
 	raised_land_01: "Raised land",
 };
+
+/** Whether an area is water, by its kind's record (never its id, so variants count). */
+export const isWaterArea = (area: Pick<TArea, "kind">) => AREA_KINDS[area.kind].isWater;
 
 const AREA_KIND_IDS = Object.keys(AREA_KIND_NAMES) as TAreaKind[];
 
@@ -389,11 +424,10 @@ export const MAX_WATER_SEAMS = 64;
  */
 export const waterSeams = (area: TArea, areas: TArea[]) => {
 	const others = areas.filter(
-		(other) =>
-			other.id !== area.id && other.kind === "water_01" && !isRaised(other) && !other.isHidden,
+		(other) => other.id !== area.id && isWaterArea(other) && !isRaised(other) && !other.isHidden,
 	);
 	const seams: [number, number, number, number][] = [];
-	if (area.kind !== "water_01" || isRaised(area) || others.length === 0) {
+	if (!isWaterArea(area) || isRaised(area) || others.length === 0) {
 		return seams;
 	}
 	const { points } = area;

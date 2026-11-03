@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { weatherNowInWorld } from "#/editor/weather";
 import { motionClock } from "#/lib/motionClock";
+import { jitter } from "#/parts/primitives";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { installWeatherShading, weatherShading } from "./weatherShading";
@@ -23,10 +24,6 @@ const MOST_FLAKES = 4000;
 const MOST_SPLASHES = 260;
 
 /** Deterministic pseudo-random in [0, 1), so the field is the same every time. */
-const random = (i: number) => {
-	const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
-	return x - Math.floor(x);
-};
 
 const target = new THREE.Vector3();
 
@@ -127,7 +124,7 @@ const fallGeometry = (count: number, streaks: boolean) => {
 	for (let i = 0; i < count; i++) {
 		for (let end = 0; end < perOne; end++) {
 			const at = i * perOne + end;
-			seeds.set([random(i), random(i + 0.37), random(i + 0.71)], at * 3);
+			seeds.set([jitter(i), jitter(i + 0.37), jitter(i + 0.71)], at * 3);
 			tips[at] = end;
 		}
 	}
@@ -233,7 +230,7 @@ const Splashes = () => {
 		);
 		const seeds = new Float32Array(MOST_SPLASHES * 3);
 		for (let i = 0; i < MOST_SPLASHES; i++) {
-			seeds.set([random(i + 0.13), random(i + 0.53), random(i + 0.91)], i * 3);
+			seeds.set([jitter(i + 0.13), jitter(i + 0.53), jitter(i + 0.91)], i * 3);
 		}
 		instanced.setAttribute("seed", new THREE.InstancedBufferAttribute(seeds, 3));
 		instanced.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Number.POSITIVE_INFINITY);
@@ -299,7 +296,7 @@ const Lightning = () => {
 		const t = motionClock.seconds;
 		const strike = Math.floor(t / every);
 		// Somewhere in the first part of each stretch, a different place each time.
-		const when = strike * every + random(strike + 0.29) * every * 0.6;
+		const when = strike * every + jitter(strike + 0.29) * every * 0.6;
 		light.current.intensity = lightning > 0 ? 3.2 * flashAt(t - when) : 0;
 	});
 	return <hemisphereLight ref={light} args={["#e9efff", "#9aa3c4", 0]} />;
