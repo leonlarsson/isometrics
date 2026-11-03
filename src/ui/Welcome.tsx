@@ -11,39 +11,46 @@ import { Button } from "./Button";
 import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
 import { Hint } from "./fields";
+import { Icon, type TIconName } from "./Icon";
 
 type TWelcomeChoice = "city" | "data" | "ai" | "example";
 
-/** Each way in, the starter its picture shows, and what it opens. */
-const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; picture: string }[] = [
+/** Each way in, and its picture: a starter it opens, or an icon for a way that starts from nothing. */
+const WAYS_IN: {
+	value: TWelcomeChoice;
+	title: string;
+	description: string;
+	picture: { starter: string } | { icon: TIconName };
+}[] = [
 	{
 		value: "city",
 		title: "Build a city",
 		description: "Just build: no data.",
-		picture: "brightwater",
+		picture: { starter: "brightwater" },
 	},
 	{
 		value: "data",
 		title: "Show my data",
 		description: "Map your own numbers.",
-		picture: "battlefield-territory",
+		picture: { starter: "battlefield-territory" },
 	},
 	{
 		value: "ai",
 		title: "Build with AI",
 		description: "Your own AI builds it.",
-		picture: "shape-castle",
+		// No world yet: it starts from words, so the picture is Build with AI's own icon.
+		picture: { icon: "sparkle" },
 	},
 	{
 		value: "example",
 		title: "Explore an example",
 		description: "A finished data map.",
-		picture: "extraction-shooters",
+		picture: { starter: "extraction-shooters" },
 	},
 ];
 
 const PICTURE_SOURCES: IScenePictureSource[] = TEMPLATES.filter((template) =>
-	WAYS_IN.some((way) => way.picture === template.id),
+	WAYS_IN.some((way) => "starter" in way.picture && way.picture.starter === template.id),
 );
 const NO_PICTURES: IScenePictureSource[] = [];
 
@@ -101,7 +108,12 @@ export const Welcome = () => {
 		value: way.value,
 		title: way.title,
 		description: way.description,
-		picture: pictures[way.picture] ? <img src={pictures[way.picture]} alt="" /> : null,
+		picture:
+			"icon" in way.picture ? (
+				<Icon name={way.picture.icon} size={44} />
+			) : pictures[way.picture.starter] ? (
+				<img src={pictures[way.picture.starter]} alt="" />
+			) : null,
 	}));
 
 	return (

@@ -19,7 +19,7 @@ ADR-0116's welcome had three ways in, with **Show my data** going to Build with 
 
 Chosen option: **3**, the owner's call.
 
-- The welcome (`ui/Welcome.tsx`) has four tiles: **Build a city** (New world on the places, **Uses data** off), **Show my data** (New world, every starter, **Uses data** on), **Build with AI** (Build with AI, a new world; its picture is Shape Castle) and **Explore an example** (New world on the data maps).
+- The welcome (`ui/Welcome.tsx`) has four tiles: **Build a city** (New world on the places, **Uses data** off), **Show my data** (New world, every starter, **Uses data** on), **Build with AI** (Build with AI, a new world; its picture is Build with AI's sparkle icon, not a world: there's no world yet, it starts from words) and **Explore an example** (New world on the data maps).
 - New world keeps its own **Build with AI…**; the File menu's Build with AI is unchanged.
 - The README, the guide and the app menu's Welcome… description name the four.
 
