@@ -43,6 +43,7 @@ export const house01 = definePart({
 		{ id: "roof", name: "Roof", default: "#f07b4f", legacy: "color" },
 		{ id: "door", name: "Door", default: "#6b4a3a", legacy: "accent" },
 	],
+	sizeAlong: { x: "width", y: "height", z: "depth" },
 	// With the roof's overhang: what it covers seen from above.
 	footprint: (p) => [p.width + 0.3, p.depth + 0.4],
 	height: (p) => p.height + p.roofHeight,

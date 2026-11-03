@@ -28,6 +28,7 @@ export const depot01 = definePart({
 		{ id: "walls", name: "Walls", default: "#8a5cf0", legacy: "color" },
 		{ id: "roof", name: "Roof", default: "#ece6fb", legacy: "accent" },
 	],
+	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + 0.2,
 	Component: ({ props: p, colors, palette }) => (

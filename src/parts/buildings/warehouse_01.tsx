@@ -47,6 +47,7 @@ export const warehouse01 = definePart({
 		{ id: "walls", name: "Walls", default: "#3d4fd6", legacy: "color" },
 		{ id: "roof", name: "Roof", default: "#e3e6f7", legacy: "accent" },
 	],
+	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height + 0.4,
 	Component: ({ props: p, colors, palette, lights }) => {

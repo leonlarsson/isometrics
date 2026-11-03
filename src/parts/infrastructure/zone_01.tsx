@@ -31,6 +31,7 @@ export const zone01 = definePart({
 		},
 	],
 	colors: [{ id: "fill", name: "Fill", default: "#cfe3f2", legacy: "color" }],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: () => 0.05,
 	Component: ({ props: p, colors }) =>

@@ -44,6 +44,7 @@ export const tunnel01 = definePart({
 		{ id: "walls", name: "Walls", default: "#d9d4c7", legacy: "color" },
 		{ id: "roof", name: "Roof and building", default: "#f1e8d8", legacy: "accent" },
 	],
+	sizeAlong: { x: "length", z: "width" },
 	footprint: (p) => [p.length, p.width + WALL * 2],
 	height: (p) => p.height + WALL + p.buildingHeight,
 	Component: ({ props: p, colors, palette }) => {

@@ -105,6 +105,37 @@ describe("every part's colours (ADR-0060)", () => {
 	);
 });
 
+describe("every part's size handles (ADR-0124)", () => {
+	/** How far it reaches along an axis at scale 1: its footprint's width or depth, or its height. */
+	const extentAlong = (part: TAnyPart, props: Record<string, unknown>, axis: "x" | "y" | "z") =>
+		axis === "y" ? part.height(props) : part.footprint(props)[axis === "x" ? 0 : 1];
+
+	it.each(PARTS.filter((part) => part.sizeAlong).map((part) => [part.kind, part] as const))(
+		"%s's sizes are number fields, and its extent along each axis grows by just as much as its size",
+		(_, part) => {
+			const defaults = part.schema.parse({}) as Record<string, unknown>;
+			for (const [axis, prop] of Object.entries(part.sizeAlong ?? {}) as [
+				"x" | "y" | "z",
+				string,
+			][]) {
+				const field = part.fields.find((spec) => spec.key === prop);
+				expect(field?.type, `${axis}: ${prop}`).toBe("number");
+				if (field?.type !== "number") {
+					continue;
+				}
+				// The handle sits on the side its footprint (or height) says, and the side opposite
+				// stays only if a drag of so much changes the extent by just as much.
+				const size = Number(defaults[prop]);
+				const larger = Math.min(field.max, size + 1);
+				const grown =
+					extentAlong(part, { ...defaults, [prop]: larger }, axis) -
+					extentAlong(part, defaults, axis);
+				expect(grown, `${axis}: ${prop}`).toBeCloseTo(larger - size);
+			}
+		},
+	);
+});
+
 /** A stand-in part with a few kinds of props, one of them renamed. */
 const tower = definePart({
 	kind: "test_tower_01",

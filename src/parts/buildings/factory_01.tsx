@@ -45,6 +45,7 @@ export const factory01 = definePart({
 			realLight: (p) => ({ at: [0, 1.2, p.depth / 2 + 1], reach: p.width }),
 		},
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => Math.max(WALL_HEIGHT + TOOTH_RISE, p.showsChimney ? p.chimneyHeight : 0),
 	Component: ({ props: p, colors, palette, lights }) => {

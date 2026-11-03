@@ -35,6 +35,7 @@ export const shop02 = definePart({
 		{ id: "door", name: "Door", default: "#3d4f6b" },
 	],
 	lights: shopLights<z.output<typeof TownShopSchema>>((p) => [0, 0.4, p.depth / 2 + 0.5]),
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width + 0.1, p.depth + 0.1 + (p.showsAwning ? 0.4 : 0)],
 	height: (p) => p.floorCount * FLOOR_HEIGHT + p.width * 0.55,
 	Component: ({ props: p, colors, palette, lights }) => {

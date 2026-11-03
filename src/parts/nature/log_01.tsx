@@ -21,6 +21,7 @@ export const log01 = definePart({
 		{ id: "bark", name: "Bark", default: "#6e5442", legacy: "color" },
 		{ id: "cutEnds", name: "Cut ends", default: "#d6b98c", legacy: "accent" },
 	],
+	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, RADIUS * 2],
 	height: () => RADIUS * 2,
 	Component: ({ props: p, colors }) => (
