@@ -120,6 +120,14 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 		const thing = fence.name || FENCE_STYLE_LABELS[fence.kind];
 		const item = { kind: "fence", id: fence.id } as const;
 		add(thing, following(fence.data, key), item, "shape");
+		add(
+			thing,
+			fence.gates.flatMap((gate, i) =>
+				gate.data.isOpen?.key === key ? [`gate ${i + 1}: open and shut`] : [],
+			),
+			item,
+			"shape",
+		);
 		const style = FENCE_STYLES[fence.kind];
 		add(
 			thing,

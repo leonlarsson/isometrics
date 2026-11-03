@@ -774,16 +774,16 @@ export const roadEnds = (road: Pick<TRoad, "points" | "loops">) =>
 			] as const);
 
 /**
- * Points of two roads joined end to end: `a` is oriented so its joined end
+ * Points of two roads (or fences) joined end to end: `a` is oriented so its joined end
  * comes last, `b` so its joined end comes first. If the two ends touch, the
  * shared point appears once.
  */
-export const joinedPoints = (
-	a: TRoadPoint[],
+export const joinedPoints = <P extends readonly number[] = TRoadPoint>(
+	a: readonly P[],
 	aEnd: TRoadEnd,
-	b: TRoadPoint[],
+	b: readonly P[],
 	bEnd: TRoadEnd,
-): TRoadPoint[] => {
+): P[] => {
 	const first = aEnd === "end" ? a : [...a].reverse();
 	const second = bEnd === "start" ? b : [...b].reverse();
 	const last = first[first.length - 1];

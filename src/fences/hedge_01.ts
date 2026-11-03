@@ -14,7 +14,9 @@ export const hedge01 = defineFenceStyle({
 	colors: [
 		{ id: "leaves", name: "Leaves", default: "#4f8a3c" },
 		{ id: "leafTops", name: "Leafy top", default: "#5f9b48" },
+		{ id: "gate", name: "Gate", default: "#8a6a48" },
 	],
+	gate: { infill: "boards", frameColor: "gate", infillColor: "gate", leafInset: 0.2 },
 	build: ({ layout, height, builder, colorIds }) => {
 		const body = height * 0.82;
 		// A block at each post fills the corners where two lengths of hedge meet.

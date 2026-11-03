@@ -997,6 +997,61 @@ export const FencePointSchema = z
 		"A fence point: [x, z], or [x, z, lift] to raise the fence that far above the ground there (on a wall, along a bridge). The fence otherwise stands on the ground under it, raised land and slopes included.",
 	);
 
+// See docs/adr/0133-fence-gates-joining-edges.md.
+export const FenceGateKindSchema = z
+	.enum(["swinging", "gap"])
+	.describe(
+		"What the gate is: swinging = a gate in the fence's style hung on a post at its side, open or shut; gap = an opening with nothing across it.",
+	);
+
+// See docs/adr/0133-fence-gates-joining-edges.md.
+export const FenceGateSchema = z
+	.object({
+		kind: FenceGateKindSchema.default("swinging"),
+		spanIndex: z
+			.number()
+			.int()
+			.min(0)
+			.default(0)
+			.describe(
+				"Which stretch of the fence it's on: 0 = from its first point to its second, 1 = from the second to the third…; on a loop the last stretch runs from the last point back to the first.",
+			),
+		alongShare: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"Where its middle is along that stretch: 0 = at the stretch's first point, 0.5 = halfway, 1 = at its next point.",
+			),
+		width: z
+			.number()
+			.min(0.2)
+			.max(20)
+			.default(1)
+			.describe("How wide the opening is, post to post, in grid units."),
+		isOpen: z
+			.boolean()
+			.default(false)
+			.describe("Whether a swinging gate stands open; a gap is always open."),
+		opensToTheLeft: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether a swinging gate swings to the left of the fence's way (looking from its first point towards its last); false = to the right.",
+			),
+		hasTwoLeaves: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether a swinging gate is two leaves meeting in the middle, one hung on each side, as on a drive; false = one leaf.",
+			),
+		data: dataBindings(
+			'Settings that follow a data value: { "isOpen": { key, switchesOnAbove } } opens it while the value is above switchesOnAbove (null = 0), or holds the text on, yes or true.',
+		),
+	})
+	.describe("A gate or a gap in a fence, on one of its stretches.");
+
 // See docs/adr/0103-fences.md.
 export const FenceSchema = z
 	.object({
@@ -1047,6 +1102,12 @@ export const FenceSchema = z
 		data: dataBindings(
 			'Settings that follow a data value: { "builtShare": { key, valueAtFull } } builds value ÷ valueAtFull of it.',
 		),
+		gates: z
+			.array(FenceGateSchema)
+			.default([])
+			.describe(
+				"Its gates and gaps, each on one of its stretches; posts stand at both sides of each. Empty = none.",
+			),
 		isLocked: isLocked("its points"),
 		isHidden: isHidden(),
 	})
@@ -1682,6 +1743,8 @@ export type TFence = z.output<typeof FenceSchema>;
 export type TFenceInput = z.input<typeof FenceSchema>;
 export type TFenceKind = z.output<typeof FenceKindSchema>;
 export type TFencePoint = z.output<typeof FencePointSchema>;
+export type TFenceGate = z.output<typeof FenceGateSchema>;
+export type TFenceGateKind = z.output<typeof FenceGateKindSchema>;
 export type TGround = z.output<typeof GroundSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
