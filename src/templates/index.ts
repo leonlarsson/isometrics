@@ -35,7 +35,7 @@ export const TEMPLATES: ITemplateInfo[] = [
 		create: createBrightwaterScene,
 	},
 	{
-		id: "lantern_bay",
+		id: "lantern-bay",
 		name: "Lantern Bay",
 		description:
 			"Waterfront at dusk: lit towers, lamps on the promenade, a mirror-calm harbour. Best with Graphics: Ultra",
@@ -58,7 +58,7 @@ export const TEMPLATES: ITemplateInfo[] = [
 		create: createShapeCastleScene,
 	},
 	{
-		id: "battlefield_territory",
+		id: "battlefield-territory",
 		name: "Battlefield territory",
 		description:
 			"A data map from Battlefield Stats: a cluster per game sized by messages, flows to the bot, a live users count and a story of the months",
@@ -66,7 +66,7 @@ export const TEMPLATES: ITemplateInfo[] = [
 		create: createBattlefieldTerritoryScene,
 	},
 	{
-		id: "extraction_shooters",
+		id: "extraction-shooters",
 		name: "Extraction shooter territory",
 		description:
 			"A data map of Steam players: a cluster per game, roads for shared audiences, stat tiles and no data where there's none",
@@ -74,3 +74,11 @@ export const TEMPLATES: ITemplateInfo[] = [
 		create: createExtractionShootersScene,
 	},
 ];
+
+/**
+ * A template by its id, or by the id it had with underscores before ids took hyphens
+ * (`lantern_bay` for `lantern-bay`, ADR-0126), so links and tools made before keep working.
+ */
+export const templateById = (id: string) =>
+	TEMPLATES.find((template) => template.id === id) ??
+	TEMPLATES.find((template) => template.id === id.replaceAll("_", "-"));

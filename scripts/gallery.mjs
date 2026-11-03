@@ -19,23 +19,23 @@ const OUT = fileURLToPath(new URL("../docs/gallery", import.meta.url));
 
 /** Each picture: a name, then shots.mjs options (a view, a time or mood, the cards). */
 const PICTURES = [
-	["lantern-bay", "--template", "lantern_bay", "--views", "view_bay", "--mood", "mood_golden"],
-	["lantern-bay", "--template", "lantern_bay", "--views", "view_promenade", "--mood", "mood_night"],
-	["lantern-bay", "--template", "lantern_bay", "--views", "view_basin", "--mood", "mood_blue"],
+	["lantern-bay", "--template", "lantern-bay", "--views", "view_bay", "--mood", "mood_golden"],
+	["lantern-bay", "--template", "lantern-bay", "--views", "view_promenade", "--mood", "mood_night"],
+	["lantern-bay", "--template", "lantern-bay", "--views", "view_basin", "--mood", "mood_blue"],
 	[
 		"lantern-bay",
 		"--template",
-		"lantern_bay",
+		"lantern-bay",
 		"--views",
 		"view_lighthouse",
 		"--mood",
 		"mood_night",
 	],
-	["lantern-bay", "--template", "lantern_bay", "--views", "view_lanes", "--mood", "mood_golden"],
+	["lantern-bay", "--template", "lantern-bay", "--views", "view_lanes", "--mood", "mood_golden"],
 	[
 		"lantern-bay-cards",
 		"--template",
-		"lantern_bay",
+		"lantern-bay",
 		"--views",
 		"view_overview",
 		"--mood",

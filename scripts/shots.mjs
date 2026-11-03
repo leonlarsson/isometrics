@@ -22,7 +22,7 @@
  *                                    or viewpoint ids (default close)
  *   --pose '{"target":[0,0],…}'       a camera of its own (a viewpoint's fields), shot as the view "pose"
  *   --size 1600x1000@1               the page's size in CSS px, @ device pixels per px
- *   --template lantern_bay           a starter world other than Brightwater (its id, from /api/worlds/templates)
+ *   --template lantern-bay           a starter world other than Brightwater (its id, from /api/worlds/templates)
  *   --mode view|edit                 the editor's mode (default view); --select <id> selects a thing
  *   --frames 120                     frames to time per shot; --no-shots to only time them
  *   --with-cards                     the stage as View mode shows it: the title and label cards over

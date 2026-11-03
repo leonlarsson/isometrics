@@ -26,13 +26,13 @@ const WAYS_IN: { value: TWelcomeChoice; title: string; description: string; pict
 		value: "data",
 		title: "Show my data",
 		description: "Map your own numbers.",
-		picture: "battlefield_territory",
+		picture: "battlefield-territory",
 	},
 	{
 		value: "example",
 		title: "Explore an example",
 		description: "A finished data map.",
-		picture: "extraction_shooters",
+		picture: "extraction-shooters",
 	},
 ];
 

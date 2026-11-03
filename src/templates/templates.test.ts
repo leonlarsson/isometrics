@@ -4,7 +4,7 @@ import { getPart, resolveProps } from "#/parts/registry";
 import { wearsMood } from "#/scene/moods";
 import type { TEntity } from "#/scene/schema";
 
-import { createEmptyScene, TEMPLATES } from "./index";
+import { createEmptyScene, TEMPLATES, templateById } from "./index";
 import { createLanternBayScene } from "./lanternBay";
 
 const templates = [
@@ -60,6 +60,22 @@ const overlapOf = (a: TBody, b: TBody) => {
 	}
 	return least;
 };
+
+describe("template ids (ADR-0126)", () => {
+	it("are words joined by hyphens, as they're seen and typed in addresses", () => {
+		for (const { id } of TEMPLATES) {
+			expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+		}
+	});
+
+	it("still find a template by the id it had with underscores", () => {
+		expect(templateById("lantern_bay")?.id).toBe("lantern-bay");
+		expect(templateById("battlefield_territory")?.id).toBe("battlefield-territory");
+		expect(templateById("extraction_shooters")?.id).toBe("extraction-shooters");
+		expect(templateById("brightwater")?.id).toBe("brightwater");
+		expect(templateById("nowhere")).toBeUndefined();
+	});
+});
 
 describe("templates", () => {
 	// Objects that stand still mustn't stand in each other (a pine inside a house, two roofs in

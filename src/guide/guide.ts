@@ -218,7 +218,7 @@ export const GUIDE: IGuideSection[] = [
 				kind: "points",
 				points: [
 					"A world is one JSON document. Its format, with every part kind and its settings, is the JSON Schema at `/api/worlds/schema`.",
-					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield_territory` and `extraction_shooters` are data maps.",
+					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield-territory` and `extraction-shooters` are data maps.",
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",
 					"Roads follow rows the same way, with `flow: { isOn: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
