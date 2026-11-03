@@ -72,6 +72,16 @@ test.describe("the welcome (ADR-0116)", () => {
 		await expect(page.getByRole("dialog", { name: /Welcome to/ })).toHaveCount(0);
 	});
 
+	test("Show my data opens Build with AI for a new world", async ({ page }) => {
+		await openEditor(page);
+		const welcome = page.getByRole("dialog", { name: /Welcome to/ });
+		await welcome.getByRole("radio", { name: /Show my data/ }).dblclick();
+		await expect(welcome).toBeHidden();
+		await expect(page.getByRole("dialog", { name: "Build with AI" })).toBeVisible();
+		await expect(page.getByRole("dialog", { name: "New world" })).toHaveCount(0);
+		expect(await read(page, (s) => s.buildWithAi)).toBe("new");
+	});
+
 	test("Explore an example opens New world on the data maps", async ({ page }) => {
 		await openEditor(page);
 		const welcome = page.getByRole("dialog", { name: /Welcome to/ });
