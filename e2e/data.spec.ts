@@ -361,7 +361,7 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 });
 
 test.describe("a world without data (ADR-0115)", () => {
-	test("Uses data off hides the Data tabs and card values; on brings them back", async ({
+	test("Uses data off hides card values and things' data, the Data tab turns it on again", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -391,13 +391,15 @@ test.describe("a world without data (ADR-0115)", () => {
 		await page.getByRole("tab", { name: "World", exact: true }).click();
 		await page.getByRole("switch", { name: "Uses data" }).click();
 		await expect(card).not.toContainText("1,692");
-		await expect(dataTab).toHaveCount(0);
 		// The data is kept, and back when it's on again.
 		expect(await read(page, (s) => s.scene.data.values.length)).toBe(1);
 
+		// The Data tab stays, with only the switch, one click from data again (ADR-0127).
+		await dataTab.click();
+		await expect(page.getByText("This world doesn't use data")).toBeVisible();
 		await page.getByRole("switch", { name: "Uses data" }).click();
 		await expect(card).toContainText("1,692");
-		await expect(dataTab).toBeVisible();
+		await expect(page.getByText("This world doesn't use data")).toHaveCount(0);
 	});
 });
 

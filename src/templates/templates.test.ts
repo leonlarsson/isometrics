@@ -75,6 +75,21 @@ describe("template ids (ADR-0126)", () => {
 	});
 });
 
+describe("data in new worlds (ADR-0127)", () => {
+	it("a new world starts without data", () => {
+		expect(createEmptyScene().data.isOn).toBe(false);
+	});
+
+	it.each(TEMPLATES.map((template) => [template.id, template.create] as const))(
+		"%s uses data exactly when it has some",
+		(_, create) => {
+			const { data } = create();
+			const hasData = data.values.length + data.tables.length + data.sources.length > 0;
+			expect(data.isOn).toBe(hasData);
+		},
+	);
+});
+
 describe("templates", () => {
 	// Objects that stand still mustn't stand in each other (a pine inside a house, two roofs in
 	// one place); vehicles on a route move, flat parts are meant to be stood on, markers (beacons,

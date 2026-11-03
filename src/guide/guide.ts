@@ -47,7 +47,7 @@ export const GUIDE: IGuideSection[] = [
 			},
 			{
 				kind: "note",
-				text: "Only want to build? Turn off **Uses data** in the **World** tab (the globe icon on the right): nothing about data shows, and the world is a plain city builder.",
+				text: "A new world starts as a plain city builder, without data; the starters that show data come with it on. Turn **Uses data** on (or off) in the **Data** tab or the **World** tab (the globe icon on the right): off, nothing about data shows.",
 			},
 			{
 				kind: "note",

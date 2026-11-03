@@ -62,7 +62,9 @@ test.describe("the welcome (ADR-0116)", () => {
 		await expect(newWorld.getByRole("switch", { name: "Uses data" })).not.toBeChecked();
 		await newWorld.getByRole("button", { name: "Create" }).click();
 		expect(await read(page, (s) => s.scene.data.isOn)).toBe(false);
-		await expect(page.getByRole("tab", { name: "Data", exact: true })).toHaveCount(0);
+		// The Data tab stays, holding the switch that turns data on (ADR-0127).
+		await page.getByRole("tab", { name: "Data", exact: true }).click();
+		await expect(page.getByRole("switch", { name: "Uses data" })).not.toBeChecked();
 
 		// Seen: not again on the next visit.
 		await page.reload();
