@@ -19,7 +19,7 @@ const useAppMenuDialogs = create<{ isWiping: boolean; isResetting: boolean }>(()
 
 /**
  * What's about the app and this browser rather than a world: help (Welcome…,
- * Guide, Source on GitHub), Preferences…, and what resets this browser (its settings, or
+ * Guide, Star it on GitHub), Preferences…, and what resets this browser (its settings, or
  * everything). In the app menu on the logo, and at the end of File on phones.
  */
 export const AppMenuItems = () => {
@@ -41,8 +41,8 @@ export const AppMenuItems = () => {
 			/>
 
 			<Menu.Item
-				icon="code"
-				label="Source on GitHub"
+				icon="star"
+				label="Star it on GitHub"
 				description="The app's code, and where to report a problem"
 				onClick={() => window.open(SOURCE_URL, "_blank", "noopener")}
 			/>

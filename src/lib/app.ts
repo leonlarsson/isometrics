@@ -6,5 +6,5 @@
  */
 export const APP_NAME = "Isometrics";
 
-/** Where the app's code is kept, for the app menu's Source on GitHub. */
+/** Where the app's code is kept, for the app menu's Star it on GitHub. */
 export const SOURCE_URL = "https://github.com/leonlarsson/isometrics";

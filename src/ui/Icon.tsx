@@ -56,8 +56,6 @@ const PATHS = {
 	chevronLeft: "m15 6-6 6 6 6",
 	camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 10.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 	file: "M6 3h8l4 4v14H6zM14 3v4h4",
-	// Angle brackets: code (the app menu's Source on GitHub).
-	code: "M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16",
 	// A page with a sparkle on it: a new world built with AI (ADR-0116).
 	fileSparkle: "M6 3h8l4 4v14H6zM14 3v4h4M12 10.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z",
 	folder: "M3 6h6l2 2h10v11H3z",
