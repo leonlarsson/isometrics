@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { markWelcomed, shouldWelcome } from "#/editor/welcome";
@@ -13,44 +14,61 @@ import { Dialog } from "./Dialog";
 import { Hint } from "./fields";
 import { Icon, type TIconName } from "./Icon";
 
-type TWelcomeChoice = "city" | "data" | "ai" | "example";
+import styles from "./Welcome.module.css";
 
-/** Each way in, and its picture: a starter it opens, or an icon for a way that starts from nothing. */
+type TWelcomeChoice = "city" | "ai" | "example";
+
+/** Build with AI's picture: no world yet, it starts from words, so a prompt and the AI answering. */
+const PromptPicture = () => (
+	<span className={styles.prompt}>
+		<span className={styles.asked}>
+			A harbour town at dusk
+			<span className={styles.caret} />
+		</span>
+
+		<span className={styles.answering}>
+			<Icon name="sparkle" size={12} />
+
+			<span className={styles.dot} />
+
+			<span className={styles.dot} />
+
+			<span className={styles.dot} />
+		</span>
+	</span>
+);
+
+/** Each way in, and its picture: a starter's, or Build with AI's prompt. */
 const WAYS_IN: {
 	value: TWelcomeChoice;
 	title: string;
 	description: string;
-	picture: { starter: string } | { icon: TIconName };
+	picture: { starter: string } | "prompt";
+	titleIcon?: TIconName;
 }[] = [
 	{
 		value: "city",
 		title: "Build a city",
-		description: "Just build: no data.",
-		picture: { starter: "brightwater" },
-	},
-	{
-		value: "data",
-		title: "Show my data",
-		description: "Map your own numbers.",
-		picture: { starter: "battlefield-territory" },
+		description: "Start from a blank world or a starter.",
+		picture: { starter: "lantern-bay" },
 	},
 	{
 		value: "ai",
 		title: "Build with AI",
 		description: "Your own AI builds it.",
-		// No world yet: it starts from words, so the picture is Build with AI's own icon.
-		picture: { icon: "sparkle" },
+		picture: "prompt",
+		titleIcon: "sparkle",
 	},
 	{
 		value: "example",
 		title: "Explore an example",
-		description: "A finished data map.",
-		picture: { starter: "extraction-shooters" },
+		description: "Brightwater, a finished harbour city.",
+		picture: { starter: "brightwater" },
 	},
 ];
 
 const PICTURE_SOURCES: IScenePictureSource[] = TEMPLATES.filter((template) =>
-	WAYS_IN.some((way) => "starter" in way.picture && way.picture.starter === template.id),
+	WAYS_IN.some((way) => way.picture !== "prompt" && way.picture.starter === template.id),
 );
 const NO_PICTURES: IScenePictureSource[] = [];
 
@@ -63,25 +81,25 @@ const go = (choice: TWelcomeChoice) => {
 	if (choice === "city") {
 		state.setNewWorld({ shows: "places", usesData: false });
 	}
-	// A world that uses data, built by hand.
-	if (choice === "data") {
-		state.setNewWorld({ shows: "all", usesData: true });
-	}
 	// Described in words, built by the person's own AI (ADR-0116).
 	if (choice === "ai") {
 		state.setBuildWithAi("new");
 	}
+	// Brightwater as a world of their own, straight away: on a first visit, in place of the starter behind.
 	if (choice === "example") {
-		state.setNewWorld({ shows: "dataMaps", usesData: true });
+		const brightwater = TEMPLATES.find((template) => template.id === "brightwater");
+		if (brightwater) {
+			startNewWorld(brightwater.create());
+		}
 	}
 };
 
 /**
- * The welcome (ADR-0116, ADR-0131): four ways in, each with a picture, for
- * someone who has just arrived: build a city, show their data (New world with
- * data on), build with their own AI (Build with AI, a new world), or open an
- * example. Shown once to a browser with no worlds; the app menu's Welcome…
- * (the logo) shows it again. Closing it leaves the starter world to look around in.
+ * The welcome (ADR-0116, ADR-0131): three ways in, each with a picture, for
+ * someone who has just arrived: build a city (New world), build with their own
+ * AI (Build with AI, a new world), or explore an example (Brightwater, opened
+ * as their own). Shown once to a browser with no worlds; the app menu's
+ * Welcome… (the logo) shows it again. Closing it leaves the starter world to look around in.
  */
 export const Welcome = () => {
 	const open = useEditor((s) => s.welcomeOpen);
@@ -107,10 +125,11 @@ export const Welcome = () => {
 	const cards: IChoiceCard<TWelcomeChoice>[] = WAYS_IN.map((way) => ({
 		value: way.value,
 		title: way.title,
+		titleIcon: way.titleIcon,
 		description: way.description,
 		picture:
-			"icon" in way.picture ? (
-				<Icon name={way.picture.icon} size={44} />
+			way.picture === "prompt" ? (
+				<PromptPicture />
 			) : pictures[way.picture.starter] ? (
 				<img src={pictures[way.picture.starter]} alt="" />
 			) : null,
