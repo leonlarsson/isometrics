@@ -5,3 +5,6 @@
  * (package.json, wrangler.jsonc and the docs can't import, so they repeat it.)
  */
 export const APP_NAME = "Isometrics";
+
+/** Where the app's code is kept, for the app menu's Source on GitHub. */
+export const SOURCE_URL = "https://github.com/leonlarsson/isometrics";

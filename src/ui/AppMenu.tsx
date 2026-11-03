@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import { resetThisBrowsersSettings } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
-import { APP_NAME } from "#/lib/app";
+import { APP_NAME, SOURCE_URL } from "#/lib/app";
 
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Menu } from "./Menu";
@@ -19,7 +19,7 @@ const useAppMenuDialogs = create<{ isWiping: boolean; isResetting: boolean }>(()
 
 /**
  * What's about the app and this browser rather than a world: help (Welcome…,
- * Guide), Preferences…, and what resets this browser (its settings, or
+ * Guide, Source on GitHub), Preferences…, and what resets this browser (its settings, or
  * everything). In the app menu on the logo, and at the end of File on phones.
  */
 export const AppMenuItems = () => {
@@ -38,6 +38,13 @@ export const AppMenuItems = () => {
 				label="Guide"
 				description="How a world is made, walked through with a real API"
 				onClick={openGuide}
+			/>
+
+			<Menu.Item
+				icon="code"
+				label="Source on GitHub"
+				description="The app's code, and where to report a problem"
+				onClick={() => window.open(SOURCE_URL, "_blank", "noopener")}
 			/>
 
 			<Menu.Separator />
