@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
@@ -142,7 +142,16 @@ export const WakeFieldStep = () => {
 		};
 	}, [drawn, width, depth]);
 
+	// The target last cleared with nothing to draw: while no wave shows (no boats, or none moving),
+	// it stays clear, so it isn't cleared and drawn again every frame.
+	const clearedEmpty = useRef<THREE.WebGLRenderTarget | null>(null);
+
 	useFrame(() => {
+		const isEmpty = wakeField.scene.children.every((child) => !child.visible);
+		if (isEmpty && clearedEmpty.current === drawn.target) {
+			return;
+		}
+		clearedEmpty.current = isEmpty ? drawn.target : null;
 		const before = gl.getRenderTarget();
 		gl.getClearColor(clearColor);
 		const clearAlpha = gl.getClearAlpha();
