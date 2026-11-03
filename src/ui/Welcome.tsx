@@ -53,17 +53,17 @@ const WAYS_IN: {
 		picture: { starter: "lantern-bay" },
 	},
 	{
+		value: "example",
+		title: "Explore an example",
+		description: "Brightwater, a finished harbour city.",
+		picture: { starter: "brightwater" },
+	},
+	{
 		value: "ai",
 		title: "Build with AI",
 		description: "Your own AI builds it.",
 		picture: "prompt",
 		titleIcon: "sparkle",
-	},
-	{
-		value: "example",
-		title: "Explore an example",
-		description: "Brightwater, a finished harbour city.",
-		picture: { starter: "brightwater" },
 	},
 ];
 
@@ -96,9 +96,9 @@ const go = (choice: TWelcomeChoice) => {
 
 /**
  * The welcome (ADR-0116, ADR-0131): three ways in, each with a picture, for
- * someone who has just arrived: build a city (New world), build with their own
- * AI (Build with AI, a new world), or explore an example (Brightwater, opened
- * as their own). Shown once to a browser with no worlds; the app menu's
+ * someone who has just arrived: build a city (New world), explore an example
+ * (Brightwater, opened as their own), or build with their own AI (Build with
+ * AI, a new world). Shown once to a browser with no worlds; the app menu's
  * Welcome… (the logo) shows it again. Closing it leaves the starter world to look around in.
  */
 export const Welcome = () => {

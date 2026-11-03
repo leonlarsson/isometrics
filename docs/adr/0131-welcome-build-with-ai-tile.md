@@ -3,7 +3,7 @@ status: proposed
 date: 2026-11-03
 ---
 
-# 0131. The welcome's three ways in: build a city, build with AI, explore Brightwater
+# 0131. The welcome's three ways in: build a city, explore Brightwater, build with AI
 
 ## Context and problem statement
 
@@ -19,9 +19,10 @@ ADR-0116's welcome had three ways in: **Build a city** (New world on the places)
 Chosen option: **2**, the owner's call.
 
 - **Build a city:** New world on the places, **Uses data** off. Its tile says "Start from a blank world or a starter.", and its picture is Lantern Bay.
-- **Build with AI:** Build with AI, a new world. There's no world yet (it starts from words), so its picture is not a world. It's a small drawn prompt, with the AI answering under it (the sparkle and three dots), from the theme's tokens; it holds still when reduced motion is asked for. Its title has the sparkle before it in the accent colour (`ChoiceCards`' `titleIcon`), marking it as the way that starts from nothing.
 - **Explore an example:** Brightwater opened straight away as a world of the person's own (`startNewWorld`). On a first visit it takes the place of the unsaved starter behind the welcome.
+- **Build with AI:** Build with AI, a new world. There's no world yet (it starts from words), so its picture is not a world. It's a small drawn prompt, with the AI answering under it (the sparkle and three dots), from the theme's tokens; it holds still when reduced motion is asked for. Its title has the sparkle before it in the accent colour (`ChoiceCards`' `titleIcon`), marking it as the way that starts from nothing.
 - Showing data isn't a way in of its own. New world's **Uses data**, the Data tab (ADR-0127) and the data maps among New world's starters stay where they are.
+- The tiles are in that order, Build with AI last (the owner, 2026-11-03).
 - The README and the app menu's Welcome… description name the three.
 
 ### Consequences
