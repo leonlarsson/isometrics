@@ -75,6 +75,36 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		expect((await prefabsNow(page))[0]).toMatchObject({ pieces: 2, copies: 1 });
 	});
 
+	test("My prefabs: a prefab saved in one world is placed in another", async ({ page }) => {
+		await openEditor(page);
+		await loadWorld(page, {});
+		await (await paletteTile(page, "Prefabs", "Make a prefab…")).click();
+		await (await paletteTile(page, "Shapes", "Cylinder")).click();
+		await page.getByRole("textbox", { name: "Prefab's name", exact: true }).fill("Silo");
+		await page.getByRole("button", { name: "Save the prefab" }).click();
+		await expect(workshopBar(page)).toHaveCount(0);
+
+		// Another world, without it.
+		await act(page, (s) => {
+			const scene = structuredClone(s.scene);
+			scene.prefabs = [];
+			scene.entities = [];
+			scene.meta.title = "Elsewhere";
+			s.loadScene(scene);
+		});
+		const palette = page.getByRole("navigation", { name: "Parts" });
+		await palette.getByRole("button", { name: "Prefabs", exact: true }).click();
+		await palette.getByRole("button", { name: "Silo", exact: true }).click();
+		expect(await prefabsNow(page)).toEqual([{ name: "Silo", pieces: 1, copies: 1 }]);
+
+		// Taken out of My prefabs from its tile's menu: this world keeps it.
+		await palette.getByRole("button", { name: "Silo", exact: true }).click({ button: "right" });
+		await menuItem(page, "Remove from My prefabs").click();
+		const library = await page.evaluate(() => localStorage.getItem("isometrics:prefabs"));
+		expect(JSON.parse(library ?? "[]")).toEqual([]);
+		expect(await prefabsNow(page)).toEqual([{ name: "Silo", pieces: 1, copies: 1 }]);
+	});
+
 	test("Edit in the Workshop changes the prefab, and every copy with it", async ({ page }) => {
 		await openEditor(page);
 		await loadWorld(page, {

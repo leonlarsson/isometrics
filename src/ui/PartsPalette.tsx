@@ -10,10 +10,11 @@ import {
 	usePaletteMemory,
 } from "#/editor/paletteMemory";
 import { findFreeSpot } from "#/editor/placement";
+import { placeFromLibrary, removeFromLibrary, usePrefabLibrary } from "#/editor/prefabLibrary";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
-import { whyNoWorkshop } from "#/editor/whatIsOpen";
+import { whyNoWorkshop, workshopOf } from "#/editor/whatIsOpen";
 import { editPrefab, makeNewPrefab } from "#/editor/workshop";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
@@ -25,7 +26,7 @@ import { fencePictureKey, usePartThumbnails, usePrefabThumbnails } from "#/rende
 import { currentView } from "#/render/viewpoints";
 import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
 import { ROAD_KIND_IDS, ROAD_KIND_LABELS, ROAD_KINDS } from "#/scene/roads";
-import type { TRoadKind } from "#/scene/schema";
+import type { TPrefab, TRoadKind } from "#/scene/schema";
 import { groupByFamily } from "#/scene/variants";
 
 import { IconButton, IconButtonGroup } from "./Button";
@@ -45,7 +46,11 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import styles from "./PartsPalette.module.css";
 
 /** Each section's icon on its heading. */
+/** My prefabs' section in the Prefabs chip (ADR-0134): this browser's designs not in the world. */
+const MY_PREFABS = "My prefabs";
+
 const SECTION_ICONS: Record<string, TIconName> = {
+	[MY_PREFABS]: "prefab",
 	favourites: "star",
 	recent: "clock",
 	Roads: "road",
@@ -104,6 +109,8 @@ interface IPaletteItem {
 	disabled?: boolean;
 	/** A prefab of this world's (ADR-0134): its tile's menu offers Edit in the Workshop. */
 	prefabId?: string;
+	/** One of My prefabs, not in this world yet (ADR-0134): added where one's looking. */
+	libraryPrefab?: TPrefab;
 	/** Part kind, for items that can also be dragged onto the scene. */
 	kind?: string;
 	onSelect: () => void;
@@ -169,7 +176,13 @@ export const PartsPalette = () => {
 	const thumbnails = usePartThumbnails(theme);
 	// The world's own prefabs (ADR-0134), and why none can be made now, if so.
 	const prefabs = useEditor((s) => s.scene.prefabs);
-	const prefabThumbnails = usePrefabThumbnails(prefabs, theme);
+	// My prefabs not in this world yet; none inside the Workshop, where a prefab can't hold one.
+	const library = usePrefabLibrary();
+	const inWorkshop = useEditor((s) => workshopOf(s.whatIsOpen) !== null);
+	const libraryOnly = inWorkshop
+		? []
+		: library.filter((prefab) => !prefabs.some((each) => each.id === prefab.id));
+	const prefabThumbnails = usePrefabThumbnails([...prefabs, ...libraryOnly], theme);
 	const noWorkshop = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
@@ -323,6 +336,24 @@ export const PartsPalette = () => {
 				},
 			};
 		}),
+		// My prefabs from this browser (ADR-0134): placing one copies its design into the world.
+		...libraryOnly.map((prefab) => {
+			const description = describePrefab(prefab);
+			return {
+				key: `library:${prefab.id}`,
+				category: "prefabs" as const,
+				group: MY_PREFABS,
+				name: prefabName(prefab),
+				familyName: prefabName(prefab),
+				description,
+				tooltip: `${description}. From My prefabs: click to add it to this world.`,
+				searchText: `${description} prefab my prefabs`,
+				swatch: `linear-gradient(135deg, ${palette.selection} 55%, ${palette.ground} 55%)`,
+				thumbnail: prefabThumbnails[prefab.id],
+				libraryPrefab: prefab,
+				onSelect: () => placeFromLibrary(prefab, currentView.read?.()?.target ?? [0, 0]),
+			};
+		}),
 	];
 
 	/** Watch a press on a part tile; past the threshold it becomes a drag onto the scene. */
@@ -372,16 +403,19 @@ export const PartsPalette = () => {
 			: [
 					{ id: "favourites", label: "Favourites", items: pick(memory.favourites) },
 					{ id: "recent", label: "Recently used", items: pick(memory.recent) },
-					{
-						id: categoryItems[0]?.group ?? category,
-						label: categoryItems[0]?.group ?? category,
-						items: categoryItems,
+					// A section per group: one for most chips, Prefabs and My prefabs for prefabs.
+					...[...new Set(categoryItems.map((item) => item.group))].map((group) => ({
+						id: group,
+						label: group,
+						items: categoryItems.filter((item) => item.group === group),
 						// Prefabs' ids aren't numbered variants of a family.
 						byFamily: category !== "prefabs",
-					},
+					})),
 				]),
 	].filter((section) => section.items.length > 0);
 	const menuItem = menu ? byKey.get(menu.key) : undefined;
+	// The prefab a tile is, of this world's or My prefabs (ADR-0134).
+	const menuPrefabId = menuItem?.prefabId ?? menuItem?.libraryPrefab?.id;
 
 	const tile = (item: IPaletteItem, section: string, family?: IFamilyOfTile) => {
 		const favourite = memory.favourites.includes(item.key);
@@ -616,10 +650,25 @@ export const PartsPalette = () => {
 			>
 				{menuItem && (
 					<Menu.Item
-						icon={menuItem.kind ? "plus" : "edit"}
-						label={menuItem.kind ? "Add where you're looking" : "Draw it"}
+						icon={menuItem.kind || menuItem.libraryPrefab ? "plus" : "edit"}
+						label={
+							menuItem.kind || menuItem.libraryPrefab
+								? "Add where you're looking"
+								: menuItem.category === "prefabs"
+									? menuItem.name
+									: "Draw it"
+						}
 						disabled={menuItem.disabled}
 						onClick={() => use(menuItem)}
+					/>
+				)}
+
+				{menuPrefabId && library.some((prefab) => prefab.id === menuPrefabId) && (
+					<Menu.Item
+						icon="trash"
+						label="Remove from My prefabs"
+						description="Worlds that use it keep it"
+						onClick={() => removeFromLibrary(menuPrefabId)}
 					/>
 				)}
 

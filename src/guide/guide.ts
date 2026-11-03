@@ -70,6 +70,7 @@ export const GUIDE: IGuideSection[] = [
 					"You're in **the Workshop**: a small world of its own with your world's light and data. Build with everything in **Add to scene**, as anywhere else; only objects and fences become the prefab.",
 					"Name it in the bar at the top and click **Save the prefab**. You're back in your world with a copy: where the selected things were (in their place), or where you were looking. **Leave without saving** goes back with nothing changed.",
 					"Place more from the **Prefabs** chip. To change it, select a copy and click **Edit in the Workshop** in its properties (or right-click its tile).",
+					"Every prefab you save is also kept in this browser, under **My prefabs** in the **Prefabs** chip of your other worlds: click one to add it there. Right-click its tile for **Remove from My prefabs** (worlds that use it keep it).",
 				],
 			},
 			{

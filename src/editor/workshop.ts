@@ -1,6 +1,7 @@
 import { round, turnedHalfSize } from "#/lib/math";
 import { measurePrefab, prefabName, prefabPartOf, UNNAMED_PREFAB } from "#/parts/prefabParts";
 import { getBasePart, resolveProps } from "#/parts/registry";
+import { groundHeightAt } from "#/scene/areas";
 import {
 	EntitySchema,
 	isPrefabKind,
@@ -17,6 +18,7 @@ import {
 import type { ISceneItem } from "./framing";
 import { setPaletteCategory } from "./paletteMemory";
 import { findFreeSpot } from "./placement";
+import { keepInLibrary } from "./prefabLibrary";
 import { newId, useEditor } from "./store";
 import { notify } from "./toasts";
 import { type IWorkshop, whyNoWorkshop, workshopOf } from "./whatIsOpen";
@@ -307,13 +309,15 @@ export const saveWorkshop = (): TPrefab | null => {
 	});
 	const part = prefabPartOf(design);
 	const near = from.view?.target ?? [0, 0];
+	const position = replaces?.position ?? findFreeSpot(from.scene, part, near);
 	const copy =
 		before === undefined
 			? EntitySchema.parse({
 					id: newId(design.id),
 					kind: design.id,
-					position: replaces?.position ?? findFreeSpot(from.scene, part, near),
-					altitude: replaces?.altitude ?? 0,
+					position,
+					// Where the selection stood, else on the ground where it's put (ADR-0098).
+					altitude: replaces?.altitude ?? groundHeightAt(from.scene.areas, position),
 				})
 			: null;
 	const replaced = new Set((replaces?.items ?? []).map((item) => `${item.kind}:${item.id}`));
@@ -347,6 +351,14 @@ export const saveWorkshop = (): TPrefab | null => {
 				: "A copy is in the world, selected: drag it where it goes, or place more from Add to scene's Prefabs.",
 		"success",
 	);
+	// In My prefabs too, for one's other worlds.
+	if (!keepInLibrary(design)) {
+		notify(
+			"It isn't in My prefabs",
+			"The browser refused to keep it (its storage may be full). It's kept in this world.",
+			"error",
+		);
+	}
 	return design;
 };
 
