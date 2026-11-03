@@ -70,13 +70,14 @@ export const Toolbar = () => {
 
 				<FileMenu />
 
-				{/* Build with AI one click away (ADR-0116), a new world; at phone width, in File only. */}
+				{/* Build with AI one click away (ADR-0116): changing the world open, else a new one (the
+				other a click away in it); at phone width, in File only. */}
 				{!isNarrow && (
 					<Button
 						variant="ghost"
 						icon="sparkle"
 						iconTone="accent"
-						onClick={() => useEditor.getState().setBuildWithAi("new")}
+						onClick={() => useEditor.getState().setBuildWithAi(hasWorld ? "change" : "new")}
 					>
 						AI
 					</Button>

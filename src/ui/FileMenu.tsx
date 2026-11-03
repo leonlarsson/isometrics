@@ -88,12 +88,15 @@ export const FileMenu = () => {
 
 						<Menu.Separator />
 
-						{/* Back with what an AI wrote (a prompt copied earlier, or one of their own): straight there. */}
+						{/* Back with what an AI wrote (a prompt copied earlier, or one of their own): straight
+						there, for changes to the world open (a new world a click away), else a new one. */}
 						<Menu.Item
 							icon="paste"
-							label="I already have an answer…"
-							description="Paste what your AI wrote, or open its file"
-							onClick={() => useEditor.getState().setBuildWithAi("new", "answer")}
+							label="Paste what your AI wrote…"
+							description="Or upload its file"
+							onClick={() =>
+								useEditor.getState().setBuildWithAi(hasWorld ? "change" : "new", "answer")
+							}
 						/>
 					</Menu.Submenu>
 

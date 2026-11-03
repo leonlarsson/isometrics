@@ -384,7 +384,7 @@ export interface IEditorState {
 	renderDialogOpen: boolean;
 	/**
 	 * Build with AI is open (ADR-0116), for a new world or to change this one, and the step it
-	 * opened at: asking (the default), or straight at the answer (I already have an answer…); null: closed.
+	 * opened at: asking (the default), or straight at the answer (Paste what your AI wrote…); null: closed.
 	 */
 	buildWithAi: { builds: "new" | "change"; opensAt: "ask" | "answer" } | null;
 	/** The welcome is open (ADR-0116): on a first visit, or from the app menu's Welcome… (the logo). */

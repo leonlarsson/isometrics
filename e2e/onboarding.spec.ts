@@ -131,15 +131,19 @@ test.describe("Build with AI (ADR-0116)", () => {
 		expect(await read(page, (s) => s.scene.entities.filter((e) => e.dataRow).length)).toBe(2);
 	});
 
-	test("File → Build with AI → I already have an answer opens it at the answer, for either", async ({
+	test("File → Build with AI → Paste what your AI wrote opens it at the paste step, for either", async ({
 		page,
 	}) => {
 		await openEditor(page);
-		await buildWithAiMenu(page, /^I already have an answer/);
+		await buildWithAiMenu(page, /^Paste what your AI wrote/);
 		const dialog = page.getByRole("dialog", { name: "Build with AI" });
 		await expect(dialog.getByRole("textbox", { name: "What your AI wrote" })).toBeVisible();
-		// No prompt copied yet: picking a change instead keeps the answer step.
-		await dialog.getByRole("button", { name: /^Change “/ }).click();
+		// In a world, for changes to it; no prompt copied yet, so picking a new world keeps the step.
+		await expect(dialog.getByRole("button", { name: /^Change “/ })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await dialog.getByRole("button", { name: "A new world" }).click();
 		await expect(dialog.getByRole("textbox", { name: "What your AI wrote" })).toBeVisible();
 	});
 
@@ -163,7 +167,7 @@ test.describe("Build with AI (ADR-0116)", () => {
 			"aria-pressed",
 			"true",
 		);
-		await dialog.getByRole("button", { name: "I already have an answer" }).click();
+		await dialog.getByRole("button", { name: "Paste what your AI wrote" }).click();
 		await dialog
 			.getByRole("textbox", { name: "What your AI wrote" })
 			.fill(
@@ -188,7 +192,7 @@ test.describe("changes as a patch (ADR-0118)", () => {
 		}));
 		await buildWithAiMenu(page, /Change this world/);
 		const dialog = page.getByRole("dialog", { name: "Build with AI" });
-		await dialog.getByRole("button", { name: "I already have an answer" }).click();
+		await dialog.getByRole("button", { name: "Paste what your AI wrote" }).click();
 		await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(
 			JSON.stringify({
 				isPatch: true,

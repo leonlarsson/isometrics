@@ -157,15 +157,15 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "steps",
 				steps: [
-					"Click **AI** next to the File menu (or open **Build with AI** in the File menu and pick **A new world…**, or **Build with AI…** in **New world**, or **Build with AI** in the welcome).",
+					"Open **Build with AI** in the File menu and pick **A new world…** (or **Build with AI…** in **New world**, or **Build with AI** in the welcome; **AI** next to the File menu opens it too, for a new world when none is open).",
 					"Say what your AI should build: how it looks and what it has. Data is optional: **Add your data** to paste it there (or **Upload a file…**), or give it to your AI yourself in the chat after the prompt. An API's or a CSV or JSON file's address works too: your AI adds it as a source the world reads itself, live, and like every external source it's read only once you allow it.",
 					"Click **Copy the prompt** and paste it into your AI. It answers with a file, `world.json`, if it can make one, else with the world as text.",
-					"Bring back what it wrote: paste it into **What your AI wrote**, or **Upload a file…** with its file. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with an answer? **I already have an answer**, in the dialog or in the File menu's **Build with AI**, goes straight there.",
+					"Bring back what it wrote: paste it into **What your AI wrote**, or **Upload a file…** with its file. It's checked as it arrives: anything wrong is listed, with **Copy the problems for your AI** to send them back. Click **Open it**: it opens as a new world, repaired where it needs it; your other worlds are untouched. Came back later with what it wrote? **Paste what your AI wrote**, in the dialog or in the File menu's **Build with AI**, goes straight there.",
 				],
 			},
 			{
 				kind: "text",
-				text: "To change the world you're in, pick **Change this world…** under **Build with AI** in the File menu and say what to change. Your AI answers with a **patch**, only the changes, which is quick to copy; the dialog says what it changes before you click **Apply the changes** (one undo step). To give your AI a link to the world instead of the whole world, open **More options**.",
+				text: "To change the world you're in, click **AI** next to the File menu (or pick **Change this world…** under **Build with AI** in the File menu) and say what to change. Your AI answers with a **patch**, only the changes, which is quick to copy; the dialog says what it changes before you click **Apply the changes** (one undo step). To give your AI a link to the world instead of the whole world, open **More options**.",
 			},
 		],
 	},
