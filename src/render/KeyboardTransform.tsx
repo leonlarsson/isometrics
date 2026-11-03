@@ -33,7 +33,7 @@ import {
 	roadPointStart,
 	roadPointWorld,
 } from "./transforms";
-import { surfaceHitOnRay } from "./useGroundDrag";
+import { levelHitOnRay, surfaceHitOnRay } from "./useGroundDrag";
 
 type TTarget =
 	| { kind: "entity"; id: string; from: IEntityStart }
@@ -71,7 +71,6 @@ interface IContext {
 	alt: boolean;
 }
 
-const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const raycaster = new THREE.Raycaster();
 const up = new THREE.Vector3();
 
@@ -120,9 +119,7 @@ export const KeyboardTransform = () => {
 
 	const groundHit = (ndc: THREE.Vector2, y: number) => {
 		raycaster.setFromCamera(ndc, camera);
-		plane.constant = -y;
-		const hit = new THREE.Vector3();
-		return raycaster.ray.intersectPlane(plane, hit) ? hit : null;
+		return levelHitOnRay(raycaster.ray, y);
 	};
 
 	const apply = (session: ITransformSession) => {
