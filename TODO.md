@@ -8,8 +8,6 @@ Planned work that has been discussed and agreed but not built yet. Write an ADR 
 - [ ] Make `og:image` in `src/routes/__root.tsx` an absolute URL once the production domain is set (most link previews ignore relative ones), and refresh `public/og.png` if the look has changed. (Description, Open Graph, `theme-color` and favicon: done.)
 - [ ] **README: beautiful shots of the app itself (owner's idea, 2026-10-27):** the gallery has world shots (`scripts/gallery.mjs`); add polished pictures of the UI and the parts catalogue too: the editor with its panels open on a nice world (Add to scene, the properties on a tab that shows something off, like Lights or Look), View mode with data cards, the parts catalogue's grid and a part's details (both themes), maybe a moment like drawing a road. Taken by a script like the gallery's, so they can be retaken after the look changes (real GPU, `node.exe` on WSL; a fixed window size and device pixel ratio 2 for sharp pictures), into `docs/gallery/`, as their own section in the README.
 
-
-
 ## Safer schema and part changes
 
 Guard tests, old-world fixtures, renamed/removed props and keeping unknown props are done (ADR-0056). Still open:
@@ -17,18 +15,9 @@ Guard tests, old-world fixtures, renamed/removed props and keeping unknown props
 - [ ] **Old worlds look the same:** render each old-world fixture before and after a change and compare the pictures (the thumbnails of ADR-0036 could do it), so a default that changes the look of existing worlds is caught too.
 - [ ] **Unknown world and object fields:** a world from a newer version loses fields this version doesn't know when it's repaired (the original is backed up). Keep them (Zod `looseObject`) once worlds travel between versions, e.g. with sharing links (ADR-0106).
 
-## Fixes
-
-- [ ] **Templates' data must be something a person could do (owner, 2026-11-02):** everything in a template should be 100% doable by a real user in simple steps. Battlefield territory's deliveries per month come from a spreadsheet file (`battlefieldstats-sent-monthly.csv`) nobody gave the world, and other data templates may have the same. Idea: a mock API on this site (its own PR) that templates read from, so their sources are real links a person could add with Read a link or API….
-
-## Naming
-
-- [ ] **Hyphens, not underscores (owner's rule, 2026-11-02):** ids people see or type use hyphens. Template ids are done (ADR-0126: `lantern-bay`, `battlefield-territory`, `extraction-shooters`; no redirects from the old ones), and any new id in an address follows. Still to decide: ids kept in worlds (part kinds like `office_tower_01`, fence and road kinds, data keys like `sent_per_month`) are written by people, AIs and every saved world, so changing them means converting the old ones on load (`src/scene/legacy.ts`, ADR-0053, ADR-0106), and `/api/worlds/schema` and the guide saying the new form.
-
 ## Ideas backlog (2026-10-21)
 
 Ideas from the owner, not designed yet. Each needs a design pass (and usually an ADR) before building. Per ADR-0019, note how each could be driven by data.
-
 
 - [ ] **Turning autosave off:** the save status next to the File menu is done (ADR-0057). Maybe a setting to turn autosave off (per browser or per world), e.g. to try changes and throw them away: it then needs an "Unsaved changes" state in that status, an explicit "Save in this browser" (Ctrl+S's meaning would need a decision), and a warning before closing the tab or opening another world with unsaved changes, so nothing is lost by accident (ADR-0020). Needs an ADR. *Data:* once worlds load live data, the status could also say when the data was last updated.
 - [ ] **A big library of parts (owner's idea, 2026-10-26):** there are 91 parts; worlds need hundreds. Each is a part of its own in its category's folder (ADR-0043), variants numbered (ADR-0050). The first catalogues of street furniture, lamp posts, infrastructure and vehicles are done. Still to do: *Nature:* more variants of the trees and bushes (hedges are a fence style, ADR-0103). *Buildings:* a stadium. Then more in every category. The groundwork is done: drawing many of the same part cheaply (ADR-0086), the public parts catalogue at `/parts` (ADR-0087) and Add to scene made for many parts (ADR-0088: category chips, a family's variants on one tile, a list). Then a batch at a time, one category per batch, each part a file of its own, so batches can run side by side. Every part keeps the usual: defaults that draw it as designed, named colours (ADR-0060), lights where they'd have them (ADR-0058), real lights for lamps (ADR-0074). *Data:* the usual per-part bindings (colours, lights, scale) cover most; some invite their own (a fountain's flow, a crane's load, a bus stop's waiting count, a planter's flowers by season).

@@ -348,6 +348,7 @@ test.describe("addresses a world reads wait for a yes (ADR-0119)", () => {
 					kind: "api",
 					url: "https://example.org/more.json",
 					fileName: null,
+					exampleFileUrl: null,
 					refreshSeconds: null,
 					lastReadAt: null,
 					pageUrl: null,
@@ -583,6 +584,37 @@ test.describe("what's kept from a source (ADR-0123)", () => {
 		expect(
 			await read(page, (s) => s.scene.data.values.map((value) => [value.key, value.value])),
 		).toEqual([["status", "Good"]]);
+	});
+});
+
+test.describe("a template's example spreadsheet", () => {
+	test("its source's page offers the file, kept on this site, and says how to do the same", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			data: {
+				sources: [
+					{
+						id: "f",
+						name: "battlefieldstats-sent-monthly.csv",
+						kind: "file",
+						fileName: "battlefieldstats-sent-monthly.csv",
+						exampleFileUrl: "/examples/battlefieldstats-sent-monthly.csv",
+					},
+				],
+				values: [
+					{ key: "sent", name: "Sent", value: 1715, source: { sourceId: "f", path: "sent" } },
+				],
+			},
+		});
+		await act(page, (s) => s.openDataWindow({ kind: "source", id: "f" }));
+		await expect(dataWindow(page)).toContainText("Add data → A spreadsheet file…");
+		const downloading = page.waitForEvent("download");
+		await dataWindow(page).getByRole("button", { name: "Download the example file" }).click();
+		expect((await downloading).suggestedFilename()).toBe("battlefieldstats-sent-monthly.csv");
+		const file = await page.request.get("/examples/battlefieldstats-sent-monthly.csv");
+		expect(file.status()).toBe(200);
+		expect(await file.text()).toMatch(/^month,sent\n2023-01,5581\n/);
 	});
 });
 

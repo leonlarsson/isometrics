@@ -632,6 +632,14 @@ export const DataSourceSchema = z
 			.nullable()
 			.default(null)
 			.describe("With kind file: the file it was imported from."),
+		exampleFileUrl: z
+			.string()
+			.regex(/^\/examples\/[a-z0-9-]+\.csv$/, "Only this site's own example files")
+			.nullable()
+			.default(null)
+			.describe(
+				"With kind file, in this site's templates: the example spreadsheet it was read from, kept on this site (/examples/<name>.csv), for people to download and see how it's laid out; null = none. Only this site's own example files.",
+			),
 		refreshSeconds: z
 			.number()
 			.min(10)

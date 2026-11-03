@@ -28,7 +28,7 @@ Chosen option: **1**.
 - Template ids are lowercase words joined by hyphens: `brightwater`, `lantern-bay`, `monaco`, `shape-castle`, `battlefield-territory`, `extraction-shooters`. A test checks every template's.
 - `templateById` (`templates/index.ts`) finds a template by its exact id (`openLink.ts`, the API). Old ids with underscores open nothing: `/templates/lantern_bay` lands on the home screen saying the template can't be opened.
 - The scripts (`shots.mjs`, `gallery.mjs`, `bench.mjs`), the guide and `PERFORMANCE.md` use the new ids.
-- Ids kept inside worlds are unchanged; whether they follow is still open (`TODO.md`, *Hyphens, not underscores*).
+- Ids kept inside worlds (part kinds like `office_tower_01`, fence, road and area kinds, data keys) keep their underscores: they aren't seen in addresses (the owner, 2026-11-03).
 
 ### Consequences
 
