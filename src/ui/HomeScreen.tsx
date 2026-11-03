@@ -142,7 +142,7 @@ export const HomeScreen = () => {
 					</h2>
 
 					<div className={styles.actions}>
-						<Button icon="sparkle" onClick={() => store().setWelcomeOpen(true)}>
+						<Button icon="info" onClick={() => store().setWelcomeOpen(true)}>
 							Welcome…
 						</Button>
 
