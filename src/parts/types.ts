@@ -116,7 +116,9 @@ export type TPartCategory =
 	| "furniture"
 	| "infrastructure"
 	| "markers"
-	| "shapes";
+	| "shapes"
+	/** A world's own designs (ADR-0134): never in the registry, made from the world's prefabs. */
+	| "prefabs";
 
 export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	buildings: "Buildings",
@@ -126,6 +128,7 @@ export const CATEGORY_LABELS: Record<TPartCategory, string> = {
 	infrastructure: "Ground & props",
 	markers: "Markers",
 	shapes: "Shapes",
+	prefabs: "Prefabs",
 };
 
 /**
@@ -182,6 +185,8 @@ export interface IPartRenderProps<P, C extends string = string> {
 	data?: readonly TDataValue[];
 	/** Where the sun is now, for parts that follow it (`followsTheSun`); undefined otherwise. */
 	sun?: ISunPosition;
+	/** The world's hour, for parts that follow it (`followsTheHour`: lights on a schedule inside them). */
+	hour?: number | null;
 	/** Parts that set `rendersAsync` call this once everything they draw is built. */
 	onReady?: () => void;
 }
@@ -294,6 +299,13 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	 * nothing for the rest.
 	 */
 	followsTheSun?: (props: P) => boolean;
+	/**
+	 * It reads the world's data by itself, whatever its object's own settings (a prefab whose pieces
+	 * follow data, ADR-0134), so it's given `data` in its render props.
+	 */
+	readsData?: boolean;
+	/** It follows the world's hour by itself (a prefab with a piece's light on a schedule): given `hour`. */
+	followsTheHour?: boolean;
 	Component: FC<IPartRenderProps<P, C>>;
 }
 

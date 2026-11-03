@@ -26,7 +26,7 @@ import type { TScene } from "./schema";
  *   the same way, a list is replaced whole, and `null` removes a field so its
  *   default applies.
  * - A list of things with ids (`entities`, `roads`, `areas`, `fences`,
- *   `viewpoints`, `moods`, and `data`'s `values` and `tables` by `key`,
+ *   `prefabs`, `viewpoints`, `moods`, and `data`'s `values` and `tables` by `key`,
  *   `sources` by `id`) takes `remove` (ids), `change` (each a merge patch for
  *   the thing with that id) and `add` (whole things), in that order.
  *
@@ -65,6 +65,7 @@ export const PATCH_LISTS = [
 	{ path: ["roads"], id: "id", one: "road" },
 	{ path: ["areas"], id: "id", one: "area" },
 	{ path: ["fences"], id: "id", one: "fence" },
+	{ path: ["prefabs"], id: "id", one: "prefab" },
 	{ path: ["viewpoints"], id: "id", one: "viewpoint" },
 	{ path: ["moods"], id: "id", one: "mood" },
 	{ path: ["data", "values"], id: "key", one: "data value" },

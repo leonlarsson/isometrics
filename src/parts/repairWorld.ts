@@ -97,10 +97,16 @@ const upgradeProps = (entity: TRecord, part: TAnyPart, props: TRecord) => {
  * world `upgradeLegacyIds` returned (a copy), in place; anything else passes through.
  */
 export const upgradePartSettings = (input: unknown): unknown => {
-	if (!isRecord(input) || !Array.isArray(input.entities)) {
+	if (!isRecord(input)) {
 		return input;
 	}
-	for (const entity of input.entities.filter(isRecord)) {
+	// The world's objects, and its prefabs' pieces (ADR-0134).
+	const records = (list: unknown) => (Array.isArray(list) ? list.filter(isRecord) : []);
+	const entities = [
+		...records(input.entities),
+		...records(input.prefabs).flatMap((prefab) => records(prefab.entities)),
+	];
+	for (const entity of entities) {
 		const part = typeof entity.kind === "string" ? getPart(entity.kind) : undefined;
 		const props = isRecord(entity.props) ? entity.props : {};
 		// Lights first: their legacy hooks read the accent and the props as they were saved.

@@ -1,4 +1,6 @@
+import { keepOnHotReload } from "#/lib/hot";
 import { round } from "#/lib/math";
+import { isPrefabKind } from "#/scene/schema";
 import { variantName } from "#/scene/variants";
 
 import { apartmentBlock01 } from "./buildings/apartment_block_01";
@@ -229,21 +231,43 @@ export const PARTS: TAnyPart[] = [
 const byKind = new Map(PARTS.map((part) => [part.kind, part]));
 const KINDS = PARTS.map((part) => part.kind);
 
+/**
+ * The open world's prefabs as parts (ADR-0134), by their ids: the parts made from its designs
+ * (`parts/prefabParts`, which the editor hands them to whenever they change). Kept over a hot
+ * reload, as the editor hands them over only when they change.
+ */
+const worldPrefabParts = keepOnHotReload("worldPrefabParts", () => new Map<string, TAnyPart>());
+
+/** Make these the open world's prefabs (parts/prefabParts' `setWorldPrefabs` calls it). */
+export const putWorldPrefabParts = (parts: readonly TAnyPart[]) => {
+	worldPrefabParts.clear();
+	for (const part of parts) {
+		worldPrefabParts.set(part.kind, part);
+	}
+};
+
+/** The open world's prefabs as parts, in the world's order. */
+export const worldPrefabPartList = (): TAnyPart[] => [...worldPrefabParts.values()];
+
 const partNames = new Map(PARTS.map((part) => [part, variantName(part.kind, part.name, KINDS)]));
 
 /** What to call a part: "Office tower", or "Office tower 2" once its family has several variants. */
 export const partName = (part: TAnyPart) =>
-	partNames.get(part) ?? variantName(part.kind, part.name, KINDS);
+	partNames.get(part) ?? (isPrefabKind(part.kind) ? part.name : variantName(part.kind, part.name, KINDS));
 
 /** The same for a kind; undefined if no part has it. */
 export const partNameOf = (kind: string) => {
-	const part = byKind.get(kind);
+	const part = getPart(kind);
 	return part ? partName(part) : undefined;
 };
 
+/** The part of a kind: one of the registry's, or one of the open world's prefabs (ADR-0134). */
 export const getPart = (kind: string): TAnyPart | undefined => {
-	return byKind.get(kind);
+	return byKind.get(kind) ?? worldPrefabParts.get(kind);
 };
+
+/** One of the registry's own parts, never a prefab: what a prefab's pieces may be. */
+export const getBasePart = (kind: string): TAnyPart | undefined => byKind.get(kind);
 
 export const partsByCategory = (): [TPartCategory, TAnyPart[]][] => {
 	const groups = new Map<TPartCategory, TAnyPart[]>();

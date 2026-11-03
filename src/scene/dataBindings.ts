@@ -1,4 +1,13 @@
-import type { TArea, TColorSetting, TDataBinding, TEntity, TFence, TRoad, TScene } from "./schema";
+import type {
+	TArea,
+	TColorSetting,
+	TDataBinding,
+	TEntity,
+	TFence,
+	TPrefab,
+	TRoad,
+	TScene,
+} from "./schema";
 
 /**
  * Every place an object keeps data bindings (ADR-0058, ADR-0060, ADR-0109):
@@ -41,11 +50,11 @@ export const areaBindingMapsOf = (area: Pick<TArea, "colors">): Record<string, T
 /**
  * Every place the world keeps data bindings besides its objects and fences:
  * the time of day and the weather, each mood's too, the colours of the
- * ground, the roads and the areas (ADR-0104), and roads' widths and flows
- * (ADR-0112).
+ * ground, the roads and the areas (ADR-0104), roads' widths and flows
+ * (ADR-0112), and every binding of the prefabs' pieces (ADR-0134).
  */
 export const worldBindingMapsOf = (
-	scene: Pick<TScene, "lighting" | "weather" | "moods" | "ground" | "roads" | "areas">,
+	scene: Pick<TScene, "lighting" | "weather" | "moods" | "ground" | "roads" | "areas" | "prefabs">,
 ): Record<string, TDataBinding>[] => [
 	scene.lighting.data,
 	scene.weather.data,
@@ -53,4 +62,18 @@ export const worldBindingMapsOf = (
 	...colorBindingMapsOf(scene.ground.colors),
 	...scene.roads.flatMap(roadBindingMapsOf),
 	...scene.areas.flatMap(areaBindingMapsOf),
+	...scene.prefabs.flatMap(prefabBindingMapsOf),
 ];
+
+/** A prefab's data bindings: its pieces', objects' and fences' alike (ADR-0134). */
+export const prefabBindingMapsOf = (
+	prefab: Pick<TPrefab, "entities" | "fences">,
+): Record<string, TDataBinding>[] => [
+	...prefab.entities.flatMap(bindingMapsOf),
+	...prefab.fences.flatMap(fenceBindingMapsOf),
+];
+
+/** Whether any of a prefab's pieces follow data. */
+export const prefabUsesData = (prefab: Pick<TPrefab, "entities" | "fences">) =>
+	prefab.entities.some(usesDataBindings) ||
+	prefabBindingMapsOf(prefab).some((map) => Object.keys(map).length > 0);

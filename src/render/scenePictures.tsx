@@ -6,7 +6,8 @@ import * as THREE from "three";
 import { toRadians } from "#/lib/math";
 import { colorOf, resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
-import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
+import { partIn } from "#/parts/prefabParts";
+import { resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { GROUND } from "#/scene/ground";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
@@ -15,6 +16,8 @@ import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/
 
 import { AreaBody } from "./AreaMesh";
 import { FenceBody } from "./FenceMesh";
+// Prefabs' copies draw their pieces with it (ADR-0134).
+import "./PrefabPieces";
 import { RoadBody } from "./RoadMesh";
 import { SceneLights } from "./SceneLights";
 import { frameBoxIn } from "./thumbnails";
@@ -71,7 +74,7 @@ const box = new THREE.Box3();
 
 /** Where an object stands when the world opens: a driving vehicle at its start on the road. */
 const startPose = (entity: TEntity, scene: TScene) => {
-	const part = getPart(entity.kind);
+	const part = partIn(entity.kind, scene.prefabs);
 	const road = entity.follow
 		? scene.roads.find((candidate) => candidate.id === entity.follow?.roadId)
 		: undefined;
@@ -112,7 +115,7 @@ interface IPictureEntityProps {
 }
 
 const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps) => {
-	const part = getPart(entity.kind);
+	const part = partIn(entity.kind, scene.prefabs);
 	if (!part) {
 		return null;
 	}
@@ -136,6 +139,7 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 					playing={false}
 					lights={lights}
 					data={scene.data.values}
+					hour={scene.lighting.time}
 					onReady={part.rendersAsync ? onReady : undefined}
 				/>
 			</group>
@@ -157,7 +161,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const group = useRef<THREE.Group>(null);
 	const shot = useRef(false);
 	const entities = scene.entities.filter((entity) => !entity.isHidden);
-	const waiting = useRef(entities.filter((entity) => getPart(entity.kind)?.rendersAsync).length);
+	const waiting = useRef(entities.filter((entity) => partIn(entity.kind, scene.prefabs)?.rendersAsync).length);
 
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {

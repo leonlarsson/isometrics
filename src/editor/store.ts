@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
+import { partIn, setWorldPrefabs } from "#/parts/prefabParts";
 import { getPart } from "#/parts/registry";
 import {
 	AREA_KIND_LABELS,
@@ -829,10 +830,11 @@ const validRoadSelection = (
  * whose part was removed (renamed ones are upgraded on load, ADR-0053), or
  * from a newer one. Most common first.
  */
-export const unknownPartKinds = (scene: Pick<TScene, "entities">) => {
+export const unknownPartKinds = (scene: Pick<TScene, "entities" | "prefabs">) => {
 	const counts = new Map<string, number>();
-	for (const entity of scene.entities) {
-		if (!getPart(entity.kind)) {
+	// Copies of the world's own prefabs are known (ADR-0134), and so are their pieces' parts.
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
+		if (!partIn(entity.kind, scene.prefabs)) {
 			counts.set(entity.kind, (counts.get(entity.kind) ?? 0) + 1);
 		}
 	}
@@ -1066,8 +1068,8 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	// Fences' colours and how much of them is built (ADR-0103).
-	for (const fence of scene.fences) {
+	// Fences' colours and how much of them is built (ADR-0103), prefabs' pieces too (ADR-0134).
+	for (const fence of [...scene.fences, ...scene.prefabs.flatMap((prefab) => prefab.fences)]) {
 		for (const bindings of fenceBindingMapsOf(fence)) {
 			renameBindings(bindings, from, to);
 		}
@@ -1077,7 +1079,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	for (const entity of scene.entities) {
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
 		entity.label.dataKeys = swap(entity.label.dataKeys);
 		entity.details.dataKeys = swap(entity.details.dataKeys);
 		for (const field of getPart(entity.kind)?.fields ?? []) {
@@ -1112,7 +1114,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
  */
 export const createEditorStore = (openScene?: TScene) => {
 	const initialScene = openScene ?? createBrightwaterScene();
-	return create<IEditorState>()((rawSet, get) => {
+	const store = create<IEditorState>()((rawSet, get) => {
 		// Every change goes through here, so the list of selected items follows the active item.
 		const set = (
 			partial:
@@ -2789,6 +2791,15 @@ export const createEditorStore = (openScene?: TScene) => {
 			cancelDrawing: () => set({ drawing: null }),
 		};
 	});
+	// The parts layer can't read the store: it's handed the open world's prefabs whenever they
+	// change (ADR-0134), before anything draws them.
+	setWorldPrefabs(store.getState().scene.prefabs);
+	store.subscribe((state, previous) => {
+		if (state.scene.prefabs !== previous.scene.prefabs) {
+			setWorldPrefabs(state.scene.prefabs);
+		}
+	});
+	return store;
 };
 
 /**

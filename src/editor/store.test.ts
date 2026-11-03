@@ -950,7 +950,7 @@ describe("unknownPartKinds", () => {
 			{ kind: "house" },
 			{ kind: "house" },
 		] as TScene["entities"];
-		expect(unknownPartKinds({ entities })).toEqual([
+		expect(unknownPartKinds({ entities, prefabs: [] })).toEqual([
 			["house", 2],
 			["tower", 1],
 		]);

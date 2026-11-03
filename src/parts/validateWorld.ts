@@ -8,7 +8,8 @@ import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
-import { getPart, resolveProps } from "./registry";
+import { partIn } from "./prefabParts";
+import { getBasePart, getPart, resolveProps } from "./registry";
 import { repairWorld, upgradeWorld } from "./repairWorld";
 
 /**
@@ -48,7 +49,7 @@ const MOST_ROWS = 100_000;
 /** More issues than this of one sort are summed up, not listed. */
 const MOST_ISSUES = 40;
 
-const LISTS = ["entities", "roads", "areas", "fences", "viewpoints", "moods"] as const;
+const LISTS = ["entities", "roads", "areas", "fences", "prefabs", "viewpoints", "moods"] as const;
 
 /** A path with each list entry named by its id where it has one. */
 const pathWithIds = (root: unknown, path: readonly PropertyKey[]) => {
@@ -120,7 +121,7 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 
 	scene.entities.forEach((entity, index) => {
 		const where = `entities[${index}] "${entity.id}"`;
-		const part = getPart(entity.kind);
+		const part = partIn(entity.kind, scene.prefabs);
 		if (!part) {
 			warn(`${where}.kind`, `"${entity.kind}" isn't a part kind: it's drawn as a placeholder box`);
 			return;
@@ -160,6 +161,25 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 				);
 			}
 		}
+	});
+
+	// A prefab's pieces (ADR-0134): parts this version has, reading data the world has.
+	scene.prefabs.forEach((prefab, index) => {
+		const where = `prefabs[${index}] "${prefab.id}"`;
+		const { keys } = readableKeys(scene, null);
+		// "row.<column>" reads the row a copy follows, which differs from copy to copy.
+		const readable = (key: string) => keys.has(key) || key.startsWith("row.");
+		prefab.entities.forEach((piece, pieceIndex) => {
+			const at = `${where}.entities[${pieceIndex}] "${piece.id}"`;
+			if (!getBasePart(piece.kind)) {
+				warn(`${at}.kind`, `"${piece.kind}" isn't a part kind: that piece isn't drawn`);
+			}
+			bindingsRead(
+				at,
+				Object.fromEntries(Object.entries(piece.data).filter(([, b]) => !readable(b.key))),
+				keys,
+			);
+		});
 	});
 
 	scene.roads.forEach((road, index) => {
