@@ -166,6 +166,7 @@ describe("describeRepairs", () => {
 				roads: 1,
 				areas: 0,
 				fences: 0,
+				prefabs: 0,
 				values: 0,
 				tables: 0,
 				sources: 0,

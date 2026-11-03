@@ -161,7 +161,9 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const group = useRef<THREE.Group>(null);
 	const shot = useRef(false);
 	const entities = scene.entities.filter((entity) => !entity.isHidden);
-	const waiting = useRef(entities.filter((entity) => partIn(entity.kind, scene.prefabs)?.rendersAsync).length);
+	const waiting = useRef(
+		entities.filter((entity) => partIn(entity.kind, scene.prefabs)?.rendersAsync).length,
+	);
 
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {

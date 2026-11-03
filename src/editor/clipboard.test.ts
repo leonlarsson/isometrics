@@ -173,3 +173,61 @@ describe("names of pasted things (ADR-0068)", () => {
 		expect(roadNames()).toEqual(["Ring road", "Ring road 2", "Ring road 3"]);
 	});
 });
+
+describe("copying and pasting copies of prefabs (ADR-0134)", () => {
+	const yard = {
+		id: "prefab_yard",
+		name: "Yard",
+		entities: [{ id: "box", kind: "box_01" }],
+	};
+	beforeEach(() => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				prefabs: [yard],
+				entities: [{ id: "copy", kind: "prefab_yard", position: [2, 2] }],
+			}),
+		);
+	});
+
+	it("carries the design with a copy, and adds it to a world without it", () => {
+		select("copy");
+		const text = selectedThingsText()!;
+		expect(readClip(text)).toMatchObject({ prefabs: [{ id: "prefab_yard" }] });
+		useEditor.getState().loadScene(SceneSchema.parse({ version: 1 }));
+		const before = useEditor.getState().past.length;
+		pasteText(text);
+		const { scene, past } = useEditor.getState();
+		expect(scene.prefabs.map((prefab) => prefab.id)).toEqual(["prefab_yard"]);
+		expect(scene.entities.map((e) => e.kind)).toEqual(["prefab_yard"]);
+		expect(past.length).toBe(before + 1);
+	});
+
+	it("keeps a design the world has as it has it", () => {
+		select("copy");
+		const text = selectedThingsText()!;
+		useEditor.getState().commit((scene) => {
+			scene.prefabs[0].name = "Changed here";
+		});
+		pasteText(text);
+		const { scene } = useEditor.getState();
+		expect(scene.prefabs).toHaveLength(1);
+		expect(scene.prefabs[0].name).toBe("Changed here");
+		expect(scene.entities).toHaveLength(2);
+	});
+
+	it("leaves out a copy whose design came with nothing", () => {
+		useEditor.getState().loadScene(SceneSchema.parse({ version: 1 }));
+		pasteText(
+			JSON.stringify({
+				app: "isometrics",
+				type: "things",
+				entities: [
+					{ id: "x", kind: "prefab_gone" },
+					{ id: "y", kind: "box_01" },
+				],
+			}),
+		);
+		expect(useEditor.getState().scene.entities.map((e) => e.kind)).toEqual(["box_01"]);
+	});
+});

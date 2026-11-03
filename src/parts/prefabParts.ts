@@ -172,6 +172,7 @@ const makePrefabPart = (prefab: TPrefab): TAnyPart => {
 		readsData:
 			prefabUsesData(prefab) ||
 			pieces.some(({ part }) => part.fields.some((field) => field.type === "dataKey")),
+		// biome-ignore lint/correctness/noComponentHookFactories: one per design, made once (prefabPartOf caches it); a changed design is meant to draw afresh
 		Component: ({ palette, playing, data, hour, sun, onReady }) => {
 			const Pieces = drawing.Pieces;
 			return Pieces

@@ -253,7 +253,8 @@ const partNames = new Map(PARTS.map((part) => [part, variantName(part.kind, part
 
 /** What to call a part: "Office tower", or "Office tower 2" once its family has several variants. */
 export const partName = (part: TAnyPart) =>
-	partNames.get(part) ?? (isPrefabKind(part.kind) ? part.name : variantName(part.kind, part.name, KINDS));
+	partNames.get(part) ??
+	(isPrefabKind(part.kind) ? part.name : variantName(part.kind, part.name, KINDS));
 
 /** The same for a kind; undefined if no part has it. */
 export const partNameOf = (kind: string) => {

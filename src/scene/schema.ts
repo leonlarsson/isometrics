@@ -1089,7 +1089,7 @@ export const PrefabSchema = z
 			)
 			.default([])
 			.describe(
-				'Its pieces that are objects (parts and shapes, never prefabs), as in entities, placed round the prefab\'s origin: the middle of its footprint on the ground at [0, 0], its lowest piece at altitude 0, its front facing +z. Their data bindings read the world\'s data, and "row.<column>" the row a copy follows.',
+				"Its pieces that are objects (parts and shapes, never prefabs), as in entities, placed round the prefab's origin: the middle of its footprint on the ground at [0, 0], its lowest piece at altitude 0, its front facing +z. Their data bindings read the world's data, and \"row.<column>\" the row a copy follows.",
 			),
 		fences: z
 			.array(FenceSchema)

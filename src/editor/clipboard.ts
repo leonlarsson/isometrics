@@ -19,6 +19,7 @@ import {
 	DetailsSchema,
 	EntityLightSchema,
 	FollowSchema,
+	isPrefabKind,
 	LabelSchema,
 	NO_LABEL,
 	SCENE_VERSION,
@@ -88,6 +89,8 @@ const ClipSchema = z.discriminatedUnion("type", [
 		roads: z.array(z.unknown()).default([]),
 		areas: z.array(z.unknown()).default([]),
 		fences: z.array(z.unknown()).default([]),
+		/** The designs of the prefabs' copies among them (ADR-0134), so they paste into any world. */
+		prefabs: z.array(z.unknown()).default([]),
 	}),
 	z.object({ app: z.literal(APP), type: z.literal("settings"), settings: CopiedSettingsSchema }),
 ]);
@@ -173,7 +176,15 @@ export const selectedThingsText = () => {
 	if (entities.length + roads.length + areas.length + fences.length === 0) {
 		return null;
 	}
-	return JSON.stringify({ app: APP, type: "things", entities, roads, areas, fences }, null, 2);
+	// A copy of a prefab carries its design, so it pastes into a world without it (ADR-0134).
+	const prefabs = scene.prefabs.filter((prefab) =>
+		entities.some((entity) => entity.kind === prefab.id),
+	);
+	return JSON.stringify(
+		{ app: APP, type: "things", entities, roads, areas, fences, prefabs },
+		null,
+		2,
+	);
 };
 
 /** "3 objects and a road": how many things of each kind, for messages. */
@@ -502,7 +513,13 @@ export const pasteSettings = (settings: TCopiedSettings, options: IPasteOptions 
  * the ground.
  */
 const pasteThings = (
-	clip: { entities: unknown[]; roads: unknown[]; areas: unknown[]; fences: unknown[] },
+	clip: {
+		entities: unknown[];
+		roads: unknown[];
+		areas: unknown[];
+		fences: unknown[];
+		prefabs: unknown[];
+	},
 	at?: TVec2,
 ) => {
 	const state = store();
@@ -512,8 +529,20 @@ const pasteThings = (
 		roads: clip.roads,
 		areas: clip.areas,
 		fences: clip.fences,
+		prefabs: clip.prefabs,
 	});
-	const { entities, roads, areas, fences } = repaired;
+	const { roads, areas, fences } = repaired;
+	// Copies of prefabs bring their designs: added where this world lacks them, and a design
+	// it has is kept as it has it (ADR-0134). A copy whose design came with neither is left out.
+	const known = new Set(state.scene.prefabs.map((prefab) => prefab.id));
+	const newPrefabs = repaired.prefabs.filter(
+		(prefab) =>
+			!known.has(prefab.id) && repaired.entities.some((entity) => entity.kind === prefab.id),
+	);
+	const designs = new Set([...known, ...newPrefabs.map((prefab) => prefab.id)]);
+	const entities = repaired.entities.filter(
+		(entity) => !isPrefabKind(entity.kind) || designs.has(entity.kind),
+	);
 	if (entities.length + roads.length + areas.length + fences.length === 0) {
 		notify(
 			"Nothing to paste",
@@ -632,6 +661,7 @@ const pasteThings = (
 	});
 
 	state.commit((scene) => {
+		scene.prefabs.push(...newPrefabs);
 		scene.entities.push(...newEntities);
 		scene.roads.push(...newRoads);
 		scene.areas.push(...newAreas);
