@@ -73,4 +73,33 @@ test.describe("shapes", () => {
 		await act(page, (s) => s.undo());
 		expect((await entity(page, "box"))?.props.height).toBe(2);
 	});
+
+	test("a building sized by its props has the handles too: its side's drags its width", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await loadWorld(page, {
+			entities: [
+				{
+					id: "warehouse",
+					kind: "warehouse_01",
+					position: [0, 0],
+					props: { width: 6, depth: 4, height: 2 },
+				},
+			],
+		});
+		const span = 16;
+		await showView(page, [0, 0], span);
+		await act(page, (s) => s.select("warehouse"));
+
+		// Its +X side's handle, halfway up it (walls and roof, 2.4 high), dragged a unit further out.
+		const handle = await gizmoSpot(page, [3, 1.2, 0], [0.3, 0, 0], span);
+		const [from, to] = [await screenOf(page, [3, 1.2, 0]), await screenOf(page, [4.1, 1.2, 0])];
+		await dragBy(page, handle, to.x - from.x, to.y - from.y);
+		const widened = await entity(page, "warehouse");
+		expect(widened?.props.width).toBe(7);
+		// Its −X side stayed where it was.
+		expect((widened?.position[0] ?? 0) - 7 / 2).toBeCloseTo(-3);
+		expect(widened?.props.depth).toBe(4);
+	});
 });

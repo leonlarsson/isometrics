@@ -29,6 +29,7 @@ export const bench01 = definePart({
 		{ id: "slats", name: "Slats", default: "#a8743f", legacy: "color" },
 		{ id: "frame", name: "Frame", default: "#3d3f42", legacy: "accent" },
 	],
+	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, metres(0.5)],
 	height: (p) => metres(p.showsBackrest ? 0.86 : 0.47),
 	Component: ({ props: p, colors }) => {

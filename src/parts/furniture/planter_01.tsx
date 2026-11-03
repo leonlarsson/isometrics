@@ -27,6 +27,7 @@ export const planter01 = definePart({
 		{ id: "box", name: "Box", default: "#a8a49a", legacy: "color" },
 		{ id: "plants", name: "Plants", default: "#4b7f3a", legacy: "accent" },
 	],
+	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, metres(0.5)],
 	height: () => metres(0.85),
 	Component: ({ props: p, colors }) => {

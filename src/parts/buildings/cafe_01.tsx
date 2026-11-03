@@ -53,6 +53,7 @@ export const cafe01 = definePart({
 		},
 		{ id: "stringLights", name: "String of lights", shape: "glow", color: "#ffd98a" },
 	],
+	sizeAlong: { x: "width", z: "depth" },
 	footprint: (p) => [p.width, p.depth + AWNING.depth],
 	height: () => HEIGHT + 0.1,
 	Component: ({ props: p, colors, palette, lights }) => {
