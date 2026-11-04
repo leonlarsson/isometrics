@@ -869,6 +869,32 @@ export const RoadSchema = z
 		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
 	);
 
+export const RoadEndSchema = z
+	.enum(["start", "end"])
+	.describe("Which end of a road: start = its first point, end = its last.");
+
+// See docs/adr/0136-road-junctions.md.
+export const JunctionSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the junctions."),
+		ends: z
+			.array(
+				z
+					.object({
+						roadId: z.string().describe("Id of the road whose end it is."),
+						end: RoadEndSchema,
+					})
+					.describe("One road end at the junction."),
+			)
+			.min(2)
+			.describe(
+				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width.",
+			),
+	})
+	.describe(
+		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random. A junction is where its ends are.",
+	);
+
 export const DrivingSideSchema = z
 	.enum(["right", "left"])
 	.describe("Which side of the road vehicles drive on.");
@@ -1642,6 +1668,10 @@ export const SceneSchema = z
 		backdrop: BackdropSchema.default(() => BackdropSchema.parse({})),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
+		junctions: z
+			.array(JunctionSchema)
+			.default([])
+			.describe("Where roads meet and vehicles drive on from one to another."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
 		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
 		data: WorldDataSchema.default(() => WorldDataSchema.parse({})),
@@ -1675,6 +1705,11 @@ export const SceneSchema = z
 			scene.roads.map((r) => r.id),
 			["roads"],
 			"road id",
+		);
+		checkUnique(
+			scene.junctions.map((j) => j.id),
+			["junctions"],
+			"junction id",
 		);
 		checkUnique(
 			scene.areas.map((a) => a.id),
@@ -1731,6 +1766,8 @@ export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
+export type TJunction = z.output<typeof JunctionSchema>;
+export type TJunctionEnd = TJunction["ends"][number];
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
