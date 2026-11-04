@@ -26,6 +26,7 @@ export { NumberField } from "./NumberField";
 export { PeriodsField } from "./PeriodsField";
 export { formatClock, type ITimePeriod } from "./periods";
 export { RadioGroupField } from "./RadioGroupField";
+export { ReadOutField } from "./ReadOutField";
 export { resetsAgainst, resetToDefault } from "./resets";
 export { SearchField } from "./SearchField";
 export { Section } from "./Section";

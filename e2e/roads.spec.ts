@@ -560,7 +560,7 @@ test.describe("junctions (ADR-0136)", () => {
 			.poll(() => page.evaluate(() => globalThis.__editorView.routesShown().car?.[0]))
 			.toBe("north");
 		await page.getByRole("tab", { name: "Motion" }).click();
-		await expect(page.getByText("Now on “North”")).toBeVisible();
+		await expect(page.locator("output", { hasText: "North" })).toBeVisible();
 	});
 
 	test("a vehicle told not to drive through junctions keeps to its road", async ({ page }) => {

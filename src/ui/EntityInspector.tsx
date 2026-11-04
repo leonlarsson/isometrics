@@ -12,6 +12,8 @@ import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/par
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import { standingAltitudeAt } from "#/parts/standing";
 import type { ILightSpec } from "#/parts/types";
+import { roadNetworkOf } from "#/scene/junctions";
+import { drivesAcrossNetwork } from "#/scene/network";
 import {
 	polylineLength,
 	resolveDrivesThroughJunctions,
@@ -40,6 +42,7 @@ import {
 	CheckboxGroupField,
 	formatClock,
 	Hint,
+	ReadOutField,
 	resetToDefault,
 	Section,
 	SelectField,
@@ -640,12 +643,15 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
-	// On a road network it drives on from road to road (ADR-0136): the road it's on now.
+	// On a road network it drives on from road to road (ADR-0136): the road it's on now, shown in a
+	// row of its own that's there all the while it drives through junctions, so nothing below moves.
+	const traffic = useEditor((s) => s.scene.traffic);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const drivesAcross =
+		followedRoad !== undefined &&
+		drivesAcrossNetwork(roadNetworkOf(roads, junctions), followedRoad, traffic, entity.follow);
 	const nowOn = roadOfVehicleNow(entity, useVehiclesNow());
-	const roadNow =
-		nowOn && nowOn.roadId !== entity.follow?.roadId
-			? roads.find((r) => r.id === nowOn.roadId)
-			: undefined;
+	const roadNow = roads.find((r) => r.id === nowOn?.roadId) ?? followedRoad;
 	const followedRoadLength = followedRoad
 		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.loops)))
 		: 1;
@@ -698,10 +704,12 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 				)}
 			/>
 
-			{roadNow && (
-				<Hint>
-					{`Now on “${roadNameOf(roadNow)}”: it drives on from road to road at junctions, and starts on the road above.`}
-				</Hint>
+			{drivesAcross && roadNow && (
+				<ReadOutField
+					label="Now on"
+					value={roadNameOf(roadNow)}
+					hint="It drives on from road to road at junctions, starting on the road above."
+				/>
 			)}
 
 			{entity.follow && (
