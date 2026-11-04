@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { openSavedWorld, openWorldFile } from "#/editor/fileActions";
-import { listWorlds } from "#/editor/persistence";
+import { listWorlds, subscribeWorldList } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import type { THomeReason } from "#/editor/whatIsOpen";
 import { APP_NAME } from "#/lib/app";
@@ -58,8 +58,9 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
  */
 export const HomeScreen = () => {
 	const why = useEditor((s) => (s.whatIsOpen.kind === "home" ? s.whatIsOpen.why : null));
-	// Read once: nothing changes the list while the home screen shows.
-	const [worlds] = useState(listWorlds);
+	// Read once, and again when an import adds worlds (ADR-0140): nothing else changes the list here.
+	const [worlds, setWorlds] = useState(listWorlds);
+	useEffect(() => subscribeWorldList(() => setWorlds(listWorlds())), []);
 	if (!why) {
 		return null;
 	}
