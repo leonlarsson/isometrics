@@ -355,7 +355,8 @@ const FenceGateHandle = ({ fence, index, at, direction }: IFenceGateHandleProps)
 						draft.alongShare = place.alongShare;
 					}
 				},
-				{ coalesce: token },
+				// One gesture: however long the pointer pauses, one undo step.
+				{ coalesce: token, gesture: true },
 			);
 		},
 	});
