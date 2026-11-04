@@ -13,6 +13,8 @@ import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import { groundHeightAt } from "#/scene/areas";
+import type { IRoadNetwork } from "#/scene/junctions";
+import { createNetworkTrip } from "#/scene/network";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
 import type { TDataValue, TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
@@ -168,6 +170,8 @@ export interface IEntityNodeProps {
 	world: IEntityWorld;
 	/** The road it follows, if any. */
 	road: TRoad | null;
+	/** The road network, when the road it follows has a junction at an end: it drives on (ADR-0136). */
+	network?: IRoadNetwork | null;
 	/** The world's data, for objects that show values or follow them; otherwise undefined. */
 	data: readonly TDataValue[] | undefined;
 	/** The world's hour, for objects with a light on a schedule or that follow the sun; otherwise null. */
@@ -193,6 +197,7 @@ export const EntityNode = memo(
 		entity,
 		world,
 		road,
+		network = null,
 		data,
 		hour,
 		sun,
@@ -246,16 +251,23 @@ export const EntityNode = memo(
 			: undefined;
 		// The lean now, eased towards what the turn asks for.
 		const leaning = useRef(0);
-		const sampler = useMemo(
-			() =>
-				road
-					? createRouteSampler(road, driving, {
-							reverse,
-							smoothing: turnSmoothing(turns, vehicleLength),
-						})
-					: null,
-			[road, driving, turns, vehicleLength, reverse],
-		);
+		const startDistance = entity.follow?.startDistance ?? 0;
+		const sampler = useMemo(() => {
+			if (!road) {
+				return null;
+			}
+			const smoothing = turnSmoothing(turns, vehicleLength);
+			// On a road with a junction at an end it drives on across the network (ADR-0136).
+			return network?.connects(road.id)
+				? createNetworkTrip(network, road.id, {
+						driving,
+						smoothing,
+						startDistance,
+						reverse,
+						seed: entity.id,
+					})
+				: createRouteSampler(road, driving, { reverse, smoothing });
+		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);
 		const following = Boolean(sampler && entity.follow);
 		// Sideways from its lane to where it overtakes (right of travel is positive): the oncoming lane,
 		// or beside the line on roads without lanes.

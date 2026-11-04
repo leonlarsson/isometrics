@@ -209,3 +209,42 @@ describe("road traffic", () => {
 		expect(states.size).toBe(0);
 	});
 });
+
+describe("traffic through a junction (ADR-0136)", () => {
+	const road = { length: 20, loop: false };
+	const car = (beyond: ITrafficCar["beyond"]): ITrafficCar => ({
+		id: "car",
+		stream: "forward",
+		ring: 1e7,
+		position: 15,
+		centre: 15,
+		direction: 1,
+		turning: false,
+		length: 1.6,
+		speed: 3,
+		beyond,
+	});
+
+	it("keeps its distance to a vehicle on the road it goes on to, and never drives into it", () => {
+		const states = new Map<string, ITrafficState>();
+		let ahead = 4;
+		for (let t = 0; t < 10; t += DT) {
+			const moves = stepRoadTraffic(
+				road,
+				[car({ distance: ahead, length: 1.6, speed: 0 })],
+				states,
+				DT,
+			);
+			ahead -= moves.get("car") ?? 0;
+			expect(ahead - 1.6).toBeGreaterThan(MIN_GAP / 2 - 1e-6);
+		}
+		expect(states.get("car")?.speed).toBeCloseTo(0, 1);
+		expect(states.get("car")?.passing).toBeNull();
+	});
+
+	it("drives at its own speed when the way on is clear", () => {
+		const states = new Map([["car", createTrafficState(3)]]);
+		const moves = stepRoadTraffic(road, [car({ distance: 40, length: 1.6, speed: 3 })], states, DT);
+		expect(moves.get("car")).toBeCloseTo(3 * DT);
+	});
+});

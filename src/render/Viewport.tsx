@@ -15,7 +15,7 @@ import { useWorldData } from "#/editor/worldData";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
-import { roadNetworkOf } from "#/scene/junctions";
+import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
 import type { TEntity, TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
 
@@ -96,6 +96,8 @@ const NO_ITEMS: ISceneItem[] = [];
 interface IEntitiesShared {
 	world: IEntityWorld;
 	roads: TScene["roads"];
+	/** The roads and junctions as a network (ADR-0136): vehicles on a road with a junction drive on. */
+	network: IRoadNetwork;
 	data: TScene["data"];
 	selectedItems: readonly ISceneItem[];
 	selectedId: string | null;
@@ -158,6 +160,7 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 			entity={entityAsDrawn(entity, data)}
 			world={shared.world}
 			road={roadId ? (shared.roads.find((road) => road.id === roadId) ?? null) : null}
+			network={roadId && shared.network.connects(roadId) ? shared.network : null}
 			data={data}
 			hour={null}
 			selected={includesItem(shared.selectedItems, "entity", id)}
@@ -205,6 +208,7 @@ const Entities = memo(() => {
 	const picked = useEditor(
 		useShallow((s) => ({
 			roads: s.scene.roads,
+			network: roadNetworkOf(s.scene.roads, s.scene.junctions),
 			data,
 			selectedItems: s.selectedItems,
 			selectedId: s.selectedId,
