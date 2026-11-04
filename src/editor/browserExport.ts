@@ -166,9 +166,10 @@ const own = (record: Record<string, unknown>, key: string) =>
 
 /** The worlds `items` hold, with their titles from its list of worlds, else from the worlds. */
 const worldsIn = (items: ReadonlyMap<string, string>): IWorldInfo[] => {
-	const index = new Map(
-		parseWorldIndex(items.get(WORLD_INDEX_KEY) ?? null).map((world) => [world.id, world]),
-	);
+	const listedWorlds = parseWorldIndex(items.get(WORLD_INDEX_KEY) ?? null);
+	const index = new Map(listedWorlds.map((world) => [world.id, world]));
+	// Where each sits in its list: worlds saved in the same millisecond keep the list's order.
+	const placeOf = new Map(listedWorlds.map((world, place) => [world.id, place]));
 	const worlds: IWorldInfo[] = [];
 	for (const [key, raw] of items) {
 		if (kindOfKey(key) !== "world") {
@@ -182,7 +183,12 @@ const worldsIn = (items: ReadonlyMap<string, string>): IWorldInfo[] => {
 			updatedAt: listed?.updatedAt ?? 0,
 		});
 	}
-	return worlds.sort((a, b) => b.updatedAt - a.updatedAt);
+	return worlds.sort(
+		(a, b) =>
+			b.updatedAt - a.updatedAt ||
+			(placeOf.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+				(placeOf.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+	);
 };
 
 /** What `items` hold, counted. */
