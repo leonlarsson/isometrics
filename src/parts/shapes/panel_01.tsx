@@ -14,6 +14,7 @@ import {
 	sizeField,
 	useShapeGeometry,
 } from "./shapeKit";
+import { flatTop } from "./shapeTops";
 
 const PanelSchema = z.object({
 	width: z.number().min(SIZE.min).max(SIZE.max).default(1),
@@ -60,6 +61,7 @@ export const panel01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "thickness" },
 	footprint: (p) => [p.width, p.thickness],
 	height: (p) => p.height,
+	topHeightAt: (p, x, z) => flatTop({ ...p, depth: p.thickness }, x, z),
 	Component: ({ props: p, colors, transparency, lights }) => {
 		const geometry = useShapeGeometry(openingKey("panel", p, p.thickness), () =>
 			openingGeometry(p, p.thickness),

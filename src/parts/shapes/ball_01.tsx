@@ -15,6 +15,7 @@ import {
 	sizeField,
 	sizeProps,
 } from "./shapeKit";
+import { ballTop } from "./shapeTops";
 
 const BallSchema = z.object({
 	...lookProps,
@@ -42,6 +43,7 @@ export const ball01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: ballTop,
 	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="ball"

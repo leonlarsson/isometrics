@@ -404,7 +404,8 @@ type TGround = TAreaShape & Pick<TArea, "isHidden">;
 
 /**
  * How high the ground stands at a point: the highest top of the areas there
- * (raised land, slopes, ADR-0096), else 0. What objects stand on (ADR-0098).
+ * (raised land, slopes, ADR-0096), else 0. What fences and roads stand on;
+ * objects also stand on the tops of shapes (`parts/standing`, ADR-0098, ADR-0138).
  */
 export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 	Math.max(
@@ -413,20 +414,6 @@ export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 			.filter((area) => !area.isHidden && isRaised(area))
 			.map((area) => areaTopAt(area, point) ?? 0),
 	);
-
-/**
- * An object's height once it moves from one spot to another: as high above the
- * ground there as it was here, so it climbs onto raised land and follows slopes,
- * and one lifted or sunk on purpose keeps that (ADR-0098).
- */
-export const altitudeMovedTo = (
-	areas: readonly TGround[],
-	elevation: number,
-	from: TVec2,
-	to: TVec2,
-	/** The ground where it goes, when it isn't the same (areas pasted with it). */
-	areasThere: readonly TGround[] = areas,
-) => round(elevation - groundHeightAt(areas, from) + groundHeightAt(areasThere, to));
 
 /** The longest piece of an outline's edge looked at on its own when finding seams. */
 const SEAM_STEP = 0.5;

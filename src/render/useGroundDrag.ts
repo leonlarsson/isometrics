@@ -5,8 +5,8 @@ import * as THREE from "three";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
-import { cornerTop, groundHeightAt, isRaised } from "#/scene/areas";
-import type { TArea, TVec2 } from "#/scene/schema";
+import type { TVec2 } from "#/scene/schema";
+import { areaTopsOf, type ITop } from "#/scene/standing";
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -36,71 +36,124 @@ export const groundPointOnRay = (ray: THREE.Ray, altKey: boolean, planeY = 0): T
 	];
 };
 
-const start = new THREE.Vector3();
 const end = new THREE.Vector3();
-const before = new THREE.Vector3();
-const along = new THREE.Vector3();
-/** Steps down the ray between the highest and the lowest the ground goes, then halvings at the crossing. */
+/** Steps along the ray over each top it passes, then halvings at the crossing. */
 const MARCH_STEPS = 48;
 const BISECTIONS = 10;
+const at = new THREE.Vector3();
 
 /**
- * Where the ray first meets the ground as it stands, on raised land and slopes
- * too (ADR-0098), or the surface `above` it (an object lifted or sunk that
- * much stays under the pointer): walked down the ray from the highest the
- * ground goes, then narrowed in where it crosses. Unsnapped; null when the
- * ray never comes down to it.
+ * Where on a ray (as a distance along it, between `from` and `to`) it first
+ * comes down to a top lifted by `above`, or null when it passes over it.
  */
-export const surfaceHitOnRay = (
-	ray: THREE.Ray,
-	areas: readonly TArea[],
-	above = 0,
-): THREE.Vector3 | null => {
-	const raised = areas.filter((area) => !area.isHidden && isRaised(area));
-	const highest =
-		above + Math.max(0, ...raised.flatMap((area) => area.points.map((p) => cornerTop(area, p))));
-	plane.constant = -above;
-	if (!ray.intersectPlane(plane, end)) {
-		return null;
-	}
-	if (raised.length === 0) {
-		return end.clone();
-	}
-	plane.constant = -highest;
-	if (ray.origin.y <= highest || !ray.intersectPlane(plane, start)) {
-		start.copy(ray.origin);
-	}
-	const surfaceAt = (point: THREE.Vector3) => above + groundHeightAt(raised, [point.x, point.z]);
-	before.copy(start);
-	for (let i = 1; i <= MARCH_STEPS; i++) {
-		along.lerpVectors(start, end, i / MARCH_STEPS);
-		if (along.y <= surfaceAt(along)) {
+const firstCrossing = (ray: THREE.Ray, top: ITop, above: number, from: number, to: number) => {
+	const isUnder = (t: number) => {
+		ray.at(t, at);
+		const altitude = top.altitudeAt(at.x, at.z);
+		return altitude !== null && at.y <= altitude + above;
+	};
+	let before = from;
+	for (let i = 0; i <= MARCH_STEPS; i++) {
+		const t = from + ((to - from) * i) / MARCH_STEPS;
+		if (isUnder(t)) {
+			if (i === 0) {
+				return t;
+			}
 			// It crossed between the last step and this one: halve the gap to find where.
-			const low = along.clone();
-			const high = before.clone();
+			let low = t;
+			let high = before;
 			for (let j = 0; j < BISECTIONS; j++) {
-				const middle = low.clone().add(high).multiplyScalar(0.5);
-				if (middle.y <= surfaceAt(middle)) {
-					low.copy(middle);
+				const middle = (low + high) / 2;
+				if (isUnder(middle)) {
+					low = middle;
 				} else {
-					high.copy(middle);
+					high = middle;
 				}
 			}
 			return low;
 		}
-		before.copy(along);
+		before = t;
 	}
-	return end.clone();
+	return null;
 };
 
 /**
- * The ground under the pointer as it stands (raised land and slopes), snapped
- * to the grid unless snapping is off or `altKey` is held, and kept on the
- * ground (ADR-0098).
+ * Along a ray, where it is over a top's box on the ground and between its
+ * lowest and highest (lifted by `above`): [from, to] as distances along it, or null.
  */
-export const surfacePointOnRay = (ray: THREE.Ray, altKey: boolean, above = 0): TVec2 | null => {
+const spanOver = (
+	ray: THREE.Ray,
+	top: ITop,
+	above: number,
+	end: number,
+): [number, number] | null => {
+	let from = 0;
+	let to = end;
+	const { origin, direction } = ray;
+	const slabs: [number, number, number, number][] = [
+		[origin.x, direction.x, top.minX, top.maxX],
+		[origin.z, direction.z, top.minZ, top.maxZ],
+		[origin.y, direction.y, above, top.highestAltitude + above],
+	];
+	for (const [start, along, low, high] of slabs) {
+		if (Math.abs(along) < 1e-12) {
+			if (start < low || start > high) {
+				return null;
+			}
+			continue;
+		}
+		const a = (low - start) / along;
+		const b = (high - start) / along;
+		from = Math.max(from, Math.min(a, b));
+		to = Math.min(to, Math.max(a, b));
+	}
+	return from <= to ? [from, to] : null;
+};
+
+/**
+ * Where the ray first meets what things stand on (`tops`: raised land and
+ * slopes, ADR-0098, and the tops of objects, ADR-0138), or the surface
+ * `above` it (an object lifted or sunk that much stays under the pointer):
+ * over each top the ray passes, walked along from where it comes over it,
+ * then narrowed in where it crosses; the nearest wins. Unsnapped; null when
+ * the ray never comes down to the base ground.
+ */
+export const surfaceHitOnRay = (
+	ray: THREE.Ray,
+	tops: readonly ITop[],
+	above = 0,
+): THREE.Vector3 | null => {
+	plane.constant = -above;
+	if (!ray.intersectPlane(plane, end)) {
+		return null;
+	}
+	// The ray's directions may not be of length 1: distances along it are in its own steps.
+	const base = (above - ray.origin.y) / ray.direction.y;
+	let nearest = base;
+	for (const top of tops) {
+		const span = spanOver(ray, top, above, nearest);
+		const crossing = span && firstCrossing(ray, top, above, span[0], span[1]);
+		if (crossing !== null && crossing < nearest) {
+			nearest = crossing;
+		}
+	}
+	return nearest === base ? end.clone() : ray.at(nearest, new THREE.Vector3());
+};
+
+/**
+ * The ground under the pointer as it stands (raised land and slopes, or what
+ * `tops` says things stand on there: the tops of shapes too, ADR-0138),
+ * snapped to the grid unless snapping is off or `altKey` is held, and kept on
+ * the ground (ADR-0098).
+ */
+export const surfacePointOnRay = (
+	ray: THREE.Ray,
+	altKey: boolean,
+	above = 0,
+	tops?: readonly ITop[],
+): TVec2 | null => {
 	const { snapping, scene } = useEditor.getState();
-	const found = surfaceHitOnRay(ray, scene.areas, above);
+	const found = surfaceHitOnRay(ray, tops ?? areaTopsOf(scene.areas), above);
 	if (!found) {
 		return null;
 	}
