@@ -8,6 +8,7 @@ import { CameraMenu } from "./CameraMenu";
 import { FileMenu } from "./FileMenu";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
+import { OverlaysMenu, OverlaysSubmenu } from "./OverlaysMenu";
 import { SaveStatus } from "./SaveStatus";
 import { ShadingMenuGroup, ShadingSwitcher } from "./ShadingSwitcher";
 import { useMediaQuery } from "./useMediaQuery";
@@ -180,6 +181,8 @@ export const Toolbar = () => {
 
 					{/* Narrower desktops fold these into More, in steps, as room runs out. */}
 					<span className={styles.shadingSlot}>
+						<OverlaysMenu />
+
 						<ShadingSwitcher />
 					</span>
 
@@ -266,6 +269,8 @@ export const Toolbar = () => {
 								{foldsView && <Menu.Separator />}
 
 								<ShadingMenuGroup />
+
+								<OverlaysSubmenu />
 
 								{foldsView && <Menu.Separator />}
 

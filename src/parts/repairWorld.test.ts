@@ -44,11 +44,13 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			width: 30,
 			depth: 20,
 			colors: { surface: { color: "#a0b0c0", transparency: null, data: {} } },
+			surface: { kind: "plain" },
 		});
 		expect(scene.traffic).toEqual({
 			drivingSide: "left",
 			turnStyle: "sharp",
 			leansInTurns: false,
+			drivesThroughJunctions: true,
 			keepsDistance: false,
 			overtakes: false,
 		});
@@ -94,6 +96,8 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			keepsOverGround: false,
 			keepsIsometricAngle: true,
 			turntable: { enabled: true, speed: -6, delay: 20 },
+			// The tour came later (ADR-0139): its default, which changes nothing.
+			tour: { enabled: false, holdSeconds: 6 },
 			tiltShift: { enabled: true, blurStrength: 0.6, sharpBandHeight: 0.2, sharpBandPosition: 0.4 },
 		});
 		expect(scene.backdrop).toMatchObject({ kind: "gradient", gradientAngle: 90 });
@@ -165,6 +169,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			drivesTheOtherWay: true,
 			turnStyle: "smooth",
 			leansInTurns: true,
+			drivesThroughJunctions: null,
 		});
 		expect(car.colors.body.color).toBe("#00ff00");
 		expect(car.lights.headlights.whenOn).toBe("on");

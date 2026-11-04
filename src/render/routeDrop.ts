@@ -20,6 +20,18 @@ const pointAtHeight = (ray: THREE.Ray, y: number): TVec2 | null => {
 	return hit ? [hit.x, hit.z] : null;
 };
 
+/**
+ * Whether the route preview should be drawn again for a new drop: another road or way, or on a
+ * road network (ADR-0136) where the way ahead starts from the drop, a little further along.
+ */
+export const previewMoved = (
+	before: Pick<IRouteDrop, "roadId" | "drivesTheOtherWay" | "startDistance"> | null,
+	after: Pick<IRouteDrop, "roadId" | "drivesTheOtherWay" | "startDistance"> | null,
+) =>
+	before?.roadId !== after?.roadId ||
+	before?.drivesTheOtherWay !== after?.drivesTheOtherWay ||
+	Math.abs((before?.startDistance ?? 0) - (after?.startDistance ?? 0)) > 0.5;
+
 /** A spot on a road where a dragged vehicle would park, ready to drive along it. */
 export interface IRouteDrop {
 	roadId: string;
@@ -217,8 +229,13 @@ export const createVehicleRouteDrag = (
 			const next = ground ? findRouteDrop(shifted, { vehicleLength }) : null;
 			const store = useEditor.getState();
 			if (next) {
-				if (drop?.roadId !== next.roadId || drop?.drivesTheOtherWay !== next.drivesTheOtherWay) {
-					store.setRoutePreview({ roadId: next.roadId, drivesTheOtherWay: next.drivesTheOtherWay });
+				if (previewMoved(drop, next)) {
+					store.setRoutePreview({
+						roadId: next.roadId,
+						drivesTheOtherWay: next.drivesTheOtherWay,
+						startDistance: next.startDistance,
+						entityId,
+					});
 				}
 				drop = next;
 				store.updateEntity(

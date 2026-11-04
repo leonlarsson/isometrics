@@ -21,6 +21,7 @@ import {
 	wallThicknessFor,
 	wallThicknessProp,
 } from "./shapeKit";
+import { domeTop } from "./shapeTops";
 
 const DomeSchema = z.object({
 	...lookProps,
@@ -79,6 +80,7 @@ export const dome01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: domeTop,
 	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="dome"

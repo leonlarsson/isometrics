@@ -34,6 +34,7 @@ import { Icon } from "./Icon";
 import type { IInspectorTab } from "./inspectorTabs";
 import { Menu } from "./Menu";
 import { ColorSettingFields } from "./PartSettings";
+import { AreaSurfaceFields } from "./SurfaceSettings";
 import { RipplesNote } from "./WaterSettings";
 
 const TYPE_OPTIONS = (Object.keys(AREA_KIND_LABELS) as TAreaKind[]).map((value) => ({
@@ -389,7 +390,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 				id="area.look"
 				icon="palette"
 				title="Look"
-				keywords="colour color ripples water waves calm reflections mirror data heatmap"
+				keywords="colour color ripples water waves calm reflections mirror data heatmap surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
 			>
 				<ColorSettingFields
 					spec={surface}
@@ -402,6 +403,8 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 						})
 					}
 				/>
+
+				<AreaSurfaceFields area={area} />
 
 				{isWaterArea(area) && (
 					<>

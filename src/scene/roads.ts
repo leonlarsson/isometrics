@@ -111,6 +111,16 @@ export const resolveLeansInTurns = (
 ): boolean => vehicle ?? road ?? scene;
 
 /**
+ * Whether a vehicle drives on through junctions onto other roads (ADR-0136): its own setting, else
+ * its road's, else the world's. Off, it keeps to its road as if the junctions were dead ends.
+ */
+export const resolveDrivesThroughJunctions = (
+	world: boolean,
+	road: boolean | null | undefined,
+	vehicle: boolean | null | undefined,
+): boolean => vehicle ?? road ?? world;
+
+/**
  * How far behind and ahead a vehicle looks to smooth its heading (the path
  * sampler's `smoothing`): half its length for smooth turns, 0 for sharp ones.
  */

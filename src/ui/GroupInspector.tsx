@@ -19,8 +19,8 @@ import {
 import { comesOnOf, lightDefaults, whenOnOf } from "#/parts/lightModel";
 import { dataDrivenFields, SCALE_RANGE, SCALE_SETTING, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, resolveProps, type TAnyPart } from "#/parts/registry";
+import { standingAltitudeAt } from "#/parts/standing";
 import type { IColorSpec, ILightSpec } from "#/parts/types";
-import { groundHeightAt } from "#/scene/areas";
 import type { TColorSettingChange } from "#/scene/objectSettings";
 import { columnOfKey, rowColumnChoices, tableOfRow } from "#/scene/rowData";
 import type { TDataBinding, TEntity, TScene } from "#/scene/schema";
@@ -191,9 +191,16 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 	const edit = (field: string, recipe: (entity: Draft<TEntity>) => void) =>
 		writeAll((id, options) => useEditor.getState().updateEntity(id, recipe, options), field);
 	const areas = useEditor((s) => s.scene.areas);
-	/** Where an object stands on the ground under it, its altitude's default (ADR-0098). */
-	const onTheGround = (entity: Pick<TEntity, "position">) =>
-		round(groundHeightAt(areas, entity.position));
+	const others = useEditor((s) => s.scene.entities);
+	/**
+	 * Where an object stands on what's under it, the ground or a shape, its altitude's default
+	 * (ADR-0098, ADR-0138).
+	 */
+	const onWhatsUnder = (entity: Pick<TEntity, "id" | "position" | "altitude">) =>
+		standingAltitudeAt({ areas, entities: others }, entity.position, {
+			except: entity.id,
+			base: entity.altitude,
+		});
 
 	return (
 		<Section
@@ -267,13 +274,13 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 							})
 						}
 						inherit={resetToDefault(
-							entities.every((entity) => round(entity.altitude) === onTheGround(entity)),
+							entities.every((entity) => round(entity.altitude) === onWhatsUnder(entity)),
 							true,
 							() =>
 								edit("altitude", (e) => {
-									e.altitude = onTheGround(e);
+									e.altitude = onWhatsUnder(e);
 								}),
-							"on the ground",
+							"on what's under it",
 						)}
 					/>
 				</>

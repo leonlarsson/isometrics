@@ -20,6 +20,7 @@ import {
 	wallThicknessFor,
 	wallThicknessProp,
 } from "./shapeKit";
+import { cylinderTop } from "./shapeTops";
 
 const CylinderSchema = z.object({
 	...lookProps,
@@ -67,6 +68,7 @@ export const cylinder01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: cylinderTop,
 	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="cylinder"

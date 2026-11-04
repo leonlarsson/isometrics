@@ -258,3 +258,69 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 		expect(entity("onTop")?.position).toEqual([-2, 0]);
 	});
 });
+
+describe("standing on shapes (ADR-0138)", () => {
+	beforeEach(() => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				ground: { width: 20, depth: 20 },
+				entities: [
+					{ id: "base", kind: "box_01", position: [4, 0], props: { width: 2, depth: 2 } },
+					{ id: "a", kind: "box_01", position: [0, 0] },
+					{ id: "b", kind: "box_01", position: [0, 0], altitude: 1 },
+					{ id: "tree", kind: "birch_01", position: [-4, 0] },
+				],
+			}),
+		);
+	});
+
+	it("placed freely onto a shape, an object lands on its top, and off it, on the ground", () => {
+		const store = useEditor.getState();
+		const freely = { followGround: true };
+		store.moveEntity("tree", [4, 0.5], undefined, freely);
+		expect(entity("tree")?.altitude).toBe(1);
+		store.moveEntity("tree", [-4, 0], undefined, freely);
+		expect(entity("tree")?.altitude).toBe(0);
+		// Moved exactly, it keeps its height.
+		store.moveEntity("tree", [4, 0]);
+		expect(entity("tree")?.altitude).toBe(0);
+	});
+
+	it("puts a new object on the shape where it's put", () => {
+		const id = useEditor.getState().addEntity({ kind: "box_01", position: [4, 0] });
+		expect(entity(id)?.altitude).toBe(1);
+		const onIt = useEditor.getState().addEntity({ kind: "box_01", position: [4, 0] });
+		expect(entity(onIt)?.altitude).toBe(2);
+	});
+
+	it("moves a stack as a stack, onto the ground or another shape", () => {
+		useEditor.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "entity", id: "b" },
+		]);
+		expect(groupStart()?.entities.map((e) => e.aboveGround)).toEqual([0, 1]);
+		transformSelected({ offset: [4, 0], followGround: true });
+		expect(entity("a")?.altitude).toBe(1);
+		expect(entity("b")?.altitude).toBe(2);
+		transformSelected({ offset: [-8, 3], followGround: true });
+		expect(entity("a")?.altitude).toBe(0);
+		expect(entity("b")?.altitude).toBe(1);
+	});
+
+	it("moves a copy of a stack as a stack, the originals left where they were", () => {
+		useEditor.getState().selectItems([
+			{ kind: "entity", id: "a" },
+			{ kind: "entity", id: "b" },
+		]);
+		useEditor.getState().duplicateSelected({ step: 0 });
+		transformSelected({ offset: [-6, 4], followGround: true });
+		const copies = useEditor
+			.getState()
+			.selectedItems.map((item) => entity(item.id)?.altitude ?? -1)
+			.sort();
+		expect(copies).toEqual([0, 1]);
+		expect(entity("a")?.altitude).toBe(0);
+		expect(entity("b")?.altitude).toBe(1);
+	});
+});

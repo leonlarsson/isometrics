@@ -3,17 +3,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { rememberUsed } from "#/editor/paletteMemory";
-import { useEditor } from "#/editor/store";
+import { newId, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { toRadians } from "#/lib/math";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
-import { groundHeightAt } from "#/scene/areas";
+import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import type { TVec2 } from "#/scene/schema";
 
 import { SelectionFrame } from "./EntityNode";
-import { findRouteDrop } from "./routeDrop";
+import { findRouteDrop, previewMoved } from "./routeDrop";
 import { surfacePointOnRay } from "./useGroundDrag";
 
 const GHOST_OPACITY = 0.6;
@@ -115,6 +115,8 @@ export const PlacementPreview = () => {
 			return;
 		}
 		const { stopPlacing, setRoutePreview } = useEditor.getState();
+		// Its id now, so the route preview on a road network shows the way it will take (ADR-0136).
+		const placedId = newId(kind);
 		const part = getPart(kind);
 		const vehicleLength = part?.canFollowPath ? part.footprint(resolveProps(part, {}))[0] : 0;
 
@@ -140,14 +142,16 @@ export const PlacementPreview = () => {
 				};
 				return { placement, drop };
 			}
-			// On the ground as it stands under the pointer, raised land too (ADR-0098).
-			const point = surfacePointOnRay(raycaster.ray, event.altKey);
+			// On what's under the pointer: the ground as it stands, raised land too (ADR-0098), or the
+			// top of a shape (ADR-0138).
+			const { scene } = useEditor.getState();
+			const point = surfacePointOnRay(raycaster.ray, event.altKey, 0, topsToStandOn(scene));
 			return point
 				? {
-						// On the ground there: on top of raised land (ADR-0098).
+						// Standing on it there.
 						placement: {
 							point,
-							altitude: groundHeightAt(useEditor.getState().scene.areas, point),
+							altitude: standingAltitudeAt(scene, point),
 							heading: 0,
 							pitch: 0,
 						},
@@ -168,11 +172,15 @@ export const PlacementPreview = () => {
 			);
 			const preview = useEditor.getState().routePreview;
 			const drop = next?.drop ?? null;
-			if (
-				preview?.roadId !== drop?.roadId ||
-				preview?.drivesTheOtherWay !== drop?.drivesTheOtherWay
-			) {
-				setRoutePreview(drop && { roadId: drop.roadId, drivesTheOtherWay: drop.drivesTheOtherWay });
+			if (previewMoved(preview, drop)) {
+				setRoutePreview(
+					drop && {
+						roadId: drop.roadId,
+						drivesTheOtherWay: drop.drivesTheOtherWay,
+						startDistance: drop.startDistance,
+						entityId: placedId,
+					},
+				);
 			}
 		};
 
@@ -185,6 +193,7 @@ export const PlacementPreview = () => {
 			const { point, altitude, heading, pitch } = at.placement;
 			const state = useEditor.getState();
 			const id = state.addEntity({
+				id: placedId,
 				kind,
 				name: "",
 				position: point,

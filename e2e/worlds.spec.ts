@@ -214,3 +214,63 @@ test.describe("starting over (ADR-0045)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Kept");
 	});
 });
+
+test.describe("a browser's export (ADR-0140)", () => {
+	test("Export this browser downloads it, and another browser adds its worlds", async ({
+		page,
+		browser,
+	}) => {
+		// The editor opens twice, in two browsers.
+		test.slow();
+		await openEditor(page);
+		await page.getByLabel("Title").first().fill("Moved along");
+		await saved(page);
+		const download = page.waitForEvent("download");
+		await appMenu(page, /^Export this browser/);
+		expect((await download).suggestedFilename()).toMatch(
+			/^isometrics-browser-\d{4}-\d{2}-\d{2}\.json$/,
+		);
+		const text = readFileSync(await (await download).path(), "utf8");
+		expect(JSON.parse(text)).toMatchObject({ kind: "browser", version: 1 });
+
+		// Another browser, with a world of its own.
+		const context = await browser.newContext();
+		const other = await context.newPage();
+		const errors: string[] = [];
+		other.on("pageerror", (error) => errors.push(error.message));
+		await other.addInitScript(() => localStorage.setItem("isometrics:welcome-seen", "1"));
+		await openEditor(other);
+		await other.getByLabel("Title").first().fill("Already here");
+		await saved(other);
+
+		const chooser = other.waitForEvent("filechooser");
+		await appMenu(other, /^Import a browser/);
+		await (await chooser).setFiles({
+			name: "isometrics-browser.json",
+			mimeType: "application/json",
+			buffer: Buffer.from(text),
+		});
+		const dialog = other.getByRole("dialog", { name: "Import a browser’s export" });
+		await expect(dialog).toContainText("Moved along");
+		// Choose a way first: Import waits for it.
+		const importButton = dialog.getByRole("button", { name: "Import", exact: true });
+		await expect(importButton).toBeDisabled();
+		await dialog.getByRole("radio", { name: /^Add to this browser/ }).click();
+		await expect(
+			dialog.getByRole("switch", { name: "Also bring in its settings" }),
+		).not.toBeChecked();
+		await importButton.click();
+
+		await expect.poll(() => storedWorlds(other)).toBe(2);
+		const titles = await other.evaluate(() =>
+			(
+				JSON.parse(localStorage.getItem("isometrics:world-index") ?? "[]") as { title: string }[]
+			).map((world) => world.title),
+		);
+		expect(titles.sort()).toEqual(["Already here", "Moved along"]);
+		// The open world stays as it was.
+		expect(await read(other, (s) => s.scene.meta.title)).toBe("Already here");
+		expect(errors).toEqual([]);
+		await context.close();
+	});
+});

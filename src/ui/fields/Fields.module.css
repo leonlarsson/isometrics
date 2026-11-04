@@ -291,6 +291,13 @@ textarea.input {
 	border-color: var(--text-muted);
 }
 
+/* Greyed out like a slider that can't be changed (its hint or a note nearby says why). */
+.selectTrigger[data-disabled] {
+	opacity: 0.4;
+	cursor: default;
+	border-color: var(--border-strong);
+}
+
 .input:focus,
 .number:focus,
 .selectTrigger:focus-visible,
@@ -810,6 +817,42 @@ textarea.input {
 	white-space: nowrap;
 }
 
+/* An option with a description: the label, and under it a muted sentence or two that wraps. */
+.check[data-described] {
+	align-items: flex-start;
+}
+
+.checklist:has(> .check[data-described]) {
+	gap: 10px;
+}
+
+.check[data-described] .radio {
+	/* Centred on the label's first line. */
+	margin-top: 1px;
+}
+
+.radioText {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.radioText .radioLabel {
+	white-space: normal;
+}
+
+.radioDescription {
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+/* A chosen option's own setting, in line with its text (past the 16px radio and its 8px gap). */
+.radioDetails {
+	padding-inline-start: 24px;
+}
+
 /* ------------------------------------------------------------------ colour */
 
 .hex {
@@ -1277,4 +1320,17 @@ textarea.input {
 .check[data-disabled] {
 	opacity: 0.55;
 	cursor: default;
+}
+
+/* A value only read here, that may change while shown: one line at a fixed height, never reflowing. */
+.readOut {
+	display: block;
+	min-width: 0;
+	height: 28px;
+	line-height: 28px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 13px;
+	color: var(--text);
 }

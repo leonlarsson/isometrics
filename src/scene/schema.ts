@@ -329,9 +329,16 @@ export const FollowSchema = z
 			.describe(
 				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's (traffic.leansInTurns), else the world's.",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether this vehicle drives on through junctions onto other roads (ADR-0136); false = it keeps to its road, turning round at a junction as at a dead end. null = the road's (traffic.drivesThroughJunctions), else the world's.",
+			),
 	})
 	.describe(
-		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round.",
+		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round. A road with a junction at an end leads on to other roads.",
 	);
 
 export const DetailsSchema = z
@@ -736,6 +743,13 @@ export const RoadTrafficSchema = z
 			.describe(
 				"Whether vehicles on this road lean in turns; null = the world's (traffic.leansInTurns).",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether vehicles that start on this road drive on through its junctions onto other roads (ADR-0136); false = they keep to it. null = the world's (traffic.drivesThroughJunctions).",
+			),
 	})
 	.describe("How vehicles drive on this road.");
 
@@ -877,6 +891,32 @@ export const RoadSchema = z
 		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
 	);
 
+export const RoadEndSchema = z
+	.enum(["start", "end"])
+	.describe("Which end of a road: start = its first point, end = its last.");
+
+// See docs/adr/0136-road-junctions.md.
+export const JunctionSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the junctions."),
+		ends: z
+			.array(
+				z
+					.object({
+						roadId: z.string().describe("Id of the road whose end it is."),
+						end: RoadEndSchema,
+					})
+					.describe("One road end at the junction."),
+			)
+			.min(2)
+			.describe(
+				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width.",
+			),
+	})
+	.describe(
+		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random. A junction is where its ends are.",
+	);
+
 export const DrivingSideSchema = z
 	.enum(["right", "left"])
 	.describe("Which side of the road vehicles drive on.");
@@ -893,6 +933,12 @@ export const TrafficSchema = z
 			.default(true)
 			.describe(
 				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
+			),
+		drivesThroughJunctions: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether vehicles drive on through junctions onto other roads, picking a way at random at each (ADR-0136), unless a road or vehicle says otherwise; false = each keeps to the road it starts on, turning round at a junction as at a dead end.",
 			),
 		keepsDistance: z
 			.boolean()
@@ -916,6 +962,52 @@ export const AreaKindSchema = z
 	.describe(
 		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
 	);
+
+// See docs/adr/0137-ground-and-area-surfaces.md.
+export const SurfaceKindSchema = z
+	.enum([
+		"plain",
+		"grass_01",
+		"sand_01",
+		"gravel_01",
+		"paving_01",
+		"concrete_01",
+		"cobbles_01",
+		"dirt_01",
+		"snow_01",
+	])
+	.describe(
+		"The texture a surface is drawn with, in its own colour (numbered so each can get variants): plain = a flat colour, grass_01 = soft patches and tufts, sand_01 = wind ripples, gravel_01 = small stones, paving_01 = square slabs, concrete_01 = large panels, cobbles_01 = rounded stones in rows, dirt_01 = blotchy earth with pebbles, snow_01 = a snowfield with drifts (the colour mixed most of the way to white). Drawn only while the world's surface.enabled is true.",
+	);
+
+/** An area's own surface (ADR-0137), overriding its kind's and the world's (`surface`). */
+export const AreaSurfaceSchema = z
+	.object({
+		kind: SurfaceKindSchema.nullable()
+			.default(null)
+			.describe(
+				"Its texture. null = its area kind's: grass_01 for grass, sand_01 for sand, paving_01 for a plaza, dirt_01 for raised land; water is never textured.",
+			),
+		patternStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How strongly its pattern shows: 0 = not at all, 0.5 = as designed, 1 = twice as strong. null = the world's (surface.patternStrength).",
+			),
+		patternScale: z
+			.number()
+			.min(0.25)
+			.max(4)
+			.nullable()
+			.default(null)
+			.describe(
+				"How big its pattern is: 1 = as designed, 2 = twice as big (bigger stones, slabs and ripples). null = the world's (surface.patternScale).",
+			),
+	})
+	.describe("Its surface's texture, where it differs from its kind's and the world's.");
 
 // See docs/adr/0096-area-corner-heights.md.
 export const AreaPointSchema = z
@@ -974,6 +1066,7 @@ export const AreaSchema = z
 			),
 		colors: colorSettings('{ "surface": { "color": "#4f9a55" } }; its colour is surface'),
 		water: AreaWaterSchema.default(() => AreaWaterSchema.parse({})),
+		surface: AreaSurfaceSchema.default(() => AreaSurfaceSchema.parse({})),
 		isLocked: isLocked("its corners"),
 		isHidden: isHidden(),
 	})
@@ -1123,13 +1216,57 @@ export const FenceSchema = z
 		"A fence, wall, hedge or railing drawn as a line of points; it stands on the ground under it.",
 	);
 
+/** The ground's surface (ADR-0137). */
+export const GroundSurfaceSchema = z
+	.object({
+		kind: SurfaceKindSchema.default("plain").describe(
+			"The ground's texture, drawn while surface.enabled is true; plain = its flat colour.",
+		),
+	})
+	.describe("The ground's surface.");
+
 export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
 		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
+		surface: GroundSurfaceSchema.default(() => GroundSurfaceSchema.parse({})),
 	})
 	.describe("The slab everything stands on, centred on the origin.");
+
+/**
+ * Textured surfaces, world-wide (ADR-0137): whether the ground and areas are
+ * drawn with their surfaces' patterns, and how strong and big those are where
+ * an area doesn't set its own.
+ */
+export const SurfaceSchema = z
+	.object({
+		enabled: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the ground and areas are drawn with texture: the ground with ground.surface.kind, each area with its own surface.kind or its area kind's. false = every surface a flat colour, as worlds always were.",
+			),
+		patternStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"How strongly the patterns show, for the ground and every area that doesn't set its own: 0 = not at all, 0.5 = as designed, 1 = twice as strong.",
+			),
+		patternScale: z
+			.number()
+			.min(0.25)
+			.max(4)
+			.default(1)
+			.describe(
+				"How big the patterns are, for the ground and every area that doesn't set its own: 1 = as designed, 2 = twice as big.",
+			),
+	})
+	.describe(
+		"Textured ground and areas: grass, sand, gravel, paving, concrete, cobbles, dirt and snow as fine patterns in each surface's own colour.",
+	);
 
 const FieldOfViewSchema = z.number().min(1).max(170);
 
@@ -1223,6 +1360,24 @@ export const TurntableSchema = z
 	})
 	.describe("The turntable: View mode circling the view on its own.");
 
+// See docs/adr/0139-viewpoint-tour.md.
+export const TourSchema = z
+	.object({
+		enabled: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the tour starts by itself when the world opens in View mode (or View mode is switched on): it glides from viewpoint to viewpoint, holding at each, round and round, until any camera input stops it. The viewpoint bar's play button starts it either way.",
+			),
+		holdSeconds: z
+			.number()
+			.min(1)
+			.max(600)
+			.default(6)
+			.describe("Seconds the tour holds at each viewpoint once it's there, before it moves on."),
+	})
+	.describe("The tour: View mode stepping through the viewpoints on its own.");
+
 export const TiltShiftSchema = z
 	.object({
 		enabled: z
@@ -1308,6 +1463,7 @@ export const CameraSettingsSchema = z
 				"Whether the camera keeps the isometric angle, like a classic isometric game: the tilt stays put and the view turns a quarter at a time, between the four diagonals.",
 			),
 		turntable: TurntableSchema.default(() => TurntableSchema.parse({})),
+		tour: TourSchema.default(() => TourSchema.parse({})),
 		tiltShift: TiltShiftSchema.default(() => TiltShiftSchema.parse({})),
 	})
 	.describe("How the camera behaves in this world.");
@@ -1638,6 +1794,7 @@ export const SceneSchema = z
 			.describe("The world's title and subtitle."),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default(() => GroundSchema.parse({})),
+		surface: SurfaceSchema.default(() => SurfaceSchema.parse({})),
 		traffic: TrafficSchema.default(() => TrafficSchema.parse({})),
 		lighting: LightingSchema.default(() => LightingSchema.parse({})),
 		sky: SkySchema.default(() => SkySchema.parse({})),
@@ -1650,6 +1807,10 @@ export const SceneSchema = z
 		backdrop: BackdropSchema.default(() => BackdropSchema.parse({})),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
+		junctions: z
+			.array(JunctionSchema)
+			.default([])
+			.describe("Where roads meet and vehicles drive on from one to another."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
 		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
 		data: WorldDataSchema.default(() => WorldDataSchema.parse({})),
@@ -1683,6 +1844,11 @@ export const SceneSchema = z
 			scene.roads.map((r) => r.id),
 			["roads"],
 			"road id",
+		);
+		checkUnique(
+			scene.junctions.map((j) => j.id),
+			["junctions"],
+			"junction id",
 		);
 		checkUnique(
 			scene.areas.map((a) => a.id),
@@ -1739,6 +1905,8 @@ export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
+export type TJunction = z.output<typeof JunctionSchema>;
+export type TJunctionEnd = TJunction["ends"][number];
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
@@ -1754,6 +1922,9 @@ export type TFencePoint = z.output<typeof FencePointSchema>;
 export type TFenceGate = z.output<typeof FenceGateSchema>;
 export type TFenceGateKind = z.output<typeof FenceGateKindSchema>;
 export type TGround = z.output<typeof GroundSchema>;
+export type TSurfaceKind = z.output<typeof SurfaceKindSchema>;
+export type TSurface = z.output<typeof SurfaceSchema>;
+export type TAreaSurface = z.output<typeof AreaSurfaceSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
@@ -1768,6 +1939,7 @@ export type TMood = z.output<typeof MoodSchema>;
 export type TMoodInput = z.input<typeof MoodSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TTurntable = z.output<typeof TurntableSchema>;
+export type TTour = z.output<typeof TourSchema>;
 export type TTiltShift = z.output<typeof TiltShiftSchema>;
 export type TTiltShiftInput = z.input<typeof TiltShiftSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;

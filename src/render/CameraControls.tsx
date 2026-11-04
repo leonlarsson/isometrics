@@ -693,6 +693,8 @@ const useOrbitCommand = () => {
 		// quarter turn.
 		let turned = 0;
 		cameraCommands.orbit = (turn, tilt) => {
+			// Turning the view by hand stops the tour (ADR-0139).
+			useEditor.getState().stopTour();
 			if (keepsIsometricAngle()) {
 				turned += turn;
 				if (Math.abs(turned) > Math.PI / 4) {

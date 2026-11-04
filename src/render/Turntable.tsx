@@ -22,16 +22,20 @@ interface IControls {
  * The turntable (scene.camera.turntable, ADR-0062): in View mode, after the
  * world's delay without input, the view slowly circles its centre, easing in;
  * any press, scroll or key stops it at once and starts the wait again. Not
- * while following a vehicle or gliding to a viewpoint.
+ * while following a vehicle, gliding to a viewpoint or on the tour.
  */
 export const Turntable = () => {
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
-	// Not while the world keeps the isometric angle, which turns only a quarter at a time.
+	// Not while the world keeps the isometric angle, which turns only a quarter at a time, nor while
+	// the tour steps through the viewpoints (ADR-0139).
 	const enabled = useEditor(
 		(s) =>
-			s.mode === "view" && s.scene.camera.turntable.enabled && !s.scene.camera.keepsIsometricAngle,
+			s.mode === "view" &&
+			s.scene.camera.turntable.enabled &&
+			!s.scene.camera.keepsIsometricAngle &&
+			s.runningTour === null,
 	);
 	// When there was last any input (performance.now() ms), and how long it has been turning.
 	const lastInput = useRef(performance.now());

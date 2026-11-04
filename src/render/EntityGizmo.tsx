@@ -30,6 +30,7 @@ export const EntityGizmo = ({ entity }: { entity: TEntity }) => {
 			)}
 			heading={entity.rotation[1]}
 			followsGround
+			objectId={entity.id}
 			onStart={(token, handle, keys) => {
 				// Ctrl: an identical copy stays where it is, and this one moves (ADR-0067).
 				if (keys.copy) {

@@ -15,6 +15,7 @@ import {
 	sizeField,
 	sizeProps,
 } from "./shapeKit";
+import { capsuleTop } from "./shapeTops";
 
 const CapsuleSchema = z.object({
 	...lookProps,
@@ -42,6 +43,7 @@ export const capsule01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: capsuleTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		// Its ends are as round as its narrower side allows, at most half its height each.
 		const end = Math.min(Math.min(p.width, p.depth) / 2, p.height / 2);
