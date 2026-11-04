@@ -98,7 +98,8 @@ export const church02 = definePart({
 						/>
 					))}
 
-					{[WALL_HEIGHT + 0.1, p.towerHeight - 0.05].map((y) => (
+					{/* The top one stands a hair above the tower's top, so their tops never share a plane. */}
+					{[WALL_HEIGHT + 0.1, p.towerHeight - 0.04].map((y) => (
 						<Block
 							key={y}
 							position={[0, y, 0]}
@@ -108,7 +109,7 @@ export const church02 = definePart({
 					))}
 
 					<Block
-						position={[0, p.towerHeight + 0.09, 0]}
+						position={[0, p.towerHeight + 0.1, 0]}
 						size={[side - 0.04, 0.18, side - 0.04]}
 						color={colors.trim}
 					/>

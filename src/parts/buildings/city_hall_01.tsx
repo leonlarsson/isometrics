@@ -177,8 +177,9 @@ export const cityHall01 = definePart({
 		// The back and the sides are full height; the front is a low arcade onto the courtyard.
 		const wings: { at: [number, number]; size: [number, number]; alongX: boolean }[] = [
 			{ at: [0, -p.depth / 2 + wing / 2], size: [p.width, wing], alongX: true },
-			{ at: [p.width / 2 - wing / 2, 0.0], size: [wing, inner[1] + wing], alongX: false },
-			{ at: [-p.width / 2 + wing / 2, 0.0], size: [wing, inner[1] + wing], alongX: false },
+			// From the back wing's inner wall to the front, so no two walls share a plane.
+			{ at: [p.width / 2 - wing / 2, wing / 2], size: [wing, p.depth - wing], alongX: false },
+			{ at: [-p.width / 2 + wing / 2, wing / 2], size: [wing, p.depth - wing], alongX: false },
 		];
 		const arcadeHeight = Math.min(height * 0.45, FLOOR * 2);
 		const arches = Math.max(3, Math.round(inner[0] / 0.6));

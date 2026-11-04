@@ -85,8 +85,9 @@ export const church04 = definePart({
 							position={[(sx * p.width) / 2, WALL_HEIGHT, z - side / 2]}
 							rotation={[0, sx > 0 ? Math.PI / 2 : -Math.PI / 2, 0]}
 						>
+							{/* The gable's wall just in front of its roof's end, so the two never share a plane. */}
 							<Prism
-								position={[0, 0, 0.08]}
+								position={[0, 0, 0.12]}
 								size={[0.04, 0.6, 0.8]}
 								rotation={[0, Math.PI / 2, 0]}
 								color={colors.walls}
@@ -101,7 +102,7 @@ export const church04 = definePart({
 							/>
 
 							<Block
-								position={[0, 0.22, 0.11]}
+								position={[0, 0.22, 0.15]}
 								size={[0.12, 0.22, 0.02]}
 								color={colors.trim}
 								castShadow={false}

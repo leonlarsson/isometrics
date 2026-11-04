@@ -49,6 +49,7 @@ import { slide01 } from "./furniture/slide_01";
 import { statue01 } from "./furniture/statue_01";
 import { swings01 } from "./furniture/swings_01";
 import { bollardLight01 } from "./infrastructure/bollard_light_01";
+import { flagpole01 } from "./infrastructure/flagpole_01";
 import { floodlight01 } from "./infrastructure/floodlight_01";
 import { gantryCrane01 } from "./infrastructure/gantry_crane_01";
 import { light01 } from "./infrastructure/light_01";
@@ -208,6 +209,7 @@ export const PARTS: TAnyPart[] = [
 	streetLamp03,
 	streetLamp04,
 	wallLantern01,
+	flagpole01,
 	bollardLight01,
 	floodlight01,
 	stringLights01,

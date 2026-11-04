@@ -196,7 +196,7 @@ const bodyOf = (p: TTerrace, colors: TRowColors, glass: string) => {
 			// Its ridge along the street, the roof just over the walls' front and back.
 			pieces.prism({
 				at: [x, wallHeight, 0],
-				size: [p.houseWidth + 0.004, roofHeight, p.depth + EAVES * 2],
+				size: [p.houseWidth, roofHeight, p.depth + EAVES * 2],
 				color: roofColor,
 			});
 			// Its side walls' gables under the roof, seen where a neighbour is lower.
