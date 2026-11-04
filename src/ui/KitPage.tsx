@@ -72,6 +72,7 @@ export const KitPage = () => {
 	const [ticked, setTicked] = useState(true);
 	const [startFrom, setStartFrom] = useState("blank");
 	const [size, setSize] = useState(START.size);
+	const [importWay, setImportWay] = useState<"" | "add" | "replace">("");
 	const [sectionOpen, setSectionOpen] = useState(true);
 	const [periods, setPeriods] = useState<ITimePeriod[]>(START.periods);
 	const [split, setSplit] = useState<number[]>(START.split);
@@ -583,6 +584,29 @@ export const KitPage = () => {
 											]}
 											onChange={setSize}
 											hint="Each option can carry a muted note."
+										/>
+
+										<RadioGroupField<"" | "add" | "replace">
+											hasNoDefault
+											label="How to bring it in"
+											value={importWay}
+											options={[
+												{
+													value: "add",
+													label: "Add to this browser",
+													description:
+														"Its worlds and backups go beside yours; one with the same id as yours goes in as a copy.",
+													details: <Hint>Details: shown under the option while it’s chosen.</Hint>,
+												},
+												{
+													value: "replace",
+													label: "Replace this browser’s",
+													description:
+														"Its worlds and settings take the place of yours. This browser as it is now is kept first, under File → Backups.",
+												},
+											]}
+											onChange={setImportWay}
+											hint="Options with a description: it wraps under the label. Nothing is chosen at first."
 										/>
 									</Section>
 

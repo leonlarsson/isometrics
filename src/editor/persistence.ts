@@ -23,12 +23,16 @@ import { keepsOpenWorld } from "./whatIsOpen";
  * most of it can still be read, it's repaired and opened (ADR-0026).
  */
 const PREFIX = APP_NAME.toLowerCase();
+/** What every key this app keeps in the browser starts with ("isometrics:"). */
+export const STORAGE_PREFIX = `${PREFIX}:`;
 /** The single saved world from before there were several (moved into a slot on load). */
-const SINGLE_SAVE_KEY = `${PREFIX}:scene`;
-const WORLD_KEY_PREFIX = `${PREFIX}:world:`;
-const WORLD_INDEX_KEY = `${PREFIX}:world-index`;
-const OPEN_WORLD_ID_KEY = `${PREFIX}:open-world-id`;
-const BACKUP_PREFIX = `${PREFIX}:scene-backup:`;
+export const SINGLE_SAVE_KEY = `${PREFIX}:scene`;
+export const WORLD_KEY_PREFIX = `${PREFIX}:world:`;
+export const WORLD_INDEX_KEY = `${PREFIX}:world-index`;
+export const OPEN_WORLD_ID_KEY = `${PREFIX}:open-world-id`;
+export const BACKUP_PREFIX = `${PREFIX}:scene-backup:`;
+/** A copy of the whole browser, kept before an import replaced it (ADR-0140). */
+export const BROWSER_BACKUP_PREFIX = `${PREFIX}:browser-backup:`;
 /** Stored as the open world's id to mean "open a new one" (after starting fresh). */
 const START_FRESH = "";
 /** Oldest backups beyond this many are deleted. */
@@ -69,6 +73,13 @@ const describeError = (error: unknown) => {
  */
 export const STORAGE_LIMIT_CHARS = 5 * 1024 * 1024;
 
+const KB = 1024;
+const MB = 1024 * 1024;
+
+/** "320 KB" / "1.2 MB", counting a character as a byte, in the same units as the 5 MB limit. */
+export const formatStorageSize = (chars: number) =>
+	chars >= MB ? `${(chars / MB).toFixed(1)} MB` : `${Math.ceil(chars / KB)} KB`;
+
 /** How much of this site's storage is in use, in characters (keys and values). */
 export interface IStorageUsage {
 	worlds: number;
@@ -89,7 +100,7 @@ export const storageUsage = (): IStorageUsage => {
 			usage.total += size;
 			if (key.startsWith(WORLD_KEY_PREFIX)) {
 				usage.worlds += size;
-			} else if (key.startsWith(BACKUP_PREFIX)) {
+			} else if (key.startsWith(BACKUP_PREFIX) || key.startsWith(BROWSER_BACKUP_PREFIX)) {
 				usage.backups += size;
 			}
 		}
@@ -167,13 +178,31 @@ const getItem = (key: string) => {
 };
 
 /** The title stored in a world's raw text, if it can be read. */
-const titleOf = (raw: string) => {
+export const titleOf = (raw: string) => {
 	try {
 		const title = (JSON.parse(raw) as { meta?: { title?: unknown } }).meta?.title;
 		return typeof title === "string" && title.trim() ? title : "Untitled world";
 	} catch {
 		return "Unreadable world";
 	}
+};
+
+/** The worlds an index lists, leaving out entries that aren't one (untrusted: from storage or a file). */
+export const parseWorldIndex = (raw: string | null): IWorldInfo[] => {
+	try {
+		const parsed = JSON.parse(raw ?? "[]") as unknown;
+		if (Array.isArray(parsed)) {
+			return parsed.filter(
+				(item): item is IWorldInfo =>
+					typeof item?.id === "string" &&
+					typeof item.title === "string" &&
+					typeof item.updatedAt === "number",
+			);
+		}
+	} catch {
+		// Not an index: nothing listed.
+	}
+	return [];
 };
 
 const writeIndex = (worlds: IWorldInfo[]) => {
@@ -190,20 +219,8 @@ const writeIndex = (worlds: IWorldInfo[]) => {
  * can't be read) still shows up.
  */
 export const listWorlds = (): IWorldInfo[] => {
-	let indexed: IWorldInfo[] = [];
-	try {
-		const parsed = JSON.parse(getItem(WORLD_INDEX_KEY) ?? "[]") as unknown;
-		if (Array.isArray(parsed)) {
-			indexed = parsed.filter(
-				(item): item is IWorldInfo =>
-					typeof item?.id === "string" &&
-					typeof item.title === "string" &&
-					typeof item.updatedAt === "number",
-			);
-		}
-	} catch {
-		// Rebuilt from the stored worlds below.
-	}
+	// An index that can't be read is rebuilt from the stored worlds below.
+	const indexed = parseWorldIndex(getItem(WORLD_INDEX_KEY));
 	const stored = new Set<string>();
 	try {
 		for (let i = 0; i < localStorage.length; i++) {
@@ -222,6 +239,23 @@ export const listWorlds = (): IWorldInfo[] => {
 		}
 	}
 	return worlds.sort((a, b) => b.updatedAt - a.updatedAt);
+};
+
+const worldListListeners = new Set<() => void>();
+
+/** Call `listener` when worlds were added beside the open one (by an import, ADR-0140). */
+export const subscribeWorldList = (listener: () => void) => {
+	worldListListeners.add(listener);
+	return () => {
+		worldListListeners.delete(listener);
+	};
+};
+
+/** Tell lists of worlds that stay on screen (the home screen's) to read the list again. */
+export const worldListChanged = () => {
+	for (const listener of worldListListeners) {
+		listener();
+	}
 };
 
 /** Record a world in the index (title and time), keeping the rest. */
@@ -406,12 +440,14 @@ const openedSaved = (id: string) =>
 		at: listWorlds().find((world) => world.id === id)?.updatedAt ?? 0,
 	});
 
+/** Whether the browser refused a write because its storage for the site is full. */
+export const isStorageFull = (error: unknown) =>
+	error instanceof DOMException &&
+	(error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED");
+
 /** Full storage, or none at all (private browsing, blocked site data)? */
 const failureReason = (error: unknown): "full" | "unavailable" =>
-	error instanceof DOMException &&
-	(error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
-		? "full"
-		: "unavailable";
+	isStorageFull(error) ? "full" : "unavailable";
 
 /** Write a world into its slot and the index; says so once if it can't. */
 const writeWorld = (id: string, scene: TScene) => {
@@ -533,6 +569,15 @@ export const wipeEverything = (): boolean => {
 	}
 };
 
+/**
+ * Stop saving until the page reloads, after this browser's storage was
+ * replaced underneath the open world (ADR-0140): a pending autosave mustn't
+ * write it into the world that's open now.
+ */
+export const stopSavingUntilReload = () => {
+	wiped = true;
+};
+
 /** What resetting the browser's settings keeps: the worlds, their backups, which is open. */
 const KEPT_BY_SETTINGS_RESET = [
 	WORLD_KEY_PREFIX,
@@ -540,6 +585,7 @@ const KEPT_BY_SETTINGS_RESET = [
 	OPEN_WORLD_ID_KEY,
 	SINGLE_SAVE_KEY,
 	BACKUP_PREFIX,
+	BROWSER_BACKUP_PREFIX,
 	// Seen the offer to start fresh after a big update: not offered again for a settings reset.
 	`${PREFIX}:fresh-start-seen`,
 ];
@@ -594,7 +640,7 @@ export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
 	};
 };
 
-const slugify = (text: string) =>
+export const slugify = (text: string) =>
 	text
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
@@ -609,7 +655,7 @@ const downloadBlob = (filename: string, blob: Blob) => {
 	URL.revokeObjectURL(url);
 };
 
-const downloadText = (filename: string, text: string) =>
+export const downloadText = (filename: string, text: string) =>
 	downloadBlob(filename, new Blob([text], { type: "application/json" }));
 
 /** Download a rendered picture (ADR-0084), named after its world and size. */
