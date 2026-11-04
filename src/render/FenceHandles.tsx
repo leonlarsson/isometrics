@@ -12,6 +12,7 @@ import {
 	drawnModeOf,
 	type IJoinOffer,
 	isToggleClick,
+	SNAP_STEP,
 	selectSelectedFence,
 	selectSeveral,
 	useEditor,
@@ -20,8 +21,9 @@ import { usePalette } from "#/editor/useTheme";
 import { fenceHeightOf } from "#/fences/fenceModel";
 import { isClick, pastDragThreshold, setCursorHidden } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
+import { fenceStretches, gateDraggedTo, gateSpot } from "#/scene/fences";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
-import type { TArea, TFence, TFencePoint } from "#/scene/schema";
+import type { TArea, TFence, TFenceGate, TFencePoint } from "#/scene/schema";
 
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPointsDrag } from "./transforms";
@@ -35,7 +37,8 @@ import { setViewCursor } from "./viewCursor";
  * add one, double-click to remove one; Shift- or Ctrl-click adds points to
  * the selection. The gizmo on the selected points moves them and lifts them
  * off the ground. The handles sit on the fence's top, so the fence itself
- * (which takes clicks round it) doesn't cover them.
+ * (which takes clicks round it) doesn't cover them. Each gate has a handle
+ * too, to drag it along the fence (ADR-0133).
  */
 
 const HANDLE_LIFT = 0.12;
@@ -289,6 +292,109 @@ const FenceInsertHandle = ({ fenceId, index, point, y, visible }: IFenceInsertHa
 	);
 };
 
+/** Where a gate's handle stands: its middle on its stretch, on the fence's top there. */
+const gateHandleAt = (
+	fence: TFence,
+	gate: Pick<TFenceGate, "spanIndex" | "alongShare">,
+	areas: readonly TArea[],
+	top: number,
+): [number, number, number] | null => {
+	const spot = gateSpot(fence, gate);
+	const stretches = fenceStretches(fence);
+	const stretch = stretches[Math.min(Math.max(0, gate.spanIndex), stretches.length - 1)];
+	if (!spot || !stretch) {
+		return null;
+	}
+	const t = Math.min(1, Math.max(0, gate.alongShare));
+	const lift = (stretch[0][2] ?? 0) + ((stretch[1][2] ?? 0) - (stretch[0][2] ?? 0)) * t;
+	return [spot[0], groundHeightAt(areas, spot) + lift + top, spot[1]];
+};
+
+interface IFenceGateHandleProps {
+	fence: TFence;
+	index: number;
+	/** Where it stands: the gate's middle, on the fence's top. */
+	at: [number, number, number];
+	/** Which way the fence runs there, a unit vector on the ground. */
+	direction: readonly number[];
+}
+
+/**
+ * A gate's handle (ADR-0133): drag it to move the gate along its fence, onto
+ * the stretch nearest the pointer, half a grid square at a time along it while
+ * snapping is on (Alt places it freely), never so near a stretch's end that
+ * the gate wouldn't fit. One drag is one undo step.
+ */
+const FenceGateHandle = ({ fence, index, at, direction }: IFenceGateHandleProps) => {
+	const palette = usePalette();
+	const [hovered, setHovered] = useState(false);
+	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered ? 1.2 : 1);
+	const drag = useGroundDrag({
+		planeY: at[1],
+		snapsToGrid: false,
+		// With Shift, Ctrl or Cmd the press is the camera's.
+		onStart: (_, event) => !isToggleClick(event.nativeEvent),
+		onMove: (spot, token, event) => {
+			const store = useEditor.getState();
+			const now = store.scene.fences.find((each) => each.id === fence.id);
+			const gate = now?.gates[index];
+			if (!now || !gate) {
+				return;
+			}
+			const free = event.nativeEvent.altKey || !store.snapping;
+			const place = gateDraggedTo(now, gate.width, spot, free ? undefined : SNAP_STEP);
+			if (!place || (place.spanIndex === gate.spanIndex && place.alongShare === gate.alongShare)) {
+				return;
+			}
+			store.updateFence(
+				fence.id,
+				(f) => {
+					const draft = f.gates[index];
+					if (draft) {
+						draft.spanIndex = place.spanIndex;
+						draft.alongShare = place.alongShare;
+					}
+				},
+				{ coalesce: token },
+			);
+		},
+	});
+
+	return (
+		<group
+			position={at}
+			rotation={[0, Math.atan2(-direction[1], direction[0]), 0]}
+			ref={handle}
+			{...drag}
+			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
+			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+				e.stopPropagation();
+				setHovered(true);
+				setViewCursor("grab");
+			}}
+			onPointerOut={() => {
+				setHovered(false);
+				setViewCursor("");
+			}}
+		>
+			<mesh>
+				<boxGeometry args={[1, 0.06, 0.46]} />
+
+				<meshBasicMaterial color={palette.selection} />
+			</mesh>
+
+			{/* Two bars across it, like a gate's: what tells it from a point's round handle. */}
+			{[-0.2, 0.2].map((x) => (
+				<mesh key={x} position={[x, 0.02, 0]}>
+					<boxGeometry args={[0.12, 0.06, 0.3]} />
+
+					<meshBasicMaterial color="#ffffff" />
+				</mesh>
+			))}
+		</group>
+	);
+};
+
 /** The move gizmo on the selected points, at their middle: along the ground, and up to lift them. */
 const FencePointsGizmo = ({ fence }: { fence: TFence }) => {
 	const start = useRef<IPointsStart | null>(null);
@@ -334,18 +440,46 @@ export const FenceHandles = () => {
 		return null;
 	}
 
+	const stretches = fenceStretches(fence);
+	const gates = fence.gates.flatMap((gate, index) => {
+		const at = gateHandleAt(fence, gate, areas, top);
+		const stretch = stretches[Math.min(Math.max(0, gate.spanIndex), stretches.length - 1)];
+		if (!at || !stretch) {
+			return [];
+		}
+		const [a, b] = stretch;
+		const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+		const direction = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+		return [{ index, at, direction, reach: Math.max(0.3, gate.width / 2) }];
+	});
+	// A gate's handle takes the place of the dot for adding a point under it, in its opening.
+	const underAGate = (point: readonly number[]) =>
+		gates.some((gate) => Math.hypot(gate.at[0] - point[0], gate.at[2] - point[1]) < gate.reach);
+
 	return (
 		<group>
-			{segmentMidpoints(fence.points, fence.loops).map(({ index, point }) => (
-				<FenceInsertHandle
-					key={`insert-${index}`}
-					fenceId={fence.id}
-					index={index}
-					point={[point[0], point[1], point[2]]}
-					y={standsAt(areas, point) + top}
-					visible={!dragging}
+			{gates.map((gate) => (
+				<FenceGateHandle
+					key={`gate-${gate.index}`}
+					fence={fence}
+					index={gate.index}
+					at={gate.at}
+					direction={gate.direction}
 				/>
 			))}
+
+			{segmentMidpoints(fence.points, fence.loops)
+				.filter(({ point }) => !underAGate(point))
+				.map(({ index, point }) => (
+					<FenceInsertHandle
+						key={`insert-${index}`}
+						fenceId={fence.id}
+						index={index}
+						point={[point[0], point[1], point[2]]}
+						y={standsAt(areas, point) + top}
+						visible={!dragging}
+					/>
+				))}
 
 			{fence.points.map((point, index) => (
 				<FencePointHandle
