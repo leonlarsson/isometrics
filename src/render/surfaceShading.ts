@@ -137,7 +137,9 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		tint = mix(vec3(1.0), mix(vec3(1.05, 1.0, 0.93), vec3(0.95, 0.99, 1.05), lum), 0.5 * dStone);
 		slope += toMiddle * 0.9 * stone * dStone;
 		hollow = (1.0 - stone) * dStone;
+		// Patches of finer and coarser stones, which still show from afar.
 		shade += (surfNoise(p * 0.5).x - 0.5) * 0.08 * surfDetail(2.0, px);
+		shade += (surfNoise(p * 1.7 + 8.0).x - 0.5) * 0.12 * surfDetail(0.6, px);
 	`,
 	paving_01: /* glsl */ `
 		// Square slabs with thin joints and bevelled edges, each a little lighter or darker.
@@ -178,27 +180,37 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		hollow = max(joint * dPanel, stain * 0.5);
 	`,
 	cobbles_01: /* glsl */ `
-		// Rounded stones in staggered rows, each its own shade, in dark joints.
-		const vec2 STONE = vec2(0.34, 0.28);
-		vec2 q = p / STONE;
-		float row = floor(q.y);
-		q.x += row * 0.5 + (surfHash(vec2(row, 3.0)) - 0.5) * 0.4;
-		vec2 stoneId = floor(q);
-		vec2 local = (fract(q) - 0.5) * STONE - (surfHash2(stoneId) - 0.5) * 0.03;
-		vec2 halfSize = STONE * 0.5 - 0.024;
-		const float ROUND = 0.07;
+		// Setts: rounded stones in rows, each its own length and shade, in dark joints.
+		const float ROW = 0.28;
+		const float LENGTH = 0.36;
+		float row = floor(p.y / ROW);
+		float along = p.x / LENGTH + surfHash(vec2(row, 3.0)) * 7.0;
+		float cell = floor(along);
+		// Where each stone ends: a cell's end moved by up to a third of a stone, so lengths vary.
+		float end = cell + 1.0 + (surfHash(vec2(cell, row)) - 0.5) * 0.6;
+		float start = cell + (surfHash(vec2(cell - 1.0, row)) - 0.5) * 0.6;
+		float first = along < start ? cell - 1.0 : (along > end ? cell + 1.0 : cell);
+		float from = first + (surfHash(vec2(first - 1.0, row)) - 0.5) * 0.6;
+		float until = first + 1.0 + (surfHash(vec2(first, row)) - 0.5) * 0.6;
+		vec2 stoneId = vec2(first, row);
+		vec2 local = vec2((along - (from + until) * 0.5) * LENGTH, p.y - (row + 0.5) * ROW);
+		vec2 halfSize = vec2((until - from) * LENGTH, ROW - (surfHash(stoneId + 9.0) * 0.03)) * 0.5 - 0.022;
+		const float ROUND = 0.06;
 		vec2 corner = abs(local) - (halfSize - ROUND);
 		float inStone = length(max(corner, 0.0)) + min(max(corner.x, corner.y), 0.0) - ROUND;
 		float stone = 1.0 - smoothstep(-max(px, 0.005), max(px, 0.005), inStone);
-		float dStone = surfDetail(STONE.y, px);
+		float dStone = surfDetail(ROW, px);
 		float lum = surfHash(stoneId + 11.0);
-		shade += ((lum - 0.5) * 0.26 * stone - (1.0 - stone) * 0.34 + 0.06) * dStone;
-		tint = mix(vec3(1.0), mix(vec3(1.05, 1.0, 0.94), vec3(0.95, 0.99, 1.05), surfHash(stoneId + 4.0)), 0.6 * dStone);
-		slope -= local / (halfSize * halfSize) * 0.05 * stone * dStone;
+		shade += ((lum - 0.5) * 0.34 * stone - (1.0 - stone) * 0.42 + 0.07) * dStone;
+		tint = mix(vec3(1.0), mix(vec3(1.06, 1.0, 0.92), vec3(0.94, 0.99, 1.06), surfHash(stoneId + 4.0)), 0.7 * dStone);
+		// Worn smooth: a gentle rounding over the stone, steeper near its edge.
+		slope -= local / (halfSize * halfSize) * 0.022 * stone * dStone;
+		shade += (surfNoise(p * 6.0).x - 0.5) * 0.06 * stone * surfDetail(0.15, px);
 		hollow = (1.0 - stone) * dStone;
+		shade += (surfNoise(p * 0.5 + 4.0).x - 0.5) * 0.08 * surfDetail(2.0, px);
 	`,
 	dirt_01: /* glsl */ `
-		// Blotchy earth, damper and darker in its low patches, with scattered pebbles.
+		// Blotchy earth, damper and darker in its low patches, with a grain and scattered pebbles.
 		vec3 big = surfNoise(p * 0.4);
 		vec3 mid = surfNoise(p * 1.6 + 5.0);
 		float dBig = surfDetail(2.5, px);
@@ -207,10 +219,14 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		float damp = smoothstep(0.5, 0.2, big.x) * dBig;
 		tint = mix(vec3(1.0), vec3(0.9, 0.87, 0.84), damp * 0.7);
 		slope += big.yz * 0.4 * 0.08 * dBig + mid.yz * 1.6 * 0.025 * dMid;
+		shade += (surfHash(floor(p / 0.05)) - 0.5) * 0.07 * surfDetail(0.05, px);
 		vec2 cell = floor(p / 0.3);
-		vec2 toPebble = (fract(p / 0.3) - 0.5 - (surfHash2(cell) - 0.5) * 0.6) * 0.3;
-		float pebble = step(0.55, surfHash(cell + 7.0)) * (1.0 - smoothstep(0.022, 0.035 + px, length(toPebble)));
-		shade += pebble * (0.1 + (surfHash(cell + 1.3) - 0.5) * 0.14) * surfDetail(0.1, px);
+		vec2 toPebble = (fract(p / 0.3) - 0.5 - (surfHash2(cell) - 0.5) * 0.8) * 0.3;
+		float size = 0.014 + surfHash(cell + 2.1) * 0.03;
+		float pebble = step(0.62, surfHash(cell + 7.0)) * (1.0 - smoothstep(size, size + 0.008 + px, length(toPebble)));
+		float dPebble = surfDetail(0.1, px);
+		shade += pebble * (surfHash(cell + 1.3) - 0.45) * 0.4 * dPebble;
+		slope -= toPebble / (size * size) * 0.004 * pebble * dPebble;
 		hollow = damp * 0.6;
 	`,
 	snow_01: /* glsl */ `

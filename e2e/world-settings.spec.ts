@@ -13,6 +13,8 @@ import {
 	openEditor,
 	openPanel,
 	read,
+	reopened,
+	saved,
 	test,
 } from "./editor";
 
@@ -200,6 +202,52 @@ test.describe("water (ADR-0075)", () => {
 		await own.fill("0");
 		await own.press("Enter");
 		expect(await read(page, (s) => s.scene.areas[0].water.rippleStrength)).toBe(0);
+	});
+});
+
+test.describe("textured surfaces (ADR-0137)", () => {
+	test("off until turned on from an area, which follows its kind until it picks its own; kept after a reload", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "square",
+					kind: "plaza_01",
+					points: [
+						[-4, -4],
+						[4, -4],
+						[4, 4],
+						[-4, 4],
+					],
+				},
+			],
+		});
+		await act(page, (s) => s.selectArea("square"));
+		await page.getByRole("tab", { name: "Look" }).click();
+		// Off: shown greyed out, following its kind (a plaza's paving), with the way to turn them on.
+		const texture = page.getByRole("combobox", { name: "Texture", exact: true });
+		await expect(texture).toHaveText(/Paving/);
+		await expect(texture).toBeDisabled();
+		await page.getByRole("button", { name: "Turn on textured surfaces" }).click();
+		expect(await read(page, (s) => s.scene.surface.enabled)).toBe(true);
+		await choose(page, "Texture", "Cobbles");
+		expect(await read(page, (s) => s.scene.areas[0].surface.kind)).toBe("cobbles_01");
+
+		await worldTab(page, "World");
+		await choose(page, "Texture", "Gravel");
+		expect(await read(page, (s) => s.scene.ground.surface.kind)).toBe("gravel_01");
+
+		await saved(page);
+		await page.reload();
+		await reopened(page);
+		expect(
+			await read(page, (s) => [
+				s.scene.surface.enabled,
+				s.scene.ground.surface.kind,
+				s.scene.areas[0].surface.kind,
+			]),
+		).toEqual([true, "gravel_01", "cobbles_01"]);
 	});
 });
 
