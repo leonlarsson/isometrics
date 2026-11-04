@@ -3,7 +3,7 @@ import * as THREE from "three";
 import type { TV3 } from "../primitives";
 
 /**
- * One geometry for a whole building of many pieces (ADR-0142): boxes, roof
+ * One geometry for a whole building of many pieces (ADR-0143): boxes, roof
  * prisms and flat panes, each placed, turned about the vertical, sized and
  * coloured, merged into one flat-shaded geometry with a colour per vertex. A
  * row of old-town houses is then one mesh rather than a dozen per house,

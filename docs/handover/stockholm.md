@@ -11,7 +11,7 @@ View it at https://stockholm-isometrics.ragnarok.workers.dev/templates/stockholm
   - The lanes aren't roads. The island is cobbled (ADR-0137), so the lanes are the cobbles between the houses.
   - Stortorget (with its well), Järntorget, Kornhamnstorg, Slottsbacken and Riddarholmen are cobbled; Helgeandsholmen and the city are paved; Skeppsholmen is gravelled.
   - The world's `surface.enabled` is on, at half the pattern size for this map's scale, with the cobbles a little finer still.
-- **Light to draw (ADR-0142):**
+- **Light to draw (ADR-0143):**
   - The old-town houses (`terraced_row_02`) are one geometry per row with a colour per vertex (`parts/buildings/mergedKit.ts`). A row is three meshes: the houses, the windows lit now and the shop windows. The windows still light a flat at a time and follow data.
   - The mainland's blocks of flats are rows of the same houses round a courtyard (`cityBlock`).
   - Measured on SwiftShader:

@@ -15,7 +15,7 @@ import { createPieces } from "./mergedKit";
  * canals): each house its own height, colour and roof, most with their eaves
  * to the street and some with a gable, plain or stepped. The whole
  * row is built once as one geometry with a colour per vertex (`mergedKit`,
- * ADR-0142), with its lit windows and its shop windows a mesh each, so an old
+ * ADR-0143), with its lit windows and its shop windows a mesh each, so an old
  * town of hundreds of houses is a few hundred meshes; its windows light one by
  * one, a floor of a house (a flat) at a time.
  */

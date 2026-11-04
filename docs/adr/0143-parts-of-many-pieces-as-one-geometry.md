@@ -3,7 +3,7 @@ status: proposed
 date: 2026-11-04
 ---
 
-# 0142. Parts of many pieces are built as one geometry
+# 0143. Parts of many pieces are built as one geometry
 
 ## Context and problem statement
 

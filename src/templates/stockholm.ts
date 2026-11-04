@@ -1749,7 +1749,7 @@ const mainlandRow = (
 
 /**
  * Norrmalm and Kungsholmen behind the waterfront: stone city blocks, rows of
- * tall houses round a courtyard, each side a row (light to draw, ADR-0142).
+ * tall houses round a courtyard, each side a row (light to draw, ADR-0143).
  */
 const HOUSE_IN_BLOCK = 1.1;
 const cityBlock = (
