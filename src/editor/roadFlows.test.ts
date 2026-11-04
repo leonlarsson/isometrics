@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { SceneSchema, WorldDataSchema } from "#/scene/schema";
+import { RoadFlowSchema, SceneSchema, WorldDataSchema } from "#/scene/schema";
 
 import { drawRoadsForEachRow } from "./dataRows";
 import {
 	flowDirection,
 	flowOffsets,
+	flowVehicleLength,
 	roadAsDrawn,
 	valuesOfRoad,
 	vehiclesOnStream,
@@ -74,6 +75,19 @@ describe("roads that show flows (ADR-0112)", () => {
 		expect(vehiclesOnStream({ vehicleDensity: 6 }, 3, 6, 1.2)).toBe(3);
 		// No vehicles that way, none from density either.
 		expect(vehiclesOnStream({ vehicleDensity: 2 }, 0, 25, 1)).toBe(0);
+	});
+
+	it("draws vehicles at the flow's vehicle size, smaller ones fitting closer (ADR-0135)", () => {
+		expect(flowVehicleLength({ vehicleScale: 1 }, 1.2)).toBe(1.2);
+		expect(flowVehicleLength({ vehicleScale: 0.5 }, 1.2)).toBe(0.6);
+		// Six vehicles per 10 units wanted on a road 6 long: three fit at full size, four at half.
+		expect(
+			vehiclesOnStream({ vehicleDensity: 6 }, 3, 6, flowVehicleLength({ vehicleScale: 1 }, 1.2)),
+		).toBe(3);
+		expect(
+			vehiclesOnStream({ vehicleDensity: 6 }, 3, 6, flowVehicleLength({ vehicleScale: 0.5 }, 1.2)),
+		).toBe(4);
+		expect(RoadFlowSchema.parse({}).vehicleScale).toBe(1);
 	});
 
 	it("spreads vehicles evenly, the other way half a gap apart, and points arrows the bigger way", () => {

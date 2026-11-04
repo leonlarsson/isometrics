@@ -2,7 +2,12 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { flowDirection, flowOffsets, vehiclesOnStream } from "#/editor/roadFlows";
+import {
+	flowDirection,
+	flowOffsets,
+	flowVehicleLength,
+	vehiclesOnStream,
+} from "#/editor/roadFlows";
 import { useEditor } from "#/editor/store";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
@@ -110,7 +115,8 @@ const Stream = ({
 }) => {
 	const playing = useEditor((s) => s.playing);
 	const part = getPart(road.flow.vehicleKind);
-	const length = part ? part.footprint(resolveProps(part, {}))[0] : 1;
+	// Its vehicles at their size on this road (ADR-0135): spaced and turning by that length.
+	const length = flowVehicleLength(road.flow, part ? part.footprint(resolveProps(part, {}))[0] : 1);
 	// A flow that goes one way only drives down the middle, so no lane of the road stays empty.
 	const oneWay = road.flow.vehicleCountAlong === 0 || road.flow.vehicleCountAgainst === 0;
 	const sampler = useMemo(
@@ -165,7 +171,7 @@ const Stream = ({
 			const ease = Math.min(1, along / EASE_LENGTH, (sampler.length - along) / EASE_LENGTH);
 			group.position.set(sample.position[0], altitude + sample.height, sample.position[1]);
 			group.rotation.set(0, sample.heading, sample.pitch, "YZX");
-			group.scale.setScalar(Math.max(0.001, ease));
+			group.scale.setScalar(Math.max(0.001, ease) * road.flow.vehicleScale);
 		}
 		placed.current =
 			placedAll && !playing

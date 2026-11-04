@@ -775,6 +775,14 @@ export const RoadFlowSchema = z
 				"How many drive the other way, from its last point to its first; data can set it (data.vehicleCountAgainst).",
 			),
 		speed: z.number().min(0.2).max(20).default(3).describe("Grid units per second."),
+		vehicleScale: z
+			.number()
+			.min(0.1)
+			.max(4)
+			.default(1)
+			.describe(
+				"How big its vehicles are drawn, as an object's scale is: 1 = their part's own size; less for a map drawn smaller than its vehicles (a city at many metres to a grid unit), more for a large one (ADR-0135).",
+			),
 		vehicleDensity: z
 			.number()
 			.min(0)
