@@ -6,6 +6,7 @@ import {
 	groundSpot,
 	keys,
 	loadWorld,
+	menuItem,
 	openEditor,
 	read,
 	reopened,
@@ -161,6 +162,31 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		await expect(preferences(page).getByRole("combobox", { name: "Preset" })).toContainText(
 			"Standard",
 		);
+	});
+
+	test("the Overlays menu hides the compass, Preferences follow, and it shows again (ADR-0134)", async ({
+		page,
+	}) => {
+		const compass = page.getByRole("button", { name: "Look straight down" });
+		const gizmo = page.getByRole("menuitemcheckbox", { name: "Navigation gizmo" });
+		await expect(compass).toBeVisible();
+		await page.getByRole("button", { name: "Overlays", exact: true }).click();
+		await expect(gizmo).toHaveAttribute("aria-checked", "true");
+		await gizmo.click();
+		await expect(compass).toBeHidden();
+		// The menu stays open, to flip several in a row.
+		await expect(gizmo).toHaveAttribute("aria-checked", "false");
+		// Its settings are Preferences → Overlays: the same setting, off in Edit mode now.
+		await menuItem(page, /^Overlay settings…/).click();
+		await expect(
+			preferences(page).getByRole("combobox", { name: "Navigation gizmo" }),
+		).toContainText("Off");
+		await page.keyboard.press("Escape");
+		await expect(preferences(page)).toBeHidden();
+		await page.getByRole("button", { name: "Overlays", exact: true }).click();
+		await gizmo.click();
+		await expect(compass).toBeVisible();
+		await expect(gizmo).toHaveAttribute("aria-checked", "true");
 	});
 
 	test("Names of copies: Number them makes Ctrl+D name copies “… 2”", async ({ page }) => {
