@@ -46,8 +46,9 @@ const NOISE = /* glsl */ `
 	vec3 surfNoise(vec2 p) {
 		vec2 i = floor(p);
 		vec2 f = fract(p);
-		vec2 u = f * f * (3.0 - 2.0 * f);
-		vec2 du = 6.0 * f * (1.0 - f);
+		// Quintic, so the gradient (which tilts the light) has no creases at the cells' edges.
+		vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+		vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
 		float a = surfHash(i);
 		float b = surfHash(i + vec2(1.0, 0.0));
 		float c = surfHash(i + vec2(0.0, 1.0));
@@ -77,11 +78,10 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		// The lighter patches a little drier and yellower.
 		tint = mix(vec3(1.0), vec3(1.08, 1.05, 0.8), smoothstep(0.55, 0.85, big.x) * 0.6 * dBig);
 		slope += mid.yz * 1.4 * 0.035 * dMid;
-		// Tufts: one per small cell, a darker or lighter clump.
-		vec2 cell = floor(p / 0.25);
-		vec2 toTuft = fract(p / 0.25) - 0.5 - (surfHash2(cell) - 0.5) * 0.5;
-		float tuft = 1.0 - smoothstep(0.08, 0.3, length(toTuft));
-		shade += tuft * (surfHash(cell + 5.3) - 0.6) * 0.2 * surfDetail(0.25, px);
+		// Fine, uneven blades: streaks across the wind, at two sizes, so no grid shows.
+		vec3 fine = surfNoise(vec2(p.x * 6.0, p.y * 2.2) + 31.0);
+		vec3 finer = surfNoise(vec2(p.y * 9.0, p.x * 3.5) + 47.0);
+		shade += (fine.x - 0.5) * 0.12 * surfDetail(0.2, px) + (finer.x - 0.5) * 0.08 * surfDetail(0.12, px);
 		hollow = smoothstep(0.45, 0.15, big.x) * 0.5 * dBig;
 	`,
 	sand_01: /* glsl */ `
@@ -131,7 +131,9 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		}
 		float edge = sqrt(second) - sqrt(first);
 		float dStone = surfDetail(0.2, px);
-		float stone = smoothstep(0.03, 0.12 + px / 0.2, edge);
+		// Round pebbles of different sizes, with grit between them.
+		float radius = 0.34 + surfHash(stoneId + 6.1) * 0.22;
+		float stone = smoothstep(0.02, 0.08 + px / 0.2, edge) * (1.0 - smoothstep(radius, radius + 0.1 + px / 0.2, sqrt(first)));
 		float lum = surfHash(stoneId + 2.7);
 		shade += ((lum - 0.5) * 0.3 * stone - (1.0 - stone) * 0.24 + 0.05) * dStone;
 		tint = mix(vec3(1.0), mix(vec3(1.05, 1.0, 0.93), vec3(0.95, 0.99, 1.05), lum), 0.5 * dStone);
@@ -194,7 +196,7 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		float until = first + 1.0 + (surfHash(vec2(first, row)) - 0.5) * 0.6;
 		vec2 stoneId = vec2(first, row);
 		vec2 local = vec2((along - (from + until) * 0.5) * LENGTH, p.y - (row + 0.5) * ROW);
-		vec2 halfSize = vec2((until - from) * LENGTH, ROW - (surfHash(stoneId + 9.0) * 0.03)) * 0.5 - 0.022;
+		vec2 halfSize = vec2((until - from) * LENGTH, ROW - (surfHash(stoneId + 9.0) * 0.03)) * 0.5 - 0.018;
 		const float ROUND = 0.06;
 		vec2 corner = abs(local) - (halfSize - ROUND);
 		float inStone = length(max(corner, 0.0)) + min(max(corner.x, corner.y), 0.0) - ROUND;
@@ -223,24 +225,26 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		vec2 cell = floor(p / 0.3);
 		vec2 toPebble = (fract(p / 0.3) - 0.5 - (surfHash2(cell) - 0.5) * 0.8) * 0.3;
 		float size = 0.014 + surfHash(cell + 2.1) * 0.03;
-		float pebble = step(0.62, surfHash(cell + 7.0)) * (1.0 - smoothstep(size, size + 0.008 + px, length(toPebble)));
+		float pebble = step(0.72, surfHash(cell + 7.0)) * (1.0 - smoothstep(size, size + 0.008 + px, length(toPebble)));
 		float dPebble = surfDetail(0.1, px);
-		shade += pebble * (surfHash(cell + 1.3) - 0.45) * 0.4 * dPebble;
+		shade += pebble * (surfHash(cell + 1.3) - 0.45) * 0.3 * dPebble;
 		slope -= toPebble / (size * size) * 0.004 * pebble * dPebble;
 		hollow = damp * 0.6;
 	`,
 	snow_01: /* glsl */ `
-		// A snowfield in a tint of its colour, soft drifts lit by the sun, bluer in the hollows, faint glints.
-		diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.925, 0.955), 0.78 * surfOnTop);
+		// A snowfield in a tint of its colour, soft drifts lit by the sun, bluer in the hollows.
+		// As white as the colour is light: on a dark theme's darker colours, a duller snow that doesn't glare.
+		float lightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+		vec3 snowWhite = vec3(0.9, 0.925, 0.955) * clamp(lightness * 5.0, 0.4, 1.0);
+		diffuseColor.rgb = mix(diffuseColor.rgb, snowWhite, 0.78 * surfOnTop);
 		vec3 drift = surfNoise(p * 0.22);
 		vec3 ripple = surfNoise(p * 0.8 + 13.0);
 		float dDrift = surfDetail(4.0, px);
 		float dRipple = surfDetail(1.2, px);
-		slope += drift.yz * 0.22 * 0.2 * dDrift + ripple.yz * 0.8 * 0.05 * dRipple;
+		slope += drift.yz * 0.22 * 0.35 * dDrift + ripple.yz * 0.8 * 0.05 * dRipple;
 		shade += (drift.x - 0.5) * 0.05 * dDrift;
 		float low = smoothstep(0.55, 0.2, drift.x) * dDrift;
 		tint = mix(vec3(1.0), vec3(0.93, 0.96, 1.03), low);
-		shade += step(0.994, surfHash(floor(p / 0.07))) * 0.3 * surfDetail(0.1, px);
 		hollow = low * 0.5;
 	`,
 };

@@ -49,14 +49,14 @@ Chosen options: **1** and **A**.
 
 - `render/surfaceShading.ts`: an addition to the standard material's shader, like the weather's (ADR-0102), installed in the same hook on `MeshStandardMaterial.prototype`. Only a material whose `userData.surface` names a kind takes it, compiled with that kind's pattern alone (`SURFACE_KIND` define); a plain one compiles exactly as before, so a world with the switch off draws with the shaders it always had, on every graphics preset. Strength and scale are uniforms (sliding them never recompiles); picking another kind gives the mesh a new material, compiled once (a few programs a world at most).
 - Each pattern is a function of the point's world position on the ground (x, z), so the ground and the areas on it, and neighbouring areas of the same surface, meet without a seam. It returns a shade (around 1, multiplying the surface's colour), a warm or cool tint for some (dry patches on grass, damp ones on dirt), a slope (tilting the normal, so cobbles, gravel and sand ripples catch the sun), and how hollow the point is (the joints, the gaps between stones, ripples' troughs).
-  - **Grass:** soft patches at two sizes, the lighter ones a little drier and yellower, and fine tufts.
+  - **Grass:** soft patches at two sizes, the lighter ones a little drier and yellower, and fine streaks of blades (dots on a grid read as a pattern, not grass).
   - **Sand:** wind ripples, gentle on one side and steeper on the other, bending and fading in and out, over soft mottling and a fine grain.
-  - **Gravel:** small stones (Voronoi cells), each its own brightness, rounded, with dark gaps.
+  - **Gravel:** small round pebbles of different sizes (Voronoi cells), each its own brightness and a warm or cool grey, rounded, with grit between, in patches of finer and coarser stones.
   - **Paving:** square slabs with thin joints and bevelled edges, each slab a little lighter or darker.
   - **Concrete:** large panels with joints, quiet mottling and a few faint stains.
-  - **Cobbles:** rounded stones in staggered rows, each its own shade, in dark joints.
+  - **Cobbles:** setts in rows, each its own length and shade, worn round, in dark joints.
   - **Dirt:** blotchy damp and dry earth and scattered pebbles.
-  - **Snow:** the colour mixed most of the way to the weather's snow white (a snowfield in the area's own tint), soft drifts lit by the sun and faint glints.
+  - **Snow:** the colour mixed most of the way to the weather's snow white (a snowfield in the area's own tint), soft drifts lit by the sun, a little bluer in their hollows. As white as the colour is light: a dark theme's darker colours get a duller snow, so it doesn't glare.
 - **No shimmer:** every feature fades to its average as it gets smaller than about six pixels (`fwidth` of the position), so from afar a surface is its colour with the big patches only, and joints never alias into moiré. The pattern shows on what faces up; the ground's rounded edge and sides and raised land's cliffs stay plain.
 - **Weather:** snow and wetness are worked out after the pattern, from the tilted normal, and know the hollows: thin snow lies in the joints and gaps first, and wet ground is wettest there, like puddles in the joints.
 - Clay and wireframe (ADR-0080) leave patterns as they are: clay sets every material's colour, and the pattern shades that colour.
