@@ -275,6 +275,8 @@ export const readBrowserExport = (text: string): IBrowserContents => {
 			items.size < MOST_EXPORT_ITEMS &&
 			key.startsWith(STORAGE_PREFIX) &&
 			key.length <= MOST_KEY_LENGTH &&
+			// A world without an id isn't one the app wrote.
+			key !== WORLD_KEY_PREFIX &&
 			typeof value === "string"
 		) {
 			items.set(key, value);

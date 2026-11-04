@@ -351,13 +351,14 @@ describe("a file that isn't a browser's export, or a hostile one", () => {
 				"isometrics:world:o": { "meta": {} },
 				"isometrics:world:z": null,
 				"other:thing": "x",
+				"isometrics:world:": "{}",
 				"isometricsX": "x",
 				"isometrics:${"k".repeat(300)}": "x"
 			}
 		}`;
 		const contents = readBrowserExport(text);
 		expect([...contents.items.keys()]).toEqual(["isometrics:preferences"]);
-		expect(contents.leftOut).toBe(6);
+		expect(contents.leftOut).toBe(7);
 		expect(contents.exportedAt).toBeNull();
 		expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
 
