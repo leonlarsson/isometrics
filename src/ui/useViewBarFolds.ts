@@ -28,38 +28,43 @@ export type TViewBarFold = (typeof VIEW_BAR_FOLDS)[number];
 /**
  * How wide the bar has to be (its whole width, padding included) for each step to stay unfolded,
  * in Edit mode and in View mode (no history, no tools): the width of what it holds with the steps
- * before it folded, measured in the browser, and a little room to spare.
+ * before it folded, measured in the browser, and 8px to spare. View mode's bar is the window's
+ * width, never below 700px, so only its first steps can come into play.
  */
 const ROOM_NEEDED: Record<TEditorMode, Record<TViewBarFold, number>> = {
 	edit: {
-		shading: 940,
-		viewsLabel: 770,
-		view: 730,
-		modeLabels: 660,
-		tools: 580,
-		viewMenus: 470,
-		history: 290,
+		shading: 920,
+		viewsLabel: 738,
+		view: 692,
+		modeLabels: 666,
+		tools: 586,
+		viewMenus: 474,
+		history: 276,
 	},
 	view: {
-		shading: 760,
-		viewsLabel: 590,
-		view: 550,
-		modeLabels: 480,
+		shading: 730,
+		viewsLabel: 548,
+		view: 502,
+		modeLabels: 476,
 		tools: 0,
-		viewMenus: 390,
+		viewMenus: 400,
 		history: 0,
 	},
 };
 
-/** How many of the steps are folded at a width, at least `least` (the phone toolbar's). */
-export const foldsAt = (width: number, mode: TEditorMode, least: TViewBarFold | null = null) => {
+/**
+ * How many of the steps are folded at a width. On phones (`fixed`, the bar inside the app row)
+ * exactly as far as the phone toolbar always was, whatever the width: up to that step.
+ */
+export const foldsAt = (width: number, mode: TEditorMode, fixed: TViewBarFold | null = null) => {
+	if (fixed !== null) {
+		return VIEW_BAR_FOLDS.indexOf(fixed) + 1;
+	}
 	const needed = ROOM_NEEDED[mode];
-	const fromWidth = VIEW_BAR_FOLDS.reduce(
+	return VIEW_BAR_FOLDS.reduce(
 		(count, fold, index) => (width < needed[fold] ? index + 1 : count),
 		0,
 	);
-	const fromLeast = least === null ? 0 : VIEW_BAR_FOLDS.indexOf(least) + 1;
-	return Math.max(fromWidth, fromLeast);
 };
 
 /**
@@ -69,12 +74,12 @@ export const foldsAt = (width: number, mode: TEditorMode, least: TViewBarFold | 
 export const useViewBarFolds = (
 	bar: RefObject<HTMLElement | null>,
 	mode: TEditorMode,
-	least: TViewBarFold | null = null,
+	fixed: TViewBarFold | null = null,
 ) => {
 	const [count, setCount] = useState(0);
 	const width = useRef(0);
-	const settings = useRef({ mode, least });
-	settings.current = { mode, least };
+	const settings = useRef({ mode, fixed });
+	settings.current = { mode, fixed };
 
 	useLayoutEffect(() => {
 		const element = bar.current;
@@ -82,7 +87,7 @@ export const useViewBarFolds = (
 			return;
 		}
 		const update = () =>
-			setCount(foldsAt(width.current, settings.current.mode, settings.current.least));
+			setCount(foldsAt(width.current, settings.current.mode, settings.current.fixed));
 		width.current = element.getBoundingClientRect().width;
 		update();
 		const observer = new ResizeObserver(([entry]) => {
@@ -95,8 +100,8 @@ export const useViewBarFolds = (
 
 	// The mode changes what the bar holds, and so the room it needs.
 	useLayoutEffect(() => {
-		setCount(foldsAt(width.current, mode, least));
-	}, [mode, least]);
+		setCount(foldsAt(width.current, mode, fixed));
+	}, [mode, fixed]);
 
 	return (fold: TViewBarFold) => VIEW_BAR_FOLDS.indexOf(fold) < count;
 };

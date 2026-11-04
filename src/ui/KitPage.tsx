@@ -30,6 +30,7 @@ import {
 	TextField,
 	VectorField,
 } from "./fields";
+import { Icon } from "./Icon";
 import { List, ListItem } from "./List";
 import { Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
@@ -354,6 +355,19 @@ export const KitPage = () => {
 									<IconButton icon="undo" label="Undo" size="md" onClick={() => {}} />
 
 									<IconButton icon="redo" label="Redo" size="md" onClick={() => {}} />
+								</IconButtonGroup>
+
+								{/* A menu button in a cluster is as tall and round as its icon buttons. */}
+								<IconButtonGroup cluster="Overlays">
+									<Menu.Root>
+										<Menu.Trigger label="Overlays" tooltip="Overlays">
+											<Icon name="overlays" size={18} />
+										</Menu.Trigger>
+
+										<Menu.Popup>
+											<Menu.Item label="An item" onClick={() => {}} />
+										</Menu.Popup>
+									</Menu.Root>
 								</IconButtonGroup>
 							</div>
 						</div>
