@@ -5,6 +5,8 @@ import { AREA_KIND_LABELS, cornerTop } from "#/scene/areas";
 import { ROAD_KIND_LABELS, roadCenterlineOf } from "#/scene/roads";
 import type { TArea, TEntity, TFence, TRoad, TScene, TVec3 } from "#/scene/schema";
 
+import { roadOfVehicleNow } from "./vehiclesNow";
+
 /** A box in the world for the camera to frame: its centre and size [x, y, z]. */
 export interface IFrameBox {
 	center: TVec3;
@@ -81,7 +83,9 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 		return null;
 	}
 	if (entity.follow) {
-		return boundsOf(scene, { kind: "road", id: entity.follow.roadId });
+		// The road it's on now: on a network, where its trip has taken it (ADR-0136).
+		const now = roadOfVehicleNow(entity);
+		return boundsOf(scene, { kind: "road", id: now?.roadId ?? entity.follow.roadId });
 	}
 	const part = getPart(entity.kind);
 	const props = part ? resolveProps(part, entity.props) : {};

@@ -4,6 +4,7 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { roadOfVehicleNow, useVehiclesNow } from "#/editor/vehiclesNow";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
@@ -638,6 +639,12 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
+	// On a road network it drives on from road to road (ADR-0136): the road it's on now.
+	const nowOn = roadOfVehicleNow(entity, useVehiclesNow());
+	const roadNow =
+		nowOn && nowOn.roadId !== entity.follow?.roadId
+			? roads.find((r) => r.id === nowOn.roadId)
+			: undefined;
 	const followedRoadLength = followedRoad
 		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.loops)))
 		: 1;
@@ -683,6 +690,12 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 					"parked",
 				)}
 			/>
+
+			{roadNow && (
+				<Hint>
+					{`Now on “${roadNameOf(roadNow)}”: it drives on from road to road at junctions, and starts on the road above.`}
+				</Hint>
+			)}
 
 			{entity.follow && (
 				<>

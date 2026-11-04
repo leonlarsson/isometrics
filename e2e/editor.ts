@@ -3,6 +3,7 @@ import { test as base, expect, type Page } from "@playwright/test";
 import type { IEditorState, useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import {
+	EntitySchema,
 	RoadSchema,
 	type TArea,
 	type TEntity,
@@ -30,6 +31,8 @@ declare global {
 		pose: () => TViewPose | null;
 		/** Draw calls per frame (every render pass), averaged over `frames` frames. */
 		drawCalls: (frames?: number) => Promise<number>;
+		/** The road a vehicle is on now and which way, as its route highlight marks it (ADR-0136). */
+		roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
 	};
 }
 
@@ -135,6 +138,8 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 		...given,
 		data: given.data ? WorldDataSchema.parse(given.data) : undefined,
 		// A road's defaults, for when the world open has no road to copy them from.
+		// An object's too.
+		entityDefaults: EntitySchema.parse({ id: "entity", kind: "house_01" }),
 		roadDefaults: RoadSchema.parse({
 			id: "road",
 			points: [
@@ -146,7 +151,7 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 	await page.evaluate((world) => {
 		const state = globalThis.__editorStore.getState();
 		const scene = structuredClone(state.scene);
-		const template = { ...scene.entities[0] };
+		const template = { ...(scene.entities[0] ?? world.entityDefaults) };
 		scene.entities = (world.entities ?? []).map((e) => ({
 			...template,
 			name: "",

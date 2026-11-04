@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import * as THREE from "three";
 
 import { pointerSpot } from "#/editor/pointerSpot";
+import { useEditor } from "#/editor/store";
+import { roadOfVehicleNow } from "#/editor/vehiclesNow";
 import { isOverWorld } from "#/lib/pointer";
 import type { TViewPose } from "#/scene/schema";
 
@@ -57,6 +59,7 @@ export const PointerSpot = () => {
 				screenOf: (point: [number, number, number]) => { x: number; y: number };
 				pose: () => TViewPose | null;
 				drawCalls: (frames?: number) => Promise<number>;
+				roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
 			};
 		};
 		if (import.meta.env.DEV) {
@@ -73,6 +76,11 @@ export const PointerSpot = () => {
 				pose: () => currentView.read?.() ?? null,
 				// Draw calls per frame, every pass's, averaged over some frames.
 				drawCalls: (frames) => drawCallsPerFrame(gl.getContext() as WebGL2RenderingContext, frames),
+				// The road a vehicle is on now, as the route highlight marks it (ADR-0136).
+				roadOfVehicle: (entityId) => {
+					const entity = useEditor.getState().scene.entities.find((e) => e.id === entityId);
+					return entity ? roadOfVehicleNow(entity) : null;
+				},
 			};
 		}
 		return () => {

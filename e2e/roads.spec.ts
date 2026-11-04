@@ -469,4 +469,76 @@ test.describe("junctions (ADR-0136)", () => {
 		await keys(page, "Delete");
 		expect(await read(page, (s) => s.scene.junctions.map((j) => j.ends.length))).toEqual([2]);
 	});
+
+	test("a vehicle that crossed a junction, once selected, marks the road it's on now", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 0],
+						[0, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "north",
+					name: "North",
+					points: [
+						[0, 0, 0],
+						[0, -20, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "north", end: "start" },
+					],
+				},
+			],
+			entities: [
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "west",
+						startDistance: 15,
+						speed: 4,
+						drivesTheOtherWay: false,
+						turnStyle: null,
+						leansInTurns: null,
+					},
+				},
+			],
+		});
+		await showView(page, [-4, -4], 30);
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		// It drives across the junction onto the north road; pause it there.
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.roadOfVehicle("car")?.roadId), {
+				timeout: 60_000,
+			})
+			.toBe("north");
+		await act(page, (s) => s.togglePlaying());
+		await act(page, (s) => s.select("car"));
+		// Selected and paused, it still marks the road it stopped on, not the one it started on.
+		expect(await page.evaluate(() => globalThis.__editorView.roadOfVehicle("car"))).toEqual({
+			roadId: "north",
+			drivesTheOtherWay: false,
+		});
+		expect(await read(page, (s) => s.scene.entities[0].follow?.roadId)).toBe("west");
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await expect(page.getByText("Now on “North”")).toBeVisible();
+	});
 });

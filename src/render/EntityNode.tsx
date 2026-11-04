@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { TDrawnGraphics } from "#/editor/graphics";
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
 import { isToggleClick, SNAP_STEP, type TEditorMode, useEditor } from "#/editor/store";
+import { forgetVehicleNow, setVehicleNow } from "#/editor/vehiclesNow";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
@@ -269,6 +270,15 @@ export const EntityNode = memo(
 				: createRouteSampler(road, driving, { reverse, smoothing });
 		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);
 		const following = Boolean(sampler && entity.follow);
+		// On a network it drives on from road to road: where it is now is kept for the views that show
+		// its road (editor/vehiclesNow), and forgotten once it stops driving this trip.
+		const drivesNetwork = Boolean(road && network?.connects(road.id));
+		useEffect(() => {
+			if (!drivesNetwork || !sampler) {
+				return;
+			}
+			return () => forgetVehicleNow(entity.id);
+		}, [drivesNetwork, sampler, entity.id]);
 		// Sideways from its lane to where it overtakes (right of travel is positive): the oncoming lane,
 		// or beside the line on roads without lanes.
 		const vehicleWidth = part ? part.footprint(props)[1] * entity.scale : 1;
@@ -313,6 +323,16 @@ export const EntityNode = memo(
 				current.length = vehicleLength;
 			}
 			const sample = sampler.at(entity.follow.startDistance, current?.travelled ?? 0);
+			if (drivesNetwork) {
+				const place = sampler.place(entity.follow.startDistance, current?.travelled ?? 0);
+				if (place.network) {
+					setVehicleNow(entity.id, {
+						roadId: place.network.roadId,
+						drivesTheOtherWay: place.direction < 0,
+						centre: place.centre,
+					});
+				}
+			}
 			// Out towards the overtaking line, leaning into the lane change.
 			const state = current?.state;
 			const out = state ? state.shift * passOffset : 0;
