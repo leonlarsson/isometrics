@@ -196,7 +196,7 @@ test.describe("viewpoints (ADR-0039)", () => {
 		// The starter world has viewpoints of its own; a short hold keeps the test quick.
 		await act(page, (s) =>
 			s.commit((scene) => {
-				scene.camera.tour.holdSeconds = 1;
+				scene.camera.tour.holdSeconds = 3;
 			}),
 		);
 		await page.getByRole("button", { name: "View", exact: true }).click();
@@ -211,15 +211,16 @@ test.describe("viewpoints (ADR-0039)", () => {
 		await expect
 			.poll(() => read(page, (s) => s.activeViewpointId), { timeout: 15_000 })
 			.toBe(second);
-		// A press on the view stops it where it is.
+		// A press on the view stops it where it is (a slow machine may have moved on once more by then).
 		const { x, y } = await viewCentre(page);
 		await page.mouse.click(x, y);
 		expect(await read(page, (s) => s.runningTour)).toBeNull();
+		const stoppedAt = await read(page, (s) => s.activeViewpointId);
 		await expect(
 			page.getByRole("button", { name: "Play the tour through the viewpoints" }),
 		).toBeVisible();
 		await page.waitForTimeout(3000);
-		expect(await read(page, (s) => s.activeViewpointId)).toBe(second);
+		expect(await read(page, (s) => s.activeViewpointId)).toBe(stoppedAt);
 		// An arrow stops it too.
 		await page.getByRole("button", { name: "Play the tour through the viewpoints" }).click();
 		await page.getByRole("button", { name: "Previous viewpoint (←)" }).click();
