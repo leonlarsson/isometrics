@@ -191,6 +191,7 @@ describe("renamed fields (ADR-0071)", () => {
 			drivingSide: "left",
 			turnStyle: "sharp",
 			leansInTurns: true,
+			drivesThroughJunctions: true,
 			keepsDistance: false,
 			overtakes: false,
 		});

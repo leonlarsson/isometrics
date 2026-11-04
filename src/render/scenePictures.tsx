@@ -8,6 +8,7 @@ import { colorOf, resolveColors, resolveTransparencies } from "#/parts/colorMode
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { GROUND } from "#/scene/ground";
+import { roadNetworkOf } from "#/scene/junctions";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TScene } from "#/scene/schema";
@@ -16,6 +17,7 @@ import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/
 
 import { AreaBody } from "./AreaMesh";
 import { FenceBody } from "./FenceMesh";
+import { JunctionBodies } from "./JunctionMesh";
 import { RoadBody } from "./RoadMesh";
 import { SceneLights } from "./SceneLights";
 import { frameBoxIn } from "./thumbnails";
@@ -159,6 +161,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const group = useRef<THREE.Group>(null);
 	const shot = useRef(false);
 	const entities = scene.entities.filter((entity) => !entity.isHidden);
+	const network = roadNetworkOf(scene.roads, scene.junctions);
 	const waiting = useRef(entities.filter((entity) => getPart(entity.kind)?.rendersAsync).length);
 	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface), false);
 
@@ -241,9 +244,18 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							ground={scene.ground}
 							editing={false}
 							selected={false}
+							trimStart={network.drawTrimsOf(road.id).start}
+							trimEnd={network.drawTrimsOf(road.id).end}
 						/>
 					),
 				)}
+
+				<JunctionBodies
+					roads={scene.roads}
+					junctions={scene.junctions}
+					palette={palette}
+					data={scene.data.values}
+				/>
 
 				{scene.fences.map((fence) =>
 					fence.isHidden ? null : (

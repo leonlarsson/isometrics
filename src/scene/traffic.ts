@@ -23,6 +23,11 @@ export interface ITrafficCar {
 	length: number;
 	/** The speed it's set to drive (grid units per second). */
 	speed: number;
+	/**
+	 * On a road network (ADR-0136): the nearest vehicle past the end of its road along the way it
+	 * will go, so it keeps its distance through a junction. `distance` is centre to centre.
+	 */
+	beyond?: { distance: number; length: number; speed: number } | null;
 }
 
 export interface ITrafficRoad {
@@ -222,15 +227,28 @@ export const stepRoadTraffic = (
 
 		for (const car of stream) {
 			const state = stateOf(car);
-			const leader = leaderOf(car);
-			const leaderSpeed = leader ? stateOf(leader).speed : 0;
-			const clear = leader ? clearance(car, leader) : Number.POSITIVE_INFINITY;
+			let leader = leaderOf(car);
+			let leaderSpeed = leader ? stateOf(leader).speed : 0;
+			let clear = leader ? clearance(car, leader) : Number.POSITIVE_INFINITY;
+			// Past the end of its road, on the road it goes on to (ADR-0136): it follows that vehicle
+			// when it's nearer, but never overtakes it (it's round a junction).
+			const beyond = car.beyond && state.shift < 0.5 ? car.beyond : null;
+			const beyondClear = beyond
+				? beyond.distance - (car.length + beyond.length) / 2
+				: Number.POSITIVE_INFINITY;
+			const followsBeyond = beyond !== null && beyondClear < clear;
+			if (followsBeyond) {
+				leader = null;
+				leaderSpeed = beyond.speed;
+				clear = beyondClear;
+			}
+			const leads = leader !== null || followsBeyond;
 			const wanted = MIN_GAP + state.speed * HEADWAY;
 			// Held up: close enough behind the leader that it sets the pace.
-			const held = leader !== null && clear < wanted + car.speed * RESPONSE * 2;
+			const held = leads && clear < wanted + car.speed * RESPONSE * 2;
 
 			// Stuck behind a slower vehicle: it settles in behind for a while before overtaking.
-			const slowed = held && leader !== null && leaderSpeed < car.speed * SLOWER;
+			const slowed = held && leaderSpeed < car.speed * SLOWER;
 			state.heldFor = slowed && state.passing === null ? state.heldFor + dt : 0;
 			const patience = PATIENCE + PATIENCE_SPREAD * temperament(car.id);
 
@@ -293,7 +311,7 @@ export const stepRoadTraffic = (
 
 			// Speed: its own, or eased to keep the gap to the leader.
 			let target = car.speed;
-			if (leader && clear < wanted + car.speed * RESPONSE * 2) {
+			if (leads && clear < wanted + car.speed * RESPONSE * 2) {
 				target = Math.min(car.speed, Math.max(0, leaderSpeed + (clear - wanted) / RESPONSE));
 			}
 			const change = target - state.speed;
@@ -304,7 +322,7 @@ export const stepRoadTraffic = (
 
 			// Never into the vehicle ahead, whatever the speed says.
 			let move = state.speed * dt;
-			if (leader) {
+			if (leads) {
 				move = Math.min(move, Math.max(0, clear - MIN_GAP / 2 + leaderSpeed * dt));
 			}
 			moves.set(car.id, move);

@@ -38,7 +38,7 @@ export const GUIDE: IGuideSection[] = [
 				kind: "points",
 				points: [
 					"**Objects**: buildings, vehicles, trees, lamps and more, from **Add to scene** on the left. Each has its own settings: size, colours, lights.",
-					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point. A fence can have gates, open or shut by hand or from data, and an area makes one round itself with **Fence along the edge**. With **Textured surfaces** on (World tab, Ground), the ground and areas are drawn as grass, sand, gravel, paving, concrete, cobbles, dirt or snow, in their own colours.",
+					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point. Roads meet at **junctions**, where vehicles drive on from one road to another. A fence can have gates, open or shut by hand or from data, and an area makes one round itself with **Fence along the edge**. With **Textured surfaces** on (World tab, Ground), the ground and areas are drawn as grass, sand, gravel, paving, concrete, cobbles, dirt or snow, in their own colours.",
 					"**Label cards** float over objects with a title and values.",
 					"**Data**: **values** (one number, like registered users), **tables** (rows, one for each warehouse, game or city) and the **sources** they're read from: a spreadsheet, a link or an API.",
 					"Things **follow data**: an object follows a table row, and its size, colours, lights and card show the row's columns. Roads show flows (from, to, amount) with their width and vehicles.",
@@ -52,6 +52,26 @@ export const GUIDE: IGuideSection[] = [
 			{
 				kind: "note",
 				text: "A world someone sends you (a file, an AI's answer) can name links and APIs to read: external sources. Every one starts disabled: when such a world opens, a dialog lists the external sources it reads, to allow now or later in the Data tab (each under **Sources** has **Allow**). Only links you read yourself, with **Read a link or API…**, are read without asking; **External sources this browser reads…** lists every one you've allowed, to forget any.",
+			},
+		],
+	},
+	{
+		id: "junctions",
+		title: "Roads that meet: junctions",
+		blocks: [
+			{
+				kind: "steps",
+				steps: [
+					"Draw a road: **Add to scene**, **Roads**, then click points on the ground; Enter or a double-click finishes it.",
+					"To start or end a new road on another one, click on that road (or on its end): a ring shows where, and clicking there connects them at a **junction**. Ending on a road finishes the new one. Hold **Alt** to put a point there without connecting.",
+					"To connect roads already drawn, drag a road's end onto another road, or onto its end, and let go: the bar offers **Connect** (or **Join**, to make one road of two).",
+					"With **Play motion** on (Space), vehicles on connected roads drive on at each junction, along a way picked at random, and turn round only at a dead end. Selected, a vehicle shows the way ahead of it.",
+					"To keep a vehicle on its own road, turn off **Drive through junctions onto other roads** in its **Motion** tab: it turns round at junctions as at dead ends. A road's **Traffic** panel and the world's traffic settings have the same switch, for every vehicle that starts on the road or in the world.",
+				],
+			},
+			{
+				kind: "note",
+				text: "Connecting to the middle of a road cuts it in two there (the second half's name gets \"(2)\"). Click a connected end's point to see what it's connected to: **Draw a road from here**, **Join into one road** (when just two roads meet) and **Disconnect**. Dragging it moves the junction, and the other roads' ends follow.",
 			},
 		],
 	},
@@ -222,6 +242,7 @@ export const GUIDE: IGuideSection[] = [
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",
 					"Roads follow rows the same way, with `flow: { enabled: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
+					'Roads meet at `junctions`: `{ "id": "j1", "ends": [{ "roadId": "main", "end": "end" }, { "roadId": "side", "end": "start" }] }` joins road ends (`start` = a road\'s first point, `end` = its last) that are at the same x, z and altitude. A T or a crossroads joins the ends of the roads that meet there, so the road going through is two roads. Vehicles on a road with a junction drive on across the network.',
 					"Textured ground and areas: `surface: { enabled: true }`, then `ground.surface.kind` (`grass_01`, `paving_01`, …) for the ground; areas follow their kind (a plaza is paving) unless `surface.kind` says otherwise.",
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
