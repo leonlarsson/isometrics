@@ -36,7 +36,7 @@ import {
 	worldListChanged,
 } from "./persistence";
 import { useEditor } from "./store";
-import { notify } from "./toasts";
+import { notify, notifyAfterReload } from "./toasts";
 import { keepsOpenWorld } from "./whatIsOpen";
 
 /**
@@ -339,8 +339,8 @@ export const pickBrowserExport = async (): Promise<IBrowserContents | null> => {
 };
 
 /** What adding an export did, in words: a title, a line, and whether something was left out. */
-export const describeAdded = (counts: IImportCounts) => {
-	const leftOut = counts.worldsLeftOut + counts.backupsLeftOut;
+export const describeAdded = (counts: IImportCounts, withSettings = false) => {
+	const leftOut = counts.worldsLeftOut + counts.backupsLeftOut + counts.settingsLeftOut;
 	const added = counts.worldsAdded + counts.backupsAdded;
 	const lines: string[] = [];
 	if (added > 0) {
@@ -360,15 +360,19 @@ export const describeAdded = (counts: IImportCounts) => {
 	}
 	if (leftOut > 0) {
 		lines.push(
-			`${plural(counts.worldsLeftOut, "world")} and ${plural(counts.backupsLeftOut, "backup")} weren’t added: ${counts.ranOutOfRoom ? "the browser’s storage for this site is full" : "the browser refused to store them"}. Delete worlds or backups you don’t need and import again: what’s here won’t be added twice.`,
+			`${plural(counts.worldsLeftOut, "world")}, ${plural(counts.backupsLeftOut, "backup")} and ${plural(counts.settingsLeftOut, "setting")} weren’t added: ${counts.ranOutOfRoom ? "the browser’s storage for this site is full" : "the browser refused to store them"}. Delete worlds or backups you don’t need and import again: what’s here won’t be added twice.`,
 		);
 	}
-	lines.push("Your settings are as they were.");
+	lines.push(
+		withSettings
+			? `${plural(counts.settingsTaken, "setting")} from it took the place of this browser’s; allowed external sources stay as they were.`
+			: "Your settings are as they were.",
+	);
 	return {
 		title:
 			leftOut > 0
 				? "Not everything was added"
-				: added > 0
+				: added + counts.settingsTaken > 0
 					? "Added to this browser"
 					: "Nothing new to add",
 		text: lines.join(" "),
@@ -378,13 +382,22 @@ export const describeAdded = (counts: IImportCounts) => {
 
 /**
  * Add an export's worlds and backups beside this browser's (ADR-0140),
- * after saving the open world; the open world and settings stay as they are.
+ * after saving the open world; the open world stays as it is. Settings stay
+ * too, unless `withSettings`: then the file's take the place of this
+ * browser's, and the page reloads so everything reads them.
  */
-export const addBrowserExport = (contents: IBrowserContents) => {
+export const addBrowserExport = (contents: IBrowserContents, withSettings = false) => {
 	saveBeforeSwitching();
-	const { title, text, isProblem } = describeAdded(addToBrowser(contents));
+	const counts = addToBrowser(contents, { withSettings });
+	const { title, text, isProblem } = describeAdded(counts, withSettings);
+	const tone = isProblem ? "error" : "success";
+	if (counts.settingsTaken > 0) {
+		notifyAfterReload(title, text, tone);
+		window.location.reload();
+		return;
+	}
 	worldListChanged();
-	notify(title, text, isProblem ? "error" : "success");
+	notify(title, text, tone);
 };
 
 /**
@@ -398,6 +411,17 @@ export const replaceWithBrowserExport = (contents: IBrowserContents) => {
 	switch (result.status) {
 		case "replaced":
 			stopSavingUntilReload();
+			notifyAfterReload(
+				"This browser’s worlds and settings are replaced",
+				[
+					`${plural(result.counts.worldsAdded, "world")} came in, and ${plural(result.counts.backupsAdded, "backup")} joined yours.`,
+					result.backupKey ? "This browser as it was is kept under File → Backups." : "",
+					"Allowed external sources stay as they were.",
+				]
+					.filter(Boolean)
+					.join(" "),
+				"success",
+			);
 			window.location.assign("/");
 			return;
 		case "noRoomForCopy":

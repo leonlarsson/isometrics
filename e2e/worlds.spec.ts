@@ -235,7 +235,14 @@ test.describe("a browser's export (ADR-0140)", () => {
 		});
 		const dialog = other.getByRole("dialog", { name: "Import a browser’s export" });
 		await expect(dialog).toContainText("Moved along");
-		await dialog.getByRole("button", { name: /^Add to this browser/ }).click();
+		// Choose a way first: Import waits for it.
+		const importButton = dialog.getByRole("button", { name: "Import", exact: true });
+		await expect(importButton).toBeDisabled();
+		await dialog.getByRole("radio", { name: /^Add to this browser/ }).click();
+		await expect(
+			dialog.getByRole("switch", { name: "Also bring in its settings" }),
+		).not.toBeChecked();
+		await importButton.click();
 
 		await expect.poll(() => storedWorlds(other)).toBe(2);
 		const titles = await other.evaluate(() =>

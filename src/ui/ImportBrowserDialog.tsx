@@ -11,22 +11,40 @@ import { formatStorageSize, listWorlds } from "#/editor/persistence";
 import { localDateTime } from "#/lib/when";
 import { plural } from "#/scene/format";
 
-import { ActionCards } from "./ActionCards";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
-import { Hint } from "./fields";
+import { Hint, RadioGroupField, resetToDefault, SwitchField } from "./fields";
 import { List, ListItem } from "./List";
 
-/** The export being imported (null: none), and whether Replace is being confirmed. */
-const useImportBrowser = create<{ contents: IBrowserContents | null; isReplacing: boolean }>(
-	() => ({ contents: null, isReplacing: false }),
-);
+/** How an export is brought in; "" until the person has chosen. */
+type TImportWay = "" | "add" | "replace";
+
+interface IImportBrowserState {
+	/** The export being imported (null: none). */
+	contents: IBrowserContents | null;
+	way: TImportWay;
+	/** Add only: the file's settings take the place of this browser's too. */
+	withSettings: boolean;
+	/** Import was clicked with Replace chosen: its confirmation is open. */
+	isReplacing: boolean;
+}
+
+const NOTHING_CHOSEN: Omit<IImportBrowserState, "contents"> = {
+	way: "",
+	withSettings: false,
+	isReplacing: false,
+};
+
+const useImportBrowser = create<IImportBrowserState>(() => ({
+	contents: null,
+	...NOTHING_CHOSEN,
+}));
 
 /** Import a browser's export… (the app menu): pick the file, then say what's in it and offer Add or Replace. */
 export const importBrowsersExport = async () => {
 	const contents = await pickBrowserExport();
 	if (contents) {
-		useImportBrowser.setState({ contents, isReplacing: false });
+		useImportBrowser.setState({ contents, ...NOTHING_CHOSEN });
 	}
 };
 
@@ -54,15 +72,17 @@ const cut = (text: string, length: number) =>
 
 /**
  * Importing a browser's export (ADR-0140): what's in it (worlds, backups,
- * settings, when it was exported) and the two ways to bring it in. **Add to
- * this browser** puts its worlds and backups beside this browser's, at once.
- * **Replace this browser’s** asks first, with the weight of Wipe everything
- * (a countdown, and Export this browser first), because this browser's worlds
+ * settings, when it was exported), then the person chooses how to bring it
+ * in and clicks Import, which waits for a choice. **Add to this browser**
+ * puts its worlds and backups beside this browser's (and, with **Also bring
+ * in its settings**, its settings over this browser's) at once. **Replace
+ * this browser’s** asks first, with the weight of Wipe everything (a
+ * countdown, and Export this browser first), because this browser's worlds
  * and settings make way, kept as one backup under File → Backups.
  */
 export const ImportBrowserDialog = () => {
-	const { contents, isReplacing } = useImportBrowser();
-	const close = () => useImportBrowser.setState({ contents: null, isReplacing: false });
+	const { contents, way, withSettings, isReplacing } = useImportBrowser();
+	const close = () => useImportBrowser.setState({ contents: null, ...NOTHING_CHOSEN });
 	const titles = contents?.worlds.map((world) => cut(world.title, 60)) ?? [];
 	const worldsHere = isReplacing ? listWorlds().length : 0;
 
@@ -81,7 +101,23 @@ export const ImportBrowserDialog = () => {
 						? `${contents.exportedAt ? `Exported ${localDateTime(contents.exportedAt)}` : "Exported at an unknown time"}, ${formatStorageSize(contents.size)} in all.`
 						: undefined
 				}
-				closeLabel="Cancel"
+				confirm={{
+					label: "Import",
+					disabled: way === "",
+					// Replace opens its confirmation in this dialog's place; Add closes it itself.
+					keepOpen: true,
+					onConfirm: () => {
+						if (!contents) {
+							return;
+						}
+						if (way === "replace") {
+							useImportBrowser.setState({ isReplacing: true });
+						} else if (way === "add") {
+							close();
+							addBrowserExport(contents, withSettings);
+						}
+					},
+				}}
 			>
 				{contents && (
 					<List>
@@ -100,12 +136,10 @@ export const ImportBrowserDialog = () => {
 						<ListItem
 							stacked
 							label={plural(contents.settings, "setting")}
-							meta="Preferences, panels, favourites, cameras and shared links"
+							meta="Preferences (graphics too), panels, favourites, cameras and shared links"
 						/>
 					</List>
 				)}
-
-				{contents && <Hint>{LINKS_STAY}</Hint>}
 
 				{contents && contents.leftOut > 0 && (
 					<Hint>
@@ -113,28 +147,35 @@ export const ImportBrowserDialog = () => {
 					</Hint>
 				)}
 
-				{contents && (
-					<ActionCards
-						cards={[
-							{
-								title: "Add to this browser",
-								about:
-									contents.worlds.length + contents.backups > 0
-										? "Its worlds and backups go beside yours; one with the same id as yours goes in as a copy. Your settings stay as they are."
-										: "It has no worlds or backups to add, only settings: Replace this browser’s brings those in.",
-								disabled: contents.worlds.length + contents.backups === 0,
-								onChoose: () => {
-									close();
-									addBrowserExport(contents);
-								},
-							},
-							{
-								title: "Replace this browser’s",
-								about:
-									"Its worlds and settings take the place of yours, and its backups join yours. This browser as it is now is kept first, under File → Backups.",
-								onChoose: () => useImportBrowser.setState({ isReplacing: true }),
-							},
-						]}
+				<RadioGroupField<TImportWay>
+					label="How to bring it in"
+					value={way}
+					options={[
+						{
+							value: "add",
+							label: "Add to this browser",
+							meta: "Its worlds and backups go beside yours; one with the same id as yours goes in as a copy.",
+						},
+						{
+							value: "replace",
+							label: "Replace this browser’s",
+							meta: "Its worlds and settings take the place of yours, and its backups join yours. This browser as it is now is kept first, under File → Backups.",
+						},
+					]}
+					onChange={(next) => useImportBrowser.setState({ way: next })}
+					hasNoDefault
+					hint={LINKS_STAY}
+				/>
+
+				{way === "add" && (
+					<SwitchField
+						label="Also bring in its settings"
+						checked={withSettings}
+						onChange={(next) => useImportBrowser.setState({ withSettings: next })}
+						inherit={resetToDefault(withSettings, false, () =>
+							useImportBrowser.setState({ withSettings: false }),
+						)}
+						hint="Its Preferences (graphics too), panels, favourites and cameras take the place of this browser’s, and the page reloads. Off: yours stay as they are."
 					/>
 				)}
 			</Dialog>

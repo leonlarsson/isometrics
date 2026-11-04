@@ -152,6 +152,47 @@ describe("adding to this browser", () => {
 		expect(listWorlds()).toHaveLength(3);
 	});
 
+	it("brings its settings over this browser's only when asked, never its allowed links", () => {
+		const ALLOWED = "isometrics:allowed-links";
+		const id = createWorld(scene("Mine"));
+		const mine = JSON.stringify(["https://mine.example/data.json"]);
+		localStorage.setItem(ALLOWED, mine);
+		localStorage.setItem(PREFERENCES_KEY, "mine");
+		localStorage.setItem("isometrics:camera", "my cameras");
+		const text = exportOf({
+			"isometrics:world:theirs": worldText("Theirs"),
+			"isometrics:open-world-id": "theirs",
+			[PREFERENCES_KEY]: "theirs",
+			"isometrics:panels": "their panels",
+			[ALLOWED]: JSON.stringify(["https://tracker.example/pixel"]),
+		});
+		// Hand-made contents holding a list, as if the reading had let one through.
+		const forced = contentsOf(
+			new Map([...readBrowserExport(text).items, [ALLOWED, '["https://evil.example/"]']]),
+		);
+
+		// Off (the default): settings stay as they are.
+		expect(addToBrowser(forced)).toMatchObject({ worldsAdded: 1, settingsTaken: 0 });
+		expect(localStorage.getItem(PREFERENCES_KEY)).toBe("mine");
+		expect(localStorage.getItem("isometrics:panels")).toBeNull();
+		expect(localStorage.getItem(ALLOWED)).toBe(mine);
+
+		// On: the file's settings take the place of this browser's; the rest stay.
+		const counts = addToBrowser(forced, { withSettings: true });
+		expect(counts).toMatchObject({ worldsAlreadyHere: 1, settingsTaken: 2, settingsLeftOut: 0 });
+		expect(localStorage.getItem(PREFERENCES_KEY)).toBe("theirs");
+		expect(localStorage.getItem("isometrics:panels")).toBe("their panels");
+		expect(localStorage.getItem("isometrics:camera")).toBe("my cameras");
+		// Never the allowed links, the open world, or the list of worlds as the file has it.
+		expect(localStorage.getItem(ALLOWED)).toBe(mine);
+		expect(openWorldId()).toBe(id);
+		expect(
+			listWorlds()
+				.map((world) => world.title)
+				.sort(),
+		).toEqual(["Mine", "Theirs"]);
+	});
+
 	it("puts a backup whose key is taken beside it, and skips one it has", () => {
 		createWorld(scene("Doomed"));
 		deleteWorld(openWorldId() ?? "");

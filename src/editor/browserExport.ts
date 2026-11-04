@@ -311,6 +311,9 @@ export interface IImportCounts {
 	backupsAdded: number;
 	backupsAlreadyHere: number;
 	backupsLeftOut: number;
+	/** Settings taken over this browser's (Add with its settings, ADR-0140). */
+	settingsTaken: number;
+	settingsLeftOut: number;
 	/** Whether a write failed because storage was full. */
 	ranOutOfRoom: boolean;
 }
@@ -323,6 +326,8 @@ const noCounts = (): IImportCounts => ({
 	backupsAdded: 0,
 	backupsAlreadyHere: 0,
 	backupsLeftOut: 0,
+	settingsTaken: 0,
+	settingsLeftOut: 0,
 	ranOutOfRoom: false,
 });
 
@@ -388,11 +393,17 @@ const addBackups = (
  * Add an export's worlds and backups to this browser, beside its own
  * (ADR-0140). A world this browser already has exactly isn't added twice;
  * one whose id is taken by another world is added under a new id, so nothing
- * is overwritten. Settings stay as they are. Whatever doesn't fit is left
- * out and counted, and the list of worlds only ever names worlds that were
- * written.
+ * is overwritten. Settings stay as they are, unless `withSettings`: then the
+ * file's settings (every entry but worlds, the list of worlds, which is open
+ * and backups) take the place of this browser's, after the worlds and
+ * backups, so those get the room first; never what NEVER_IMPORTED lists,
+ * which a file never brings. Whatever doesn't fit is left out and counted,
+ * and the list of worlds only ever names worlds that were written.
  */
-export const addToBrowser = (contents: IBrowserContents): IImportCounts => {
+export const addToBrowser = (
+	contents: IBrowserContents,
+	{ withSettings = false }: { withSettings?: boolean } = {},
+): IImportCounts => {
 	const counts = noCounts();
 	const written: string[] = [];
 	const before = listWorlds();
@@ -426,6 +437,17 @@ export const addToBrowser = (contents: IBrowserContents): IImportCounts => {
 		tryWrite(WORLD_INDEX_KEY, JSON.stringify(index), [], counts);
 	}
 	addBackups(contents.items, written, counts);
+	for (const [key, value] of withSettings ? contents.items : []) {
+		// "setting" only: never the index, the open world, or what grants trust (kind "trust").
+		if (kindOfKey(key) !== "setting") {
+			continue;
+		}
+		if (tryWrite(key, value, written, counts)) {
+			counts.settingsTaken++;
+		} else {
+			counts.settingsLeftOut++;
+		}
+	}
 	return counts;
 };
 
