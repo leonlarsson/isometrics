@@ -44,6 +44,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			width: 30,
 			depth: 20,
 			colors: { surface: { color: "#a0b0c0", transparency: null, data: {} } },
+			surface: { kind: "plain" },
 		});
 		expect(scene.traffic).toEqual({
 			drivingSide: "left",

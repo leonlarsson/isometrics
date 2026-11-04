@@ -909,6 +909,52 @@ export const AreaKindSchema = z
 		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
 	);
 
+// See docs/adr/0137-ground-and-area-surfaces.md.
+export const SurfaceKindSchema = z
+	.enum([
+		"plain",
+		"grass_01",
+		"sand_01",
+		"gravel_01",
+		"paving_01",
+		"concrete_01",
+		"cobbles_01",
+		"dirt_01",
+		"snow_01",
+	])
+	.describe(
+		"The texture a surface is drawn with, in its own colour (numbered so each can get variants): plain = a flat colour, grass_01 = soft patches and tufts, sand_01 = wind ripples, gravel_01 = small stones, paving_01 = square slabs, concrete_01 = large panels, cobbles_01 = rounded stones in rows, dirt_01 = blotchy earth with pebbles, snow_01 = a snowfield with drifts (the colour mixed most of the way to white). Drawn only while the world's surface.enabled is true.",
+	);
+
+/** An area's own surface (ADR-0137), overriding its kind's and the world's (`surface`). */
+export const AreaSurfaceSchema = z
+	.object({
+		kind: SurfaceKindSchema.nullable()
+			.default(null)
+			.describe(
+				"Its texture. null = its area kind's: grass_01 for grass, sand_01 for sand, paving_01 for a plaza, dirt_01 for raised land; water is never textured.",
+			),
+		patternStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How strongly its pattern shows: 0 = not at all, 0.5 = as designed, 1 = twice as strong. null = the world's (surface.patternStrength).",
+			),
+		patternScale: z
+			.number()
+			.min(0.25)
+			.max(4)
+			.nullable()
+			.default(null)
+			.describe(
+				"How big its pattern is: 1 = as designed, 2 = twice as big (bigger stones, slabs and ripples). null = the world's (surface.patternScale).",
+			),
+	})
+	.describe("Its surface's texture, where it differs from its kind's and the world's.");
+
 // See docs/adr/0096-area-corner-heights.md.
 export const AreaPointSchema = z
 	.union([z.tuple([z.number(), z.number(), z.number().min(-30).max(30)]), Vec2Schema])
@@ -966,6 +1012,7 @@ export const AreaSchema = z
 			),
 		colors: colorSettings('{ "surface": { "color": "#4f9a55" } }; its colour is surface'),
 		water: AreaWaterSchema.default(() => AreaWaterSchema.parse({})),
+		surface: AreaSurfaceSchema.default(() => AreaSurfaceSchema.parse({})),
 		isLocked: isLocked("its corners"),
 		isHidden: isHidden(),
 	})
@@ -1115,13 +1162,57 @@ export const FenceSchema = z
 		"A fence, wall, hedge or railing drawn as a line of points; it stands on the ground under it.",
 	);
 
+/** The ground's surface (ADR-0137). */
+export const GroundSurfaceSchema = z
+	.object({
+		kind: SurfaceKindSchema.default("plain").describe(
+			"The ground's texture, drawn while surface.enabled is true; plain = its flat colour.",
+		),
+	})
+	.describe("The ground's surface.");
+
 export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
 		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
+		surface: GroundSurfaceSchema.default(() => GroundSurfaceSchema.parse({})),
 	})
 	.describe("The slab everything stands on, centred on the origin.");
+
+/**
+ * Textured surfaces, world-wide (ADR-0137): whether the ground and areas are
+ * drawn with their surfaces' patterns, and how strong and big those are where
+ * an area doesn't set its own.
+ */
+export const SurfaceSchema = z
+	.object({
+		enabled: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the ground and areas are drawn with texture: the ground with ground.surface.kind, each area with its own surface.kind or its area kind's. false = every surface a flat colour, as worlds always were.",
+			),
+		patternStrength: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0.5)
+			.describe(
+				"How strongly the patterns show, for the ground and every area that doesn't set its own: 0 = not at all, 0.5 = as designed, 1 = twice as strong.",
+			),
+		patternScale: z
+			.number()
+			.min(0.25)
+			.max(4)
+			.default(1)
+			.describe(
+				"How big the patterns are, for the ground and every area that doesn't set its own: 1 = as designed, 2 = twice as big.",
+			),
+	})
+	.describe(
+		"Textured ground and areas: grass, sand, gravel, paving, concrete, cobbles, dirt and snow as fine patterns in each surface's own colour.",
+	);
 
 const FieldOfViewSchema = z.number().min(1).max(170);
 
@@ -1630,6 +1721,7 @@ export const SceneSchema = z
 			.describe("The world's title and subtitle."),
 		theme: ThemeSchema.default("system"),
 		ground: GroundSchema.default(() => GroundSchema.parse({})),
+		surface: SurfaceSchema.default(() => SurfaceSchema.parse({})),
 		traffic: TrafficSchema.default(() => TrafficSchema.parse({})),
 		lighting: LightingSchema.default(() => LightingSchema.parse({})),
 		sky: SkySchema.default(() => SkySchema.parse({})),
@@ -1746,6 +1838,9 @@ export type TFencePoint = z.output<typeof FencePointSchema>;
 export type TFenceGate = z.output<typeof FenceGateSchema>;
 export type TFenceGateKind = z.output<typeof FenceGateKindSchema>;
 export type TGround = z.output<typeof GroundSchema>;
+export type TSurfaceKind = z.output<typeof SurfaceKindSchema>;
+export type TSurface = z.output<typeof SurfaceSchema>;
+export type TAreaSurface = z.output<typeof AreaSurfaceSchema>;
 export type TDrivingSide = z.output<typeof DrivingSideSchema>;
 export type TTurnStyle = z.output<typeof TurnStyleSchema>;
 export type TTraffic = z.output<typeof TrafficSchema>;
