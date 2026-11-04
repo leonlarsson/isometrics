@@ -173,7 +173,7 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 								value={`${graphics.realLightCount}`}
 								options={REAL_LIGHT_COUNTS.map((count) => ({
 									value: `${count}`,
-									label: count === 0 ? "None (painted glows only)" : `${count} nearest the view`,
+									label: count === 0 ? "None (painted glows only)" : `${count} in view`,
 								}))}
 								onChange={(value) =>
 									setPreference("realLightCount", Number(value) as TRealLightCount)
@@ -183,7 +183,7 @@ export const graphicsPage = (preferences: TPreferences): ISettingsPage => {
 									"realLightCount",
 									preset.realLightCount === 0 ? "none" : `${preset.realLightCount}`,
 								)}
-								hint="Lamps, lit windows, cabins and headlights light the streets, walls and water round them. Each one costs a little on every surface it reaches."
+								hint="Lamps, lit windows, cabins and headlights light the streets, walls and water round them: those in view, nearest its middle first, the farthest fading to their painted glow. Each one costs a little on every surface it reaches."
 							/>
 						),
 					},

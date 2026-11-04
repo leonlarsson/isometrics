@@ -38,7 +38,7 @@ export type TBoatWakes = (typeof BOAT_WAKE_MODES)[number];
 export const ANTI_ALIASING_MODES = ["multisample", "smaa"] as const;
 export type TAntiAliasing = (typeof ANTI_ALIASING_MODES)[number];
 
-/** How many lights, nearest the view, light their surroundings as real lights. */
+/** How many lights in view light their surroundings as real lights (ADR-0144). */
 export const REAL_LIGHT_COUNTS = [0, 8, 16, 32, 64] as const;
 export type TRealLightCount = (typeof REAL_LIGHT_COUNTS)[number];
 
@@ -102,7 +102,7 @@ export const PreferencesSchema = z.object({
 	ambientOcclusion: z.enum(AMBIENT_OCCLUSION_MODES).nullable().catch(null),
 	/** A glow round lit windows, lamps and headlights, as strong as it's dark. null = the preset's. */
 	showGlowAfterDark: z.boolean().nullable().catch(null),
-	/** How many lights nearest the view light the streets, walls and water round them. null = the preset's. */
+	/** How many lights in view light the streets, walls and water round them. null = the preset's. */
 	realLightCount: z
 		.union(REAL_LIGHT_COUNTS.map((count) => z.literal(count)))
 		.nullable()
