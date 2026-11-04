@@ -56,7 +56,7 @@ A new list in the world, `junctions` (default empty, so every world saved before
 - `id`: unique among junctions.
 - `ends`: two or more road ends (`roadId`, and `end`: `start` = its first point, `end` = its last), which meet at one place. Two ends of the same road may meet there (a loop cut open at a T).
 
-A junction has no place of its own: it is where its ends are, and they must be at the same point (x, z and altitude). The editor keeps them together (below). A world written by hand or by an AI whose ends don't meet is read as it is: the junction is at its first end, and an end further from it than its road's width is left out of it (that road draws and drives as without the junction). Ends of roads that don't exist or that loop (a loop has no ends), and repeats, are left out too; a junction left with fewer than two ends does nothing. `junctions` is in `PATCH_LISTS` (`scene/worldPatch.ts`), so a patch adds, changes and removes junctions by id.
+A junction has no place of its own: it is where its ends are, and they must be at the same point (x, z and altitude). The editor keeps them together (below). A world written by hand or by an AI whose ends don't meet is read as it is: the junction is at its first end, and an end further from it than its road's width is left out of it (that road draws and drives as without the junction). Ends of roads that don't exist or that loop (a loop has no ends), and repeats, are left out too; a junction left with fewer than two ends does nothing. `/api/worlds/validate` warns of each of these, so an AI can put it right. `junctions` is in `PATCH_LISTS` (`scene/worldPatch.ts`), so a patch adds, changes and removes junctions by id.
 
 ### Drawing where roads meet
 

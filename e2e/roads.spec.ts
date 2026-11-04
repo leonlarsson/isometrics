@@ -391,7 +391,7 @@ test.describe("junctions (ADR-0136)", () => {
 					id: "side",
 					name: "Side",
 					points: [
-						[2, -9, 0],
+						[2, -16, 0],
 						[2, -4, 0],
 					],
 					cornerRadius: 0,
@@ -412,7 +412,8 @@ test.describe("junctions (ADR-0136)", () => {
 
 	test("a road's end dragged onto another road connects there, cutting it", async ({ page }) => {
 		await junctionWorld(page);
-		await showView(page, [0, 0], 30);
+		await showView(page, [1, -4], 30);
+		// Its whole-road gizmo is at its middle, away from the end dragged.
 		await act(page, (s) => s.selectRoad("side"));
 		const from = await groundSpot(page, [2, -4]);
 		const to = await groundSpot(page, [2.4, 0.3]);
