@@ -15,6 +15,7 @@ import { useWorldData } from "#/editor/worldData";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
+import { roadNetworkOf } from "#/scene/junctions";
 import type { TEntity, TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
 
@@ -39,6 +40,7 @@ import { GroupGizmo } from "./GroupGizmo";
 import { HoverHighlight } from "./HoverHighlight";
 import { InstancedParts } from "./InstancedParts";
 import { InstantResize } from "./InstantResize";
+import { JunctionBodies } from "./JunctionMesh";
 import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
@@ -248,8 +250,39 @@ const StillScene = () => {
 	return null;
 };
 
-export const Viewport = () => {
+/** The roads, cut back where they meet at junctions, and the junctions' own surfaces (ADR-0136). */
+const Roads = () => {
 	const roads = useEditor((s) => s.scene.roads);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const palette = usePalette();
+	const data = useWorldData().values;
+	const network = roadNetworkOf(roads, junctions);
+
+	return (
+		<>
+			{/* Hidden roads keep their index: it's their draw layer. */}
+			{roads.map((road, index) => {
+				if (road.isHidden) {
+					return null;
+				}
+				const trims = network.drawTrimsOf(road.id);
+				return (
+					<RoadMesh
+						key={road.id}
+						road={road}
+						layer={index}
+						trimStart={trims.start}
+						trimEnd={trims.end}
+					/>
+				);
+			})}
+
+			<JunctionBodies roads={roads} junctions={junctions} palette={palette} data={data} />
+		</>
+	);
+};
+
+export const Viewport = () => {
 	const areas = useEditor((s) => s.scene.areas);
 	const fences = useEditor((s) => s.scene.fences);
 	const graphics = useGraphics();
@@ -313,9 +346,7 @@ export const Viewport = () => {
 
 			<InstancedParts />
 
-			{roads.map((road, index) =>
-				road.isHidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,
-			)}
+			<Roads />
 
 			<RoadHandles />
 

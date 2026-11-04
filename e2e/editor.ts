@@ -7,6 +7,7 @@ import {
 	type TEntity,
 	type TFence,
 	type TFenceGate,
+	type TJunction,
 	type TRoad,
 	type TViewPose,
 	WorldDataSchema,
@@ -114,6 +115,8 @@ export const entity = (page: Page, id: string) =>
 export interface ITestWorld {
 	entities?: Partial<TEntity>[];
 	roads?: Partial<TRoad>[];
+	/** Junctions between the roads' ends (ADR-0136); none if left out. */
+	junctions?: TJunction[];
 	areas?: Partial<TArea>[];
 	fences?: (Partial<Omit<TFence, "gates">> & { gates?: Partial<TFenceGate>[] })[];
 	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
@@ -168,6 +171,7 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 			isLocked: false,
 			...r,
 		})) as typeof scene.roads;
+		scene.junctions = world.junctions ?? [];
 		const area = scene.areas[0];
 		scene.areas = (world.areas ?? []).map((a) => ({
 			...area,
