@@ -39,7 +39,7 @@ const SHADING = /* glsl */ `
 		float pooled = 1.0;
 		#ifdef SURFACE_PATTERN
 			// A surface's joints and gaps (ADR-0137): thin snow lies there first, and they're wettest.
-			settled = min(1.0, cover * (1.8 + 5.0 * surfaceHollow));
+			settled += (1.0 - settled) * surfaceHollow * 0.7 * smoothstep(0.0, 0.5, cover);
 			pooled = 1.0 + 0.7 * surfaceHollow;
 		#endif
 		diffuseColor.rgb = mix(diffuseColor.rgb, weatherSnowColor, snowy * settled);
