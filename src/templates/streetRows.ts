@@ -128,6 +128,7 @@ export const layRowsAlong = ({
 	land,
 	keepOut = [],
 	shoreMargin = 0.3,
+	courtyards,
 }: {
 	streets: readonly IStreetLine[];
 	/** The land the houses stand on: they stay inside it, shoreMargin from its edge. */
@@ -135,6 +136,12 @@ export const layRowsAlong = ({
 	/** Squares, landmarks and gardens: no house in them. */
 	keepOut?: readonly (readonly TVec2[])[];
 	shoreMargin?: number;
+	/**
+	 * Fill what's left inside the blocks with back houses (a pair, or one where a pair won't fit),
+	 * each square to its nearest street: an old town's courtyards are built over. Their rows'
+	 * streetId is "courtyard". None if left out.
+	 */
+	courtyards?: IRowSide & { spacing: number };
 }): ILaidRow[] => {
 	const segments = streets.flatMap((street) =>
 		street.points.slice(1).map((end, i) => ({
@@ -238,6 +245,71 @@ export const layRowsAlong = ({
 					run.push({ at, depth });
 				}
 				finish();
+			}
+		}
+	}
+	if (courtyards) {
+		const xs = land.map(([x]) => x);
+		const zs = land.map(([, z]) => z);
+		for (let x = Math.min(...xs); x <= Math.max(...xs); x += courtyards.spacing) {
+			for (let z = Math.min(...zs); z <= Math.max(...zs); z += courtyards.spacing) {
+				const at: TVec2 = [x, z];
+				// Square to the nearest street, its front towards it.
+				const nearest = segments.reduce((best, segment) =>
+					segmentDistance(at, segment.from, segment.to) < segmentDistance(at, best.from, best.to)
+						? segment
+						: best,
+				);
+				const length = Math.hypot(nearest.to[0] - nearest.from[0], nearest.to[1] - nearest.from[1]);
+				const along: TVec2 = [
+					(nearest.to[0] - nearest.from[0]) / length,
+					(nearest.to[1] - nearest.from[1]) / length,
+				];
+				const side = Math.sign(
+					(at[0] - nearest.from[0]) * along[1] - (at[1] - nearest.from[1]) * along[0],
+				);
+				const away: TVec2 = [along[1] * side, -along[0] * side];
+				const depth = courtyards.depths.find((tried) =>
+					[2].some((count) =>
+						fits({
+							centre: at,
+							along,
+							across: away,
+							halfAlong: (courtyards.houseWidth * count) / 2,
+							halfAcross: tried / 2 + EAVES,
+						}),
+					),
+				);
+				if (depth === undefined) {
+					continue;
+				}
+				const count = [2].find((tried) =>
+					fits({
+						centre: at,
+						along,
+						across: away,
+						halfAlong: (courtyards.houseWidth * tried) / 2,
+						halfAcross: depth / 2 + EAVES,
+					}),
+				) as number;
+				place({
+					centre: at,
+					along,
+					across: away,
+					halfAlong: (courtyards.houseWidth * count) / 2,
+					halfAcross: depth / 2 + EAVES,
+				});
+				const facing: TVec2 = [-away[0], -away[1]];
+				rows.push({
+					streetId: "courtyard",
+					side: courtyards,
+					position: [round(x), round(z)],
+					turn: round((Math.atan2(facing[0], facing[1]) * 180) / Math.PI),
+					houseCount: count,
+					depth,
+					facing,
+					front: [round(x + facing[0] * (depth / 2)), round(z + facing[1] * (depth / 2))],
+				});
 			}
 		}
 	}

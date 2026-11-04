@@ -758,10 +758,19 @@ const laidRows = layRowsAlong({
 	land: GAMLA_STAN,
 	keepOut: KEEP_OUT,
 	shoreMargin: 0.25,
+	// The blocks' insides, built over with lower back houses.
+	courtyards: { depths: [1.4, 1.1], houseWidth: 1, spacing: 1.2 },
+});
+
+/** The back houses in the blocks' courtyards: lower, plainer, no lanterns. */
+const COURTYARD = street("courtyard", "Courtyard", [], 0, {
+	isDrawn: false,
+	floorCount: 3,
+	gableShare: 0.15,
 });
 
 const streetOf = (row: ILaidRow) =>
-	OLD_TOWN_STREETS.find((candidate) => candidate.id === row.streetId) as IOldTownStreet;
+	OLD_TOWN_STREETS.find((candidate) => candidate.id === row.streetId) ?? COURTYARD;
 
 const oldTownHouses: TEntityInput[] = laidRows.map((row, i) => {
 	const of = streetOf(row);
@@ -1314,6 +1323,41 @@ const landmarks: TEntityInput[] = [
 		colors: paint({ walls: "#e3c78f", roof: "#4c5a54" }),
 		props: { width: 5.6, depth: 4, floorCount: 3, wingDepth: 1.3, showsSideWings: false, seed: 11 },
 	},
+	// Riddarholmen's palaces round its church, and Norstedts' brick house at its south end.
+	...(
+		[
+			["stenbockska_palatset", "Stenbockska palatset", -26.4, -5.4, 0, 3.6, 2.6, "#e8d6a6"],
+			["hessensteinska_palatset", "Hessensteinska palatset", -25.6, 9.6, 90, 3.4, 2.4, "#d9b77a"],
+			["gamla_riksdagshuset", "Gamla riksdagshuset", -37, 5.6, 90, 4.4, 3.2, "#e3cfa8"],
+			[
+				"schering_rosenhanes_palats",
+				"Schering Rosenhanes palats",
+				-35.8,
+				10.4,
+				90,
+				3.2,
+				2.4,
+				"#efd9a4",
+			],
+			["norstedtshuset", "Norstedtshuset", -33.4, 17.2, 180, 4.6, 2.4, "#9c4b36"],
+		] as [string, string, number, number, number, number, number, string][]
+	).map(([id, name, x, z, turn, width, depth, walls], i) => ({
+		id,
+		kind: "palace_01",
+		name,
+		position: [x, z] as TVec2,
+		altitude: ISLAND,
+		rotation: turned(turn),
+		colors: paint({ walls, roof: "#4c5a54" }),
+		props: {
+			width,
+			depth,
+			floorCount: 3 + (i % 2),
+			wingDepth: 1,
+			showsSideWings: false,
+			seed: 20 + i,
+		},
+	})),
 	{
 		id: "tessinska_palatset",
 		kind: "palace_01",
@@ -1884,11 +1928,21 @@ const lamps: TEntityInput[] = [
 			0.7,
 			"both",
 			{ props: { height: 0.9 } },
-			(spot) => spot.altitude > ISLAND,
+			(spot) => spot.altitude > ISLAND + 0.05,
 		),
 	),
 	...["skeppsholmsbron", "riddarholmsbron", "kastellholmsbron"].flatMap((id) =>
 		lampsAlong(id, "street_lamp_02", 1.6, 0.5, "both", { props: { height: 0.8 } }),
+	),
+	// Slussen's, off Gamla stan's houses.
+	...lampsAlong(
+		"slussen",
+		"street_lamp_02",
+		2.4,
+		0.85,
+		"both",
+		{ props: { height: 0.9 } },
+		(spot) => spot.at[1] > 36.5 && spot.at[1] < 47,
 	),
 	// Along the quays: Skeppsbron's water side, Munkbroleden's.
 	...lampsAlong(SKEPPSBRON_ID, "street_lamp_02", 3, 0.72, "left", { props: { height: 0.95 } }),
@@ -2015,7 +2069,7 @@ const trees: TEntityInput[] = [
 			[-70, -16, 0, "round_tree_02"],
 			[73, 19.2, ON_ISLAND, "pine_tree_01"],
 			[71.6, 14.4, ON_ISLAND, "bush_01"],
-			[-36, 16.4, ON_ISLAND, "round_tree_01"],
+			[-37, 13.2, ON_ISLAND, "round_tree_01"],
 		] as [number, number, number, string][]
 	).map(([x, z, altitude, kind], i) => ({
 		id: `tree_${i}`,
@@ -2132,11 +2186,11 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_stortorget",
 		name: "Stortorget",
 		description: "The old square, its stepped gables lit at blue hour.",
-		target: [-1.8, -0.4],
+		target: [-2, -0.4],
 		targetAltitude: ISLAND,
-		azimuth: 300,
-		elevation: 22,
-		span: 9,
+		azimuth: 350,
+		elevation: 40,
+		span: 12,
 		projection: "perspective",
 		moodId: "mood_blue",
 	},
