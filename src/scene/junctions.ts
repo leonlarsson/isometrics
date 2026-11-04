@@ -1,5 +1,5 @@
 import { isHiddenRoute, polylineLength, ROAD_KINDS, type TRoadEnd } from "./roads";
-import { centerlineOf } from "./routes";
+import { centerlineOf, projectOntoRoad } from "./routes";
 import type { TJunction, TJunctionEnd, TRoad, TRoadPoint, TVec2 } from "./schema";
 
 /**
@@ -548,21 +548,31 @@ export const connectToMiddle = (
 		width === undefined
 			? [to.point[0], to.point[1], height]
 			: [to.point[0], to.point[1], height, width];
+	// The cut: a new point there, or the road's own point when it's on one.
+	const points = [...target.points];
+	let index = to.segment + 1;
+	if (share < 1e-6) {
+		index = to.segment;
+	} else if (share > 1 - 1e-6) {
+		index = (to.segment + 1) % n;
+	} else {
+		points.splice(index, 0, cut);
+	}
+	if (!target.loops && (index === 0 || index === points.length - 1)) {
+		return null; // that's an end: connect to the end instead
+	}
+	const at = points[index];
 	disconnectEnd(world, from.roadId, from.end);
 
 	let secondId: string;
 	const ends: TJunctionEnd[] = [];
 	if (target.loops) {
-		// Open the loop at the new point: it becomes both the start and the end.
-		const at = to.segment + 1;
-		const points = [...target.points.slice(0, at), cut, ...target.points.slice(at)];
-		target.points = [...points.slice(at), ...points.slice(0, at), cut];
+		// Open the loop at the cut: it becomes both the start and the end.
+		target.points = [...points.slice(index), ...points.slice(0, index), at];
 		target.loops = false;
 		secondId = target.id;
 		ends.push({ roadId: target.id, end: "end" }, { roadId: target.id, end: "start" });
 	} else {
-		const index = to.segment + 1;
-		const points = [...target.points.slice(0, index), cut, ...target.points.slice(index)];
 		const { first, second } = cutPoints(points, index);
 		const firstLength = polylineLength(centerlineOf({ ...target, points: first }), false);
 		const copy: TRoad = {
@@ -590,12 +600,84 @@ export const connectToMiddle = (
 		secondId = copy.id;
 		ends.push({ roadId: target.id, end: "end" }, { roadId: copy.id, end: "start" });
 	}
-	placeEnd(road, from.end, cut);
+	placeEnd(road, from.end, at);
 	world.junctions.push({
 		id: ids.junction,
 		ends: [...ends, { roadId: from.roadId, end: from.end }],
 	});
 	return secondId;
+};
+
+/** Where a road could be connected to: one of its ends, or a place along it (to cut it there). */
+export type TRoadAnchor =
+	| { kind: "end"; roadId: string; end: TRoadEnd; point: TRoadPoint }
+	| { kind: "middle"; roadId: string; segment: number; point: TRoadPoint };
+
+/**
+ * The road end or the place along a road at a spot, for connecting to it
+ * (ADR-0136): the nearest open road end within `endReach`, else a road whose
+ * surface is under the spot (`onRoad`) or whose line between two control points
+ * passes within `lineReach` of it, at the nearest place on that line (cutting
+ * there keeps the rest of the road's shape). Roads in `except` are left out.
+ */
+export const roadAnchorAt = (
+	roads: readonly TRoad[],
+	at: TVec2,
+	{
+		endReach,
+		lineReach = 0,
+		onRoad = false,
+		except = [],
+	}: { endReach: number; lineReach?: number; onRoad?: boolean; except?: readonly string[] },
+): TRoadAnchor | null => {
+	let best: TRoadAnchor | null = null;
+	let bestGap = endReach;
+	for (const road of roads) {
+		if (road.loops || road.points.length < 2 || except.includes(road.id)) {
+			continue;
+		}
+		for (const end of ["start", "end"] as const) {
+			const point = endPointOf(road, end);
+			const gap = hypot2(point, at);
+			if (gap <= bestGap) {
+				best = { kind: "end", roadId: road.id, end, point: [point[0], point[1], point[2]] };
+				bestGap = gap;
+			}
+		}
+	}
+	if (best) {
+		return best;
+	}
+	let nearest = Number.POSITIVE_INFINITY;
+	for (const road of roads) {
+		if (road.points.length < 2 || except.includes(road.id)) {
+			continue;
+		}
+		const line = nearestOnControlLines(road, at);
+		if (!line) {
+			continue;
+		}
+		let gap = line.gap;
+		if (onRoad) {
+			const visible = projectOntoRoad(road, at);
+			if (!visible || visible.gap > visible.halfWidth) {
+				continue;
+			}
+			gap = visible.gap;
+		} else if (gap > lineReach) {
+			continue;
+		}
+		// Not right at an end: that's for the ends above.
+		const ends = road.loops ? [] : [road.points[0], road.points[road.points.length - 1]];
+		if (ends.some((point) => hypot2(point, line.point) < Math.max(endReach, 1e-6))) {
+			continue;
+		}
+		if (gap < nearest) {
+			nearest = gap;
+			best = { kind: "middle", roadId: road.id, segment: line.segment, point: line.point };
+		}
+	}
+	return best;
 };
 
 /** After a road is split at a point: its last end, if at a junction, is now the second road's. */
