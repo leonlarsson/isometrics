@@ -145,3 +145,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0140](0140-a-browsers-export.md) | A browser's export: everything this site keeps, in one file, added or replacing | proposed |
 | [0141](0141-overlays-menu.md) | An Overlays menu beside the shading switcher, and a ground grid overlay | proposed |
 | [0142](0142-app-row-and-view-bar.md) | The top bar in two rows: an app row across the window, a view bar over the view | proposed |
+| [0144](0144-real-lights-by-the-picture.md) | Real lights chosen by the picture, fading out at the edge; more of them in a still picture | proposed |
