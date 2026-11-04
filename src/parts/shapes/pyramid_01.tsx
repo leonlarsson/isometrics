@@ -12,6 +12,7 @@ import {
 	sizeField,
 	sizeProps,
 } from "./shapeKit";
+import { pyramidTop } from "./shapeTops";
 
 const PyramidSchema = z.object({
 	...lookProps,
@@ -46,6 +47,7 @@ export const pyramid01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: pyramidTop,
 	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="pyramid"

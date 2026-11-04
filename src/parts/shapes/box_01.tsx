@@ -21,6 +21,7 @@ import {
 	wallThicknessFor,
 	wallThicknessProp,
 } from "./shapeKit";
+import { boxTop } from "./shapeTops";
 
 const BoxSchema = z.object({
 	...lookProps,
@@ -99,6 +100,7 @@ export const box01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: boxTop,
 	Component: ({ props: p, colors, transparency, lights }) =>
 		p.isHollow ? (
 			<SweptShape

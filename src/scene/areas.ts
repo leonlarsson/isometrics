@@ -407,20 +407,6 @@ export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 			.map((area) => areaTopAt(area, point) ?? 0),
 	);
 
-/**
- * An object's height once it moves from one spot to another: as high above the
- * ground there as it was here, so it climbs onto raised land and follows slopes,
- * and one lifted or sunk on purpose keeps that (ADR-0098).
- */
-export const altitudeMovedTo = (
-	areas: readonly TGround[],
-	elevation: number,
-	from: TVec2,
-	to: TVec2,
-	/** The ground where it goes, when it isn't the same (areas pasted with it). */
-	areasThere: readonly TGround[] = areas,
-) => round(elevation - groundHeightAt(areas, from) + groundHeightAt(areasThere, to));
-
 /** The longest piece of an outline's edge looked at on its own when finding seams. */
 const SEAM_STEP = 0.5;
 /** How far beyond an edge another water area must reach for the edge to be a seam. */

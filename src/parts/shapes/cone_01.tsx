@@ -20,6 +20,7 @@ import {
 	wallThicknessFor,
 	wallThicknessProp,
 } from "./shapeKit";
+import { coneTop } from "./shapeTops";
 
 const ConeSchema = z.object({
 	...lookProps,
@@ -74,6 +75,7 @@ export const cone01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: coneTop,
 	Component: ({ props: p, colors, transparency, lights }) => (
 		<SweptShape
 			name="cone"
