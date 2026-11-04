@@ -17,6 +17,7 @@ import {
 	sizeField,
 	sizeProps,
 } from "./shapeKit";
+import { ringTop } from "./shapeTops";
 
 const TorusSchema = z.object({
 	...lookProps,
@@ -68,6 +69,7 @@ export const torus01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: ringTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		// Half the band across, leaving a hole in the middle.
 		const band = Math.min(p.ringThickness, Math.min(p.width, p.depth) / 2 - 0.005) / 2;

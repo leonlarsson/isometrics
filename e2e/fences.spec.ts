@@ -170,6 +170,26 @@ test.describe("gates, joining and the edge (ADR-0133)", () => {
 		expect((await fence(page))?.gates.map((gate) => gate.spanIndex)).toEqual([0]);
 	});
 
+	test("a gate's handle drags it along the fence, onto the next stretch, in one undo step", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			fences: [{ ...PICKETS, gates: [{ spanIndex: 0, alongShare: 0.5, width: 1 }] }],
+		});
+		// Close up: the fence's gizmo, in its middle, is the same size on screen at any zoom.
+		await showView(page, [-1, 2], 10);
+		await page.evaluate(() => globalThis.__editorStore.getState().selectFence("pickets"));
+		// Its handle is on the fence's top over the gate's middle, and drags at the top's height.
+		const handle = await groundSpot(page, [-2, 2], 0.54);
+		const onto = await groundSpot(page, [2.2, 2.1], 0.42);
+		await dragBy(page, handle, onto.x - handle.x, onto.y - handle.y);
+		// Onto the second stretch, snapped to half a square along it: 2 of its 4.
+		expect((await fence(page))?.gates).toMatchObject([{ spanIndex: 1, alongShare: 0.5 }]);
+		await page.mouse.move(onto.x, onto.y + 150, { steps: 2 });
+		await keys(page, "Control+z");
+		expect((await fence(page))?.gates).toMatchObject([{ spanIndex: 0, alongShare: 0.5 }]);
+	});
+
 	test("dragging a fence's end onto another's offers to join them into one", async ({ page }) => {
 		await loadWorld(page, {
 			fences: [

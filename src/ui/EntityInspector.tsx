@@ -9,8 +9,8 @@ import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
 import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
+import { standingAltitudeAt } from "#/parts/standing";
 import type { ILightSpec } from "#/parts/types";
-import { groundHeightAt } from "#/scene/areas";
 import {
 	polylineLength,
 	resolveLeansInTurns,
@@ -103,7 +103,10 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const duplicateEntity = useEditor((s) => s.duplicateEntity);
 	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
-	const areas = useEditor((s) => s.scene.areas);
+	// What it stands on where it is: the ground, or the top of a shape under it (ADR-0098, ADR-0138).
+	const standsOn = useEditor((s) =>
+		standingAltitudeAt(s.scene, entity.position, { except: entity.id, base: entity.altitude }),
+	);
 	const setTab = useEditor((s) => s.setTab);
 	const values = valuesOfEntity(entity, useWorldData());
 	const usesData = useUsesData();
@@ -278,15 +281,15 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 							e.altitude = v;
 						})
 					}
-					// Its default is standing on the ground under it (ADR-0098).
+					// Its default is standing on what's under it: the ground, or a shape (ADR-0098, ADR-0138).
 					inherit={resetToDefault(
 						round(entity.altitude),
-						round(groundHeightAt(areas, entity.position)),
+						standsOn,
 						() =>
 							edit("altitude", (e) => {
-								e.altitude = round(groundHeightAt(areas, e.position));
+								e.altitude = standsOn;
 							}),
-						"on the ground",
+						"on what's under it",
 					)}
 				/>
 

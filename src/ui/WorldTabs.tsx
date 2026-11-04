@@ -26,6 +26,7 @@ import {
 } from "./fields";
 import { LegendSection } from "./LegendSection";
 import { ColorSettingFields } from "./PartSettings";
+import { GroundSurfaceFields } from "./SurfaceSettings";
 import { UsesDataSwitch } from "./UsesDataSwitch";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
@@ -195,7 +196,12 @@ export const WorldTab = () => {
 				<UsesDataSwitch />
 			</Section>
 
-			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
+			<Section
+				id="world.ground"
+				icon="layers"
+				title="Ground"
+				keywords="size floor base surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
+			>
 				<SliderField
 					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
 						commit((s) => {
@@ -252,6 +258,8 @@ export const WorldTab = () => {
 						)
 					}
 				/>
+
+				<GroundSurfaceFields />
 
 				<ButtonGroup>
 					<Button size="sm" icon="focus" onClick={resetView}>

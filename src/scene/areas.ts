@@ -1,7 +1,7 @@
 import { clamp, round } from "#/lib/math";
 
 import type { IColorSpec } from "./colors";
-import type { TArea, TAreaKind, TAreaPoint, TVec2 } from "./schema";
+import type { TArea, TAreaKind, TAreaPoint, TSurfaceKind, TVec2 } from "./schema";
 import type { IScenePalette } from "./theme";
 import { variantName } from "./variants";
 
@@ -21,6 +21,8 @@ interface IAreaKind {
 	staysLevel: boolean;
 	/** Water: see-through ripples and reflections, no snow or wetness, seams with other water. */
 	isWater: boolean;
+	/** Its surface's texture while the world's are on and the area doesn't pick its own (ADR-0137). */
+	surface: TSurfaceKind;
 }
 
 /** An area kind's one colour, its surface, as the theme has it. */
@@ -44,6 +46,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.4,
 		staysLevel: true,
 		isWater: true,
+		surface: "plain",
 	},
 	grass_01: {
 		name: "Grass",
@@ -54,6 +57,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "grass_01",
 	},
 	sand_01: {
 		name: "Sand",
@@ -64,6 +68,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "sand_01",
 	},
 	plaza_01: {
 		name: "Plaza",
@@ -74,6 +79,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "paving_01",
 	},
 	raised_land_01: {
 		name: "Raised land",
@@ -84,6 +90,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "dirt_01",
 	},
 };
 
@@ -397,7 +404,8 @@ type TGround = TAreaShape & Pick<TArea, "isHidden">;
 
 /**
  * How high the ground stands at a point: the highest top of the areas there
- * (raised land, slopes, ADR-0096), else 0. What objects stand on (ADR-0098).
+ * (raised land, slopes, ADR-0096), else 0. What fences and roads stand on;
+ * objects also stand on the tops of shapes (`parts/standing`, ADR-0098, ADR-0138).
  */
 export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 	Math.max(
@@ -406,20 +414,6 @@ export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 			.filter((area) => !area.isHidden && isRaised(area))
 			.map((area) => areaTopAt(area, point) ?? 0),
 	);
-
-/**
- * An object's height once it moves from one spot to another: as high above the
- * ground there as it was here, so it climbs onto raised land and follows slopes,
- * and one lifted or sunk on purpose keeps that (ADR-0098).
- */
-export const altitudeMovedTo = (
-	areas: readonly TGround[],
-	elevation: number,
-	from: TVec2,
-	to: TVec2,
-	/** The ground where it goes, when it isn't the same (areas pasted with it). */
-	areasThere: readonly TGround[] = areas,
-) => round(elevation - groundHeightAt(areas, from) + groundHeightAt(areasThere, to));
 
 /** The longest piece of an outline's edge looked at on its own when finding seams. */
 const SEAM_STEP = 0.5;

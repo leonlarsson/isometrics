@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useState } from "react";
 import * as THREE from "three";
 
+import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
@@ -10,9 +11,11 @@ import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import { GROUND } from "#/scene/ground";
+import { groundSurfaceOf } from "#/scene/surfaces";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { openGroundMenuOnClick } from "./contextMenu";
+import { useSurfaceShading } from "./useSurfaceShading";
 
 /** The grid's cell sizes, finest first; each section line marks 5 cells. */
 const GRID_CELLS = [1, 5, 25, 125];
@@ -41,8 +44,13 @@ const useGridCell = () => {
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
+	const surfaces = useEditor((s) => s.scene.surface);
+	// Its texture (ADR-0137): plain, as it always was, unless the world asks for one.
+	const surface = useSurfaceShading(groundSurfaceOf(ground, surfaces), false);
 	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
+	// An overlay (Preferences → Overlays → Ground grid): in Edit mode unless set otherwise.
+	const showsGrid = overlayShownIn(usePreferences().groundGrid, mode);
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
 	const cell = useGridCell();
@@ -72,6 +80,8 @@ export const Ground = () => {
 					win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
 				*/}
 				<meshStandardMaterial
+					key={surface.key}
+					userData={surface.userData}
 					color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
 					roughness={0.95}
 					polygonOffset
@@ -80,7 +90,7 @@ export const Ground = () => {
 				/>
 			</RoundedBox>
 
-			{mode === "edit" && (
+			{showsGrid && (
 				<Grid
 					args={[ground.width, ground.depth]}
 					position={[0, 0.004, 0]}

@@ -6,14 +6,13 @@ import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
+import { altitudeMovedTo, standingAltitudeAt } from "#/parts/standing";
 import {
 	AREA_KIND_LABELS,
 	AREA_KINDS,
-	altitudeMovedTo,
 	areaTopAt,
 	cornerLift,
 	cornerWithLift,
-	groundHeightAt,
 	isInsidePolygon,
 	isWaterArea,
 	liftForTop,
@@ -446,6 +445,12 @@ export interface IEditorState {
 	/** The viewpoint last gone to (the one View mode's ◀ ▶ steps from). Runtime UI state. */
 	activeViewpointId: string | null;
 	/**
+	 * The tour running in View mode (render/ViewpointTour, ADR-0139): it steps through the
+	 * viewpoints on its own until stopped. `holdsFirst`: it started as the world opened, so it holds
+	 * at the viewpoint the world opened at before moving on. Runtime UI state.
+	 */
+	runningTour: { holdsFirst: boolean } | null;
+	/**
 	 * The camera follows a vehicle (render/CameraFollow): keeping its angle, or riding along
 	 * behind it in perspective. Runtime UI state.
 	 */
@@ -557,7 +562,7 @@ export interface IEditorState {
 	setHoldingRightButton: (holding: boolean) => void;
 	/**
 	 * The whole world from the default angle in the diorama view, with the world's camera settings
-	 * back to their defaults (one undo step), except the turntable's, tilt-shift's and whether it
+	 * back to their defaults (one undo step), except the turntable's, the tour's, tilt-shift's and whether it
 	 * keeps the isometric angle.
 	 */
 	resetCamera: () => void;
@@ -595,6 +600,9 @@ export interface IEditorState {
 	/** Glide the camera to a saved viewpoint (switching camera type if it needs to). */
 	/** Go to a viewpoint (and put on its mood, if the viewer lets it); `instant` jumps there. */
 	goToViewpoint: (id: string, options?: { instant?: boolean }) => void;
+	/** Start the tour through the viewpoints (View mode, at least two of them; ADR-0139). */
+	playTour: () => void;
+	stopTour: () => void;
 	/** Select a viewpoint (its camera in the world was clicked): its settings, in the Viewpoints tab. */
 	selectViewpoint: (id: string) => void;
 	/** Asks the camera (render/CameraFlight) to glide to the nearest true isometric angle. */
@@ -958,6 +966,10 @@ const openingViewpointOf = (scene: TScene) =>
 	scene.viewpoints.find((v) => v.id === scene.camera.openingViewpointId) ?? null;
 
 /** Selection fields cleared together whenever something else gets selected. */
+/** Whether the world's tour starts by itself in `mode` (scene.camera.tour, ADR-0139). */
+const tourStartsIn = (scene: TScene, mode: TEditorMode) =>
+	mode === "view" && scene.camera.tour.enabled && scene.viewpoints.length >= 2;
+
 const NOTHING_SELECTED = {
 	selectedId: null,
 	selectedRoadId: null,
@@ -1253,6 +1265,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			viewpointMenu: null,
 			flight: null,
 			activeViewpointId: null,
+			runningTour: null,
 			cameraFollow: null,
 
 			commit: (recipe, options = {}) =>
@@ -1313,6 +1326,15 @@ export const createEditorStore = (openScene?: TScene) => {
 					...(options.preview
 						? { mode: "view" as const }
 						: previewOf(state.whatIsOpen) && { mode: "edit" as const }),
+					// A world opening in View mode starts its tour if it says so, holding where it opens first.
+					runningTour: tourStartsIn(
+						scene,
+						options.preview || (state.mode === "view" && !previewOf(state.whatIsOpen))
+							? "view"
+							: "edit",
+					)
+						? { holdsFirst: true }
+						: null,
 					// The loading screen covers it until the view has it ready (ADR-0100).
 					openingWorld: (state.openingWorld ?? 0) + 1,
 					openedWorldCount: state.openedWorldCount + 1,
@@ -1710,6 +1732,13 @@ export const createEditorStore = (openScene?: TScene) => {
 					? set({ isAskingToKeep: true })
 					: set({
 							mode,
+							// Switching View mode on starts the world's tour if it says so; leaving it stops it.
+							runningTour:
+								mode === get().mode
+									? get().runningTour
+									: tourStartsIn(get().scene, mode)
+										? { holdsFirst: false }
+										: null,
 							...NOTHING_SELECTED,
 							drawing: null,
 							painting: false,
@@ -1770,9 +1799,9 @@ export const createEditorStore = (openScene?: TScene) => {
 			resetCamera: () => {
 				const defaults = CameraSettingsSchema.parse({});
 				get().commit((scene) => {
-					// The view's limits and opening go back; the turntable, tilt-shift and isometric lock stay.
-					const { turntable, tiltShift, keepsIsometricAngle } = scene.camera;
-					scene.camera = { ...defaults, turntable, tiltShift, keepsIsometricAngle };
+					// The view's limits and opening go back; the turntable, tour, tilt-shift and isometric lock stay.
+					const { turntable, tour, tiltShift, keepsIsometricAngle } = scene.camera;
+					scene.camera = { ...defaults, turntable, tour, tiltShift, keepsIsometricAngle };
 				});
 				set((s) => ({
 					projection: "orthographic",
@@ -1941,6 +1970,14 @@ export const createEditorStore = (openScene?: TScene) => {
 				}));
 			},
 
+			playTour: () => {
+				if (get().mode === "view" && get().scene.viewpoints.length >= 2) {
+					set({ runningTour: { holdsFirst: false } });
+				}
+			},
+
+			stopTour: () => set((s) => (s.runningTour === null ? s : { runningTour: null })),
+
 			selectViewpoint: (id) => set({ ...NOTHING_SELECTED, activeViewpointId: id, tab: "views" }),
 
 			isometricNonce: 0,
@@ -2054,9 +2091,10 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			addEntity: (input) => {
 				const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
-				// Without a height of its own, it stands on the ground where it's put (ADR-0098).
+				// Without a height of its own, it stands on what's where it's put: the ground, or the top of
+				// a shape (ADR-0098, ADR-0138).
 				if (input.altitude === undefined) {
-					entity.altitude = groundHeightAt(get().scene.areas, entity.position);
+					entity.altitude = standingAltitudeAt(get().scene, entity.position);
 				}
 				get().commit((scene) => {
 					scene.entities.push(entity);
@@ -2129,14 +2167,10 @@ export const createEditorStore = (openScene?: TScene) => {
 					id,
 					(entity) => {
 						const to: TVec2 = [round(position[0]), round(position[1])];
-						// Placed freely, as high above the ground there as here (ADR-0098).
+						// Placed freely, as high above what it stands on there as here: the ground, or the top of
+						// a shape (ADR-0098, ADR-0138).
 						if (how?.followGround) {
-							entity.altitude = altitudeMovedTo(
-								get().scene.areas,
-								entity.altitude,
-								entity.position,
-								to,
-							);
+							entity.altitude = altitudeMovedTo(get().scene, entity, to);
 						}
 						entity.position = to;
 					},

@@ -61,6 +61,7 @@ import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
+import { ViewpointTour } from "./ViewpointTour";
 import { ViewCursor } from "./viewCursor";
 import { WakeFieldStep } from "./WakeField";
 import { Weather, WeatherShading } from "./Weather";
@@ -397,6 +398,8 @@ export const Viewport = () => {
 			<KeyboardCamera />
 
 			<Turntable />
+
+			<ViewpointTour />
 
 			{composed && (
 				<Suspense fallback={null}>

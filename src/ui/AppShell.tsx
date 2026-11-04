@@ -16,6 +16,7 @@ import { readPreferences } from "#/editor/preferences";
 import { setSidePaneOpen, useSidePanes } from "#/editor/sidePanes";
 import { useSourceRefresh } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
+import { notifyFromBeforeReload } from "#/editor/toasts";
 import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
@@ -270,6 +271,8 @@ export const AppShell = () => {
 	}, [narrow, mode]);
 
 	useEffect(() => {
+		// What an action that reloaded the page (an import, ADR-0140) has to say.
+		notifyFromBeforeReload();
 		const { setWhatIsOpen } = useEditor.getState();
 		// A link (/w/<id>, /templates/<id>): nothing else loads; it's fetched and opened as a preview.
 		const link = linkInAddress();

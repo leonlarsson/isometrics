@@ -11,8 +11,8 @@ import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
+import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
-import { groundHeightAt } from "#/scene/areas";
 import type { IRoadNetwork } from "#/scene/junctions";
 import { createNetworkTrip } from "#/scene/network";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
@@ -429,9 +429,12 @@ export const EntityNode = memo(
 				if (drawing || !selected || !editable || button !== 0 || shiftKey) {
 					return;
 				}
-				const { areas } = useEditor.getState().scene;
-				const above = entity.altitude - groundHeightAt(areas, entity.position);
-				if (!surfaceHitOnRay(e.ray, areas, above)) {
+				// How high above what it stands on it is: the ground, or the top of a shape (ADR-0138).
+				const { scene } = useEditor.getState();
+				const above =
+					entity.altitude -
+					standingAltitudeAt(scene, entity.position, { except: entity.id, base: entity.altitude });
+				if (!surfaceHitOnRay(e.ray, topsToStandOn(scene, entity.id), above)) {
 					return;
 				}
 				e.stopPropagation();
@@ -462,8 +465,13 @@ export const EntityNode = memo(
 				if (!state.moving && !pastDragThreshold(state.from, e.nativeEvent)) {
 					return;
 				}
-				// Where the pointer is on the ground as it stands (ADR-0098).
-				const found = surfaceHitOnRay(e.ray, useEditor.getState().scene.areas, state.above);
+				// Where the pointer is on what things stand on: the ground as it stands (ADR-0098) or the
+				// tops of shapes (ADR-0138), but what moves (what's selected: this, its copy, or a group).
+				const { scene, selectedItems } = useEditor.getState();
+				const moving = new Set(
+					selectedItems.flatMap((item) => (item.kind === "entity" ? [item.id] : [])),
+				);
+				const found = surfaceHitOnRay(e.ray, topsToStandOn(scene, moving), state.above);
 				if (!found) {
 					return;
 				}

@@ -6,7 +6,7 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { wrapDegrees } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
-import { groundHeightAt } from "#/scene/areas";
+import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -63,6 +63,8 @@ interface ITransformGizmoProps {
 	 * flat plane through the gizmo (road points and corners keep their heights).
 	 */
 	followsGround?: boolean;
+	/** The object it moves, if it moves one: never what it stands on (ADR-0138). */
+	objectId?: string;
 }
 
 /** Gizmo size on screen: one gizmo unit is this many pixels at any zoom. */
@@ -289,6 +291,7 @@ export const TransformGizmo = ({
 	onEnd,
 	heading = 0,
 	followsGround = false,
+	objectId,
 }: ITransformGizmoProps) => {
 	const palette = usePalette();
 	const colors = palette.gizmo;
@@ -357,9 +360,12 @@ export const TransformGizmo = ({
 
 	const groundHit = (e: ThreeEvent<PointerEvent>, y: number) => levelHitOnRay(e.ray, y);
 
-	/** Where the pointer meets the ground as it stands, lifted as the object was (ADR-0098). */
+	/**
+	 * Where the pointer meets what things stand on, the ground as it stands or the top of a shape,
+	 * lifted as the object was (ADR-0098, ADR-0138).
+	 */
 	const surfaceAt = (e: ThreeEvent<PointerEvent>, current: IDragSession) =>
-		surfaceHitOnRay(e.ray, useEditor.getState().scene.areas, current.above);
+		surfaceHitOnRay(e.ray, topsToStandOn(useEditor.getState().scene, objectId), current.above);
 
 	const start = (handle: TGizmoHandle) => (e: ThreeEvent<PointerEvent>) => {
 		if (e.nativeEvent.button !== 0 || !root.current) {
@@ -383,7 +389,11 @@ export const TransformGizmo = ({
 			turn: 0,
 			screen: null,
 			above: followsGround
-				? center.y - groundHeightAt(useEditor.getState().scene.areas, [center.x, center.z])
+				? center.y -
+					standingAltitudeAt(useEditor.getState().scene, [center.x, center.z], {
+						except: objectId,
+						base: center.y,
+					})
 				: 0,
 			groundAnchor: null,
 			before: useEditor.getState().scene,

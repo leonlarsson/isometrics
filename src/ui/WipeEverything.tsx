@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { listBrowserBackups } from "#/editor/browserExport";
 import { saveWorldFile } from "#/editor/fileActions";
 import { listSceneBackups, listWorlds, wipeEverything } from "#/editor/persistence";
 import { notify } from "#/editor/toasts";
@@ -47,7 +48,11 @@ export const WipeEverything = ({ open, onClose }: IWipeEverythingProps) => {
 				danger
 				onConfirm={() => {
 					continuing.current = true;
-					setCounts({ worlds: listWorlds().length, backups: listSceneBackups().length });
+					setCounts({
+						worlds: listWorlds().length,
+						// Copies of this browser kept before an import replaced it (ADR-0140) go too.
+						backups: listSceneBackups().length + listBrowserBackups().length,
+					});
 					setSure(true);
 				}}
 				extraAction={{ label: "Save to file", onClick: saveWorldFile }}

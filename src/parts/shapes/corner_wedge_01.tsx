@@ -14,6 +14,7 @@ import {
 	solidGeometry,
 	useShapeGeometry,
 } from "./shapeKit";
+import { cornerWedgeTop } from "./shapeTops";
 
 const CornerWedgeSchema = z.object({
 	...sizeProps(),
@@ -48,6 +49,7 @@ export const cornerWedge01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: cornerWedgeTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		const [x, z] = [p.width / 2, p.depth / 2];
 		const geometry = useShapeGeometry(`shape:cornerWedge:${p.width},${p.depth},${p.height}`, () =>
