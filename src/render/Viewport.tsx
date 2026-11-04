@@ -17,7 +17,7 @@ import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
 import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
 import { drivesAcrossNetwork } from "#/scene/network";
-import type { TEntity, TScene } from "#/scene/schema";
+import { isPrefabKind, type TEntity, type TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
 
 import { AreaHandles } from "./AreaHandles";
@@ -67,6 +67,7 @@ import { ViewCursor } from "./viewCursor";
 import { WakeFieldStep } from "./WakeField";
 import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
+import { WorkshopMarker } from "./WorkshopMarker";
 import { WorldReady } from "./WorldReady";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
@@ -109,15 +110,21 @@ interface IEntitiesShared {
 	hovered: ISceneItem | null;
 }
 
-/** Whether an object has a light on a schedule: only those follow the world's hour. */
+/** Whether an object has a light on a schedule (or a prefab, a piece's): only those follow the world's hour. */
 const followsTheHour = (entity: TEntity) =>
-	typeof entity.lights === "object" &&
-	Object.values(entity.lights).some((light) => light.whenOn === "schedule");
+	(typeof entity.lights === "object" &&
+		Object.values(entity.lights).some((light) => light.whenOn === "schedule")) ||
+	(getPart(entity.kind)?.followsTheHour ?? false);
 
 /** Whether an object shows values or has settings that follow them: only those follow the data. */
-const followsData = (entity: TEntity) =>
-	(getPart(entity.kind)?.fields.some((field) => field.type === "dataKey") ?? false) ||
-	usesDataBindings(entity);
+const followsData = (entity: TEntity) => {
+	const part = getPart(entity.kind);
+	return (
+		(part?.fields.some((field) => field.type === "dataKey") ?? false) ||
+		(part?.readsData ?? false) ||
+		usesDataBindings(entity)
+	);
+};
 
 /** Whether an object turns with the sun (solar panels tracking it): those follow the hour too. */
 const followsTheSun = (entity: TEntity) => {
@@ -147,6 +154,12 @@ const EntityWithSun = (props: Omit<TEntityNodeProps, "hour" | "sun">) => {
  */
 const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => {
 	const entity = useEntity(id);
+	// A prefab's copy draws again when its design changes (ADR-0134), though the copy itself didn't.
+	const design = useEditor((s) =>
+		entity && isPrefabKind(entity.kind)
+			? s.scene.prefabs.find((prefab) => prefab.id === entity.kind)
+			: undefined,
+	);
 	if (!entity) {
 		return null;
 	}
@@ -172,6 +185,7 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 			}
 			data={data}
 			hour={null}
+			design={design}
 			selected={includesItem(shared.selectedItems, "entity", id)}
 			alone={shared.selectedId === id && shared.selectedItems.length === 1}
 			boxed={includesItem(shared.boxedItems, "entity", id)}
@@ -377,6 +391,9 @@ export const Viewport = () => {
 			<RouteHighlight />
 
 			<GroundMenuMarker />
+
+			{/* In the Workshop, where the prefab's base and front are (ADR-0134). */}
+			<WorkshopMarker />
 
 			<HoverHighlight />
 

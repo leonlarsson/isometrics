@@ -1,0 +1,14 @@
+/* The Workshop's front marker's word, small and quiet, never in the way of the pointer. */
+.front {
+	display: block;
+	padding: 1px 6px;
+	border-radius: var(--radius-sm);
+	background: var(--surface-raised);
+	color: var(--text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	pointer-events: none;
+	user-select: none;
+}

@@ -401,13 +401,20 @@ export const upgradeLegacyIds = (input: unknown): unknown => {
 	const world = structuredClone(input);
 	upgradeSettings(world);
 	recordsIn(world.moods).forEach(upgradeMood);
-	for (const entity of recordsIn(world.entities)) {
+	// A prefab's pieces are objects and fences like the world's own (ADR-0134).
+	const prefabs = recordsIn(world.prefabs);
+	for (const entity of [
+		...recordsIn(world.entities),
+		...prefabs.flatMap((prefab) => recordsIn(prefab.entities)),
+	]) {
 		upgradeEntity(entity);
 		upgradeId(entity, LEGACY_PART_KINDS);
 	}
 	recordsIn(world.roads).forEach(upgradeRoad);
 	recordsIn(world.areas).forEach(upgradeArea);
-	recordsIn(world.fences).forEach(upgradeFence);
+	[...recordsIn(world.fences), ...prefabs.flatMap((prefab) => recordsIn(prefab.fences))].forEach(
+		upgradeFence,
+	);
 	// The data was a list of values before it had tables and sources (data study).
 	if (Array.isArray(world.data)) {
 		world.data = { values: world.data };

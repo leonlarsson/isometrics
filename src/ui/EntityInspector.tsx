@@ -5,13 +5,17 @@ import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadOfVehicleNow, useVehiclesNow } from "#/editor/vehiclesNow";
+import { labelWithReason, whyNoWorkshop } from "#/editor/whatIsOpen";
+import { editPrefab } from "#/editor/workshop";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
+import { describePrefab } from "#/parts/prefabParts";
 import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import { standingAltitudeAt } from "#/parts/standing";
 import type { ILightSpec } from "#/parts/types";
+import { currentView } from "#/render/viewpoints";
 import { roadNetworkOf } from "#/scene/junctions";
 import { drivesAcrossNetwork } from "#/scene/network";
 import {
@@ -26,7 +30,14 @@ import {
 } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
 import { rowColumnChoices, tableOfRow } from "#/scene/rowData";
-import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
+import {
+	FollowSchema,
+	isPrefabKind,
+	NO_LABEL,
+	type TEntity,
+	type TTurnStyle,
+	type TVec3,
+} from "#/scene/schema";
 
 /** A vehicle's driving as a new one has it, for Default / Reset. */
 const FOLLOW_DEFAULTS = FollowSchema.parse({ roadId: "" });
@@ -54,6 +65,7 @@ import {
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 import { Menu } from "./Menu";
 import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
+import { PREFAB_WORDS } from "./prefabWords";
 
 const KeyPicker = ({
 	label,
@@ -100,6 +112,35 @@ const useEntityEdit = (entity: TEntity) => {
 		const options: ICommitOptions = { coalesce: `${entity.id}:${field}` };
 		updateEntity(entity.id, recipe, options);
 	};
+};
+
+/**
+ * A prefab's copy (ADR-0134): what it's made of, and Edit prefab, which changes its
+ * design and so every copy; greyed out with the reason where prefabs can't be changed.
+ */
+const PrefabPanel = ({ kind }: { kind: string }) => {
+	const prefab = useEditor((s) => s.scene.prefabs.find((each) => each.id === kind));
+	const copies = useEditor((s) => s.scene.entities.filter((entity) => entity.kind === kind).length);
+	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
+	if (!prefab) {
+		return null;
+	}
+	return (
+		<Section id="object.prefab" icon="prefab" title="Prefab" keywords="workshop design copies">
+			<Hint>
+				{`${describePrefab(prefab)}. ${copies === 1 ? "This is its only copy" : `It has ${copies} copies here`}: changing it changes them all.`}
+			</Hint>
+
+			<Button
+				icon="workshop"
+				block
+				disabled={why !== null}
+				onClick={() => editPrefab(prefab.id, currentView.read?.() ?? null)}
+			>
+				{labelWithReason(PREFAB_WORDS.edit.label, why)}
+			</Button>
+		</Section>
+	);
 };
 
 /** The Object tab: what it is, its name, and where it stands. */
@@ -164,6 +205,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					)}
 				/>
 			</Section>
+
+			{isPrefabKind(entity.kind) && <PrefabPanel kind={entity.kind} />}
 
 			<Section
 				id="object.transform"

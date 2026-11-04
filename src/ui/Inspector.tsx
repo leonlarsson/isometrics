@@ -9,6 +9,7 @@ import {
 	type TInspectorTab,
 	useEditor,
 } from "#/editor/store";
+import { workshopOf } from "#/editor/whatIsOpen";
 import { useUsesData } from "#/editor/worldData";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
@@ -35,6 +36,7 @@ import { roadTabs } from "./RoadInspector";
 import { SkyWaterTab } from "./SkySettings";
 import { ViewpointsSection } from "./ViewpointsSection";
 import { WeatherTab } from "./WeatherTab";
+import { WorkshopPrefabTab } from "./WorkshopPrefabTab";
 import { TrafficTab, WorldTab } from "./WorldTabs";
 
 import styles from "./Inspector.module.css";
@@ -58,8 +60,14 @@ const WORLD_TABS: IInspectorTab[] = [
  */
 const DATA_TABS = new Set<TInspectorTab>(["objectData"]);
 
-/** The world's tabs. */
-const useWorldTabs = () => WORLD_TABS;
+/** In the Workshop (ADR-0134), one tab about the prefab in place of the world's, which aren't its. */
+const WORKSHOP_TABS: IInspectorTab[] = [
+	{ value: "prefab", label: "Prefab", icon: "prefab", content: <WorkshopPrefabTab /> },
+];
+
+/** The world's tabs, or the Workshop's. */
+const useWorldTabs = () =>
+	useEditor((s) => workshopOf(s.whatIsOpen) !== null) ? WORKSHOP_TABS : WORLD_TABS;
 
 /** Narrow layout only: the left column's panel and the outliner become tabs of the sheet. */
 const NARROW_TABS: IInspectorTab[] = [
@@ -149,8 +157,12 @@ interface ISearchGroup {
 }
 
 /** The tab to show: the one picked if it's there, else the selection's first, else World. */
-const shownTab = (tab: TInspectorTab, available: IInspectorTab[], selectionTabs: IInspectorTab[]) =>
-	available.find((candidate) => candidate.value === tab) ?? selectionTabs[0] ?? WORLD_TABS[0];
+const shownTab = (
+	tab: TInspectorTab,
+	available: IInspectorTab[],
+	selectionTabs: IInspectorTab[],
+	worldTabs: IInspectorTab[],
+) => available.find((candidate) => candidate.value === tab) ?? selectionTabs[0] ?? worldTabs[0];
 
 /**
  * The folded right pane's shortcuts (ADR-0055): the rail's icons, the open
@@ -161,7 +173,7 @@ export const RailShortcuts = ({ onOpen }: { onOpen: () => void }) => {
 	const setTab = useEditor((s) => s.setTab);
 	const selectionTabs = useSelection()?.tabs ?? [];
 	const worldTabs = useWorldTabs();
-	const shown = shownTab(tab, [...selectionTabs, ...worldTabs], selectionTabs);
+	const shown = shownTab(tab, [...selectionTabs, ...worldTabs], selectionTabs, worldTabs);
 	const groups = [worldTabs, selectionTabs].filter((group) => group.length > 0);
 
 	return (
@@ -259,7 +271,7 @@ export const Inspector = ({
 	const worldTabs = useWorldTabs();
 	const available = [...(narrow ? NARROW_TABS : []), ...selectionTabs, ...worldTabs];
 	// A tab the selection doesn't have shows its first one (or the world's, with nothing selected).
-	const shown = shownTab(tab, available, selectionTabs);
+	const shown = shownTab(tab, available, selectionTabs, worldTabs);
 	const searching = searchOpen && query.trim() !== "";
 	const isWorldTab = worldTabs.includes(shown);
 	const hasHeader = !NARROW_TABS.includes(shown);
@@ -316,7 +328,16 @@ export const Inspector = ({
 							<>
 								<p className={styles.breadcrumb}>
 									<span className={styles.contextIcon}>
-										<Icon name={isWorldTab || !selection ? "globe" : selection.icon} size={15} />
+										<Icon
+											name={
+												isWorldTab || !selection
+													? worldTabs === WORKSHOP_TABS
+														? "workshop"
+														: "globe"
+													: selection.icon
+											}
+											size={15}
+										/>
 									</span>
 
 									<strong>{isWorldTab || !selection ? title || "World" : selection.name}</strong>

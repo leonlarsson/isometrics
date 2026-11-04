@@ -25,7 +25,9 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 				title:
 					why.from === "shared"
 						? "That shared world can't be opened"
-						: "That template can't be opened",
+						: why.from === "prefab"
+							? "That shared prefab can't be opened"
+							: "That template can't be opened",
 				text: why.message,
 				isProblem: true,
 			};

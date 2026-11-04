@@ -18,7 +18,7 @@ import type { IRoadNetwork } from "#/scene/junctions";
 import { createNetworkTrip } from "#/scene/network";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
-import type { TDataValue, TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
+import type { TDataValue, TEntity, TPrefab, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -28,6 +28,8 @@ import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { useInstancedPart } from "./InstancedParts";
 import { markInstancedRoot } from "./instancing";
+// Prefabs' copies draw their pieces with it (ADR-0134).
+import "./PrefabPieces";
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
@@ -179,6 +181,11 @@ export interface IEntityNodeProps {
 	hour: number | null;
 	/** Where the sun is now, for objects that follow it (a part's `followsTheSun`); otherwise undefined. */
 	sun?: ISunPosition;
+	/**
+	 * A prefab's copy: its design (ADR-0134), so the copy draws again when the design changes
+	 * though the copy itself didn't. Its part (`getPart`) is made from it.
+	 */
+	design?: TPrefab;
 	/** Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064). */
 	selected: boolean;
 	alone: boolean;
@@ -639,6 +646,7 @@ export const EntityNode = memo(
 								lights={lights}
 								data={data}
 								sun={sun}
+								hour={hour}
 								onReady={part.rendersAsync ? lookAgain : undefined}
 							/>
 						</group>

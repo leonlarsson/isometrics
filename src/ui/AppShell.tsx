@@ -21,6 +21,8 @@ import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
+import { OWN_WORLD, workshopOf } from "#/editor/whatIsOpen";
+import { keepWorkshopSession, resumeWorkshopSession } from "#/editor/workshopSession";
 import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
@@ -79,6 +81,7 @@ import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
 import { WaitingSourcesDialog } from "./WaitingSourcesDialog";
 import { Welcome } from "./Welcome";
+import { WorkshopBar } from "./WorkshopBar";
 
 import styles from "./AppShell.module.css";
 
@@ -227,6 +230,7 @@ export const AppShell = () => {
 	// opens or on the home screen, nothing of the starter world the store begins with shows.
 	const whatIsOpen = useEditor((s) => s.whatIsOpen.kind);
 	const showsWorld = whatIsOpen === "world";
+	const inWorkshop = useEditor((s) => workshopOf(s.whatIsOpen) !== null);
 	const isStarted = whatIsOpen !== "starting";
 	const mode = useEditor((s) => (s.whatIsOpen.kind === "world" ? s.mode : "view"));
 	// Links and APIs read again while the world is open (ADR-0113).
@@ -293,6 +297,8 @@ export const AppShell = () => {
 		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
 			useEditor.getState().showOpeningView(rememberedView(openWorldId()));
+			// The Workshop, if this tab had it open on this world before a reload (ADR-0134).
+			resumeWorkshopSession(useEditor);
 		}
 		// Nothing stored yet (the starter world): where the camera was in it before a reload.
 		if (stored.status === "empty") {
@@ -309,7 +315,7 @@ export const AppShell = () => {
 		}
 		// The starter world (nothing stored, or nothing readable) is the store's own: open it as it is.
 		if (stored.status === "empty" || stored.status === "unreadable") {
-			setWhatIsOpen({ kind: "world", preview: null });
+			setWhatIsOpen(OWN_WORLD);
 		}
 	}, []);
 
@@ -320,6 +326,11 @@ export const AppShell = () => {
 	// and autosave has to move over to it.
 	useEffect(() => {
 		return startAutosave(useEditor);
+	}, [useEditor]);
+
+	// The Workshop over a reload: kept in this tab while it's open (ADR-0134).
+	useEffect(() => {
+		return keepWorkshopSession(useEditor);
 	}, [useEditor]);
 
 	useThemeAttribute();
@@ -363,7 +374,8 @@ export const AppShell = () => {
 							<HomeScreen />
 						) : (
 							<Stage>
-								{showsWorld && (
+								{/* The Workshop's bar names it instead: its world's title card isn't the prefab's. */}
+								{showsWorld && !inWorkshop && (
 									<SceneTitle
 										onOpenSky={() => {
 											setTab("light");
@@ -395,6 +407,8 @@ export const AppShell = () => {
 								{/* The bars over the top of the view, one under another when several show. */}
 								<div className={styles.topBars}>
 									{showsWorld && <PreviewBar />}
+
+									{showsWorld && <WorkshopBar />}
 
 									<DrawingBar />
 

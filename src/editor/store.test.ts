@@ -4,6 +4,7 @@ import {
 	AreaSchema,
 	DataBindingSchema,
 	MoodSchema,
+	PrefabSchema,
 	SceneSchema,
 	type TEntityLight,
 	type TScene,
@@ -638,6 +639,47 @@ describe("editor store", () => {
 		expect(s().scene.fences.find((f) => f.id === id)?.colors).toEqual({});
 	});
 
+	it("follows data renames and removals into prefabs' pieces (ADR-0134)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().commit((scene) => {
+			scene.prefabs.push(
+				PrefabSchema.parse({
+					id: "prefab_stall",
+					entities: [{ id: "a", kind: "box_01", data: { scale: { key: "orders" } } }],
+					fences: [
+						{
+							id: "f",
+							points: [
+								[0, 0],
+								[1, 0],
+							],
+							data: { builtShare: { key: "orders" } },
+							gates: [{ data: { isOpen: { key: "orders" } } }],
+						},
+					],
+				}),
+			);
+		});
+		s().upsertData({ key: "parcels", name: "Orders", value: 3, unit: "" }, "orders");
+		const [prefab] = s().scene.prefabs;
+		expect(prefab.entities[0].data.scale?.key).toBe("parcels");
+		expect(prefab.fences[0].data.builtShare?.key).toBe("parcels");
+		expect(prefab.fences[0].gates[0].data.isOpen?.key).toBe("parcels");
+		s().removeData("parcels");
+		expect(s().scene.prefabs[0].entities[0].data).toEqual({});
+		expect(s().scene.prefabs[0].fences[0].data).toEqual({});
+	});
+
+	it("knows copies of the world's own prefabs (ADR-0134)", () => {
+		const scene = SceneSchema.parse({
+			version: 1,
+			prefabs: [{ id: "prefab_stall", entities: [{ id: "a", kind: "spaceship_09" }] }],
+			entities: [{ id: "c", kind: "prefab_stall" }],
+		});
+		expect(unknownPartKinds(scene)).toEqual([["spaceship_09", 1]]);
+	});
+
 	it("keeps a fence's gates where they stand as its points change, and follows data renames into them (ADR-0133)", () => {
 		const store = makeStore();
 		const s = () => store.getState();
@@ -1111,7 +1153,7 @@ describe("unknownPartKinds", () => {
 			{ kind: "house" },
 			{ kind: "house" },
 		] as TScene["entities"];
-		expect(unknownPartKinds({ entities })).toEqual([
+		expect(unknownPartKinds({ entities, prefabs: [] })).toEqual([
 			["house", 2],
 			["tower", 1],
 		]);
