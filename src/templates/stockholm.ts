@@ -11,6 +11,7 @@ import {
 	type TRoadInput,
 	type TScene,
 	type TSceneInput,
+	type TSurfaceKind,
 	type TTiltShiftInput,
 	type TVec2,
 } from "#/scene/schema";
@@ -205,6 +206,7 @@ const SODERMALM_AREA: TAreaInput = {
 	kind: "raised_land_01",
 	height: SODERMALM_HEIGHT,
 	colors: { surface: { color: "#9d9886" } },
+	surface: { kind: "paving_01" },
 	points: SODERMALM,
 	// Mosebacke and Mariaberget, a little higher still.
 	peaks: [
@@ -247,6 +249,35 @@ const PALACE_QUAY: TVec2[] = [
 	[-2.6, -22.6],
 ];
 
+/**
+ * What the islands and squares are paved with (ADR-0137): Gamla stan's lanes and squares and
+ * Riddarholmen in cobbles, the Riksdag's island and the quays in paving, Skeppsholmen's paths in
+ * gravel. Areas not named keep their kind's (a plaza's paving, grass, raised land's earth).
+ */
+const SURFACES: Record<string, TSurfaceKind> = {
+	gamla_stan: "cobbles_01",
+	riddarholmen: "cobbles_01",
+	helgeandsholmen: "paving_01",
+	stromsborg: "paving_01",
+	skeppsholmen: "gravel_01",
+	stortorget: "cobbles_01",
+	jarntorget: "cobbles_01",
+	kornhamnstorg: "cobbles_01",
+	slottsbacken: "cobbles_01",
+	sodermalm: "paving_01",
+};
+
+/** Cobbles a little finer than the world's paving's scale would make them: setts, not slabs. */
+const surfaceOf = (id: string) =>
+	SURFACES[id]
+		? {
+				surface: {
+					kind: SURFACES[id],
+					...(SURFACES[id] === "cobbles_01" ? { patternScale: 0.75 } : {}),
+				},
+			}
+		: {};
+
 const AREAS: TAreaInput[] = [
 	{ id: "water", name: "Riddarfjärden, Strömmen and Saltsjön", kind: "water_01", points: WATER },
 	SODERMALM_AREA,
@@ -267,6 +298,7 @@ const AREAS: TAreaInput[] = [
 			height: ISLAND,
 			// Cobbles and paving, the quays' stone below.
 			colors: { surface: { color: "#a99d89" } },
+			...surfaceOf(id),
 			points,
 		}),
 	),
@@ -325,6 +357,7 @@ const AREAS: TAreaInput[] = [
 			kind,
 			height: ON_ISLAND,
 			...(color ? { colors: { surface: { color } } } : {}),
+			...surfaceOf(id),
 			points: points.map(([x, z]): TVec2 => [x, z]),
 		}),
 	),
@@ -363,7 +396,11 @@ const AREAS: TAreaInput[] = [
 
 // ---------------------------------------------------------------- Gamla stan's streets
 
-/** Gamla stan's streets, main streets first: they get their houses first (streetRows.ts). */
+/**
+ * Gamla stan's streets and lanes, main streets first: the lines its houses are laid along
+ * (streetRows.ts), the main streets getting theirs first. They aren't roads: the island's
+ * cobbles are its lanes. Only the quays, Skeppsbron and Munkbroleden, where traffic drives, are.
+ */
 const LANE = { depths: [1.6, 1.2, 0.9], houseWidth: 0.85 } satisfies IRowSide;
 const NARROW_LANE = { depths: [1.3, 1, 0.8], houseWidth: 0.8 } satisfies IRowSide;
 const QUAY = { depths: [2.2, 1.7, 1.2], houseWidth: 1.05, mostHouses: 7 } satisfies IRowSide;
@@ -371,8 +408,6 @@ const SQUARE = { depths: [1.7, 1.3], houseWidth: 0.9 } satisfies IRowSide;
 
 interface IOldTownStreet extends IStreetLine {
 	name: string;
-	/** Drawn as a street; squares' sides are only lines to lay houses along. */
-	isDrawn: boolean;
 	/** How many floors its houses have, and what share face it with a gable. */
 	floorCount: number;
 	gableShare: number;
@@ -395,7 +430,6 @@ const street = (
 	width,
 	left: LANE,
 	right: LANE,
-	isDrawn: true,
 	floorCount: 4,
 	gableShare: 0.25,
 	lanternEvery: 0,
@@ -413,7 +447,6 @@ const OLD_TOWN_STREETS: IOldTownStreet[] = [
 		],
 		0.1,
 		{
-			isDrawn: false,
 			left: SQUARE,
 			right: undefined,
 			gableShare: 0.9,
@@ -430,7 +463,6 @@ const OLD_TOWN_STREETS: IOldTownStreet[] = [
 		],
 		0.1,
 		{
-			isDrawn: false,
 			left: SQUARE,
 			right: undefined,
 			gableShare: 0.5,
@@ -446,7 +478,6 @@ const OLD_TOWN_STREETS: IOldTownStreet[] = [
 		],
 		0.1,
 		{
-			isDrawn: false,
 			left: SQUARE,
 			right: undefined,
 			gableShare: 0.6,
@@ -545,7 +576,7 @@ const OLD_TOWN_STREETS: IOldTownStreet[] = [
 			[1.8, -7.4],
 		],
 		0.1,
-		{ isDrawn: false, left: QUAY, right: undefined, floorCount: 5, gableShare: 0 },
+		{ left: QUAY, right: undefined, floorCount: 5, gableShare: 0 },
 	),
 	street(
 		"prastgatan",
@@ -764,7 +795,6 @@ const laidRows = layRowsAlong({
 
 /** The back houses in the blocks' courtyards: lower, plainer, no lanterns. */
 const COURTYARD = street("courtyard", "Courtyard", [], 0, {
-	isDrawn: false,
 	floorCount: 3,
 	gableShare: 0.15,
 });
@@ -816,29 +846,43 @@ const wallLanterns: TEntityInput[] = laidRows.flatMap((row, i) => {
 	];
 });
 
-/** Gamla stan's streets as roads: cobbles, no markings, on the island's top. */
-const OLD_TOWN_ROADS: TRoadInput[] = OLD_TOWN_STREETS.filter(
-	(s) => s.isDrawn && s.id !== "skeppsbron" && s.id !== "munkbroleden",
-).map((s) => ({
-	id: s.id,
-	name: s.name,
-	kind: "road_01",
-	width: s.width,
-	cornerRadius: 0.6,
-	showsCentreLine: false,
-	heldUpBy: "none",
-	showsRailings: false,
-	colors: { surface: { color: "#8d8577" } },
-	traffic: { drivingLane: "centre" },
-	points: s.points.map(([x, z]) => [x, z, ISLAND]),
-}));
-
 // ---------------------------------------------------------------- roads and bridges
 
 const CENTRALBRON_ID = "centralbron";
 const SKEPPSBRON_ID = "skeppsbron";
-const STROMGATAN_ID = "stromgatan";
+/** Strömgatan, in stretches between the bridges that meet it (ADR-0136). */
+const STROMGATAN_POINTS: TVec2[][] = [
+	[
+		[-47, -45],
+		[-38, -40.6],
+		[-27, -42],
+		[-23, -42.4],
+	],
+	[
+		[-23, -42.4],
+		[-13.4, -43.4],
+	],
+	[
+		[-13.4, -43.4],
+		[-0.4, -43.4],
+	],
+	[
+		[-0.4, -43.4],
+		[6.8, -44.2],
+		[13, -46],
+		[16.2, -40.6],
+		[21.4, -38.8],
+	],
+	[
+		[21.4, -38.8],
+		[34, -37.4],
+		[43.6, -34.8],
+	],
+];
+const STROMGATAN_IDS = STROMGATAN_POINTS.map((_, i) => `stromgatan_${i + 1}`);
 const SODER_SHORE_ID = "soder_malarstrand";
+const STADSGARDEN_ID = "stadsgardsleden";
+const MUNKBROLEDEN_ID = "munkbroleden";
 const DJURGARDEN_FERRY_ID = "djurgarden_ferry_route";
 const ARCHIPELAGO_ID = "archipelago_route";
 const RIDDARFJARDEN_ID = "riddarfjarden_route";
@@ -865,7 +909,6 @@ const bridge = (
 });
 
 const ROADS: TRoadInput[] = [
-	...OLD_TOWN_ROADS,
 	{
 		id: SKEPPSBRON_ID,
 		name: "Skeppsbron",
@@ -877,7 +920,7 @@ const ROADS: TRoadInput[] = [
 		showsRailings: false,
 		colors: { surface: { color: "#5f5b57" } },
 		points: [
-			[15.6, -20.4, ISLAND],
+			[15.6, -20.6, ISLAND],
 			[18.3, -10.4, ISLAND],
 			[18.6, 3, ISLAND],
 			[16.2, 17, ISLAND],
@@ -887,7 +930,7 @@ const ROADS: TRoadInput[] = [
 		],
 	},
 	{
-		id: "munkbroleden",
+		id: MUNKBROLEDEN_ID,
 		name: "Munkbroleden",
 		kind: "road_01",
 		width: 1,
@@ -896,12 +939,15 @@ const ROADS: TRoadInput[] = [
 		heldUpBy: "none",
 		showsRailings: false,
 		colors: { surface: { color: "#5f5b57" } },
+		// From Riddarhustorget down the west quay, round the tip to Slussen.
 		points: [
-			[-19.5, -9.4, ISLAND],
+			[-19.6, -12.2, ISLAND],
 			[-18, 3, ISLAND],
 			[-15.9, 16, ISLAND],
 			[-11, 27, ISLAND],
 			[-5.2, 33.8, ISLAND],
+			[1.5, 35.8, ISLAND],
+			[5.6, 35.2, ISLAND],
 		],
 	},
 	// Centralbron: from Tegelbacken over Riddarholmen's corner, along the canal between it and
@@ -928,6 +974,8 @@ const ROADS: TRoadInput[] = [
 			showsCentreLine: true,
 			pillarSpacing: 4,
 			colors: { surface: { color: "#55524f" }, embankment: { color: "#8c8a86" } },
+			// Its buses and lorry keep to it, back and forth, rather than turning off into town.
+			traffic: { drivesThroughJunctions: false },
 			// Its traffic both ways, as busy as the Centralbron traffic value says (ADR-0112), the cars
 			// drawn at the map's scale (ADR-0135); their headlights come on after dark.
 			flow: {
@@ -955,7 +1003,7 @@ const ROADS: TRoadInput[] = [
 		"vasabron",
 		"Vasabron",
 		[
-			[-23, -42.6, 0],
+			[-23, -42.4, 0],
 			[-23.4, -37.6, 0.5],
 			[-23.6, -30, 0.55],
 			[-22.6, -21.5, 0.5],
@@ -981,7 +1029,7 @@ const ROADS: TRoadInput[] = [
 		"norrbro",
 		"Norrbro",
 		[
-			[-0.4, -42.6, 0],
+			[-0.4, -43.4, 0],
 			[0, -36.6, 0.55],
 			[0.5, -30.4, 0.6],
 			[1, -25.2, 0.5],
@@ -1005,37 +1053,51 @@ const ROADS: TRoadInput[] = [
 		"riddarholmsbron",
 		"Riddarholmsbron",
 		[
+			// From Riddarholmen under Centralbron to Riddarhustorget, where Vasabron lands too.
 			[-24.8, -8.4, ISLAND],
-			[-22.4, -8.2, 0.32],
-			[-20.2, -8, ISLAND],
+			[-22.4, -10.2, 0.32],
+			[-19.6, -12.2, ISLAND],
 		],
 		0.8,
 		{ cornerRadius: 0 },
 	),
-	// Slussen: from Gamla stan's tip over Söderström to Södermalm, and up Götgatan onto the heights.
+	// Slussen: from Gamla stan's tip over Söderström to Södermalm's shore, its gold bridge on piers.
 	bridge(
 		"slussen",
-		"Slussen and Götgatan",
+		"Slussen",
 		[
 			[5.6, 35.2, ISLAND],
 			[5.2, 40.6, 0.6],
 			[4.8, 47.6, 0.3],
 			[4.7, 49.6, 0],
-			[5.4, 56, onSoder(5.4, 56)],
-			[6, 61.6, onSoder(6, 61.6)],
 		],
 		1.4,
 		{
+			pillarSpacing: 2.2,
+			colors: { surface: { color: "#5f5b57" }, embankment: { color: "#c9a93e" } },
+		},
+	),
+	// Götgatan, up from Slussen onto the heights.
+	bridge(
+		"gotgatan",
+		"Götgatan",
+		[
+			[4.7, 49.6, 0],
+			[5.4, 56, onSoder(5.4, 56)],
+			[6, 61.6, onSoder(6, 61.6)],
+		],
+		1.2,
+		{
 			heldUpBy: "embankment",
 			embankmentAngle: 70,
-			colors: { surface: { color: "#5f5b57" }, embankment: { color: "#c9a93e" } },
+			colors: { surface: { color: "#5f5b57" }, embankment: { color: "#9d9886" } },
 		},
 	),
 	bridge(
 		"skeppsholmsbron",
 		"Skeppsholmsbron",
 		[
-			[43.6, -33.4, 0],
+			[43.6, -34.8, 0],
 			[43.8, -29, 0.45],
 			[44.2, -23.2, ISLAND],
 		],
@@ -1065,40 +1127,44 @@ const ROADS: TRoadInput[] = [
 		1.2,
 	),
 	// The mainland's waterfront roads.
-	{
-		id: STROMGATAN_ID,
-		name: "Strömgatan",
-		kind: "road_01",
-		width: 1.1,
-		cornerRadius: 3,
-		showsCentreLine: false,
-		points: [
-			[-47, -45],
-			[-38, -40.6],
-			[-27, -42],
-			[-13.4, -43.4],
-			[-0.4, -43.4],
-			[6.8, -44.2],
-			[13, -46],
-			[16.2, -40.6],
-			[21.4, -38.8],
-			[34, -37.4],
-			[43.6, -34.8],
-		],
-	},
+	...STROMGATAN_POINTS.map(
+		(points, i): TRoadInput => ({
+			id: STROMGATAN_IDS[i],
+			name: i === 0 ? "Strömgatan" : `Strömgatan (${i + 1})`,
+			kind: "road_01",
+			width: 1.1,
+			cornerRadius: 3,
+			showsCentreLine: false,
+			colors: { surface: { color: "#6f6b66" } },
+			points,
+		}),
+	),
 	{
 		id: SODER_SHORE_ID,
-		name: "Söder Mälarstrand and Stadsgårdsleden",
+		name: "Söder Mälarstrand",
 		kind: "road_01",
 		width: 1.1,
 		cornerRadius: 3,
 		showsCentreLine: false,
+		colors: { surface: { color: "#6f6b66" } },
 		points: [
 			[-89, 43.4],
 			[-30, 41.6],
 			[-17, 42],
 			[-8, 45.2],
 			[2, 48.4],
+			[4.7, 49.6],
+		],
+	},
+	{
+		id: STADSGARDEN_ID,
+		name: "Stadsgårdsleden",
+		kind: "road_01",
+		width: 1.1,
+		cornerRadius: 3,
+		showsCentreLine: false,
+		colors: { surface: { color: "#6f6b66" } },
+		points: [
 			[4.7, 49.6],
 			[18, 50.6],
 			[40, 52.6],
@@ -1178,6 +1244,64 @@ const ROADS: TRoadInput[] = [
 			[-76, -6],
 		],
 	},
+];
+
+/** Where roads meet (ADR-0136): the bridges' landings on the quays, and Slussen's two ends. */
+const junction = (id: string, ends: [string, "start" | "end"][]) => ({
+	id,
+	ends: ends.map(([roadId, end]) => ({ roadId, end })),
+});
+
+const JUNCTIONS = [
+	junction("tegelbacken", [
+		[CENTRALBRON_ID, "start"],
+		["stadshusbron", "end"],
+		[STROMGATAN_IDS[0], "start"],
+	]),
+	junction("vasabron_north", [
+		[STROMGATAN_IDS[0], "end"],
+		[STROMGATAN_IDS[1], "start"],
+		["vasabron", "start"],
+	]),
+	junction("riksbron_north", [
+		[STROMGATAN_IDS[1], "end"],
+		[STROMGATAN_IDS[2], "start"],
+		["riksbron", "start"],
+	]),
+	junction("gustav_adolfs_torg", [
+		[STROMGATAN_IDS[2], "end"],
+		[STROMGATAN_IDS[3], "start"],
+		["norrbro", "start"],
+	]),
+	junction("strombron_north", [
+		[STROMGATAN_IDS[3], "end"],
+		[STROMGATAN_IDS[4], "start"],
+		["strombron", "end"],
+	]),
+	junction("blasieholmen", [
+		[STROMGATAN_IDS[4], "end"],
+		["skeppsholmsbron", "start"],
+	]),
+	junction("riddarhustorget", [
+		["vasabron", "end"],
+		[MUNKBROLEDEN_ID, "start"],
+		["riddarholmsbron", "end"],
+	]),
+	junction("slottskajen", [
+		["strombron", "start"],
+		[SKEPPSBRON_ID, "start"],
+	]),
+	junction("slussen_north", [
+		[SKEPPSBRON_ID, "end"],
+		[MUNKBROLEDEN_ID, "end"],
+		["slussen", "start"],
+	]),
+	junction("slussen_south", [
+		["slussen", "end"],
+		["gotgatan", "start"],
+		[SODER_SHORE_ID, "end"],
+		[STADSGARDEN_ID, "start"],
+	]),
 ];
 
 // ---------------------------------------------------------------- landmarks
@@ -1772,7 +1896,7 @@ const otherTraffic: TEntityInput[] = [
 		scale: 0.42,
 		colors: paint({ body: "#c8102e" }),
 		follow: {
-			roadId: i === 0 ? SKEPPSBRON_ID : STROMGATAN_ID,
+			roadId: i === 0 ? SKEPPSBRON_ID : STROMGATAN_IDS[2],
 			speed: 1.6,
 			startDistance: 4 + i * 20,
 		},
@@ -1783,7 +1907,7 @@ const otherTraffic: TEntityInput[] = [
 		scale: CAR,
 		colors: paint({ body: CAR_COLOURS[(i + 2) % CAR_COLOURS.length] }),
 		follow: {
-			roadId: [STROMGATAN_ID, SODER_SHORE_ID, SKEPPSBRON_ID][i % 3],
+			roadId: [STROMGATAN_IDS[0], STADSGARDEN_ID, MUNKBROLEDEN_ID][i % 3],
 			speed: 2.4 + (i % 2) * 0.5,
 			startDistance: 10 + i * 23,
 			drivesTheOtherWay: i % 2 === 0,
@@ -1995,10 +2119,14 @@ const lamps: TEntityInput[] = [
 	),
 	// Along the quays: Skeppsbron's water side, Munkbroleden's.
 	...lampsAlong(SKEPPSBRON_ID, "street_lamp_02", 3, 0.72, "left", { props: { height: 0.95 } }),
-	...lampsAlong("munkbroleden", "street_lamp_02", 3, 0.72, "right", { props: { height: 0.95 } }),
+	...lampsAlong(MUNKBROLEDEN_ID, "street_lamp_02", 3, 0.72, "right", { props: { height: 0.95 } }),
 	// The mainland's waterfronts.
-	...lampsAlong(STROMGATAN_ID, "street_lamp_01", 5, 0.75, "right", { props: { height: 1.1 } }),
-	...lampsAlong(SODER_SHORE_ID, "street_lamp_01", 6, 0.75, "left", { props: { height: 1.1 } }),
+	...STROMGATAN_IDS.flatMap((id) =>
+		lampsAlong(id, "street_lamp_01", 5, 0.75, "right", { props: { height: 1.1 } }),
+	),
+	...[SODER_SHORE_ID, STADSGARDEN_ID].flatMap((id) =>
+		lampsAlong(id, "street_lamp_01", 6, 0.75, "left", { props: { height: 1.1 } }),
+	),
 ];
 
 /** Lanterns round Stortorget and on Slottsbacken, and park lamps in the gardens. */
@@ -2336,7 +2464,15 @@ export const createStockholmScene = (): TScene =>
 		version: SCENE_VERSION,
 		meta: { title: "Stockholm", subtitle: "Gamla stan's evening, with example data" },
 		theme: "system",
-		ground: { width: GROUND[0], depth: GROUND[1], colors: { surface: { color: "#b3aa98" } } },
+		// The city's streets and squares paved, its islands' lanes cobbled (ADR-0137).
+		// At this map's scale (12.5 m to a unit) the patterns are drawn at half their size.
+		surface: { enabled: true, patternScale: 0.5 },
+		ground: {
+			width: GROUND[0],
+			depth: GROUND[1],
+			colors: { surface: { color: "#b3aa98" } },
+			surface: { kind: "paving_01" },
+		},
 		traffic: { drivingSide: "right" },
 		lighting: EVENING_PASSES,
 		sky: SKY,
@@ -2348,6 +2484,7 @@ export const createStockholmScene = (): TScene =>
 		data: DATA,
 		areas: AREAS,
 		roads: ROADS,
+		junctions: JUNCTIONS,
 		entities: [
 			...landmarks,
 			...oldTownHouses,
