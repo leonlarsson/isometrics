@@ -137,8 +137,13 @@ interface IGroundDragOptions {
 	 * camera, e.g. Shift/Ctrl to orbit). Receives the drag's coalesce key and the press.
 	 */
 	onStart?: (token: string, event: ThreeEvent<PointerEvent>) => boolean | undefined;
-	/** Called with each new snapped ground point while dragging. */
-	onMove: (point: TVec2, token: string) => void;
+	/**
+	 * Called with each new snapped ground point while dragging (unsnapped with `snapsToGrid` off: the
+	 * pointer's own spot, for a drag that snaps its own way), and the move.
+	 */
+	onMove: (point: TVec2, token: string, event: ThreeEvent<PointerEvent>) => void;
+	/** Whether the points it reports land on the grid (the default) as the snapping says. */
+	snapsToGrid?: boolean;
 }
 
 /**
@@ -147,7 +152,12 @@ interface IGroundDragOptions {
  * the spot) and reports snapped ground points. Every move in one gesture
  * shares a coalesce token, so it undoes as one step.
  */
-export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOptions) => {
+export const useGroundDrag = ({
+	planeY = 0,
+	onStart,
+	onMove,
+	snapsToGrid = true,
+}: IGroundDragOptions) => {
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const token = useRef<string | null>(null);
 	const last = useRef<TVec2 | null>(null);
@@ -199,7 +209,9 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 				from.current = null;
 				setCursorHidden(true);
 			}
-			const point = groundPointFrom(event, planeY);
+			const point = snapsToGrid
+				? groundPointFrom(event, planeY)
+				: groundPointOnRay(event.ray, true, planeY);
 			if (
 				!point ||
 				(last.current && last.current[0] === point[0] && last.current[1] === point[1])
@@ -207,7 +219,7 @@ export const useGroundDrag = ({ planeY = 0, onStart, onMove }: IGroundDragOption
 				return;
 			}
 			last.current = point;
-			onMove(point, token.current);
+			onMove(point, token.current, event);
 		},
 		onPointerUp: end,
 		onLostPointerCapture: end,

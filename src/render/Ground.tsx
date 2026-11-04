@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useState } from "react";
 import * as THREE from "three";
 
+import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
@@ -48,6 +49,8 @@ export const Ground = () => {
 	const surface = useSurfaceShading(groundSurfaceOf(ground, surfaces), false);
 	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
+	// An overlay (Preferences → Overlays → Ground grid): in Edit mode unless set otherwise.
+	const showsGrid = overlayShownIn(usePreferences().groundGrid, mode);
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
 	const cell = useGridCell();
@@ -87,7 +90,7 @@ export const Ground = () => {
 				/>
 			</RoundedBox>
 
-			{mode === "edit" && (
+			{showsGrid && (
 				<Grid
 					args={[ground.width, ground.depth]}
 					position={[0, 0.004, 0]}

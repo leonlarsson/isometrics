@@ -1306,6 +1306,24 @@ export const TurntableSchema = z
 	})
 	.describe("The turntable: View mode circling the view on its own.");
 
+// See docs/adr/0139-viewpoint-tour.md.
+export const TourSchema = z
+	.object({
+		enabled: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the tour starts by itself when the world opens in View mode (or View mode is switched on): it glides from viewpoint to viewpoint, holding at each, round and round, until any camera input stops it. The viewpoint bar's play button starts it either way.",
+			),
+		holdSeconds: z
+			.number()
+			.min(1)
+			.max(600)
+			.default(6)
+			.describe("Seconds the tour holds at each viewpoint once it's there, before it moves on."),
+	})
+	.describe("The tour: View mode stepping through the viewpoints on its own.");
+
 export const TiltShiftSchema = z
 	.object({
 		enabled: z
@@ -1391,6 +1409,7 @@ export const CameraSettingsSchema = z
 				"Whether the camera keeps the isometric angle, like a classic isometric game: the tilt stays put and the view turns a quarter at a time, between the four diagonals.",
 			),
 		turntable: TurntableSchema.default(() => TurntableSchema.parse({})),
+		tour: TourSchema.default(() => TourSchema.parse({})),
 		tiltShift: TiltShiftSchema.default(() => TiltShiftSchema.parse({})),
 	})
 	.describe("How the camera behaves in this world.");
@@ -1855,6 +1874,7 @@ export type TMood = z.output<typeof MoodSchema>;
 export type TMoodInput = z.input<typeof MoodSchema>;
 export type TCameraSettings = z.output<typeof CameraSettingsSchema>;
 export type TTurntable = z.output<typeof TurntableSchema>;
+export type TTour = z.output<typeof TourSchema>;
 export type TTiltShift = z.output<typeof TiltShiftSchema>;
 export type TTiltShiftInput = z.input<typeof TiltShiftSchema>;
 export type TOnScreen = z.output<typeof OnScreenSchema>;

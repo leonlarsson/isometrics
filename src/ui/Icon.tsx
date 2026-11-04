@@ -31,6 +31,8 @@ const PATHS = {
 	shadeNice: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11",
 	shadeUltra:
 		"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM16.5 6.5a7.5 7.5 0 0 1 0 11M14 15a7.5 7.5 0 0 0 2.5-4M8.5 8.5h.01",
+	// Two overlapping circles, like Blender's: the Overlays menu, things drawn over the view.
+	overlays: "M9 7a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM15 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z",
 	lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
 	unlock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2",
 	rotateLeft: "M4 4v6h6M4.5 10A8 8 0 1 1 6 16",

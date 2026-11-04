@@ -78,6 +78,8 @@ export const PreferencesSchema = z.object({
 	viewLabel: OverlayPlaceSchema.catch("edit"),
 	/** Saved viewpoints drawn in the world, as small cameras with what they see. */
 	viewpointsInWorld: OverlayPlaceSchema.catch("off"),
+	/** The grid lines on the ground, finer as the view comes closer. */
+	groundGrid: OverlayPlaceSchema.catch("edit"),
 	/**
 	 * What a copy of a named thing is called (ADR-0068): "Tower copy", or numbered, "Tower 2",
 	 * "Tower 3"…
@@ -254,7 +256,12 @@ export const subscribePreferences = (listener: () => void) => {
 };
 
 /** The overlays drawn over the view, each shown where its setting says. */
-export type TOverlay = "navigationGizmo" | "viewLabel" | "compositionGrid" | "viewpointsInWorld";
+export type TOverlay =
+	| "navigationGizmo"
+	| "viewLabel"
+	| "compositionGrid"
+	| "viewpointsInWorld"
+	| "groundGrid";
 
 /** Whether an overlay set to `place` shows in `mode`. */
 export const overlayShownIn = (place: TOverlayPlace, mode: "edit" | "view") =>
