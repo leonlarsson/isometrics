@@ -21,6 +21,10 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		await expect(workshopBar(page)).toContainText("a new prefab");
 		// Nothing to save yet.
 		await expect(page.getByRole("button", { name: "Save the prefab" })).toBeDisabled();
+		// What acts on the open world as a world is greyed out here, saying why.
+		await page.getByRole("button", { name: "File" }).click();
+		await expect(menuItem(page, "Save to file (not in the Workshop)")).toBeDisabled();
+		await page.keyboard.press("Escape");
 
 		await (await paletteTile(page, "Shapes", "Box")).click();
 		await (await paletteTile(page, "Shapes", "Ball")).click();
@@ -94,7 +98,10 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		});
 		const palette = page.getByRole("navigation", { name: "Parts" });
 		await palette.getByRole("button", { name: "Prefabs", exact: true }).click();
-		await palette.getByRole("button", { name: "Silo", exact: true }).click();
+		// Placed from the Ground menu's Add here, under My prefabs.
+		await act(page, (s) => s.openGroundMenu([4, 4], { x: 500, y: 400 }));
+		await menuItem(page, "Add here").hover();
+		await menuItem(page, /^Silo/).click();
 		expect(await prefabsNow(page)).toEqual([{ name: "Silo", pieces: 1, copies: 1 }]);
 
 		// Taken out of My prefabs from its tile's menu: this world keeps it.

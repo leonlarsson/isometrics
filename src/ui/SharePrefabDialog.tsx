@@ -12,9 +12,10 @@ import { localDateTime } from "#/lib/when";
 import { prefabName } from "#/parts/prefabParts";
 import type { TPrefab } from "#/scene/schema";
 
-import { Button } from "./Button";
+import { Button, IconButton } from "./Button";
 import { Dialog } from "./Dialog";
 import { FieldGroup, Hint, resetToDefault, SelectField } from "./fields";
+import { List, ListItem } from "./List";
 import { useCopy } from "./useCopy";
 
 import styles from "./ShareDialog.module.css";
@@ -44,8 +45,10 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 		setMade(null);
 		onClose();
 	};
-	// The newest link this browser shared for it that hasn't expired, if any.
-	const shown = made ?? links.find((link) => link.prefabId === prefab?.id) ?? null;
+	// The link just made, else the form to make one (even when it was shared before: a fresh
+	// snapshot); links this browser shared for it before are listed under it, as for worlds.
+	const shown = made;
+	const earlier = links.filter((link) => link.prefabId === prefab?.id && link.id !== made?.id);
 
 	const share = async () => {
 		if (!prefab) {
@@ -72,7 +75,9 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 	const stop = async (link: ISharedPrefabLink) => {
 		try {
 			await stopSharingPrefab(link);
-			setMade(null);
+			if (made?.id === link.id) {
+				setMade(null);
+			}
 			notify("Stopped sharing", `“${link.name}”: the link stops working within a minute.`);
 		} catch (error) {
 			notify(
@@ -143,6 +148,42 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 					<Button variant="primary" icon="newTab" disabled={sharing} onClick={() => void share()}>
 						{sharing ? "Making it…" : "Create a public link"}
 					</Button>
+				</FieldGroup>
+			)}
+
+			{earlier.length > 0 && (
+				<FieldGroup title="Shared from this browser">
+					<List>
+						{earlier.map((link) => (
+							<ListItem
+								key={link.id}
+								label={link.name}
+								meta={`until ${localDateTime(link.expiresAt)} · ${link.url}`}
+								stacked
+								actions={
+									<>
+										<IconButton
+											icon={copiedKey === link.id ? "check" : "copy"}
+											label={
+												copiedKey === link.id
+													? `Copied the link to “${link.name}”`
+													: `Copy the link to “${link.name}”`
+											}
+											onClick={() =>
+												copy(link.url, "Link copied", { key: link.id, detail: link.url })
+											}
+										/>
+
+										<IconButton
+											icon="trash"
+											label={`Stop sharing “${link.name}”`}
+											onClick={() => void stop(link)}
+										/>
+									</>
+								}
+							/>
+						))}
+					</List>
 				</FieldGroup>
 			)}
 		</Dialog>

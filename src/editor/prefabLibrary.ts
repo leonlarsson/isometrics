@@ -129,15 +129,16 @@ export const usePrefabLibrary = () =>
 /**
  * Place a prefab from My prefabs (or a link) in the open world near `near`, selected, as one undo
  * step: its design is copied in first if the world doesn't have it, else the world's is used.
+ * `exactly`: right at `near` (the Ground menu's Add here), not at a free spot by it.
  */
-export const placeFromLibrary = (prefab: TPrefab, near: TVec2) => {
+export const placeFromLibrary = (prefab: TPrefab, near: TVec2, { exactly = false } = {}) => {
 	const { scene, commit, select, whatIsOpen } = useEditor.getState();
 	// A prefab can't hold another (ADR-0134).
 	if (workshopOf(whatIsOpen)) {
 		return null;
 	}
 	const design = scene.prefabs.find((each) => each.id === prefab.id) ?? prefab;
-	const position = findFreeSpot(scene, prefabPartOf(design), near);
+	const position = exactly ? near : findFreeSpot(scene, prefabPartOf(design), near);
 	const copy = EntitySchema.parse({
 		id: newId(design.id),
 		kind: design.id,
