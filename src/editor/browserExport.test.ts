@@ -89,6 +89,20 @@ describe("exporting this browser", () => {
 });
 
 describe("round trip", () => {
+	it("keeps the list of worlds in its order when worlds were saved in the same millisecond", () => {
+		vi.useFakeTimers({ now: Date.UTC(2026, 10, 4) });
+		try {
+			fillBrowser();
+			const text = makeBrowserExport(collectBrowserItems());
+			const before = stored();
+			vi.stubGlobal("localStorage", memoryStorage());
+			replaceBrowser(readBrowserExport(text));
+			expect(stored()).toEqual(before);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("an export replacing an empty browser brings back everything, exactly", () => {
 		fillBrowser();
 		const text = makeBrowserExport(collectBrowserItems());
