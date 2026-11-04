@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { describeThings } from "#/editor/clipboard";
 import { useEditor } from "#/editor/store";
 import type { TWhatIsOpen } from "#/editor/whatIsOpen";
+import { prefersLessMotion } from "#/lib/lessMotion";
 
 import styles from "./LoadingScreen.module.css";
 
@@ -16,10 +17,6 @@ import styles from "./LoadingScreen.module.css";
 const SHOWN_AT_LEAST_MS = 1000;
 const FINISH_MS = 550;
 const FADE_MS = 450;
-
-/** Whether the viewer prefers less motion: then no stacking to wait for, no finish, just the fade. */
-const prefersLessMotion = () =>
-	typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 type TPhase = "loading" | "finishing" | "leaving" | "gone";
 
@@ -119,6 +116,7 @@ export const LoadingScreen = () => {
 		const timers: number[] = [];
 		const after = (ms: number, next: TPhase) =>
 			timers.push(window.setTimeout(() => setPhase(next), ms));
+		// Less motion: no stacking to wait for, no finish, just the fade.
 		if (prefersLessMotion()) {
 			setPhase("leaving");
 			after(FADE_MS, "gone");
