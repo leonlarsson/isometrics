@@ -4,6 +4,7 @@ import {
 	choose,
 	expect,
 	groundSpot,
+	hideSidePanels,
 	keys,
 	loadWorld,
 	menuItem,
@@ -30,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Preferences (ADR-0062, ADR-0068)", () => {
-	// Wide enough for the toolbar's shading buttons, which fold into More below 1300px.
+	// Wide enough for the view bar's shading buttons with the side panels hidden (hideSidePanels).
 	test.use({ viewport: { width: 1440, height: 800 } });
 
 	test("Snap to grid is remembered after a reload, and Preferences switch it too", async ({
@@ -126,6 +127,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 				},
 			],
 		});
+		await hideSidePanels(page);
 		await showView(page, [0, 0], 30);
 		await page.getByRole("button", { name: /^Ultra:/ }).click();
 		await page.getByRole("button", { name: /^Standard:/ }).click();
@@ -139,9 +141,10 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		}).toPass({ timeout: 15_000 });
 	});
 
-	test("the toolbar's shading switcher: a preset a click away, wireframe, clay, and the Graphics settings (ADR-0080)", async ({
+	test("the view bar's shading switcher: a preset a click away, wireframe, clay, and the Graphics settings (ADR-0080)", async ({
 		page,
 	}) => {
+		await hideSidePanels(page);
 		const ultra = page.getByRole("button", { name: /^Ultra:/ });
 		await ultra.click();
 		await expect(ultra).toHaveAttribute("aria-pressed", "true");

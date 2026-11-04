@@ -19,7 +19,7 @@ export const useSidePanes = (): Record<TSidePane, boolean> => {
 
 export const setSidePaneOpen = (side: TSidePane, open: boolean) => setPanelOpen(ID[side], open);
 
-/** Hide both panes, or show both when they're already hidden (Ctrl+Space, the toolbar button). */
+/** Hide both panes, or show both when they're already hidden (Ctrl+Space, the app row's button). */
 export const toggleSidePanes = () => {
 	const memory = readPanelMemory();
 	const show = !isOpen(memory, "left") && !isOpen(memory, "right");

@@ -26,6 +26,17 @@
 	color: var(--text);
 }
 
+/* In a cluster (IconButtonGroup's sunken pill, a fieldset): as tall and round as its icon buttons. */
+fieldset > .trigger {
+	height: 30px;
+	border-radius: 999px;
+}
+
+fieldset > .trigger:hover,
+fieldset > .trigger[data-popup-open] {
+	background: var(--surface-raised);
+}
+
 .trigger:focus-visible {
 	outline: 2px solid var(--accent);
 }

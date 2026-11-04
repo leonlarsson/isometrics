@@ -25,6 +25,7 @@ import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
 import { formatHour } from "#/scene/sun";
 
+import { AppRow } from "./AppRow";
 import { BoxSelectBar } from "./BoxSelectBar";
 import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
@@ -69,10 +70,11 @@ import {
 import { ShareDialog } from "./ShareDialog";
 import { StatusBanner } from "./StatusBanner";
 import { Toaster } from "./Toaster";
-import { Toolbar } from "./Toolbar";
 import { Tooltip, TooltipProvider } from "./Tooltip";
 import { TransformBar } from "./TransformBar";
 import { useNarrowLayout } from "./useNarrowLayout";
+import { useNarrowToolbar } from "./useNarrowToolbar";
+import { ViewBar } from "./ViewBar";
 import { ViewLabel } from "./ViewLabel";
 import { ViewpointBar } from "./ViewpointBar";
 import { ViewpointContextMenu } from "./ViewpointContextMenu";
@@ -235,6 +237,8 @@ export const AppShell = () => {
 	const [paletteWidth, setPaletteWidth] = usePaletteWidth();
 	const [recovery, setRecovery] = useState<TRecovery | null>(null);
 	const narrow = useNarrowLayout();
+	// On phones the view bar is in the app row, one row for both (ADR-0046, ADR-0142).
+	const viewBarInAppRow = useNarrowToolbar();
 	const setTab = useEditor((s) => s.setTab);
 	// Wide layout: each side pane can fold to a thin strip (ADR-0055). Phones have the sheet instead.
 	const panes = useSidePanes();
@@ -339,7 +343,8 @@ export const AppShell = () => {
 				>
 					<StatusBanner />
 
-					<Toolbar />
+					{/* The app's own row, across the window, over the side panels too (ADR-0142). */}
+					<AppRow />
 
 					<div className={styles.body}>
 						{mode === "edit" && !leftOpen && (
@@ -359,88 +364,93 @@ export const AppShell = () => {
 						{whatIsOpen === "home" ? (
 							<HomeScreen />
 						) : (
-							<Stage>
-								{showsWorld && (
-									<SceneTitle
-										onOpenSky={() => {
-											setTab("light");
-											setSidePaneOpen("right", true);
-											setSheetOpen(true);
-										}}
-										onOpenOnScreen={() => {
-											setPanelOpen("world.onScreen", true);
-											setTab("world");
-											setSidePaneOpen("right", true);
-											setSheetOpen(true);
-										}}
-									/>
-								)}
+							// The view: its own bar on top, between the side panels, and the stage under it.
+							<div className={styles.view}>
+								{showsWorld && !viewBarInAppRow && <ViewBar />}
 
-								{showsWorld && <Viewport />}
-
-								{showsWorld && <CompositionGrid />}
-
-								{showsWorld && <ViewLabel />}
-
-								{showsWorld && <NavigationGizmo />}
-
-								{showsWorld && <LabelLayer />}
-
-								{/* Until the world is ready to look at (ADR-0100). */}
-								<LoadingScreen />
-
-								{/* The bars over the top of the view, one under another when several show. */}
-								<div className={styles.topBars}>
-									{showsWorld && <PreviewBar />}
-
-									<DrawingBar />
-
-									<TransformBar />
-
-									<BoxSelectBar />
-
-									<JoinOfferBar />
-
-									<FollowOfferBar />
-
-									<ViewpointBar />
-
-									<CameraFollowBar />
-
-									{recovery && (
-										<RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />
+								<Stage>
+									{showsWorld && (
+										<SceneTitle
+											onOpenSky={() => {
+												setTab("light");
+												setSidePaneOpen("right", true);
+												setSheetOpen(true);
+											}}
+											onOpenOnScreen={() => {
+												setPanelOpen("world.onScreen", true);
+												setTab("world");
+												setSidePaneOpen("right", true);
+												setSheetOpen(true);
+											}}
+										/>
 									)}
-								</div>
 
-								<PaintBar />
+									{showsWorld && <Viewport />}
 
-								<DetailSheet />
+									{showsWorld && <CompositionGrid />}
 
-								<RoadDetailSheet />
+									{showsWorld && <ViewLabel />}
 
-								<ViewDock />
+									{showsWorld && <NavigationGizmo />}
 
-								<WorldDataView />
+									{showsWorld && <LabelLayer />}
 
-								<ItemContextMenu />
+									{/* Until the world is ready to look at (ADR-0100). */}
+									<LoadingScreen />
 
-								<GroundContextMenu />
+									{/* The bars over the top of the view, one under another when several show. */}
+									<div className={styles.topBars}>
+										{showsWorld && <PreviewBar />}
 
-								<ViewpointContextMenu />
+										<DrawingBar />
 
-								{showsWorld && <RenderDialog />}
+										<TransformBar />
 
-								{showsWorld && <WaitingSourcesDialog />}
+										<BoxSelectBar />
 
-								{showsWorld && <ShareDialog />}
+										<JoinOfferBar />
 
-								{showsWorld && <DataWindow />}
+										<FollowOfferBar />
 
-								<KeepPreviewDialog />
+										<ViewpointBar />
 
-								{/* A shared world that reads from outside, before it's built (ADR-0121). */}
-								<LinkQuestion />
-							</Stage>
+										<CameraFollowBar />
+
+										{recovery && (
+											<RecoveryBar recovery={recovery} onDismiss={() => setRecovery(null)} />
+										)}
+									</div>
+
+									<PaintBar />
+
+									<DetailSheet />
+
+									<RoadDetailSheet />
+
+									<ViewDock />
+
+									<WorldDataView />
+
+									<ItemContextMenu />
+
+									<GroundContextMenu />
+
+									<ViewpointContextMenu />
+
+									{showsWorld && <RenderDialog />}
+
+									{showsWorld && <WaitingSourcesDialog />}
+
+									{showsWorld && <ShareDialog />}
+
+									{showsWorld && <DataWindow />}
+
+									<KeepPreviewDialog />
+
+									{/* A shared world that reads from outside, before it's built (ADR-0121). */}
+									<LinkQuestion />
+								</Stage>
+							</div>
 						)}
 
 						{mode === "edit" && !rightOpen && (

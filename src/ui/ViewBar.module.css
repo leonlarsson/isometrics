@@ -1,0 +1,94 @@
+/*
+ * The view bar (ADR-0142): across the top of the view, between the side panels, as tall as their
+ * headers, so its bottom edge runs on from theirs. What it holds folds by its own width
+ * (useViewBarFolds); it never runs past its ends (clipped, not drawn over the panels).
+ */
+.bar {
+	box-sizing: border-box;
+	height: var(--view-bar-height);
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-width: 0;
+	padding: 0 8px;
+	overflow-x: clip;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+.start,
+.end {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.modes {
+	display: flex;
+	flex: none;
+	margin: 0;
+	border: none;
+	padding: 3px;
+	border-radius: 999px;
+	background: var(--surface-sunken);
+}
+
+.mode {
+	all: unset;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 30px;
+	padding: 0 14px;
+	border-radius: 999px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.mode[aria-pressed="true"] {
+	background: var(--surface-raised);
+	color: var(--text);
+	box-shadow: var(--shadow-card);
+}
+
+.mode:focus-visible {
+	outline: 2px solid var(--accent);
+}
+
+/* Short of room: the mode switch shows just its icons (their words stay its names). */
+.bar[data-folds-mode-labels] .mode {
+	padding: 0 10px;
+}
+
+.bar[data-folds-mode-labels] .modeLabel {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Phones: inside the app row, after File and the save status, in the room they leave. */
+.bar[data-inline] {
+	flex: 1;
+	height: auto;
+	gap: 4px;
+	/* Room for the focus ring of the button at its end, which the clip would cut. */
+	padding: 0 2px;
+	background: none;
+	border-bottom: none;
+}
+
+.bar[data-inline] .start,
+.bar[data-inline] .end {
+	gap: 4px;
+}
+
+.bar[data-inline] .mode {
+	padding: 0 9px;
+}

@@ -309,6 +309,21 @@ export const buildWithAiMenu = async (page: Page, item: RegExp) => {
 	await menuItem(page, item).click();
 };
 
+/**
+ * The view bar over the view (ADR-0142). Its `data-folded` lists what it has folded at its width
+ * ("shading viewsLabel …", in useViewBarFolds' order), empty when everything shows.
+ */
+export const viewBar = (page: Page) => page.locator("[data-view-bar]");
+
+/**
+ * Hide both side panels (the app row's button), so the view bar has the window's width: its
+ * shading buttons need about 950px of it, more than the view has between the panels at 1440px.
+ */
+export const hideSidePanels = async (page: Page) => {
+	await page.getByRole("button", { name: "Hide the side panels (Ctrl+Space)" }).click();
+	await expect(viewBar(page)).not.toHaveAttribute("data-folded", /shading/);
+};
+
 /** Wait until autosave has written the open world (the save status says Saved). */
 export const saved = (page: Page) =>
 	expect(page.getByRole("button", { name: /^Saved: more about saving/ })).toBeVisible();

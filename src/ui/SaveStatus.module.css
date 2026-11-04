@@ -40,8 +40,8 @@
 	}
 }
 
-/* Narrow desktops and phones: just the icon; the words stay its name. */
-@media (max-width: 950px) {
+/* Phones: just the icon; the words stay its name. The app row has room for them above (ADR-0142). */
+@media (max-width: 700px) {
 	.label {
 		position: absolute;
 		width: 1px;

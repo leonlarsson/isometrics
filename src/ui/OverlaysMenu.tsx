@@ -60,7 +60,7 @@ const OverlayItems = () => {
 };
 
 /**
- * The toolbar's Overlays menu (ADR-0141), beside the shading switcher, like Blender's: what's
+ * The view bar's Overlays menu (ADR-0141, ADR-0142), beside the shading switcher, like Blender's: what's
  * drawn over the view (the compass, the view label, viewpoints, the grids), shown or hidden in a
  * click. They're this browser's preferences (ADR-0062), the same as on Preferences → Overlays.
  */
@@ -78,7 +78,7 @@ export const OverlaysMenu = () => (
 	</IconButtonGroup>
 );
 
-/** The Overlays menu folded into the toolbar's More, with the shading switcher (ADR-0080). */
+/** The Overlays menu folded into the view bar's More, with the shading switcher (ADR-0080). */
 export const OverlaysSubmenu = () => (
 	<Menu.Submenu icon="overlays" label="Overlays">
 		<OverlayItems />
