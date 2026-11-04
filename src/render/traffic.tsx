@@ -101,14 +101,20 @@ export const TrafficStep = () => {
 		// By the road each is on now: its own road, or on a network the one it has driven on to.
 		const roads = new Map<string, IPlaced[]>();
 		const byStream = new Map<string, IPlaced[]>();
+		const addTo = (lists: Map<string, IPlaced[]>, key: string, placed: IPlaced) => {
+			const list = lists.get(key);
+			if (list) {
+				list.push(placed);
+			} else {
+				lists.set(key, [placed]);
+			}
+		};
 		for (const [id, vehicle] of drivingVehicles) {
 			const place = vehicle.sampler.place(vehicle.offset, vehicle.travelled);
 			const placed = { id, vehicle, place };
-			const key = place.network ? `network:${place.network.roadId}` : vehicle.roadId;
-			roads.set(key, [...(roads.get(key) ?? []), placed]);
+			addTo(roads, place.network ? `network:${place.network.roadId}` : vehicle.roadId, placed);
 			if (place.network) {
-				const stream = `${place.network.roadId}:${place.direction}`;
-				byStream.set(stream, [...(byStream.get(stream) ?? []), placed]);
+				addTo(byStream, `${place.network.roadId}:${place.direction}`, placed);
 			}
 		}
 		for (const [roadId, vehicles] of roads) {

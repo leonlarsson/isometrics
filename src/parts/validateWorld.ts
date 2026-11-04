@@ -48,7 +48,7 @@ const MOST_ROWS = 100_000;
 /** More issues than this of one sort are summed up, not listed. */
 const MOST_ISSUES = 40;
 
-const LISTS = ["entities", "roads", "areas", "fences", "viewpoints", "moods"] as const;
+const LISTS = ["entities", "roads", "junctions", "areas", "fences", "viewpoints", "moods"] as const;
 
 /** A path with each list entry named by its id where it has one. */
 const pathWithIds = (root: unknown, path: readonly PropertyKey[]) => {
@@ -169,6 +169,55 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		}
 		rowRead(where, road.dataRow);
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);
+	});
+
+	// Junctions (ADR-0136): their ends must be roads' open ends, at one place.
+	const roadsById = new Map(scene.roads.map((road) => [road.id, road]));
+	scene.junctions.forEach((junction, index) => {
+		const where = `junctions[${index}] "${junction.id}"`;
+		let place: readonly number[] | null = null;
+		let joined = 0;
+		const seen = new Set<string>();
+		junction.ends.forEach((end, endIndex) => {
+			const at = `${where}.ends[${endIndex}]`;
+			const road = roadsById.get(end.roadId);
+			if (!road) {
+				warn(at, `road "${end.roadId}" doesn't exist: this end is left out`);
+				return;
+			}
+			if (road.loops) {
+				warn(at, `road "${end.roadId}" loops, so it has no ends: this end is left out`);
+				return;
+			}
+			if (seen.has(`${end.roadId}:${end.end}`)) {
+				warn(at, `the ${end.end} of road "${end.roadId}" is listed twice`);
+				return;
+			}
+			seen.add(`${end.roadId}:${end.end}`);
+			const point = end.end === "start" ? road.points[0] : road.points[road.points.length - 1];
+			if (place === null) {
+				place = point;
+			} else {
+				const gap = Math.hypot(point[0] - place[0], point[1] - place[1]);
+				if (gap > Math.max(road.width, 0.5)) {
+					warn(
+						at,
+						`the ${end.end} of road "${end.roadId}" is ${gap.toFixed(1)} from the junction's first end: it's left out (put it at the same x, z and altitude)`,
+					);
+					return;
+				}
+				if (gap > 1e-6 || Math.abs(point[2] - place[2]) > 1e-6) {
+					warn(
+						at,
+						`the ${end.end} of road "${end.roadId}" isn't quite where the junction's first end is: put it at the same x, z and altitude`,
+					);
+				}
+			}
+			joined += 1;
+		});
+		if (joined < 2) {
+			warn(where, "joins fewer than two road ends: it does nothing");
+		}
 	});
 
 	scene.data.tables.forEach((table, index) => {

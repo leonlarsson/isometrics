@@ -371,3 +371,101 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		await act(page, (s) => s.clearSelection());
 	});
 });
+
+test.describe("junctions (ADR-0136)", () => {
+	/** A road along x, one coming down towards it from the north, and one further south. */
+	const junctionWorld = (page: Page) =>
+		loadWorld(page, {
+			roads: [
+				{
+					id: "main",
+					name: "Main",
+					points: [
+						[-8, 0, 0],
+						[8, 0, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+				{
+					id: "side",
+					name: "Side",
+					points: [
+						[2, -9, 0],
+						[2, -4, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+				{
+					id: "south",
+					name: "South",
+					points: [
+						[-6, 8, 0],
+						[6, 8, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+			],
+		});
+
+	test("a road's end dragged onto another road connects there, cutting it", async ({ page }) => {
+		await junctionWorld(page);
+		await showView(page, [0, 0], 30);
+		await act(page, (s) => s.selectRoad("side"));
+		const from = await groundSpot(page, [2, -4]);
+		const to = await groundSpot(page, [2.4, 0.3]);
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(to.x, to.y, { steps: 12 });
+		await page.mouse.up();
+		await expect(page.getByText("Connect to “Main” here?")).toBeVisible();
+		await page.getByRole("button", { name: "Connect", exact: true }).click();
+
+		const junctions = await read(page, (s) => s.scene.junctions);
+		expect(junctions).toHaveLength(1);
+		expect(junctions[0].ends).toHaveLength(3);
+		expect(await read(page, (s) => s.scene.roads.map((r) => r.name))).toEqual([
+			"Main",
+			"Main (2)",
+			"Side",
+			"South",
+		]);
+		// The side road's end is where the main road was cut.
+		const [main, , side] = await read(page, (s) => s.scene.roads);
+		expect(side.points.at(-1)).toEqual(main.points.at(-1));
+		// Its point says it's at a junction, and can leave it.
+		await act(page, (s) => s.selectRoadPoint("side", 1));
+		await expect(page.getByText("At a junction")).toBeVisible();
+		await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+		expect(await read(page, (s) => s.scene.junctions[0]?.ends.length)).toBe(2);
+	});
+
+	test("a new road drawn from a road's end onto another road connects at both", async ({
+		page,
+	}) => {
+		await junctionWorld(page);
+		await showView(page, [0, 2], 30);
+		await (await drawTile(page, "Road")).click();
+		for (const point of [
+			[-8, 0],
+			[-8, 5],
+			[0, 5],
+			[0.2, 8.3],
+		] as const) {
+			const spot = await groundSpot(page, point);
+			await page.mouse.move(spot.x, spot.y, { steps: 4 });
+			await page.mouse.click(spot.x, spot.y);
+		}
+		// Clicking on the south road finished the new one there.
+		expect(await read(page, (s) => s.drawing)).toBeNull();
+		await expect(page.getByText("Connected to “Main” and “South”")).toBeVisible();
+		const junctions = await read(page, (s) => s.scene.junctions);
+		expect(junctions.map((j) => j.ends.length).sort()).toEqual([2, 3]);
+		expect(await read(page, (s) => s.scene.roads.length)).toBe(5);
+		// Deleting the new road takes it out of both junctions.
+		await keys(page, "Delete");
+		expect(await read(page, (s) => s.scene.junctions.map((j) => j.ends.length))).toEqual([2]);
+	});
+});

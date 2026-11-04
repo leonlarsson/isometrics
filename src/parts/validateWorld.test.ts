@@ -63,6 +63,52 @@ describe("checking a world", () => {
 		expect(said).toContain('"gone" isn\'t one of its viewpoints');
 		expect(issuesForAi(check)).toContain("send the whole world again");
 	});
+
+	it("warns of junction ends that aren't road ends meeting at one place (ADR-0136)", () => {
+		const world = {
+			...createEmptyScene(),
+			roads: [
+				{
+					id: "a",
+					points: [
+						[0, 0],
+						[5, 0],
+					],
+				},
+				{
+					id: "b",
+					points: [
+						[5.1, 0],
+						[5, 5],
+					],
+				},
+				{
+					id: "c",
+					points: [
+						[20, 0],
+						[30, 0],
+					],
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "a", end: "end" },
+						{ roadId: "b", end: "start" },
+						{ roadId: "c", end: "start" },
+						{ roadId: "gone", end: "end" },
+					],
+				},
+			],
+		};
+		const check = validateWorld(JSON.parse(JSON.stringify(world)));
+		const said = check.warnings.map((issue) => `${issue.where}: ${issue.what}`).join("\n");
+		expect(said).toContain('junctions[0] "j".ends[1]: the start of road "b" isn\'t quite where');
+		expect(said).toContain('the start of road "c" is 15.0 from the junction');
+		expect(said).toContain('road "gone" doesn\'t exist');
+		expect(said).not.toContain("fewer than two");
+	});
 });
 
 describe("checking a patch", () => {

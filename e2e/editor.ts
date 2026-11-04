@@ -3,6 +3,7 @@ import { test as base, expect, type Page } from "@playwright/test";
 import type { IEditorState, useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import {
+	RoadSchema,
 	type TArea,
 	type TEntity,
 	type TFence,
@@ -130,7 +131,18 @@ export interface ITestWorld {
  */
 export const loadWorld = async (page: Page, given: ITestWorld) => {
 	// The data with its defaults filled in, as a world file's are when it opens.
-	const world = { ...given, data: given.data ? WorldDataSchema.parse(given.data) : undefined };
+	const world = {
+		...given,
+		data: given.data ? WorldDataSchema.parse(given.data) : undefined,
+		// A road's defaults, for when the world open has no road to copy them from.
+		roadDefaults: RoadSchema.parse({
+			id: "road",
+			points: [
+				[0, 0],
+				[1, 0],
+			],
+		}),
+	};
 	await page.evaluate((world) => {
 		const state = globalThis.__editorStore.getState();
 		const scene = structuredClone(state.scene);
@@ -160,7 +172,7 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 			isLocked: false,
 			...e,
 		})) as typeof scene.entities;
-		const road = scene.roads[0];
+		const road = scene.roads[0] ?? world.roadDefaults;
 		scene.roads = (world.roads ?? []).map((r) => ({
 			...road,
 			name: "",
