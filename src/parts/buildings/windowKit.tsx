@@ -1,4 +1,90 @@
-import { Box, spread } from "../primitives";
+import * as THREE from "three";
+
+import { Box, Mat, shareGeometryAs, spread, type TV3 } from "../primitives";
+
+/**
+ * A row of window panes as one flat shape facing +Z: one mesh for a floor's
+ * windows (a house's, a palace's rooms between its pavilions) rather than one
+ * per pane, lit together, so old towns of hundreds of houses stay light. Each
+ * row shape is built once and named by its panes (ADR-0086), so every row
+ * alike shares it.
+ */
+const paneRows = new Map<string, THREE.BufferGeometry>();
+const paneRowGeometry = (xs: readonly number[], [width, height]: readonly [number, number]) => {
+	const key = `paneRow:${xs.map((x) => x.toFixed(3)).join(",")}|${width.toFixed(3)},${height.toFixed(3)}`;
+	const cached = paneRows.get(key);
+	if (cached) {
+		return cached;
+	}
+	const positions: number[] = [];
+	const normals: number[] = [];
+	for (const x of xs) {
+		const [left, right, bottom, top] = [x - width / 2, x + width / 2, -height / 2, height / 2];
+		positions.push(
+			left,
+			bottom,
+			0,
+			right,
+			bottom,
+			0,
+			right,
+			top,
+			0,
+			left,
+			bottom,
+			0,
+			right,
+			top,
+			0,
+			left,
+			top,
+			0,
+		);
+		for (let i = 0; i < 6; i++) {
+			normals.push(0, 0, 1);
+		}
+	}
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+	geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+	paneRows.set(key, shareGeometryAs(geometry, key));
+	return geometry;
+};
+
+/** Window panes `size` across and up, at `xs` along a wall, as one mesh facing +Z from `position`. */
+export const PaneRow = ({
+	xs,
+	size,
+	position,
+	color,
+	emissive,
+	emissiveIntensity,
+}: {
+	xs: readonly number[];
+	size: readonly [number, number];
+	position: TV3;
+	color: string;
+	emissive?: string;
+	emissiveIntensity?: number;
+}) => (
+	<mesh geometry={paneRowGeometry(xs, size)} position={position} receiveShadow>
+		<Mat color={color} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+	</mesh>
+);
+
+/**
+ * Splits windows along a wall into runs of at most `most` (a room's), each
+ * with its middle and its panes from that middle, for `PaneRow`s.
+ */
+export const paneRuns = (xs: readonly number[], most: number) => {
+	const runs: { at: number; xs: number[] }[] = [];
+	for (let i = 0; i < xs.length; i += most) {
+		const run = xs.slice(i, i + most);
+		const at = (run[0] + run[run.length - 1]) / 2;
+		runs.push({ at, xs: run.map((x) => x - at) });
+	}
+	return runs;
+};
 
 /**
  * Windows with wall between them, for buildings whose window lights are

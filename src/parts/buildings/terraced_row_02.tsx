@@ -6,6 +6,7 @@ import type { IResolvedLight } from "../types";
 import { definePart } from "../types";
 
 import { Block, isWindowLit, Prism, shadeOf } from "./clusterPieces";
+import { PaneRow } from "./windowKit";
 
 /**
  * An old town's row of tall narrow houses (Gamla stan, Bryggen, Amsterdam's
@@ -137,33 +138,24 @@ const House = ({ house, p, index, colors, glass, windows, shops }: IHouseProps) 
 				castShadow={false}
 			/>
 
-			{/* A plinth along the foot. */}
-			<Block
-				position={[0, 0.04, 0]}
-				size={[p.houseWidth - 0.005, 0.08, p.depth + 0.03]}
-				color={shadeOf(wall, -0.35)}
-				castShadow={false}
-			/>
-
 			{faces.map((side) => (
 				<group key={side} rotation={[0, side === 1 ? 0 : Math.PI, 0]}>
-					{/* Upstairs: rows of windows, each lit in its own turn. */}
-					{Array.from({ length: house.floors - 1 }, (_, floor) =>
-						across.map((wx, column) => {
-							const lit = isWindowLit(score(side * 500 + floor * 7 + column), windows.litPaneShare);
-							return (
-								<Block
-									// biome-ignore lint/suspicious/noArrayIndexKey: windows are positional
-									key={`${floor},${column}`}
-									position={[wx, GROUND_FLOOR + FLOOR * (floor + 0.5), front + 0.006]}
-									size={[PANE[0], PANE[1], 0.012]}
-									color={glass}
-									castShadow={false}
-									{...(lit ? lightEmission(windows, 1.3) : {})}
-								/>
-							);
-						}),
-					)}
+					{/* Upstairs: a row of windows on each floor, a flat each, lit in its own turn. */}
+					{Array.from({ length: house.floors - 1 }, (_, floor) => {
+						const y = GROUND_FLOOR + FLOOR * (floor + 0.5);
+						return (
+							<PaneRow
+								key={y}
+								xs={across}
+								size={PANE}
+								position={[0, y, front + 0.004]}
+								color={glass}
+								{...(isWindowLit(score(side * 500 + floor * 7), windows.litPaneShare)
+									? lightEmission(windows, 1.3)
+									: {})}
+							/>
+						);
+					})}
 
 					{/* Downstairs: a door, and a shop window or two windows. */}
 					<Block

@@ -7,6 +7,7 @@ import { definePart } from "../types";
 
 import { Dome, Octagon, Spire } from "./churchKit";
 import { Block, isWindowLit, Prism } from "./clusterPieces";
+import { PaneRow, paneRuns } from "./windowKit";
 
 /**
  * A brick city hall round a courtyard (Stockholm's Stadshuset): long wings of
@@ -62,16 +63,17 @@ const WindowRows = ({
 	windows: IResolvedLight;
 }) => (
 	<group rotation={[0, turn, 0]}>
-		{spread(Math.max(2, Math.round(length / 0.5)), length * 0.92).flatMap((x, column) =>
+		{/* Three windows to a room, each room lit as one. */}
+		{paneRuns(spread(Math.max(2, Math.round(length / 0.5)), length * 0.92), 3).flatMap((room, r) =>
 			Array.from({ length: floors }, (_, floor) => (
-				<Block
-					// biome-ignore lint/suspicious/noArrayIndexKey: windows are positional
-					key={`${x},${floor}`}
-					position={[x, FLOOR * (floor + 0.55), at + 0.007]}
-					size={[PANE[0], PANE[1], 0.012]}
+				<PaneRow
+					// biome-ignore lint/suspicious/noArrayIndexKey: floors are positional
+					key={`${room.at},${floor}`}
+					xs={room.xs}
+					size={PANE}
+					position={[room.at, FLOOR * (floor + 0.55), at + 0.004]}
 					color={glass}
-					castShadow={false}
-					{...(isWindowLit(jitter(seed * 211 + column * 17 + floor * 89), windows.litPaneShare)
+					{...(isWindowLit(jitter(seed * 211 + r * 17 + floor * 89), windows.litPaneShare)
 						? lightEmission(windows, 1.3)
 						: {})}
 				/>

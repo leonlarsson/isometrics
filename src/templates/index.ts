@@ -6,6 +6,7 @@ import { createExtractionShootersScene } from "./extractionShooters";
 import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
 import { createShapeCastleScene } from "./shapeCastle";
+import { createStockholmScene } from "./stockholm";
 
 export { createEmptyScene } from "./empty";
 
@@ -41,6 +42,14 @@ export const TEMPLATES: ITemplateInfo[] = [
 			"Waterfront at dusk: lit towers, lamps on the promenade, a mirror-calm harbour. Best with Graphics: Ultra",
 		category: "places",
 		create: createLanternBayScene,
+	},
+	{
+		id: "stockholm",
+		name: "Stockholm",
+		description:
+			"Gamla stan and its waters on a two-minute evening: lanterns, lit windows one by one, a floodlit palace and churches, Centralbron's traffic, ferries and example data. Best with Graphics: Nice or Ultra",
+		category: "places",
+		create: createStockholmScene,
 	},
 	{
 		id: "monaco",

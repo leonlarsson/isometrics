@@ -6,6 +6,7 @@ import type { IResolvedLight } from "../types";
 import { definePart } from "../types";
 
 import { Block, isWindowLit, Prism } from "./clusterPieces";
+import { PaneRow, paneRuns } from "./windowKit";
 
 /**
  * A baroque palace (Stockholm's Kungliga slottet, a royal residence, a
@@ -40,9 +41,26 @@ const FLOODLIT = 0.55;
 const PAVILION_RISE = 0.22;
 /** Window panes, across and up, and how far apart they stand. */
 const PANE: [number, number] = [0.16, 0.26];
-const WINDOW_SPACING = 0.44;
+const WINDOW_SPACING = 0.5;
 
 const wallHeightOf = (floors: number) => GROUND_FLOOR + (floors - 1) * FLOOR;
+
+/**
+ * A front's windows in rooms: runs of the windows that stand at the same depth
+ * (on a pavilion or the wall between), three to a room, each lit as one.
+ */
+const roomsOf = (xs: readonly number[], proudAt: (x: number) => number) => {
+	const stretches: number[][] = [];
+	for (const x of xs) {
+		const last = stretches[stretches.length - 1];
+		if (last && proudAt(last[0]) === proudAt(x)) {
+			last.push(x);
+		} else {
+			stretches.push([x]);
+		}
+	}
+	return stretches.flatMap((stretch) => paneRuns(stretch, 3));
+};
 
 /** The side wings' size: a floor or two lower than the palace, a little shallower than its wings. */
 const sideWingOf = (p: TPalace) => ({
@@ -130,20 +148,18 @@ const Facade = ({
 				/>
 			))}
 
-			{spread(columns, length * 0.94).flatMap((x, column) => {
-				const z = at + proudAt(x);
+			{roomsOf(spread(columns, length * 0.94), proudAt).flatMap((room, r) => {
+				const z = at + proudAt(room.at);
 				return Array.from({ length: floors }, (_, floor) => {
 					const y = floor === 0 ? GROUND_FLOOR * 0.5 : GROUND_FLOOR + FLOOR * (floor - 0.5);
-					const size: [number, number, number] =
-						floor === 0 ? [PANE[0], PANE[1] * 0.8, 0.012] : [PANE[0], PANE[1], 0.012];
 					return (
-						<Block
-							key={`${x},${y}`}
-							position={[x, y, z + (floor === 0 ? 0.03 : 0.007)]}
-							size={size}
+						<PaneRow
+							key={`${room.at},${y}`}
+							xs={room.xs}
+							size={floor === 0 ? [PANE[0], PANE[1] * 0.8] : PANE}
+							position={[room.at, y, z + (floor === 0 ? 0.026 : 0.004)]}
 							color={glass}
-							castShadow={false}
-							{...(isWindowLit(jitter(seed * 389 + column * 13 + floor * 101), windows.litPaneShare)
+							{...(isWindowLit(jitter(seed * 389 + r * 13 + floor * 101), windows.litPaneShare)
 								? lightEmission(windows, 1.3)
 								: {})}
 						/>
