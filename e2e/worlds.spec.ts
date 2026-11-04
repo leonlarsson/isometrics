@@ -203,6 +203,8 @@ test.describe("a browser's export (ADR-0140)", () => {
 		page,
 		browser,
 	}) => {
+		// The editor opens twice, in two browsers.
+		test.slow();
 		await openEditor(page);
 		await page.getByLabel("Title").first().fill("Moved along");
 		await saved(page);
