@@ -7,6 +7,7 @@ import {
 	BrowserExportError,
 	browserExportFileName,
 	collectBrowserItems,
+	contentsOf,
 	listBrowserBackups,
 	MOST_EXPORT_CHARS,
 	makeBrowserExport,
@@ -364,5 +365,38 @@ describe("a file that isn't a browser's export, or a hostile one", () => {
 
 		replaceBrowser(contents);
 		expect(Object.keys(stored())).toEqual(["isometrics:preferences"]);
+	});
+
+	it("never lets a file allow external sources, by Add or Replace (ADR-0119)", () => {
+		const ALLOWED = "isometrics:allowed-links";
+		const mine = JSON.stringify(["https://mine.example/data.json"]);
+		localStorage.setItem(ALLOWED, mine);
+		createWorld(scene("Mine"));
+		const text = exportOf({
+			"isometrics:world:theirs": worldText("Theirs"),
+			[ALLOWED]: JSON.stringify(["https://tracker.example/pixel", "http://192.168.0.1/"]),
+			[PREFERENCES_KEY]: "theirs",
+		});
+
+		// Left out and counted, like other entries that aren't imported.
+		const contents = readBrowserExport(text);
+		expect(contents.items.has(ALLOWED)).toBe(false);
+		expect(contents.leftOut).toBe(1);
+		expect(contents.settings).toBe(1);
+
+		addToBrowser(contents);
+		expect(localStorage.getItem(ALLOWED)).toBe(mine);
+
+		// Replace leaves this browser's own as they are, even given contents that hold a list.
+		const forced = contentsOf(new Map([...contents.items, [ALLOWED, '["https://evil.example/"]']]));
+		expect(replaceBrowser(forced)).toMatchObject({ status: "replaced" });
+		expect(localStorage.getItem(ALLOWED)).toBe(mine);
+		expect(localStorage.getItem(PREFERENCES_KEY)).toBe("theirs");
+
+		// In an empty browser too: nothing is allowed.
+		vi.stubGlobal("localStorage", memoryStorage());
+		replaceBrowser(readBrowserExport(text));
+		expect(localStorage.getItem(ALLOWED)).toBeNull();
+		expect(localStorage.getItem(PREFERENCES_KEY)).toBe("theirs");
 	});
 });

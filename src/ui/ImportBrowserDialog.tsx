@@ -32,8 +32,12 @@ export const importBrowsersExport = async () => {
 
 /** How many worlds are listed by name before "and N more". */
 const TITLES_SHOWN = 5;
-/** How many addresses the Replace confirmation names. */
-const LINKS_SHOWN = 3;
+/**
+ * Said in the dialog and the Replace confirmation: a file never brings the
+ * addresses this browser reads without asking (ADR-0119, ADR-0140).
+ */
+const LINKS_STAY =
+	"Allowed external sources aren’t brought in: the ones this browser reads stay as they are, and a world from the export asks again before it reads one.";
 
 /** "A, B and C", or "A, B, C and 4 more" past `shown`. */
 const nameSome = (names: string[], shown: number) => {
@@ -60,7 +64,6 @@ export const ImportBrowserDialog = () => {
 	const { contents, isReplacing } = useImportBrowser();
 	const close = () => useImportBrowser.setState({ contents: null, isReplacing: false });
 	const titles = contents?.worlds.map((world) => cut(world.title, 60)) ?? [];
-	const links = contents?.allowedLinks.map((link) => cut(link, 60)) ?? [];
 	const worldsHere = isReplacing ? listWorlds().length : 0;
 
 	return (
@@ -97,14 +100,16 @@ export const ImportBrowserDialog = () => {
 						<ListItem
 							stacked
 							label={plural(contents.settings, "setting")}
-							meta="Preferences, panels, favourites, cameras, allowed and shared links"
+							meta="Preferences, panels, favourites, cameras and shared links"
 						/>
 					</List>
 				)}
 
+				{contents && <Hint>{LINKS_STAY}</Hint>}
+
 				{contents && contents.leftOut > 0 && (
 					<Hint>
-						{`${plural(contents.leftOut, "entry", "entries")} in the file weren’t this app’s, or weren’t text, and are left out.`}
+						{`${plural(contents.leftOut, "entry", "entries")} in the file are left out: not this app’s, not text, or allowed external sources.`}
 					</Hint>
 				)}
 
@@ -144,7 +149,7 @@ export const ImportBrowserDialog = () => {
 				title="Replace this browser’s worlds and settings?"
 				description={
 					contents
-						? `Your ${plural(worldsHere, "world")} and settings make way for the export’s ${plural(contents.worlds.length, "world")} and ${plural(contents.settings, "setting")}. This browser as it is now is kept under File → Backups first, to download or bring back.${links.length > 0 ? ` The export lets this browser read ${plural(links.length, "external source")} without asking: ${nameSome(links, LINKS_SHOWN)}.` : ""} The page reloads.`
+						? `Your ${plural(worldsHere, "world")} and settings make way for the export’s ${plural(contents.worlds.length, "world")} and ${plural(contents.settings, "setting")}. This browser as it is now is kept under File → Backups first, to download or bring back. ${LINKS_STAY} The page reloads.`
 						: ""
 				}
 				confirmLabel="Replace this browser’s"

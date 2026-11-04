@@ -28,8 +28,9 @@ import {
  * this browser's (never overwriting one), or replaces this browser's worlds
  * and settings with the file's, after keeping a copy of this browser as a
  * backup. The file is untrusted: only text under the app's prefix is kept,
- * and worlds are stored as they are, to be repaired when they're first
- * opened, like any stored world. No React.
+ * never what lets this browser read outside addresses without asking (its
+ * allowed links, ADR-0119), and worlds are stored as they are, to be
+ * repaired when they're first opened, like any stored world. No React.
  */
 
 export const BROWSER_EXPORT_KIND = "browser";
@@ -44,8 +45,15 @@ const MOST_KEY_LENGTH = 256;
 const MOST_TITLE_LENGTH = 200;
 /** What a world's id may be; any other id gets a new one when it's imported. */
 const WORLD_ID = /^[A-Za-z0-9_-]{1,64}$/;
-/** The addresses this browser reads without asking (editor/linkTrust.ts). */
-const ALLOWED_LINKS_KEY = `${STORAGE_PREFIX}allowed-links`;
+/**
+ * What's never imported, by Add or Replace: entries that make this browser
+ * trust outside addresses. A file can come from anyone, and must never let a
+ * world read an address without asking (ADR-0119). Only the addresses this
+ * browser reads without asking (editor/linkTrust.ts) do so today; a new store
+ * that grants trust goes here. A file's copy is left out and counted, and
+ * Replace leaves this browser's own as it is.
+ */
+export const NEVER_IMPORTED: ReadonlySet<string> = new Set([`${STORAGE_PREFIX}allowed-links`]);
 
 /** A file that can't be imported; its message says why, in words for the person. */
 export class BrowserExportError extends Error {}
@@ -70,19 +78,20 @@ export interface IBrowserContents {
 	worlds: IWorldInfo[];
 	/** Copies of worlds, and of whole browsers, it keeps. */
 	backups: number;
-	/** Everything else: Preferences, panels, favourites, cameras, allowed and shared links… */
+	/** Everything else: Preferences, panels, favourites, cameras, shared links… */
 	settings: number;
-	/** The addresses it lets this browser read without asking, once it replaces this browser's. */
-	allowedLinks: string[];
 	/** How much it holds, in characters (keys and values), as storage counts them. */
 	size: number;
-	/** Entries left out of the file: not this app's, too long a key, or not text. */
+	/** Entries left out of the file: not this app's, too long a key, not text, or never imported. */
 	leftOut: number;
 }
 
-type TItemKind = "world" | "index" | "openWorld" | "backup" | "setting";
+type TItemKind = "world" | "index" | "openWorld" | "backup" | "trust" | "setting";
 
 const kindOfKey = (key: string): TItemKind => {
+	if (NEVER_IMPORTED.has(key)) {
+		return "trust";
+	}
 	if (key.startsWith(WORLD_KEY_PREFIX) || key === SINGLE_SAVE_KEY) {
 		return "world";
 	}
@@ -176,15 +185,6 @@ const worldsIn = (items: ReadonlyMap<string, string>): IWorldInfo[] => {
 	return worlds.sort((a, b) => b.updatedAt - a.updatedAt);
 };
 
-const allowedLinksIn = (items: ReadonlyMap<string, string>): string[] => {
-	try {
-		const links = safeJson(JSON.parse(items.get(ALLOWED_LINKS_KEY) ?? "[]") as unknown);
-		return Array.isArray(links) ? links.filter((link) => typeof link === "string") : [];
-	} catch {
-		return [];
-	}
-};
-
 /** What `items` hold, counted. */
 export const contentsOf = (
 	items: ReadonlyMap<string, string>,
@@ -197,7 +197,8 @@ export const contentsOf = (
 		const kind = kindOfKey(key);
 		if (kind === "backup") {
 			backups++;
-		} else if (kind === "setting") {
+		} else if (kind === "setting" || kind === "trust") {
+			// "trust": in an export of this browser; a file's is left out when it's read.
 			settings++;
 		}
 	}
@@ -207,7 +208,6 @@ export const contentsOf = (
 		worlds: worldsIn(items),
 		backups,
 		settings,
-		allowedLinks: allowedLinksIn(items),
 		size: sizeOf(items),
 		leftOut,
 	};
@@ -277,6 +277,7 @@ export const readBrowserExport = (text: string): IBrowserContents => {
 			key.length <= MOST_KEY_LENGTH &&
 			// A world without an id isn't one the app wrote.
 			key !== WORLD_KEY_PREFIX &&
+			!NEVER_IMPORTED.has(key) &&
 			typeof value === "string"
 		) {
 			items.set(key, value);
@@ -444,18 +445,22 @@ export type TReplaceResult =
 
 /**
  * Replace this browser's worlds and settings with an export's (ADR-0140).
- * First the browser as it is (everything but its backups) is kept as one
- * backup, under `<app>:browser-backup:<time>`, in the export's own format:
- * File → Backups downloads it or adds its worlds back. Then this browser's
- * entries go and the export's are written: worlds, then the list of worlds
- * (naming only worlds written) and which is open, then settings; its
- * backups are added beside this browser's, which stay. All or nothing: if
+ * First the browser as it is (everything but its backups and the allowed
+ * links, which stay) is kept as one backup, under
+ * `<app>:browser-backup:<time>`, in the export's own format: File → Backups
+ * downloads it or adds its worlds back. Then this browser's entries go and
+ * the export's are written: worlds, then the list of worlds (naming only
+ * worlds written) and which is open, then settings, never the allowed links
+ * (NEVER_IMPORTED); its backups are added beside this browser's, which stay. All or nothing: if
  * anything can't be written, what was written goes and the browser is put
  * back as it was. Reload the page afterwards.
  */
 export const replaceBrowser = (contents: IBrowserContents, now = Date.now()): TReplaceResult => {
 	const current = collectBrowserItems();
-	const replaced = new Map([...current].filter(([key]) => kindOfKey(key) !== "backup"));
+	// Backups stay, and so does what this browser trusts: never the file's (NEVER_IMPORTED).
+	const replaced = new Map(
+		[...current].filter(([key]) => kindOfKey(key) !== "backup" && kindOfKey(key) !== "trust"),
+	);
 	let at = now;
 	while (getItem(`${BROWSER_BACKUP_PREFIX}${at}`) !== null) {
 		at++;
