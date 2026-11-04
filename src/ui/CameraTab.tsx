@@ -376,7 +376,7 @@ export const CameraTab = () => {
 					checked={camera.tour.enabled}
 					onChange={(v) => setTour("enabled", v)}
 					inherit={tourByDefault("enabled", "off")}
-					hint="When the world opens in View mode, or View mode is switched on, the camera glides from viewpoint to viewpoint on its own, round and round. Any press, scroll or camera key stops it; the play button on the viewpoint bar starts it again, in any world."
+					hint="When the world opens in View mode, or View mode is switched on, the camera glides from viewpoint to viewpoint on its own, round and round. Any press, scroll or camera key stops it; the play button on the viewpoint bar starts it again, with this on or off. Good for a world left on a wall screen."
 				/>
 
 				<SliderField
