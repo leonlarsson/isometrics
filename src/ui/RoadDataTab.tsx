@@ -114,6 +114,17 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 
 						{count("vehicleCountAgainst", "The other way")}
 
+						<SliderField
+							label="Vehicle size"
+							value={road.flow.vehicleScale}
+							min={0.1}
+							max={4}
+							step={0.05}
+							onChange={(vehicleScale) => editFlow("vehicleScale", { vehicleScale })}
+							inherit={reset("vehicleScale")}
+							hint="How big its vehicles are drawn: smaller on a map drawn smaller than them, like a whole city."
+						/>
+
 						<DataDrivenField
 							kind="range"
 							binding={road.data.vehicleDensity}

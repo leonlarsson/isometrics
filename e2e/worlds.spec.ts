@@ -54,6 +54,23 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
 	});
 
+	test("the Stockholm starter opens at its address, Gamla stan with its landmarks", async ({
+		page,
+	}) => {
+		// A big world: opened on its own (not over the starter world), given time to draw.
+		test.setTimeout(300_000);
+		await openPage(page, "/templates/stockholm");
+		await expect
+			.poll(() => read(page, (s) => s.scene.meta.title), { timeout: 120_000 })
+			.toBe("Stockholm");
+		const kinds = await read(page, (s) => s.scene.entities.map((entity) => entity.kind));
+		for (const kind of ["palace_01", "church_02", "church_03", "church_04", "city_hall_01"]) {
+			expect(kinds).toContain(kind);
+		}
+		expect(kinds.filter((kind) => kind === "terraced_row_02").length).toBeGreaterThan(100);
+		await page.locator("[data-loading-screen]").waitFor({ state: "detached", timeout: 180_000 });
+	});
+
 	test("New world: a starter comes as made (Shape Castle without data), and its link copies", async ({
 		page,
 		context,

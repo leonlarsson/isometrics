@@ -110,6 +110,23 @@ export const lightEmission = (light: IResolvedLight, intensity = 1) =>
 		? { emissive: light.color, emissiveIntensity: intensity * light.level }
 		: { emissive: undefined, emissiveIntensity: 0 };
 
+const floodTint = new THREE.Color();
+const floodColor = new THREE.Color();
+
+/**
+ * For surfaces a part's floodlights light (a palace's fronts, a church tower):
+ * Box or Mat props that make it glow in its own colour warmed by the light's,
+ * `intensity` times as bright as the light's level, so a red brick wall stays
+ * red when it's lit rather than turning the lamps' colour.
+ */
+export const floodlitSurface = (light: IResolvedLight, color: string, intensity = 0.5) =>
+	light.on
+		? {
+				emissive: `#${floodTint.set(color).multiply(floodColor.set(light.color)).getHexString()}`,
+				emissiveIntensity: intensity * light.level,
+			}
+		: { emissive: undefined, emissiveIntensity: 0 };
+
 /**
  * A small light's lens (a rain light, a tail light): glowing in the light's
  * colour while it's on, unshaded and past tone mapping like headlights so it

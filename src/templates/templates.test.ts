@@ -107,19 +107,36 @@ describe("templates", () => {
 			);
 		});
 		const clashes: string[] = [];
-		standing.forEach((a, i) => {
-			for (const b of standing.slice(i + 1)) {
+		// Each object's bodies once, and how far they reach from its middle, so pairs far apart
+		// are passed over without testing their bodies (big worlds have hundreds of objects).
+		const shapes = standing.map((entity) => {
+			const bodies = bodiesOf(entity);
+			const reach = Math.max(
+				0,
+				...bodies.map((body) => Math.hypot(body.halves[0], body.halves[1])),
+			);
+			return { entity, bodies, reach };
+		});
+		shapes.forEach((a, i) => {
+			for (const b of shapes.slice(i + 1)) {
+				const apart = Math.hypot(
+					b.entity.position[0] - a.entity.position[0],
+					b.entity.position[1] - a.entity.position[1],
+				);
+				if (apart >= a.reach + b.reach) {
+					continue;
+				}
 				// The most any body of one overlaps any body of the other, where their heights meet.
 				const overlap = Math.max(
 					0,
-					...bodiesOf(a).flatMap((one) =>
-						bodiesOf(b)
+					...a.bodies.flatMap((one) =>
+						b.bodies
 							.filter((other) => one.top > other.bottom && other.top > one.bottom)
 							.map((other) => overlapOf(one, other)),
 					),
 				);
 				if (overlap > 0.05) {
-					clashes.push(`${a.id} and ${b.id} (by ${overlap.toFixed(2)})`);
+					clashes.push(`${a.entity.id} and ${b.entity.id} (by ${overlap.toFixed(2)})`);
 				}
 			}
 		});

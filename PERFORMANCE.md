@@ -98,6 +98,8 @@ Then the pointer (findings 25 and 26), the mouse moved over the 2,888 objects:
 16. **Components re-rendered with nothing new** (tab rails, tooltips, icons under a parent that rendered). *Now:* the React Compiler memoises components and hooks (ADR-0093).
 17. **Part names were worked out over the whole parts list per call.** *Now:* cached.
 
+27. **A mesh per piece filled memory.** Batching made a big world's draws cheap, but every piece of a part was still a mesh in memory (an object, a material, a geometry, a React element): the Stockholm template's old town, a dozen pieces a house, and its blocks of flats with their balconies, were 26,600 meshes, a 760 MB JavaScript heap and about a gigabyte for Chrome's page on SwiftShader. *Now:* a part of many fixed pieces builds them as one geometry with a colour per vertex (`parts/buildings/mergedKit`, ADR-0143), its lights a mesh each: a row of houses is three meshes. Stockholm: 7,000 meshes, a 378 MB heap, 648 MB for the page, 488 draws a frame (538 before).
+
 ### Per pointer move
 
 25. **Hovering an object restyled the whole page.** Objects, roads, handles, the gizmo and viewpoint markers set the cursor on the page's body as the pointer came over them and left. A cursor is inherited, so each change restyled every element on the page: 38,500 in Edit mode with a painted world's outliner, about 15 ms a time, many times a second across a wood (View mode has a few hundred elements, so it never showed). *Now:* `setViewCursor` (`render/viewCursor`) sets it on the view's stage, a couple of dozen elements, above the view's own element and canvas, so the tools' crosshairs set there still win.
@@ -116,6 +118,7 @@ Then the pointer (findings 25 and 26), the mouse moved over the 2,888 objects:
 - Code that moves an object's group outside React (not through the store) must make it count as moving, or its matrices stay where they were.
 - Don't walk the scene each frame (`scene.traverse`). If you must, `traverseVisible`, and skip groups marked `batchedAway`.
 - Draws cost CPU per pass: Ultra draws the scene three times (shadows, reflections, the view). Before adding a mesh per object, ask whether it batches (a shared material, three's own geometry or `shareGeometryAs`, no transparency).
+- Meshes cost memory however they're drawn: a part of dozens of fixed pieces that worlds hold by the hundred builds them as one geometry (`mergedKit`, ADR-0143).
 - Batches are culled by `render/batchCulling` from bounds worked out when their instances are placed (`placeBounds` in InstancedParts' `place`), not by BatchedMesh: code that changes a batch's instances goes through `place`, or culling keeps the old bounds.
 - A render inside a pass (n8ao's, the water's reflection) turns `shadowMap.autoUpdate` off around it, or it draws the frame's shadow map again with only what it shows.
 - A see-through material with two sides is drawn twice a frame and its shader looked up both times: give `forceSinglePass` to one whose look doesn't depend on drawing its back faces first (flat, or added light).
