@@ -136,7 +136,7 @@ export const ringTop = (
 	// How far the point is from the band's middle line, along its direction.
 	const middle = shareOut(p, x, z, band);
 	const reach = Math.hypot(x, z);
-	const off = middle > 0 ? Math.abs(reach - reach / middle) : band;
+	const off = middle > 0 ? Math.abs(reach - reach / middle) : Number.POSITIVE_INFINITY;
 	if (off > band + EDGE) {
 		return null;
 	}
