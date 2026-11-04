@@ -10,9 +10,11 @@ import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import { GROUND } from "#/scene/ground";
+import { groundSurfaceOf } from "#/scene/surfaces";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { openGroundMenuOnClick } from "./contextMenu";
+import { useSurfaceShading } from "./useSurfaceShading";
 
 /** The grid's cell sizes, finest first; each section line marks 5 cells. */
 const GRID_CELLS = [1, 5, 25, 125];
@@ -41,6 +43,9 @@ const useGridCell = () => {
 
 export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
+	const surfaces = useEditor((s) => s.scene.surface);
+	// Its texture (ADR-0137): plain, as it always was, unless the world asks for one.
+	const surface = useSurfaceShading(groundSurfaceOf(ground, surfaces));
 	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
 	const clearSelection = useEditor((s) => s.clearSelection);
@@ -72,6 +77,8 @@ export const Ground = () => {
 					win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
 				*/}
 				<meshStandardMaterial
+					key={surface.key}
+					userData={surface.userData}
 					color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
 					roughness={0.95}
 					polygonOffset

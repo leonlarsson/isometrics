@@ -11,6 +11,7 @@ import { GROUND } from "#/scene/ground";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
 import type { TEntity, TScene } from "#/scene/schema";
+import { groundSurfaceOf } from "#/scene/surfaces";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { AreaBody } from "./AreaMesh";
@@ -18,6 +19,7 @@ import { FenceBody } from "./FenceMesh";
 import { RoadBody } from "./RoadMesh";
 import { SceneLights } from "./SceneLights";
 import { frameBoxIn } from "./thumbnails";
+import { useSurfaceShading } from "./useSurfaceShading";
 
 /**
  * Pictures of whole worlds (the starters in File → New world), rendered in
@@ -158,6 +160,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const shot = useRef(false);
 	const entities = scene.entities.filter((entity) => !entity.isHidden);
 	const waiting = useRef(entities.filter((entity) => getPart(entity.kind)?.rendersAsync).length);
+	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface));
 
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {
@@ -199,6 +202,8 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 					receiveShadow
 				>
 					<meshStandardMaterial
+						key={groundSurface.key}
+						userData={groundSurface.userData}
 						color={colorOf(
 							GROUND,
 							scene.ground,
@@ -220,6 +225,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 							palette={palette}
 							data={scene.data.values}
 							selected={false}
+							worldSurface={scene.surface}
 						/>
 					),
 				)}

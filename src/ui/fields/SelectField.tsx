@@ -16,6 +16,8 @@ interface ISelectFieldProps<TValue extends string> {
 	onChange: (value: TValue) => void;
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
+	/** Shown greyed out and can't be changed; say why in its hint or a note nearby. */
+	disabled?: boolean;
 	hint?: ReactNode;
 }
 
@@ -27,6 +29,7 @@ export const SelectField = <TValue extends string>({
 	onChange,
 	inherit,
 	mixed,
+	disabled = false,
 	hint,
 }: ISelectFieldProps<TValue> & TResettable) => {
 	return (
@@ -35,6 +38,7 @@ export const SelectField = <TValue extends string>({
 				<Select.Root
 					items={options}
 					value={value}
+					disabled={disabled}
 					onValueChange={(next) => next !== null && onChange(next as TValue)}
 				>
 					<Select.Trigger id={id} className={styles.selectTrigger}>
