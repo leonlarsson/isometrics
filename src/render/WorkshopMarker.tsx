@@ -56,7 +56,8 @@ export const WorkshopMarker = () => {
 		[minX, LIFT, maxZ],
 		[minX, LIFT, minZ],
 	];
-	const tip = maxZ + 1.4;
+	// Long enough to read at any size of prefab.
+	const tip = maxZ + Math.max(1.6, (maxZ - minZ) * 0.45);
 	return (
 		<group>
 			<Line
@@ -96,10 +97,10 @@ export const WorkshopMarker = () => {
 					[x + 0.3, LIFT, tip - 0.35],
 				]}
 				color={palette.selection}
-				lineWidth={2}
+				lineWidth={3}
 			/>
 
-			<Html position={[x, LIFT, tip + 0.45]} center zIndexRange={[1, 0]}>
+			<Html position={[x, LIFT, tip + 0.9]} center zIndexRange={[1, 0]}>
 				<span className={styles.front}>Front</span>
 			</Html>
 		</group>

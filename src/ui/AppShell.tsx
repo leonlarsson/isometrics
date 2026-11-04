@@ -20,7 +20,7 @@ import { useClipboard } from "#/editor/useClipboard";
 import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
-import { OWN_WORLD } from "#/editor/whatIsOpen";
+import { OWN_WORLD, workshopOf } from "#/editor/whatIsOpen";
 import { keepWorkshopSession, resumeWorkshopSession } from "#/editor/workshopSession";
 import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
@@ -229,6 +229,7 @@ export const AppShell = () => {
 	// opens or on the home screen, nothing of the starter world the store begins with shows.
 	const whatIsOpen = useEditor((s) => s.whatIsOpen.kind);
 	const showsWorld = whatIsOpen === "world";
+	const inWorkshop = useEditor((s) => workshopOf(s.whatIsOpen) !== null);
 	const isStarted = whatIsOpen !== "starting";
 	const mode = useEditor((s) => (s.whatIsOpen.kind === "world" ? s.mode : "view"));
 	// Links and APIs read again while the world is open (ADR-0113).
@@ -370,7 +371,8 @@ export const AppShell = () => {
 							<HomeScreen />
 						) : (
 							<Stage>
-								{showsWorld && (
+								{/* The Workshop's bar names it instead: its world's title card isn't the prefab's. */}
+								{showsWorld && !inWorkshop && (
 									<SceneTitle
 										onOpenSky={() => {
 											setTab("light");

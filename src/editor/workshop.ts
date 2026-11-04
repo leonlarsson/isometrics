@@ -231,6 +231,8 @@ const open = (
 		showsGround: readShowsGround(),
 		from: { scene, past, future, view },
 	});
+	// Building starts from the shapes; prefabs aren't offered in here anyway.
+	setPaletteCategory("shapes");
 	const remembered = rememberedView(workshopViewKey(workshop.prefabId));
 	if (remembered) {
 		store().showOpeningView(remembered);

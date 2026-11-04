@@ -47,8 +47,6 @@ export const WorkshopBar = () => {
 				icon="workshop"
 				title={
 					<>
-						<span className={styles.label}>Workshop</span>
-
 						<span className={styles.name}>
 							<Input
 								ariaLabel="Prefab's name"
@@ -60,7 +58,7 @@ export const WorkshopBar = () => {
 
 						<IconButton
 							icon="info"
-							label={`${before ? `Changing ${startName}: every copy in ${world} follows once it's saved.` : `A new prefab for ${world}.`} Build it from shapes, parts and fences in Add to scene; its objects and fences are the prefab. More in its Prefab panel.`}
+							label={`The Workshop. ${before ? `Changing ${startName}: every copy in ${world} follows once it's saved.` : `A new prefab for ${world}.`} Build it from shapes, parts and fences in Add to scene; its objects and fences are the prefab. More in its Prefab panel.`}
 							onClick={openPanel}
 						/>
 					</>
