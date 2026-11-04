@@ -89,6 +89,29 @@ test.describe("the app row and the view bar (ADR-0142)", () => {
 		expect(await read(page, (s) => s.snapping)).toBe(false);
 	});
 
+	test("the tools: one at a time, Select unless another is picked; snapping apart", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		const tools = page.getByRole("group", { name: "Tools" });
+		const select = tools.getByRole("button", { name: "Select", exact: true });
+		const box = tools.getByRole("button", { name: "Select with a box (B)" });
+		const paint = tools.getByRole("button", { name: /^Paint objects/ });
+		await expect(select).toHaveAttribute("aria-pressed", "true");
+		await paint.click();
+		await expect(paint).toHaveAttribute("aria-pressed", "true");
+		await expect(select).toHaveAttribute("aria-pressed", "false");
+		await box.click();
+		await expect(box).toHaveAttribute("aria-pressed", "true");
+		await expect(paint).toHaveAttribute("aria-pressed", "false");
+		expect(await read(page, (s) => [s.boxSelect, s.painting])).toEqual(["add", false]);
+		await select.click();
+		expect(await read(page, (s) => [s.boxSelect, s.painting])).toEqual([null, false]);
+		// Snap to grid is a switch of its own, not one of the tools.
+		await expect(tools.getByRole("button", { name: /^Snap to grid/ })).toHaveCount(0);
+		await expect(page.getByRole("button", { name: "Snap to grid: on" })).toBeVisible();
+	});
+
 	test("the bars over the view sit under the view bar", async ({ page }) => {
 		await openEditor(page);
 		await page.getByRole("button", { name: "Select with a box (B)" }).click();
