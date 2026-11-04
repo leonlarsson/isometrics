@@ -52,7 +52,7 @@ const OverlayItems = () => {
 			<Menu.Item
 				icon="eye"
 				label="Overlay settings…"
-				description="Where each shows: Edit mode, View mode or both"
+				description="Each in Edit mode, View mode or both"
 				onClick={openOverlaySettings}
 			/>
 		</>
