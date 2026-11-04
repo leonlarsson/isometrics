@@ -1,6 +1,6 @@
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
-import { type ReactNode, useId } from "react";
+import { Fragment, type ReactNode, useId } from "react";
 
 import { Hint } from "./Hint";
 import { InheritAction, type TResettable } from "./InheritAction";
@@ -9,10 +9,23 @@ import { useSearchMatch } from "./settingsSearch";
 
 import styles from "./Fields.module.css";
 
+interface IRadioOption<TValue extends string> {
+	value: TValue;
+	label: string;
+	/** A short muted note after the label on the same line (cut off when it doesn't fit), e.g. a size. */
+	meta?: string;
+	/**
+	 * A sentence or two under the label, in muted text that wraps, never cut off, like a menu
+	 * item's: for what choosing it does.
+	 */
+	description?: string;
+	/** Shown under the option, in line with its text, while it's chosen: a setting only it has. */
+	details?: ReactNode;
+}
+
 interface IRadioGroupFieldProps<TValue extends string> {
 	label: string;
-	/** `meta` is a muted note after the option's label, e.g. what it means. */
-	options: { value: TValue; label: string; meta?: string }[];
+	options: IRadioOption<TValue>[];
 	value: TValue;
 	onChange: (value: TValue) => void;
 	hint?: ReactNode;
@@ -39,16 +52,33 @@ export const RadioGroupField = <TValue extends string>({
 				onValueChange={(next) => onChange(next as TValue)}
 			>
 				{options.map((option) => (
-					// biome-ignore lint/a11y/noLabelWithoutControl: the radio inside is the labelled control
-					<label key={option.value} className={styles.check}>
-						<Radio.Root value={option.value} className={styles.radio}>
-							<Radio.Indicator className={styles.radioIndicator} />
-						</Radio.Root>
+					<Fragment key={option.value}>
+						{/* biome-ignore lint/a11y/noLabelWithoutControl: the radio inside is the labelled control */}
+						<label className={styles.check} data-described={option.description ? "" : undefined}>
+							<Radio.Root value={option.value} className={styles.radio}>
+								<Radio.Indicator className={styles.radioIndicator} />
+							</Radio.Root>
 
-						<span className={styles.radioLabel}>{option.label}</span>
+							{option.description ? (
+								<span className={styles.radioText}>
+									<span className={styles.radioLabel}>{option.label}</span>
 
-						{option.meta && <span className={styles.radioMeta}>{option.meta}</span>}
-					</label>
+									<span className={styles.radioDescription}>{option.description}</span>
+								</span>
+							) : (
+								<>
+									<span className={styles.radioLabel}>{option.label}</span>
+
+									{option.meta && <span className={styles.radioMeta}>{option.meta}</span>}
+								</>
+							)}
+						</label>
+
+						{/* Outside the label: clicking a control in it mustn't pick the option again. */}
+						{option.details && value === option.value && (
+							<div className={styles.radioDetails}>{option.details}</div>
+						)}
+					</Fragment>
 				))}
 			</RadioGroup>
 

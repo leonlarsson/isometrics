@@ -20,7 +20,8 @@ type TRouteRoad = Pick<TRoad, "points" | "loops" | "cornerRadius" | "width" | "k
 // Roads are immutable (immer), so each road object's centre line only needs computing once.
 const centerlines = new WeakMap<object, TRoadPoint[]>();
 
-const centerlineOf = (road: TRouteRoad) => {
+/** A road's centre line (`roadCenterlineOf`), worked out once per road object. */
+export const centerlineOf = (road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width">) => {
 	let line = centerlines.get(road);
 	if (!line) {
 		line = roadCenterlineOf(road);
@@ -52,8 +53,17 @@ export interface ITrafficPlace {
 	centre: number;
 	/** 1 = driving towards the road's last point, -1 = towards its first. */
 	direction: 1 | -1;
-	/** Turning around at an open road's end. */
+	/** Turning around at an open road's end, or (on a network) going through a junction. */
 	turning: boolean;
+	/**
+	 * On a road network (ADR-0136): the road it's on now and its length, and where it goes on to:
+	 * which road, which way, where along it it comes on, and how far it has to go until then.
+	 */
+	network?: {
+		roadId: string;
+		length: number;
+		next: { roadId: string; direction: 1 | -1; along: number; distance: number };
+	};
 }
 
 const wrap = (value: number, period: number) => ((value % period) + period) % period;

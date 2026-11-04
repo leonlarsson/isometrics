@@ -19,6 +19,7 @@ import {
 } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick, pastDragThreshold, setCursorHidden } from "#/lib/pointer";
+import { junctionIndexOf, roadAnchorAt } from "#/scene/junctions";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
@@ -75,7 +76,8 @@ interface IPointDrag {
  * selected points when it's one of them), double-click to remove it. Shift- or
  * Ctrl-click adds it to the selected points or takes it out; Shift/Ctrl-drag
  * orbits the camera, as everywhere (ADR-0065). Dragging a road end onto another
- * road end snaps to it and offers to join them.
+ * road end snaps to it and offers to join or connect them; onto another road,
+ * to connect there (ADR-0136). An end at a junction moves the junction.
  */
 const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandleProps) => {
 	const palette = usePalette();
@@ -176,12 +178,21 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 					return;
 				}
 				state.join = null;
-				if (end) {
+				// An end at a junction takes the junction with it (ADR-0136); a free end snaps onto
+				// another road's end, or onto another road, to join or connect there.
+				if (end && junctionIndexOf(store.scene.junctions, road.id, end) < 0) {
 					const near = joinTargets(store.scene.roads, road, end).find(
 						(candidate) =>
 							Math.hypot(candidate.point[0] - target![0], candidate.point[1] - target![1]) <
 							JOIN_SNAP,
 					);
+					const onto = near
+						? null
+						: roadAnchorAt(store.scene.roads, target, {
+								endReach: 0,
+								onRoad: true,
+								except: [road.id],
+							});
 					if (near) {
 						target = [near.point[0], near.point[1]];
 						state.join = {
@@ -190,6 +201,16 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 							aEnd: end,
 							bId: near.roadId,
 							bEnd: near.end,
+						};
+					} else if (onto?.kind === "middle") {
+						target = [onto.point[0], onto.point[1]];
+						state.join = {
+							target: "road",
+							aId: road.id,
+							aEnd: end,
+							bId: onto.roadId,
+							bEnd: "start",
+							bMiddle: { segment: onto.segment, point: target },
 						};
 					}
 				}

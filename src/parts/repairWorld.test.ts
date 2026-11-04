@@ -44,11 +44,13 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			width: 30,
 			depth: 20,
 			colors: { surface: { color: "#a0b0c0", transparency: null, data: {} } },
+			surface: { kind: "plain" },
 		});
 		expect(scene.traffic).toEqual({
 			drivingSide: "left",
 			turnStyle: "sharp",
 			leansInTurns: false,
+			drivesThroughJunctions: true,
 			keepsDistance: false,
 			overtakes: false,
 		});
@@ -167,6 +169,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			drivesTheOtherWay: true,
 			turnStyle: "smooth",
 			leansInTurns: true,
+			drivesThroughJunctions: null,
 		});
 		expect(car.colors.body.color).toBe("#00ff00");
 		expect(car.lights.headlights.whenOn).toBe("on");

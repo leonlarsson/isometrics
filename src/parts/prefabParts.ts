@@ -2,7 +2,7 @@ import { createElement, type FC } from "react";
 import { z } from "zod";
 
 import { keepOnHotReload } from "#/lib/hot";
-import { turnedHalfSize } from "#/lib/math";
+import { toRadians, turnedHalfSize } from "#/lib/math";
 import { prefabUsesData } from "#/scene/dataBindings";
 import type { TDataValue, TFence, TPrefab } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
@@ -152,6 +152,39 @@ const makePrefabPart = (prefab: TPrefab): TAnyPart => {
 		return measured.size;
 	};
 	const followsTheSun = pieces.some(({ part, props }) => part.followsTheSun?.(props) ?? false);
+	// Pieces things can stand on (ADR-0138: shapes, containers), standing upright: a copy can be
+	// stood on where they are, at the highest of their tops there.
+	const standable = pieces.filter(
+		({ piece, part }) =>
+			part.topHeightAt &&
+			!part.flat &&
+			!piece.isHidden &&
+			piece.rotation[0] === 0 &&
+			piece.rotation[2] === 0,
+	);
+	const topHeightAt =
+		standable.length === 0
+			? undefined
+			: (_props: object, x: number, z: number) => {
+					let best: number | null = null;
+					for (const { piece, part, props } of standable) {
+						const dx = x - piece.position[0];
+						const dz = z - piece.position[1];
+						// Counter-clockwise seen from above, as the piece is turned: undone, as for objects.
+						const cos = Math.cos(toRadians(piece.rotation[1]));
+						const sin = Math.sin(toRadians(piece.rotation[1]));
+						const local = part.topHeightAt?.(
+							props,
+							(cos * dx - sin * dz) / piece.scale,
+							(sin * dx + cos * dz) / piece.scale,
+						);
+						if (local !== null && local !== undefined) {
+							const top = piece.altitude + local * piece.scale;
+							best = best === null ? top : Math.max(best, top);
+						}
+					}
+					return best;
+				};
 	return definePart({
 		kind: prefab.id,
 		name: prefabName(prefab),
@@ -166,6 +199,7 @@ const makePrefabPart = (prefab: TPrefab): TAnyPart => {
 		movesOnItsOwn: pieces.some(({ part }) => part.movesOnItsOwn),
 		rendersAsync: pieces.some(({ part }) => part.rendersAsync),
 		followsTheSun: () => followsTheSun,
+		topHeightAt,
 		followsTheHour: prefab.entities.some((piece) =>
 			Object.values(piece.lights).some((light) => light.whenOn === "schedule"),
 		),

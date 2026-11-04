@@ -13,23 +13,26 @@ import { pixelsPerUnitAt } from "./cameraMath";
 import { GizmoMaterial, Handle, HitMaterial, RENDER_ORDER, UNIT_PX } from "./TransformGizmo";
 
 /**
- * Handles on the sides and the top of the selected object, for parts that
- * say which of their props size them along each axis (`sizeAlong`, ADR-0124):
- * dragging one moves that side out or in, the opposite side staying where it
- * is, like pulling a face in a 3D tool. Sizes snap to their field's step
- * (Alt, or snapping off, sizes freely). Drawn inside the object's own turned
- * and scaled group, so they sit on its sides however it's turned or tipped.
+ * Handles on the sides, the top and the bottom of the selected object, for
+ * parts that say which of their props size them along each axis (`sizeAlong`,
+ * ADR-0124): dragging one moves that side out or in, the opposite side
+ * staying where it is, like pulling a face in a 3D tool; the bottom's lifts or
+ * lowers the base under a top that stays (ADR-0138). Sizes snap to their
+ * field's step (Alt, or snapping off, sizes freely). Drawn inside the
+ * object's own turned and scaled group, so they sit on its sides however it's
+ * turned or tipped.
  */
 
 type TAxis = "x" | "y" | "z";
 
-/** The sides that have handles: each way along X and Z, and the top (the bottom stays on its base). */
+/** The sides that have handles: each way along X and Z, the top and the bottom. */
 const SIDES: readonly { axis: TAxis; sign: 1 | -1 }[] = [
 	{ axis: "x", sign: 1 },
 	{ axis: "x", sign: -1 },
 	{ axis: "z", sign: 1 },
 	{ axis: "z", sign: -1 },
 	{ axis: "y", sign: 1 },
+	{ axis: "y", sign: -1 },
 ];
 
 /**
@@ -38,6 +41,11 @@ const SIDES: readonly { axis: TAxis; sign: 1 | -1 }[] = [
  * whole object by its shape as well as its colour (ADR-0089).
  */
 const STAND_OFF = 0.3;
+/**
+ * The bottom's handle stands further off: the transform gizmo stands on the
+ * object's base too, its square just in front of it (ADR-0138).
+ */
+const STAND_OFF_BELOW = 0.6;
 const BALL_RADIUS = 0.1;
 const HIT = 0.34;
 
@@ -111,7 +119,8 @@ const SideHandle = ({
 		root.current.getWorldScale(worldScale);
 		const unit = UNIT_PX / pixelsPerUnitAt(camera, worldPosition, size.height) / worldScale.x;
 		knob.current.scale.setScalar(unit);
-		knob.current.position.copy(outward).multiplyScalar(STAND_OFF * unit);
+		const standOff = axis === "y" && sign < 0 ? STAND_OFF_BELOW : STAND_OFF;
+		knob.current.position.copy(outward).multiplyScalar(standOff * unit);
 	});
 
 	const finish = (target: EventTarget | null, pointerId?: number) => {
@@ -196,11 +205,12 @@ const SideHandle = ({
 		const wanted = current.start.size + (along - current.anchor) / scale;
 		const size = clamp(free ? wanted : snap(wanted, range.step), range.min, range.max);
 		// The opposite side stays: the middle moves half the change, out along this side. The top
-		// grows from the base, which is where the object stands, so nothing moves.
-		const shift =
-			axis === "y"
-				? new THREE.Vector3()
-				: current.direction.clone().multiplyScalar(((size - current.start.size) * scale) / 2);
+		// grows from the base, which is where the object stands, so nothing moves; the bottom moves
+		// the base the whole change, under the top (ADR-0138).
+		const moves = axis !== "y" ? 0.5 : sign < 0 ? 1 : 0;
+		const shift = current.direction
+			.clone()
+			.multiplyScalar((size - current.start.size) * scale * moves);
 		store.updateEntity(
 			entity.id,
 			(draft) => {
@@ -290,7 +300,7 @@ export const SizeHandles = ({
 						? [(sign * width) / 2, height / 2, 0]
 						: axis === "z"
 							? [0, height / 2, (sign * depth) / 2]
-							: [0, height, 0];
+							: [0, sign > 0 ? height : 0, 0];
 				return (
 					<SideHandle
 						key={`${axis}${sign}`}

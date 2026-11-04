@@ -19,13 +19,17 @@ import {
 	triangulateOutline,
 	waterSeams,
 } from "#/scene/areas";
-import type { TArea, TDataValue, TWater } from "#/scene/schema";
+import type { TArea, TDataValue, TSurface, TWater } from "#/scene/schema";
+import { areaSurfaceOf } from "#/scene/surfaces";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openAreaMenuOnClick } from "./contextMenu";
+import { useSurfaceShading } from "./useSurfaceShading";
 import { ReflectiveWaterMaterial } from "./Water";
 
 const NO_SEAMS: [number, number, number, number][] = [];
+/** Surfaces drawn plain, as worlds always were (ADR-0137). */
+const PLAIN_SURFACES: TSurface = { enabled: false, patternStrength: 0.5, patternScale: 1 };
 /** Materials that the weather's snow and wetness leave alone (render/Weather). */
 const NO_WEATHER = { noWeather: true };
 
@@ -124,6 +128,8 @@ interface IAreaBodyProps {
 	worldWater?: TWater;
 	/** Where a water area meets other water (scene/areas: waterSeams). */
 	waterSeams?: [number, number, number, number][];
+	/** The world's surfaces (ADR-0137): whether they're textured, and how strong and big. */
+	worldSurface?: TSurface;
 }
 
 /**
@@ -141,6 +147,7 @@ export const AreaBody = ({
 	reflective = false,
 	worldWater = { rippleStrength: 0.5, reflectionStrength: 0.5 },
 	waterSeams = NO_SEAMS,
+	worldSurface = PLAIN_SURFACES,
 }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = isRaised(area);
@@ -174,6 +181,8 @@ export const AreaBody = ({
 	);
 
 	const color = colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
+	// Its texture on its top (ADR-0137); water and plain surfaces draw as they always did.
+	const surface = useSurfaceShading(areaSurfaceOf(area, worldSurface), true);
 
 	return (
 		<group>
@@ -192,7 +201,14 @@ export const AreaBody = ({
 				{raised && !mirrors ? (
 					// Two material groups: the top, then the sides and bottom (solidGeometry).
 					<>
-						<meshStandardMaterial attach="material-0" color={color} roughness={0.95} flatShading />
+						<meshStandardMaterial
+							key={surface.key}
+							userData={surface.userData}
+							attach="material-0"
+							color={color}
+							roughness={0.95}
+							flatShading
+						/>
 
 						<meshStandardMaterial
 							attach="material-1"
@@ -212,12 +228,13 @@ export const AreaBody = ({
 					/>
 				) : (
 					<meshStandardMaterial
+						key={surface.key}
 						color={color}
 						roughness={AREA_KINDS[area.kind].roughness}
 						polygonOffset
 						polygonOffsetFactor={-1}
 						// Water takes no snow or wetness (ADR-0102).
-						userData={isWaterArea(area) ? NO_WEATHER : undefined}
+						userData={isWaterArea(area) ? NO_WEATHER : surface.userData}
 					/>
 				)}
 			</mesh>
@@ -251,6 +268,7 @@ interface IAreaMeshProps {
 export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	const reflective = useGraphics().showWaterReflections;
 	const worldWater = useEditor((s) => s.scene.water);
+	const worldSurface = useEditor((s) => s.scene.surface);
 	const areas = useEditor((s) => s.scene.areas);
 	const seams = useMemo(
 		() => (reflective && isWaterArea(area) ? waterSeams(area, areas) : NO_SEAMS),
@@ -313,6 +331,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			reflective={reflective}
 			worldWater={worldWater}
 			waterSeams={seams}
+			worldSurface={worldSurface}
 		/>
 	);
 });

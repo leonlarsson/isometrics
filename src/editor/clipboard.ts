@@ -5,7 +5,8 @@ import { clamp, round } from "#/lib/math";
 import { colorSettingOf } from "#/parts/colorModel";
 import { getPart, partNameOf, type TAnyPart } from "#/parts/registry";
 import { repairWorld } from "#/parts/repairWorld";
-import { altitudeMovedTo, cornerLift, cornerWithLift } from "#/scene/areas";
+import { topsToStandOn } from "#/parts/standing";
+import { cornerLift, cornerWithLift } from "#/scene/areas";
 import {
 	areaBindingMapsOf,
 	bindingMapsOf,
@@ -31,6 +32,7 @@ import {
 	type TRoad,
 	type TVec2,
 } from "#/scene/schema";
+import { altitudeMovedOn } from "#/scene/standing";
 
 import type { ISceneItem } from "./framing";
 import { readPreferences } from "./preferences";
@@ -637,6 +639,17 @@ const pasteThings = (
 			points: fence.points.map((point) => [...place(point[0], point[1]), point[2]]),
 		}),
 	);
+	// What they stood on where they were copied, but each other (a stack keeps its order), and what
+	// they land on here: the ground, pasted areas included, and the shapes here (ADR-0098, ADR-0138).
+	const copied = new Set(entities.map((entity) => entity.id));
+	const topsThen = topsToStandOn(
+		{ areas: [...current.areas, ...areas], entities: current.entities },
+		copied,
+	);
+	const topsHere = topsToStandOn({
+		areas: [...current.areas, ...newAreas],
+		entities: current.entities,
+	});
 	const newEntities = entities.map((entity): TEntity => {
 		const roadId = entity.follow && (roadIds.get(entity.follow.roadId) ?? entity.follow.roadId);
 		const roadExists =
@@ -650,12 +663,10 @@ const pasteThings = (
 			// Pasted at a spot, placed there: as high above the ground as where it was copied, pasted
 			// areas included; a step over, at its height, like a copy (ADR-0098).
 			altitude: at
-				? altitudeMovedTo(
-						[...current.areas, ...areas],
+				? altitudeMovedOn(
 						entity.altitude,
-						entity.position,
-						position,
-						[...current.areas, ...newAreas],
+						{ tops: topsThen, point: entity.position },
+						{ tops: topsHere, point: position },
 					)
 				: entity.altitude,
 			// Driving a road that isn't here (from another world): parked where it was instead.

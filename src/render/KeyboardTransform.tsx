@@ -11,7 +11,7 @@ import {
 import { type ITransformSession, selectMovesAsGroup, useEditor } from "#/editor/store";
 import { wrapDegrees } from "#/lib/math";
 import { isOverWorld } from "#/lib/pointer";
-import { groundHeightAt } from "#/scene/areas";
+import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -96,10 +96,13 @@ export const KeyboardTransform = () => {
 	const toPx = (ndc: THREE.Vector2) =>
 		new THREE.Vector2((ndc.x * size.width) / 2, (ndc.y * size.height) / 2);
 
-	/** Where the pointer meets the ground as it stands, lifted by `above` (ADR-0098). */
-	const surfaceHit = (ndc: THREE.Vector2, above: number) => {
+	/**
+	 * Where the pointer meets what things stand on, the ground as it stands or the top of a shape
+	 * but the one moving (`id`), lifted by `above` (ADR-0098, ADR-0138).
+	 */
+	const surfaceHit = (ndc: THREE.Vector2, above: number, id: string) => {
 		raycaster.setFromCamera(ndc, camera);
-		return surfaceHitOnRay(raycaster.ray, useEditor.getState().scene.areas, above);
+		return surfaceHitOnRay(raycaster.ray, topsToStandOn(useEditor.getState().scene, id), above);
 	};
 
 	/**
@@ -110,8 +113,8 @@ export const KeyboardTransform = () => {
 	const moved = (ctx: IContext, free: boolean): TVec2 => {
 		const onGround = free && ctx.above !== null && ctx.fromGroundHit;
 		const now =
-			onGround && ctx.above !== null
-				? surfaceHit(ctx.now, ctx.above)
+			onGround && ctx.above !== null && ctx.target.kind === "entity"
+				? surfaceHit(ctx.now, ctx.above, ctx.target.id)
 				: groundHit(ctx.now, ctx.center.y);
 		const from = onGround ? ctx.fromGroundHit : ctx.fromHit;
 		return now && from ? [now.x - from.x, now.z - from.z] : [0, 0];
@@ -345,7 +348,10 @@ export const KeyboardTransform = () => {
 		const above =
 			target.kind === "entity"
 				? target.from.altitude -
-					groundHeightAt(useEditor.getState().scene.areas, target.from.position)
+					standingAltitudeAt(useEditor.getState().scene, target.from.position, {
+						except: target.id,
+						base: target.from.altitude,
+					})
 				: null;
 		context.current = {
 			target,
@@ -358,7 +364,8 @@ export const KeyboardTransform = () => {
 			now: from.clone(),
 			fromHit: groundHit(from, center.y),
 			above,
-			fromGroundHit: above === null ? null : surfaceHit(from, above),
+			fromGroundHit:
+				above === null || target.kind !== "entity" ? null : surfaceHit(from, above, target.id),
 			pixelsPerUnit: Math.max(1, up.y * pixelsPerUnitAt(camera, center, size.height)),
 			angle: (Math.atan2(fromPx.y - centerPx.y, fromPx.x - centerPx.x) * 180) / Math.PI,
 			turn: 0,

@@ -33,6 +33,11 @@ export interface IPathSamplerOptions {
 	 * length. 0 = the exact heading of the current segment.
 	 */
 	smoothing?: number;
+	/**
+	 * The lane at each distance along the path, instead of `lane` (which still sets the U-turn at
+	 * an open path's end): a road network's trip eases from one road's lane to the next's.
+	 */
+	laneAt?: (distance: number) => number;
 }
 
 interface ISegment {
@@ -52,6 +57,10 @@ type TPathPoint =
 
 /** A vehicle with no lane turns on the spot over this distance at the end of an open path. */
 const PIVOT_DISTANCE = 1.2;
+
+/** How long a U-turn at an open path's end is: a half circle into the other lane, or a pivot. */
+export const uTurnLength = (lane: number, smoothing: number) =>
+	lane !== 0 ? Math.PI * Math.abs(lane) : smoothing > 0 ? PIVOT_DISTANCE : 0;
 
 const headingOf = (from: TVec2, to: TVec2) => Math.atan2(-(to[1] - from[1]), to[0] - from[0]);
 
@@ -73,7 +82,7 @@ const offset = (position: TVec2, direction: TVec2, by: number): TVec2 => [
 export const createPathSampler = (
 	points: readonly TPathPoint[],
 	closed: boolean,
-	{ lane = 0, smoothing = 0 }: IPathSamplerOptions = {},
+	{ lane = 0, smoothing = 0, laneAt }: IPathSamplerOptions = {},
 ): IPathSampler => {
 	const looped = closed && points.length > 2;
 	const pts = looped ? [...points, points[0]] : points;
@@ -168,8 +177,9 @@ export const createPathSampler = (
 		const { position, height } = centre(d);
 		const forward = direction(d);
 		const heading = forward.heading + (reversed ? Math.PI : 0);
+		const side = laneAt ? laneAt(d) : lane;
 		return {
-			position: lane === 0 ? position : offset(position, rightOf(heading), lane),
+			position: side === 0 ? position : offset(position, rightOf(heading), side),
 			height,
 			heading,
 			pitch: reversed ? -forward.pitch : forward.pitch,
@@ -182,7 +192,7 @@ export const createPathSampler = (
 
 	// Open path: forward, U-turn at the end, back, U-turn at the start.
 	const radius = Math.abs(lane);
-	const turn = radius > 0 ? Math.PI * radius : smoothing > 0 ? PIVOT_DISTANCE : 0;
+	const turn = uTurnLength(lane, smoothing);
 	const period = 2 * total + 2 * turn;
 
 	/** Turning around at `d` (an end) after arriving with `arrival` heading; progress 0…1. */

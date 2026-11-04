@@ -250,6 +250,14 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	/** Height at scale 1, used to anchor labels. */
 	height: (props: P) => number;
 	/**
+	 * Things can stand on it (ADR-0138): how high its top is above its base at
+	 * a point of its own space (x, z at scale 1, before it's turned), or null
+	 * where nothing stands on it (outside it, an opening). An object dropped or
+	 * dragged onto it lands there, as on raised land (ADR-0098). The shapes
+	 * have one; leave it out for parts nothing should stand on (a tree, a house's roof).
+	 */
+	topHeightAt?: (props: P, x: number, z: number) => number | null;
+	/**
 	 * Wider overhead than at its foot (a parasol over a table): what stands on the
 	 * ground (width, depth at scale 1), and from what height the rest of its
 	 * footprint begins, so things can stand under it.

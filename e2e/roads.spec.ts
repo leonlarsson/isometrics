@@ -371,3 +371,268 @@ test.describe("an area's corners (ADR-0021, ADR-0065)", () => {
 		await act(page, (s) => s.clearSelection());
 	});
 });
+
+test.describe("junctions (ADR-0136)", () => {
+	/** A road along x, one coming down towards it from the north, and one further south. */
+	const junctionWorld = (page: Page) =>
+		loadWorld(page, {
+			roads: [
+				{
+					id: "main",
+					name: "Main",
+					points: [
+						[-8, 0, 0],
+						[8, 0, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+				{
+					id: "side",
+					name: "Side",
+					points: [
+						[2, -16, 0],
+						[2, -4, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+				{
+					id: "south",
+					name: "South",
+					points: [
+						[-6, 8, 0],
+						[6, 8, 0],
+					],
+					cornerRadius: 0,
+					width: 2.4,
+				},
+			],
+		});
+
+	test("a road's end dragged onto another road connects there, cutting it", async ({ page }) => {
+		await junctionWorld(page);
+		await showView(page, [1, -4], 30);
+		// Its whole-road gizmo is at its middle, away from the end dragged.
+		await act(page, (s) => s.selectRoad("side"));
+		const from = await groundSpot(page, [2, -4]);
+		const to = await groundSpot(page, [2.4, 0.3]);
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(to.x, to.y, { steps: 12 });
+		await page.mouse.up();
+		await expect(page.getByText("Connect to “Main” here?")).toBeVisible();
+		await page.getByRole("button", { name: "Connect", exact: true }).click();
+
+		const junctions = await read(page, (s) => s.scene.junctions);
+		expect(junctions).toHaveLength(1);
+		expect(junctions[0].ends).toHaveLength(3);
+		expect(await read(page, (s) => s.scene.roads.map((r) => r.name))).toEqual([
+			"Main",
+			"Main (2)",
+			"Side",
+			"South",
+		]);
+		// The side road's end is where the main road was cut.
+		const [main, , side] = await read(page, (s) => s.scene.roads);
+		expect(side.points.at(-1)).toEqual(main.points.at(-1));
+		// Its point says it's at a junction, and can leave it.
+		await act(page, (s) => s.selectRoadPoint("side", 1));
+		await expect(page.getByText("At a junction")).toBeVisible();
+		await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+		expect(await read(page, (s) => s.scene.junctions[0]?.ends.length)).toBe(2);
+	});
+
+	test("a new road drawn from a road's end onto another road connects at both", async ({
+		page,
+	}) => {
+		await junctionWorld(page);
+		await showView(page, [0, 2], 30);
+		await (await drawTile(page, "Road")).click();
+		for (const point of [
+			[-8, 0],
+			[-8, 5],
+			[0, 5],
+			[0.2, 8.3],
+		] as const) {
+			const spot = await groundSpot(page, point);
+			await page.mouse.move(spot.x, spot.y, { steps: 4 });
+			await page.mouse.click(spot.x, spot.y);
+		}
+		// Clicking on the south road finished the new one there.
+		expect(await read(page, (s) => s.drawing)).toBeNull();
+		await expect(page.getByText("Connected to “Main” and “South”")).toBeVisible();
+		const junctions = await read(page, (s) => s.scene.junctions);
+		expect(junctions.map((j) => j.ends.length).sort()).toEqual([2, 3]);
+		expect(await read(page, (s) => s.scene.roads.length)).toBe(5);
+		// Deleting the new road takes it out of both junctions.
+		await keys(page, "Delete");
+		expect(await read(page, (s) => s.scene.junctions.map((j) => j.ends.length))).toEqual([2]);
+	});
+
+	test("a vehicle that crossed a junction, once selected, marks the road it's on now and the way ahead", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 0],
+						[0, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "north",
+					name: "North",
+					points: [
+						[0, 0, 0],
+						[0, -20, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "north", end: "start" },
+					],
+				},
+			],
+			entities: [
+				{ id: "bus", kind: "bus_01", position: [-10, 6] },
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "west",
+						startDistance: 15,
+						speed: 4,
+						drivesTheOtherWay: false,
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
+				},
+			],
+		});
+		await showView(page, [-4, -4], 30);
+		// Dropped on a road with a junction, the preview shows the way it will go: on through the
+		// junction, not back and forth along the one road.
+		await act(page, (s) =>
+			s.setFollowOffer({
+				entityId: "bus",
+				roadId: "west",
+				startDistance: 5,
+				drivesTheOtherWay: false,
+				position: [-10, 6],
+			}),
+		);
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.routesShown().bus?.slice(0, 2)))
+			.toEqual(["west", "north"]);
+		await act(page, (s) => s.setFollowOffer(null));
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		// It drives across the junction onto the north road; pause it there.
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.roadOfVehicle("car")?.roadId), {
+				timeout: 60_000,
+			})
+			.toBe("north");
+		await act(page, (s) => s.togglePlaying());
+		await act(page, (s) => s.select("car"));
+		// Selected and paused, it still marks the road it stopped on, not the one it started on.
+		expect(await page.evaluate(() => globalThis.__editorView.roadOfVehicle("car"))).toEqual({
+			roadId: "north",
+			drivesTheOtherWay: false,
+		});
+		expect(await read(page, (s) => s.scene.entities[1].follow?.roadId)).toBe("west");
+		// Its way ahead starts on the road it's on now.
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.routesShown().car?.[0]))
+			.toBe("north");
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await expect(page.locator("output", { hasText: "North" })).toBeVisible();
+	});
+
+	test("a vehicle told not to drive through junctions keeps to its road", async ({ page }) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 0],
+						[0, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "north",
+					name: "North",
+					points: [
+						[0, 0, 0],
+						[0, -20, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "north", end: "start" },
+					],
+				},
+			],
+			entities: [
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "west",
+						startDistance: 15,
+						speed: 4,
+						drivesTheOtherWay: false,
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
+				},
+			],
+		});
+		await showView(page, [-8, -4], 30);
+		await act(page, (s) => s.select("car"));
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await page.getByRole("switch", { name: "Drive through junctions onto other roads" }).click();
+		expect(await read(page, (s) => s.scene.entities[0].follow?.drivesThroughJunctions)).toBe(false);
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		// It reaches the junction within a couple of seconds, turns round there, and drives back west.
+		let furthestWest = 0;
+		for (let i = 0; i < 16; i++) {
+			await page.waitForTimeout(500);
+			const pose = await page.evaluate(() => globalThis.__editorView.poseOf("car"));
+			expect(pose).not.toBeNull();
+			const [x, z] = pose?.position ?? [0, 0];
+			expect(Math.abs(z)).toBeLessThan(1.6);
+			expect(x).toBeLessThan(1.6);
+			furthestWest = Math.min(furthestWest, x);
+		}
+		expect(furthestWest).toBeLessThan(-6);
+		// Its highlight is its own road's, there and back, not a way ahead across the junction.
+		expect(await page.evaluate(() => globalThis.__editorView.routesShown().car)).toBeUndefined();
+	});
+});

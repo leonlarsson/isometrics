@@ -9,6 +9,7 @@ import { usePalette } from "#/editor/useTheme";
 import { isOverWorld } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
+import { areaTopsOf } from "#/scene/standing";
 
 import { surfaceHitOnRay } from "./useGroundDrag";
 
@@ -67,8 +68,9 @@ export const PaintTool = () => {
 				-((event.clientY - rect.top) / rect.height) * 2 + 1,
 			);
 			raycaster.setFromCamera(pointer, camera);
-			// On the ground as it stands under the pointer: raised land and slopes (ADR-0098).
-			const found = surfaceHitOnRay(raycaster.ray, store().scene.areas);
+			// On the ground as it stands under the pointer: raised land and slopes (ADR-0098). Not on
+			// shapes: painting keeps off objects (ADR-0091).
+			const found = surfaceHitOnRay(raycaster.ray, areaTopsOf(store().scene.areas));
 			if (!found) {
 				return null;
 			}

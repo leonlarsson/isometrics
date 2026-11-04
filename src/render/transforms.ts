@@ -12,7 +12,8 @@ import {
 } from "#/editor/groupTransform";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
-import { cornerTop, groundHeightAt } from "#/scene/areas";
+import { standingAltitudeAt } from "#/parts/standing";
+import { cornerTop } from "#/scene/areas";
 import type { TRoadPoint, TVec2, TVec3 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -114,7 +115,8 @@ export const applyEntityDrag = (id: string, from: IEntityStart, drag: IGizmoDrag
 			const { scene } = store;
 			const now = scene.entities.find((entity) => entity.id === id)?.position ?? from.position;
 			const base = drag.followsGround
-				? groundHeightAt(scene.areas, now) - groundHeightAt(scene.areas, from.position)
+				? standingAltitudeAt(scene, now, { except: id }) -
+					standingAltitudeAt(scene, from.position, { except: id, base: from.altitude })
 				: 0;
 			const altitude = Math.max(LOWEST_ALTITUDE, base + step(from.altitude + drag.lift, LIFT_STEP));
 			store.updateEntity(

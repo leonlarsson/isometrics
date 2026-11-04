@@ -63,6 +63,7 @@ export interface IPatchChanges {
 export const PATCH_LISTS = [
 	{ path: ["entities"], id: "id", one: "object" },
 	{ path: ["roads"], id: "id", one: "road" },
+	{ path: ["junctions"], id: "id", one: "junction" },
 	{ path: ["areas"], id: "id", one: "area" },
 	{ path: ["fences"], id: "id", one: "fence" },
 	{ path: ["prefabs"], id: "id", one: "prefab" },

@@ -26,6 +26,7 @@ import {
 } from "./fields";
 import { LegendSection } from "./LegendSection";
 import { ColorSettingFields } from "./PartSettings";
+import { GroundSurfaceFields } from "./SurfaceSettings";
 import { UsesDataSwitch } from "./UsesDataSwitch";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
@@ -195,7 +196,12 @@ export const WorldTab = () => {
 				<UsesDataSwitch />
 			</Section>
 
-			<Section id="world.ground" icon="layers" title="Ground" keywords="size floor base">
+			<Section
+				id="world.ground"
+				icon="layers"
+				title="Ground"
+				keywords="size floor base surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
+			>
 				<SliderField
 					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
 						commit((s) => {
@@ -252,6 +258,8 @@ export const WorldTab = () => {
 						)
 					}
 				/>
+
+				<GroundSurfaceFields />
 
 				<ButtonGroup>
 					<Button size="sm" icon="focus" onClick={resetView}>
@@ -338,6 +346,22 @@ export const TrafficTab = () => {
 					value: "on",
 				}}
 				hint="Boats lean into turns, more the faster and tighter they turn. Roads and vehicles can override this."
+			/>
+
+			<SwitchField
+				label="Drive through junctions onto other roads"
+				checked={scene.traffic.drivesThroughJunctions}
+				onChange={(v) =>
+					commit((s) => {
+						s.traffic.drivesThroughJunctions = v;
+					})
+				}
+				inherit={resetToDefault(scene.traffic.drivesThroughJunctions, true, () =>
+					commit((s) => {
+						s.traffic.drivesThroughJunctions = true;
+					}),
+				)}
+				hint="At each junction, vehicles pick a way on at random. Off, each keeps to the road it starts on and turns round at its junctions. Roads and vehicles can override this."
 			/>
 
 			<SwitchField

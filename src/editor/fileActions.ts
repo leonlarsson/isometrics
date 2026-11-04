@@ -1,12 +1,29 @@
 import { repairWorld } from "#/parts/repairWorld";
+import { plural } from "#/scene/format";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
 
+import {
+	addToBrowser,
+	BrowserExportError,
+	browserExportFileName,
+	checkExportSize,
+	collectBrowserItems,
+	contentsOf,
+	type IBrowserBackup,
+	type IBrowserContents,
+	type IImportCounts,
+	makeBrowserExport,
+	readBrowserExport,
+	replaceBrowser,
+} from "./browserExport";
 import { rememberedView, rememberView, saveCameraNow } from "./cameraMemory";
 import {
 	createWorld,
 	deleteWorld,
 	downloadScene,
+	downloadText,
+	formatStorageSize,
 	type ISceneBackup,
 	listWorlds,
 	openStoredWorld,
@@ -15,9 +32,11 @@ import {
 	readStoredWorld,
 	resetBrowserSettings,
 	saveScene,
+	stopSavingUntilReload,
+	worldListChanged,
 } from "./persistence";
 import { useEditor } from "./store";
-import { notify } from "./toasts";
+import { notify, notifyAfterReload } from "./toasts";
 import { keepsOpenWorld, OWN_WORLD, whyNoWorldAction, workshopOf } from "./whatIsOpen";
 import { leaveWorkshopFirst } from "./workshop";
 
@@ -288,5 +307,191 @@ export const saveWorldFile = () => {
 		downloadScene(useEditor.getState().scene);
 	} else if (workshopOf(useEditor.getState().whatIsOpen)) {
 		notify("Nothing to save to a file here", "Save the prefab, or leave the Workshop first.");
+	}
+};
+
+/**
+ * Download everything this app keeps in this browser as one file (ADR-0140),
+ * after saving the open world, so its last edits are in it.
+ */
+export const exportThisBrowser = () => {
+	saveBeforeSwitching();
+	const items = collectBrowserItems();
+	if (items.size === 0) {
+		notify(
+			"Nothing to export yet",
+			"This browser keeps nothing for this site yet: a world is kept once it’s changed.",
+		);
+		return;
+	}
+	const now = Date.now();
+	const text = makeBrowserExport(items, now);
+	downloadText(browserExportFileName(now), text);
+	const { worlds, backups, settings } = contentsOf(items);
+	notify(
+		"This browser is exported",
+		`${plural(worlds.length, "world")}, ${plural(backups, "backup")} and ${plural(settings, "setting")}, ${formatStorageSize(text.length)} in all. Import a browser’s export… brings them back, here or in another browser.`,
+		"success",
+	);
+};
+
+/** Let the user pick a browser's export and read it; null (after saying why) if it isn't one. */
+export const pickBrowserExport = async (): Promise<IBrowserContents | null> => {
+	const file = await pickFile("application/json,.json");
+	if (!file) {
+		return null;
+	}
+	try {
+		checkExportSize(file.size);
+		return readBrowserExport(await file.text());
+	} catch (error) {
+		notify(
+			"That file can’t be imported",
+			error instanceof BrowserExportError ? error.message : "It couldn’t be read.",
+			"error",
+		);
+		return null;
+	}
+};
+
+/** What adding an export did, in words: a title, a line, and whether something was left out. */
+export const describeAdded = (counts: IImportCounts, withSettings = false) => {
+	const leftOut = counts.worldsLeftOut + counts.backupsLeftOut + counts.settingsLeftOut;
+	const added = counts.worldsAdded + counts.backupsAdded;
+	const lines: string[] = [];
+	if (added > 0) {
+		lines.push(
+			`Added ${plural(counts.worldsAdded, "world")} and ${plural(counts.backupsAdded, "backup")}.`,
+		);
+	}
+	if (counts.worldsCopied > 0) {
+		lines.push(
+			`${plural(counts.worldsCopied, "world")} went in as a copy, beside a different world here with the same id.`,
+		);
+	}
+	if (counts.worldsAlreadyHere + counts.backupsAlreadyHere > 0) {
+		lines.push(
+			`${plural(counts.worldsAlreadyHere, "world")} and ${plural(counts.backupsAlreadyHere, "backup")} were here already.`,
+		);
+	}
+	if (leftOut > 0) {
+		lines.push(
+			`${plural(counts.worldsLeftOut, "world")}, ${plural(counts.backupsLeftOut, "backup")} and ${plural(counts.settingsLeftOut, "setting")} weren’t added: ${counts.ranOutOfRoom ? "the browser’s storage for this site is full" : "the browser refused to store them"}. Delete worlds or backups you don’t need and import again: what’s here won’t be added twice.`,
+		);
+	}
+	lines.push(
+		withSettings
+			? `${plural(counts.settingsTaken, "setting")} from it took the place of this browser’s; allowed external sources stay as they were.`
+			: "Your settings are as they were.",
+	);
+	return {
+		title:
+			leftOut > 0
+				? "Not everything was added"
+				: added + counts.settingsTaken > 0
+					? "Added to this browser"
+					: "Nothing new to add",
+		text: lines.join(" "),
+		isProblem: leftOut > 0,
+	};
+};
+
+/**
+ * Add an export's worlds and backups beside this browser's (ADR-0140),
+ * after saving the open world; the open world stays as it is. Settings stay
+ * too, unless `withSettings`: then the file's take the place of this
+ * browser's, and the page reloads so everything reads them.
+ */
+export const addBrowserExport = (contents: IBrowserContents, withSettings = false) => {
+	// Settings from it reload the page: out of the Workshop first, asked if something was built.
+	if (withSettings && workshopOf(useEditor.getState().whatIsOpen)) {
+		leaveWorkshopFirst(() => addBrowserExport(contents, withSettings));
+		return;
+	}
+	saveBeforeSwitching();
+	const counts = addToBrowser(contents, { withSettings });
+	const { title, text, isProblem } = describeAdded(counts, withSettings);
+	const tone = isProblem ? "error" : "success";
+	if (counts.settingsTaken > 0) {
+		notifyAfterReload(title, text, tone);
+		window.location.reload();
+		return;
+	}
+	worldListChanged();
+	notify(title, text, tone);
+};
+
+/**
+ * Replace this browser's worlds and settings with an export's (ADR-0140),
+ * after saving the open world and keeping a copy of this browser under
+ * File → Backups; then start again from the plain address, as the export left it.
+ */
+export const replaceWithBrowserExport = (contents: IBrowserContents) => {
+	// Out of the Workshop first, asked if something was built there (ADR-0134): the page starts over.
+	if (workshopOf(useEditor.getState().whatIsOpen)) {
+		leaveWorkshopFirst(() => replaceWithBrowserExport(contents));
+		return;
+	}
+	saveBeforeSwitching();
+	const result = replaceBrowser(contents);
+	switch (result.status) {
+		case "replaced":
+			stopSavingUntilReload();
+			notifyAfterReload(
+				"This browser’s worlds and settings are replaced",
+				[
+					`${plural(result.counts.worldsAdded, "world")} came in, and ${plural(result.counts.backupsAdded, "backup")} joined yours.`,
+					result.backupKey ? "This browser as it was is kept under File → Backups." : "",
+					"Allowed external sources stay as they were.",
+				]
+					.filter(Boolean)
+					.join(" "),
+				"success",
+			);
+			window.location.assign("/");
+			return;
+		case "noRoomForCopy":
+			notify(
+				"Nothing was replaced",
+				"There isn’t room to keep a copy of this browser first. To make room: Export this browser to keep it as a file, Wipe everything, then import again.",
+				"error",
+			);
+			return;
+		case "unavailable":
+			notify("Nothing was replaced", "The browser refused to change this site’s storage.", "error");
+			return;
+		case "didNotFit":
+			if (result.restored) {
+				notify(
+					"Nothing was replaced",
+					`${result.ranOutOfRoom ? "The export didn’t fit in the browser’s storage for this site beside a copy of what’s here" : "The browser refused partway"}, so this browser is as it was. To make room: Export this browser to keep it as a file, Wipe everything, then import again.`,
+					"error",
+				);
+				return;
+			}
+			// Mixed now: nothing may save over it until the person has looked.
+			stopSavingUntilReload();
+			notify(
+				"This browser couldn’t be put back as it was",
+				"The export didn’t fit, and not everything could be put back. A copy of this browser as it was is kept under File → Backups: download it before anything else.",
+				"error",
+			);
+	}
+};
+
+/** Download a copy of this browser kept before an import replaced it, as an export file. */
+export const downloadBrowserBackup = (backup: IBrowserBackup) =>
+	downloadText(browserExportFileName(backup.savedAt || Date.now()), backup.raw);
+
+/** Add the worlds and backups of a copy of this browser (kept before an import replaced it) back. */
+export const addBrowserBackup = (backup: IBrowserBackup) => {
+	try {
+		addBrowserExport(readBrowserExport(backup.raw));
+	} catch (error) {
+		notify(
+			"That copy can’t be read",
+			`${error instanceof BrowserExportError ? error.message : "It’s damaged."} Download it to keep it as a file.`,
+			"error",
+		);
 	}
 };

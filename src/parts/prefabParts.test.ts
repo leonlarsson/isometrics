@@ -97,6 +97,29 @@ describe("a prefab as a part (ADR-0134)", () => {
 		expect(describePrefab(bare)).toBe("A prefab of 2 pieces");
 	});
 
+	it("can be stood on where its pieces can (ADR-0138), and nowhere else", () => {
+		const plinth = PrefabSchema.parse({
+			id: "prefab_plinth",
+			entities: [
+				{
+					id: "top",
+					kind: "box_01",
+					altitude: 1,
+					props: { width: 2, depth: 2, height: 1 },
+				},
+			],
+		});
+		const part = prefabPartOf(plinth);
+		expect(part.topHeightAt?.({}, 0.5, 0.5)).toBe(2);
+		expect(part.topHeightAt?.({}, 5, 5)).toBeNull();
+		// Trees and the like can't be stood on, so neither can a prefab of them.
+		const grove = PrefabSchema.parse({
+			id: "prefab_grove",
+			entities: [{ id: "t", kind: "round_tree_01" }],
+		});
+		expect(prefabPartOf(grove).topHeightAt).toBeUndefined();
+	});
+
 	it("follows data when a piece does", () => {
 		const following = PrefabSchema.parse({
 			id: "prefab_following",

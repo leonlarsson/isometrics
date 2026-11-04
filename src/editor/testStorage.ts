@@ -16,6 +16,36 @@ export const memoryStorage = () => {
 	};
 };
 
+/**
+ * A `memoryStorage` that holds at most `limit` characters (keys and values),
+ * and refuses a write past it as a full browser does (QuotaExceededError).
+ */
+export const limitedStorage = (limit: number) => {
+	const storage = memoryStorage();
+	const used = () => {
+		let total = 0;
+		for (let i = 0; i < storage.length; i++) {
+			const key = storage.key(i) ?? "";
+			total += key.length + (storage.getItem(key)?.length ?? 0);
+		}
+		return total;
+	};
+	return {
+		...storage,
+		get length() {
+			return storage.length;
+		},
+		setItem: (key: string, value: string) => {
+			const before = storage.getItem(key);
+			const growth = value.length - (before === null ? -key.length : before.length);
+			if (used() + growth > limit) {
+				throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+			}
+			storage.setItem(key, value);
+		},
+	};
+};
+
 /** A storage that throws on every use, like a browser with site data blocked. */
 export const blockedStorage = () => {
 	const blocked = () => {

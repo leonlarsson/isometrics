@@ -74,6 +74,7 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 					drivesTheOtherWay: false,
 					turnStyle: null,
 					leansInTurns: null,
+					drivesThroughJunctions: null,
 				};
 			}),
 		);
@@ -99,6 +100,7 @@ test.describe("vehicles on roads (ADR-0031, ADR-0040)", () => {
 					drivesTheOtherWay: false,
 					turnStyle: null,
 					leansInTurns: null,
+					drivesThroughJunctions: null,
 				};
 			}),
 		);

@@ -6,6 +6,7 @@ import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { groundHeightAt } from "#/scene/areas";
+import { roadAnchorAt, type TRoadAnchor } from "#/scene/junctions";
 import type { TVec2 } from "#/scene/schema";
 
 import { groundPointFrom, surfacePointFrom } from "./useGroundDrag";
@@ -23,15 +24,20 @@ const toV3 = (p: readonly number[]): [number, number, number] => [
 /**
  * Active while a road is being drawn: an invisible plane over the ground
  * catches clicks (each adds a point), with a live preview to the cursor.
- * Enter/Escape/Backspace are handled by ui/DrawingBar.
+ * Enter/Escape/Backspace are handled by ui/DrawingBar. A new road's points
+ * snap onto other roads' ends and onto other roads (a ring shows where; Alt
+ * doesn't snap): its first point starts there, and a later one ends the road
+ * there, connected at a junction (ADR-0136).
  */
 export const RoadDrawTool = () => {
 	const drawing = useEditor((s) => s.drawing);
 	const ground = useEditor((s) => s.scene.ground);
 	const areas = useEditor((s) => s.scene.areas);
+	const roads = useEditor((s) => s.scene.roads);
 	const palette = usePalette();
 	const canvas = useThree((s) => s.gl.domElement);
 	const [cursor, setCursor] = useState<TVec2 | null>(null);
+	const [anchor, setAnchor] = useState<TRoadAnchor | null>(null);
 
 	const active = drawing !== null;
 	useEffect(() => {
@@ -50,8 +56,14 @@ export const RoadDrawTool = () => {
 	// New points continue at the last point's height, so the cursor works on that plane.
 	const drawHeight = points.at(-1)?.[2] ?? 0;
 	const isFence = drawing.target === "fence";
+	// A new road (not one being continued) connects where it starts and ends on another road.
+	const connects = drawing.target === "road" && !drawing.roadId;
 	const pointAt = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
 		isFence ? surfacePointFrom(e, drawHeight) : groundPointFrom(e, drawHeight);
+	const anchorAt = (e: ThreeEvent<PointerEvent | MouseEvent>, point: TVec2 | null) =>
+		connects && point && !e.nativeEvent.altKey
+			? roadAnchorAt(roads, point, { endReach: CLOSE_DISTANCE, onRoad: true })
+			: null;
 	// A fence's points stand on the ground (ADR-0103): picked and drawn on the ground under them.
 	const at = (p: readonly number[]) =>
 		isFence ? toV3([p[0], p[1], groundHeightAt(areas, [p[0], p[1]]) + (p[2] ?? 0)]) : toV3(p);
@@ -60,6 +72,7 @@ export const RoadDrawTool = () => {
 		cursor !== null &&
 		points.length > 2 &&
 		Math.hypot(cursor[0] - first[0], cursor[1] - first[1]) < CLOSE_DISTANCE;
+	const snapped = !nearFirst && anchor ? anchor.point : null;
 	const open: (readonly number[])[] =
 		cursorPoint && points.length > 0 ? [...points, nearFirst ? first : cursorPoint] : points;
 	// Areas are always closed shapes, so preview the edge back to the first point too.
@@ -71,8 +84,16 @@ export const RoadDrawTool = () => {
 			<mesh
 				rotation={[-Math.PI / 2, 0, 0]}
 				position={[0, 0.001, 0]}
-				onPointerMove={(e: ThreeEvent<PointerEvent>) => setCursor(pointAt(e))}
-				onPointerOut={() => setCursor(null)}
+				onPointerMove={(e: ThreeEvent<PointerEvent>) => {
+					const point = pointAt(e);
+					const onto = anchorAt(e, point);
+					setAnchor(onto);
+					setCursor(onto ? [onto.point[0], onto.point[1]] : point);
+				}}
+				onPointerOut={() => {
+					setCursor(null);
+					setAnchor(null);
+				}}
 				onClick={(e: ThreeEvent<MouseEvent>) => {
 					// A drag is a camera orbit, not a click.
 					if (!isClick(e)) {
@@ -84,7 +105,16 @@ export const RoadDrawTool = () => {
 						return;
 					}
 					const point = pointAt(e);
-					if (point) {
+					const onto = anchorAt(e, point);
+					if (onto) {
+						// Onto another road: start there, or end there, connected.
+						const store = useEditor.getState();
+						store.addDrawingPoint([onto.point[0], onto.point[1]]);
+						if (points.length > 0) {
+							store.finishDrawing();
+						}
+						setAnchor(null);
+					} else if (point) {
 						useEditor.getState().addDrawingPoint(point);
 					}
 				}}
@@ -122,11 +152,20 @@ export const RoadDrawTool = () => {
 				</mesh>
 			))}
 
-			{cursorPoint && !nearFirst && (
+			{cursorPoint && !nearFirst && !snapped && (
 				<mesh position={at(cursorPoint)}>
 					<cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
 
 					<meshBasicMaterial color={palette.selection} transparent opacity={0.6} />
+				</mesh>
+			)}
+
+			{/* Where it would connect to another road (ADR-0136). */}
+			{snapped && (
+				<mesh position={toV3(snapped)} rotation={[-Math.PI / 2, 0, 0]}>
+					<ringGeometry args={[0.45, 0.65, 32]} />
+
+					<meshBasicMaterial color={palette.selection} />
 				</mesh>
 			)}
 		</group>
