@@ -182,7 +182,7 @@ export const AreaBody = ({
 
 	const color = colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
 	// Its texture on its top (ADR-0137); water and plain surfaces draw as they always did.
-	const surface = useSurfaceShading(areaSurfaceOf(area, worldSurface));
+	const surface = useSurfaceShading(areaSurfaceOf(area, worldSurface), true);
 
 	return (
 		<group>

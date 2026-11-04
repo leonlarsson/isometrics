@@ -45,7 +45,7 @@ export const Ground = () => {
 	const ground = useEditor((s) => s.scene.ground);
 	const surfaces = useEditor((s) => s.scene.surface);
 	// Its texture (ADR-0137): plain, as it always was, unless the world asks for one.
-	const surface = useSurfaceShading(groundSurfaceOf(ground, surfaces));
+	const surface = useSurfaceShading(groundSurfaceOf(ground, surfaces), false);
 	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
 	const clearSelection = useEditor((s) => s.clearSelection);

@@ -12,14 +12,36 @@ import type { IDrawnSurface } from "#/scene/surfaces";
  * stones and ripples catch the sun) and says how hollow the point is (joints,
  * gaps: where the weather's thin snow and wetness gather first). Every
  * feature fades to its average as it gets smaller than a few pixels, so
- * nothing shimmers from afar. Only what faces up takes it.
+ * nothing shimmers from afar. An area's material is only ever on its top
+ * (flat, sloped by its corners and peaks, or a raised area's top group), so
+ * all of it takes the pattern; the ground's slab shares its material with its
+ * sides, so there the pattern fades out by how steeply the face leans.
  */
 
 /** A material's surface: its kind, and its strength and size as uniforms (sliding them never recompiles). */
 export interface ISurfaceShading {
 	kind: IDrawnSurface["kind"];
 	uniforms: { strength: { value: number }; scale: { value: number } };
+	/**
+	 * The material is only on tops (an area's), so every face of it is
+	 * patterned, however it slopes; false where sides share it (the ground's
+	 * slab), which fade out by how steeply they lean (`SIDES_FADE`).
+	 */
+	coversOnlyTops: boolean;
 }
+
+/**
+ * Where sides share the material: the pattern is gone on faces whose normal
+ * points up less than the first (about 75° from level) and whole from the
+ * second (about 50°), so a 45° slope keeps all of it, and there's no edge.
+ */
+export const SIDES_FADE = [0.25, 0.65] as const;
+
+/** How much of the pattern a face takes, by its normal's upward part: GLSL. */
+export const facingGlsl = (coversOnlyTops: boolean) =>
+	coversOnlyTops
+		? "float surfFacing = 1.0;"
+		: `float surfFacing = smoothstep(${SIDES_FADE[0].toFixed(2)}, ${SIDES_FADE[1].toFixed(2)}, inverseTransformDirection(normal, viewMatrix).y);`;
 
 /** The material's surface, if it has one. */
 const surfaceOfMaterial = (material: THREE.Material) =>
@@ -236,7 +258,7 @@ const PATTERNS: Record<IDrawnSurface["kind"], string> = {
 		// As white as the colour is light: on a dark theme's darker colours, a duller snow that doesn't glare.
 		float lightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
 		vec3 snowWhite = vec3(0.9, 0.925, 0.955) * clamp(lightness * 5.0, 0.4, 1.0);
-		diffuseColor.rgb = mix(diffuseColor.rgb, snowWhite, 0.78 * surfOnTop);
+		diffuseColor.rgb = mix(diffuseColor.rgb, snowWhite, 0.78 * surfFacing);
 		vec3 drift = surfNoise(p * 0.22);
 		vec3 ripple = surfNoise(p * 0.8 + 13.0);
 		float dDrift = surfDetail(4.0, px);
@@ -257,18 +279,18 @@ const vertexAdditions = (vertexShader: string) =>
 			"#include <project_vertex>\n\tvSurfaceAt = (modelMatrix * vec4(transformed, 1.0)).xyz;",
 		);
 
-const fragmentPattern = (kind: IDrawnSurface["kind"]) => /* glsl */ `
+const fragmentPattern = (surface: ISurfaceShading) => /* glsl */ `
 	#include <normal_fragment_maps>
 	{
-		float surfOnTop = smoothstep(0.7, 0.95, inverseTransformDirection(normal, viewMatrix).y);
+		${facingGlsl(surface.coversOnlyTops)}
 		vec2 p = vSurfaceAt.xz / surfaceScale;
 		float px = max(max(fwidth(p.x), fwidth(p.y)), 1e-5);
 		float shade = 1.0;
 		vec3 tint = vec3(1.0);
 		vec2 slope = vec2(0.0);
 		float hollow = 0.0;
-		${PATTERNS[kind]}
-		float surfAmount = surfaceStrength * 2.0 * surfOnTop;
+		${PATTERNS[surface.kind]}
+		float surfAmount = surfaceStrength * 2.0 * surfFacing;
 		diffuseColor.rgb *= max(mix(vec3(1.0), tint * shade, surfAmount), vec3(0.0));
 		normal = normalize(normal + (viewMatrix * vec4(-slope.x, 0.0, -slope.y, 0.0)).xyz * surfAmount);
 		surfaceHollow = clamp(hollow * min(surfAmount, 1.0), 0.0, 1.0);
@@ -293,11 +315,11 @@ export const addSurfaceShading = (
 	shader.vertexShader = vertexAdditions(shader.vertexShader);
 	shader.fragmentShader = shader.fragmentShader
 		.replace("void main() {", `${NOISE}\nvoid main() {`)
-		.replace("#include <normal_fragment_maps>", fragmentPattern(surface.kind));
+		.replace("#include <normal_fragment_maps>", fragmentPattern(surface));
 };
 
-/** What tells a material's program apart by its surface: its kind, or nothing. */
+/** What tells a material's program apart by its surface: its kind and where it lies, or nothing. */
 export const surfaceProgramKey = (material: THREE.Material) => {
 	const surface = surfaceOfMaterial(material);
-	return surface ? `surface:${surface.kind}:` : "";
+	return surface ? `surface:${surface.kind}:${surface.coversOnlyTops ? "tops" : "faces"}:` : "";
 };

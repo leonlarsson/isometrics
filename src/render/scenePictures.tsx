@@ -160,7 +160,7 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	const shot = useRef(false);
 	const entities = scene.entities.filter((entity) => !entity.isHidden);
 	const waiting = useRef(entities.filter((entity) => getPart(entity.kind)?.rendersAsync).length);
-	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface));
+	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface), false);
 
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {
