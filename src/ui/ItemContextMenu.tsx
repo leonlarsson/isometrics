@@ -10,17 +10,25 @@ import {
 } from "#/editor/clipboard";
 import { type ISceneItem, itemKindName } from "#/editor/framing";
 import { listOf, useEditor } from "#/editor/store";
-import { whyNoWorkshop } from "#/editor/whatIsOpen";
-import { makePrefabFromSelection, piecesOfSelection } from "#/editor/workshop";
+import { labelWithReason, whyNoWorkshop } from "#/editor/whatIsOpen";
+import { editPrefab, makePrefabFromSelection, piecesOfSelection } from "#/editor/workshop";
 import { getPart } from "#/parts/registry";
 import { currentView } from "#/render/viewpoints";
 import { takesCornerHeights } from "#/scene/areas";
 import { roadNameOf } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
-import type { TArea, TEntity, TFence, TRoad, TVec2 } from "#/scene/schema";
+import {
+	isPrefabKind,
+	type TArea,
+	type TEntity,
+	type TFence,
+	type TRoad,
+	type TVec2,
+} from "#/scene/schema";
 
 import { FenceAlongEdgeItems } from "./AreaInspector";
 import { ContextMenu, Menu } from "./Menu";
+import { PREFAB_WORDS } from "./prefabWords";
 import { RenamePopover } from "./RenamePopover";
 import { useLastNonNull } from "./useLastNonNull";
 import { saveCurrentView } from "./ViewpointsMenu";
@@ -50,21 +58,47 @@ const copySelection = () => {
  */
 const MakePrefabItem = ({ isOne }: { isOne: boolean }) => {
 	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
-	const hasPieces = useEditor(
-		(s) => piecesOfSelection(s.scene, s.selectedItems).pieces.entities.length > 0,
-	);
-	const hasFences = useEditor((s) => s.selectedItems.some((item) => item.kind === "fence"));
-	const label = isOne ? "Make a prefab from it…" : "Make a prefab from these…";
-	const reason = why ?? (hasPieces || hasFences ? null : "not a prefab's copy");
+	const hasPieces = useEditor((s) => {
+		const { pieces } = piecesOfSelection(s.scene, s.selectedItems);
+		return pieces.entities.length + pieces.fences.length > 0;
+	});
+	const words = isOne ? PREFAB_WORDS.makeFromIt : PREFAB_WORDS.makeFromThese;
+	// Prefabs' copies can't be a prefab's pieces: several of them only, it says so.
+	const reason = why ?? (hasPieces ? null : "only prefabs' copies");
 	return (
 		<Menu.Item
 			icon="prefab"
-			label={reason ? `${label} (${reason})` : label}
-			description="In the Workshop: one thing to place again and again, here in their place"
+			label={labelWithReason(words.label, reason)}
+			description={words.description}
 			disabled={reason !== null}
 			onClick={() => makePrefabFromSelection(currentView.read?.() ?? null)}
 		/>
 	);
+};
+
+/** Edit prefab, for a prefab's copy: its design in the Workshop, changing every copy (ADR-0134). */
+const EditPrefabItem = ({ kind }: { kind: string }) => {
+	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
+	return (
+		<Menu.Item
+			icon="workshop"
+			label={labelWithReason(PREFAB_WORDS.edit.label, why)}
+			description={PREFAB_WORDS.edit.description}
+			disabled={why !== null}
+			onClick={() => editPrefab(kind, currentView.read?.() ?? null)}
+		/>
+	);
+};
+
+/** An object's or fence's prefab item: Edit prefab for a prefab's copy, else Make a prefab from it…. */
+const PrefabItem = ({ item }: { item: ISceneItem }) => {
+	const kind = useEditor((s) =>
+		item.kind === "entity" ? s.scene.entities.find((e) => e.id === item.id)?.kind : undefined,
+	);
+	if (item.kind !== "entity" && item.kind !== "fence") {
+		return null;
+	}
+	return kind && isPrefabKind(kind) ? <EditPrefabItem kind={kind} /> : <MakePrefabItem isOne />;
 };
 
 /** What to call a road in a menu: its name, or its style. */
@@ -290,7 +324,7 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 
 			<Menu.Item icon="copy" label="Copy" shortcut="Ctrl+C" onClick={copySelection} />
 
-			{(item.kind === "entity" || item.kind === "fence") && <MakePrefabItem isOne />}
+			<PrefabItem item={item} />
 
 			<Menu.Item icon="edit" label="Rename" shortcut="F2" onClick={onRename} />
 

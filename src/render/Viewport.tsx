@@ -64,6 +64,7 @@ import { ViewCursor } from "./viewCursor";
 import { WakeFieldStep } from "./WakeField";
 import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
+import { WorkshopMarker } from "./WorkshopMarker";
 import { WorldReady } from "./WorldReady";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
@@ -346,6 +347,9 @@ export const Viewport = () => {
 			<RouteHighlight />
 
 			<GroundMenuMarker />
+
+			{/* In the Workshop, where the prefab's base and front are (ADR-0134). */}
+			<WorkshopMarker />
 
 			<HoverHighlight />
 

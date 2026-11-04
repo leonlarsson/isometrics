@@ -10,11 +10,17 @@ import {
 	usePaletteMemory,
 } from "#/editor/paletteMemory";
 import { findFreeSpot } from "#/editor/placement";
-import { placeFromLibrary, removeFromLibrary, usePrefabLibrary } from "#/editor/prefabLibrary";
+import {
+	placeFromLibrary,
+	removeFromLibrary,
+	removePrefabFromWorld,
+	usePrefabLibrary,
+} from "#/editor/prefabLibrary";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
-import { whyNoWorkshop, workshopOf } from "#/editor/whatIsOpen";
+import { labelWithReason, whyNoWorkshop, workshopOf } from "#/editor/whatIsOpen";
 import { editPrefab, makeNewPrefab } from "#/editor/workshop";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
@@ -32,6 +38,7 @@ import { groupByFamily } from "#/scene/variants";
 import { IconButton, IconButtonGroup } from "./Button";
 import { ChipGroup, type IChip } from "./ChipGroup";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Hint, SearchField } from "./fields";
 import { releaseFocusAfterPointerClick } from "./focus";
 import { Icon, type TIconName } from "./Icon";
@@ -39,6 +46,7 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { ContextMenu, Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
+import { PREFAB_WORDS } from "./prefabWords";
 import { SharePrefabDialog } from "./SharePrefabDialog";
 import { HIDDEN_ROUTE_SWATCH } from "./swatches";
 import { Tooltip } from "./Tooltip";
@@ -197,6 +205,31 @@ export const PartsPalette = () => {
 	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
 	/** A prefab whose Share a link… is open (ADR-0134). */
 	const [sharingPrefab, setSharingPrefab] = useState<TPrefab | null>(null);
+	/** A prefab whose Remove from this world… asks first, as it has copies (ADR-0134). */
+	const [removing, setRemoving] = useState<{ id: string; name: string; copies: number } | null>(
+		null,
+	);
+	const removedFromWorld = (id: string, name: string) => {
+		const copies = removePrefabFromWorld(id);
+		notify(
+			`Removed ${name} from this world`,
+			`${copies > 0 ? `With its ${copies === 1 ? "copy" : `${copies} copies`}. ` : ""}Undo brings it back.`,
+		);
+	};
+	/** Remove from this world…: asked first when copies would go with it, else done (one undo step). */
+	const removeFromWorld = (id: string) => {
+		const { scene } = useEditor.getState();
+		const prefab = scene.prefabs.find((each) => each.id === id);
+		if (!prefab) {
+			return;
+		}
+		const copies = scene.entities.filter((entity) => entity.kind === id).length;
+		if (copies > 0) {
+			setRemoving({ id, name: prefabName(prefab), copies });
+		} else {
+			removedFromWorld(id, prefabName(prefab));
+		}
+	};
 	/** The family whose variants are shown, by its id ("part:race_car"). */
 	const [openFamily, setOpenFamily] = useState<string | null>(null);
 
@@ -677,24 +710,42 @@ export const PartsPalette = () => {
 					/>
 				)}
 
-				{menuPrefabId && library.some((prefab) => prefab.id === menuPrefabId) && (
+				{menuItem?.prefabId && (
 					<Menu.Item
-						icon="trash"
-						label="Remove from My prefabs"
-						description="Worlds that use it keep it"
-						onClick={() => removeFromLibrary(menuPrefabId)}
+						icon="workshop"
+						label={labelWithReason(PREFAB_WORDS.edit.label, noWorkshop)}
+						description={PREFAB_WORDS.edit.description}
+						disabled={noWorkshop !== null}
+						onClick={() =>
+							menuItem.prefabId && editPrefab(menuItem.prefabId, currentView.read?.() ?? null)
+						}
 					/>
 				)}
 
 				{menuItem?.prefabId && (
 					<Menu.Item
-						icon="workshop"
-						label={noWorkshop ? `Edit in the Workshop (${noWorkshop})` : "Edit in the Workshop"}
-						description="Changes it, and every copy of it in this world"
-						disabled={noWorkshop !== null}
-						onClick={() =>
-							menuItem.prefabId && editPrefab(menuItem.prefabId, currentView.read?.() ?? null)
-						}
+						icon="trash"
+						label={PREFAB_WORDS.removeFromWorld.label}
+						description={PREFAB_WORDS.removeFromWorld.description}
+						onClick={() => menuItem.prefabId && removeFromWorld(menuItem.prefabId)}
+					/>
+				)}
+
+				{menuPrefabId && library.some((prefab) => prefab.id === menuPrefabId) && (
+					<Menu.Item
+						icon="trash"
+						label={PREFAB_WORDS.removeFromLibrary.label}
+						description={PREFAB_WORDS.removeFromLibrary.description}
+						onClick={() => {
+							const name = menuItem?.name ?? "It";
+							removeFromLibrary(menuPrefabId);
+							notify(
+								`Removed ${name} from My prefabs`,
+								prefabs.some((prefab) => prefab.id === menuPrefabId)
+									? "This world keeps it, as do others that use it: Remove from this world… takes it out of one."
+									: "Worlds that use it keep it.",
+							);
+						}}
 					/>
 				)}
 
@@ -711,6 +762,20 @@ export const PartsPalette = () => {
 			{preview && !placing && <PartPreview kind={preview.kind} anchor={preview.anchor} />}
 
 			<SharePrefabDialog prefab={sharingPrefab} onClose={() => setSharingPrefab(null)} />
+
+			<ConfirmDialog
+				open={removing !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setRemoving(null);
+					}
+				}}
+				title={`Remove ${removing?.name ?? "it"} from this world?`}
+				description={`Its ${removing?.copies ?? 0} ${removing?.copies === 1 ? "copy goes" : "copies go"} too. My prefabs keeps it, if it's there; Undo brings them back.`}
+				confirmLabel="Remove from this world"
+				onConfirm={() => removing && removedFromWorld(removing.id, removing.name)}
+				danger
+			/>
 		</nav>
 	);
 };

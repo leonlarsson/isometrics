@@ -21,6 +21,7 @@ import { useShortcuts } from "#/editor/useShortcuts";
 import { useThemeAttribute } from "#/editor/useTheme";
 import { useOvercast } from "#/editor/weather";
 import { OWN_WORLD } from "#/editor/whatIsOpen";
+import { keepWorkshopSession, resumeWorkshopSession } from "#/editor/workshopSession";
 import { useWorldData } from "#/editor/worldData";
 import { Viewport } from "#/render/Viewport";
 import { backdropBackground, dioramaSkyAt } from "#/scene/sky";
@@ -292,6 +293,8 @@ export const AppShell = () => {
 		if (stored.status === "ok" || stored.status === "repaired") {
 			useEditor.getState().loadScene(stored.scene);
 			useEditor.getState().showOpeningView(rememberedView(openWorldId()));
+			// The Workshop, if this tab had it open on this world before a reload (ADR-0134).
+			resumeWorkshopSession(useEditor);
 		}
 		// Nothing stored yet (the starter world): where the camera was in it before a reload.
 		if (stored.status === "empty") {
@@ -319,6 +322,11 @@ export const AppShell = () => {
 	// and autosave has to move over to it.
 	useEffect(() => {
 		return startAutosave(useEditor);
+	}, [useEditor]);
+
+	// The Workshop over a reload: kept in this tab while it's open (ADR-0134).
+	useEffect(() => {
+		return keepWorkshopSession(useEditor);
 	}, [useEditor]);
 
 	useThemeAttribute();

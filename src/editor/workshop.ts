@@ -1,3 +1,4 @@
+import { APP_NAME } from "#/lib/app";
 import { round, turnedHalfSize } from "#/lib/math";
 import { measurePrefab, prefabName, prefabPartOf, UNNAMED_PREFAB } from "#/parts/prefabParts";
 import { getBasePart, resolveProps } from "#/parts/registry";
@@ -15,6 +16,7 @@ import {
 	type TViewPose,
 } from "#/scene/schema";
 
+import { rememberedView, workshopViewKey } from "./cameraMemory";
 import type { ISceneItem } from "./framing";
 import { setPaletteCategory } from "./paletteMemory";
 import { findFreeSpot } from "./placement";
@@ -43,8 +45,8 @@ export interface IPieces {
 	fences: TFence[];
 }
 
-/** The box round some objects' turned footprints and fences' points, in the world. */
-const boundsOf = ({ entities, fences }: IPieces) => {
+/** The box round some pieces on the ground, its middle and the lowest piece's altitude; null for none. */
+export const boundsOf = ({ entities, fences }: IPieces) => {
 	let minX = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let minZ = Number.POSITIVE_INFINITY;
@@ -76,6 +78,8 @@ const boundsOf = ({ entities, fences }: IPieces) => {
 	return {
 		middle: [round((minX + maxX) / 2), round((minZ + maxZ) / 2)] as TVec2,
 		low: Number.isFinite(low) ? low : 0,
+		/** Its sides: the box round the pieces on the ground. */
+		box: { minX, maxX, minZ, maxZ },
 	};
 };
 
@@ -144,17 +148,19 @@ export const workshopWorldOf = (from: TScene, pieces: IPieces): TScene => {
 	return SceneSchema.parse({
 		version: from.version,
 		meta: { title: "The Workshop", subtitle: `Making a prefab for ${from.meta.title}` },
+		// The world's theme and data, so pieces look and follow data as they will there; a plain,
+		// flattering daylight and backdrop of its own, as a studio's (lighting, sky, weather and
+		// backdrop left at their defaults), whatever the hour or weather in the world.
 		theme: from.theme,
 		ground: { width: side(footprint[0]), depth: side(footprint[1]), colors: from.ground.colors },
 		traffic: from.traffic,
-		lighting: from.lighting,
-		sky: from.sky,
 		water: from.water,
-		weather: from.weather,
-		moods: from.moods,
-		backdrop: from.backdrop,
 		data: from.data,
-		onScreen: from.onScreen,
+		onScreen: {
+			...from.onScreen,
+			showsTimeOfDay: false,
+			showsViewpointBar: false,
+		},
 		camera: { ...from.camera, openingViewpointId: null },
 		entities: pieces.entities,
 		fences: pieces.fences,
@@ -199,12 +205,36 @@ const canOpen = () => {
 	return why === null;
 };
 
-const open = (pieces: IPieces, workshop: Omit<IWorkshop, "from">, view: TViewPose | null) => {
+/** Whether the Workshop shows the ground, remembered in this browser from the last time (off at first). */
+const GROUND_KEY = `${APP_NAME.toLowerCase()}:workshop-shows-ground`;
+
+const readShowsGround = () => {
+	try {
+		return localStorage.getItem(GROUND_KEY) === "true";
+	} catch {
+		return false;
+	}
+};
+
+/**
+ * Open the Workshop on these pieces, with the camera where it was the last time this prefab was
+ * built (or a new one), else framing its ground.
+ */
+const open = (
+	pieces: IPieces,
+	workshop: Omit<IWorkshop, "from" | "showsGround">,
+	view: TViewPose | null,
+) => {
 	const { scene, past, future } = store();
 	store().enterWorkshop(workshopWorldOf(scene, pieces), {
 		...workshop,
+		showsGround: readShowsGround(),
 		from: { scene, past, future, view },
 	});
+	const remembered = rememberedView(workshopViewKey(workshop.prefabId));
+	if (remembered) {
+		store().showOpeningView(remembered);
+	}
 };
 
 /** Add to scene's Make a prefab…: the Workshop, empty, for a new prefab. */
@@ -214,7 +244,7 @@ export const makeNewPrefab = (view: TViewPose | null) => {
 	}
 	open(
 		{ entities: [], fences: [] },
-		{ prefabId: null, replaces: null, name: newPrefabName(store().scene.prefabs) },
+		{ prefabId: null, replaces: null, name: newPrefabName(store().scene.prefabs), description: "" },
 		view,
 	);
 };
@@ -251,6 +281,7 @@ export const makePrefabFromSelection = (view: TViewPose | null) => {
 				altitude: centred.low,
 			},
 			name: newPrefabName(scene.prefabs),
+			description: "",
 		},
 		view,
 	);
@@ -262,7 +293,7 @@ export const makePrefabFromSelection = (view: TViewPose | null) => {
 	}
 };
 
-/** A copy's properties' Edit in the Workshop: its design, to change it and every copy. */
+/** Edit prefab (a copy's menu and properties, its tile's menu): its design, to change it and every copy. */
 export const editPrefab = (prefabId: string, view: TViewPose | null) => {
 	const prefab = store().scene.prefabs.find((each) => each.id === prefabId);
 	if (!prefab || !canOpen()) {
@@ -270,17 +301,35 @@ export const editPrefab = (prefabId: string, view: TViewPose | null) => {
 	}
 	open(
 		{ entities: prefab.entities, fences: prefab.fences },
-		{ prefabId, replaces: null, name: prefabName(prefab) },
+		{ prefabId, replaces: null, name: prefabName(prefab), description: prefab.description },
 		view,
 	);
 };
 
-/** The bar's name field. */
-export const renamePrefabInWorkshop = (name: string) => {
+/** Change the Workshop's own settings (the prefab's name and description, the ground shown). */
+const changeWorkshop = (
+	change: Partial<Pick<IWorkshop, "name" | "description" | "showsGround">>,
+) => {
 	const { whatIsOpen, setWhatIsOpen } = store();
 	const workshop = workshopOf(whatIsOpen);
 	if (workshop && whatIsOpen.kind === "world") {
-		setWhatIsOpen({ ...whatIsOpen, workshop: { ...workshop, name } });
+		setWhatIsOpen({ ...whatIsOpen, workshop: { ...workshop, ...change } });
+	}
+};
+
+/** The bar's and the Prefab panel's name field. */
+export const renamePrefabInWorkshop = (name: string) => changeWorkshop({ name });
+
+/** The Prefab panel's description. */
+export const describePrefabInWorkshop = (description: string) => changeWorkshop({ description });
+
+/** Show the ground under the pieces, or let them float in the studio; remembered for next time. */
+export const showGroundInWorkshop = (showsGround: boolean) => {
+	changeWorkshop({ showsGround });
+	try {
+		localStorage.setItem(GROUND_KEY, String(showsGround));
+	} catch {
+		// Storage unavailable: the Workshop starts without the ground next time.
 	}
 };
 
@@ -305,7 +354,7 @@ export const saveWorkshop = (): TPrefab | null => {
 	const design = designOf(world, {
 		id: before?.id ?? newId("prefab"),
 		name: workshop.name.trim() || newPrefabName(from.scene.prefabs),
-		description: before?.description ?? "",
+		description: workshop.description.trim(),
 	});
 	const part = prefabPartOf(design);
 	const near = from.view?.target ?? [0, 0];
@@ -376,11 +425,12 @@ export const leaveWorkshopWithoutSaving = () => {
  */
 export const leaveWorkshopFirst = (then: () => void = () => {}) => {
 	const { whatIsOpen, past, setWorkshopLeaving } = store();
-	if (!workshopOf(whatIsOpen)) {
+	const workshop = workshopOf(whatIsOpen);
+	if (!workshop) {
 		then();
 		return;
 	}
-	if (past.length === 0) {
+	if (past.length === 0 && !workshop.isResumed) {
 		leaveWorkshopWithoutSaving();
 		then();
 		return;

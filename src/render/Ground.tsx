@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { overlayShownIn, usePreferences } from "#/editor/preferences";
 import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { workshopOf } from "#/editor/whatIsOpen";
 import { useWorldData } from "#/editor/worldData";
 import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
@@ -49,6 +50,7 @@ export const Ground = () => {
 	const clearSelection = useEditor((s) => s.clearSelection);
 	const palette = usePalette();
 	const cell = useGridCell();
+	const showsGround = useEditor((s) => workshopOf(s.whatIsOpen)?.showsGround ?? true);
 
 	return (
 		<group>
@@ -71,16 +73,23 @@ export const Ground = () => {
 				onContextMenu={openGroundMenuOnClick}
 			>
 				{/*
-					Pushed back in the depth test, so the grid and flat areas lying a hair above it always
-					win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
+					In the Workshop the ground isn't drawn unless asked (ADR-0134): the pieces float in its
+					studio, with only their soft shadow under them. It's still there for the pointer, so a
+					click beside them clears the selection and its menu opens.
 				*/}
-				<meshStandardMaterial
-					color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
-					roughness={0.95}
-					polygonOffset
-					polygonOffsetFactor={1}
-					polygonOffsetUnits={600}
-				/>
+				{showsGround ? (
+					// Pushed back in the depth test, so the grid and flat areas lying a hair above it always
+					// win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
+					<meshStandardMaterial
+						color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
+						roughness={0.95}
+						polygonOffset
+						polygonOffsetFactor={1}
+						polygonOffsetUnits={600}
+					/>
+				) : (
+					<shadowMaterial transparent opacity={0.16} />
+				)}
 			</RoundedBox>
 
 			{showsGrid && (

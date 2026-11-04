@@ -4,7 +4,7 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
-import { whyNoWorkshop } from "#/editor/whatIsOpen";
+import { labelWithReason, whyNoWorkshop } from "#/editor/whatIsOpen";
 import { editPrefab } from "#/editor/workshop";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
@@ -60,6 +60,7 @@ import {
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 import { Menu } from "./Menu";
 import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
+import { PREFAB_WORDS } from "./prefabWords";
 
 const KeyPicker = ({
 	label,
@@ -109,7 +110,7 @@ const useEntityEdit = (entity: TEntity) => {
 };
 
 /**
- * A prefab's copy (ADR-0134): what it's made of, and Edit in the Workshop, which changes its
+ * A prefab's copy (ADR-0134): what it's made of, and Edit prefab, which changes its
  * design and so every copy; greyed out with the reason where prefabs can't be changed.
  */
 const PrefabPanel = ({ kind }: { kind: string }) => {
@@ -131,7 +132,7 @@ const PrefabPanel = ({ kind }: { kind: string }) => {
 				disabled={why !== null}
 				onClick={() => editPrefab(prefab.id, currentView.read?.() ?? null)}
 			>
-				{why ? `Edit in the Workshop (${why})` : "Edit in the Workshop"}
+				{labelWithReason(PREFAB_WORDS.edit.label, why)}
 			</Button>
 		</Section>
 	);

@@ -45,6 +45,12 @@ export interface IWorkshop {
 	replaces: { items: ISceneItem[]; position: TVec2; altitude: number } | null;
 	/** The name in the bar: the prefab's. */
 	name: string;
+	/** Its description, in the Prefab panel. */
+	description: string;
+	/** The ground is drawn under the pieces; off, they float in a plain studio (the default). */
+	showsGround: boolean;
+	/** Opened again after a reload (editor/workshopSession): built on before, with no undo history. */
+	isResumed?: boolean;
 }
 
 /** A link the page's address asked to open. */

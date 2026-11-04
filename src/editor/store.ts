@@ -81,6 +81,7 @@ import {
 import { type IReadData, putReadData } from "#/scene/sheets";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
+import { saveCameraNow } from "./cameraMemory";
 import { restartDayCycle } from "./dayClock";
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
 import {
@@ -114,7 +115,9 @@ export type TWorldTab =
 	| "camera"
 	| "views"
 	| "traffic"
-	| "data";
+	| "data"
+	/** The Workshop's, in place of the others (ADR-0134). */
+	| "prefab";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
 export type TSelectionTab =
 	| "object"
@@ -1709,6 +1712,8 @@ export const createEditorStore = (openScene?: TScene) => {
 			workshopLeaving: null,
 			setWorkshopLeaving: (leaving) => set({ workshopLeaving: leaving }),
 			enterWorkshop: (world, workshop) => {
+				// Where the world's camera was is kept before the Workshop's takes over.
+				saveCameraNow();
 				set({
 					whatIsOpen: { kind: "world", preview: null, workshop },
 					scene: world,
@@ -1739,6 +1744,8 @@ export const createEditorStore = (openScene?: TScene) => {
 				if (!workshop) {
 					return false;
 				}
+				// Where the Workshop's camera was is kept before the world's view comes back.
+				saveCameraNow();
 				const { scene, past, future, view } = workshop.from;
 				set({
 					whatIsOpen: OWN_WORLD,

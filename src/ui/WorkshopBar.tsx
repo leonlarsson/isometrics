@@ -1,3 +1,4 @@
+import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { workshopOf } from "#/editor/whatIsOpen";
 import {
@@ -6,24 +7,24 @@ import {
 	newPrefabName,
 	renamePrefabInWorkshop,
 	saveWorkshop,
+	showGroundInWorkshop,
 	workshopHasPieces,
 } from "#/editor/workshop";
 import { prefabName } from "#/parts/prefabParts";
 
-import { Button } from "./Button";
+import { Button, IconButton } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { FloatingBar, FloatingBarNote } from "./FloatingBar";
-import { resetToDefault, TextField } from "./fields";
+import { FloatingBar } from "./FloatingBar";
+import { Input } from "./fields";
 
 import styles from "./WorkshopBar.module.css";
 
 /**
- * The Workshop's bar over the view (ADR-0134): the prefab's name, Save the
- * prefab (back to the world, which keeps it, as one undo step) and Leave
- * without saving. Leaving with something built is asked here first, whatever
- * asked to leave (this bar, New world, Open file, a recent world…:
- * `leaveWorkshopFirst`). What's built here of objects and fences is the
- * prefab; the rest of this world is the world's.
+ * The Workshop's bar (ADR-0134): one slim row over the view, so it stays out
+ * of the way while building. The prefab's name (typed in place), Show the
+ * ground, Leave without saving and Save the prefab; what the Workshop is, in
+ * a tooltip, and its Prefab panel a click away. Leaving with something built
+ * is asked here first, whatever asked to leave (`leaveWorkshopFirst`).
  */
 export const WorkshopBar = () => {
 	const workshop = useEditor((s) => workshopOf(s.whatIsOpen));
@@ -35,43 +36,60 @@ export const WorkshopBar = () => {
 	const before = workshop.from.scene.prefabs.find((prefab) => prefab.id === workshop.prefabId);
 	const startName = before ? prefabName(before) : newPrefabName(workshop.from.scene.prefabs);
 	const world = workshop.from.scene.meta.title;
+	const openPanel = () => {
+		useEditor.getState().setTab("prefab");
+		setSidePaneOpen("right", true);
+	};
 	return (
 		<>
 			<FloatingBar
+				isCompact
 				icon="workshop"
-				title={before ? `The Workshop: changing ${startName}` : "The Workshop: a new prefab"}
+				title={
+					<>
+						<span className={styles.label}>Workshop</span>
+
+						<span className={styles.name}>
+							<Input
+								ariaLabel="Prefab's name"
+								value={workshop.name}
+								placeholder={startName}
+								onChange={renamePrefabInWorkshop}
+							/>
+						</span>
+
+						<IconButton
+							icon="info"
+							label={`${before ? `Changing ${startName}: every copy in ${world} follows once it's saved.` : `A new prefab for ${world}.`} Build it from shapes, parts and fences in Add to scene; its objects and fences are the prefab. More in its Prefab panel.`}
+							onClick={openPanel}
+						/>
+					</>
+				}
 				actions={
 					<>
-						<Button onClick={() => leaveWorkshopFirst()}>Leave without saving</Button>
+						<IconButton
+							icon="area"
+							label={workshop.showsGround ? "Hide the ground" : "Show the ground"}
+							pressed={workshop.showsGround}
+							onClick={() => showGroundInWorkshop(!workshop.showsGround)}
+						/>
 
-						<Button variant="primary" icon="check" disabled={!hasPieces} onClick={saveWorkshop}>
+						<Button size="sm" onClick={() => leaveWorkshopFirst()}>
+							Leave without saving
+						</Button>
+
+						<Button
+							size="sm"
+							variant="primary"
+							icon="check"
+							disabled={!hasPieces}
+							onClick={saveWorkshop}
+						>
 							Save the prefab
 						</Button>
 					</>
 				}
-			>
-				<div className={styles.name}>
-					<TextField
-						label="Prefab's name"
-						value={workshop.name}
-						placeholder={startName}
-						onChange={renamePrefabInWorkshop}
-						inherit={resetToDefault(workshop.name, startName, () =>
-							renamePrefabInWorkshop(startName),
-						)}
-					/>
-				</div>
-
-				<span>
-					{before
-						? `Its objects and fences are here: change them, and every copy in ${world} follows once it's saved.`
-						: `Build it from shapes, parts and fences in Add to scene. It's kept in ${world} once it's saved.`}
-				</span>
-
-				{!hasPieces && (
-					<FloatingBarNote>Nothing to save yet: add an object or a fence first.</FloatingBarNote>
-				)}
-			</FloatingBar>
+			/>
 
 			<ConfirmDialog
 				open={isAsking}

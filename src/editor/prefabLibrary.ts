@@ -127,6 +127,23 @@ export const usePrefabLibrary = () =>
 	useSyncExternalStore(subscribePrefabLibrary, readPrefabLibrary, () => NONE);
 
 /**
+ * Remove from this world… (a prefab's tile): its design and every copy of it in the open world,
+ * as one undo step. My prefabs keeps it, if it's there. Returns how many copies went.
+ */
+export const removePrefabFromWorld = (id: string) => {
+	const { scene, commit, selectedItems, clearSelection } = useEditor.getState();
+	const copies = scene.entities.filter((entity) => entity.kind === id).map((entity) => entity.id);
+	commit((draft) => {
+		draft.prefabs = draft.prefabs.filter((prefab) => prefab.id !== id);
+		draft.entities = draft.entities.filter((entity) => entity.kind !== id);
+	});
+	if (selectedItems.some((item) => item.kind === "entity" && copies.includes(item.id))) {
+		clearSelection();
+	}
+	return copies.length;
+};
+
+/**
  * Place a prefab from My prefabs (or a link) in the open world near `near`, selected, as one undo
  * step: its design is copied in first if the world doesn't have it, else the world's is used.
  * `exactly`: right at `near` (the Ground menu's Add here), not at a free spot by it.

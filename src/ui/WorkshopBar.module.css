@@ -1,4 +1,13 @@
-/* The name field takes the bar's width, up to a comfortable line. */
+/* What the bar is for, in a word, before the prefab's name. */
+.label {
+	flex: none;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+/* The prefab's name, typed in place: room for a few words, no more. */
 .name {
-	max-width: 22rem;
+	flex: 0 1 11rem;
+	min-width: 6rem;
+	font-weight: 400;
 }

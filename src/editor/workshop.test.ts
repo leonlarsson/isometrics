@@ -54,11 +54,13 @@ const world = () =>
 const s = () => useEditor.getState();
 
 describe("the Workshop's world (ADR-0134)", () => {
-	it("has the look and data of the world it's for, a ground sized to the pieces, and nothing else", () => {
+	it("has the theme and data of the world it's for, a studio's light, a ground sized to the pieces, and nothing else", () => {
 		const from = world();
 		const workshop = workshopWorldOf(from, { entities: [], fences: [] });
 		expect(workshop.ground).toMatchObject({ width: 16, depth: 16 });
-		expect(workshop.lighting).toEqual(from.lighting);
+		// A plain daylight of its own, whatever the hour in the world; the world's theme.
+		expect(workshop.lighting.time).toBeNull();
+		expect(workshop.theme).toBe(from.theme);
 		expect(workshop.data).toEqual(from.data);
 		expect(workshop.viewpoints).toEqual([]);
 		expect(workshop.prefabs).toEqual([]);
@@ -103,7 +105,14 @@ describe("the Workshop's world (ADR-0134)", () => {
 		const workshop = { from: { scene: world(), past: [], future: [], view: null } };
 		const inside = {
 			...OWN_WORLD,
-			workshop: { ...workshop, prefabId: null, replaces: null, name: "" },
+			workshop: {
+				...workshop,
+				prefabId: null,
+				replaces: null,
+				name: "",
+				description: "",
+				showsGround: false,
+			},
 		};
 		expect(keepsOpenWorld(inside)).toBe(false);
 		expect(whyNoWorkshop(OWN_WORLD)).toBeNull();

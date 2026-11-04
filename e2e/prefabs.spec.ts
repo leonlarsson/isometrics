@@ -11,14 +11,23 @@ const prefabsNow = (page: Parameters<typeof read>[0]) =>
 	);
 
 const workshopBar = (page: Parameters<typeof read>[0]) =>
-	page.getByRole("status").filter({ hasText: "The Workshop" });
+	page.getByRole("status").filter({ hasText: "Save the prefab" });
 
 test.describe("prefabs and the Workshop (ADR-0134)", () => {
 	test("make a prefab from shapes in the Workshop, then place it", async ({ page }) => {
 		await openEditor(page);
 		await loadWorld(page, {});
 		await (await paletteTile(page, "Prefabs", "Make a prefab…")).click();
-		await expect(workshopBar(page)).toContainText("a new prefab");
+		await expect(workshopBar(page)).toBeVisible();
+		// A studio: the ground is off until asked for, and the bar turns it on.
+		const showsGround = () =>
+			read(page, (s) =>
+				s.whatIsOpen.kind === "world" ? s.whatIsOpen.workshop?.showsGround : null,
+			);
+		expect(await showsGround()).toBe(false);
+		await workshopBar(page).getByRole("button", { name: "Show the ground" }).click();
+		expect(await showsGround()).toBe(true);
+		await workshopBar(page).getByRole("button", { name: "Hide the ground" }).click();
 		// Nothing to save yet.
 		await expect(page.getByRole("button", { name: "Save the prefab" })).toBeDisabled();
 		// What acts on the open world as a world is greyed out here, saying why.
@@ -112,7 +121,7 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		expect(await prefabsNow(page)).toEqual([{ name: "Silo", pieces: 1, copies: 1 }]);
 	});
 
-	test("Edit in the Workshop changes the prefab, and every copy with it", async ({ page }) => {
+	test("Edit prefab changes the prefab, and every copy with it", async ({ page }) => {
 		await openEditor(page);
 		await loadWorld(page, {
 			entities: [
@@ -135,10 +144,15 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 				];
 			}),
 		);
-		await act(page, (s) => s.select("c1"));
-		await page.getByRole("tab", { name: "Object" }).click();
-		await page.getByRole("button", { name: "Edit in the Workshop" }).click();
-		await expect(workshopBar(page)).toContainText("changing Kiosk");
+		// A copy's right-click says Edit prefab, as its tile's does.
+		await act(page, (s) => {
+			s.select("c1");
+			s.openContextMenu({ kind: "entity", id: "c1" }, { x: 500, y: 400 });
+		});
+		await menuItem(page, /^Edit prefab/).click();
+		await expect(page.getByRole("textbox", { name: "Prefab's name", exact: true })).toHaveValue(
+			"Kiosk",
+		);
 
 		await (await paletteTile(page, "Shapes", "Cone")).click();
 		await page.getByRole("button", { name: "Save the prefab" }).click();
@@ -146,6 +160,21 @@ test.describe("prefabs and the Workshop (ADR-0134)", () => {
 		// One undo step takes the change back.
 		await act(page, (s) => s.undo());
 		expect(await prefabsNow(page)).toEqual([{ name: "Kiosk", pieces: 1, copies: 2 }]);
+
+		// Taken out of this world from its tile, with its copies, asked first.
+		const palette = page.getByRole("navigation", { name: "Parts" });
+		await palette.getByRole("button", { name: "Prefabs", exact: true }).click();
+		await palette
+			.getByRole("button", { name: "Kiosk", exact: true })
+			.first()
+			.click({ button: "right" });
+		await menuItem(page, "Remove from this world…").click();
+		await page
+			.getByRole("alertdialog")
+			.getByRole("button", { name: "Remove from this world" })
+			.click();
+		expect(await prefabsNow(page)).toEqual([]);
+		expect(await read(page, (s) => s.scene.entities.length)).toBe(0);
 	});
 
 	test("share a prefab by link, and add it to My prefabs from the link", async ({ page }) => {

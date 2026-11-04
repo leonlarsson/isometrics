@@ -70,6 +70,12 @@ const write = (memory: TCameraMemory) => {
  */
 export const UNSAVED_WORLD = "(not saved yet)";
 
+/**
+ * Where the camera was in the Workshop (ADR-0134), kept like a world's: per prefab, by its id, and
+ * one for prefabs being made from nothing. Not a world id nanoid makes.
+ */
+export const workshopViewKey = (prefabId: string | null) => `(workshop) ${prefabId ?? "new"}`;
+
 /** The world just got its first save: its camera so far is now under its own id. */
 export const adoptUnsavedView = (worldId: string) => {
 	const memory = read();
