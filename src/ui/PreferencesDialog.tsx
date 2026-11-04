@@ -31,6 +31,7 @@ const OVERLAYS_PAGE: (keyof TPreferences)[] = [
 	"viewLabel",
 	"viewpointsInWorld",
 	"compositionGrid",
+	"groundGrid",
 ];
 const EDITING_PAGE: (keyof TPreferences)[] = ["startWith", "snapToGrid", "namesOfCopies"];
 
@@ -295,6 +296,16 @@ export const PreferencesDialog = () => {
 								"compositionGrid",
 								"Composition grid",
 								"The view in thirds, for lining up viewpoints.",
+							),
+						},
+						{
+							id: "groundGrid",
+							keywords: "floor lines cells",
+							field: overlayField(
+								preferences,
+								"groundGrid",
+								"Ground grid",
+								"Lines on the ground, finer as you zoom in. Snap to grid works with them hidden too.",
 							),
 						},
 					],

@@ -1027,12 +1027,57 @@ describe("editor store", () => {
 		expect(store.getState().scene.viewpoints.map((v) => v.id)).toEqual([a, c]);
 	});
 
-	it("resets the camera and its settings, but not the turntable or tilt-shift", () => {
+	it("starts the tour in View mode when the world says so, or when played, and stops it", () => {
+		const store = makeStore();
+		const addViewpoint = () =>
+			store.getState().addViewpoint({
+				target: [0, 0],
+				azimuth: 315,
+				elevation: 32.5,
+				span: 40,
+				projection: "orthographic",
+				fieldOfView: null,
+				targetAltitude: 0,
+			});
+		addViewpoint();
+		store.getState().setMode("view");
+		expect(store.getState().runningTour).toBeNull();
+		// It needs two viewpoints.
+		store.getState().playTour();
+		expect(store.getState().runningTour).toBeNull();
+		addViewpoint();
+		store.getState().playTour();
+		expect(store.getState().runningTour).toEqual({ holdsFirst: false });
+		store.getState().stopTour();
+		expect(store.getState().runningTour).toBeNull();
+		store.getState().setMode("edit");
+		store.getState().playTour();
+		expect(store.getState().runningTour).toBeNull();
+
+		store.getState().commit((scene) => {
+			scene.camera.tour.enabled = true;
+		});
+		store.getState().setMode("view");
+		expect(store.getState().runningTour).toEqual({ holdsFirst: false });
+		store.getState().setMode("edit");
+		expect(store.getState().runningTour).toBeNull();
+
+		// A world opening in View mode holds where it opens first.
+		const world = store.getState().scene;
+		store.getState().loadScene(world, {
+			preview: { from: "shared", id: "abc", expiresAt: null },
+		});
+		expect(store.getState().mode).toBe("view");
+		expect(store.getState().runningTour).toEqual({ holdsFirst: true });
+	});
+
+	it("resets the camera and its settings, but not the turntable, the tour or tilt-shift", () => {
 		const store = makeStore();
 		store.getState().commit((scene) => {
 			scene.camera.fieldOfView = 90;
 			scene.camera.highestElevation = 60;
 			scene.camera.keepsOverGround = false;
+			scene.camera.tour = { enabled: true, holdSeconds: 12 };
 			scene.camera.turntable.enabled = true;
 			scene.camera.tiltShift.enabled = true;
 			scene.camera.tiltShift.blurStrength = 0.9;
@@ -1043,6 +1088,7 @@ describe("editor store", () => {
 		const { camera } = store.getState().scene;
 		expect(camera).toMatchObject({ fieldOfView: 40, highestElevation: 87, keepsOverGround: true });
 		expect(camera.turntable.enabled).toBe(true);
+		expect(camera.tour).toEqual({ enabled: true, holdSeconds: 12 });
 		expect(camera.tiltShift).toMatchObject({ enabled: true, blurStrength: 0.9 });
 		expect(store.getState().projection).toBe("orthographic");
 		expect(store.getState().viewNonce).toBe(nonce + 1);

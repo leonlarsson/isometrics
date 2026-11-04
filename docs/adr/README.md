@@ -138,3 +138,5 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0132](0132-deleting-a-world-shows-home.md) | Deleting the open world shows the home screen, never another world | proposed |
 | [0133](0133-fence-gates-joining-edges.md) | Fences: gates (open and shut from data), joining two fences, a fence along an area's edge | proposed |
 | [0134](0134-workshop-and-prefabs.md) | The Workshop and prefabs: objects of one's own, made from shapes, parts and fences | proposed |
+| [0139](0139-viewpoint-tour.md) | A tour steps through the viewpoints on its own in View mode | proposed |
+| [0141](0141-overlays-menu.md) | An Overlays menu beside the shading switcher, and a ground grid overlay | proposed |

@@ -192,6 +192,41 @@ test.describe("viewpoints (ADR-0039)", () => {
 		expect(await read(page, (s) => s.activeViewpointId)).toBe(first);
 	});
 
+	test("the tour steps through the viewpoints and stops on input (ADR-0139)", async ({ page }) => {
+		// The starter world has viewpoints of its own; a short hold keeps the test quick.
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.camera.tour.holdSeconds = 3;
+			}),
+		);
+		await page.getByRole("button", { name: "View", exact: true }).click();
+		const ids = await read(page, (s) => s.scene.viewpoints.map((v) => v.id));
+		// The viewpoint after the one the world opened at (or the first), then the one after that.
+		const at = ids.indexOf((await read(page, (s) => s.activeViewpointId)) ?? "");
+		const first = ids[(at + 1) % ids.length];
+		const second = ids[(at + 2) % ids.length];
+		await page.getByRole("button", { name: "Play the tour through the viewpoints" }).click();
+		// It goes to the next at once, then moves on by itself.
+		await expect.poll(() => read(page, (s) => s.activeViewpointId)).toBe(first);
+		await expect
+			.poll(() => read(page, (s) => s.activeViewpointId), { timeout: 15_000 })
+			.toBe(second);
+		// A press on the view stops it where it is (a slow machine may have moved on once more by then).
+		const { x, y } = await viewCentre(page);
+		await page.mouse.click(x, y);
+		expect(await read(page, (s) => s.runningTour)).toBeNull();
+		const stoppedAt = await read(page, (s) => s.activeViewpointId);
+		await expect(
+			page.getByRole("button", { name: "Play the tour through the viewpoints" }),
+		).toBeVisible();
+		await page.waitForTimeout(3000);
+		expect(await read(page, (s) => s.activeViewpointId)).toBe(stoppedAt);
+		// An arrow stops it too.
+		await page.getByRole("button", { name: "Play the tour through the viewpoints" }).click();
+		await page.getByRole("button", { name: "Previous viewpoint (←)" }).click();
+		expect(await read(page, (s) => s.runningTour)).toBeNull();
+	});
+
 	test("Manage viewpoints opens the Viewpoints tab, where one can be deleted", async ({ page }) => {
 		const before = await read(page, (s) => s.scene.viewpoints.length);
 		await pickFromMenu(page, "Viewpoints", /Manage viewpoints/);
