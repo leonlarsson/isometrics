@@ -397,7 +397,8 @@ type TGround = TAreaShape & Pick<TArea, "isHidden">;
 
 /**
  * How high the ground stands at a point: the highest top of the areas there
- * (raised land, slopes, ADR-0096), else 0. What objects stand on (ADR-0098).
+ * (raised land, slopes, ADR-0096), else 0. What fences and roads stand on;
+ * objects also stand on the tops of shapes (`parts/standing`, ADR-0098, ADR-0138).
  */
 export const groundHeightAt = (areas: readonly TGround[], point: TVec2) =>
 	Math.max(

@@ -137,3 +137,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0131](0131-welcome-build-with-ai-tile.md) | The welcome's three ways in: build a city, explore Brightwater, build with AI | proposed |
 | [0132](0132-deleting-a-world-shows-home.md) | Deleting the open world shows the home screen, never another world | proposed |
 | [0133](0133-fence-gates-joining-edges.md) | Fences: gates (open and shut from data), joining two fences, a fence along an area's edge | proposed |
+| [0138](0138-objects-stand-on-shapes.md) | Objects stand on the tops of shapes, and a bottom handle lifts the base | proposed |
