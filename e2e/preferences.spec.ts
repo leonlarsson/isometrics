@@ -208,7 +208,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 });
 
 test.describe("the theme (ADR-0007)", () => {
-	test("the toolbar's theme button goes light, dark, then back to matching the device", async ({
+	test("the app row's theme button goes light, dark, then back to matching the device", async ({
 		page,
 	}) => {
 		await page.getByRole("button", { name: "Theme: match device" }).click();

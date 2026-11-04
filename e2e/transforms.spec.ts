@@ -235,7 +235,7 @@ test.describe("duplicating (ADR-0067, ADR-0068)", () => {
 });
 
 test.describe("snapping", () => {
-	test("the toolbar turns snapping off; moves then land anywhere", async ({ page }) => {
+	test("the view bar turns snapping off; moves then land anywhere", async ({ page }) => {
 		await openEditor(page);
 		await twoHouses(page);
 		await page.getByRole("button", { name: "Snap to grid: on" }).click();

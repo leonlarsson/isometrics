@@ -108,7 +108,7 @@ test.describe("the app row and the view bar (ADR-0142)", () => {
 		await act(page, (s) => s.setWhatIsOpen({ kind: "home", why: { kind: "chosen" } }));
 		await expect(page.getByRole("main", { name: "Home" })).toBeVisible();
 		await expect(viewBar(page)).toHaveCount(0);
-		await expect(page.getByRole("button", { name: "File" })).toBeVisible();
+		await expect(page.getByRole("button", { name: "File", exact: true })).toBeVisible();
 		await expect(page.getByRole("button", { name: /^Preferences/ })).toBeVisible();
 		await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
 	});
