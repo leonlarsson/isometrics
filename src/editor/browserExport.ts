@@ -86,11 +86,21 @@ export interface IBrowserContents {
 	leftOut: number;
 }
 
-type TItemKind = "world" | "index" | "openWorld" | "backup" | "trust" | "setting";
+/**
+ * My prefabs (ADR-0134, editor/prefabLibrary): one's own designs, content like worlds rather than
+ * a setting. Add merges a file's in beside this browser's (one this browser has, by id, is kept as
+ * it is here); Replace replaces them with the file's, as it does the worlds.
+ */
+const PREFAB_LIBRARY_KEY = `${STORAGE_PREFIX}prefabs`;
+
+type TItemKind = "world" | "index" | "openWorld" | "backup" | "trust" | "library" | "setting";
 
 const kindOfKey = (key: string): TItemKind => {
 	if (NEVER_IMPORTED.has(key)) {
 		return "trust";
+	}
+	if (key === PREFAB_LIBRARY_KEY) {
+		return "library";
 	}
 	if (key.startsWith(WORLD_KEY_PREFIX) || key === SINGLE_SAVE_KEY) {
 		return "world";
@@ -349,6 +359,44 @@ const tryWrite = (key: string, value: string, written: string[], counts: IImport
 	}
 };
 
+/** A stored list of designs as read from text, untrusted: only records with a string id. */
+const libraryEntries = (text: string | null | undefined): Record<string, unknown>[] => {
+	try {
+		const list: unknown = safeJson(JSON.parse(text ?? "[]"));
+		return Array.isArray(list)
+			? list.filter(
+					(entry): entry is Record<string, unknown> =>
+						typeof entry === "object" &&
+						entry !== null &&
+						typeof (entry as { id?: unknown }).id === "string",
+				)
+			: [];
+	} catch {
+		return [];
+	}
+};
+
+/**
+ * Add a file's My prefabs beside this browser's: those this browser has (by id) stay as they are
+ * here, the others go after them. Each is read again when it's used (`repairWorld`).
+ */
+const addLibrary = (
+	items: ReadonlyMap<string, string>,
+	written: string[],
+	counts: IImportCounts,
+) => {
+	const theirs = libraryEntries(items.get(PREFAB_LIBRARY_KEY));
+	if (theirs.length === 0) {
+		return;
+	}
+	const ours = libraryEntries(getItem(PREFAB_LIBRARY_KEY));
+	const known = new Set(ours.map((entry) => entry.id));
+	const added = theirs.filter((entry) => !known.has(entry.id));
+	if (added.length > 0) {
+		tryWrite(PREFAB_LIBRARY_KEY, JSON.stringify([...ours, ...added]), written, counts);
+	}
+};
+
 /** The text of every stored entry under `prefix`, to tell what's already here. */
 const storedUnder = (prefix: string) => {
 	const texts = new Set<string>();
@@ -443,6 +491,7 @@ export const addToBrowser = (
 		tryWrite(WORLD_INDEX_KEY, JSON.stringify(index), [], counts);
 	}
 	addBackups(contents.items, written, counts);
+	addLibrary(contents.items, written, counts);
 	for (const [key, value] of withSettings ? contents.items : []) {
 		// "setting" only: never the index, the open world, or what grants trust (kind "trust").
 		if (kindOfKey(key) !== "setting") {
@@ -549,9 +598,10 @@ export const replaceBrowser = (contents: IBrowserContents, now = Date.now()): TR
 		}
 	}
 
-	// Then the settings, exactly as they were.
+	// Then the settings, exactly as they were, and My prefabs, which replace this browser's as worlds do.
 	for (const [key, value] of failed ? [] : contents.items) {
-		if (kindOfKey(key) === "setting" && !tryWrite(key, value, written, counts)) {
+		const kind = kindOfKey(key);
+		if ((kind === "setting" || kind === "library") && !tryWrite(key, value, written, counts)) {
 			failed = true;
 			break;
 		}

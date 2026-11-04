@@ -11,6 +11,7 @@ import {
 	sharedWorldIdOf,
 	shareWorld,
 } from "#/editor/userWorlds";
+import { whyNoWorldAction } from "#/editor/whatIsOpen";
 import { repairWorld } from "#/parts/repairWorld";
 import {
 	type IWorldValidation,
@@ -70,7 +71,8 @@ export const BuildWithAiDialog = () => {
 	const open = asked !== null;
 	const title = useEditor((s) => s.scene.meta.title);
 	// Changing a world needs one open (not on the home screen, nor while a link opens).
-	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
+	// Only a world of its own can be changed: none on the home screen, nor the Workshop's (ADR-0134).
+	const hasWorld = useEditor((s) => whyNoWorldAction(s.whatIsOpen) === null);
 	const [builds, setBuilds] = useState<TBuilds>("new");
 	const [step, setStep] = useState<TStep>("ask");
 	const [description, setDescription] = useState("");

@@ -1,8 +1,11 @@
 import { pasteFromClipboard } from "#/editor/clipboard";
 import { rememberUsed } from "#/editor/paletteMemory";
+import { placeFromLibrary, usePrefabLibrary } from "#/editor/prefabLibrary";
 import { spotOnGrid, useEditor } from "#/editor/store";
+import { workshopOf } from "#/editor/whatIsOpen";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { round } from "#/lib/math";
+import { prefabName } from "#/parts/prefabParts";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { AREA_KIND_LABELS } from "#/scene/areas";
@@ -29,6 +32,14 @@ export const GroundContextMenu = () => {
 	// The last one opened, kept while it animates closed.
 	const menu = useLastNonNull(menuNow);
 	const store = () => useEditor.getState();
+	// The world's prefabs, and My prefabs not in it; none inside the Workshop, where a prefab can't
+	// hold one (ADR-0134).
+	const prefabs = useEditor((s) => s.scene.prefabs);
+	const library = usePrefabLibrary();
+	const inWorkshop = useEditor((s) => workshopOf(s.whatIsOpen) !== null);
+	const libraryOnly = inWorkshop
+		? []
+		: library.filter((prefab) => !prefabs.some((each) => each.id === prefab.id));
 	// Where things go: on the grid while snapping is on, like everything placed by hand. The
 	// crosshair on the ground marks it (render/GroundMenuMarker).
 	const spot = () => spotOnGrid(menu?.point ?? [0, 0], store().snapping);
@@ -67,6 +78,34 @@ export const GroundContextMenu = () => {
 						))}
 					</Menu.Group>
 				))}
+
+				{/* Prefabs (ADR-0134), as Add to scene has them: this world's, then My prefabs not in it. */}
+				{prefabs.length > 0 && (
+					<Menu.Group label={CATEGORY_LABELS.prefabs}>
+						{prefabs.map((prefab) => (
+							<Menu.Item
+								key={prefab.id}
+								label={prefabName(prefab)}
+								onClick={() => {
+									store().addEntity({ kind: prefab.id, name: "", position: spot() });
+									rememberUsed(`part:${prefab.id}`);
+								}}
+							/>
+						))}
+					</Menu.Group>
+				)}
+
+				{libraryOnly.length > 0 && (
+					<Menu.Group label="My prefabs">
+						{libraryOnly.map((prefab) => (
+							<Menu.Item
+								key={prefab.id}
+								label={prefabName(prefab)}
+								onClick={() => placeFromLibrary(prefab, spot(), { exactly: true })}
+							/>
+						))}
+					</Menu.Group>
+				)}
 			</Menu.Submenu>
 
 			<Menu.Submenu icon="edit" label="Draw a road from here">

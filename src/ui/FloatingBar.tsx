@@ -20,14 +20,46 @@ interface IFloatingBarProps {
 	 * what hidden means and for how long.
 	 */
 	dismiss?: { label: string; onDismiss: () => void };
+	/**
+	 * One slim row (a mode that stays a while, like the Workshop): the icon, the title (which may
+	 * hold a field), then the buttons; no lines under it, so explain in a tooltip instead.
+	 */
+	isCompact?: boolean;
 }
 
 /**
  * A bar floating over the top of the view (the kit, ADR-0024): an icon, a
  * title, a few short lines and its main buttons, optionally dismissible from
- * its title row. Keeps clear of the label cards.
+ * its title row; or, compact, all of it on one slim row. Keeps clear of the
+ * label cards.
  */
-export const FloatingBar = ({ icon, title, children, actions, dismiss }: IFloatingBarProps) => (
+export const FloatingBar = ({
+	icon,
+	title,
+	children,
+	actions,
+	dismiss,
+	isCompact = false,
+}: IFloatingBarProps) =>
+	isCompact ? (
+		<div className={styles.bar} data-compact="" data-label-obstacle="" role="status">
+			{icon && (
+				<span className={styles.icon} aria-hidden="true">
+					<Icon name={icon} size={15} />
+				</span>
+			)}
+
+			<div className={styles.compactTitle}>{title}</div>
+
+			{actions && <div className={styles.actions}>{actions}</div>}
+		</div>
+	) : (
+		<FullBar icon={icon} title={title} actions={actions} dismiss={dismiss}>
+			{children}
+		</FullBar>
+	);
+
+const FullBar = ({ icon, title, children, actions, dismiss }: IFloatingBarProps) => (
 	<div className={styles.bar} data-label-obstacle="" role="status">
 		{icon && (
 			<span className={styles.icon} aria-hidden="true">

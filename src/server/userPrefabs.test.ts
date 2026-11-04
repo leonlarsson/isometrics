@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vitest";
+
+import {
+	deleteUserPrefab,
+	type IUserPrefabMeta,
+	type IUserPrefabStore,
+	MOST_USER_PREFAB_BYTES,
+	readUserPrefab,
+	shareUserPrefab,
+	USER_PREFAB_ID,
+	UserPrefabError,
+} from "./userPrefabs";
+
+/** An in-memory KV namespace, keeping what was put and how long for. */
+const memoryStore = () => {
+	const kept = new Map<string, { value: string; metadata: IUserPrefabMeta; ttl: number }>();
+	const store: IUserPrefabStore = {
+		getWithMetadata: async (key) => {
+			const found = kept.get(key);
+			return { value: found?.value ?? null, metadata: found?.metadata ?? null };
+		},
+		put: async (key, value, { expirationTtl, metadata }) => {
+			kept.set(key, { value, metadata, ttl: expirationTtl });
+		},
+		delete: async (key) => {
+			kept.delete(key);
+		},
+	};
+	return { store, kept };
+};
+
+const ORIGIN = "https://example.test";
+const prefab = (extra: Record<string, unknown> = {}) =>
+	JSON.stringify({
+		id: "prefab_kiosk",
+		name: "Kiosk",
+		entities: [{ id: "box", kind: "box_01" }],
+		...extra,
+	});
+
+describe("prefabs shared by link (ADR-0134)", () => {
+	it("keep a prefab under a new unguessable key, for as long as asked, with its links", async () => {
+		const { store, kept } = memoryStore();
+		const now = new Date("2026-11-03T12:00:00Z");
+		const shared = await shareUserPrefab(store, prefab(), 86_400, ORIGIN, now);
+		expect(shared.id).toMatch(USER_PREFAB_ID);
+		expect(shared.url).toBe(`${ORIGIN}/p/${shared.id}`);
+		expect(shared.jsonUrl).toBe(`${ORIGIN}/api/user-prefabs/${shared.id}`);
+		expect(shared.expiresAt).toBe("2026-11-04T12:00:00.000Z");
+		const entry = kept.get(shared.id);
+		expect(entry?.ttl).toBe(86_400);
+		expect(entry?.metadata.name).toBe("Kiosk");
+		// The delete key itself is never kept, only its hash.
+		expect(JSON.stringify(entry)).not.toContain(shared.deleteKey);
+		const again = await shareUserPrefab(store, prefab(), 86_400, ORIGIN, now);
+		expect(again.id).not.toBe(shared.id);
+		expect(kept.size).toBe(2);
+	});
+
+	it("reads it back, and deletes it only with its key", async () => {
+		const { store } = memoryStore();
+		const shared = await shareUserPrefab(store, prefab(), 3600, ORIGIN);
+		const found = await readUserPrefab(store, shared.id);
+		expect(JSON.parse(found?.json ?? "{}")).toMatchObject({ id: "prefab_kiosk", name: "Kiosk" });
+		expect(await readUserPrefab(store, "not an id")).toBeNull();
+		expect(await deleteUserPrefab(store, shared.id, "wrong")).toBe("refused");
+		expect(await deleteUserPrefab(store, shared.id, shared.deleteKey)).toBe("deleted");
+		expect(await deleteUserPrefab(store, shared.id, shared.deleteKey)).toBe("gone");
+	});
+
+	it("refuses what isn't a prefab as written, too long a time, or too much", async () => {
+		const { store, kept } = memoryStore();
+		const refused = (text: string, seconds = 3600) =>
+			expect(shareUserPrefab(store, text, seconds, ORIGIN)).rejects.toBeInstanceOf(UserPrefabError);
+		await refused("{nope");
+		await refused(JSON.stringify({ id: "kiosk" }));
+		await refused(prefab({ entities: [{ id: "box", kind: "box_01", scale: "huge" }] }));
+		await refused(prefab(), 5);
+		await refused(prefab({ description: "x".repeat(MOST_USER_PREFAB_BYTES) }));
+		expect(kept.size).toBe(0);
+	});
+});

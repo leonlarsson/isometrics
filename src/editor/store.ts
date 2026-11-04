@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
+import { partIn, setWorldPrefabs } from "#/parts/prefabParts";
 import { getPart } from "#/parts/registry";
 import { altitudeMovedTo, standingAltitudeAt } from "#/parts/standing";
 import {
@@ -91,6 +92,7 @@ import {
 import { type IReadData, putReadData } from "#/scene/sheets";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
+import { saveCameraNow } from "./cameraMemory";
 import { restartDayCycle } from "./dayClock";
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
 import {
@@ -103,7 +105,14 @@ import {
 } from "./paint";
 import { readPreferences, setPreference, subscribePreferences } from "./preferences";
 import { notify } from "./toasts";
-import { type IPreview, previewOf, type TWhatIsOpen } from "./whatIsOpen";
+import {
+	type IPreview,
+	type IWorkshop,
+	OWN_WORLD,
+	previewOf,
+	type TWhatIsOpen,
+	workshopOf,
+} from "./whatIsOpen";
 
 export type TEditorMode = "edit" | "view";
 
@@ -117,7 +126,9 @@ export type TWorldTab =
 	| "camera"
 	| "views"
 	| "traffic"
-	| "data";
+	| "data"
+	/** The Workshop's, in place of the others (ADR-0134). */
+	| "prefab";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
 export type TSelectionTab =
 	| "object"
@@ -465,6 +476,22 @@ export interface IEditorState {
 	loadScene: (scene: TScene, options?: { preview?: IPreview }) => void;
 	setWhatIsOpen: (whatIsOpen: TWhatIsOpen) => void;
 	setAskingToKeep: (isAskingToKeep: boolean) => void;
+	/**
+	 * Open the Workshop (ADR-0134): `world` in place of the open one, which waits in `workshop.from`
+	 * with its undo history. Nothing is saved meanwhile (`keepsOpenWorld`).
+	 */
+	enterWorkshop: (world: TScene, workshop: IWorkshop) => void;
+	/**
+	 * Go back from the Workshop to the world it came from, as it was, with its view; `change`, if
+	 * given, is then made to it as one undo step (saving the prefab). Returns whether it was open.
+	 */
+	leaveWorkshop: (change?: (scene: Draft<TScene>) => void) => boolean;
+	/**
+	 * Leaving the Workshop with something built in it is being asked about (editor/workshop's
+	 * `leaveWorkshopFirst`): what to do once it's left. Runtime only.
+	 */
+	workshopLeaving: { then: () => void } | null;
+	setWorkshopLeaving: (leaving: { then: () => void } | null) => void;
 	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
 	revertTo: (before: TScene) => void;
 	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
@@ -912,10 +939,11 @@ const validRoadSelection = (
  * whose part was removed (renamed ones are upgraded on load, ADR-0053), or
  * from a newer one. Most common first.
  */
-export const unknownPartKinds = (scene: Pick<TScene, "entities">) => {
+export const unknownPartKinds = (scene: Pick<TScene, "entities" | "prefabs">) => {
 	const counts = new Map<string, number>();
-	for (const entity of scene.entities) {
-		if (!getPart(entity.kind)) {
+	// Copies of the world's own prefabs are known (ADR-0134), and so are their pieces' parts.
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
+		if (!partIn(entity.kind, scene.prefabs)) {
 			counts.set(entity.kind, (counts.get(entity.kind) ?? 0) + 1);
 		}
 	}
@@ -1153,8 +1181,8 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	// Fences' colours and how much of them is built (ADR-0103).
-	for (const fence of scene.fences) {
+	// Fences' colours and how much of them is built (ADR-0103), prefabs' pieces too (ADR-0134).
+	for (const fence of [...scene.fences, ...scene.prefabs.flatMap((prefab) => prefab.fences)]) {
 		for (const bindings of fenceBindingMapsOf(fence)) {
 			renameBindings(bindings, from, to);
 		}
@@ -1164,7 +1192,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	for (const entity of scene.entities) {
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
 		entity.label.dataKeys = swap(entity.label.dataKeys);
 		entity.details.dataKeys = swap(entity.details.dataKeys);
 		for (const field of getPart(entity.kind)?.fields ?? []) {
@@ -1199,7 +1227,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
  */
 export const createEditorStore = (openScene?: TScene) => {
 	const initialScene = openScene ?? createBrightwaterScene();
-	return create<IEditorState>()((rawSet, get) => {
+	const store = create<IEditorState>()((rawSet, get) => {
 		// Every change goes through here, so the list of selected items follows the active item.
 		const set = (
 			partial:
@@ -1244,7 +1272,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			dataWindow: null,
 			dragging: false,
 			openingWorld: 1,
-			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
+			whatIsOpen: openScene ? OWN_WORLD : { kind: "starting" },
 			isAskingToKeep: false,
 			openedWorldCount: 1,
 			// Remembered in this browser, like the other ways of working (Preferences → Editing).
@@ -1323,7 +1351,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			loadScene: (scene, options = {}) => {
 				warnAboutUnknownParts(scene);
 				set((state) => ({
-					whatIsOpen: { kind: "world", preview: options.preview ?? null },
+					whatIsOpen: { kind: "world", preview: options.preview ?? null, workshop: null },
 					isAskingToKeep: false,
 					// A world from a link opens to be looked at (Edit asks to keep it first); leaving one for a
 					// world of one's own goes back to editing.
@@ -1730,6 +1758,76 @@ export const createEditorStore = (openScene?: TScene) => {
 			},
 			setWhatIsOpen: (whatIsOpen) => set({ whatIsOpen }),
 			setAskingToKeep: (isAskingToKeep) => set({ isAskingToKeep }),
+			workshopLeaving: null,
+			setWorkshopLeaving: (leaving) => set({ workshopLeaving: leaving }),
+			enterWorkshop: (world, workshop) => {
+				// Where the world's camera was is kept before the Workshop's takes over.
+				saveCameraNow();
+				set({
+					whatIsOpen: { kind: "world", preview: null, workshop },
+					scene: world,
+					past: [],
+					future: [],
+					lastCommit: null,
+					mode: "edit",
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					activeViewpointId: null,
+					cameraFollow: null,
+					dataWindow: null,
+					// Things are built from Add to scene.
+					tab: "add",
+				});
+				get().resetView();
+			},
+			leaveWorkshop: (change) => {
+				const workshop = workshopOf(get().whatIsOpen);
+				if (!workshop) {
+					return false;
+				}
+				// Where the Workshop's camera was is kept before the world's view comes back.
+				saveCameraNow();
+				const { scene, past, future, view } = workshop.from;
+				set({
+					whatIsOpen: OWN_WORLD,
+					scene,
+					past,
+					future,
+					lastCommit: null,
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					cameraFollow: null,
+					dataWindow: null,
+				});
+				if (change) {
+					get().commit(change);
+				}
+				if (view) {
+					set((s) => ({
+						projection: view.projection,
+						flight: { pose: view, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
+					}));
+				} else {
+					get().resetView();
+				}
+				return true;
+			},
 			setMode: (mode) =>
 				// Editing a world from a link keeps a copy of it: asked first (ADR-0121).
 				mode === "edit" && previewOf(get().whatIsOpen)
@@ -3159,6 +3257,15 @@ export const createEditorStore = (openScene?: TScene) => {
 			cancelDrawing: () => set({ drawing: null }),
 		};
 	});
+	// The parts layer can't read the store: it's handed the open world's prefabs whenever they
+	// change (ADR-0134), before anything draws them.
+	setWorldPrefabs(store.getState().scene.prefabs);
+	store.subscribe((state, previous) => {
+		if (state.scene.prefabs !== previous.scene.prefabs) {
+			setWorldPrefabs(state.scene.prefabs);
+		}
+	});
+	return store;
 };
 
 /**

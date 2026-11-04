@@ -585,6 +585,8 @@ const KEPT_BY_SETTINGS_RESET = [
 	OPEN_WORLD_ID_KEY,
 	SINGLE_SAVE_KEY,
 	BACKUP_PREFIX,
+	// My prefabs (ADR-0134): one's own designs, not a setting.
+	`${PREFIX}:prefabs`,
 	BROWSER_BACKUP_PREFIX,
 	// Seen the offer to start fresh after a big update: not offered again for a settings reset.
 	`${PREFIX}:fresh-start-seen`,

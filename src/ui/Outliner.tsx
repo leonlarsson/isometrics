@@ -68,7 +68,7 @@ const selectedKeysOf = (items: readonly ISceneItem[]) => {
  */
 const madeRows = new WeakMap<
 	object,
-	{ palette: IScenePalette; data: TScene["data"]; row: IOutlinerRow }
+	{ palette: IScenePalette; data: TScene["data"]; prefabs: unknown; row: IOutlinerRow }
 >();
 
 const cachedRow = <T extends object>(
@@ -76,13 +76,15 @@ const cachedRow = <T extends object>(
 	palette: IScenePalette,
 	data: TScene["data"],
 	make: (thing: T) => IOutlinerRow,
+	/** The world's prefabs, for objects: a copy's row names its prefab (ADR-0134). */
+	prefabs: unknown = null,
 ) => {
 	const made = madeRows.get(thing);
-	if (made && made.palette === palette && made.data === data) {
+	if (made && made.palette === palette && made.data === data && made.prefabs === prefabs) {
 		return made.row;
 	}
 	const row = make(thing);
-	madeRows.set(thing, { palette, data, row });
+	madeRows.set(thing, { palette, data, prefabs, row });
 	return row;
 };
 
@@ -99,30 +101,36 @@ const rowsOf = (
 	};
 	return [
 		...scene.entities.map((each) =>
-			cachedRow(each, palette, worldData, (entity): IOutlinerRow => {
-				const part = getPart(entity.kind);
-				// Its own values: the world's and its row's columns (ADR-0108).
-				const own = valuesOfEntity(entity, worldData);
-				const { first, second } = part
-					? swatchColors(resolveColors(part, entity, palette, own), part)
-					: { first: palette.selection, second: palette.selection };
-				return {
-					item: { kind: "entity", id: entity.id },
-					group: part ? CATEGORY_LABELS[part.category] : OTHER,
-					name: entity.name,
-					fallback: part ? partName(part) : entity.kind,
-					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
-					hidden: entity.isHidden,
-					locked: entity.isLocked,
-					// The card's first value, else its detail tiles' (ADR-0104: every object has card settings).
-					// With data off (ADR-0115), none: not even "no data".
-					value: worldData.enabled
-						? firstValue(
-								entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
-							)
-						: null,
-				};
-			}),
+			cachedRow(
+				each,
+				palette,
+				worldData,
+				(entity): IOutlinerRow => {
+					const part = getPart(entity.kind);
+					// Its own values: the world's and its row's columns (ADR-0108).
+					const own = valuesOfEntity(entity, worldData);
+					const { first, second } = part
+						? swatchColors(resolveColors(part, entity, palette, own), part)
+						: { first: palette.selection, second: palette.selection };
+					return {
+						item: { kind: "entity", id: entity.id },
+						group: part ? CATEGORY_LABELS[part.category] : OTHER,
+						name: entity.name,
+						fallback: part ? partName(part) : entity.kind,
+						swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
+						hidden: entity.isHidden,
+						locked: entity.isLocked,
+						// The card's first value, else its detail tiles' (ADR-0104: every object has card settings).
+						// With data off (ADR-0115), none: not even "no data".
+						value: worldData.enabled
+							? firstValue(
+									entity.label.dataKeys.length ? entity.label.dataKeys : entity.details.dataKeys,
+								)
+							: null,
+					};
+				},
+				scene.prefabs,
+			),
 		),
 		...scene.roads.map((each) =>
 			cachedRow(
@@ -181,6 +189,8 @@ const rowsOf = (
 /** Groups in palette order, then roads, fences and areas. */
 const GROUP_ORDER = [
 	...partsByCategory().map(([category]) => CATEGORY_LABELS[category]),
+	// The world's own prefabs' copies (ADR-0134), after the parts.
+	CATEGORY_LABELS.prefabs,
 	OTHER,
 	ROADS,
 	FENCES,

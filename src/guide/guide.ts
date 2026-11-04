@@ -56,6 +56,31 @@ export const GUIDE: IGuideSection[] = [
 		],
 	},
 	{
+		id: "prefabs",
+		title: "Prefabs: objects of your own",
+		blocks: [
+			{
+				kind: "text",
+				text: "A **prefab** is something you build once from shapes, parts and fences (a farmyard, a kiosk, a castle gate) and then place again and again, like a part. Each copy is one object: it moves, turns and resizes as one, and changing the prefab changes every copy.",
+			},
+			{
+				kind: "steps",
+				steps: [
+					"Open **Add to scene**, pick the **Prefabs** chip and click **Make a prefab…**. Or select things in the world, right-click them and choose **Make a prefab from these…** (**Make a prefab from it…** for one thing).",
+					"You're in **the Workshop**, a studio for the prefab: it floats with a dashed outline round its footprint and an arrow to its **Front** (turn **Show the ground** on in the bar or its **Prefab** panel to see it on ground). Build with everything in **Add to scene**, as anywhere else; only objects and fences become the prefab, and the **Prefab** panel on the right holds its name, description and size.",
+					"Name it in the slim bar at the top and click **Save the prefab**. You're back in your world with a copy: where the selected things were (in their place), or where you were looking. **Leave without saving** goes back with nothing changed (asked first once you've built something).",
+					"Place more from the **Prefabs** chip, or the ground's right-click **Add here**. To change it, right-click a copy (or its tile) and choose **Edit prefab**: every copy follows.",
+					"Every prefab you save is also kept in this browser, under **My prefabs** in the **Prefabs** chip of your other worlds: click one to add it there. Right-click its tile for **Remove from My prefabs** (worlds that use it keep it), or **Remove from this world…** to take it and its copies out of this one.",
+					"To give a prefab to someone, right-click its tile and choose **Share a link…**, then **Create a public link**: anyone with the link sees it and can click **Add to My prefabs**, until it expires. Share nothing private.",
+				],
+			},
+			{
+				kind: "note",
+				text: "A prefab can't hold another prefab, and prefabs can't be made in a world from a link until you **Keep a copy**. Copying a copy to another world takes its prefab along.",
+			},
+		],
+	},
+	{
 		id: "junctions",
 		title: "Roads that meet: junctions",
 		blocks: [

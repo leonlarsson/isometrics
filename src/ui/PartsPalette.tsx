@@ -10,24 +10,35 @@ import {
 	usePaletteMemory,
 } from "#/editor/paletteMemory";
 import { findFreeSpot } from "#/editor/placement";
+import {
+	placeFromLibrary,
+	removeFromLibrary,
+	removePrefabFromWorld,
+	usePrefabLibrary,
+} from "#/editor/prefabLibrary";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import { useResolvedTheme, useThemePalette } from "#/editor/useTheme";
+import { labelWithReason, whyNoWorkshop, workshopOf } from "#/editor/whatIsOpen";
+import { editPrefab, makeNewPrefab } from "#/editor/workshop";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { pastDragThreshold } from "#/lib/pointer";
 import { colorOf, resolvePartColors, swatchColors } from "#/parts/colorModel";
+import { describePrefab, prefabName, prefabPartOf } from "#/parts/prefabParts";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
-import { fencePictureKey, usePartThumbnails } from "#/render/thumbnails";
+import { fencePictureKey, usePartThumbnails, usePrefabThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
 import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
 import { ROAD_KIND_IDS, ROAD_KIND_LABELS, ROAD_KINDS } from "#/scene/roads";
-import type { TRoadKind } from "#/scene/schema";
+import type { TPrefab, TRoadKind } from "#/scene/schema";
 import { groupByFamily } from "#/scene/variants";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import { ChipGroup, type IChip } from "./ChipGroup";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Hint, SearchField } from "./fields";
 import { releaseFocusAfterPointerClick } from "./focus";
 import { Icon, type TIconName } from "./Icon";
@@ -35,6 +46,8 @@ import { CATEGORY_ICONS } from "./inspectorTabs";
 import { ContextMenu, Menu } from "./Menu";
 import { PaneHeader } from "./PaneHeader";
 import { type IPreviewAnchor, PartPreview } from "./PartPreview";
+import { PREFAB_WORDS } from "./prefabWords";
+import { SharePrefabDialog } from "./SharePrefabDialog";
 import { HIDDEN_ROUTE_SWATCH } from "./swatches";
 import { Tooltip } from "./Tooltip";
 import { useNarrowLayout } from "./useNarrowLayout";
@@ -42,7 +55,11 @@ import { useNarrowLayout } from "./useNarrowLayout";
 import styles from "./PartsPalette.module.css";
 
 /** Each section's icon on its heading. */
+/** My prefabs' section in the Prefabs chip (ADR-0134): this browser's designs not in the world. */
+const MY_PREFABS = "My prefabs";
+
 const SECTION_ICONS: Record<string, TIconName> = {
+	[MY_PREFABS]: "prefab",
 	favourites: "star",
 	recent: "clock",
 	Roads: "road",
@@ -70,6 +87,8 @@ const CHIPS: IChip<TPaletteCategory>[] = [
 	{ value: "areas", label: "Areas" },
 	{ value: "fences", label: "Fences" },
 	...partsByCategory().map(([category]) => ({ value: category, label: CATEGORY_LABELS[category] })),
+	// One's own designs (ADR-0134), which no part registry has.
+	{ value: "prefabs", label: CATEGORY_LABELS.prefabs },
 ];
 
 /** Shown until another chip is chosen. */
@@ -95,6 +114,12 @@ interface IPaletteItem {
 	thumbnail?: string;
 	/** Highlighted while this tool is active (drawing this road or area). */
 	pressed?: boolean;
+	/** Greyed out, its name saying why (Make a prefab… in a preview). */
+	disabled?: boolean;
+	/** A prefab of this world's (ADR-0134): its tile's menu offers Edit in the Workshop. */
+	prefabId?: string;
+	/** One of My prefabs, not in this world yet (ADR-0134): added where one's looking. */
+	libraryPrefab?: TPrefab;
 	/** Part kind, for items that can also be dragged onto the scene. */
 	kind?: string;
 	onSelect: () => void;
@@ -156,7 +181,18 @@ export const PartsPalette = () => {
 	const startDrawing = useEditor((s) => s.startDrawing);
 	const startAreaDrawing = useEditor((s) => s.startAreaDrawing);
 	const palette = useThemePalette();
-	const thumbnails = usePartThumbnails(useResolvedTheme());
+	const theme = useResolvedTheme();
+	const thumbnails = usePartThumbnails(theme);
+	// The world's own prefabs (ADR-0134), and why none can be made now, if so.
+	const prefabs = useEditor((s) => s.scene.prefabs);
+	// My prefabs not in this world yet; none inside the Workshop, where a prefab can't hold one.
+	const library = usePrefabLibrary();
+	const inWorkshop = useEditor((s) => workshopOf(s.whatIsOpen) !== null);
+	const libraryOnly = inWorkshop
+		? []
+		: library.filter((prefab) => !prefabs.some((each) => each.id === prefab.id));
+	const prefabThumbnails = usePrefabThumbnails([...prefabs, ...libraryOnly], theme);
+	const noWorkshop = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
 	const [query, setQuery] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 	// Set once a press turned into a drag, so the click that may follow doesn't add a second copy.
@@ -167,6 +203,33 @@ export const PartsPalette = () => {
 	const narrow = useNarrowLayout();
 	const memory = usePaletteMemory();
 	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+	/** A prefab whose Share a link… is open (ADR-0134). */
+	const [sharingPrefab, setSharingPrefab] = useState<TPrefab | null>(null);
+	/** A prefab whose Remove from this world… asks first, as it has copies (ADR-0134). */
+	const [removing, setRemoving] = useState<{ id: string; name: string; copies: number } | null>(
+		null,
+	);
+	const removedFromWorld = (id: string, name: string) => {
+		const copies = removePrefabFromWorld(id);
+		notify(
+			`Removed ${name} from this world`,
+			`${copies > 0 ? `With its ${copies === 1 ? "copy" : `${copies} copies`}. ` : ""}Undo brings it back.`,
+		);
+	};
+	/** Remove from this world…: asked first when copies would go with it, else done (one undo step). */
+	const removeFromWorld = (id: string) => {
+		const { scene } = useEditor.getState();
+		const prefab = scene.prefabs.find((each) => each.id === id);
+		if (!prefab) {
+			return;
+		}
+		const copies = scene.entities.filter((entity) => entity.kind === id).length;
+		if (copies > 0) {
+			setRemoving({ id, name: prefabName(prefab), copies });
+		} else {
+			removedFromWorld(id, prefabName(prefab));
+		}
+	};
 	/** The family whose variants are shown, by its id ("part:race_car"). */
 	const [openFamily, setOpenFamily] = useState<string | null>(null);
 
@@ -271,6 +334,62 @@ export const PartsPalette = () => {
 				};
 			}),
 		),
+		// Prefabs (ADR-0134): making one in the Workshop, then this world's own.
+		{
+			key: "prefab:new",
+			category: "prefabs" as const,
+			group: CATEGORY_LABELS.prefabs,
+			name: noWorkshop ? `Make a prefab… (${noWorkshop})` : "Make a prefab…",
+			familyName: "Make a prefab…",
+			description: "Build one of your own from shapes, parts and fences, in the Workshop",
+			tooltip:
+				"Build one of your own from shapes, parts and fences, in the Workshop, to place again and again.",
+			searchText: "prefab workshop make build my own design",
+			swatch: `repeating-linear-gradient(135deg, ${palette.selection} 0 6px, transparent 6px 12px)`,
+			disabled: noWorkshop !== null,
+			onSelect: () => makeNewPrefab(currentView.read?.() ?? null),
+		},
+		...prefabs.map((prefab) => {
+			const description = describePrefab(prefab);
+			return {
+				key: `part:${prefab.id}`,
+				category: "prefabs" as const,
+				group: CATEGORY_LABELS.prefabs,
+				name: prefabName(prefab),
+				familyName: prefabName(prefab),
+				description,
+				tooltip: `${description}. Click to add, or drag onto the scene.`,
+				searchText: `${description} prefab`,
+				swatch: `linear-gradient(135deg, ${palette.selection} 55%, ${palette.ground} 55%)`,
+				thumbnail: prefabThumbnails[prefab.id],
+				kind: prefab.id,
+				prefabId: prefab.id,
+				onSelect: () => {
+					const scene = useEditor.getState().scene;
+					const near = currentView.read?.()?.target ?? [0, 0];
+					const part = prefabPartOf(prefab);
+					addEntity({ kind: prefab.id, name: "", position: findFreeSpot(scene, part, near) });
+				},
+			};
+		}),
+		// My prefabs from this browser (ADR-0134): placing one copies its design into the world.
+		...libraryOnly.map((prefab) => {
+			const description = describePrefab(prefab);
+			return {
+				key: `library:${prefab.id}`,
+				category: "prefabs" as const,
+				group: MY_PREFABS,
+				name: prefabName(prefab),
+				familyName: prefabName(prefab),
+				description,
+				tooltip: `${description}. From My prefabs: click to add it to this world.`,
+				searchText: `${description} prefab my prefabs`,
+				swatch: `linear-gradient(135deg, ${palette.selection} 55%, ${palette.ground} 55%)`,
+				thumbnail: prefabThumbnails[prefab.id],
+				libraryPrefab: prefab,
+				onSelect: () => placeFromLibrary(prefab, currentView.read?.()?.target ?? [0, 0]),
+			};
+		}),
 	];
 
 	/** Watch a press on a part tile; past the threshold it becomes a drag onto the scene. */
@@ -320,15 +439,21 @@ export const PartsPalette = () => {
 			: [
 					{ id: "favourites", label: "Favourites", items: pick(memory.favourites) },
 					{ id: "recent", label: "Recently used", items: pick(memory.recent) },
-					{
-						id: categoryItems[0]?.group ?? category,
-						label: categoryItems[0]?.group ?? category,
-						items: categoryItems,
-						byFamily: true,
-					},
+					// A section per group: one for most chips, Prefabs and My prefabs for prefabs.
+					...[...new Set(categoryItems.map((item) => item.group))].map((group) => ({
+						id: group,
+						label: group,
+						items: categoryItems.filter((item) => item.group === group),
+						// Prefabs' ids aren't numbered variants of a family.
+						byFamily: category !== "prefabs",
+					})),
 				]),
 	].filter((section) => section.items.length > 0);
 	const menuItem = menu ? byKey.get(menu.key) : undefined;
+	// The prefab a tile is, of this world's or My prefabs (ADR-0134).
+	const menuPrefabId = menuItem?.prefabId ?? menuItem?.libraryPrefab?.id;
+	const menuPrefab =
+		menuItem?.libraryPrefab ?? prefabs.find((prefab) => prefab.id === menuItem?.prefabId) ?? null;
 
 	const tile = (item: IPaletteItem, section: string, family?: IFamilyOfTile) => {
 		const favourite = memory.favourites.includes(item.key);
@@ -345,6 +470,7 @@ export const PartsPalette = () => {
 						className={styles.part}
 						data-draggable={item.kind ? "" : undefined}
 						aria-pressed={item.pressed}
+						disabled={item.disabled}
 						aria-description={item.kind ? item.tooltip : undefined}
 						onPointerEnter={(event) => {
 							if (item.kind && event.pointerType === "mouse") {
@@ -540,7 +666,7 @@ export const PartsPalette = () => {
 						onOpenChange={(open) => setSectionCollapsed(section.id, !open)}
 					>
 						<div className={styles.grid}>
-							{"byFamily" in section
+							{"byFamily" in section && section.byFamily
 								? familyTiles(section.items, section.id)
 								: section.items.map((item) => tile(item, section.id))}
 						</div>
@@ -562,9 +688,64 @@ export const PartsPalette = () => {
 			>
 				{menuItem && (
 					<Menu.Item
-						icon={menuItem.kind ? "plus" : "edit"}
-						label={menuItem.kind ? "Add where you're looking" : "Draw it"}
+						icon={menuItem.kind || menuItem.libraryPrefab ? "plus" : "edit"}
+						label={
+							menuItem.kind || menuItem.libraryPrefab
+								? "Add where you're looking"
+								: menuItem.category === "prefabs"
+									? menuItem.name
+									: "Draw it"
+						}
+						disabled={menuItem.disabled}
 						onClick={() => use(menuItem)}
+					/>
+				)}
+
+				{menuPrefab && (
+					<Menu.Item
+						icon="newTab"
+						label="Share a link…"
+						description="Public until it expires: others add it to their own prefabs"
+						onClick={() => setSharingPrefab(menuPrefab)}
+					/>
+				)}
+
+				{menuItem?.prefabId && (
+					<Menu.Item
+						icon="workshop"
+						label={labelWithReason(PREFAB_WORDS.edit.label, noWorkshop)}
+						description={PREFAB_WORDS.edit.description}
+						disabled={noWorkshop !== null}
+						onClick={() =>
+							menuItem.prefabId && editPrefab(menuItem.prefabId, currentView.read?.() ?? null)
+						}
+					/>
+				)}
+
+				{menuItem?.prefabId && (
+					<Menu.Item
+						icon="trash"
+						label={PREFAB_WORDS.removeFromWorld.label}
+						description={PREFAB_WORDS.removeFromWorld.description}
+						onClick={() => menuItem.prefabId && removeFromWorld(menuItem.prefabId)}
+					/>
+				)}
+
+				{menuPrefabId && library.some((prefab) => prefab.id === menuPrefabId) && (
+					<Menu.Item
+						icon="trash"
+						label={PREFAB_WORDS.removeFromLibrary.label}
+						description={PREFAB_WORDS.removeFromLibrary.description}
+						onClick={() => {
+							const name = menuItem?.name ?? "It";
+							removeFromLibrary(menuPrefabId);
+							notify(
+								`Removed ${name} from My prefabs`,
+								prefabs.some((prefab) => prefab.id === menuPrefabId)
+									? "This world keeps it, as do others that use it: Remove from this world… takes it out of one."
+									: "Worlds that use it keep it.",
+							);
+						}}
 					/>
 				)}
 
@@ -579,6 +760,22 @@ export const PartsPalette = () => {
 			</ContextMenu>
 
 			{preview && !placing && <PartPreview kind={preview.kind} anchor={preview.anchor} />}
+
+			<SharePrefabDialog prefab={sharingPrefab} onClose={() => setSharingPrefab(null)} />
+
+			<ConfirmDialog
+				open={removing !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setRemoving(null);
+					}
+				}}
+				title={`Remove ${removing?.name ?? "it"} from this world?`}
+				description={`Its ${removing?.copies ?? 0} ${removing?.copies === 1 ? "copy goes" : "copies go"} too. My prefabs keeps it, if it's there; Undo brings them back.`}
+				confirmLabel="Remove from this world"
+				onConfirm={() => removing && removedFromWorld(removing.id, removing.name)}
+				danger
+			/>
 		</nav>
 	);
 };

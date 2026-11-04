@@ -1,0 +1,6 @@
+/* The prefab's name, typed in place: room for a few words, no more, so the bar stays slim. */
+.name {
+	flex: 0 1 10rem;
+	min-width: 6rem;
+	font-weight: 400;
+}

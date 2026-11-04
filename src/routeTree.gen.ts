@@ -15,8 +15,11 @@ import { Route as GuideDotmdRouteImport } from './routes/guide[.]md'
 import { Route as KitRouteImport } from './routes/kit'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as EditorIndexRouteImport } from './routes/_editor.index'
+import { Route as EditorPIdRouteImport } from './routes/_editor.p.$id'
 import { Route as EditorTemplatesIdRouteImport } from './routes/_editor.templates.$id'
 import { Route as EditorWIdRouteImport } from './routes/_editor.w.$id'
+import { Route as ApiUserPrefabsIndexRouteImport } from './routes/api/user-prefabs/index'
+import { Route as ApiUserPrefabsIdRouteImport } from './routes/api/user-prefabs/$id'
 import { Route as ApiUserWorldsIndexRouteImport } from './routes/api/user-worlds/index'
 import { Route as ApiUserWorldsIdRouteImport } from './routes/api/user-worlds/$id'
 import { Route as ApiWorldsValidateRouteImport } from './routes/api/worlds/validate'
@@ -54,6 +57,11 @@ const EditorIndexRoute = EditorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => EditorRoute,
 } as any)
+const EditorPIdRoute = EditorPIdRouteImport.update({
+  id: '/p/$id',
+  path: '/p/$id',
+  getParentRoute: () => EditorRoute,
+} as any)
 const EditorTemplatesIdRoute = EditorTemplatesIdRouteImport.update({
   id: '/templates/$id',
   path: '/templates/$id',
@@ -63,6 +71,16 @@ const EditorWIdRoute = EditorWIdRouteImport.update({
   id: '/w/$id',
   path: '/w/$id',
   getParentRoute: () => EditorRoute,
+} as any)
+const ApiUserPrefabsIndexRoute = ApiUserPrefabsIndexRouteImport.update({
+  id: '/api/user-prefabs/',
+  path: '/api/user-prefabs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUserPrefabsIdRoute = ApiUserPrefabsIdRouteImport.update({
+  id: '/api/user-prefabs/$id',
+  path: '/api/user-prefabs/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUserWorldsIndexRoute = ApiUserWorldsIndexRouteImport.update({
   id: '/api/user-worlds/',
@@ -106,10 +124,13 @@ export interface FileRoutesByFullPath {
   '/guide.md': typeof GuideDotmdRoute
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
+  '/p/$id': typeof EditorPIdRoute
   '/templates/$id': typeof EditorTemplatesIdRoute
   '/w/$id': typeof EditorWIdRoute
+  '/api/user-prefabs/$id': typeof ApiUserPrefabsIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-prefabs/': typeof ApiUserPrefabsIndexRoute
   '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
@@ -122,10 +143,13 @@ export interface FileRoutesByTo {
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/': typeof EditorIndexRoute
+  '/p/$id': typeof EditorPIdRoute
   '/templates/$id': typeof EditorTemplatesIdRoute
   '/w/$id': typeof EditorWIdRoute
+  '/api/user-prefabs/$id': typeof ApiUserPrefabsIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-prefabs': typeof ApiUserPrefabsIndexRoute
   '/api/user-worlds': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
@@ -140,10 +164,13 @@ export interface FileRoutesById {
   '/kit': typeof KitRoute
   '/parts': typeof PartsRoute
   '/_editor/': typeof EditorIndexRoute
+  '/_editor/p/$id': typeof EditorPIdRoute
   '/_editor/templates/$id': typeof EditorTemplatesIdRoute
   '/_editor/w/$id': typeof EditorWIdRoute
+  '/api/user-prefabs/$id': typeof ApiUserPrefabsIdRoute
   '/api/user-worlds/$id': typeof ApiUserWorldsIdRoute
   '/api/worlds/validate': typeof ApiWorldsValidateRoute
+  '/api/user-prefabs/': typeof ApiUserPrefabsIndexRoute
   '/api/user-worlds/': typeof ApiUserWorldsIndexRoute
   '/api/worlds/schema/patch': typeof ApiWorldsSchemaPatchRoute
   '/api/worlds/templates/$id': typeof ApiWorldsTemplatesIdRoute
@@ -158,10 +185,13 @@ export interface FileRouteTypes {
     | '/guide.md'
     | '/kit'
     | '/parts'
+    | '/p/$id'
     | '/templates/$id'
     | '/w/$id'
+    | '/api/user-prefabs/$id'
     | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-prefabs/'
     | '/api/user-worlds/'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
@@ -174,10 +204,13 @@ export interface FileRouteTypes {
     | '/kit'
     | '/parts'
     | '/'
+    | '/p/$id'
     | '/templates/$id'
     | '/w/$id'
+    | '/api/user-prefabs/$id'
     | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-prefabs'
     | '/api/user-worlds'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
@@ -191,10 +224,13 @@ export interface FileRouteTypes {
     | '/kit'
     | '/parts'
     | '/_editor/'
+    | '/_editor/p/$id'
     | '/_editor/templates/$id'
     | '/_editor/w/$id'
+    | '/api/user-prefabs/$id'
     | '/api/user-worlds/$id'
     | '/api/worlds/validate'
+    | '/api/user-prefabs/'
     | '/api/user-worlds/'
     | '/api/worlds/schema/patch'
     | '/api/worlds/templates/$id'
@@ -208,8 +244,10 @@ export interface RootRouteChildren {
   GuideDotmdRoute: typeof GuideDotmdRoute
   KitRoute: typeof KitRoute
   PartsRoute: typeof PartsRoute
+  ApiUserPrefabsIdRoute: typeof ApiUserPrefabsIdRoute
   ApiUserWorldsIdRoute: typeof ApiUserWorldsIdRoute
   ApiWorldsValidateRoute: typeof ApiWorldsValidateRoute
+  ApiUserPrefabsIndexRoute: typeof ApiUserPrefabsIndexRoute
   ApiUserWorldsIndexRoute: typeof ApiUserWorldsIndexRoute
   ApiWorldsSchemaPatchRoute: typeof ApiWorldsSchemaPatchRoute
   ApiWorldsTemplatesIdRoute: typeof ApiWorldsTemplatesIdRoute
@@ -261,6 +299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditorIndexRouteImport
       parentRoute: typeof EditorRoute
     }
+    '/_editor/p/$id': {
+      id: '/_editor/p/$id'
+      path: '/p/$id'
+      fullPath: '/p/$id'
+      preLoaderRoute: typeof EditorPIdRouteImport
+      parentRoute: typeof EditorRoute
+    }
     '/_editor/templates/$id': {
       id: '/_editor/templates/$id'
       path: '/templates/$id'
@@ -274,6 +319,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/w/$id'
       preLoaderRoute: typeof EditorWIdRouteImport
       parentRoute: typeof EditorRoute
+    }
+    '/api/user-prefabs/': {
+      id: '/api/user-prefabs/'
+      path: '/api/user-prefabs'
+      fullPath: '/api/user-prefabs/'
+      preLoaderRoute: typeof ApiUserPrefabsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/user-prefabs/$id': {
+      id: '/api/user-prefabs/$id'
+      path: '/api/user-prefabs/$id'
+      fullPath: '/api/user-prefabs/$id'
+      preLoaderRoute: typeof ApiUserPrefabsIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/user-worlds/': {
       id: '/api/user-worlds/'
@@ -329,12 +388,14 @@ declare module '@tanstack/react-router' {
 
 interface EditorRouteChildren {
   EditorIndexRoute: typeof EditorIndexRoute
+  EditorPIdRoute: typeof EditorPIdRoute
   EditorTemplatesIdRoute: typeof EditorTemplatesIdRoute
   EditorWIdRoute: typeof EditorWIdRoute
 }
 
 const EditorRouteChildren: EditorRouteChildren = {
   EditorIndexRoute: EditorIndexRoute,
+  EditorPIdRoute: EditorPIdRoute,
   EditorTemplatesIdRoute: EditorTemplatesIdRoute,
   EditorWIdRoute: EditorWIdRoute,
 }
@@ -348,8 +409,10 @@ const rootRouteChildren: RootRouteChildren = {
   GuideDotmdRoute: GuideDotmdRoute,
   KitRoute: KitRoute,
   PartsRoute: PartsRoute,
+  ApiUserPrefabsIdRoute: ApiUserPrefabsIdRoute,
   ApiUserWorldsIdRoute: ApiUserWorldsIdRoute,
   ApiWorldsValidateRoute: ApiWorldsValidateRoute,
+  ApiUserPrefabsIndexRoute: ApiUserPrefabsIndexRoute,
   ApiUserWorldsIndexRoute: ApiUserWorldsIndexRoute,
   ApiWorldsSchemaPatchRoute: ApiWorldsSchemaPatchRoute,
   ApiWorldsTemplatesIdRoute: ApiWorldsTemplatesIdRoute,

@@ -22,4 +22,5 @@ export const CATEGORY_ICONS: Record<TPartCategory, TIconName> = {
 	infrastructure: "cone",
 	markers: "pin",
 	shapes: "cube",
+	prefabs: "prefab",
 };

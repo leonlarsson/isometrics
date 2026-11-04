@@ -1,11 +1,13 @@
+import { measurePrefab, prefabName } from "#/parts/prefabParts";
 import { repairWorld } from "#/parts/repairWorld";
-import type { TScene } from "#/scene/schema";
+import { SCENE_VERSION, SceneSchema, type TPrefab, type TScene } from "#/scene/schema";
 import { isWorldPatch } from "#/scene/worldPatch";
 import { templateById } from "#/templates";
 
 import { allowLink } from "./linkTrust";
 import { markAddressesAsked, outsideAddressesOf } from "./sourceRefresh";
 import { useEditor } from "./store";
+import { fetchSharedPrefab } from "./userPrefabs";
 import { fetchSharedWorld, ShareError } from "./userWorlds";
 import type { ILinkAsked } from "./whatIsOpen";
 
@@ -31,7 +33,7 @@ const SHARED_ID = /^[A-Za-z0-9_-]{22}$/;
 /** The link a page's address is, if it's one: `/w/<id>` or `/templates/<id>`. */
 export const linkInAddress = (pathname = window.location.pathname): ILinkAsked | null => {
 	const [, from, encoded, ...rest] = pathname.split("/");
-	if (rest.some(Boolean) || !encoded || (from !== "w" && from !== "templates")) {
+	if (rest.some(Boolean) || !encoded || (from !== "w" && from !== "templates" && from !== "p")) {
 		return null;
 	}
 	// Any id is read, one that names nothing too (an old `lantern_bay`): opening it says so.
@@ -41,7 +43,23 @@ export const linkInAddress = (pathname = window.location.pathname): ILinkAsked |
 	} catch {
 		// Not percent-encoding after all: read as it is.
 	}
-	return { from: from === "w" ? "shared" : "template", id };
+	return { from: from === "w" ? "shared" : from === "p" ? "prefab" : "template", id };
+};
+
+/**
+ * A shared prefab to look at before it's added to My prefabs (ADR-0134): one copy of it in the
+ * middle of a small world of its own, named after it.
+ */
+export const worldShowingPrefab = (prefab: TPrefab): TScene => {
+	const { footprint } = measurePrefab(prefab);
+	const side = (size: number) => Math.min(500, Math.max(16, 2 * Math.ceil((size + 8) / 2)));
+	return SceneSchema.parse({
+		version: SCENE_VERSION,
+		meta: { title: prefabName(prefab), subtitle: "A prefab shared by link" },
+		ground: { width: side(footprint[0]), depth: side(footprint[1]) },
+		prefabs: [prefab],
+		entities: [{ id: "shared_prefab", kind: prefab.id }],
+	});
 };
 
 /**
@@ -88,6 +106,20 @@ const fetchLinked = async (
 			throw new ShareError(`There's no template called “${link.id}”.`);
 		}
 		return { scene: template.create(), expiresAt: null };
+	}
+	if (link.from === "prefab") {
+		if (!SHARED_ID.test(link.id)) {
+			throw new ShareError("It isn't a link to a prefab shared from this site.");
+		}
+		const { prefab, expiresAt } = await fetchSharedPrefab(link.id, {
+			onWaiting: (tries, secondsLeft) =>
+				useEditor.getState().setWhatIsOpen({
+					kind: "link",
+					link,
+					step: { kind: "fetching", waited: { tries, secondsLeft } },
+				}),
+		});
+		return { scene: worldShowingPrefab(prefab), expiresAt };
 	}
 	const { text, expiresAt } = await fetchSharedWorld(link.id, {
 		onWaiting: (tries, secondsLeft) =>

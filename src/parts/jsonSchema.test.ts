@@ -17,7 +17,9 @@ const entitySchema = () =>
 describe("worldJsonSchema", () => {
 	it("lists every part kind with a description", () => {
 		const kinds = entitySchema().properties.kind.oneOf;
-		expect(kinds.map((k) => k.const)).toEqual(PARTS.map((part) => part.kind));
+		// Then copies of the world's own prefabs, by their ids (ADR-0134).
+		expect(kinds.map((k) => k.const)).toEqual([...PARTS.map((part) => part.kind), undefined]);
+		expect(kinds.at(-1)).toMatchObject({ pattern: "^prefab_" });
 		const van = kinds.find((k) => k.const === "delivery_van_01");
 		expect(van?.description).toMatch(/Delivery van/);
 		expect(van?.description).toMatch(/drive along a road/);
