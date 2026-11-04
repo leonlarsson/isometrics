@@ -224,8 +224,9 @@
 	border-radius: 999px;
 }
 
+/* Round: as wide as they are tall. */
 .cluster .iconButton[data-size="md"] {
-	width: 32px;
+	width: 30px;
 	height: 30px;
 }
 

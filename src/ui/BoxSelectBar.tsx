@@ -7,7 +7,7 @@ import styles from "./DrawingBar.module.css";
 import boxStyles from "./SelectionBox.module.css";
 
 /**
- * While B / Shift+B (or the toolbar's Select box) waits for a drag (ADR-0064):
+ * While B / Shift+B (or the view bar's Select with a box) waits for a drag (ADR-0064):
  * what the drag will do, and the box itself as it's drawn.
  */
 export const BoxSelectBar = () => {

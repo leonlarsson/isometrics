@@ -26,7 +26,7 @@ const LENSES = [
 ];
 
 /**
- * The toolbar's camera menu (ADR-0062): diorama or perspective view, a lens a
+ * The view bar's camera menu (ADR-0062, ADR-0142): diorama or perspective view, a lens a
  * click away, re-centring, and the way to the Camera tab and Preferences. The
  * overlays have a menu of their own beside the shading switcher (ADR-0141).
  */
@@ -116,7 +116,7 @@ export const CameraMenu = () => {
 				)}
 
 				<Menu.Item
-					icon="user"
+					icon="cog"
 					label="Preferences…"
 					description="How the camera moves for you"
 					onClick={() => store().setPreferencesOpen(true)}

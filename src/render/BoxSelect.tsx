@@ -126,7 +126,7 @@ const pointsInBox = (
 };
 
 /**
- * B / Shift+B (or the toolbar's Select box): the next drag on the view draws
+ * B / Shift+B (or the view bar's Select with a box): the next drag on the view draws
  * a box that adds what's inside to the selection, or takes it out; holding
  * Ctrl or Cmd when letting go takes it out too (ADR-0064). The drag is taken
  * before the camera sees it, so it never pans. Esc or a right click cancels.

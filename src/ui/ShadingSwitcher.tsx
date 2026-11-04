@@ -3,7 +3,7 @@ import { setPreference, type TGraphicsPreset, usePreferences } from "#/editor/pr
 import { useEditor } from "#/editor/store";
 
 import { IconButton, IconButtonGroup } from "./Button";
-import type { TIconName } from "./Icon";
+import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 
 const PRESETS: { preset: TGraphicsPreset; icon: TIconName; name: string; drawn: string }[] = [
@@ -55,7 +55,7 @@ const openGraphicsSettings = () => useEditor.getState().setPreferencesOpen(true,
 const openRenderDialog = () => useEditor.getState().setRenderDialogOpen(true);
 
 /**
- * The toolbar's shading switcher (ADR-0080), like Blender's viewport shading:
+ * The view bar's shading switcher (ADR-0080), like Blender's viewport shading:
  * wireframe, clay, or a Graphics preset (ADR-0072) a click away, and the button to
  * the Graphics settings. The presets are the Graphics page's preset, so the
  * choice is this browser's, for every world.
@@ -125,7 +125,7 @@ export const ShadingSwitcher = () => {
 	);
 };
 
-/** The shading switcher on phones (ADR-0080): the same choices as a group in the toolbar's More menu. */
+/** The shading switcher on phones (ADR-0080): the same choices as a group in the view bar's More menu. */
 export const ShadingMenuGroup = () => {
 	const preferences = usePreferences();
 	const wireframe = preferences.showWireframe;
@@ -161,5 +161,31 @@ export const ShadingMenuGroup = () => {
 
 			<Menu.Item icon="picture" label="Render a picture…" onClick={openRenderDialog} />
 		</Menu.Group>
+	);
+};
+
+/**
+ * The shading switcher folded into one menu (ADR-0142), for a view bar with no room for its
+ * buttons: its icon is the shading shown now, and it opens the same choices as on phones.
+ */
+export const ShadingMenu = () => {
+	const preferences = usePreferences();
+	const icon: TIconName = preferences.showWireframe
+		? "shadeWire"
+		: preferences.showClay
+			? "shadeClay"
+			: (PRESETS.find(({ preset }) => preset === preferences.graphicsPreset)?.icon ??
+				"shadeStandard");
+
+	return (
+		<Menu.Root>
+			<Menu.Trigger label="Shading" tooltip="Shading">
+				<Icon name={icon} size={18} />
+			</Menu.Trigger>
+
+			<Menu.Popup>
+				<ShadingMenuGroup />
+			</Menu.Popup>
+		</Menu.Root>
 	);
 };

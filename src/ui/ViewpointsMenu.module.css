@@ -1,7 +1,0 @@
-/* Phones: just the camera icon (the trigger keeps its "Viewpoints" name). */
-/* Narrow desktops and phones: just the camera icon (the menu is still named Viewpoints). */
-@media (max-width: 950px) {
-	.label {
-		display: none;
-	}
-}

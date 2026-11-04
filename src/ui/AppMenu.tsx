@@ -52,7 +52,7 @@ export const AppMenuItems = () => {
 			<Menu.Separator />
 
 			<Menu.Item
-				icon="user"
+				icon="cog"
 				label="Preferences…"
 				description="How the camera moves for you, graphics and overlays, in this browser"
 				shortcut="Ctrl+,"

@@ -38,7 +38,7 @@ src/
   server/     what server routes do beyond answering: worlds shared by link in KV (ADR-0120); no React, the routes pass bindings in
   editor/     Zustand store (history/undo), persistence, shortcuts, theme hooks
   render/     R3F scene: Viewport, CameraRig + CameraControls, EntityNode, TransformGizmo + KeyboardTransform, RoadMesh + road handles/draw tool, labels (3D side)
-  ui/         DOM UI: the UI kit (Button, fields, List, Tabs, RailTabs, Tooltip, Menu, dialogs, toasts) and AppShell, Toolbar, PartsPalette, Outliner, Inspector (the properties editor and its tabs), LabelLayer, DetailSheet
+  ui/         DOM UI: the UI kit (Button, fields, List, Tabs, RailTabs, Tooltip, Menu, dialogs, toasts) and AppShell, AppRow and ViewBar (the top bar, ADR-0142), PartsPalette, Outliner, Inspector (the properties editor and its tabs), LabelLayer, DetailSheet
   routes/     TanStack Start file routes (index = the editor, ssr: false; api/worlds/schema = the world format as JSON Schema with every part kind and its props, ADR-0032, ADR-0117, and api/worlds/schema/patch a patch's, ADR-0118; api/worlds/templates = the templates as complete worlds, ADR-0034, ADR-0083, ADR-0117; parts = the public parts catalogue, ADR-0087; guide and guide[.]md = the guide, ADR-0116; api/worlds/validate = POST a world, get its problems and warnings, ADR-0117; api/user-worlds = worlds shared by link, kept in KV (POST, GET and DELETE by id), and w/$id and templates/$id = open one in the editor, ADR-0120; kit = dev-only UI kit page)
   styles.css  design tokens (light/dark) + base styles
 scripts/      repo tooling (jsx-spacing check)

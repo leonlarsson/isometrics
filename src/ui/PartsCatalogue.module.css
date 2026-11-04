@@ -45,7 +45,7 @@
 	letter-spacing: -0.02em;
 }
 
-/* The editor's logo (Toolbar.module.css). */
+/* The editor’s logo (AppMenu.module.css). */
 .logo {
 	flex: none;
 	width: 24px;

@@ -1,4 +1,16 @@
-import { act, expect, fileMenu, menuItem, openEditor, read, test, viewCentre } from "./editor";
+import type { Page } from "@playwright/test";
+
+import {
+	act,
+	expect,
+	fileMenu,
+	menuItem,
+	openEditor,
+	read,
+	test,
+	viewBar,
+	viewCentre,
+} from "./editor";
 
 test.describe("the side panes (ADR-0055)", () => {
 	test("each folds to a strip and opens again; Ctrl+Space hides both", async ({ page }) => {
@@ -18,6 +30,110 @@ test.describe("the side panes (ADR-0055)", () => {
 		await expect(page.getByRole("tab", { name: "World" })).toBeHidden();
 		await page.keyboard.press("Control+Space");
 		await expect(parts).toBeVisible();
+	});
+});
+
+test.describe("the app row and the view bar (ADR-0142)", () => {
+	/** Whether what the view bar holds fits in it, nothing running past its ends. */
+	const fits = (page: Page) =>
+		viewBar(page).evaluate((bar) => {
+			const children = [...bar.children] as HTMLElement[];
+			const used = children.reduce((width, child) => width + child.scrollWidth, 0);
+			return used <= bar.clientWidth;
+		});
+
+	test("the view bar spans the view, under the app row, and folds by its own width", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		const bar = viewBar(page);
+		// Between the side panels, which reach up to the app row; the save status is in the row above
+		// the Edit/View switch, so the two never meet.
+		const [barBox, parts, status, edit] = await Promise.all([
+			bar.boundingBox(),
+			page.getByRole("navigation", { name: "Parts" }).boundingBox(),
+			page.getByRole("button", { name: /: more about saving/ }).boundingBox(),
+			page.getByRole("button", { name: "Edit", exact: true }).boundingBox(),
+		]);
+		if (!barBox || !parts || !status || !edit) {
+			throw new Error("the bars aren't showing");
+		}
+		expect(barBox.x).toBeGreaterThanOrEqual(parts.x + parts.width - 1);
+		expect(barBox.x + barBox.width).toBeLessThan(1280);
+		expect(status.y + status.height).toBeLessThanOrEqual(edit.y);
+
+		// At 1280px the view between the panels has no room for the shading buttons: one menu.
+		await expect(bar).toHaveAttribute("data-folded", /shading/);
+		expect(await fits(page)).toBe(true);
+		await page.getByRole("button", { name: "Shading", exact: true }).click();
+		await page.getByRole("menuitemcheckbox", { name: "Clay" }).click();
+		expect(await read(page, (s) => s.mode)).toBe("edit");
+		await expect(page.getByRole("button", { name: "Shading", exact: true })).toBeVisible();
+
+		// The panels hidden, the bar takes the window's width and everything shows.
+		await page.getByRole("button", { name: "Hide the side panels (Ctrl+Space)" }).click();
+		await expect(bar).toHaveAttribute("data-folded", "");
+		await expect(page.getByRole("button", { name: /^Clay:/ })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(await fits(page)).toBe(true);
+
+		// A narrow window with the panels shown: the tools go into More, and it still fits.
+		await page.getByRole("button", { name: "Show the side panels (Ctrl+Space)" }).click();
+		await page.setViewportSize({ width: 960, height: 800 });
+		await expect(bar).toHaveAttribute("data-folded", /tools/);
+		expect(await fits(page)).toBe(true);
+		await page.getByRole("button", { name: "More", exact: true }).click();
+		await menuItem(page, "Snap to grid").click();
+		expect(await read(page, (s) => s.snapping)).toBe(false);
+	});
+
+	test("the tools: one at a time, Select unless another is picked; snapping apart", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		const tools = page.getByRole("group", { name: "Tools" });
+		const select = tools.getByRole("button", { name: "Select", exact: true });
+		const box = tools.getByRole("button", { name: "Select with a box (B)" });
+		const paint = tools.getByRole("button", { name: /^Paint objects/ });
+		await expect(select).toHaveAttribute("aria-pressed", "true");
+		await paint.click();
+		await expect(paint).toHaveAttribute("aria-pressed", "true");
+		await expect(select).toHaveAttribute("aria-pressed", "false");
+		await box.click();
+		await expect(box).toHaveAttribute("aria-pressed", "true");
+		await expect(paint).toHaveAttribute("aria-pressed", "false");
+		expect(await read(page, (s) => [s.boxSelect, s.painting])).toEqual(["add", false]);
+		await select.click();
+		expect(await read(page, (s) => [s.boxSelect, s.painting])).toEqual([null, false]);
+		// Snap to grid is a switch of its own, not one of the tools.
+		await expect(tools.getByRole("button", { name: /^Snap to grid/ })).toHaveCount(0);
+		await expect(page.getByRole("button", { name: "Snap to grid: on" })).toBeVisible();
+	});
+
+	test("the bars over the view sit under the view bar", async ({ page }) => {
+		await openEditor(page);
+		await page.getByRole("button", { name: "Select with a box (B)" }).click();
+		const notice = page.getByRole("status").filter({ hasText: "Select with a box" });
+		const [barBox, noticeBox] = await Promise.all([
+			viewBar(page).boundingBox(),
+			notice.boundingBox(),
+		]);
+		if (!barBox || !noticeBox) {
+			throw new Error("the bars aren't showing");
+		}
+		expect(noticeBox.y).toBeGreaterThanOrEqual(barBox.y + barBox.height);
+	});
+
+	test("the home screen has only the app row", async ({ page }) => {
+		await openEditor(page);
+		await act(page, (s) => s.setWhatIsOpen({ kind: "home", why: { kind: "chosen" } }));
+		await expect(page.getByRole("main", { name: "Home" })).toBeVisible();
+		await expect(viewBar(page)).toHaveCount(0);
+		await expect(page.getByRole("button", { name: "File", exact: true })).toBeVisible();
+		await expect(page.getByRole("button", { name: /^Preferences/ })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
 	});
 });
 
@@ -71,8 +187,12 @@ test.describe("phones (ADR-0030, ADR-0046)", () => {
 		await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 	});
 
-	test("the toolbar's More menu holds what doesn't fit", async ({ page }) => {
+	test("one row for the app row and the view bar; More holds what doesn't fit", async ({
+		page,
+	}) => {
 		await openEditor(page);
+		// The view bar is in the app row (ADR-0142), after File and the save status.
+		await expect(page.getByRole("banner").locator("[data-view-bar]")).toHaveCount(1);
 		await page.getByRole("button", { name: "More", exact: true }).click();
 		await menuItem(page, "Perspective").click();
 		expect(await read(page, (s) => s.projection)).toBe("perspective");
