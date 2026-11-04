@@ -74,17 +74,27 @@ test.describe("shapes", () => {
 		// Undone in one step each.
 		await act(page, (s) => s.undo());
 		expect((await entity(page, "box"))?.props.height).toBe(2);
+
+		// The bottom's handle, under the base, dragged up a unit: the base rises, the top stays
+		// (ADR-0138).
+		const bottom = await gizmoSpot(page, [0.5, 0, 0], [0, -0.6, 0], span);
+		const [base, lifted] = [await screenOf(page, [0.5, 0, 0]), await screenOf(page, [0.5, 1.1, 0])];
+		await dragBy(page, bottom, lifted.x - base.x, lifted.y - base.y);
+		const shortened = await entity(page, "box");
+		expect(shortened?.props.height).toBe(1);
+		expect(shortened?.altitude).toBe(1);
+		expect(shortened?.position).toEqual([0.5, 0]);
 	});
 
 	test("a shape dropped or dragged onto another lands on its top (ADR-0138)", async ({ page }) => {
 		await openEditor(page);
 		await loadWorld(page, {
 			entities: [
-				{ id: "base", kind: "box_01", position: [0, 0], props: { width: 3, depth: 3 } },
-				{ id: "box", kind: "box_01", position: [5, 0] },
+				{ id: "base", kind: "box_01", position: [0, 0], props: { width: 6, depth: 6 } },
+				{ id: "box", kind: "box_01", position: [6, 0], props: { height: 4 } },
 			],
 		});
-		await showView(page, [2, 0], 14);
+		await showView(page, [2, 0], 16);
 
 		// Dropped from Add to scene onto the base's top, under the pointer.
 		const tile = await paletteTile(page, "Shapes", "Box");
@@ -103,18 +113,29 @@ test.describe("shapes", () => {
 		expect(dropped?.position.map(Math.round)).toEqual([-1, 1]);
 		expect(dropped?.altitude).toBe(1);
 
-		// The other box, dragged by its top onto the base's: on top, and off again onto the ground.
+		// The tall box, grabbed high up (clear of the gizmo on its base) and moved as far on screen as
+		// from its foot to the base's top 5 over: what the pointer points at is then the base's top.
 		await act(page, (s) => s.select("box"));
-		const grab = await screenOf(page, [5, 1, 0]);
-		const there = await screenOf(page, [1, 1, 0]);
-		await dragBy(page, grab, there.x - grab.x, there.y - grab.y);
+		const moveBy = async (foot: [number, number, number], to: [number, number, number]) => {
+			const hold = await screenOf(page, [foot[0], foot[1] + 3.5, foot[2]]);
+			const [from, there] = [await screenOf(page, foot), await screenOf(page, to)];
+			await page.mouse.move(hold.x, hold.y);
+			await page.mouse.down();
+			await page.mouse.move(hold.x + there.x - from.x, hold.y + there.y - from.y, { steps: 12 });
+			await page.mouse.up();
+		};
+		await moveBy([6, 0, 0], [1, 1, 0]);
 		const stacked = await entity(page, "box");
 		expect(Math.abs((stacked?.position[0] ?? 9) - 1)).toBeLessThanOrEqual(0.5);
+		expect(Math.abs(stacked?.position[1] ?? 9)).toBeLessThanOrEqual(0.5);
 		expect(stacked?.altitude).toBe(1);
-		const back = await screenOf(page, [5, 0, 0]);
-		const now = await screenOf(page, [stacked?.position[0] ?? 1, 2, stacked?.position[1] ?? 0]);
-		await dragBy(page, now, back.x - now.x, back.y - now.y);
-		expect((await entity(page, "box"))?.altitude).toBe(0);
+
+		// And off it again, onto the ground.
+		const [x, z] = stacked?.position ?? [1, 0];
+		await moveBy([x, 1, z], [x + 6, 0, z]);
+		const off = await entity(page, "box");
+		expect(off?.position[0]).toBeGreaterThan(3);
+		expect(off?.altitude).toBe(0);
 	});
 
 	test("a building sized by its props has the handles too: its side's drags its width", async ({
