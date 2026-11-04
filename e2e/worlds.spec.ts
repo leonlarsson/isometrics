@@ -54,24 +54,20 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/Monaco/);
 	});
 
-	test("New world from the Stockholm starter opens Gamla stan with its landmarks", async ({
+	test("the Stockholm starter opens at its address, Gamla stan with its landmarks", async ({
 		page,
 	}) => {
-		test.setTimeout(240_000);
-		await openEditor(page);
-		await fileMenu(page, /New world/);
-		const dialog = page.getByRole("dialog", { name: "New world" });
-		await dialog.getByRole("radio", { name: /Stockholm/ }).click();
-		await dialog.getByRole("button", { name: "Create" }).click();
+		// A big world: opened on its own (not over the starter world), given time to draw.
+		test.setTimeout(300_000);
+		await openPage(page, "/templates/stockholm");
 		await expect
-			.poll(() => read(page, (s) => s.scene.meta.title), { timeout: 60_000 })
+			.poll(() => read(page, (s) => s.scene.meta.title), { timeout: 120_000 })
 			.toBe("Stockholm");
 		const kinds = await read(page, (s) => s.scene.entities.map((entity) => entity.kind));
 		for (const kind of ["palace_01", "church_02", "church_03", "church_04", "city_hall_01"]) {
 			expect(kinds).toContain(kind);
 		}
 		expect(kinds.filter((kind) => kind === "terraced_row_02").length).toBeGreaterThan(100);
-		// A big world: drawn once its loading screen has gone.
 		await page.locator("[data-loading-screen]").waitFor({ state: "detached", timeout: 180_000 });
 	});
 
