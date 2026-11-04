@@ -1,5 +1,5 @@
 import { round } from "#/lib/math";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt, isInsidePolygon } from "#/scene/areas";
 import {
 	AreaSchema,
 	SCENE_VERSION,
@@ -16,8 +16,16 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
+import { type ILaidBlock, inFrame, layBlocks, turnedRect } from "./cityBlocks";
 import { paint } from "./paint";
-import { type ILaidRow, type IRowSide, type IStreetLine, layRowsAlong } from "./streetRows";
+import {
+	edgeDistance,
+	type ILaidRow,
+	type IRowSide,
+	type IStreetLine,
+	layRowsAlong,
+	segmentDistance,
+} from "./streetRows";
 import { turned } from "./turned";
 
 /*
@@ -27,19 +35,23 @@ import { turned } from "./turned";
  * the houses' windows one by one, the palace and the churches are floodlit,
  * Centralbron's traffic turns its headlights on and the ferries their cabins.
  *
- * Traced from a map of central Stockholm, shapes only: shores, islands and
- * landmarks as latitude and longitude, turned into world units by `fromMap`
- * (12.5 m to a unit, centred near Stortorget; x runs east, z south). Gamla
- * stan's streets are laid out on the island in world units, and its houses are
- * laid along them by `layRowsAlong` (streetRows.ts). Heights are drawn about
- * one and a half times true, as miniatures are.
+ * Traced from an aerial picture of central Stockholm, shapes only: shores,
+ * islands and bridges as points on the picture (north up, about 1.28 m to a
+ * pixel), turned into world units by `fromPicture` (12.5 m to a unit, centred
+ * near Stortorget; x runs east, z south). Gamla stan's streets are laid out on
+ * the island in world units, and its houses are laid along them by
+ * `layRowsAlong` (streetRows.ts); the mainland's stone blocks are laid on a
+ * grid by `layBlocks` (cityBlocks.ts), wherever there's land clear of roads,
+ * parks and landmarks. Heights are drawn about one and a half times true, as
+ * miniatures are.
  *
- *   Islands: Gamla stan (Stadsholmen), Riddarholmen, Helgeandsholmen with the
- *            Riksdag, Strömsborg, Skeppsholmen and Kastellholmen, as raised
- *            land with quay edges over one water area
- *   Shores:  Kungsholmen with Stadshuset, Norrmalm from Tegelbacken past the
- *            Opera and Kungsträdgården to Blasieholmen, Södermalm's heights
- *            above Söder Mälarstrand, Slussen and Stadsgården
+ *   Islands: Gamla stan (Stadsholmen), Riddarholmen across its canal,
+ *            Helgeandsholmen with the Riksdag, Strömsborg, Skeppsholmen and
+ *            Kastellholmen, as raised land with quay edges over one water area
+ *   Shores:  Kungsholmen with Stadshuset across Klara sjö, Norrmalm from
+ *            Tegelbacken past the Opera and Kungsträdgården to Blasieholmen,
+ *            Djurgården's tip, Södermalm's heights above Söder Mälarstrand,
+ *            Slussen and Stadsgården
  *   Bridges: Centralbron (traffic, into Söderleden's tunnel), Vasabron,
  *            Riksbron and Stallbron, Norrbro, Strömbron, Riddarholmsbron,
  *            Slussen, Skeppsholmsbron and Kastellholmsbron, raised roads
@@ -50,24 +62,19 @@ import { turned } from "./turned";
 
 // ---------------------------------------------------------------- the map
 
-/** Latitude and longitude, in degrees. */
-type TLatLon = readonly [number, number];
+/** The picture's pixel over Stortorget, and how many pixels make a world unit (12.5 m). */
+const PICTURE_ORIGIN: TVec2 = [945, 470];
+const PIXELS_PER_UNIT = 9.77;
 
-const METRES_PER_UNIT = 12.5;
-/** The map's middle: by Stortorget. */
-const ORIGIN: TLatLon = [59.325, 18.071];
-const METRES_PER_DEGREE_NORTH = 111_200;
-const METRES_PER_DEGREE_EAST = 111_320 * Math.cos((ORIGIN[0] * Math.PI) / 180);
-
-const fromMap = ([lat, lon]: TLatLon): TVec2 => [
-	round(((lon - ORIGIN[1]) * METRES_PER_DEGREE_EAST) / METRES_PER_UNIT, 2),
-	round((-(lat - ORIGIN[0]) * METRES_PER_DEGREE_NORTH) / METRES_PER_UNIT, 2),
+const fromPicture = ([x, y]: readonly number[]): TVec2 => [
+	round((x - PICTURE_ORIGIN[0]) / PIXELS_PER_UNIT, 2),
+	round((y - PICTURE_ORIGIN[1]) / PIXELS_PER_UNIT, 2),
 ];
 
-const outline = (points: readonly TLatLon[]) => points.map(fromMap);
+const traced = (points: readonly (readonly number[])[]) => points.map(fromPicture);
 
-/** The ground: from Stadshuset in the west to Skeppsholmen's east end, Norrmalm to Södermalm. */
-const GROUND: TVec2 = [180, 124];
+/** The ground: from Kungsholmen in the west to Kastellholmen, Norrmalm to Södermalm. */
+const GROUND: TVec2 = [186, 124];
 
 /** How high the islands' quays stand over the water. */
 const ISLAND = 0.2;
@@ -78,127 +85,206 @@ const CAR = 0.5;
 
 // ---------------------------------------------------------------- shores and islands
 
-/** Riddarfjärden, Strömmen and Saltsjön: everything between the north shore and Södermalm. */
-const WATER = outline([
-	[59.3262, 18.0512], // west edge, Norr Mälarstrand
-	[59.3264, 18.0535],
-	[59.3265, 18.0556], // Stadshuset's garden
-	[59.3267, 18.0567],
-	[59.3276, 18.0575], // Stadshusbron
-	[59.329, 18.0582], // Klara sjö
-	[59.33197, 18.0584],
-	[59.33197, 18.06],
-	[59.33, 18.0602],
-	[59.3292, 18.0608], // Tegelbacken
-	[59.329, 18.0626],
-	[59.3293, 18.0652], // Rosenbad
-	[59.3295, 18.068], // Strömgatan
-	[59.3296, 18.0705], // Gustav Adolfs torg
-	[59.3297, 18.0725], // the Opera
-	[59.3299, 18.0737], // Karl XII:s torg
-	[59.3292, 18.0745], // Blasieholmen
-	[59.3289, 18.076], // Strömkajen, the Grand Hôtel
-	[59.3288, 18.0785], // Nationalmuseum
-	[59.3285, 18.0805], // Skeppsholmsbron
-	[59.3292, 18.0815], // Nybroviken
-	[59.3305, 18.0828],
-	[59.33197, 18.083],
-	[59.33197, 18.0852],
-	[59.3313, 18.0862], // Strandvägen
-	[59.3311, 18.0908], // east edge
-	[59.319, 18.0908],
-	[59.319, 18.086], // Stadsgårdskajen
-	[59.3192, 18.08], // Stadsgården
-	[59.3195, 18.075],
-	[59.3197, 18.072], // Slussen
-	[59.3202, 18.069], // Söderström
-	[59.3207, 18.065], // Söder Mälarstrand
-	[59.3205, 18.06],
-	[59.3203, 18.0512], // west edge
+/** Riddarfjärden, Klara sjö, Strömmen and Saltsjön: everything between the north shore and Södermalm. */
+const WATER = traced([
+	[36, 323], // west edge, Norr Mälarstrand
+	[116, 304],
+	[147, 319], // Stadshuset's garden
+	[232, 311],
+	[274, 296],
+	[284, 278], // Stadshuset's point
+	[280, 225],
+	[285, 195], // Stadshusbron
+	[250, 120], // Klara sjö
+	[200, 30],
+	[150, -136],
+	[205, -136],
+	[250, 0],
+	[300, 110],
+	[330, 180],
+	[381, 215], // Tegelbacken
+	[451, 205],
+	[520, 192],
+	[612, 183], // Rosenbad
+	[645, 169],
+	[706, 190], // Riksbron
+	[765, 165],
+	[789, 152],
+	[864, 112], // Norrbro, Gustav Adolfs torg
+	[884, 102],
+	[960, 92],
+	[1050, 80], // Strömbron
+	[1077, 76],
+	[1111, 69], // Strömkajen's piers, the Grand Hôtel
+	[1136, 75],
+	[1153, 94],
+	[1144, 133],
+	[1175, 138],
+	[1201, 120],
+	[1196, 147],
+	[1220, 144],
+	[1238, 179], // Blasieholmen's point, Skeppsholmsbron
+	[1277, 215],
+	[1303, 218],
+	[1340, 190],
+	[1365, 140], // Nybroviken
+	[1385, 60],
+	[1395, -136],
+	[1740, -136], // Djurgården's tip
+	[1745, 20],
+	[1760, 90],
+	[1790, 140],
+	[1854, 160], // east edge
+	[1854, 1076],
+	[1560, 1076], // Stadsgården
+	[1344, 1010],
+	[1289, 978],
+	[1252, 945],
+	[1134, 895], // Slussen
+	[1110, 880],
+	[1060, 870],
+	[1000, 850], // Söderström
+	[900, 838],
+	[830, 830],
+	[803, 825], // Söder Mälarstrand
+	[731, 818],
+	[703, 820],
+	[682, 810],
+	[614, 811],
+	[587, 801],
+	[459, 802],
+	[302, 798],
+	[142, 805],
+	[36, 800], // west edge
 ]);
 
-const GAMLA_STAN = outline([
-	[59.3266, 18.0664], // Riddarhuset's corner, by Centralbron
-	[59.3271, 18.0676],
-	[59.32735, 18.069], // Mynttorget
-	[59.3274, 18.0702], // Lejonbacken
-	[59.32765, 18.0712], // the palace, by Norrbro
-	[59.3277, 18.0733],
-	[59.32735, 18.0747], // Strömbron
-	[59.3262, 18.0753], // Skeppsbron
-	[59.3246, 18.0754],
-	[59.323, 18.0748],
-	[59.3217, 18.0738],
-	[59.32085, 18.0723], // Slussen
-	[59.3209, 18.0702],
-	[59.3217, 18.0686], // Kornhamnstorg
-	[59.3231, 18.0673], // Munkbron
-	[59.3247, 18.0668],
-	[59.3258, 18.0665],
+/** Gamla stan: straight along Skeppsbron, the palace in its north-east corner, squared off at Slussen. */
+const GAMLA_STAN = traced([
+	[700, 310], // Riddarhustorget
+	[705, 380],
+	[722, 420],
+	[745, 470], // Munkbron
+	[770, 540],
+	[800, 610],
+	[830, 660],
+	[850, 690], // Kornhamnstorg
+	[900, 712],
+	[960, 722],
+	[1010, 726],
+	[1055, 738],
+	[1080, 780], // Slussen
+	[1095, 835],
+	[1125, 823],
+	[1153, 768], // Skeppsbron
+	[1185, 677],
+	[1205, 600],
+	[1212, 532],
+	[1215, 470],
+	[1205, 400],
+	[1185, 350],
+	[1160, 300],
+	[1135, 275],
+	[1100, 205], // Strömbron
+	[1067, 175],
+	[1040, 205], // the palace, Lejonbacken
+	[960, 250],
+	[880, 284], // Mynttorget
+	[823, 303],
+	[760, 312],
 ]);
 
-const RIDDARHOLMEN = outline([
-	[59.3264, 18.0644], // Birger Jarls torg
-	[59.3262, 18.0656], // Riddarholmsbron
-	[59.3242, 18.066],
-	[59.323, 18.0658],
-	[59.3225, 18.0645],
-	[59.3232, 18.0625], // Evert Taubes terrass
-	[59.3245, 18.062],
-	[59.3256, 18.0626],
+/** Riddarholmen, across its canal from Gamla stan, Centralbron along it. */
+const RIDDARHOLMEN = traced([
+	[513, 358], // Birger Jarls torg
+	[590, 345],
+	[650, 385],
+	[700, 460], // Riddarholmskanalen
+	[722, 540],
+	[715, 575],
+	[690, 600],
+	[633, 600],
+	[600, 573],
+	[571, 560],
+	[545, 535], // Evert Taubes terrass
+	[526, 513],
+	[501, 403],
+	[504, 367],
 ]);
 
-const HELGEANDSHOLMEN = outline([
-	[59.3281, 18.0662],
-	[59.3286, 18.0672],
-	[59.32875, 18.0692],
-	[59.3286, 18.071],
-	[59.3282, 18.0717], // Strömparterren, under Norrbro
-	[59.3279, 18.0708],
-	[59.32775, 18.0685],
-	[59.3278, 18.0668],
+const HELGEANDSHOLMEN = traced([
+	[762, 245],
+	[790, 205],
+	[812, 187],
+	[850, 165],
+	[886, 146],
+	[920, 150],
+	[950, 170], // Strömparterren
+	[962, 200],
+	[950, 222],
+	[900, 250],
+	[840, 272],
+	[790, 268],
 ]);
 
-const STROMSBORG = outline([
-	[59.32862, 18.06525],
-	[59.32862, 18.06555],
-	[59.32838, 18.06555],
-	[59.32838, 18.06525],
+const STROMSBORG = traced([
+	[595, 250],
+	[615, 248],
+	[618, 268],
+	[597, 272],
 ]);
 
-const SKEPPSHOLMEN = outline([
-	[59.3278, 18.0807], // Skeppsholmsbron
-	[59.3276, 18.085],
-	[59.3262, 18.088],
-	[59.3242, 18.0868],
-	[59.324, 18.084],
-	[59.325, 18.0805], // af Chapman's quay
-	[59.3263, 18.0796],
+/** Skeppsholmen: long, lying north-west to south-east, af Chapman at its west quay. */
+const SKEPPSHOLMEN = traced([
+	[1398, 335], // af Chapman's quay
+	[1405, 260],
+	[1440, 205], // Skeppsholmsbron
+	[1500, 180],
+	[1560, 215],
+	[1640, 265],
+	[1720, 320],
+	[1780, 385],
+	[1810, 460],
+	[1800, 520],
+	[1745, 575], // Kastellholmsbron
+	[1703, 568],
+	[1512, 591],
+	[1487, 576],
+	[1460, 538],
+	[1430, 500],
+	[1415, 440],
+	[1406, 400],
 ]);
 
-const KASTELLHOLMEN = outline([
-	[59.3236, 18.0858],
-	[59.3238, 18.088],
-	[59.3228, 18.0888],
-	[59.3224, 18.0866],
+const KASTELLHOLMEN = traced([
+	[1748, 625],
+	[1800, 622],
+	[1854, 640],
+	[1854, 785],
+	[1817, 782],
+	[1783, 760],
+	[1745, 750],
+	[1740, 700],
 ]);
 
-/** Södermalm's heights over its shore: lower at Slussen, high over Mariaberget and Katarina. */
+/**
+ * Södermalm's heights behind Söder Mälarstrand and Stadsgården, [x, z, lift]: low at Slussen,
+ * high over Mariaberget and Katarina.
+ */
 const SODERMALM_HEIGHT = 1.4;
 const SODERMALM: [number, number, number][] = [
-	[-90, 45.4, 1],
-	[-55, 44.4, 1.2],
-	[-30, 43.8, 1.1],
-	[-17, 46.6, 0.6],
-	[-6, 50.6, 0],
-	[8, 51.8, -0.3],
-	[18, 54.6, 0.6],
-	[40, 55.4, 0.9],
-	[65, 55.4, 0.8],
-	[90, 55.2, 0.8],
-	[90, 62, 1.2],
-	[-90, 62, 1.2],
+	[-93, 38.5, 1],
+	[-60, 38, 1.2],
+	[-35, 38.3, 1.1],
+	[-16, 39.5, 0.6],
+	[-6, 43.5, 0.2],
+	[5, 46, 0],
+	[15, 47.5, 0.4],
+	[30, 53.4, 0.9],
+	[39.4, 59, 1],
+	[49, 62, 1],
+	[-93, 62, 1.2],
 ];
+const SODERMALM_OUTLINE = SODERMALM.map(([x, z]): TVec2 => [x, z]);
 
 const SODERMALM_AREA: TAreaInput = {
 	id: "sodermalm",
@@ -208,10 +294,10 @@ const SODERMALM_AREA: TAreaInput = {
 	colors: { surface: { color: "#9d9886" } },
 	surface: { kind: "paving_01" },
 	points: SODERMALM,
-	// Mosebacke and Mariaberget, a little higher still.
+	// Mariaberget and Mosebacke, a little higher still.
 	peaks: [
-		[28, 58.5, 1.6],
-		[-40, 52, 1.5],
+		[-40, 48, 1.5],
+		[25, 57, 1.6],
 	],
 };
 
@@ -219,8 +305,10 @@ const SODERMALM_AREA: TAreaInput = {
 const SODER = AreaSchema.parse(SODERMALM_AREA);
 const onSoder = (x: number, z: number) => round(groundHeightAt([SODER], [x, z]), 2);
 
-/** Katarinahissen's top, where its footbridge sets off level for the heights. */
-const KATARINAHISSEN_TOP = round(onSoder(16.6, 57.8) + 0.05, 2);
+/** Katarinahissen: its tower by Stadsgårdsleden, its footbridge out level to the heights. */
+const KATARINAHISSEN_AT: TVec2 = [21, 47.3];
+const KATARINAHISSEN_LANDING: TVec2 = [24, 53];
+const KATARINAHISSEN_TOP = round(onSoder(...KATARINAHISSEN_LANDING) + 0.05, 2);
 
 /** A rectangle's corners, for squares and gardens. */
 const rect = (x1: number, z1: number, x2: number, z2: number): TVec2[] => [
@@ -230,23 +318,34 @@ const rect = (x1: number, z1: number, x2: number, z2: number): TVec2[] => [
 	[x1, z2],
 ];
 
+/** Gamla stan's streets run turned with the island: points along Stortorget and along the palace. */
+const STORTORGET_MIDDLE: TVec2 = [1.9, 1.3];
+const onStortorget = inFrame(STORTORGET_MIDDLE, 25);
+const PALACE_MIDDLE: TVec2 = [6.4, -17.6];
+const byThePalace = inFrame(PALACE_MIDDLE, 25);
+
 /** Gamla stan's squares. */
-const STORTORGET = rect(-3.9, -2.2, 0.7, 1.6);
-const JARNTORGET = rect(-0.6, 19.6, 3.6, 23.2);
-const KORNHAMNSTORG = rect(-9.4, 25.6, -5.6, 29.4);
-const MYNTTORGET = rect(-10.4, -20.2, -5, -16.6);
-const SLOTTSBACKEN: TVec2[] = [
-	[1.4, -10.8],
-	[17.6, -10.8],
-	[18, -7.6],
-	[1.4, -7.6],
-];
+const STORTORGET = turnedRect(STORTORGET_MIDDLE, 25, 4.6, 3.6);
+const JARNTORGET = rect(8.6, 18.6, 12.4, 22);
+// Kornhamnstorg stops short of Munkbroleden.
+const KORNHAMNSTORG = rect(-0.8, 19.3, 4, 22.6);
+const MYNTTORGET = rect(-8.6, -18, -4.2, -15.4);
+/** Slottsbacken: down from Storkyrkan along the palace's south front to Skeppsbron. */
+const SLOTTSBACKEN = (
+	[
+		[-3.6, 5.3],
+		[9.4, 5.3],
+		[9.4, 8.6],
+		[-3.6, 8.6],
+	] as TVec2[]
+).map(byThePalace);
 /** The palace's quay on the water to the north, Lejonbacken. */
 const PALACE_QUAY: TVec2[] = [
-	[-3.4, -21.2],
-	[15.6, -21.2],
-	[14.8, -23.4],
-	[-2.6, -22.6],
+	byThePalace([-6, -5.2]),
+	byThePalace([6.4, -5.2]),
+	[10.6, -27.2],
+	[1.5, -22.1],
+	[-1.4, -20.6],
 ];
 
 /**
@@ -278,8 +377,77 @@ const surfaceOf = (id: string) =>
 			}
 		: {};
 
+/** Gardens and parks on the islands. */
+const RIDDARHUSET_GARDEN = rect(-21.8, -15.9, -16, -14.6);
+const STROMPARTERREN: TVec2[] = [
+	[-2.2, -31.8],
+	[0.2, -30.4],
+	[1.2, -27.7],
+	[0.2, -25.8],
+	[-2.4, -26.4],
+];
+const EVERT_TAUBES_TERRASS: TVec2[] = [
+	[-42.4, 3.9],
+	[-40.2, 3.9],
+	[-39.9, 5.8],
+	[-41.1, 5.8],
+];
+const SKEPPSHOLMEN_WEST_PARK: TVec2[] = [
+	[48.2, -16],
+	[51.5, -17],
+	[53.5, -7.5],
+	[53.5, 2.5],
+	[50.8, 1.5],
+	[49, -6],
+];
+const SKEPPSHOLMEN_EAST_PARK: TVec2[] = [
+	[67, -2.6],
+	[77, 0.3],
+	[84.4, 3.4],
+	[82.4, 8.2],
+	[67.4, 10.2],
+	[63.4, 5.2],
+];
+const KASTELLHOLMEN_GRASS: TVec2[] = [
+	[83, 17],
+	[87.4, 16.6],
+	[92.4, 18.2],
+	[92.4, 31.2],
+	[89.4, 31],
+	[85.8, 28.8],
+	[82.4, 28],
+	[82.2, 23.4],
+];
+
+/** On the mainland. */
+const KUNGSTRADGARDEN = rect(2, -61.6, 8.6, -44);
+const KARL_XII_TORG = rect(2, -44, 8.6, -42.4);
+const GUSTAV_ADOLFS_TORG = rect(-12, -44.5, -6.2, -40.7);
+const STADSHUSET_GARDEN: TVec2[] = [
+	[-81.5, -19.2],
+	[-69.4, -19.2],
+	[-69.2, -18.6],
+	[-73, -16.9],
+	[-81.6, -16.1],
+];
+const DJURGARDEN: TVec2[] = [
+	[82.2, -61.6],
+	[92.6, -61.6],
+	[92.6, -32.6],
+	[86.7, -34.6],
+	[84, -39],
+	[82.6, -46],
+];
+/** Ivar Los park on Mariaberget, trees and no houses. */
+const IVAR_LOS_PARK = rect(-48, 39.4, -36, 43.8);
+
 const AREAS: TAreaInput[] = [
-	{ id: "water", name: "Riddarfjärden, Strömmen and Saltsjön", kind: "water_01", points: WATER },
+	{
+		id: "water",
+		name: "Riddarfjärden, Strömmen and Saltsjön",
+		kind: "water_01",
+		points: WATER,
+	},
 	SODERMALM_AREA,
 	...(
 		[
@@ -311,42 +479,22 @@ const AREAS: TAreaInput[] = [
 			["mynttorget", "Mynttorget", "plaza_01", MYNTTORGET, "#cfc3ad"],
 			["slottsbacken", "Slottsbacken", "plaza_01", SLOTTSBACKEN, "#d3c8b2"],
 			["palace_quay", "Lejonbacken", "plaza_01", PALACE_QUAY, "#d3c8b2"],
+			["riddarhuset_garden", "Riddarhuset's garden", "grass_01", RIDDARHUSET_GARDEN, null],
+			["stromparterren", "Strömparterren", "grass_01", STROMPARTERREN, null],
+			["evert_taubes_terrass", "Evert Taubes terrass", "plaza_01", EVERT_TAUBES_TERRASS, "#cfc3ad"],
+			["skeppsholmen_park", "Skeppsholmen's park", "grass_01", SKEPPSHOLMEN_WEST_PARK, null],
 			[
-				"riddarhuset_garden",
-				"Riddarhuset's garden",
+				"skeppsholmen_east_park",
+				"Skeppsholmen's east park",
 				"grass_01",
-				[
-					[-18, -14.6],
-					[-15.4, -17.6],
-					[-13.6, -18.4],
-					[-13.6, -14.6],
-				],
+				SKEPPSHOLMEN_EAST_PARK,
 				null,
 			],
-			[
-				"stromparterren",
-				"Strömparterren",
-				"grass_01",
-				outline([
-					[59.3283, 18.0705],
-					[59.3282, 18.0716],
-					[59.3279, 18.0709],
-				]),
-				null,
-			],
-			[
-				"evert_taubes_terrass",
-				"Evert Taubes terrass",
-				"plaza_01",
-				rect(-38.2, 12.2, -33.8, 16),
-				"#cfc3ad",
-			],
-			["skeppsholmen_park", "Skeppsholmen's park", "grass_01", rect(46, -24, 66, -6), null],
 			[
 				"kastellholmen_grass",
 				"Kastellholmen's rocks and grass",
 				"grass_01",
-				rect(70.2, 13.2, 77.4, 19.4),
+				KASTELLHOLMEN_GRASS,
 				null,
 			],
 		] as const
@@ -362,530 +510,108 @@ const AREAS: TAreaInput[] = [
 		}),
 	),
 	// On the mainland.
-	{
-		id: "kungstradgarden",
-		name: "Kungsträdgården",
-		kind: "grass_01",
-		points: rect(8.6, -62, 14.8, -46.6),
-	},
-	{
-		id: "karl_xii_torg",
-		name: "Karl XII:s torg",
-		kind: "plaza_01",
-		points: rect(8.6, -46.6, 14.2, -44.8),
-	},
+	{ id: "kungstradgarden", name: "Kungsträdgården", kind: "grass_01", points: KUNGSTRADGARDEN },
+	{ id: "karl_xii_torg", name: "Karl XII:s torg", kind: "plaza_01", points: KARL_XII_TORG },
 	{
 		id: "gustav_adolfs_torg",
 		name: "Gustav Adolfs torg",
 		kind: "plaza_01",
-		points: rect(-4.6, -48.4, 0.2, -43.6),
+		points: GUSTAV_ADOLFS_TORG,
 	},
 	{
 		id: "stadshuset_garden",
 		name: "Stadshuset's garden",
 		kind: "grass_01",
-		points: outline([
-			[59.32735, 18.0532],
-			[59.32715, 18.0568],
-			[59.3267, 18.0567],
-			[59.3265, 18.0556],
-			[59.3264, 18.0535],
-		]),
+		points: STADSHUSET_GARDEN,
 	},
+	{ id: "djurgarden", name: "Djurgården", kind: "grass_01", points: DJURGARDEN },
 ];
-
-// ---------------------------------------------------------------- Gamla stan's streets
-
-/**
- * Gamla stan's streets and lanes, main streets first: the lines its houses are laid along
- * (streetRows.ts), the main streets getting theirs first. They aren't roads: the island's
- * cobbles are its lanes. Only the quays, Skeppsbron and Munkbroleden, where traffic drives, are.
- */
-const LANE = { depths: [1.6, 1.2, 0.9], houseWidth: 0.85 } satisfies IRowSide;
-const NARROW_LANE = { depths: [1.3, 1, 0.8], houseWidth: 0.8 } satisfies IRowSide;
-const QUAY = { depths: [2.2, 1.7, 1.2], houseWidth: 1.05, mostHouses: 7 } satisfies IRowSide;
-const SQUARE = { depths: [1.7, 1.3], houseWidth: 0.9 } satisfies IRowSide;
-
-interface IOldTownStreet extends IStreetLine {
-	name: string;
-	/** How many floors its houses have, and what share face it with a gable. */
-	floorCount: number;
-	gableShare: number;
-	/** Whether its houses look out at the back too (over a quay). */
-	hasWindowsAtTheBack?: boolean;
-	/** Wall lanterns on its houses after dark, one on every this many rows; 0 for none. */
-	lanternEvery: number;
-}
-
-const street = (
-	id: string,
-	name: string,
-	points: TVec2[],
-	width: number,
-	more: Partial<IOldTownStreet> = {},
-): IOldTownStreet => ({
-	id,
-	name,
-	points,
-	width,
-	left: LANE,
-	right: LANE,
-	floorCount: 4,
-	gableShare: 0.25,
-	lanternEvery: 0,
-	...more,
-});
-
-const OLD_TOWN_STREETS: IOldTownStreet[] = [
-	// Stortorget's houses first: the stepped gables on its west side face the square.
-	street(
-		"stortorget_west",
-		"Stortorget",
-		[
-			[-4.1, 1.6],
-			[-4.1, -2.2],
-		],
-		0.1,
-		{
-			left: SQUARE,
-			right: undefined,
-			gableShare: 0.9,
-			floorCount: 5,
-			lanternEvery: 1,
-		},
-	),
-	street(
-		"stortorget_south",
-		"Stortorget",
-		[
-			[0.9, 1.8],
-			[-3.9, 1.8],
-		],
-		0.1,
-		{
-			left: SQUARE,
-			right: undefined,
-			gableShare: 0.5,
-			floorCount: 5,
-		},
-	),
-	street(
-		"stortorget_east",
-		"Stortorget",
-		[
-			[0.9, -2.2],
-			[0.9, 1.6],
-		],
-		0.1,
-		{
-			left: SQUARE,
-			right: undefined,
-			gableShare: 0.6,
-			floorCount: 4,
-			lanternEvery: 1,
-		},
-	),
-	street(
-		"vasterlanggatan",
-		"Västerlånggatan",
-		[
-			[-7.6, -15.6],
-			[-6.9, -8],
-			[-6.3, 0],
-			[-5.7, 8],
-			[-3.8, 15],
-			[-0.6, 19.6],
-		],
-		0.55,
-		{ floorCount: 5, lanternEvery: 3 },
-	),
-	street(
-		"osterlanggatan",
-		"Österlånggatan",
-		[
-			[11.4, -7.4],
-			[12.4, -2],
-			[12.6, 4.4],
-			[10.6, 11.8],
-			[6.8, 17.8],
-			[3.6, 20.4],
-		],
-		0.5,
-		{ floorCount: 5, lanternEvery: 3 },
-	),
-	street(
-		"skeppsbron",
-		"Skeppsbron",
-		[
-			[16.4, -19.6],
-			[18.3, -10.4],
-			[18.6, 3],
-			[16.2, 17],
-			[12, 28],
-			[6.8, 33.4],
-		],
-		1,
-		// Its houses face the water: the merchants' row, tall and broad.
-		{ left: undefined, right: QUAY, floorCount: 6, gableShare: 0.1 },
-	),
-	street(
-		"stora_nygatan",
-		"Stora Nygatan",
-		[
-			[-12.8, -10.8],
-			[-11.6, 24.4],
-		],
-		0.6,
-		{ floorCount: 5, lanternEvery: 4 },
-	),
-	street(
-		"munkbroleden",
-		"Munkbroleden",
-		[
-			[-19.5, -9.4],
-			[-18, 3],
-			[-15.9, 16],
-			[-11, 27],
-			[-5.2, 33.8],
-		],
-		1,
-		// Its houses face the water across the road, and the lane at their backs.
-		{
-			left: { ...QUAY, depths: [1.6, 1.2] },
-			right: undefined,
-			floorCount: 5,
-			hasWindowsAtTheBack: true,
-		},
-	),
-	street(
-		"lilla_nygatan",
-		"Lilla Nygatan",
-		[
-			[-16.2, -9.6],
-			[-15.4, 4],
-			[-14.4, 14],
-		],
-		0.45,
-		{ left: NARROW_LANE, right: NARROW_LANE },
-	),
-	street(
-		"slottsbacken_south",
-		"Slottsbacken",
-		[
-			[17.8, -7.4],
-			[1.8, -7.4],
-		],
-		0.1,
-		{ left: QUAY, right: undefined, floorCount: 5, gableShare: 0 },
-	),
-	street(
-		"prastgatan",
-		"Prästgatan",
-		[
-			[-4.2, -4.4],
-			[-4.4, 1],
-			[-3.7, 7.5],
-			[-1.9, 14.2],
-		],
-		0.4,
-		{ left: NARROW_LANE, right: NARROW_LANE },
-	),
-	street(
-		"svartmangatan",
-		"Svartmangatan",
-		[
-			[1.2, 2],
-			[4.2, 6],
-			[5.2, 15.4],
-			[4, 19.4],
-		],
-		0.45,
-		{ lanternEvery: 3 },
-	),
-	street(
-		"kopmangatan",
-		"Köpmangatan",
-		[
-			[1.1, -1.2],
-			[11.8, -2.4],
-		],
-		0.4,
-		{ left: NARROW_LANE, right: NARROW_LANE, lanternEvery: 3 },
-	),
-	street(
-		"storkyrkobrinken",
-		"Storkyrkobrinken",
-		[
-			[-18.4, -11.4],
-			[-12.8, -10.6],
-			[-7.2, -9.4],
-		],
-		0.5,
-		{ left: NARROW_LANE, right: NARROW_LANE },
-	),
-	street(
-		"tyska_brinken",
-		"Tyska brinken",
-		[
-			[-5.9, 4.8],
-			[-3.9, 5.1],
-			[4.5, 5.3],
-		],
-		0.4,
-		{ left: NARROW_LANE, right: NARROW_LANE },
-	),
-	street(
-		"jarntorgsgatan",
-		"Järntorgsgatan",
-		[
-			[1.6, 23.4],
-			[3.6, 29.6],
-			[5.2, 33.2],
-		],
-		0.6,
-		{ floorCount: 5 },
-	),
-	// Lanes down to the quays: only gaps between the houses, too narrow for rows of their own.
-	...(
-		[
-			[
-				"kakbrinken",
-				"Kåkbrinken",
-				[
-					[-6.3, -0.6],
-					[-4.2, -0.4],
-				],
-			],
-			[
-				"ferkens_grand",
-				"Ferkens gränd",
-				[
-					[12.6, 1.6],
-					[18.6, 1.8],
-				],
-			],
-			[
-				"gaddgarsgrand",
-				"Gaddgårdsgränd",
-				[
-					[11.6, 9],
-					[17.6, 9.6],
-				],
-			],
-			[
-				"brunnsgrand",
-				"Brunnsgränd",
-				[
-					[9, 14.8],
-					[16.6, 15.8],
-				],
-			],
-			[
-				"drakens_grand",
-				"Drakens gränd",
-				[
-					[5.4, 19.6],
-					[13.4, 24.4],
-				],
-			],
-			[
-				"gasgrand",
-				"Gåsgränd",
-				[
-					[-6.6, -3.5],
-					[-19.2, -3.4],
-				],
-			],
-			[
-				"ignatiigrand",
-				"Ignatiigränd",
-				[
-					[-5.9, 6.5],
-					[-18.4, 6.6],
-				],
-			],
-			[
-				"schonfeldts_grand",
-				"Schönfeldts gränd",
-				[
-					[-4.6, 12.3],
-					[-16.6, 12],
-				],
-			],
-			[
-				"kolmatargrand",
-				"Kolmätargränd",
-				[
-					[-2.8, 17.4],
-					[-13.4, 19.6],
-				],
-			],
-			[
-				"bollhusgrand",
-				"Bollhusgränd",
-				[
-					[11.4, -7.4],
-					[12.2, -10.6],
-				],
-			],
-		] as const
-	).map(([id, name, points]) =>
-		street(
-			id,
-			name,
-			points.map(([x, z]): TVec2 => [x, z]),
-			0.4,
-			{
-				left: undefined,
-				right: undefined,
-			},
-		),
-	),
-];
-
-/** Landmarks, the squares and gardens: no houses there. */
-const KEEP_OUT: TVec2[][] = [
-	rect(-5.2, -21.4, 10.6, -10.6), // the palace and its wings
-	SLOTTSBACKEN,
-	PALACE_QUAY,
-	rect(-5.6, -8.8, 1.6, -4.6), // Storkyrkan
-	STORTORGET,
-	rect(-2, 6.2, 4.2, 10.8), // Tyska kyrkan and its churchyard
-	JARNTORGET,
-	KORNHAMNSTORG,
-	MYNTTORGET,
-	rect(-18.6, -18.6, -13, -11.4), // Riddarhuset and its garden
-	rect(-4.4, -4.6, 1.2, -2.2), // Börshuset, Stortorget's north side
-	rect(7.4, -7.2, 11.4, -3.6), // Tessinska palatset
-];
-
-// ---------------------------------------------------------------- Gamla stan's houses
-
-/** The old town's colours: ochre, rust red, yellow, pale green, salmon, cream. */
-const OLD_TOWN_WALLS = [
-	"#d39b3f",
-	"#b0523a",
-	"#e6c15a",
-	"#a9bf98",
-	"#dc9a7c",
-	"#e8dcc0",
-	"#c2703f",
-	"#e0b878",
-	"#9a5a3c",
-	"#e3b6a4",
-];
-/** Dark sheet-metal roofs, now and then red tiles. */
-const OLD_TOWN_ROOFS = ["#45403f", "#3d3a3c", "#4f4846", "#8f4a37", "#45403f"];
-
-const wallsOf = (i: number) => ({
-	walls: OLD_TOWN_WALLS[i % OLD_TOWN_WALLS.length],
-	secondWalls: OLD_TOWN_WALLS[(i + 3) % OLD_TOWN_WALLS.length],
-	thirdWalls: OLD_TOWN_WALLS[(i + 6) % OLD_TOWN_WALLS.length],
-	fourthWalls: OLD_TOWN_WALLS[(i + 8) % OLD_TOWN_WALLS.length],
-});
-
-const laidRows = layRowsAlong({
-	streets: OLD_TOWN_STREETS,
-	land: GAMLA_STAN,
-	keepOut: KEEP_OUT,
-	shoreMargin: 0.25,
-	// The blocks' insides, built over with lower back houses.
-	courtyards: { depths: [1.4, 1.1], houseWidth: 1, spacing: 1.2 },
-});
-
-/** The back houses in the blocks' courtyards: lower, plainer, no lanterns. */
-const COURTYARD = street("courtyard", "Courtyard", [], 0, {
-	floorCount: 3,
-	gableShare: 0.15,
-});
-
-const streetOf = (row: ILaidRow) =>
-	OLD_TOWN_STREETS.find((candidate) => candidate.id === row.streetId) ?? COURTYARD;
-
-const oldTownHouses: TEntityInput[] = laidRows.map((row, i) => {
-	const of = streetOf(row);
-	return {
-		id: `house_row_${i}`,
-		kind: "terraced_row_02",
-		name: `${of.name} ${i + 1}`,
-		position: row.position,
-		altitude: ISLAND,
-		rotation: turned(row.turn),
-		colors: paint({ ...wallsOf(i * 7), roof: OLD_TOWN_ROOFS[i % OLD_TOWN_ROOFS.length] }),
-		props: {
-			houseCount: row.houseCount,
-			houseWidth: row.side.houseWidth,
-			depth: row.depth,
-			floorCount: of.floorCount,
-			gableShare: of.gableShare,
-			hasWindowsAtTheBack: of.hasWindowsAtTheBack ?? false,
-			seed: i * 13 + 5,
-		},
-	};
-});
-
-/** Wall lanterns on the houses of the main lanes and round Stortorget, lit together at dusk. */
-const wallLanterns: TEntityInput[] = laidRows.flatMap((row, i) => {
-	const of = streetOf(row);
-	if (of.lanternEvery === 0 || i % of.lanternEvery !== 0) {
-		return [];
-	}
-	return [
-		{
-			id: `wall_lantern_${i}`,
-			kind: "wall_lantern_01",
-			// On the wall, the lantern out over the street.
-			position: [
-				round(row.front[0] + row.facing[0] * 0.13),
-				round(row.front[1] + row.facing[1] * 0.13),
-			] as TVec2,
-			altitude: ISLAND,
-			rotation: turned(row.turn),
-			props: { height: 0.6 },
-		},
-	];
-});
 
 // ---------------------------------------------------------------- roads and bridges
 
 const CENTRALBRON_ID = "centralbron";
 const SKEPPSBRON_ID = "skeppsbron";
+const MUNKBROLEDEN_ID = "munkbroleden";
 /** Strömgatan, in stretches between the bridges that meet it (ADR-0136). */
 const STROMGATAN_POINTS: TVec2[][] = [
 	[
-		[-47, -45],
-		[-38, -40.6],
-		[-27, -42],
-		[-23, -42.4],
+		[-50.2, -30.2],
+		[-43, -31.2],
+		[-34, -31.5],
 	],
 	[
-		[-23, -42.4],
-		[-13.4, -43.4],
+		[-34, -31.5],
+		[-30.5, -32.2],
+		[-24.5, -31],
 	],
 	[
-		[-13.4, -43.4],
-		[-0.4, -43.4],
+		[-24.5, -31],
+		[-18.5, -33],
+		[-12, -36.5],
+		[-6.5, -39],
 	],
 	[
-		[-0.4, -43.4],
-		[6.8, -44.2],
-		[13, -46],
-		[16.2, -40.6],
-		[21.4, -38.8],
+		[-6.5, -39],
+		[1.5, -40.2],
+		[8, -41.2],
+		[12.3, -41.8],
 	],
 	[
-		[21.4, -38.8],
-		[34, -37.4],
-		[43.6, -34.8],
+		[12.3, -41.8],
+		[18, -43.2],
+		[23, -39],
+		[29, -36.5],
+		[33.5, -30.5],
+		[37, -29],
 	],
 ];
 const STROMGATAN_IDS = STROMGATAN_POINTS.map((_, i) => `stromgatan_${i + 1}`);
 const SODER_SHORE_ID = "soder_malarstrand";
 const STADSGARDEN_ID = "stadsgardsleden";
-const MUNKBROLEDEN_ID = "munkbroleden";
 const DJURGARDEN_FERRY_ID = "djurgarden_ferry_route";
 const ARCHIPELAGO_ID = "archipelago_route";
 const RIDDARFJARDEN_ID = "riddarfjarden_route";
+
+/** Skeppsbron: along Gamla stan's straight east quay, from Strömbron to Slussen. */
+const SKEPPSBRON_POINTS: TVec2[] = [
+	[13.5, -27.5],
+	[17.2, -21],
+	[20.5, -16],
+	[23, -11.5],
+	[24.8, -6.8],
+	[25.8, 0],
+	[25.6, 6],
+	[24.5, 13],
+	[22.5, 21],
+	[20, 29.5],
+	[18.4, 31],
+	[16.6, 35],
+];
+/** Munkbroleden: from Riddarhustorget down the west quay, round the south to Slussen. */
+const MUNKBROLEDEN_POINTS: TVec2[] = [
+	[-23.8, -13.3],
+	[-21.5, -5.1],
+	[-19.2, 0],
+	[-16.7, 7.7],
+	[-13.5, 14.5],
+	[-10.8, 18.9],
+	[-7.7, 21.5],
+	[-3, 23.3],
+	[5.4, 24.6],
+	[10.7, 25.8],
+	[15.5, 29.8],
+	[16.6, 35],
+];
+const SODER_SHORE_POINTS: TVec2[] = [
+	[-92.5, 35.3],
+	[-50, 35.4],
+	[-30, 36.5],
+	[-20, 37.3],
+	[-8, 39.2],
+	[2, 40.6],
+	[8, 41.6],
+	[12.5, 42.5],
+];
 
 /** A bridge: a raised road, its deck at the heights its points give, on piers. */
 const bridge = (
@@ -908,65 +634,73 @@ const bridge = (
 	...more,
 });
 
+/** A street on the ground. */
+const street = (
+	id: string,
+	name: string,
+	points: TVec2[],
+	more: Partial<TRoadInput> = {},
+): TRoadInput => ({
+	id,
+	name,
+	kind: "road_01",
+	width: 1.1,
+	cornerRadius: 3,
+	showsCentreLine: false,
+	colors: { surface: { color: "#6f6b66" } },
+	points,
+	...more,
+});
+
+/** Götgatan: up a ramp from Slussen, then up the heights, a point a unit so it keeps to the ground. */
+const GOTGATAN_POINTS: [number, number, number][] = [
+	[12.5, 42.5, 0],
+	[12.6, 43.5, 0.37],
+	[12.8, 44.7, 0.81],
+	[12.9, 45.9, 1.25],
+	[13, 47, 1.65],
+	...Array.from({ length: 14 }, (_, i): [number, number, number] => {
+		const z = 47.8 + i;
+		return [13.1, z, round(onSoder(13.1, z) + 0.03, 2)];
+	}),
+];
+
 const ROADS: TRoadInput[] = [
 	{
-		id: SKEPPSBRON_ID,
-		name: "Skeppsbron",
-		kind: "road_01",
-		width: 1,
-		cornerRadius: 3,
-		showsCentreLine: false,
+		...street(SKEPPSBRON_ID, "Skeppsbron", [], {
+			width: 1,
+			colors: { surface: { color: "#5f5b57" } },
+		}),
 		heldUpBy: "none",
 		showsRailings: false,
-		colors: { surface: { color: "#5f5b57" } },
-		points: [
-			[15.6, -20.6, ISLAND],
-			[18.3, -10.4, ISLAND],
-			[18.6, 3, ISLAND],
-			[16.2, 17, ISLAND],
-			[12, 28, ISLAND],
-			[6.8, 33.4, ISLAND],
-			[5.6, 35.2, ISLAND],
-		],
+		points: SKEPPSBRON_POINTS.map(([x, z]): [number, number, number] => [x, z, ISLAND]),
 	},
 	{
-		id: MUNKBROLEDEN_ID,
-		name: "Munkbroleden",
-		kind: "road_01",
-		width: 1,
-		cornerRadius: 3,
-		showsCentreLine: false,
+		...street(MUNKBROLEDEN_ID, "Munkbroleden", [], {
+			width: 1,
+			colors: { surface: { color: "#5f5b57" } },
+		}),
 		heldUpBy: "none",
 		showsRailings: false,
-		colors: { surface: { color: "#5f5b57" } },
-		// From Riddarhustorget down the west quay, round the tip to Slussen.
-		points: [
-			[-19.6, -12.2, ISLAND],
-			[-18, 3, ISLAND],
-			[-15.9, 16, ISLAND],
-			[-11, 27, ISLAND],
-			[-5.2, 33.8, ISLAND],
-			[1.5, 35.8, ISLAND],
-			[5.6, 35.2, ISLAND],
-		],
+		points: MUNKBROLEDEN_POINTS.map(([x, z]): [number, number, number] => [x, z, ISLAND]),
 	},
-	// Centralbron: from Tegelbacken over Riddarholmen's corner, along the canal between it and
-	// Gamla stan, over Söderström, and into Söderleden's tunnel under Södermalm.
+	// Centralbron: from Tegelbacken over Riddarfjärden's corner, past Riddarholmen and along the
+	// canal between it and Gamla stan, over Söderström, and into Söderleden's tunnel under Södermalm.
 	bridge(
 		CENTRALBRON_ID,
 		"Centralbron",
 		[
-			[-47, -45, 0],
-			[-41, -42.4, 0.4],
-			[-35.4, -37.4, 1.3],
-			[-29.2, -24, 1.5],
-			[-25.6, -13, 1.5],
-			[-22.6, -3, 1.45],
-			[-21.6, 9, 1.4],
-			[-20.2, 21, 1.35],
-			[-17.6, 33, 1.2],
-			[-15.6, 42, 1],
-			[-14.8, 49, 1],
+			[-50.2, -30.2, 0],
+			[-46.4, -26.2, 0.6],
+			[-42.5, -22, 1.2],
+			[-34.3, -15.35, 1.5],
+			[-29.2, -9.2, 1.5],
+			[-23.2, -1, 1.45],
+			[-19.75, 9.2, 1.4],
+			[-15.9, 22.5, 1.35],
+			[-12.6, 33.8, 1.2],
+			[-10.4, 39.8, 1],
+			[-9.4, 44.6, 1],
 		],
 		1.6,
 		{
@@ -1003,11 +737,11 @@ const ROADS: TRoadInput[] = [
 		"vasabron",
 		"Vasabron",
 		[
-			[-23, -42.4, 0],
-			[-23.4, -37.6, 0.5],
-			[-23.6, -30, 0.55],
-			[-22.6, -21.5, 0.5],
-			[-19.6, -12.2, ISLAND],
+			[-34, -31.5, 0],
+			[-32, -27, 0.5],
+			[-28, -20, 0.5],
+			[-25.6, -16.2, 0.3],
+			[-23.8, -13.3, ISLAND],
 		],
 		1.2,
 	),
@@ -1015,12 +749,12 @@ const ROADS: TRoadInput[] = [
 		"riksbron",
 		"Riksbron and Stallbron",
 		[
-			[-13.4, -43.4, 0],
-			[-13.3, -37.2, 0.5],
-			[-13.1, -32, ISLAND],
-			[-12.8, -25.2, ISLAND],
-			[-12.4, -22.6, 0.35],
-			[-11.8, -19, ISLAND],
+			[-24.5, -31, 0],
+			[-21, -27, 0.45],
+			[-17, -24, ISLAND],
+			[-15.8, -21.8, ISLAND],
+			[-15.3, -19.6, 0.35],
+			[-14.7, -15.5, ISLAND],
 		],
 		0.9,
 		{ cornerRadius: 1 },
@@ -1029,11 +763,12 @@ const ROADS: TRoadInput[] = [
 		"norrbro",
 		"Norrbro",
 		[
-			[-0.4, -43.4, 0],
-			[0, -36.6, 0.55],
-			[0.5, -30.4, 0.6],
-			[1, -25.2, 0.5],
-			[1.6, -22.4, ISLAND],
+			[-6.5, -39, 0],
+			[-6, -35.5, 0.55],
+			[-5.2, -31, ISLAND],
+			[-3.8, -24.2, ISLAND],
+			[-3.4, -21.8, 0.4],
+			[-3.1, -19.2, ISLAND],
 		],
 		1.2,
 		{ pillarSpacing: 2 },
@@ -1042,10 +777,9 @@ const ROADS: TRoadInput[] = [
 		"strombron",
 		"Strömbron",
 		[
-			[15.6, -20.6, ISLAND],
-			[18.2, -27, 0.5],
-			[20.4, -34.6, 0.35],
-			[21.4, -38.8, 0],
+			[13.5, -27.5, ISLAND],
+			[12.6, -36, 0.5],
+			[12.3, -41.8, 0],
 		],
 		1.3,
 	),
@@ -1054,22 +788,21 @@ const ROADS: TRoadInput[] = [
 		"Riddarholmsbron",
 		[
 			// From Riddarholmen under Centralbron to Riddarhustorget, where Vasabron lands too.
-			[-24.8, -8.4, ISLAND],
-			[-22.4, -10.2, 0.32],
-			[-19.6, -12.2, ISLAND],
+			[-30, -6, ISLAND],
+			[-26.6, -10, 0.32],
+			[-23.8, -13.3, ISLAND],
 		],
 		0.8,
 		{ cornerRadius: 0 },
 	),
-	// Slussen: from Gamla stan's tip over Söderström to Södermalm's shore, its gold bridge on piers.
+	// Slussen: from Gamla stan's south over Söderström to Södermalm's shore, its gold bridge on piers.
 	bridge(
 		"slussen",
 		"Slussen",
 		[
-			[5.6, 35.2, ISLAND],
-			[5.2, 40.6, 0.6],
-			[4.8, 47.6, 0.3],
-			[4.7, 49.6, 0],
+			[16.6, 35, ISLAND],
+			[14.5, 39, 0.6],
+			[12.5, 42.5, 0],
 		],
 		1.4,
 		{
@@ -1077,29 +810,20 @@ const ROADS: TRoadInput[] = [
 			colors: { surface: { color: "#5f5b57" }, embankment: { color: "#c9a93e" } },
 		},
 	),
-	// Götgatan, up from Slussen onto the heights.
-	bridge(
-		"gotgatan",
-		"Götgatan",
-		[
-			[4.7, 49.6, 0],
-			[5.4, 56, onSoder(5.4, 56)],
-			[6, 61.6, onSoder(6, 61.6)],
-		],
-		1.2,
-		{
-			heldUpBy: "embankment",
-			embankmentAngle: 70,
-			colors: { surface: { color: "#5f5b57" }, embankment: { color: "#9d9886" } },
-		},
-	),
+	// Götgatan, up from Slussen onto the heights, on the ground all the way.
+	bridge("gotgatan", "Götgatan", GOTGATAN_POINTS, 1.2, {
+		cornerRadius: 1,
+		heldUpBy: "embankment",
+		embankmentAngle: 70,
+		colors: { surface: { color: "#5f5b57" }, embankment: { color: "#9d9886" } },
+	}),
 	bridge(
 		"skeppsholmsbron",
 		"Skeppsholmsbron",
 		[
-			[43.6, -34.8, 0],
-			[43.8, -29, 0.45],
-			[44.2, -23.2, ISLAND],
+			[37, -29, 0],
+			[42, -20, 0.5],
+			[48.5, -15, ISLAND],
 		],
 		0.9,
 		{ cornerRadius: 0 },
@@ -1108,9 +832,9 @@ const ROADS: TRoadInput[] = [
 		"kastellholmsbron",
 		"Kastellholmsbron",
 		[
-			[68.6, 6.4, ISLAND],
-			[68.9, 9.6, 0.35],
-			[69.4, 12.8, ISLAND],
+			[80, 8.5, ISLAND],
+			[81.2, 12.8, 0.35],
+			[83.5, 18.2, ISLAND],
 		],
 		0.6,
 		{ cornerRadius: 0 },
@@ -1119,59 +843,28 @@ const ROADS: TRoadInput[] = [
 		"stadshusbron",
 		"Stadshusbron",
 		[
-			[-63.6, -28.6, 0],
-			[-57.4, -33.4, 0.4],
-			[-51.2, -38.8, 0],
-			[-47, -45, 0],
+			[-84, -31, 0],
+			[-70, -30, 0],
+			[-65.5, -30, 0.4],
+			[-61, -30, 0],
+			[-50.2, -30.2, 0],
 		],
 		1.2,
 	),
 	// The mainland's waterfront roads.
 	...STROMGATAN_POINTS.map(
-		(points, i): TRoadInput => ({
-			id: STROMGATAN_IDS[i],
-			name: i === 0 ? "Strömgatan" : `Strömgatan (${i + 1})`,
-			kind: "road_01",
-			width: 1.1,
-			cornerRadius: 3,
-			showsCentreLine: false,
-			colors: { surface: { color: "#6f6b66" } },
-			points,
-		}),
+		(points, i): TRoadInput =>
+			street(STROMGATAN_IDS[i], i === 0 ? "Strömgatan" : `Strömgatan (${i + 1})`, points),
 	),
-	{
-		id: SODER_SHORE_ID,
-		name: "Söder Mälarstrand",
-		kind: "road_01",
-		width: 1.1,
-		cornerRadius: 3,
-		showsCentreLine: false,
-		colors: { surface: { color: "#6f6b66" } },
-		points: [
-			[-89, 43.4],
-			[-30, 41.6],
-			[-17, 42],
-			[-8, 45.2],
-			[2, 48.4],
-			[4.7, 49.6],
-		],
-	},
-	{
-		id: STADSGARDEN_ID,
-		name: "Stadsgårdsleden",
-		kind: "road_01",
-		width: 1.1,
-		cornerRadius: 3,
-		showsCentreLine: false,
-		colors: { surface: { color: "#6f6b66" } },
-		points: [
-			[4.7, 49.6],
-			[18, 50.6],
-			[40, 52.6],
-			[68, 54.3],
-			[89, 54.3],
-		],
-	},
+	street(SODER_SHORE_ID, "Söder Mälarstrand", SODER_SHORE_POINTS),
+	street(STADSGARDEN_ID, "Stadsgårdsleden", [
+		[12.5, 42.5],
+		[19, 44.6],
+		[31.2, 50.1],
+		[40.8, 56.8],
+		[51.7, 60.4],
+		[55, 61.6],
+	]),
 	// Katarinahissen's footbridge, from the top of its lift out to the heights.
 	{
 		id: "katarinahissen",
@@ -1183,8 +876,8 @@ const ROADS: TRoadInput[] = [
 		heldUpBy: "none",
 		colors: { surface: { color: "#3b3f44" } },
 		points: [
-			[12.6, 52, KATARINAHISSEN_TOP],
-			[16.6, 57.8, KATARINAHISSEN_TOP],
+			[...KATARINAHISSEN_AT, KATARINAHISSEN_TOP],
+			[...KATARINAHISSEN_LANDING, KATARINAHISSEN_TOP],
 		],
 	},
 	// The boats' routes, hidden.
@@ -1195,16 +888,14 @@ const ROADS: TRoadInput[] = [
 		loops: true,
 		cornerRadius: 4,
 		points: [
-			[10.6, 33.4],
-			[22, 34.4],
-			[40, 28.6],
-			[62, 26.4],
-			[84, 22.6],
-			[86, 30],
-			[62, 34],
-			[40, 36.6],
-			[22, 38.6],
-			[12.4, 36.6],
+			[21, 33],
+			[40, 32],
+			[60, 33],
+			[85, 38],
+			[85, 44],
+			[60, 42],
+			[40, 40],
+			[24, 37],
 		],
 	},
 	{
@@ -1214,18 +905,19 @@ const ROADS: TRoadInput[] = [
 		loops: true,
 		cornerRadius: 4,
 		points: [
-			[24.5, -32.6],
-			[29, -24],
-			[32, -10],
-			[33, 6],
-			[42, 20],
-			[60, 30.6],
-			[86, 37],
-			[86, 43],
-			[58, 41],
-			[38, 29],
-			[27, 8],
-			[25, -14],
+			[25.5, -29],
+			[30, -23],
+			[36, -12],
+			[37, 5],
+			[40, 20],
+			[55, 38],
+			[85, 48],
+			[85, 55],
+			[55, 46],
+			[33, 25],
+			[32, 5],
+			[31, -12],
+			[27, -25.5],
 		],
 	},
 	{
@@ -1235,13 +927,13 @@ const ROADS: TRoadInput[] = [
 		loops: true,
 		cornerRadius: 5,
 		points: [
-			[-60, -14],
-			[-48, -4],
-			[-46, 14],
-			[-56, 32],
-			[-80, 34],
-			[-86, 14],
-			[-76, -6],
+			[-66, -12],
+			[-50, -6],
+			[-50, 15],
+			[-60, 28],
+			[-85, 28],
+			[-88, 10],
+			[-80, -8],
 		],
 	},
 ];
@@ -1304,19 +996,328 @@ const JUNCTIONS = [
 	]),
 ];
 
+// ---------------------------------------------------------------- Gamla stan's streets
+
+/**
+ * Gamla stan's streets and lanes, main streets first: the lines its houses are laid along
+ * (streetRows.ts), the main streets getting theirs first. They aren't roads: the island's
+ * cobbles are its lanes. Only the quays, Skeppsbron and Munkbroleden, where traffic drives, are.
+ */
+const LANE = { depths: [1.6, 1.2, 0.9], houseWidth: 0.85 } satisfies IRowSide;
+const NARROW_LANE = { depths: [1.3, 1, 0.8], houseWidth: 0.8 } satisfies IRowSide;
+const QUAY = { depths: [2.2, 1.7, 1.2], houseWidth: 1.05, mostHouses: 7 } satisfies IRowSide;
+const SQUARE = { depths: [1.7, 1.3], houseWidth: 0.9 } satisfies IRowSide;
+
+interface IOldTownStreet extends IStreetLine {
+	name: string;
+	/** How many floors its houses have, and what share face it with a gable. */
+	floorCount: number;
+	gableShare: number;
+	/** Whether its houses look out at the back too (over a quay). */
+	hasWindowsAtTheBack?: boolean;
+	/** Wall lanterns on its houses after dark, one on every this many rows; 0 for none. */
+	lanternEvery: number;
+}
+
+const oldTownStreet = (
+	id: string,
+	name: string,
+	points: TVec2[],
+	width: number,
+	more: Partial<IOldTownStreet> = {},
+): IOldTownStreet => ({
+	id,
+	name,
+	points,
+	width,
+	left: LANE,
+	right: LANE,
+	floorCount: 4,
+	gableShare: 0.25,
+	lanternEvery: 0,
+	...more,
+});
+
+const OLD_TOWN_STREETS: IOldTownStreet[] = [
+	// Stortorget's houses first: the stepped gables on its west side face the square.
+	oldTownStreet(
+		"stortorget_west",
+		"Stortorget",
+		[onStortorget([-2.5, 1.8]), onStortorget([-2.5, -1.8])],
+		0.1,
+		{ left: SQUARE, right: undefined, gableShare: 0.9, floorCount: 5, lanternEvery: 1 },
+	),
+	oldTownStreet(
+		"stortorget_south",
+		"Stortorget",
+		[onStortorget([2.5, 2]), onStortorget([-2.5, 2])],
+		0.1,
+		{ left: SQUARE, right: undefined, gableShare: 0.5, floorCount: 5 },
+	),
+	oldTownStreet(
+		"stortorget_east",
+		"Stortorget",
+		[onStortorget([2.5, -1.8]), onStortorget([2.5, 1.8])],
+		0.1,
+		{ left: SQUARE, right: undefined, gableShare: 0.6, floorCount: 4, lanternEvery: 1 },
+	),
+	oldTownStreet(
+		"vasterlanggatan",
+		"Västerlånggatan",
+		[
+			[-8.4, -15],
+			[-7.6, -7.2],
+			[-4.1, 1],
+			[0.5, 9.2],
+			[5.1, 14.8],
+			[9.7, 19.4],
+		],
+		0.55,
+		{ floorCount: 5, lanternEvery: 3 },
+	),
+	oldTownStreet(
+		"osterlanggatan",
+		"Österlånggatan",
+		[
+			[11.8, -7.7],
+			[14.8, -2],
+			[16.2, 3.6],
+			[14.7, 11.5],
+			[12.4, 17.9],
+		],
+		0.5,
+		{ floorCount: 5, lanternEvery: 3 },
+	),
+	// Its houses face the water: the merchants' row, tall and broad.
+	oldTownStreet("skeppsbron", "Skeppsbron", SKEPPSBRON_POINTS, 1, {
+		left: undefined,
+		right: QUAY,
+		floorCount: 6,
+		gableShare: 0.1,
+	}),
+	oldTownStreet(
+		"stora_nygatan",
+		"Stora Nygatan",
+		[
+			[-17.4, -7.2],
+			[-11.8, 1],
+			[-4.6, 9.7],
+			[1, 16.6],
+			[2, 19],
+		],
+		0.6,
+		{ floorCount: 5, lanternEvery: 4 },
+	),
+	// Its houses face the water across the road, and the lanes at their backs.
+	oldTownStreet("munkbroleden", "Munkbroleden", MUNKBROLEDEN_POINTS, 1, {
+		left: { ...QUAY, depths: [1.6, 1.2] },
+		right: undefined,
+		floorCount: 5,
+		hasWindowsAtTheBack: true,
+	}),
+	oldTownStreet(
+		"lilla_nygatan",
+		"Lilla Nygatan",
+		[
+			[-18.1, -2],
+			[-13, 5.6],
+			[-8.2, 11.9],
+			[-4.3, 17.4],
+		],
+		0.45,
+		{ left: NARROW_LANE, right: NARROW_LANE },
+	),
+	oldTownStreet(
+		"slottsbacken_south",
+		"Slottsbacken",
+		[byThePalace([9.2, 8.8]), byThePalace([-3.4, 8.8])],
+		0.1,
+		{ left: QUAY, right: undefined, floorCount: 5, gableShare: 0 },
+	),
+	oldTownStreet(
+		"svartmangatan",
+		"Svartmangatan",
+		[
+			[4.5, 2.8],
+			[9, 5],
+			[10.5, 11],
+			[10.5, 17.5],
+		],
+		0.45,
+		{ lanternEvery: 3 },
+	),
+	oldTownStreet(
+		"kopmangatan",
+		"Köpmangatan",
+		[
+			[4.5, 0],
+			[10, -1],
+			[15, -1.5],
+		],
+		0.4,
+		{ left: NARROW_LANE, right: NARROW_LANE, lanternEvery: 3 },
+	),
+	oldTownStreet(
+		"storkyrkobrinken",
+		"Storkyrkobrinken",
+		[
+			[-22.5, -10.2],
+			[-15, -9.6],
+			[-8, -9.2],
+			[-5, -9],
+		],
+		0.5,
+		{ left: NARROW_LANE, right: NARROW_LANE },
+	),
+	// Lanes down to the quays: only gaps between the houses, too narrow for rows of their own.
+	...(
+		[
+			["kakbrinken", "Kåkbrinken", [-4, 0.3], [-0.9, 1.4]],
+			["tyska_brinken", "Tyska brinken", [-1.6, 5.2], [3, 6.2]],
+			["ferkens_grand", "Ferkens gränd", [13.8, -4], [25, -4.3]],
+			["gaddgarsgrand", "Gaddgårdsgränd", [16.1, 4], [25.7, 4]],
+			["brunnsgrand", "Brunnsgränd", [15, 10], [25, 10]],
+			["drakens_grand", "Drakens gränd", [13.1, 16], [23.6, 16.5]],
+			["gasgrand", "Gåsgränd", [-6.5, -5], [-21, -3.5]],
+			["ignatiigrand", "Ignatiigränd", [-2, 5], [-17, 6]],
+			["schonfeldts_grand", "Schönfeldts gränd", [2, 12], [-13.6, 13.2]],
+			["kolmatargrand", "Kolmätargränd", [6, 16.5], [-9.5, 19.5]],
+			["jarntorgsgatan", "Järntorgsgatan", [10.6, 22.2], [11.6, 25]],
+		] as [string, string, TVec2, TVec2][]
+	).map(([id, name, from, to]) =>
+		oldTownStreet(id, name, [from, to], 0.4, { left: undefined, right: undefined }),
+	),
+];
+
+/** Landmarks, the squares and gardens: no houses there. */
+const KEEP_OUT: TVec2[][] = [
+	turnedRect(PALACE_MIDDLE, 25, 13.8, 10.6), // the palace and its wings
+	SLOTTSBACKEN,
+	PALACE_QUAY,
+	turnedRect([-1.5, -8.4], 115, 3.6, 7), // Storkyrkan
+	STORTORGET,
+	turnedRect([5.4, 6.9], -65, 4, 6.6), // Tyska kyrkan and its churchyard
+	JARNTORGET,
+	KORNHAMNSTORG,
+	MYNTTORGET,
+	rect(-21.8, -15.9, -16, -10.7), // Riddarhuset and its garden
+	turnedRect(onStortorget([0.3, -3.5]), 25, 5.4, 2.8), // Börshuset, Stortorget's north side
+	turnedRect(byThePalace([5, 10.6]), 25, 4.2, 3.4), // Tessinska palatset
+];
+
+// ---------------------------------------------------------------- Gamla stan's houses
+
+/** The old town's colours: ochre, rust red, yellow, pale green, salmon, cream. */
+const OLD_TOWN_WALLS = [
+	"#d39b3f",
+	"#b0523a",
+	"#e6c15a",
+	"#a9bf98",
+	"#dc9a7c",
+	"#e8dcc0",
+	"#c2703f",
+	"#e0b878",
+	"#9a5a3c",
+	"#e3b6a4",
+];
+/** Dark sheet-metal roofs, now and then red tiles. */
+const OLD_TOWN_ROOFS = ["#45403f", "#3d3a3c", "#4f4846", "#8f4a37", "#45403f"];
+
+const wallsOf = (i: number) => ({
+	walls: OLD_TOWN_WALLS[i % OLD_TOWN_WALLS.length],
+	secondWalls: OLD_TOWN_WALLS[(i + 3) % OLD_TOWN_WALLS.length],
+	thirdWalls: OLD_TOWN_WALLS[(i + 6) % OLD_TOWN_WALLS.length],
+	fourthWalls: OLD_TOWN_WALLS[(i + 8) % OLD_TOWN_WALLS.length],
+});
+
+const laidRows = layRowsAlong({
+	streets: OLD_TOWN_STREETS,
+	land: GAMLA_STAN,
+	keepOut: KEEP_OUT,
+	shoreMargin: 0.25,
+	// The blocks' insides, built over with lower back houses.
+	courtyards: { depths: [1.4, 1.1], houseWidth: 1, spacing: 1.2 },
+});
+
+/** The back houses in the blocks' courtyards: lower, plainer, no lanterns. */
+const COURTYARD = oldTownStreet("courtyard", "Courtyard", [], 0, {
+	floorCount: 3,
+	gableShare: 0.15,
+});
+
+const streetOf = (row: ILaidRow) =>
+	OLD_TOWN_STREETS.find((candidate) => candidate.id === row.streetId) ?? COURTYARD;
+
+const oldTownHouses: TEntityInput[] = laidRows.map((row, i) => {
+	const of = streetOf(row);
+	return {
+		id: `house_row_${i}`,
+		kind: "terraced_row_02",
+		name: `${of.name} ${i + 1}`,
+		position: row.position,
+		altitude: ISLAND,
+		rotation: turned(row.turn),
+		colors: paint({ ...wallsOf(i * 7), roof: OLD_TOWN_ROOFS[i % OLD_TOWN_ROOFS.length] }),
+		props: {
+			houseCount: row.houseCount,
+			houseWidth: row.side.houseWidth,
+			depth: row.depth,
+			floorCount: of.floorCount,
+			gableShare: of.gableShare,
+			hasWindowsAtTheBack: of.hasWindowsAtTheBack ?? false,
+			seed: i * 13 + 5,
+		},
+	};
+});
+
+/** Wall lanterns on the houses of the main lanes and round Stortorget, lit together at dusk. */
+const wallLanterns: TEntityInput[] = laidRows.flatMap((row, i) => {
+	const of = streetOf(row);
+	if (of.lanternEvery === 0 || i % of.lanternEvery !== 0) {
+		return [];
+	}
+	return [
+		{
+			id: `wall_lantern_${i}`,
+			kind: "wall_lantern_01",
+			// On the wall, the lantern out over the street.
+			position: [
+				round(row.front[0] + row.facing[0] * 0.13),
+				round(row.front[1] + row.facing[1] * 0.13),
+			] as TVec2,
+			altitude: ISLAND,
+			rotation: turned(row.turn),
+			props: { height: 0.6 },
+		},
+	];
+});
+
 // ---------------------------------------------------------------- landmarks
 
 /** Example data, as every value here is: say so wherever it's shown in full. */
 const EXAMPLE = "Example number, not live data";
+
+/** Where the mainland's landmarks stand, kept clear of the city's blocks. */
+const OPERAN: TVec2 = [-2.5, -45.8];
+const ARVFURSTENS_PALATS: TVec2 = [-15.8, -44.2];
+const ROSENBAD: TVec2 = [-29, -36.5];
+const GRAND_HOTEL: TVec2 = [25, -45.5];
+const NATIONALMUSEUM: TVec2 = [38.5, -40];
+const STADSHUSET: TVec2 = [-75.2, -23.6];
+const STADSMUSEET: TVec2 = [1.3, 48.6];
+/** Söderleden's tunnel mouth, at the foot of Södermalm's cliff, turned along Centralbron. */
+const TUNNEL_MOUTH: TVec2 = [-10.05, 41.45];
 
 const landmarks: TEntityInput[] = [
 	{
 		id: "kungliga_slottet",
 		kind: "palace_01",
 		name: "Kungliga slottet",
-		position: [2.7, -16],
+		position: PALACE_MIDDLE,
 		altitude: ISLAND,
-		props: { width: 9.4, depth: 9, floorCount: 5, sideWingLength: 2.2 },
+		// Its portal to the south, onto Slottsbacken; its wings out east and west.
+		rotation: turned(25),
+		props: { width: 9.4, depth: 9, floorCount: 5, sideWingLength: 1.8 },
 		label: {
 			title: "Kungliga slottet",
 			dataKeys: ["palace_visitors"],
@@ -1332,10 +1333,10 @@ const landmarks: TEntityInput[] = [
 		id: "storkyrkan",
 		kind: "church_02",
 		name: "Storkyrkan",
-		position: [-2, -6.7],
+		position: [-1.5, -8.4],
 		altitude: ISLAND,
-		// Its tower to the east, up Slottsbacken from the water.
-		rotation: turned(90),
+		// Its tower to the east, at the top of Slottsbacken.
+		rotation: turned(115),
 		props: { width: 2.8, depth: 6.2, towerHeight: 4 },
 		details: { description: "Stockholm's cathedral, the oldest church in Gamla stan." },
 	},
@@ -1343,9 +1344,9 @@ const landmarks: TEntityInput[] = [
 		id: "tyska_kyrkan",
 		kind: "church_04",
 		name: "Tyska kyrkan",
-		position: [1.2, 8.5],
+		position: [5.4, 6.9],
 		altitude: ISLAND,
-		rotation: turned(-90),
+		rotation: turned(-65),
 		props: { width: 2.6, depth: 5, towerHeight: 3.4 },
 		details: { description: "The German church, its copper spire over the lanes." },
 	},
@@ -1353,9 +1354,9 @@ const landmarks: TEntityInput[] = [
 		id: "riddarholmskyrkan",
 		kind: "church_03",
 		name: "Riddarholmskyrkan",
-		position: [-30.4, 2.7],
+		position: [-29.7, 1.5],
 		altitude: ISLAND,
-		rotation: turned(-90),
+		rotation: turned(-75),
 		props: { width: 2.6, depth: 6.4, towerHeight: 3.2 },
 		details: {
 			description: "The burial church of Sweden's kings, under its cast-iron spire.",
@@ -1365,7 +1366,7 @@ const landmarks: TEntityInput[] = [
 		id: "stadshuset",
 		kind: "city_hall_01",
 		name: "Stadshuset",
-		position: [-72.7, -23.6],
+		position: STADSHUSET,
 		props: { width: 9.6, depth: 7.2, floorCount: 4, towerHeight: 7.2 },
 		label: {
 			title: "Stadshuset",
@@ -1381,14 +1382,15 @@ const landmarks: TEntityInput[] = [
 		id: "riksdagshuset",
 		kind: "palace_01",
 		name: "Riksdagshuset",
-		position: [-5.6, -28.8],
+		position: [-10, -26],
 		altitude: ISLAND,
+		rotation: turned(20),
 		colors: paint({ walls: "#cfc8b8", trim: "#ece6d8", plinth: "#a9a294", roof: "#5f6f69" }),
 		props: {
-			width: 8.4,
-			depth: 5.2,
+			width: 6,
+			depth: 4.4,
 			floorCount: 4,
-			wingDepth: 1.6,
+			wingDepth: 1.4,
 			showsSideWings: false,
 			seed: 4,
 		},
@@ -1403,20 +1405,12 @@ const landmarks: TEntityInput[] = [
 		},
 	},
 	{
-		id: "riksdagshuset_west",
-		kind: "palace_01",
-		name: "Riksdagshuset (west building)",
-		position: [-16.2, -28.4],
-		altitude: ISLAND,
-		colors: paint({ walls: "#d8d0bd", trim: "#efe9dc", plinth: "#b3aa98", roof: "#5f6f69" }),
-		props: { width: 5.2, depth: 4, floorCount: 4, wingDepth: 1.3, showsSideWings: false, seed: 9 },
-	},
-	{
 		id: "riddarhuset",
 		kind: "palace_01",
 		name: "Riddarhuset",
-		position: [-15.8, -13.2],
+		position: [-18.6, -12.6],
 		altitude: ISLAND,
+		// Its front to the north, over its garden to the water.
 		rotation: turned(180),
 		colors: paint({ walls: "#a14f38", trim: "#e9dcc2", plinth: "#8a4230", roof: "#4c5a54" }),
 		props: {
@@ -1432,8 +1426,9 @@ const landmarks: TEntityInput[] = [
 		id: "borshuset",
 		kind: "palace_01",
 		name: "Börshuset",
-		position: [-1.6, -3.4],
+		position: onStortorget([0.3, -3.5]),
 		altitude: ISLAND,
+		rotation: turned(25),
 		colors: paint({ walls: "#efe6cf", trim: "#f7f2e6", plinth: "#d8cdb4", roof: "#4f5a55" }),
 		props: { width: 4.8, depth: 2, floorCount: 3, wingDepth: 0.8, showsSideWings: false, seed: 6 },
 	},
@@ -1441,29 +1436,28 @@ const landmarks: TEntityInput[] = [
 		id: "wrangelska_palatset",
 		kind: "palace_01",
 		name: "Wrangelska palatset",
-		position: [-35.4, -4.6],
+		position: [-40.9, -5.6],
 		altitude: ISLAND,
-		rotation: turned(90),
+		rotation: turned(105),
 		colors: paint({ walls: "#e3c78f", roof: "#4c5a54" }),
 		props: { width: 5.6, depth: 4, floorCount: 3, wingDepth: 1.3, showsSideWings: false, seed: 11 },
 	},
 	// Riddarholmen's palaces round its church, and Norstedts' brick house at its south end.
 	...(
 		[
-			["stenbockska_palatset", "Stenbockska palatset", -26.4, -5.4, 0, 3.6, 2.6, "#e8d6a6"],
-			["hessensteinska_palatset", "Hessensteinska palatset", -25.6, 9.6, 90, 3.4, 2.4, "#d9b77a"],
-			["gamla_riksdagshuset", "Gamla riksdagshuset", -37, 5.6, 90, 4.4, 3.2, "#e3cfa8"],
+			["stenbockska_palatset", "Stenbockska palatset", -34.3, -6.1, 0, 3.6, 2.6, "#e8d6a6"],
+			["gamla_riksdagshuset", "Gamla riksdagshuset", -39, 1.2, 90, 4.4, 3.2, "#e3cfa8"],
 			[
 				"schering_rosenhanes_palats",
 				"Schering Rosenhanes palats",
-				-35.8,
-				10.4,
+				-36,
+				6.5,
 				90,
 				3.2,
 				2.4,
 				"#efd9a4",
 			],
-			["norstedtshuset", "Norstedtshuset", -33.4, 17.2, 180, 4.6, 2.4, "#9c4b36"],
+			["norstedtshuset", "Norstedtshuset", -29.6, 10.6, 180, 4.6, 2.4, "#9c4b36"],
 		] as [string, string, number, number, number, number, number, string][]
 	).map(([id, name, x, z, turn, width, depth, walls], i) => ({
 		id,
@@ -1486,8 +1480,10 @@ const landmarks: TEntityInput[] = [
 		id: "tessinska_palatset",
 		kind: "palace_01",
 		name: "Tessinska palatset",
-		position: [9.4, -5.4],
+		position: byThePalace([5, 10.6]),
 		altitude: ISLAND,
+		// Facing the palace across Slottsbacken.
+		rotation: turned(205),
 		colors: paint({ walls: "#ead7a8", roof: "#4c5a54" }),
 		props: { width: 3.6, depth: 2.6, floorCount: 4, wingDepth: 1, showsSideWings: false, seed: 2 },
 	},
@@ -1495,7 +1491,7 @@ const landmarks: TEntityInput[] = [
 		id: "operan",
 		kind: "palace_01",
 		name: "Kungliga Operan",
-		position: [3.8, -47.6],
+		position: OPERAN,
 		colors: paint({ walls: "#e8d3a6", trim: "#f4ead2", roof: "#7aa892" }),
 		props: {
 			width: 6.4,
@@ -1510,7 +1506,7 @@ const landmarks: TEntityInput[] = [
 		id: "arvfurstens_palats",
 		kind: "palace_01",
 		name: "Arvfurstens palats",
-		position: [-8.6, -47.6],
+		position: ARVFURSTENS_PALATS,
 		colors: paint({ walls: "#e9d9b8", roof: "#4c5a54" }),
 		props: { width: 6, depth: 4.6, floorCount: 4, wingDepth: 1.6, showsSideWings: false, seed: 8 },
 	},
@@ -1518,7 +1514,7 @@ const landmarks: TEntityInput[] = [
 		id: "rosenbad",
 		kind: "palace_01",
 		name: "Rosenbad",
-		position: [-25.4, -46.4],
+		position: ROSENBAD,
 		colors: paint({ walls: "#e6d4ae", roof: "#6d8d7f" }),
 		props: { width: 6, depth: 5, floorCount: 5, wingDepth: 1.6, showsSideWings: false, seed: 12 },
 	},
@@ -1526,7 +1522,7 @@ const landmarks: TEntityInput[] = [
 		id: "grand_hotel",
 		kind: "palace_01",
 		name: "Grand Hôtel",
-		position: [22.6, -42],
+		position: GRAND_HOTEL,
 		colors: paint({ walls: "#efe6d4", trim: "#faf6ee", roof: "#4f5a55" }),
 		props: { width: 7, depth: 4.6, floorCount: 6, wingDepth: 1.6, showsSideWings: false, seed: 13 },
 	},
@@ -1534,7 +1530,7 @@ const landmarks: TEntityInput[] = [
 		id: "nationalmuseum",
 		kind: "palace_01",
 		name: "Nationalmuseum",
-		position: [33.6, -40.8],
+		position: NATIONALMUSEUM,
 		colors: paint({ walls: "#e6dcc3", roof: "#7aa892" }),
 		props: { width: 8, depth: 5, floorCount: 3, wingDepth: 1.6, showsSideWings: false, seed: 14 },
 	},
@@ -1542,8 +1538,8 @@ const landmarks: TEntityInput[] = [
 		id: "stadsmuseet",
 		kind: "palace_01",
 		name: "Stadsmuseet",
-		position: [-3.4, 56],
-		altitude: onSoder(-3.4, 56),
+		position: STADSMUSEET,
+		altitude: onSoder(...STADSMUSEET),
 		rotation: turned(180),
 		colors: paint({ walls: "#e8c983", roof: "#4f5a55" }),
 		props: {
@@ -1560,9 +1556,9 @@ const landmarks: TEntityInput[] = [
 		id: "soderleden_tunnel",
 		kind: "tunnel_01",
 		name: "Söderleden tunnel",
-		position: [-15.1, 46.8],
+		position: TUNNEL_MOUTH,
 		altitude: 0.98,
-		rotation: turned(-83.5),
+		rotation: turned(-78.2),
 		colors: paint({ walls: "#8c8a86", roof: "#7d7b77" }),
 		props: { length: 2.4, width: 1.9, height: 1.1 },
 		label: {
@@ -1575,21 +1571,21 @@ const landmarks: TEntityInput[] = [
 			dataKeys: ["centralbron_traffic"],
 		},
 	},
-	// Strömsborg's yellow house on its islet.
 	// Stortorget's well, in the middle of the square.
 	{
 		id: "stortorget_well",
 		kind: "fountain_01",
 		name: "Stortorgsbrunnen",
-		position: [-1.6, -0.3],
+		position: onStortorget([0, 0.2]),
 		altitude: ON_ISLAND,
 		scale: 0.7,
 	},
+	// Strömsborg's yellow house on its islet.
 	{
 		id: "stromsborg_house",
 		kind: "house_01",
 		name: "Strömsborg",
-		position: [-25.5, -31.1],
+		position: [-34.7, -21.5],
 		altitude: ISLAND,
 		colors: paint({ roof: "#9c4a36" }),
 		props: { width: 1.4, depth: 1.1, height: 1, roofHeight: 0.6 },
@@ -1599,7 +1595,7 @@ const landmarks: TEntityInput[] = [
 		id: "birger_jarls_torn",
 		kind: "cylinder_01",
 		name: "Birger Jarls torn",
-		position: [-31.6, -10.2],
+		position: [-40.6, -10.4],
 		altitude: ISLAND,
 		colors: paint({ surface: "#a35a42" }),
 		props: { width: 1.3, depth: 1.3, height: 2.6, sideCount: 12 },
@@ -1608,7 +1604,7 @@ const landmarks: TEntityInput[] = [
 		id: "birger_jarls_torn_roof",
 		kind: "cone_01",
 		name: "Birger Jarls torn's roof",
-		position: [-31.6, -10.2],
+		position: [-40.6, -10.4],
 		altitude: ISLAND + 2.6,
 		colors: paint({ surface: "#4c5a54" }),
 		props: { width: 1.45, depth: 1.45, height: 1.1 },
@@ -1618,7 +1614,7 @@ const landmarks: TEntityInput[] = [
 		id: "kastellet",
 		kind: "box_01",
 		name: "Kastellet",
-		position: [74.6, 16.8],
+		position: [86, 20.7],
 		altitude: ISLAND,
 		colors: paint({ surface: "#b85a43" }),
 		props: { width: 2.6, depth: 1.8, height: 1.1 },
@@ -1627,53 +1623,25 @@ const landmarks: TEntityInput[] = [
 		id: "kastellet_tower",
 		kind: "cylinder_01",
 		name: "Kastellet's tower",
-		position: [74.6, 16.8],
+		position: [86, 20.7],
 		altitude: ISLAND + 1.1,
 		colors: paint({ surface: "#c0634a" }),
 		props: { width: 1.3, depth: 1.3, height: 1.1, sideCount: 16 },
 	},
 	{
-		id: "kastellet_flagpole",
-		kind: "cylinder_01",
-		name: "Kastellet's flagpole",
-		position: [74.6, 16.8],
-		altitude: ISLAND + 2.2,
-		colors: paint({ surface: "#e9e6de" }),
-		props: { width: 0.05, depth: 0.05, height: 1.3, sideCount: 6 },
-	},
-	{
 		id: "kastellet_flag",
-		kind: "box_01",
+		kind: "flagpole_01",
 		name: "Kastellet's flag",
-		position: [74.95, 16.8],
-		altitude: ISLAND + 3.05,
-		colors: paint({ surface: "#2a5aa8" }),
-		props: { width: 0.6, depth: 0.03, height: 0.38 },
-	},
-	{
-		id: "kastellet_flag_cross_across",
-		kind: "box_01",
-		name: "Kastellet's flag (cross)",
-		position: [74.95, 16.8],
-		altitude: ISLAND + 3.2,
-		colors: paint({ surface: "#f2c230" }),
-		props: { width: 0.6, depth: 0.04, height: 0.07 },
-	},
-	{
-		id: "kastellet_flag_cross_up",
-		kind: "box_01",
-		name: "Kastellet's flag (cross, upright)",
-		position: [74.88, 16.8],
-		altitude: ISLAND + 3.05,
-		colors: paint({ surface: "#f2c230" }),
-		props: { width: 0.07, depth: 0.04, height: 0.38 },
+		position: [86, 20.7],
+		altitude: ISLAND + 2.2,
+		props: { height: 1.3, flagWidth: 0.6, design: "nordicCross" },
 	},
 	// Skeppsholmskyrkan: an eight-sided church under a dome.
 	{
 		id: "skeppsholmskyrkan",
 		kind: "cylinder_01",
 		name: "Skeppsholmskyrkan",
-		position: [56.4, -11.4],
+		position: [56.5, -11],
 		altitude: ISLAND,
 		colors: paint({ surface: "#ead9b0" }),
 		props: { width: 3, depth: 3, height: 1.7, sideCount: 8 },
@@ -1682,7 +1650,7 @@ const landmarks: TEntityInput[] = [
 		id: "skeppsholmskyrkan_dome",
 		kind: "dome_01",
 		name: "Skeppsholmskyrkan's dome",
-		position: [56.4, -11.4],
+		position: [56.5, -11],
 		altitude: ISLAND + 1.7,
 		colors: paint({ surface: "#5d6b66" }),
 		props: { width: 2.8, depth: 2.8, height: 1.2 },
@@ -1692,18 +1660,18 @@ const landmarks: TEntityInput[] = [
 		id: "katarinahissen",
 		kind: "box_01",
 		name: "Katarinahissen",
-		position: [12.6, 52],
+		position: KATARINAHISSEN_AT,
 		colors: paint({ surface: "#3b3f44" }),
 		props: { width: 0.9, depth: 0.9, height: KATARINAHISSEN_TOP },
 	},
-	// Moderna museet and the old naval buildings on Skeppsholmen.
+	// Moderna museet on Skeppsholmen, along the island.
 	{
 		id: "moderna_museet",
 		kind: "depot_01",
 		name: "Moderna museet",
-		position: [64, -18.4],
+		position: [66, -10.2],
 		altitude: ISLAND,
-		rotation: turned(20),
+		rotation: turned(-41),
 		colors: paint({ walls: "#e4dccb", roof: "#8a8f8c" }),
 		props: { width: 6, depth: 2.6, height: 1, showsGarageDoor: false },
 	},
@@ -1747,127 +1715,170 @@ const mainlandRow = (
 	},
 });
 
+/** The lowest ground under a row on Södermalm's slope, so none of it floats. */
+const lowestUnder = (at: TVec2, turn: number, length: number, depth: number) =>
+	Math.min(
+		...(
+			[
+				[0, 0],
+				[-length / 2, -depth / 2],
+				[length / 2, -depth / 2],
+				[length / 2, depth / 2],
+				[-length / 2, depth / 2],
+			] as TVec2[]
+		).map((point) => onSoder(...inFrame(at, turn)(point))),
+	);
+
 /**
- * Norrmalm and Kungsholmen behind the waterfront: stone city blocks, rows of
- * tall houses round a courtyard, each side a row (light to draw, ADR-0143).
+ * The city's stone blocks, on Norrmalm, Kungsholmen and Södermalm's heights: rows of tall
+ * houses round a courtyard, each side a row (light to draw, ADR-0143).
  */
 const HOUSE_IN_BLOCK = 1.1;
-const cityBlock = (
-	[x, z, width, depth, floorCount]: [number, number, number, number, number],
-	i: number,
-): TEntityInput[] => {
+const cityBlock = (block: ILaidBlock, floorCount: number, i: number): TEntityInput[] => {
+	const [width, depth] = block.size;
+	const at = inFrame(block.centre, block.turn);
 	// Back to back where the block is too narrow for a courtyard, their eaves just apart.
 	const rowDepth = Math.min(2, depth / 2 - 0.05);
 	const more = { floorCount, depth: rowDepth, gableShare: 0.05, floorCountVariation: 0 };
 	const across = Math.floor(width / HOUSE_IN_BLOCK);
 	const along = Math.floor((depth - 2 * rowDepth) / HOUSE_IN_BLOCK);
+	const row = (side: string, local: TVec2, turn: number, count: number, colour: number) => {
+		const position = at(local);
+		const length = count * HOUSE_IN_BLOCK;
+		return {
+			...mainlandRow(`city_block_${i}_${side}`, position, block.turn + turn, count, more, colour),
+			altitude: lowestUnder(position, block.turn + turn, length, rowDepth),
+		};
+	};
 	return [
-		mainlandRow(`city_block_${i}_south`, [x, z + depth / 2 - rowDepth / 2], 0, across, more, i),
-		mainlandRow(
-			`city_block_${i}_north`,
-			[x, z - depth / 2 + rowDepth / 2],
-			180,
-			across,
-			more,
-			i + 3,
-		),
+		row("south", [0, depth / 2 - rowDepth / 2], 0, across, i),
+		row("north", [0, -depth / 2 + rowDepth / 2], 180, across, i + 3),
 		...(along > 0
 			? [
-					mainlandRow(
-						`city_block_${i}_east`,
-						[x + width / 2 - rowDepth / 2, z],
-						90,
-						along,
-						more,
-						i + 1,
-					),
-					mainlandRow(
-						`city_block_${i}_west`,
-						[x - width / 2 + rowDepth / 2, z],
-						-90,
-						along,
-						more,
-						i + 4,
-					),
+					row("east", [width / 2 - rowDepth / 2, 0], 90, along, i + 1),
+					row("west", [-width / 2 + rowDepth / 2, 0], -90, along, i + 4),
 				]
 			: []),
 	];
 };
 
-const mainlandBlocks: TEntityInput[] = (
+/** Roads as lines with their half widths, to keep the blocks off them. */
+const ROAD_LINES = ROADS.filter((road) => road.kind !== "hidden_route_01").map((road) => ({
+	points: road.points.map(([x, z]): TVec2 => [x, z]),
+	half: (road.width ?? 1) / 2,
+}));
+
+/** The mainland's landmarks and parks: no blocks there. */
+const BLOCK_KEEP_OUT: TVec2[][] = [
+	turnedRect(OPERAN, 0, 7.6, 6.2),
+	turnedRect(ARVFURSTENS_PALATS, 0, 7.2, 6.2),
+	turnedRect(ROSENBAD, 0, 7.2, 6.6),
+	turnedRect(GRAND_HOTEL, 0, 8.2, 6.2),
+	turnedRect(NATIONALMUSEUM, 0, 9.2, 6.6),
+	turnedRect(STADSHUSET, 0, 11, 8.6),
+	turnedRect(STADSMUSEET, 0, 6.4, 5.2),
+	turnedRect(TUNNEL_MOUTH, -78.2, 4, 3.4),
+	turnedRect(KATARINAHISSEN_AT, 0, 2, 2),
+	KUNGSTRADGARDEN,
+	KARL_XII_TORG,
+	GUSTAV_ADOLFS_TORG,
+	STADSHUSET_GARDEN,
+	DJURGARDEN,
+	IVAR_LOS_PARK,
+];
+
+/** Whether a city block may stand on a point: on land, off the roads, clear of Södermalm's cliffs. */
+const isBuildable = (point: TVec2) =>
+	Math.abs(point[0]) < GROUND[0] / 2 - 0.3 &&
+	Math.abs(point[1]) < GROUND[1] / 2 - 0.3 &&
+	!isInsidePolygon(point, WATER) &&
+	edgeDistance(point, WATER) > 0.5 &&
+	edgeDistance(point, SODERMALM_OUTLINE) > 0.5 &&
+	ROAD_LINES.every(({ points, half }) =>
+		points.slice(1).every((end, i) => segmentDistance(point, points[i], end) > half + 0.4),
+	) &&
+	BLOCK_KEEP_OUT.every((zone) => !isInsidePolygon(point, zone));
+
+const BLOCK_SIZE: TVec2 = [6.6, 5.5];
+const BLOCK_STREET = 1.3;
+
+const cityBlocks: TEntityInput[] = (
 	[
-		// [x, z, width, depth, floors]
-		[-40, -52, 6.6, 4.4, 7],
-		[-31, -54, 5.5, 5.5, 8],
-		[-20, -55, 6.6, 4.4, 7],
-		[-12, -55, 5.5, 4.4, 8],
-		[-2, -55, 6.6, 4.4, 7],
-		[20, -50, 5.5, 4.4, 7],
-		[28, -50, 6.6, 4.4, 6],
-		[38, -48, 5.5, 4.4, 6],
-		[-46, -56, 4.4, 5.5, 6],
-		[-84, -50, 6.6, 4.4, 6],
-		[-75, -50, 6.6, 4.4, 7],
-		[-66, -50, 5.5, 4.4, 6],
-		[-84, -38, 5.5, 4.4, 6],
-		[-84, -28, 5.5, 6.6, 5],
-		[60, -60, 7.7, 3.4, 6],
-		[72, -60, 7.7, 3.4, 6],
-		[84, -60, 6.6, 3.4, 6],
-	] as [number, number, number, number, number][]
-).flatMap(cityBlock);
+		// Norrmalm, from Klara sjö to Blasieholmen.
+		{ origin: [-2, -52], columns: [-8, 6], rows: [-1, 3], floorCount: 7 },
+		// Kungsholmen, round Stadshuset.
+		{ origin: [-84.6, -43], columns: [0, 1], rows: [-2, 3], floorCount: 6 },
+		// Södermalm's heights.
+		{ origin: [-83, 50.6], columns: [0, 16], rows: [-1, 1], floorCount: 6 },
+	] as const
+)
+	.flatMap(({ origin, columns, rows, floorCount }) =>
+		layBlocks(
+			{
+				origin: [...origin],
+				turn: 0,
+				size: BLOCK_SIZE,
+				street: BLOCK_STREET,
+				columns: [...columns],
+				rows: [...rows],
+			},
+			isBuildable,
+		).map((block) => ({ block, floorCount })),
+	)
+	.flatMap(({ block, floorCount }, i) => cityBlock(block, floorCount, i));
 
-/** Rows along the waterfronts: Strömgatan's, Blasieholmen's, Strandvägen's. */
-const mainlandRows: TEntityInput[] = [
-	mainlandRow("tegelbacken_row", [-37, -46.6], 0, 5, {}, 1),
-	mainlandRow("strandvagen_row_1", [62, -54.4], 0, 6, { floorCount: 6, gableShare: 0.3 }, 2),
-	mainlandRow("strandvagen_row_2", [76, -54.4], 0, 6, { floorCount: 6, gableShare: 0.3 }, 3),
-	mainlandRow("blasieholmen_row", [41, -40], 0, 4, {}, 4),
-	mainlandRow("kungsholmen_row_1", [-84, -18], 180, 6, {}, 5),
-	mainlandRow("kungsholmen_row_2", [-60, -40], 90, 5, {}, 6),
-	// Riddarholmen's south, by the water.
-	{
-		...mainlandRow("riddarholmen_row", [-28.4, 15.4], 180, 4, { floorCount: 5 }, 0),
-		altitude: ISLAND,
-	},
-	// Skeppsholmen's old naval houses, in a long yellow row.
-	{
-		...mainlandRow("skeppsholmen_row", [52, -2.6], 0, 6, { floorCount: 3, houseWidth: 1.2 }, 1),
-		altitude: ISLAND,
-		colors: paint({
-			walls: "#e8c983",
-			secondWalls: "#e8c983",
-			thirdWalls: "#edd59a",
-			fourthWalls: "#e2bd74",
-			roof: "#9c4a36",
-		}),
-	},
-];
+/** The tall houses along Söder Mälarstrand, at the foot of Mariaberget's cliff. */
+const soderShoreRows: TEntityInput[] = layRowsAlong({
+	streets: [
+		{
+			id: SODER_SHORE_ID,
+			points: SODER_SHORE_POINTS,
+			width: 1.1,
+			right: { depths: [1.6, 1.3, 1], houseWidth: 1.1, mostHouses: 6 },
+		},
+	],
+	// Between the road and the cliff.
+	land: [...SODER_SHORE_POINTS, ...SODERMALM_OUTLINE.slice(0, 6).reverse()],
+	// Not under Centralbron.
+	keepOut: [turnedRect([-11.5, 38.5], -78.2, 7, 4)],
+	shoreMargin: 0.15,
+}).map((row, i) =>
+	mainlandRow(
+		`soder_malarstrand_row_${i}`,
+		row.position,
+		row.turn,
+		row.houseCount,
+		{ depth: row.depth, floorCount: 6, floorCountVariation: 1, shopShare: 0.3 },
+		i + 2,
+	),
+);
 
-/**
- * Södermalm along its heights: rows of houses looking north over the water,
- * small old ones at Fjällgatan, tall ones above Söder Mälarstrand.
- */
-const sodermalmRows: TEntityInput[] = [
-	...[-84, -76, -68, -60, -52, -44, -36, -28].map((x, i) => {
-		const z = 46.4 + (x < -40 ? 0.6 : 0);
-		return mainlandRow(`mariaberget_row_${i}`, [x, z + 1.3], 180, 6, { floorCount: 5 }, i);
+/** Skeppsholmen's old naval buildings, long and yellow, along the island. */
+const skeppsholmenRows: TEntityInput[] = (
+	[
+		[53, -23.5, 5],
+		[60, -20, 6],
+		[70, -13, 6],
+		[78, -6, 6],
+	] as [number, number, number][]
+).map(([x, z, houseCount], i) => ({
+	...mainlandRow(
+		`skeppsholmen_row_${i}`,
+		[x, z],
+		-41,
+		houseCount,
+		{ floorCount: 3, houseWidth: 1.2, shopShare: 0 },
+		i,
+	),
+	altitude: ISLAND,
+	colors: paint({
+		walls: "#e8c983",
+		secondWalls: "#e8c983",
+		thirdWalls: "#edd59a",
+		fourthWalls: "#e2bd74",
+		roof: "#9c4a36",
 	}),
-	...[22, 29, 36, 50, 57, 72, 79, 86].map((x, i) =>
-		mainlandRow(
-			`fjallgatan_row_${i}`,
-			[x, 57.4],
-			180,
-			5,
-			// Fjällgatan's old cottages, low and bright.
-			{ floorCount: 2, floorCountVariation: 0, houseWidth: 1, depth: 1.6, gableShare: 0.2 },
-			i + 3,
-		),
-	),
-	...[-20, -12, 13, 26, 44, 64].map((x, i) =>
-		mainlandRow(`soder_back_row_${i}`, [x, 60.6], 180, 6, { floorCount: 6 }, i + 1),
-	),
-];
+}));
 
 // ---------------------------------------------------------------- traffic and boats
 
@@ -1961,11 +1972,16 @@ const boats: TEntityInput[] = [
 		follow: { roadId: RIDDARFJARDEN_ID, speed: 1.1, startDistance: 12 },
 	},
 	// Moored at Strömkajen, waiting for the archipelago.
-	...[27, 31.4].map((x, i) => ({
+	...(
+		[
+			[22.8, -32.2],
+			[27, -31.6],
+		] as TVec2[]
+	).map((at, i) => ({
 		id: `stromkajen_boat_${i}`,
 		kind: "ferry_01",
 		name: "Archipelago boat (moored)",
-		position: [x, -33.5] as TVec2,
+		position: at,
 		rotation: turned(-4),
 		scale: 0.8,
 		colors: paint({ hull: "#f4f1ea", funnel: i === 0 ? "#1f1f24" : "#c8102e" }),
@@ -1976,29 +1992,29 @@ const boats: TEntityInput[] = [
 		id: "baltic_ferry",
 		kind: "ferry_01",
 		name: "Baltic ferry",
-		position: [60, 50.3],
-		rotation: turned(182),
+		position: [45, 53.2],
+		rotation: turned(163),
 		colors: paint({ hull: "#c8102e", funnel: "#f4f1ea", decks: "#f4f1ea" }),
 		props: { length: 14 },
 	},
-	// af Chapman, the old full-rigger, moored at Skeppsholmen with its sails furled.
+	// af Chapman, the old full-rigger, moored at Skeppsholmen's west quay with its sails furled.
 	{
 		id: "af_chapman",
 		kind: "sailing_boat_01",
 		name: "af Chapman",
-		position: [39.6, -5.6],
-		rotation: turned(109),
+		position: [44.6, -6],
+		rotation: turned(99),
 		scale: 1.1,
 		colors: paint({ hull: "#f4f1ea" }),
 		props: { length: 6, showsSails: false },
 	},
-	// Yachts and sailing boats moored in Nybroviken and off Skeppsholmen.
+	// Yachts moored in Nybroviken and off Skeppsholmen.
 	...(
 		[
 			[50, -42, 60, 2.2],
 			[51.6, -47, 60, 2.6],
 			[56.6, -46, 240, 2],
-			[79, -14, 160, 2.4],
+			[76, -22, 160, 2.4],
 		] as [number, number, number, number][]
 	).map(([x, z, turn, length], i) => ({
 		id: `moored_yacht_${i}`,
@@ -2010,9 +2026,9 @@ const boats: TEntityInput[] = [
 	})),
 	...(
 		[
-			[-44, -12, 30],
-			[-50, 20, 200],
-			[35, 20, 330],
+			[-55, -20, 30],
+			[-62, 16, 200],
+			[-30, 26, 330],
 		] as [number, number, number][]
 	).map(([x, z, turn], i) => ({
 		id: `sailing_boat_${i}`,
@@ -2090,7 +2106,7 @@ const lamps: TEntityInput[] = [
 		"both",
 		{ props: { height: 1.1 } },
 		// Not into the tunnel.
-		(spot) => spot.at[1] < 44,
+		(spot) => spot.at[1] < 40,
 	),
 	// Lanterns on the old bridges' spans.
 	...["vasabron", "norrbro", "strombron", "riksbron"].flatMap((id) =>
@@ -2107,15 +2123,15 @@ const lamps: TEntityInput[] = [
 	...["skeppsholmsbron", "riddarholmsbron", "kastellholmsbron"].flatMap((id) =>
 		lampsAlong(id, "street_lamp_02", 1.6, 0.5, "both", { props: { height: 0.8 } }),
 	),
-	// Slussen's, off Gamla stan's houses.
+	// Slussen's, over the water.
 	...lampsAlong(
 		"slussen",
 		"street_lamp_02",
-		2.4,
+		1.6,
 		0.85,
 		"both",
 		{ props: { height: 0.9 } },
-		(spot) => spot.at[1] > 36.5 && spot.at[1] < 47,
+		(spot) => spot.altitude > ISLAND + 0.05,
 	),
 	// Along the quays: Skeppsbron's water side, Munkbroleden's.
 	...lampsAlong(SKEPPSBRON_ID, "street_lamp_02", 3, 0.72, "left", { props: { height: 0.95 } }),
@@ -2129,24 +2145,24 @@ const lamps: TEntityInput[] = [
 	),
 ];
 
-/** Lanterns round Stortorget and on Slottsbacken, and park lamps in the gardens. */
+/** Lanterns round Stortorget, on Slottsbacken and the squares, and park lamps in the gardens. */
 const squareLamps: TEntityInput[] = [
 	...(
 		[
-			[-3.3, -1.2],
-			[0.1, -1.2],
-			[-3.3, 1],
-			[0.1, 1],
-			[4, -8.2],
-			[8, -8.2],
-			[12, -8.2],
-			[16, -8.2],
-			[0, 20],
-			[3, 22.8],
-			[-9, 26],
-			[-6, 29],
-			[-9.6, -17],
-			[-5.4, -17],
+			onStortorget([-1.8, -1.3]),
+			onStortorget([1.8, -1.3]),
+			onStortorget([-1.8, 1.3]),
+			onStortorget([1.8, 1.3]),
+			byThePalace([-1.5, 5.8]),
+			byThePalace([2, 5.8]),
+			byThePalace([5.5, 5.8]),
+			byThePalace([9, 5.8]),
+			[9.2, 19.2],
+			[11.8, 21.4],
+			[-0.2, 19.9],
+			[3.4, 22],
+			[-8, -15.9],
+			[-4.8, -15.9],
 		] as TVec2[]
 	).map((at, i) => ({
 		id: `square_lantern_${i}`,
@@ -2155,21 +2171,19 @@ const squareLamps: TEntityInput[] = [
 		altitude: ISLAND,
 		props: { height: 0.95 },
 	})),
-	...([9.2, 11.6, 14.2] as number[]).flatMap((x) =>
-		[-50, -54, -58].map((z) => ({
-			id: `kungstradgarden_lamp_${x}_${-z}`,
-			kind: "street_lamp_04",
-			position: [x, z] as TVec2,
-		})),
-	),
+	...[-47, -51, -55, -59].map((z) => ({
+		id: `kungstradgarden_lamp_${-z}`,
+		kind: "street_lamp_04",
+		position: [5.3, z] as TVec2,
+	})),
 	...(
 		[
-			[48, -20],
-			[52, -10],
-			[60, -6],
-			[64, -12],
-			[-36, 13],
-			[-34.6, 15.4],
+			[50.2, -10],
+			[51.6, -2],
+			[70, 4],
+			[77, 4],
+			[-41.4, 4.6],
+			[-0.6, -28.4],
 		] as TVec2[]
 	).map((at, i) => ({
 		id: `park_lamp_${i}`,
@@ -2182,9 +2196,9 @@ const squareLamps: TEntityInput[] = [
 /** Beacons at the ferry landings: their colour follows the ferry's delay, green on time, red late. */
 const beacons: TEntityInput[] = (
 	[
-		[11.8, 31.4, ISLAND],
-		[25.4, -35.6, 0],
-		[47.6, 1.6, ISLAND],
+		[20.6, 31.2, ISLAND],
+		[24.5, -36.3, 0],
+		[56, 9.5, ISLAND],
 	] as [number, number, number][]
 ).map(([x, z, altitude], i) => ({
 	id: `ferry_beacon_${i}`,
@@ -2221,32 +2235,35 @@ const beacons: TEntityInput[] = (
 
 const trees: TEntityInput[] = [
 	// Kungsträdgården's rows of trees, its cherry trees at the south end.
-	...[9.6, 13.6].flatMap((x) =>
-		[-48, -52, -56, -60].map((z, k) => ({
+	...[3.2, 7.4].flatMap((x) =>
+		[-46, -50, -54, -58].map((z, k) => ({
 			id: `kungstradgarden_tree_${x}_${-z}`,
 			kind: k === 0 ? "fruit_tree_01" : "round_tree_01",
 			position: [x, z] as TVec2,
 			scale: 0.9,
 		})),
 	),
-	// Skeppsholmen's park, Strömparterren, Riddarhuset's garden, Stadshuset's garden, Södermalm.
+	// Skeppsholmen's parks, Strömparterren, Riddarhuset's garden, Stadshuset's garden, Kastellholmen.
 	...(
 		[
-			[48.4, -16, ON_ISLAND, "round_tree_02"],
-			[50.6, -22, ON_ISLAND, "round_tree_01"],
-			[54, -20.6, ON_ISLAND, "birch_01"],
-			[61, -8, ON_ISLAND, "round_tree_02"],
-			[63.4, -22.6, ON_ISLAND, "round_tree_01"],
-			[66, -8.6, ON_ISLAND, "birch_01"],
-			[2.2, -27.4, ON_ISLAND, "round_tree_01"],
-			[-16.4, -15.6, ON_ISLAND, "round_tree_02"],
-			[-14.4, -16.6, ON_ISLAND, "round_tree_01"],
-			[-78, -14.4, 0, "round_tree_02"],
-			[-74, -15.4, 0, "round_tree_01"],
-			[-70, -16, 0, "round_tree_02"],
-			[73, 19.2, ON_ISLAND, "pine_tree_01"],
-			[71.6, 14.4, ON_ISLAND, "bush_01"],
-			[-37, 13.2, ON_ISLAND, "round_tree_01"],
+			[49.5, -13, ON_ISLAND, "round_tree_02"],
+			[51, -6, ON_ISLAND, "round_tree_01"],
+			[52, 0, ON_ISLAND, "birch_01"],
+			[50.4, -15.2, ON_ISLAND, "round_tree_01"],
+			[66, 4, ON_ISLAND, "round_tree_02"],
+			[72, 6.5, ON_ISLAND, "round_tree_01"],
+			[79, 4.5, ON_ISLAND, "birch_01"],
+			[74, 1, ON_ISLAND, "round_tree_02"],
+			[-0.8, -30, ON_ISLAND, "round_tree_01"],
+			[0.2, -27.2, ON_ISLAND, "round_tree_02"],
+			[-21, -15.2, ON_ISLAND, "round_tree_02"],
+			[-17, -15.3, ON_ISLAND, "round_tree_01"],
+			[-79, -17.6, 0, "round_tree_02"],
+			[-75, -17.8, 0, "round_tree_01"],
+			[-71.5, -18.4, 0, "round_tree_02"],
+			[89, 26, ON_ISLAND, "pine_tree_01"],
+			[84.5, 25.5, ON_ISLAND, "bush_01"],
+			[90.5, 20, ON_ISLAND, "pine_tree_01"],
 		] as [number, number, number, string][]
 	).map(([x, z, altitude, kind], i) => ({
 		id: `tree_${i}`,
@@ -2255,17 +2272,29 @@ const trees: TEntityInput[] = [
 		altitude,
 		scale: 0.85,
 	})),
-	// On Södermalm's slope.
+	// Djurgården's tip.
 	...(
 		[
-			[-72, 49],
-			[-56, 48.6],
-			[-46, 51.6],
-			[-24, 48],
-			[-10, 53.4],
-			[33, 59.4],
-			[42, 56.8],
-			[64, 57],
+			[86, -50],
+			[89, -42],
+			[84.5, -56],
+			[90, -56],
+			[88, -37],
+		] as TVec2[]
+	).map(([x, z], i) => ({
+		id: `djurgarden_tree_${i}`,
+		kind: i % 2 === 0 ? "round_tree_01" : "birch_01",
+		position: [x, z] as TVec2,
+		scale: 0.9,
+	})),
+	// Ivar Los park, on Mariaberget.
+	...(
+		[
+			[-46, 40.5],
+			[-42, 41.5],
+			[-38, 40.8],
+			[-44, 43],
+			[-39, 43.2],
 		] as TVec2[]
 	).map(([x, z], i) => ({
 		id: `soder_tree_${i}`,
@@ -2345,10 +2374,10 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_gamla_stan",
 		name: "Gamla stan",
 		description: "The old town between its waters, the palace at its top.",
-		target: [-2, 4],
+		target: [2, 6],
 		azimuth: 300,
 		elevation: 30,
-		span: 74,
+		span: 80,
 		projection: "perspective",
 		moodId: "mood_evening",
 	},
@@ -2356,16 +2385,16 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_overview",
 		name: "Overview",
 		description: "From Stadshuset to Skeppsholmen, Norrmalm to Södermalm.",
-		target: [-2, 0],
-		span: 160,
+		target: [0, 0],
+		span: 175,
 	},
 	{
 		id: "view_stortorget",
 		name: "Stortorget",
 		description: "The old square, its stepped gables lit at blue hour.",
-		target: [-2, -0.4],
+		target: STORTORGET_MIDDLE,
 		targetAltitude: ISLAND,
-		azimuth: 350,
+		azimuth: 15,
 		elevation: 34,
 		span: 13,
 		projection: "perspective",
@@ -2375,7 +2404,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_palace",
 		name: "The palace from the water",
 		description: "Kungliga slottet floodlit over Strömmen, the Riksdag beside it.",
-		target: [0, -18],
+		target: PALACE_MIDDLE,
 		targetAltitude: 1,
 		azimuth: 55,
 		elevation: 12,
@@ -2387,7 +2416,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_riddarholmen",
 		name: "Riddarholmen at dusk",
 		description: "The iron spire against the sky, Centralbron's lights behind.",
-		target: [-27, 1],
+		target: [-32, 1],
 		targetAltitude: 1.5,
 		azimuth: 215,
 		elevation: 14,
@@ -2399,7 +2428,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_stadshuset",
 		name: "Stadshuset",
 		description: "The city hall's tower and its three crowns over Riddarfjärden.",
-		target: [-69.5, -21.5],
+		target: [-73, -22],
 		targetAltitude: 2.5,
 		azimuth: 320,
 		elevation: 10,
@@ -2411,7 +2440,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_centralbron",
 		name: "Centralbron",
 		description: "The evening traffic's headlights along the canal.",
-		target: [-20, 18],
+		target: [-17, 25],
 		targetAltitude: 1,
 		azimuth: 255,
 		elevation: 16,
@@ -2423,7 +2452,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_skeppsbron",
 		name: "Skeppsbron from Saltsjön",
 		description: "The merchants' houses along the quay, the ferries coming in.",
-		target: [14, 8],
+		target: [24, 6],
 		targetAltitude: 1.5,
 		azimuth: 350,
 		elevation: 12,
@@ -2435,7 +2464,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_slussen",
 		name: "Slussen and Södermalm",
 		description: "Södermalm's heights over Slussen, Katarinahissen and the Baltic ferry.",
-		target: [12, 49],
+		target: [14, 44],
 		targetAltitude: 1.5,
 		azimuth: 55,
 		elevation: 14,
@@ -2448,7 +2477,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		name: "From Monteliusvägen",
 		description:
 			"Over Riddarfjärden from Södermalm's heights: Riddarholmen, Stadshuset, the evening.",
-		target: [-42, -4],
+		target: [-42, -5],
 		targetAltitude: 1,
 		azimuth: 262,
 		elevation: 12,
@@ -2489,9 +2518,9 @@ export const createStockholmScene = (): TScene =>
 			...landmarks,
 			...oldTownHouses,
 			...wallLanterns,
-			...mainlandBlocks,
-			...mainlandRows,
-			...sodermalmRows,
+			...cityBlocks,
+			...soderShoreRows,
+			...skeppsholmenRows,
 			...lamps,
 			...squareLamps,
 			...beacons,

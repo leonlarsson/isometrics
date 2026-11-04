@@ -52,7 +52,7 @@ interface IRect {
 	halfAcross: number;
 }
 
-const segmentDistance = ([px, pz]: TVec2, [ax, az]: TVec2, [bx, bz]: TVec2) => {
+export const segmentDistance = ([px, pz]: TVec2, [ax, az]: TVec2, [bx, bz]: TVec2) => {
 	const [dx, dz] = [bx - ax, bz - az];
 	const lengthSquared = dx * dx + dz * dz;
 	const t =
@@ -63,7 +63,7 @@ const segmentDistance = ([px, pz]: TVec2, [ax, az]: TVec2, [bx, bz]: TVec2) => {
 };
 
 /** The distance from a point to an outline's edge. */
-const edgeDistance = (point: TVec2, outline: readonly TVec2[]) =>
+export const edgeDistance = (point: TVec2, outline: readonly TVec2[]) =>
 	Math.min(
 		...outline.map((corner, i) =>
 			segmentDistance(point, corner, outline[(i + 1) % outline.length]),
