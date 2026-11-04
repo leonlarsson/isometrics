@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { roadNetworkOf } from "./junctions";
-import { chanceOf, createNetworkTrip, pickWayOut, roadsDriven } from "./network";
+import { chanceOf, createNetworkTrip, pathAhead, pickWayOut, roadsDriven } from "./network";
 import { JunctionSchema, RoadSchema, type TJunction, type TRoad, type TRoadInput } from "./schema";
 
 const road = (id: string, points: TRoadInput["points"], input: Partial<TRoadInput> = {}): TRoad =>
@@ -217,5 +217,41 @@ describe("createNetworkTrip", () => {
 		expect(place.network?.next.distance).toBeGreaterThan(15);
 		expect(place.network?.next.distance).toBeLessThan(20);
 		expect(place.stream).toBe("forward");
+	});
+});
+
+describe("pathAhead", () => {
+	const options = { driving: "right" as const, smoothing: 0.5, startDistance: 2, seed: "taxi" };
+
+	it("is the way the vehicle then drives, through its junctions", () => {
+		for (const from of [0, 37, 180]) {
+			const ahead = pathAhead(block(), "top", options, from, 60);
+			// The vehicle's own trip, driven there as it would be, frame by frame.
+			const vehicle = createNetworkTrip(block(), "top", options);
+			for (let d = 0; d < from; d += 0.5) {
+				vehicle.at(0, d);
+			}
+			ahead.samples.forEach((sample, i) => {
+				const driven = vehicle.at(0, from + (60 * i) / (ahead.samples.length - 1));
+				expect(sample.position[0]).toBeCloseTo(driven.position[0], 6);
+				expect(sample.position[1]).toBeCloseTo(driven.position[1], 6);
+			});
+			expect(ahead.roads[0]).toBe(vehicle.place(0, from).network?.roadId);
+			expect(ahead.roads.length).toBeGreaterThan(2);
+		}
+	});
+
+	it("starts where a vehicle dropped on a road would, the way it would go", () => {
+		const ahead = pathAhead(
+			block(),
+			"right",
+			{ ...options, startDistance: 5, reverse: true },
+			0,
+			30,
+		);
+		// Reversed on the right side road, from 5 along it, it heads north, in the lane on its right.
+		expect(ahead.samples[0].position[0]).toBeCloseTo(20 + 0.528, 2);
+		expect(ahead.samples[0].position[1]).toBeCloseTo(5, 1);
+		expect(ahead.roads.slice(0, 2)).toEqual(["right", "top"]);
 	});
 });

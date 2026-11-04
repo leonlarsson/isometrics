@@ -386,3 +386,41 @@ export const roadsDriven = (trip: IRouteSampler, distance: number, step = 0.25) 
 	}
 	return roads;
 };
+
+/** The way a vehicle will drive from somewhere on its trip: where it'll be, and the roads it takes. */
+export interface IPathAhead {
+	/** Where it will be every `step`, in its lane, from where it is now. */
+	samples: IPathSample[];
+	/** The roads it drives along the way, in order, the one it's on first. */
+	roads: string[];
+}
+
+/**
+ * The way ahead of a vehicle on a road network (ADR-0136), `distance` of it
+ * from `from` driven: exactly as its trip will drive it, since its choices at
+ * junctions are seeded by its id. What the route highlight shows for a
+ * selected vehicle (from how far it has driven) and while one is dropped onto
+ * a road (from 0). It works on a trip of its own, so the vehicle's isn't moved.
+ */
+export const pathAhead = (
+	network: IRoadNetwork,
+	roadId: string,
+	options: INetworkTripOptions,
+	from: number,
+	distance: number,
+	step = 0.25,
+): IPathAhead => {
+	const trip = createNetworkTrip(network, roadId, options);
+	const samples: IPathSample[] = [];
+	const roads: string[] = [];
+	const count = Math.max(1, Math.ceil(distance / step));
+	for (let i = 0; i <= count; i++) {
+		const d = from + (distance * i) / count;
+		samples.push(trip.at(0, d));
+		const on = trip.place(0, d).network?.roadId;
+		if (on && roads[roads.length - 1] !== on) {
+			roads.push(on);
+		}
+	}
+	return { samples, roads };
+};
