@@ -55,7 +55,7 @@ const TITLES_SHOWN = 5;
  * addresses this browser reads without asking (ADR-0119, ADR-0140).
  */
 const LINKS_STAY =
-	"Allowed external sources aren’t brought in: the ones this browser reads stay as they are, and a world from the export asks again before it reads one.";
+	"Allowed external sources are never brought in: yours stay as they are, and a world from the export asks before it reads one.";
 
 /** "A, B and C", or "A, B, C and 4 more" past `shown`. */
 const nameSome = (names: string[], shown: number) => {
@@ -154,30 +154,32 @@ export const ImportBrowserDialog = () => {
 						{
 							value: "add",
 							label: "Add to this browser",
-							meta: "Its worlds and backups go beside yours; one with the same id as yours goes in as a copy.",
+							description:
+								"Its worlds and backups go beside yours; one with the same id as yours goes in as a copy.",
+							details: (
+								<SwitchField
+									label="Also bring in its settings"
+									checked={withSettings}
+									onChange={(next) => useImportBrowser.setState({ withSettings: next })}
+									inherit={resetToDefault(withSettings, false, () =>
+										useImportBrowser.setState({ withSettings: false }),
+									)}
+									hint="Preferences, panels, favourites and cameras; the page reloads."
+								/>
+							),
 						},
 						{
 							value: "replace",
 							label: "Replace this browser’s",
-							meta: "Its worlds and settings take the place of yours, and its backups join yours. This browser as it is now is kept first, under File → Backups.",
+							description:
+								"Its worlds and settings take the place of yours, and its backups join yours. This browser as it is now is kept first, under File → Backups.",
 						},
 					]}
 					onChange={(next) => useImportBrowser.setState({ way: next })}
 					hasNoDefault
-					hint={LINKS_STAY}
 				/>
 
-				{way === "add" && (
-					<SwitchField
-						label="Also bring in its settings"
-						checked={withSettings}
-						onChange={(next) => useImportBrowser.setState({ withSettings: next })}
-						inherit={resetToDefault(withSettings, false, () =>
-							useImportBrowser.setState({ withSettings: false }),
-						)}
-						hint="Its Preferences (graphics too), panels, favourites and cameras take the place of this browser’s, and the page reloads. Off: yours stay as they are."
-					/>
-				)}
+				{contents && <Hint>{LINKS_STAY}</Hint>}
 			</Dialog>
 
 			<ConfirmDialog
