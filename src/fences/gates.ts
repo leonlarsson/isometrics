@@ -125,11 +125,76 @@ const buildLeaf = (
 	}
 };
 
+/** A gate's leaf: where it hangs, the way it lies shut, how long it is, and which way it swings. */
+export interface IGateLeaf {
+	/** Its hinge, [x, base, z]. */
+	hinge: [number, number, number];
+	/** The way it runs from its hinge when shut, a unit vector on the ground. */
+	shut: TVec2;
+	length: number;
+	/** Where its free end stands when shut: it follows the ground across. */
+	shutEndBase: number;
+	/**
+	 * Its turn about its hinge when fully open, in radians as three.js turns a
+	 * group about its y axis (ADR-0133): what a swinging gate animates.
+	 */
+	openTurn: number;
+}
+
 /**
  * A swinging gate's leaves across its place: one hung on the post at its side
- * nearer the fence's start, or two meeting in the middle; shut, across the
- * opening, or swung 80° to the right of the fence's way (to its left if it
- * opens that way).
+ * nearer the fence's start, or two meeting in the middle, each swinging to the
+ * right of the fence's way (to its left if it opens that way). None if the
+ * opening is too narrow for one.
+ */
+export const gateLeavesOf = (
+	place: IFenceGatePlace,
+	gate: Pick<TFenceGate, "opensToTheLeft" | "hasTwoLeaves">,
+	look: IFenceGateLook,
+): IGateLeaf[] => {
+	const free = place.length - 2 * look.leafInset;
+	if (free <= 0.05) {
+		return [];
+	}
+	const [dx, dz] = place.direction;
+	// The fence's right, as the builder's offsets have it; the side it swings to.
+	const side = gate.opensToTheLeft ? -1 : 1;
+	const right: TVec2 = [-dz * side, dx * side];
+	const pointAt = (t: number): [number, number, number] => [
+		place.from[0] + (place.to[0] - place.from[0]) * t,
+		place.from[1] + (place.to[1] - place.from[1]) * t,
+		place.from[2] + (place.to[2] - place.from[2]) * t,
+	];
+	const leaves = gate.hasTwoLeaves
+		? [
+				{ from: look.leafInset / place.length, way: 1, length: free / 2 - 0.005 },
+				{ from: 1 - look.leafInset / place.length, way: -1, length: free / 2 - 0.005 },
+			]
+		: [{ from: look.leafInset / place.length, way: 1, length: free }];
+	const angle = (OPEN_ANGLE * Math.PI) / 180;
+	return leaves.map((leaf) => {
+		const shut: TVec2 = [dx * leaf.way, dz * leaf.way];
+		// three turns +x towards -z about y: towards the right, a turn the other way round.
+		const towardsRight = shut[0] * right[1] - shut[1] * right[0];
+		return {
+			hinge: pointAt(leaf.from),
+			shut,
+			length: leaf.length,
+			shutEndBase: pointAt(leaf.from + (leaf.way * leaf.length) / place.length)[1],
+			openTurn: -Math.sign(towardsRight) * angle,
+		};
+	});
+};
+
+/** The way a leaf runs from its hinge, turned `turn` radians from shut as three.js turns about y. */
+const turned = (shut: TVec2, turn: number): TVec2 => [
+	shut[0] * Math.cos(turn) + shut[1] * Math.sin(turn),
+	-shut[0] * Math.sin(turn) + shut[1] * Math.cos(turn),
+];
+
+/**
+ * A swinging gate's leaves across its place (`gateLeavesOf`): shut, across
+ * the opening following the ground, or swung 80° and level with its hinge.
  */
 export const buildGateLeaves = (
 	builder: IFenceBuilder,
@@ -138,38 +203,20 @@ export const buildGateLeaves = (
 	look: IFenceGateLook,
 	height: number,
 ) => {
-	const free = place.length - 2 * look.leafInset;
-	if (free <= 0.05) {
-		return;
-	}
-	const [dx, dz] = place.direction;
-	// The fence's right, as the builder's offsets have it; the side it swings to.
-	const side = gate.opensToTheLeft ? -1 : 1;
-	const right: TVec2 = [-dz * side, dx * side];
-	const angle = gate.isOpen ? (OPEN_ANGLE * Math.PI) / 180 : 0;
-	const hingeAt = (t: number) => [
-		place.from[0] + (place.to[0] - place.from[0]) * t,
-		place.from[1] + (place.to[1] - place.from[1]) * t,
-		place.from[2] + (place.to[2] - place.from[2]) * t,
-	];
-	const baseAt = (t: number) => place.from[1] + (place.to[1] - place.from[1]) * t;
-	const leaves = gate.hasTwoLeaves
-		? [
-				{ from: look.leafInset / place.length, way: 1, length: free / 2 - 0.005 },
-				{ from: 1 - look.leafInset / place.length, way: -1, length: free / 2 - 0.005 },
-			]
-		: [{ from: look.leafInset / place.length, way: 1, length: free }];
-	for (const leaf of leaves) {
-		const shut: TVec2 = [dx * leaf.way, dz * leaf.way];
-		const direction: TVec2 = [
-			shut[0] * Math.cos(angle) + right[0] * Math.sin(angle),
-			shut[1] * Math.cos(angle) + right[1] * Math.sin(angle),
-		];
-		const hinge = hingeAt(leaf.from);
-		// Shut, it follows the ground across; open, it stays level with its hinge.
-		const endBase = gate.isOpen
-			? hinge[1]
-			: baseAt(leaf.from + (leaf.way * leaf.length) / place.length);
-		buildLeaf(builder, leafSpan(hinge, direction, leaf.length, endBase), look, height);
+	for (const leaf of gateLeavesOf(place, gate, look)) {
+		const direction = gate.isOpen ? turned(leaf.shut, leaf.openTurn) : leaf.shut;
+		const endBase = gate.isOpen ? leaf.hinge[1] : leaf.shutEndBase;
+		buildLeaf(builder, leafSpan(leaf.hinge, direction, leaf.length, endBase), look, height);
 	}
 };
+
+/**
+ * One leaf on its own, round its hinge at the origin, shut and level with its
+ * hinge: what a gate swinging open or shut draws, turned about its hinge.
+ */
+export const buildSwingingLeaf = (
+	builder: IFenceBuilder,
+	leaf: IGateLeaf,
+	look: IFenceGateLook,
+	height: number,
+) => buildLeaf(builder, leafSpan([0, 0, 0], leaf.shut, leaf.length, 0), look, height);

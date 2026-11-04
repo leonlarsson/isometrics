@@ -5,6 +5,7 @@ import {
 	fenceLength,
 	fenceStretches,
 	GROUND_STEP,
+	gateDraggedTo,
 	gatePlaceAt,
 	gatesMovedOnto,
 	insetOutline,
@@ -256,6 +257,31 @@ describe("gates (ADR-0133)", () => {
 		);
 		expect(first).toEqual([]);
 		expect(second).toEqual([{ spanIndex: 1, alongShare: 0.5 }]);
+	});
+
+	it("places a dragged gate on the stretch nearest the pointer, snapped along it, its width kept on it", () => {
+		// 10 along, then 4 up.
+		expect(gateDraggedTo(L, 1, [3.2, 0.7])).toEqual({ spanIndex: 0, alongShare: 0.32 });
+		expect(gateDraggedTo(L, 1, [3.2, 0.7], 0.5)).toEqual({ spanIndex: 0, alongShare: 0.3 });
+		// Past the far end of the first stretch, near the second: it crosses onto it.
+		expect(gateDraggedTo(L, 1, [10.6, 2.6], 0.5)).toEqual({ spanIndex: 1, alongShare: 0.625 });
+		// Near the ends, it stops where its width still fits.
+		expect(gateDraggedTo(L, 2, [-3, 0])).toEqual({ spanIndex: 0, alongShare: 0.1 });
+		expect(gateDraggedTo(L, 2, [11, 5])).toEqual({ spanIndex: 1, alongShare: 0.75 });
+		// Wider than its stretch: in its middle.
+		expect(gateDraggedTo(L, 5, [10, 1])).toEqual({ spanIndex: 1, alongShare: 0.5 });
+		// A loop's closing stretch counts too.
+		const square = fence(
+			[
+				[0, 0, 0],
+				[4, 0, 0],
+				[4, 4, 0],
+				[0, 4, 0],
+			],
+			true,
+		);
+		expect(gateDraggedTo(square, 1, [-0.3, 1.1], 0.5)).toEqual({ spanIndex: 3, alongShare: 0.75 });
+		expect(gateDraggedTo(fence([[0, 0, 0]]), 1, [0, 0])).toBeNull();
 	});
 });
 

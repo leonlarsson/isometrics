@@ -1,10 +1,3 @@
-import {
-	overlayPlaceWith,
-	overlayShownIn,
-	setPreference,
-	type TOverlay,
-	usePreferences,
-} from "#/editor/preferences";
 import { setSidePaneOpen } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
 import { fieldOfViewOf, focalLengthOf } from "#/render/cameraMath";
@@ -32,23 +25,15 @@ const LENSES = [
 	{ millimetres: 200, description: "Long telephoto, flat" },
 ];
 
-const OVERLAYS: { key: TOverlay; label: string }[] = [
-	{ key: "navigationGizmo", label: "Navigation gizmo" },
-	{ key: "viewLabel", label: "View label" },
-	{ key: "compositionGrid", label: "Composition grid" },
-	{ key: "viewpointsInWorld", label: "Viewpoints in the world" },
-];
-
 /**
  * The toolbar's camera menu (ADR-0062): diorama or perspective view, a lens a
- * click away, re-centring, the overlays, and the way to the Camera tab and
- * Preferences.
+ * click away, re-centring, and the way to the Camera tab and Preferences. The
+ * overlays have a menu of their own beside the shading switcher (ADR-0141).
  */
 export const CameraMenu = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const fieldOfView = useEditor((s) => s.scene.camera.fieldOfView);
 	const editing = useEditor((s) => s.mode === "edit");
-	const preferences = usePreferences();
 	const store = () => useEditor.getState();
 	const lens = Math.round(focalLengthOf(fieldOfView));
 
@@ -115,27 +100,6 @@ export const CameraMenu = () => {
 					shortcut="Home"
 					onClick={() => store().resetView()}
 				/>
-
-				<Menu.Separator />
-
-				{/* Ticked: shown in the mode you're in; the other mode is set in Preferences. */}
-				<Menu.Group label={editing ? "Overlays in Edit mode" : "Overlays in View mode"}>
-					{OVERLAYS.map(({ key, label }) => (
-						<Menu.CheckboxItem
-							key={key}
-							icon="eye"
-							label={label}
-							checked={overlayShownIn(preferences[key], editing ? "edit" : "view")}
-							onCheckedChange={(on) =>
-								setPreference(
-									key,
-									overlayPlaceWith(preferences[key], editing ? "edit" : "view", on),
-								)
-							}
-							keepOpen
-						/>
-					))}
-				</Menu.Group>
 
 				<Menu.Separator />
 

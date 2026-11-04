@@ -8,6 +8,7 @@ import {
 	type TCameraSettings,
 	type TProjection,
 	type TTiltShift,
+	type TTour,
 	type TTurntable,
 } from "#/scene/schema";
 
@@ -33,7 +34,7 @@ const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
 /**
  * The Camera tab (ADR-0062): the world's camera, saved with it: what kind of
  * camera and lens, where the world opens, and, folded at first, its zoom and
- * tilt limits, the turntable and tilt-shift. How the camera moves for you is
+ * tilt limits, the turntable, the tour and tilt-shift. How the camera moves for you is
  * in Preferences (ui/PreferencesDialog).
  */
 export const CameraTab = () => {
@@ -80,6 +81,19 @@ export const CameraTab = () => {
 		onReset: () => setTurntable(key, CAMERA_DEFAULTS.turntable[key]),
 		value,
 	});
+	const setTour = <K extends keyof TTour>(key: K, value: TTour[K]) =>
+		commit(
+			(s) => {
+				s.camera.tour[key] = value;
+			},
+			{ coalesce: `camera.tour.${key}` },
+		);
+	const tourByDefault = <K extends keyof TTour>(key: K, value: string) => ({
+		from: "default",
+		inherited: camera.tour[key] === CAMERA_DEFAULTS.tour[key],
+		onReset: () => setTour(key, CAMERA_DEFAULTS.tour[key]),
+		value,
+	});
 	const setTiltShift = <K extends keyof TTiltShift>(key: K, value: TTiltShift[K]) =>
 		commit(
 			(s) => {
@@ -118,7 +132,7 @@ export const CameraTab = () => {
 				open={confirmingReset}
 				onOpenChange={setConfirmingReset}
 				title="Reset the camera?"
-				description="The camera goes back to the whole world in the isometric diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and the camera preferences in this browser. The turntable and tilt-shift keep their settings."
+				description="The camera goes back to the whole world in the isometric diorama view, and every camera setting to its default: View and Zoom and tilt for this world (Undo brings those back), and the camera preferences in this browser. The turntable, the tour and tilt-shift keep their settings."
 				confirmLabel="Reset the camera"
 				onConfirm={() => {
 					useEditor.getState().resetCamera();
@@ -348,6 +362,45 @@ export const CameraTab = () => {
 					inherit={turntableByDefault("delay", `${CAMERA_DEFAULTS.turntable.delay} s`)}
 					hint="Seconds without input in View mode. Any press, scroll or key stops it, like a model on a turntable in a shop window: good for a world left on a wall screen."
 				/>
+			</Section>
+
+			<Section
+				id="camera.tour"
+				defaultClosed
+				icon="play"
+				title="Tour"
+				keywords="tour viewpoints slideshow presentation autoplay play step cycle kiosk wall screen view mode"
+			>
+				<SwitchField
+					label="Start the tour in View mode"
+					checked={camera.tour.enabled}
+					onChange={(v) => setTour("enabled", v)}
+					inherit={tourByDefault("enabled", "off")}
+					hint="When the world opens in View mode, or View mode is switched on, the camera glides from viewpoint to viewpoint on its own, round and round. Any press, scroll or camera key stops it; the play button on the viewpoint bar starts it again, with this on or off. Good for a world left on a wall screen."
+				/>
+
+				<SliderField
+					label="Holds each viewpoint for"
+					value={camera.tour.holdSeconds}
+					min={1}
+					max={600}
+					sliderMax={30}
+					step={1}
+					suffix="s"
+					onChange={(v) => setTour("holdSeconds", v)}
+					inherit={tourByDefault("holdSeconds", `${CAMERA_DEFAULTS.tour.holdSeconds} s`)}
+					hint="Seconds at each viewpoint once the camera is there, before it moves on."
+				/>
+
+				{viewpoints.length < 2 && (
+					<>
+						<Hint>The tour needs two viewpoints or more: save them in the Viewpoints tab.</Hint>
+
+						<Button size="sm" icon="camera" onClick={() => setTab("views")}>
+							Open the Viewpoints tab
+						</Button>
+					</>
+				)}
 			</Section>
 
 			<Section

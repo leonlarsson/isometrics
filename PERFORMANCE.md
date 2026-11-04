@@ -56,6 +56,8 @@ Round two (2026-10-29: culling kept per camera, a shape's own batch drawn as ins
 
 Weather (ADR-0102) costs nothing in clear weather: the commit before it measured the same.
 
+Textured surfaces (ADR-0137) cost nothing while a world doesn't ask for them: its materials compile with the same shaders, and Brightwater's pictures before and after were the same pixels (but for moving vehicles). On, they add a pattern to the ground's and areas' pixels only; measure it on a real GPU with `scripts/shots.mjs --world surface.enabled=true`.
+
 Then the pointer (findings 25 and 26), the mouse moved over the 2,888 objects:
 
 | | Before | After |

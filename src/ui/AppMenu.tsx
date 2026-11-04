@@ -1,10 +1,11 @@
 import { create } from "zustand";
 
-import { resetThisBrowsersSettings } from "#/editor/fileActions";
+import { exportThisBrowser, resetThisBrowsersSettings } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { APP_NAME, SOURCE_URL } from "#/lib/app";
 
 import { ConfirmDialog } from "./ConfirmDialog";
+import { ImportBrowserDialog, importBrowsersExport } from "./ImportBrowserDialog";
 import { Menu } from "./Menu";
 import { openGuide } from "./Welcome";
 import { WipeEverything } from "./WipeEverything";
@@ -19,8 +20,9 @@ const useAppMenuDialogs = create<{ isWiping: boolean; isResetting: boolean }>(()
 
 /**
  * What's about the app and this browser rather than a world: help (Welcome…,
- * Guide, Star it on GitHub), Preferences…, and what resets this browser (its settings, or
- * everything). In the app menu on the logo, and at the end of File on phones.
+ * Guide, Star it on GitHub), Preferences…, moving this browser's worlds and settings to a
+ * file and back (ADR-0140), and what resets this browser (its settings, or everything). In
+ * the app menu on the logo, and at the end of File on phones.
  */
 export const AppMenuItems = () => {
 	const store = () => useEditor.getState();
@@ -55,6 +57,22 @@ export const AppMenuItems = () => {
 				description="How the camera moves for you, graphics and overlays, in this browser"
 				shortcut="Ctrl+,"
 				onClick={() => store().setPreferencesOpen(true)}
+			/>
+
+			<Menu.Separator />
+
+			<Menu.Item
+				icon="download"
+				label="Export this browser"
+				description="Every world, backup and setting in this browser, as one file"
+				onClick={exportThisBrowser}
+			/>
+
+			<Menu.Item
+				icon="upload"
+				label="Import a browser’s export…"
+				description="Add its worlds to this browser, or replace this browser’s with it"
+				onClick={() => void importBrowsersExport()}
 			/>
 
 			<Menu.Separator />
@@ -101,6 +119,8 @@ export const AppMenu = () => {
 					</Menu.Popup>
 				</Menu.Root>
 			</span>
+
+			<ImportBrowserDialog />
 
 			<WipeEverything
 				open={isWiping}

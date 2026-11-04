@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
-import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
-import { memo, useLayoutEffect, useMemo } from "react";
+import { type ThreeElements, type ThreeEvent, useFrame } from "@react-three/fiber";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
@@ -15,8 +15,12 @@ import {
 	layoutOfFence,
 	resolveFenceColors,
 } from "#/fences/fenceModel";
+import { buildSwingingLeaf, gateLeavesOf, type IFenceGateLook } from "#/fences/gates";
+import { FENCE_STYLES } from "#/fences/registry";
+import { prefersLessMotion } from "#/lib/lessMotion";
 import { isClick } from "#/lib/pointer";
-import type { TArea, TDataValue, TFence } from "#/scene/schema";
+import type { IFenceGatePlace } from "#/scene/fences";
+import type { TArea, TDataValue, TFence, TFenceGate } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -45,27 +49,254 @@ interface IFenceBodyProps {
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TFenceHandlers;
+	/**
+	 * Its swinging gates turn open or shut over half a second when that changes (the editor's
+	 * view, ADR-0133); left out, as in pictures, they are drawn as they end.
+	 */
+	swingsGates?: boolean;
+}
+
+/** How long a gate takes to swing all the way open or shut, in seconds. */
+const SWING_SECONDS = 0.5;
+/** The longest step a swing takes in one frame, so a frame after a pause doesn't skip it. */
+const LONGEST_STEP = 0.1;
+
+/** A gate swinging (ADR-0133): which, and from and to how open (0 shut, 1 open). */
+interface IGateSwing {
+	index: number;
+	from: number;
+	to: number;
+}
+
+/** Each gate as a letter: s = a swinging gate shut, o = open, g = a gap. */
+const gateStatesOf = (fence: TFence, data: readonly TDataValue[]) =>
+	fence.gates
+		.map((gate) => (gate.kind === "gap" ? "g" : gateIsOpen(gate, data) ? "o" : "s"))
+		.join("");
+
+/**
+ * The fence's gates swinging now: a swing starts when a swinging gate opens or
+ * shuts (by hand, from data or undone), from where it is if it was already
+ * swinging, and ends when it gets there (`ended`). Nothing swings while
+ * `swings` is off, for a viewer who prefers less motion, or when gates are
+ * added or taken out.
+ */
+const useGateSwings = (states: string, swings: boolean) => {
+	const [seen, setSeen] = useState(states);
+	const [swinging, setSwinging] = useState<readonly IGateSwing[]>([]);
+	// How open each swinging gate is now, kept by its swing every frame.
+	const openness = useRef(new Map<number, number>());
+	// Worked out while rendering (React's way of adjusting state to a changed prop), so the fence
+	// isn't built once with the gate where it ends and again without it.
+	if (seen !== states) {
+		setSeen(states);
+		const next: IGateSwing[] = [];
+		if (swings && seen.length === states.length && !prefersLessMotion()) {
+			for (let i = 0; i < states.length; i++) {
+				const [was, now] = [seen[i], states[i]];
+				const ongoing = swinging.find((swing) => swing.index === i);
+				if (was === now) {
+					if (ongoing) {
+						next.push(ongoing);
+					}
+				} else if (was !== "g" && now !== "g") {
+					next.push({
+						index: i,
+						from: ongoing ? (openness.current.get(i) ?? ongoing.from) : was === "o" ? 1 : 0,
+						to: now === "o" ? 1 : 0,
+					});
+				}
+			}
+		}
+		setSwinging(next);
+	}
+	const ended = useCallback((ending: IGateSwing) => {
+		openness.current.delete(ending.index);
+		setSwinging((all) => all.filter((swing) => swing !== ending));
+	}, []);
+	return { swinging, openness: openness.current, ended };
+};
+
+interface IFencePieceProps {
+	geometry: THREE.BufferGeometry;
+	color: string;
+	transparency: number;
+}
+
+/** One of a fence's colours, drawn. */
+const FencePiece = ({ geometry, color, transparency }: IFencePieceProps) => {
+	const seeThrough = transparency > 0;
+	return (
+		<mesh geometry={geometry} castShadow={!seeThrough} receiveShadow>
+			<meshStandardMaterial
+				color={color}
+				roughness={0.85}
+				transparent={seeThrough}
+				opacity={1 - transparency}
+				depthWrite={!seeThrough}
+				side={seeThrough ? THREE.DoubleSide : THREE.FrontSide}
+			/>
+		</mesh>
+	);
+};
+
+type TFenceColors = ReturnType<typeof resolveFenceColors>;
+
+const colorOf = (colors: TFenceColors, id: string) =>
+	colors[id] ?? { color: "#999999", transparency: 0 };
+
+interface IGateSwingProps {
+	swing: IGateSwing;
+	place: IFenceGatePlace;
+	gate: TFenceGate;
+	look: IFenceGateLook;
+	height: number;
+	colors: TFenceColors;
+	/** How open swinging gates are now, by index: kept up to date here every frame. */
+	openness: Map<number, number>;
+	ended: (swing: IGateSwing) => void;
 }
 
 /**
- * How a fence looks, from its settings alone (ADR-0103): one mesh per colour,
- * rebuilt only when its shape, the ground or how much is built changes. The
- * editor's FenceMesh adds the selection and clicks; world pictures
- * (scenePictures) use it as it is.
+ * A gate swinging open or shut (ADR-0133): its leaves on their own, each
+ * turned about its hinge every frame until it gets there, while the fence has
+ * a gap there. Mounted only while it swings, so a gate standing still costs
+ * no work a frame. Fences aren't batched with objects (ADR-0086), so nothing
+ * needs telling that these move.
  */
-export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: IFenceBodyProps) => {
+const GateSwing = ({
+	swing,
+	place,
+	gate,
+	look,
+	height,
+	colors,
+	openness,
+	ended,
+}: IGateSwingProps) => {
+	const { opensToTheLeft, hasTwoLeaves } = gate;
+	const leaves = useMemo(
+		() =>
+			gateLeavesOf(place, { opensToTheLeft, hasTwoLeaves }, look).map((leaf) => {
+				const builder = createFenceBuilder();
+				buildSwingingLeaf(builder, leaf, look, height);
+				return { leaf, geometries: builder.geometries() };
+			}),
+		[place, opensToTheLeft, hasTwoLeaves, look, height],
+	);
+	useLayoutEffect(
+		() => () => {
+			for (const { geometries } of leaves) {
+				for (const geometry of geometries.values()) {
+					geometry.dispose();
+				}
+			}
+		},
+		[leaves],
+	);
+
+	const hinges = useRef<(THREE.Group | null)[]>([]);
+	const progress = useRef(0);
+	const now = useRef(swing.from);
+	const done = useRef(false);
+	const turnTo = (open: number) => {
+		leaves.forEach(({ leaf }, i) => {
+			const hinge = hinges.current[i];
+			if (hinge) {
+				hinge.rotation.y = leaf.openTurn * open;
+			}
+		});
+	};
+	useLayoutEffect(() => {
+		openness.set(swing.index, swing.from);
+	}, []);
+	// Where it is, before the first frame and whenever its leaves are rebuilt (set here, not as a
+	// prop, so a re-render can't turn it back).
+	useLayoutEffect(() => turnTo(now.current), [leaves]);
+	useFrame((_, delta) => {
+		if (done.current) {
+			return;
+		}
+		const way = Math.abs(swing.to - swing.from);
+		const step = Math.min(delta, LONGEST_STEP) / (SWING_SECONDS * Math.max(way, 1e-6));
+		progress.current = Math.min(1, progress.current + step);
+		const t = progress.current;
+		const open = swing.from + (swing.to - swing.from) * t * t * (3 - 2 * t);
+		now.current = open;
+		openness.set(swing.index, open);
+		turnTo(open);
+		if (t >= 1) {
+			done.current = true;
+			ended(swing);
+		}
+	});
+
+	return (
+		<group>
+			{leaves.map(({ leaf, geometries }, i) => (
+				<group
+					// biome-ignore lint/suspicious/noArrayIndexKey: a gate's one or two leaves, in order
+					key={i}
+					position={leaf.hinge}
+					ref={(group) => {
+						hinges.current[i] = group;
+					}}
+				>
+					{[...geometries].map(([id, geometry]) => (
+						<FencePiece key={id} geometry={geometry} {...colorOf(colors, id)} />
+					))}
+				</group>
+			))}
+		</group>
+	);
+};
+
+/**
+ * How a fence looks, from its settings alone (ADR-0103): one mesh per colour,
+ * rebuilt only when its shape, the ground or how much is built changes, or a
+ * gate opens or shuts. The editor's FenceMesh adds the selection, clicks and
+ * gates swinging; world pictures (scenePictures) use it as it is.
+ */
+export const FenceBody = ({
+	fence,
+	palette,
+	areas,
+	data,
+	selected,
+	handlers,
+	swingsGates = false,
+}: IFenceBodyProps) => {
 	// Data only rebuilds it when it changes how much is built, or opens or shuts a gate.
 	const built = builtShareOf(fence, data);
-	const openGates = fence.gates.map((gate) => (gateIsOpen(gate, data) ? "1" : "0")).join("");
-	const shape = useMemo(
+	const gateStates = gateStatesOf(fence, data);
+	const { swinging, openness, ended } = useGateSwings(gateStates, swingsGates);
+	const line = useMemo(
 		() => ({
 			...fence,
 			builtShare: built,
 			data: {},
-			gates: fence.gates.map((gate, i) => ({ ...gate, isOpen: openGates[i] === "1", data: {} })),
+			gates: fence.gates.map((gate) => ({ ...gate, data: {} })),
 		}),
-		[fence, built, openGates],
+		[fence, built],
 	);
+	const layout = useMemo(() => layoutOfFence(line, areas, []), [line, areas]);
+	// A gate swinging is drawn on its own (GateSwing), and the fence has a gap there meanwhile.
+	const placed = swinging.flatMap((swing) => {
+		const place = layout.gates.find((each) => each.index === swing.index);
+		return place ? [{ swing, place }] : [];
+	});
+	const apartNow = placed.map(({ swing }) => swing.index).join(",");
+	const shape = useMemo(() => {
+		const apart = new Set(apartNow.split(",").filter(Boolean).map(Number));
+		return {
+			...line,
+			gates: line.gates.map((gate, i) => ({
+				...gate,
+				kind: apart.has(i) ? ("gap" as const) : gate.kind,
+				isOpen: gateStates[i] !== "s",
+			})),
+		};
+	}, [line, gateStates, apartNow]);
 	const geometries = useMemo(() => buildFence(shape, areas, []), [shape, areas]);
 	useLayoutEffect(
 		() => () => {
@@ -75,10 +306,17 @@ export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: I
 		},
 		[geometries],
 	);
+	// A swing of a gate that isn't built has nothing to draw: it ends at once.
+	useEffect(() => {
+		for (const swing of swinging) {
+			if (!layout.gates.some((each) => each.index === swing.index)) {
+				ended(swing);
+			}
+		}
+	}, [swinging, layout]);
 
 	// An invisible band along it takes the clicks, and only it: three's raycasting doesn't skip what
 	// isn't drawn, and a few faces a span are far quicker to test the pointer against than every picket.
-	const layout = useMemo(() => layoutOfFence(shape, areas, []), [shape, areas]);
 	const height = fenceHeightOf(fence);
 	const hit = useMemo(() => {
 		if (!handlers) {
@@ -121,22 +359,23 @@ export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: I
 
 	return (
 		<group>
-			{[...geometries].map(([id, geometry]) => {
-				const { color, transparency } = colors[id] ?? { color: "#999999", transparency: 0 };
-				const seeThrough = transparency > 0;
-				return (
-					<mesh key={id} geometry={geometry} castShadow={!seeThrough} receiveShadow>
-						<meshStandardMaterial
-							color={color}
-							roughness={0.85}
-							transparent={seeThrough}
-							opacity={1 - transparency}
-							depthWrite={!seeThrough}
-							side={seeThrough ? THREE.DoubleSide : THREE.FrontSide}
-						/>
-					</mesh>
-				);
-			})}
+			{[...geometries].map(([id, geometry]) => (
+				<FencePiece key={id} geometry={geometry} {...colorOf(colors, id)} />
+			))}
+
+			{placed.map(({ swing, place }) => (
+				<GateSwing
+					key={`${swing.index}:${swing.to}`}
+					swing={swing}
+					place={place}
+					gate={fence.gates[swing.index]}
+					look={FENCE_STYLES[fence.kind].gate}
+					height={height}
+					colors={colors}
+					openness={openness}
+					ended={ended}
+				/>
+			))}
 
 			{hit && (
 				<mesh geometry={hit} visible={false} {...handlers}>
@@ -151,7 +390,7 @@ export const FenceBody = ({ fence, palette, areas, data, selected, handlers }: I
 	);
 };
 
-/** A fence in the editor: selectable while editing. */
+/** A fence in the editor: selectable while editing, its gates swinging open and shut. */
 export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
 	const palette = usePalette();
 	const mode = useEditor(drawnModeOf);
@@ -203,6 +442,7 @@ export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
 			data={data}
 			selected={selected && mode === "edit"}
 			handlers={handlers}
+			swingsGates
 		/>
 	);
 });
