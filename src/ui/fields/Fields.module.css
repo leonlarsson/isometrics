@@ -291,6 +291,13 @@ textarea.input {
 	border-color: var(--text-muted);
 }
 
+/* Greyed out like a slider that can't be changed (its hint or a note nearby says why). */
+.selectTrigger[data-disabled] {
+	opacity: 0.4;
+	cursor: default;
+	border-color: var(--border-strong);
+}
+
 .input:focus,
 .number:focus,
 .selectTrigger:focus-visible,

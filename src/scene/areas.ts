@@ -1,7 +1,7 @@
 import { clamp, round } from "#/lib/math";
 
 import type { IColorSpec } from "./colors";
-import type { TArea, TAreaKind, TAreaPoint, TVec2 } from "./schema";
+import type { TArea, TAreaKind, TAreaPoint, TSurfaceKind, TVec2 } from "./schema";
 import type { IScenePalette } from "./theme";
 import { variantName } from "./variants";
 
@@ -21,6 +21,8 @@ interface IAreaKind {
 	staysLevel: boolean;
 	/** Water: see-through ripples and reflections, no snow or wetness, seams with other water. */
 	isWater: boolean;
+	/** Its surface's texture while the world's are on and the area doesn't pick its own (ADR-0137). */
+	surface: TSurfaceKind;
 }
 
 /** An area kind's one colour, its surface, as the theme has it. */
@@ -44,6 +46,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.4,
 		staysLevel: true,
 		isWater: true,
+		surface: "plain",
 	},
 	grass_01: {
 		name: "Grass",
@@ -54,6 +57,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "grass_01",
 	},
 	sand_01: {
 		name: "Sand",
@@ -64,6 +68,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "sand_01",
 	},
 	plaza_01: {
 		name: "Plaza",
@@ -74,6 +79,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "paving_01",
 	},
 	raised_land_01: {
 		name: "Raised land",
@@ -84,6 +90,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
+		surface: "dirt_01",
 	},
 };
 
