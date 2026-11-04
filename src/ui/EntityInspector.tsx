@@ -4,15 +4,23 @@ import { copySettings, pasteFromClipboard, settingsOf } from "#/editor/clipboard
 import { useSceneHours } from "#/editor/dayClock";
 import { type ICommitOptions, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
+import { roadOfVehicleNow, useVehiclesNow } from "#/editor/vehiclesNow";
+import { labelWithReason, whyNoWorkshop } from "#/editor/whatIsOpen";
+import { editPrefab } from "#/editor/workshop";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { normalizeDegrees, round, wrapDegrees } from "#/lib/math";
 import { SWITCH_ON_DARKNESS } from "#/parts/lightModel";
+import { describePrefab } from "#/parts/prefabParts";
 import { SCALE_RANGE, SCALE_SETTING, scaleFromData, valuesOfEntity } from "#/parts/propData";
 import { getPart, partName, type TAnyPart } from "#/parts/registry";
 import { standingAltitudeAt } from "#/parts/standing";
 import type { ILightSpec } from "#/parts/types";
+import { currentView } from "#/render/viewpoints";
+import { roadNetworkOf } from "#/scene/junctions";
+import { drivesAcrossNetwork } from "#/scene/network";
 import {
 	polylineLength,
+	resolveDrivesThroughJunctions,
 	resolveLeansInTurns,
 	resolveTurnStyle,
 	roadCenterlineOf,
@@ -22,7 +30,14 @@ import {
 } from "#/scene/roads";
 import { followAlong } from "#/scene/routes";
 import { rowColumnChoices, tableOfRow } from "#/scene/rowData";
-import { FollowSchema, NO_LABEL, type TEntity, type TTurnStyle, type TVec3 } from "#/scene/schema";
+import {
+	FollowSchema,
+	isPrefabKind,
+	NO_LABEL,
+	type TEntity,
+	type TTurnStyle,
+	type TVec3,
+} from "#/scene/schema";
 
 /** A vehicle's driving as a new one has it, for Default / Reset. */
 const FOLLOW_DEFAULTS = FollowSchema.parse({ roadId: "" });
@@ -38,6 +53,7 @@ import {
 	CheckboxGroupField,
 	formatClock,
 	Hint,
+	ReadOutField,
 	resetToDefault,
 	Section,
 	SelectField,
@@ -49,6 +65,7 @@ import {
 import { CATEGORY_ICONS, type IInspectorTab } from "./inspectorTabs";
 import { Menu } from "./Menu";
 import { PartColorsSection, PartLightCards, PartShapeSection } from "./PartSettings";
+import { PREFAB_WORDS } from "./prefabWords";
 
 const KeyPicker = ({
 	label,
@@ -95,6 +112,35 @@ const useEntityEdit = (entity: TEntity) => {
 		const options: ICommitOptions = { coalesce: `${entity.id}:${field}` };
 		updateEntity(entity.id, recipe, options);
 	};
+};
+
+/**
+ * A prefab's copy (ADR-0134): what it's made of, and Edit prefab, which changes its
+ * design and so every copy; greyed out with the reason where prefabs can't be changed.
+ */
+const PrefabPanel = ({ kind }: { kind: string }) => {
+	const prefab = useEditor((s) => s.scene.prefabs.find((each) => each.id === kind));
+	const copies = useEditor((s) => s.scene.entities.filter((entity) => entity.kind === kind).length);
+	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
+	if (!prefab) {
+		return null;
+	}
+	return (
+		<Section id="object.prefab" icon="prefab" title="Prefab" keywords="workshop design copies">
+			<Hint>
+				{`${describePrefab(prefab)}. ${copies === 1 ? "This is its only copy" : `It has ${copies} copies here`}: changing it changes them all.`}
+			</Hint>
+
+			<Button
+				icon="workshop"
+				block
+				disabled={why !== null}
+				onClick={() => editPrefab(prefab.id, currentView.read?.() ?? null)}
+			>
+				{labelWithReason(PREFAB_WORDS.edit.label, why)}
+			</Button>
+		</Section>
+	);
 };
 
 /** The Object tab: what it is, its name, and where it stands. */
@@ -159,6 +205,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 					)}
 				/>
 			</Section>
+
+			{isPrefabKind(entity.kind) && <PrefabPanel kind={entity.kind} />}
 
 			<Section
 				id="object.transform"
@@ -638,12 +686,27 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
 	const edit = useEntityEdit(entity);
 	const followedRoad = roads.find((r) => r.id === entity.follow?.roadId);
+	// On a road network it drives on from road to road (ADR-0136): the road it's on now, shown in a
+	// row of its own that's there all the while it drives through junctions, so nothing below moves.
+	const traffic = useEditor((s) => s.scene.traffic);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const drivesAcross =
+		followedRoad !== undefined &&
+		drivesAcrossNetwork(roadNetworkOf(roads, junctions), followedRoad, traffic, entity.follow);
+	const nowOn = roadOfVehicleNow(entity, useVehiclesNow());
+	const roadNow = roads.find((r) => r.id === nowOn?.roadId) ?? followedRoad;
 	const followedRoadLength = followedRoad
 		? Math.max(1, Math.ceil(polylineLength(roadCenterlineOf(followedRoad), followedRoad.loops)))
 		: 1;
 	/** What this vehicle inherits: its road's setting, else the scene's. */
 	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.traffic.turnStyle, null);
 	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.traffic.leansInTurns, null);
+	const sceneDrivesThrough = useEditor((s) => s.scene.traffic.drivesThroughJunctions);
+	const roadDrivesThrough = resolveDrivesThroughJunctions(
+		sceneDrivesThrough,
+		followedRoad?.traffic.drivesThroughJunctions,
+		null,
+	);
 	// Whether its kind leans in turns at all (a part's turnLean).
 	const leans = getPart(entity.kind)?.turnLean !== undefined;
 
@@ -683,6 +746,14 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 					"parked",
 				)}
 			/>
+
+			{drivesAcross && roadNow && (
+				<ReadOutField
+					label="Now on"
+					value={roadNameOf(roadNow)}
+					hint="It drives on from road to road at junctions, starting on the road above."
+				/>
+			)}
 
 			{entity.follow && (
 				<>
@@ -811,6 +882,30 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 							}}
 						/>
 					)}
+
+					<SwitchField
+						label="Drive through junctions onto other roads"
+						checked={entity.follow.drivesThroughJunctions ?? roadDrivesThrough}
+						onChange={(v) =>
+							edit("follow.throughJunctions", (e) => {
+								if (e.follow) {
+									e.follow.drivesThroughJunctions = v;
+								}
+							})
+						}
+						inherit={{
+							from: followedRoad?.traffic.drivesThroughJunctions != null ? "road" : "scene",
+							inherited: entity.follow.drivesThroughJunctions === null,
+							onReset: () =>
+								edit("follow.throughJunctions", (e) => {
+									if (e.follow) {
+										e.follow.drivesThroughJunctions = null;
+									}
+								}),
+							value: roadDrivesThrough ? "on" : "off",
+						}}
+						hint="Off, it keeps to the road it starts on and turns round at its junctions."
+					/>
 				</>
 			)}
 

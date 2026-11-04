@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { TDrawnGraphics } from "#/editor/graphics";
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
 import { isToggleClick, SNAP_STEP, type TEditorMode, useEditor } from "#/editor/store";
+import { forgetVehicleNow, setVehicleNow } from "#/editor/vehiclesNow";
 import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
@@ -13,9 +14,11 @@ import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
+import type { IRoadNetwork } from "#/scene/junctions";
+import { createNetworkTrip } from "#/scene/network";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler, turnLeanDegrees } from "#/scene/routes";
-import type { TDataValue, TEntity, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
+import type { TDataValue, TEntity, TPrefab, TRoad, TScene, TVec2, TVec3 } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -25,6 +28,8 @@ import { EntityGizmo } from "./EntityGizmo";
 import { EntityLabel } from "./EntityLabel";
 import { useInstancedPart } from "./InstancedParts";
 import { markInstancedRoot } from "./instancing";
+// Prefabs' copies draw their pieces with it (ADR-0134).
+import "./PrefabPieces";
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
@@ -168,12 +173,19 @@ export interface IEntityNodeProps {
 	world: IEntityWorld;
 	/** The road it follows, if any. */
 	road: TRoad | null;
+	/** The road network, when the road it follows has a junction at an end: it drives on (ADR-0136). */
+	network?: IRoadNetwork | null;
 	/** The world's data, for objects that show values or follow them; otherwise undefined. */
 	data: readonly TDataValue[] | undefined;
 	/** The world's hour, for objects with a light on a schedule or that follow the sun; otherwise null. */
 	hour: number | null;
 	/** Where the sun is now, for objects that follow it (a part's `followsTheSun`); otherwise undefined. */
 	sun?: ISunPosition;
+	/**
+	 * A prefab's copy: its design (ADR-0134), so the copy draws again when the design changes
+	 * though the copy itself didn't. Its part (`getPart`) is made from it.
+	 */
+	design?: TPrefab;
 	/** Selected, alone or with other things; only a single selection gets its own gizmo (ADR-0064). */
 	selected: boolean;
 	alone: boolean;
@@ -193,6 +205,7 @@ export const EntityNode = memo(
 		entity,
 		world,
 		road,
+		network = null,
 		data,
 		hour,
 		sun,
@@ -246,17 +259,33 @@ export const EntityNode = memo(
 			: undefined;
 		// The lean now, eased towards what the turn asks for.
 		const leaning = useRef(0);
-		const sampler = useMemo(
-			() =>
-				road
-					? createRouteSampler(road, driving, {
-							reverse,
-							smoothing: turnSmoothing(turns, vehicleLength),
-						})
-					: null,
-			[road, driving, turns, vehicleLength, reverse],
-		);
+		const startDistance = entity.follow?.startDistance ?? 0;
+		const sampler = useMemo(() => {
+			if (!road) {
+				return null;
+			}
+			const smoothing = turnSmoothing(turns, vehicleLength);
+			// On a road with a junction at an end it drives on across the network (ADR-0136).
+			return network?.connects(road.id)
+				? createNetworkTrip(network, road.id, {
+						driving,
+						smoothing,
+						startDistance,
+						reverse,
+						seed: entity.id,
+					})
+				: createRouteSampler(road, driving, { reverse, smoothing });
+		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);
 		const following = Boolean(sampler && entity.follow);
+		// On a network it drives on from road to road: where it is now is kept for the views that show
+		// its road (editor/vehiclesNow), and forgotten once it stops driving this trip.
+		const drivesNetwork = Boolean(road && network?.connects(road.id));
+		useEffect(() => {
+			if (!drivesNetwork || !sampler) {
+				return;
+			}
+			return () => forgetVehicleNow(entity.id);
+		}, [drivesNetwork, sampler, entity.id]);
 		// Sideways from its lane to where it overtakes (right of travel is positive): the oncoming lane,
 		// or beside the line on roads without lanes.
 		const vehicleWidth = part ? part.footprint(props)[1] * entity.scale : 1;
@@ -301,6 +330,16 @@ export const EntityNode = memo(
 				current.length = vehicleLength;
 			}
 			const sample = sampler.at(entity.follow.startDistance, current?.travelled ?? 0);
+			if (drivesNetwork) {
+				const place = sampler.place(entity.follow.startDistance, current?.travelled ?? 0);
+				if (place.network) {
+					setVehicleNow(entity.id, {
+						roadId: place.network.roadId,
+						drivesTheOtherWay: place.direction < 0,
+						centre: place.centre,
+					});
+				}
+			}
 			// Out towards the overtaking line, leaning into the lane change.
 			const state = current?.state;
 			const out = state ? state.shift * passOffset : 0;
@@ -607,6 +646,7 @@ export const EntityNode = memo(
 								lights={lights}
 								data={data}
 								sun={sun}
+								hour={hour}
 								onReady={part.rendersAsync ? lookAgain : undefined}
 							/>
 						</group>

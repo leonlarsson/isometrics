@@ -9,7 +9,7 @@ import {
 } from "#/editor/fileActions";
 import { type IWorldInfo, listSceneBackups, listWorlds, openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
-import { keepsOpenWorld } from "#/editor/whatIsOpen";
+import { keepsOpenWorld, labelWithReason, whyNoWorldAction } from "#/editor/whatIsOpen";
 import { APP_NAME } from "#/lib/app";
 
 import { AppMenuItems } from "./AppMenu";
@@ -36,6 +36,8 @@ export const FileMenu = () => {
 	// On the home screen no world is open; a world from a link isn't one's own until kept (ADR-0121).
 	const hasWorld = useEditor((s) => s.whatIsOpen.kind === "world");
 	const ownsWorld = useEditor((s) => keepsOpenWorld(s.whatIsOpen));
+	// Why the actions on the open world as a world don't apply (none open, or the Workshop's), or null.
+	const noWorldAction = useEditor((s) => whyNoWorldAction(s.whatIsOpen));
 	const notOnHome = hasWorld ? undefined : "No world is open";
 	// Phones: no room for the app menu's logo, so its items are at the end of File.
 	const holdsAppMenu = useNarrowToolbar();
@@ -80,9 +82,9 @@ export const FileMenu = () => {
 
 						<Menu.Item
 							icon="editSparkle"
-							label="Change this world…"
-							description={notOnHome ?? "Say what to change; your AI rewrites it, one undo step"}
-							disabled={!hasWorld}
+							label={labelWithReason("Change this world…", noWorldAction)}
+							description="Say what to change; your AI rewrites it, one undo step"
+							disabled={noWorldAction !== null}
 							onClick={() => useEditor.getState().setBuildWithAi("change")}
 						/>
 
@@ -95,7 +97,9 @@ export const FileMenu = () => {
 							label="Paste what your AI wrote…"
 							description="Or upload its file"
 							onClick={() =>
-								useEditor.getState().setBuildWithAi(hasWorld ? "change" : "new", "answer")
+								useEditor
+									.getState()
+									.setBuildWithAi(noWorldAction === null ? "change" : "new", "answer")
 							}
 						/>
 					</Menu.Submenu>
@@ -133,21 +137,17 @@ export const FileMenu = () => {
 
 					<Menu.Item
 						icon="newTab"
-						label="Share a link…"
-						description={
-							notOnHome ??
-							"A public link that opens this world for anyone who has it, until it expires"
-						}
-						disabled={!hasWorld}
+						label={labelWithReason("Share a link…", noWorldAction)}
+						description="A public link that opens this world for anyone who has it, until it expires"
+						disabled={noWorldAction !== null}
 						onClick={() => useEditor.getState().setShareOpen(true)}
 					/>
 
 					<Menu.Item
 						icon="download"
-						label="Save to file"
+						label={labelWithReason("Save to file", noWorldAction)}
 						shortcut="Ctrl+S"
-						description={notOnHome}
-						disabled={!hasWorld}
+						disabled={noWorldAction !== null}
 						onClick={saveWorldFile}
 					/>
 
@@ -163,19 +163,18 @@ export const FileMenu = () => {
 
 					<Menu.Item
 						icon="copy"
-						label="Duplicate world"
-						description={notOnHome}
-						disabled={!hasWorld}
+						label={labelWithReason("Duplicate world", noWorldAction)}
+						disabled={noWorldAction !== null}
 						onClick={duplicateWorld}
 					/>
 
 					<Menu.Item
 						icon="trash"
-						label="Delete world…"
+						label={labelWithReason("Delete world…", noWorldAction)}
 						description={
-							hasWorld && !ownsWorld
+							noWorldAction === null && !ownsWorld
 								? "It isn't kept in this browser: nothing to delete"
-								: notOnHome
+								: undefined
 						}
 						disabled={!ownsWorld}
 						onClick={() => {

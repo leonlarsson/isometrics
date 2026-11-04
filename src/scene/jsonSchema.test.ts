@@ -24,6 +24,10 @@ describe("sceneJsonSchema", () => {
 			"entities.dataRow.rowKey",
 			"roads.id",
 			"roads.points",
+			"junctions.id",
+			"junctions.ends",
+			"junctions.ends.roadId",
+			"junctions.ends.end",
 			"onScreen.legend.label",
 			"roads.dataRow.tableKey",
 			"roads.dataRow.rowKey",
@@ -47,6 +51,15 @@ describe("sceneJsonSchema", () => {
 			"data.tables.history.rows",
 			"viewpoints.id",
 			"moods.id",
+			// A prefab's pieces are objects and fences, with the same identities (ADR-0134).
+			"prefabs.id",
+			"prefabs.entities.id",
+			"prefabs.entities.kind",
+			"prefabs.entities.follow.roadId",
+			"prefabs.entities.dataRow.tableKey",
+			"prefabs.entities.dataRow.rowKey",
+			"prefabs.fences.id",
+			"prefabs.fences.points",
 		];
 		const required: string[] = [];
 		const undescribed: string[] = [];

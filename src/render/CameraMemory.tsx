@@ -1,10 +1,16 @@
 import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 
-import { cameraMoved, rememberView, saveCameraNow, UNSAVED_WORLD } from "#/editor/cameraMemory";
+import {
+	cameraMoved,
+	rememberView,
+	saveCameraNow,
+	UNSAVED_WORLD,
+	workshopViewKey,
+} from "#/editor/cameraMemory";
 import { openWorldId } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
-import { keepsOpenWorld } from "#/editor/whatIsOpen";
+import { keepsOpenWorld, workshopOf } from "#/editor/whatIsOpen";
 
 import { currentView } from "./viewpoints";
 
@@ -20,10 +26,13 @@ interface IChangingControls {
  * world's, whose id is still stored.
  */
 const saveView = () => {
-	if (!keepsOpenWorld(useEditor.getState().whatIsOpen)) {
+	const { whatIsOpen } = useEditor.getState();
+	// The Workshop's camera is kept too, per prefab (ADR-0134), apart from the world's.
+	const workshop = workshopOf(whatIsOpen);
+	if (!keepsOpenWorld(whatIsOpen) && !workshop) {
 		return;
 	}
-	const id = openWorldId() ?? UNSAVED_WORLD;
+	const id = workshop ? workshopViewKey(workshop.prefabId) : (openWorldId() ?? UNSAVED_WORLD);
 	const pose = currentView.read?.();
 	if (id && pose) {
 		rememberView(id, pose);

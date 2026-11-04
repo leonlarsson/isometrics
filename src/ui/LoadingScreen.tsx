@@ -60,7 +60,12 @@ const linkCard = (whatIsOpen: TWhatIsOpen) => {
 	}
 	return {
 		meta: {
-			title: link.from === "shared" ? "Opening a shared world" : "Opening a template",
+			title:
+				link.from === "shared"
+					? "Opening a shared world"
+					: link.from === "prefab"
+						? "Opening a shared prefab"
+						: "Opening a template",
 			subtitle: "",
 		},
 		scene: null,

@@ -9,6 +9,7 @@ import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
+import { cutLine } from "#/scene/junctions";
 import {
 	buildElevatedSides,
 	buildRibbon,
@@ -105,6 +106,12 @@ interface IRoadBodyProps {
 	/** Outlined as the selection. */
 	selected: boolean;
 	handlers?: TRoadHandlers;
+	/**
+	 * How far its surface is cut back at each end, where it meets other roads at a junction
+	 * (ADR-0136): the junction's own surface is drawn there instead. Default: not at all.
+	 */
+	trimStart?: number;
+	trimEnd?: number;
 }
 
 /**
@@ -112,7 +119,7 @@ interface IRoadBodyProps {
  * replaced, never changed): every road asks on every change, drags included.
  */
 const roadsUsed = new WeakMap<readonly TEntity[], ReadonlySet<string>>();
-const roadsInUse = (entities: readonly TEntity[]) => {
+export const roadsInUse = (entities: readonly TEntity[]) => {
 	let ids = roadsUsed.get(entities);
 	if (!ids) {
 		ids = new Set(
@@ -138,12 +145,19 @@ export const RoadBody = ({
 	editing,
 	selected,
 	handlers = {},
+	trimStart = 0,
+	trimEnd = 0,
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
 	const groundDepth = ground.depth;
 	const hidden = isHiddenRoute(road.kind);
 	const y = roadBaseY(layer);
-	const center = useMemo(() => roadCenterlineOf(road), [road]);
+	const fullCenter = useMemo(() => roadCenterlineOf(road), [road]);
+	// What's drawn: cut back where it meets other roads at a junction, so the markings stop there.
+	const center = useMemo(
+		() => cutLine(fullCenter, trimStart, trimEnd),
+		[fullCenter, trimStart, trimEnd],
+	);
 
 	const surface = useDisposable(
 		useMemo(
@@ -208,12 +222,12 @@ export const RoadBody = ({
 	}, [used, snowFactor]);
 
 	const outline = useMemo(() => {
-		const pts = center.map(([x, z, h]) => [x, y + h + 0.03, z] as [number, number, number]);
+		const pts = fullCenter.map(([x, z, h]) => [x, y + h + 0.03, z] as [number, number, number]);
 		if (road.loops && pts.length > 2) {
 			pts.push(pts[0]);
 		}
 		return pts;
-	}, [center, road.loops, y]);
+	}, [fullCenter, road.loops, y]);
 
 	if (hidden && !editing) {
 		return null;
@@ -305,14 +319,17 @@ export const RoadBody = ({
 
 interface IRoadMeshProps {
 	road: TRoad;
-	/** Draw order among roads; later roads sit on top at junctions. */
+	/** Draw order among roads; later roads sit on top where they overlap. */
 	layer: number;
+	/** How far it's cut back at each end for a junction (ADR-0136). */
+	trimStart: number;
+	trimEnd: number;
 }
 
 /** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
-const USED_ROAD_SNOW = 0.08;
+export const USED_ROAD_SNOW = 0.08;
 
-export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
+export const RoadMesh = memo(({ road: stored, layer, trimStart, trimEnd }: IRoadMeshProps) => {
 	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
 	// flow as data sets them (ADR-0112).
 	const data = valuesOfRoad(stored, useWorldData());
@@ -384,6 +401,8 @@ export const RoadMesh = memo(({ road: stored, layer }: IRoadMeshProps) => {
 				editing={mode === "edit"}
 				selected={selected && mode === "edit"}
 				handlers={handlers}
+				trimStart={trimStart}
+				trimEnd={trimEnd}
 			/>
 
 			<RoadFlow

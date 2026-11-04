@@ -2,10 +2,14 @@ import { useState } from "react";
 
 import { closePreview, keepPreview } from "#/editor/fileActions";
 import { allowLink } from "#/editor/linkTrust";
+import { setPaletteCategory } from "#/editor/paletteMemory";
+import { keepInLibrary } from "#/editor/prefabLibrary";
 import { sitesOf, useWaitingSources } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import { previewOf } from "#/editor/whatIsOpen";
 import { localDateTime } from "#/lib/when";
+import { prefabName } from "#/parts/prefabParts";
 
 import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button } from "./Button";
@@ -31,6 +35,54 @@ export const PreviewBar = () => {
 	const [isReviewing, setReviewing] = useState(false);
 	if (!preview || !isOnScreen || hiddenFor === preview.id) {
 		return null;
+	}
+	// A shared prefab (ADR-0134): offered to My prefabs, from where it's placed in one's worlds.
+	if (preview.from === "prefab") {
+		const addToLibrary = () => {
+			const [prefab] = useEditor.getState().scene.prefabs;
+			if (!prefab) {
+				return;
+			}
+			if (keepInLibrary(prefab)) {
+				notify(
+					`Added ${prefabName(prefab)} to My prefabs`,
+					"Place it in any of your worlds from Add to scene's Prefabs chip.",
+					"success",
+				);
+				setPaletteCategory("prefabs");
+				closePreview();
+			} else {
+				notify(
+					"It wasn't added to My prefabs",
+					"The browser refused to keep it (its storage may be full).",
+					"error",
+				);
+			}
+		};
+		return (
+			<FloatingBar
+				icon="prefab"
+				title="Preview of a shared prefab"
+				dismiss={{
+					label: "Hide this bar (it's back when the page reloads)",
+					onDismiss: () => setHiddenFor(preview.id),
+				}}
+				actions={
+					<>
+						<Button onClick={closePreview}>Close</Button>
+
+						<Button variant="primary" icon="plus" onClick={addToLibrary}>
+							Add to My prefabs
+						</Button>
+					</>
+				}
+			>
+				<span>
+					Add it to My prefabs to place it in any of your worlds.
+					{preview.expiresAt && ` The link works until ${localDateTime(preview.expiresAt)}.`}
+				</span>
+			</FloatingBar>
+		);
 	}
 	const one = waiting.length === 1;
 	const addresses = [...new Set(waiting.map((source) => source.url ?? ""))];

@@ -329,9 +329,16 @@ export const FollowSchema = z
 			.describe(
 				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's (traffic.leansInTurns), else the world's.",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether this vehicle drives on through junctions onto other roads (ADR-0136); false = it keeps to its road, turning round at a junction as at a dead end. null = the road's (traffic.drivesThroughJunctions), else the world's.",
+			),
 	})
 	.describe(
-		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round.",
+		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round. A road with a junction at an end leads on to other roads.",
 	);
 
 export const DetailsSchema = z
@@ -381,7 +388,10 @@ export const EntitySchema = z
 	.object({
 		id: z.string().min(1).describe("Unique id among the objects."),
 		// Validated against the part registry (src/parts/registry.ts) at render time, not here.
-		kind: z.string().min(1).describe("Which part this is."),
+		kind: z
+			.string()
+			.min(1)
+			.describe("Which part this is, or for a copy of one of the world's prefabs, its id."),
 		name: z.string().default("").describe("Shown in the editor; empty uses the part's name."),
 		position: Vec2Schema.default([0, 0]).describe(
 			"Where the part stands: [x, z] in grid units, the centre of its footprint. Ignored while it follows a road.",
@@ -736,6 +746,13 @@ export const RoadTrafficSchema = z
 			.describe(
 				"Whether vehicles on this road lean in turns; null = the world's (traffic.leansInTurns).",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether vehicles that start on this road drive on through its junctions onto other roads (ADR-0136); false = they keep to it. null = the world's (traffic.drivesThroughJunctions).",
+			),
 	})
 	.describe("How vehicles drive on this road.");
 
@@ -869,6 +886,32 @@ export const RoadSchema = z
 		"A road drawn as a line of points with rounded corners. Every road doubles as a route vehicles can follow.",
 	);
 
+export const RoadEndSchema = z
+	.enum(["start", "end"])
+	.describe("Which end of a road: start = its first point, end = its last.");
+
+// See docs/adr/0136-road-junctions.md.
+export const JunctionSchema = z
+	.object({
+		id: z.string().min(1).describe("Unique id among the junctions."),
+		ends: z
+			.array(
+				z
+					.object({
+						roadId: z.string().describe("Id of the road whose end it is."),
+						end: RoadEndSchema,
+					})
+					.describe("One road end at the junction."),
+			)
+			.min(2)
+			.describe(
+				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width.",
+			),
+	})
+	.describe(
+		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random. A junction is where its ends are.",
+	);
+
 export const DrivingSideSchema = z
 	.enum(["right", "left"])
 	.describe("Which side of the road vehicles drive on.");
@@ -885,6 +928,12 @@ export const TrafficSchema = z
 			.default(true)
 			.describe(
 				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
+			),
+		drivesThroughJunctions: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether vehicles drive on through junctions onto other roads, picking a way at random at each (ADR-0136), unless a road or vehicle says otherwise; false = each keeps to the road it starts on, turning round at a junction as at a dead end.",
 			),
 		keepsDistance: z
 			.boolean()
@@ -1160,6 +1209,66 @@ export const FenceSchema = z
 	})
 	.describe(
 		"A fence, wall, hedge or railing drawn as a line of points; it stands on the ground under it.",
+	);
+
+/**
+ * What starts every prefab's id (ADR-0134), and no part kind: an object whose
+ * kind starts with it is a copy of one of the world's prefabs.
+ */
+export const PREFAB_KIND_PREFIX = "prefab_";
+
+/** Whether an object's kind is a prefab's id (a copy of one of the world's prefabs), not a part's. */
+export const isPrefabKind = (kind: string) => kind.startsWith(PREFAB_KIND_PREFIX);
+
+// See docs/adr/0134-workshop-and-prefabs.md.
+export const PrefabSchema = z
+	.object({
+		id: z
+			.string()
+			.regex(/^prefab_[A-Za-z0-9_-]+$/)
+			.describe(
+				'Unique id among the prefabs, starting with "prefab_" (e.g. "prefab_farmyard"): objects with this as their kind are copies of it.',
+			),
+		name: z.string().default("").describe("What it's called in Add to scene, e.g. Farmyard."),
+		description: z
+			.string()
+			.default("")
+			.describe("What it is, in a line, shown under its name in Add to scene."),
+		entities: z
+			.array(
+				EntitySchema.refine((piece) => !isPrefabKind(piece.kind), {
+					message: "A prefab's piece can't be a prefab",
+					path: ["kind"],
+				}),
+			)
+			.default([])
+			.describe(
+				"Its pieces that are objects (parts and shapes, never prefabs), as in entities, placed round the prefab's origin: the middle of its footprint on the ground at [0, 0], its lowest piece at altitude 0, its front facing +z. Their data bindings read the world's data, and \"row.<column>\" the row a copy follows.",
+			),
+		fences: z
+			.array(FenceSchema)
+			.default([])
+			.describe(
+				"Its pieces that are fences, walls, hedges or railings, as in fences, round the same origin; they stand on the copy's base, their points' lift above it.",
+			),
+	})
+	.superRefine((prefab, ctx) => {
+		for (const list of ["entities", "fences"] as const) {
+			const seen = new Set<string>();
+			prefab[list].forEach((piece, index) => {
+				if (seen.has(piece.id)) {
+					ctx.addIssue({
+						code: "custom",
+						message: `Duplicate piece id "${piece.id}"`,
+						path: [list, index],
+					});
+				}
+				seen.add(piece.id);
+			});
+		}
+	})
+	.describe(
+		"A prefab: a design of one's own made of objects and fences, placed as one object. Every copy draws it, and changing it changes every copy.",
 	);
 
 /** The ground's surface (ADR-0137). */
@@ -1753,8 +1862,18 @@ export const SceneSchema = z
 		backdrop: BackdropSchema.default(() => BackdropSchema.parse({})),
 		entities: z.array(EntitySchema).default([]).describe("The objects in the world."),
 		roads: z.array(RoadSchema).default([]).describe("Roads, paths and hidden routes."),
+		junctions: z
+			.array(JunctionSchema)
+			.default([])
+			.describe("Where roads meet and vehicles drive on from one to another."),
 		areas: z.array(AreaSchema).default([]).describe("Water, grass, sand, plazas and raised land."),
 		fences: z.array(FenceSchema).default([]).describe("Fences, walls, hedges and railings."),
+		prefabs: z
+			.array(PrefabSchema)
+			.default([])
+			.describe(
+				"The world's prefabs: designs of its own, each placed as objects whose kind is the prefab's id.",
+			),
 		data: WorldDataSchema.default(() => WorldDataSchema.parse({})),
 		viewpoints: z
 			.array(ViewpointSchema)
@@ -1788,6 +1907,11 @@ export const SceneSchema = z
 			"road id",
 		);
 		checkUnique(
+			scene.junctions.map((j) => j.id),
+			["junctions"],
+			"junction id",
+		);
+		checkUnique(
 			scene.areas.map((a) => a.id),
 			["areas"],
 			"area id",
@@ -1796,6 +1920,11 @@ export const SceneSchema = z
 			scene.fences.map((f) => f.id),
 			["fences"],
 			"fence id",
+		);
+		checkUnique(
+			scene.prefabs.map((p) => p.id),
+			["prefabs"],
+			"prefab id",
 		);
 		checkUnique(
 			scene.data.values.map((d) => d.key),
@@ -1842,6 +1971,8 @@ export type TRoad = z.output<typeof RoadSchema>;
 export type TRoadInput = z.input<typeof RoadSchema>;
 export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
+export type TJunction = z.output<typeof JunctionSchema>;
+export type TJunctionEnd = TJunction["ends"][number];
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
@@ -1851,6 +1982,8 @@ export type TAreaKind = z.output<typeof AreaKindSchema>;
 export type TAreaPoint = z.output<typeof AreaPointSchema>;
 export type TAreaWater = z.output<typeof AreaWaterSchema>;
 export type TFence = z.output<typeof FenceSchema>;
+export type TPrefab = z.output<typeof PrefabSchema>;
+export type TPrefabInput = z.input<typeof PrefabSchema>;
 export type TFenceInput = z.input<typeof FenceSchema>;
 export type TFenceKind = z.output<typeof FenceKindSchema>;
 export type TFencePoint = z.output<typeof FencePointSchema>;

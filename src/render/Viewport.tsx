@@ -15,7 +15,9 @@ import { useWorldData } from "#/editor/worldData";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
-import type { TEntity, TScene } from "#/scene/schema";
+import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
+import { drivesAcrossNetwork } from "#/scene/network";
+import { isPrefabKind, type TEntity, type TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
 
 import { AreaHandles } from "./AreaHandles";
@@ -39,6 +41,7 @@ import { GroupGizmo } from "./GroupGizmo";
 import { HoverHighlight } from "./HoverHighlight";
 import { InstancedParts } from "./InstancedParts";
 import { InstantResize } from "./InstantResize";
+import { JunctionBodies } from "./JunctionMesh";
 import { KeyboardCamera } from "./KeyboardCamera";
 import { KeyboardTransform } from "./KeyboardTransform";
 import { LabelProjector } from "./LabelProjector";
@@ -64,6 +67,7 @@ import { ViewCursor } from "./viewCursor";
 import { WakeFieldStep } from "./WakeField";
 import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
+import { WorkshopMarker } from "./WorkshopMarker";
 import { WorldReady } from "./WorldReady";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
@@ -95,6 +99,10 @@ const NO_ITEMS: ISceneItem[] = [];
 interface IEntitiesShared {
 	world: IEntityWorld;
 	roads: TScene["roads"];
+	/** The roads and junctions as a network (ADR-0136): vehicles on a road with a junction drive on. */
+	network: IRoadNetwork;
+	/** The world's traffic settings: whether vehicles drive through junctions, unless overridden. */
+	traffic: TScene["traffic"];
 	data: TScene["data"];
 	selectedItems: readonly ISceneItem[];
 	selectedId: string | null;
@@ -102,15 +110,21 @@ interface IEntitiesShared {
 	hovered: ISceneItem | null;
 }
 
-/** Whether an object has a light on a schedule: only those follow the world's hour. */
+/** Whether an object has a light on a schedule (or a prefab, a piece's): only those follow the world's hour. */
 const followsTheHour = (entity: TEntity) =>
-	typeof entity.lights === "object" &&
-	Object.values(entity.lights).some((light) => light.whenOn === "schedule");
+	(typeof entity.lights === "object" &&
+		Object.values(entity.lights).some((light) => light.whenOn === "schedule")) ||
+	(getPart(entity.kind)?.followsTheHour ?? false);
 
 /** Whether an object shows values or has settings that follow them: only those follow the data. */
-const followsData = (entity: TEntity) =>
-	(getPart(entity.kind)?.fields.some((field) => field.type === "dataKey") ?? false) ||
-	usesDataBindings(entity);
+const followsData = (entity: TEntity) => {
+	const part = getPart(entity.kind);
+	return (
+		(part?.fields.some((field) => field.type === "dataKey") ?? false) ||
+		(part?.readsData ?? false) ||
+		usesDataBindings(entity)
+	);
+};
 
 /** Whether an object turns with the sun (solar panels tracking it): those follow the hour too. */
 const followsTheSun = (entity: TEntity) => {
@@ -140,10 +154,17 @@ const EntityWithSun = (props: Omit<TEntityNodeProps, "hour" | "sun">) => {
  */
 const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => {
 	const entity = useEntity(id);
+	// A prefab's copy draws again when its design changes (ADR-0134), though the copy itself didn't.
+	const design = useEditor((s) =>
+		entity && isPrefabKind(entity.kind)
+			? s.scene.prefabs.find((prefab) => prefab.id === entity.kind)
+			: undefined,
+	);
 	if (!entity) {
 		return null;
 	}
 	const roadId = entity.follow?.roadId;
+	const road = roadId ? (shared.roads.find((r) => r.id === roadId) ?? null) : null;
 	const Node = followsTheSun(entity)
 		? EntityWithSun
 		: followsTheHour(entity)
@@ -156,9 +177,15 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 		<Node
 			entity={entityAsDrawn(entity, data)}
 			world={shared.world}
-			road={roadId ? (shared.roads.find((road) => road.id === roadId) ?? null) : null}
+			road={road}
+			network={
+				road && drivesAcrossNetwork(shared.network, road, shared.traffic, entity.follow)
+					? shared.network
+					: null
+			}
 			data={data}
 			hour={null}
+			design={design}
 			selected={includesItem(shared.selectedItems, "entity", id)}
 			alone={shared.selectedId === id && shared.selectedItems.length === 1}
 			boxed={includesItem(shared.boxedItems, "entity", id)}
@@ -204,6 +231,8 @@ const Entities = memo(() => {
 	const picked = useEditor(
 		useShallow((s) => ({
 			roads: s.scene.roads,
+			network: roadNetworkOf(s.scene.roads, s.scene.junctions),
+			traffic: s.scene.traffic,
 			data,
 			selectedItems: s.selectedItems,
 			selectedId: s.selectedId,
@@ -249,8 +278,39 @@ const StillScene = () => {
 	return null;
 };
 
-export const Viewport = () => {
+/** The roads, cut back where they meet at junctions, and the junctions' own surfaces (ADR-0136). */
+const Roads = () => {
 	const roads = useEditor((s) => s.scene.roads);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const palette = usePalette();
+	const data = useWorldData().values;
+	const network = roadNetworkOf(roads, junctions);
+
+	return (
+		<>
+			{/* Hidden roads keep their index: it's their draw layer. */}
+			{roads.map((road, index) => {
+				if (road.isHidden) {
+					return null;
+				}
+				const trims = network.drawTrimsOf(road.id);
+				return (
+					<RoadMesh
+						key={road.id}
+						road={road}
+						layer={index}
+						trimStart={trims.start}
+						trimEnd={trims.end}
+					/>
+				);
+			})}
+
+			<JunctionBodies roads={roads} junctions={junctions} palette={palette} data={data} />
+		</>
+	);
+};
+
+export const Viewport = () => {
 	const areas = useEditor((s) => s.scene.areas);
 	const fences = useEditor((s) => s.scene.fences);
 	const graphics = useGraphics();
@@ -314,9 +374,7 @@ export const Viewport = () => {
 
 			<InstancedParts />
 
-			{roads.map((road, index) =>
-				road.isHidden ? null : <RoadMesh key={road.id} road={road} layer={index} />,
-			)}
+			<Roads />
 
 			<RoadHandles />
 
@@ -333,6 +391,9 @@ export const Viewport = () => {
 			<RouteHighlight />
 
 			<GroundMenuMarker />
+
+			{/* In the Workshop, where the prefab's base and front are (ADR-0134). */}
+			<WorkshopMarker />
 
 			<HoverHighlight />
 

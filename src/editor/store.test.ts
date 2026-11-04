@@ -4,6 +4,7 @@ import {
 	AreaSchema,
 	DataBindingSchema,
 	MoodSchema,
+	PrefabSchema,
 	SceneSchema,
 	type TEntityLight,
 	type TScene,
@@ -638,6 +639,47 @@ describe("editor store", () => {
 		expect(s().scene.fences.find((f) => f.id === id)?.colors).toEqual({});
 	});
 
+	it("follows data renames and removals into prefabs' pieces (ADR-0134)", () => {
+		const store = makeStore();
+		const s = () => store.getState();
+		s().commit((scene) => {
+			scene.prefabs.push(
+				PrefabSchema.parse({
+					id: "prefab_stall",
+					entities: [{ id: "a", kind: "box_01", data: { scale: { key: "orders" } } }],
+					fences: [
+						{
+							id: "f",
+							points: [
+								[0, 0],
+								[1, 0],
+							],
+							data: { builtShare: { key: "orders" } },
+							gates: [{ data: { isOpen: { key: "orders" } } }],
+						},
+					],
+				}),
+			);
+		});
+		s().upsertData({ key: "parcels", name: "Orders", value: 3, unit: "" }, "orders");
+		const [prefab] = s().scene.prefabs;
+		expect(prefab.entities[0].data.scale?.key).toBe("parcels");
+		expect(prefab.fences[0].data.builtShare?.key).toBe("parcels");
+		expect(prefab.fences[0].gates[0].data.isOpen?.key).toBe("parcels");
+		s().removeData("parcels");
+		expect(s().scene.prefabs[0].entities[0].data).toEqual({});
+		expect(s().scene.prefabs[0].fences[0].data).toEqual({});
+	});
+
+	it("knows copies of the world's own prefabs (ADR-0134)", () => {
+		const scene = SceneSchema.parse({
+			version: 1,
+			prefabs: [{ id: "prefab_stall", entities: [{ id: "a", kind: "spaceship_09" }] }],
+			entities: [{ id: "c", kind: "prefab_stall" }],
+		});
+		expect(unknownPartKinds(scene)).toEqual([["spaceship_09", 1]]);
+	});
+
 	it("keeps a fence's gates where they stand as its points change, and follows data renames into them (ADR-0133)", () => {
 		const store = makeStore();
 		const s = () => store.getState();
@@ -1111,7 +1153,7 @@ describe("unknownPartKinds", () => {
 			{ kind: "house" },
 			{ kind: "house" },
 		] as TScene["entities"];
-		expect(unknownPartKinds({ entities })).toEqual([
+		expect(unknownPartKinds({ entities, prefabs: [] })).toEqual([
 			["house", 2],
 			["tower", 1],
 		]);
@@ -1460,5 +1502,149 @@ describe("names of copies (ADR-0068)", () => {
 		const [original, copy] = store.getState().scene.entities;
 		expect(copy.name).toBe("");
 		expect(copy.label?.title).toBe(original.label?.title);
+	});
+});
+
+describe("junctions (ADR-0136)", () => {
+	/** A world with a road along x and one coming down to it from the north, not yet connected. */
+	const makeRoads = () =>
+		createEditorStore(
+			SceneSchema.parse({
+				version: 1,
+				roads: [
+					{
+						id: "main",
+						name: "Main",
+						points: [
+							[-10, 0],
+							[10, 0],
+						],
+					},
+					{
+						id: "side",
+						name: "Side",
+						points: [
+							[0.3, -10],
+							[0.3, -0.4],
+						],
+					},
+					{
+						id: "other",
+						name: "Other",
+						points: [
+							[10.2, 0.3],
+							[20, 0],
+						],
+					},
+				],
+				entities: [{ id: "van", kind: "car_01", follow: { roadId: "main", startDistance: 15 } }],
+			}),
+		);
+
+	it("connects an end to a road's middle in one undo step, cutting it there", () => {
+		const store = makeRoads();
+		const s = () => store.getState();
+		s().connectRoads("side", "end", {
+			kind: "middle",
+			roadId: "main",
+			segment: 0,
+			point: [0.3, 0, 0],
+		});
+		const { roads, junctions, entities } = s().scene;
+		expect(roads).toHaveLength(4);
+		expect(roads[1].name).toBe("Main (2)");
+		expect(junctions).toHaveLength(1);
+		expect(junctions[0].ends.map((e) => e.roadId)).toEqual(["main", roads[1].id, "side"]);
+		expect(roads.find((r) => r.id === "side")?.points.at(-1)).toEqual([0.3, 0, 0]);
+		// The vehicle that started past the cut drives the second half, from where it was.
+		expect(entities[0].follow?.roadId).toBe(roads[1].id);
+		s().undo();
+		expect(s().scene.roads).toHaveLength(3);
+		expect(s().scene.junctions).toHaveLength(0);
+	});
+
+	it("connects an end to another's end, then keeps them together when either moves", () => {
+		const store = makeRoads();
+		const s = () => store.getState();
+		s().connectRoads("other", "start", {
+			kind: "end",
+			roadId: "main",
+			end: "end",
+			point: [10, 0, 0],
+		});
+		expect(s().scene.junctions[0].ends).toHaveLength(2);
+		expect(s().scene.roads[2].points[0]).toEqual([10, 0, 0]);
+		s().moveRoadPoint("main", 1, [11, 2]);
+		expect(s().scene.roads[2].points[0]).toEqual([11, 2, 0]);
+		s().setRoadPointHeight("other", 0, 1.5);
+		expect(s().scene.roads[0].points[1]).toEqual([11, 2, 1.5]);
+	});
+
+	it("takes ends out: disconnecting, deleting an end point or the road, and continuing to draw", () => {
+		const store = makeRoads();
+		const s = () => store.getState();
+		const connect = () => {
+			s().connectRoads("other", "start", {
+				kind: "end",
+				roadId: "main",
+				end: "end",
+				point: [10, 0, 0],
+			});
+			expect(s().scene.junctions).toHaveLength(1);
+		};
+		connect();
+		s().disconnectRoadEnd("other", "start");
+		expect(s().scene.junctions).toHaveLength(0);
+		expect(s().scene.roads[2].points[0]).toEqual([10, 0, 0]);
+
+		connect();
+		s().insertRoadPoint("other", 1, [15, 0, 0]);
+		s().removeRoadPoint("other", 0);
+		expect(s().scene.junctions).toHaveLength(0);
+
+		s().undo();
+		s().removeRoad("main");
+		expect(s().scene.junctions).toHaveLength(0);
+
+		s().undo();
+		s().continueDrawing("main", "end");
+		s().addDrawingPoint([10, 8]);
+		s().finishDrawing();
+		expect(s().scene.junctions).toHaveLength(0);
+	});
+
+	it("keeps junctions when a road is split or joined", () => {
+		const store = makeRoads();
+		const s = () => store.getState();
+		s().connectRoads("other", "start", {
+			kind: "end",
+			roadId: "main",
+			end: "end",
+			point: [10, 0, 0],
+		});
+		s().insertRoadPoint("main", 1, [0, 0, 0]);
+		const second = s().splitRoad("main", 1) as string;
+		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: second, end: "end" });
+		s().joinRoads("main", "end", second, "start");
+		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: "main", end: "end" });
+	});
+
+	it("connects a new road drawn from a road's end and onto another's middle", () => {
+		const store = makeRoads();
+		const s = () => store.getState();
+		s().drawRoadFrom("main", "start");
+		s().addDrawingPoint([-10, 10]);
+		s().addDrawingPoint([15, 10]);
+		s().finishDrawing();
+		expect(s().scene.junctions).toHaveLength(1);
+		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: "main", end: "start" });
+
+		s().startDrawing("road_01");
+		s().addDrawingPoint([5, 20]);
+		s().addDrawingPoint([5, 10]);
+		s().finishDrawing();
+		// It ended on the line of the road just drawn, which is cut there.
+		expect(s().scene.junctions).toHaveLength(2);
+		expect(s().scene.junctions[1].ends).toHaveLength(3);
 	});
 });

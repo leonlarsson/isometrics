@@ -65,7 +65,8 @@ export const randomKey = (bytes: number) => {
 		.replace(/=+$/, "");
 };
 
-const sha256 = async (text: string) => {
+/** SHA-256 of a text, as hex: what a delete key is kept as. */
+export const sha256 = async (text: string) => {
 	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
 	return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };

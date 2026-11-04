@@ -151,7 +151,12 @@ describe("lanes", () => {
 				{
 					width: 2,
 					kind: "road_01",
-					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+					traffic: {
+						drivingLane: "side",
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
 				},
 				"right",
 			),
@@ -161,7 +166,12 @@ describe("lanes", () => {
 				{
 					width: 2,
 					kind: "road_01",
-					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+					traffic: {
+						drivingLane: "side",
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
 				},
 				"left",
 			),
@@ -171,7 +181,12 @@ describe("lanes", () => {
 				{
 					width: 2,
 					kind: "hidden_route_01",
-					traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+					traffic: {
+						drivingLane: "side",
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
 				},
 				"right",
 			),
@@ -181,7 +196,12 @@ describe("lanes", () => {
 				{
 					width: 2,
 					kind: "road_01",
-					traffic: { drivingLane: "centre", turnStyle: null, leansInTurns: null },
+					traffic: {
+						drivingLane: "centre",
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
 				},
 				"right",
 			),

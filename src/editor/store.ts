@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
+import { partIn, setWorldPrefabs } from "#/parts/prefabParts";
 import { getPart } from "#/parts/registry";
 import { altitudeMovedTo, standingAltitudeAt } from "#/parts/standing";
 import {
@@ -27,6 +28,17 @@ import {
 	gatesMovedOnto,
 	insetOutline,
 } from "#/scene/fences";
+import {
+	connectEnds,
+	connectToMiddle,
+	disconnectEnd,
+	endPointOf,
+	junctionsAfterJoin,
+	junctionsAfterSplit,
+	roadAnchorAt,
+	settleJunctions,
+	type TRoadAnchor,
+} from "#/scene/junctions";
 import { moodOf, putOnMood, wearsMood } from "#/scene/moods";
 import { copyName, copyNamer } from "#/scene/naming";
 import {
@@ -40,6 +52,7 @@ import {
 	pointWidth,
 	ROAD_KIND_LABELS,
 	ROAD_KIND_WIDTH,
+	roadNameOf,
 	type TRoadEnd,
 } from "#/scene/roads";
 import {
@@ -79,6 +92,7 @@ import {
 import { type IReadData, putReadData } from "#/scene/sheets";
 import { createBrightwaterScene } from "#/templates/brightwater";
 
+import { saveCameraNow } from "./cameraMemory";
 import { restartDayCycle } from "./dayClock";
 import { boundsOfAll, type IFrameBox, type ISceneItem } from "./framing";
 import {
@@ -91,7 +105,14 @@ import {
 } from "./paint";
 import { readPreferences, setPreference, subscribePreferences } from "./preferences";
 import { notify } from "./toasts";
-import { type IPreview, previewOf, type TWhatIsOpen } from "./whatIsOpen";
+import {
+	type IPreview,
+	type IWorkshop,
+	OWN_WORLD,
+	previewOf,
+	type TWhatIsOpen,
+	workshopOf,
+} from "./whatIsOpen";
 
 export type TEditorMode = "edit" | "view";
 
@@ -105,7 +126,9 @@ export type TWorldTab =
 	| "camera"
 	| "views"
 	| "traffic"
-	| "data";
+	| "data"
+	/** The Workshop's, in place of the others (ADR-0134). */
+	| "prefab";
 /** Its tabs about the selection. Which of them show depends on what's selected. */
 export type TSelectionTab =
 	| "object"
@@ -255,27 +278,38 @@ export interface ITransformSession {
 	undo?: { scene: TScene; items: ISceneItem[] };
 }
 
-/** Two road ends, or two fence ends (ADR-0133), that touch after a drag; the UI offers to join them. */
+/**
+ * Two road ends, or two fence ends (ADR-0133), that touch after a drag; the UI offers to join
+ * them, or for roads to connect them at a junction (ADR-0136). A road end dragged onto the middle
+ * of another road offers to connect there (`bMiddle`): that road is cut in two at it.
+ */
 export interface IJoinOffer {
 	/** What the two ends are of. */
 	target: "road" | "fence";
 	aId: string;
 	aEnd: TRoadEnd;
 	bId: string;
+	/** The other end; with `bMiddle`, not used. */
 	bEnd: TRoadEnd;
+	/** Onto the middle of road `bId`: the line between its points `segment` and `segment + 1`, there. */
+	bMiddle?: { segment: number; point: TVec2 };
 }
 
 /** Where a vehicle being dragged would join a road if dropped now, for the route preview. */
 export interface IRoutePreview {
 	roadId: string;
 	drivesTheOtherWay: boolean;
+	/** Distance along the road where it would start (a follow's `startDistance`). */
+	startDistance: number;
+	/**
+	 * The vehicle (or the id it will get, while it's placed from Add to scene): on a road with a
+	 * junction its way across the network is seeded by it, so the preview shows that way (ADR-0136).
+	 */
+	entityId: string;
 }
 
 /** A vehicle that was just dropped onto a road; the UI asks whether it should drive along it. */
 export interface IFollowOffer extends IRoutePreview {
-	entityId: string;
-	/** Distance along the road where it would start (a follow's `startDistance`). */
-	startDistance: number;
 	/** Where it was dropped; the offer lapses once it has moved. */
 	position: TVec2;
 }
@@ -442,6 +476,22 @@ export interface IEditorState {
 	loadScene: (scene: TScene, options?: { preview?: IPreview }) => void;
 	setWhatIsOpen: (whatIsOpen: TWhatIsOpen) => void;
 	setAskingToKeep: (isAskingToKeep: boolean) => void;
+	/**
+	 * Open the Workshop (ADR-0134): `world` in place of the open one, which waits in `workshop.from`
+	 * with its undo history. Nothing is saved meanwhile (`keepsOpenWorld`).
+	 */
+	enterWorkshop: (world: TScene, workshop: IWorkshop) => void;
+	/**
+	 * Go back from the Workshop to the world it came from, as it was, with its view; `change`, if
+	 * given, is then made to it as one undo step (saving the prefab). Returns whether it was open.
+	 */
+	leaveWorkshop: (change?: (scene: Draft<TScene>) => void) => boolean;
+	/**
+	 * Leaving the Workshop with something built in it is being asked about (editor/workshop's
+	 * `leaveWorkshopFirst`): what to do once it's left. Runtime only.
+	 */
+	workshopLeaving: { then: () => void } | null;
+	setWorkshopLeaving: (leaving: { then: () => void } | null) => void;
 	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
 	revertTo: (before: TScene) => void;
 	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
@@ -713,6 +763,16 @@ export interface IEditorState {
 	splitRoad: (id: string, index: number) => string | null;
 	/** Join two road ends into one road; joining a road's own two ends makes a loop. */
 	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
+	/**
+	 * Connect a road end at a junction (ADR-0136): to another road's end (into the junction it's
+	 * in, or a new one), or to the middle of another road, which is cut in two there. The end
+	 * moves there. One undo step.
+	 */
+	connectRoads: (roadId: string, end: TRoadEnd, to: TRoadAnchor) => void;
+	/** Take a road end out of its junction; the road stays where it is. */
+	disconnectRoadEnd: (roadId: string, end: TRoadEnd) => void;
+	/** Start drawing a new road from a road end (its junction, if it's in one), connected there. */
+	drawRoadFrom: (roadId: string, end: TRoadEnd) => void;
 	setJoinOffer: (offer: IJoinOffer | null) => void;
 	setRoutePreview: (preview: IRoutePreview | null) => void;
 	setRerouting: (rerouting: boolean) => void;
@@ -879,10 +939,11 @@ const validRoadSelection = (
  * whose part was removed (renamed ones are upgraded on load, ADR-0053), or
  * from a newer one. Most common first.
  */
-export const unknownPartKinds = (scene: Pick<TScene, "entities">) => {
+export const unknownPartKinds = (scene: Pick<TScene, "entities" | "prefabs">) => {
 	const counts = new Map<string, number>();
-	for (const entity of scene.entities) {
-		if (!getPart(entity.kind)) {
+	// Copies of the world's own prefabs are known (ADR-0134), and so are their pieces' parts.
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
+		if (!partIn(entity.kind, scene.prefabs)) {
 			counts.set(entity.kind, (counts.get(entity.kind) ?? 0) + 1);
 		}
 	}
@@ -1120,8 +1181,8 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	// Fences' colours and how much of them is built (ADR-0103).
-	for (const fence of scene.fences) {
+	// Fences' colours and how much of them is built (ADR-0103), prefabs' pieces too (ADR-0134).
+	for (const fence of [...scene.fences, ...scene.prefabs.flatMap((prefab) => prefab.fences)]) {
 		for (const bindings of fenceBindingMapsOf(fence)) {
 			renameBindings(bindings, from, to);
 		}
@@ -1131,7 +1192,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 			}
 		}
 	}
-	for (const entity of scene.entities) {
+	for (const entity of [...scene.entities, ...scene.prefabs.flatMap((prefab) => prefab.entities)]) {
 		entity.label.dataKeys = swap(entity.label.dataKeys);
 		entity.details.dataKeys = swap(entity.details.dataKeys);
 		for (const field of getPart(entity.kind)?.fields ?? []) {
@@ -1166,7 +1227,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
  */
 export const createEditorStore = (openScene?: TScene) => {
 	const initialScene = openScene ?? createBrightwaterScene();
-	return create<IEditorState>()((rawSet, get) => {
+	const store = create<IEditorState>()((rawSet, get) => {
 		// Every change goes through here, so the list of selected items follows the active item.
 		const set = (
 			partial:
@@ -1211,7 +1272,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			dataWindow: null,
 			dragging: false,
 			openingWorld: 1,
-			whatIsOpen: openScene ? { kind: "world", preview: null } : { kind: "starting" },
+			whatIsOpen: openScene ? OWN_WORLD : { kind: "starting" },
 			isAskingToKeep: false,
 			openedWorldCount: 1,
 			// Remembered in this browser, like the other ways of working (Preferences → Editing).
@@ -1241,9 +1302,17 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			commit: (recipe, options = {}) =>
 				set((state) => {
-					const next = produce(state.scene, recipe);
+					let next = produce(state.scene, recipe);
 					if (next === state.scene) {
 						return state;
+					}
+					// Junctions stay whole and together whatever changed the roads (ADR-0136).
+					const before = state.scene;
+					if (
+						(next.roads !== before.roads || next.junctions !== before.junctions) &&
+						(next.junctions.length > 0 || before.junctions.length > 0)
+					) {
+						next = produce(next, (draft) => settleJunctions(before, draft));
 					}
 					if (options.record === false) {
 						return { scene: next };
@@ -1282,7 +1351,7 @@ export const createEditorStore = (openScene?: TScene) => {
 			loadScene: (scene, options = {}) => {
 				warnAboutUnknownParts(scene);
 				set((state) => ({
-					whatIsOpen: { kind: "world", preview: options.preview ?? null },
+					whatIsOpen: { kind: "world", preview: options.preview ?? null, workshop: null },
 					isAskingToKeep: false,
 					// A world from a link opens to be looked at (Edit asks to keep it first); leaving one for a
 					// world of one's own goes back to editing.
@@ -1470,6 +1539,15 @@ export const createEditorStore = (openScene?: TScene) => {
 							: draft.areas.find((a) => a.id === area?.id);
 					if (shape) {
 						const before = current(shape);
+						// A road's end that's deleted leaves its junction (ADR-0136).
+						if (road && !road.loops) {
+							if (doomed.has(0)) {
+								disconnectEnd(draft, road.id, "start");
+							}
+							if (doomed.has(road.points.length - 1)) {
+								disconnectEnd(draft, road.id, "end");
+							}
+						}
 						shape.points = shape.points.filter(
 							(_, index) => !doomed.has(index),
 						) as typeof shape.points;
@@ -1680,6 +1758,76 @@ export const createEditorStore = (openScene?: TScene) => {
 			},
 			setWhatIsOpen: (whatIsOpen) => set({ whatIsOpen }),
 			setAskingToKeep: (isAskingToKeep) => set({ isAskingToKeep }),
+			workshopLeaving: null,
+			setWorkshopLeaving: (leaving) => set({ workshopLeaving: leaving }),
+			enterWorkshop: (world, workshop) => {
+				// Where the world's camera was is kept before the Workshop's takes over.
+				saveCameraNow();
+				set({
+					whatIsOpen: { kind: "world", preview: null, workshop },
+					scene: world,
+					past: [],
+					future: [],
+					lastCommit: null,
+					mode: "edit",
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					activeViewpointId: null,
+					cameraFollow: null,
+					dataWindow: null,
+					// Things are built from Add to scene.
+					tab: "add",
+				});
+				get().resetView();
+			},
+			leaveWorkshop: (change) => {
+				const workshop = workshopOf(get().whatIsOpen);
+				if (!workshop) {
+					return false;
+				}
+				// Where the Workshop's camera was is kept before the world's view comes back.
+				saveCameraNow();
+				const { scene, past, future, view } = workshop.from;
+				set({
+					whatIsOpen: OWN_WORLD,
+					scene,
+					past,
+					future,
+					lastCommit: null,
+					...NOTHING_SELECTED,
+					drawing: null,
+					painting: false,
+					placingKind: null,
+					transform: null,
+					joinOffer: null,
+					followOffer: null,
+					contextMenu: null,
+					groundMenu: null,
+					viewpointMenu: null,
+					cameraFollow: null,
+					dataWindow: null,
+				});
+				if (change) {
+					get().commit(change);
+				}
+				if (view) {
+					set((s) => ({
+						projection: view.projection,
+						flight: { pose: view, nonce: (s.flight?.nonce ?? 0) + 1, instant: true },
+					}));
+				} else {
+					get().resetView();
+				}
+				return true;
+			},
 			setMode: (mode) =>
 				// Editing a world from a link keeps a copy of it: asked first (ADR-0121).
 				mode === "edit" && previewOf(get().whatIsOpen)
@@ -2337,10 +2485,16 @@ export const createEditorStore = (openScene?: TScene) => {
 				),
 
 			removeRoadPoint: (id, index) => {
-				get().updateRoad(id, (road) => {
-					if (road.points.length > 2) {
-						road.points.splice(index, 1);
+				get().commit((scene) => {
+					const road = scene.roads.find((r) => r.id === id);
+					if (!road || road.points.length <= 2) {
+						return;
 					}
+					// A road's end that's deleted leaves its junction (ADR-0136).
+					if (!road.loops && (index === 0 || index === road.points.length - 1)) {
+						disconnectEnd(scene, id, index === 0 ? "start" : "end");
+					}
+					road.points.splice(index, 1);
 				});
 				set((state) =>
 					state.selectedRoadId === id && state.selectedPointIndex !== null
@@ -2377,6 +2531,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					if (first) {
 						first.points = first.points.slice(0, index + 1);
 						scene.roads.splice(scene.roads.indexOf(first) + 1, 0, second);
+						junctionsAfterSplit(scene, id, second.id);
 					}
 				});
 				set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
@@ -2392,13 +2547,18 @@ export const createEditorStore = (openScene?: TScene) => {
 				}
 				if (aId === bId) {
 					if (aEnd !== bEnd && a.points.length > 2) {
-						get().updateRoad(aId, (r) => {
+						get().commit((scene) => {
+							const r = scene.roads.find((road) => road.id === aId);
+							if (!r) {
+								return;
+							}
 							const first = r.points[0];
 							const last = r.points[r.points.length - 1];
 							if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6) {
 								r.points.pop(); // ends touch: keep one shared point
 							}
 							r.loops = true;
+							junctionsAfterJoin(scene, aId, aEnd, bId, bEnd);
 						});
 					}
 					set({ joinOffer: null, selectedRoadId: aId, selectedPointIndex: null });
@@ -2417,6 +2577,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					);
 					target.points = joinedPoints(a.points, aEnd, bPoints, bEnd);
 					scene.roads = scene.roads.filter((r) => r.id !== bId);
+					junctionsAfterJoin(scene, aId, aEnd, bId, bEnd);
 					// Vehicles on the absorbed road now drive the joined one.
 					for (const entity of scene.entities) {
 						if (entity.follow?.roadId === bId) {
@@ -2428,6 +2589,51 @@ export const createEditorStore = (openScene?: TScene) => {
 			},
 
 			setJoinOffer: (offer) => set({ joinOffer: offer }),
+
+			connectRoads: (roadId, end, to) => {
+				get().commit((scene) => {
+					if (to.kind === "end") {
+						connectEnds(
+							scene,
+							{ roadId, end },
+							{ roadId: to.roadId, end: to.end },
+							newId("junction"),
+						);
+					} else {
+						connectToMiddle(
+							scene,
+							{ roadId, end },
+							{ roadId: to.roadId, segment: to.segment, point: [to.point[0], to.point[1]] },
+							{ road: newId("road"), junction: newId("junction") },
+						);
+					}
+				});
+				set({ joinOffer: null });
+			},
+
+			disconnectRoadEnd: (roadId, end) => {
+				get().commit((scene) => disconnectEnd(scene, roadId, end));
+			},
+
+			drawRoadFrom: (roadId, end) => {
+				const road = get().scene.roads.find((r) => r.id === roadId);
+				if (!road || road.loops) {
+					return;
+				}
+				const at = end === "start" ? road.points[0] : road.points[road.points.length - 1];
+				set({
+					drawing: {
+						target: "road",
+						style: road.kind,
+						areaType: "grass_01",
+						fenceStyle: "picket_fence_01",
+						points: [[at[0], at[1], at[2]]],
+					},
+					...NOTHING_SELECTED,
+					joinOffer: null,
+					followOffer: null,
+				});
+			},
 			setRoutePreview: (preview) => set({ routePreview: preview }),
 			setRerouting: (rerouting) => set({ rerouting }),
 			setFollowOffer: (offer) => set({ followOffer: offer }),
@@ -2971,7 +3177,23 @@ export const createEditorStore = (openScene?: TScene) => {
 				}
 				if (drawing.roadId) {
 					const roadId = drawing.roadId;
-					get().updateRoad(roadId, (road) => {
+					get().commit((draft) => {
+						const road = draft.roads.find((r) => r.id === roadId);
+						if (!road) {
+							return;
+						}
+						// An end drawn on from, or made a loop, leaves its junction (ADR-0136).
+						for (const end of ["start", "end"] as const) {
+							const was = end === "start" ? road.points[0] : road.points.at(-1);
+							const now = loops
+								? undefined
+								: end === "start"
+									? drawing.points[0]
+									: drawing.points.at(-1);
+							if (!was || !now || was[0] !== now[0] || was[1] !== now[1]) {
+								disconnectEnd(draft, roadId, end);
+							}
+						}
 						road.points = drawing.points;
 						road.loops = loops;
 					});
@@ -2979,18 +3201,71 @@ export const createEditorStore = (openScene?: TScene) => {
 					return roadId;
 				}
 				const count = scene.roads.filter((r) => r.kind === drawing.style).length;
-				return get().addRoad({
+				const road = RoadSchema.parse({
+					id: newId("road"),
 					name: `${ROAD_KIND_LABELS[drawing.style]} ${count + 1}`,
 					kind: drawing.style,
 					points: drawing.points,
 					width: ROAD_KIND_WIDTH[drawing.style],
 					loops,
 				});
+				// Its first and last points put on another road's end or line connect there (ADR-0136).
+				const connected: string[] = [];
+				get().commit((draft) => {
+					draft.roads.push(road);
+					if (loops) {
+						return;
+					}
+					for (const end of ["start", "end"] as const) {
+						const at = endPointOf(draft.roads[draft.roads.length - 1], end);
+						const to = roadAnchorAt(draft.roads, [at[0], at[1]], {
+							endReach: 1e-6,
+							lineReach: 1e-6,
+							except: [road.id],
+						});
+						if (!to) {
+							continue;
+						}
+						const joined =
+							to.kind === "end"
+								? connectEnds(
+										draft,
+										{ roadId: road.id, end },
+										{ roadId: to.roadId, end: to.end },
+										newId("junction"),
+									)
+								: connectToMiddle(
+										draft,
+										{ roadId: road.id, end },
+										{ roadId: to.roadId, segment: to.segment, point: [to.point[0], to.point[1]] },
+										{ road: newId("road"), junction: newId("junction") },
+									);
+						const other = draft.roads.find((r) => r.id === to.roadId);
+						if (joined && other) {
+							connected.push(roadNameOf(other));
+						}
+					}
+				});
+				set({ ...NOTHING_SELECTED, selectedRoadId: road.id, tab: "object" });
+				if (connected.length > 0) {
+					const names = [...new Set(connected)].map((name) => `“${name}”`).join(" and ");
+					notify(`Connected to ${names}`, "Vehicles drive on from one road to the other.");
+				}
+				return road.id;
 			},
 
 			cancelDrawing: () => set({ drawing: null }),
 		};
 	});
+	// The parts layer can't read the store: it's handed the open world's prefabs whenever they
+	// change (ADR-0134), before anything draws them.
+	setWorldPrefabs(store.getState().scene.prefabs);
+	store.subscribe((state, previous) => {
+		if (state.scene.prefabs !== previous.scene.prefabs) {
+			setWorldPrefabs(state.scene.prefabs);
+		}
+	});
+	return store;
 };
 
 /**

@@ -98,6 +98,41 @@
 	margin-left: auto;
 }
 
+/* Compact: one slim row, the icon smaller, wrapping only when the view is too narrow for it. */
+.bar[data-compact] {
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+	padding: 5px 6px 5px 8px;
+}
+
+.bar[data-compact] .icon {
+	width: 26px;
+	height: 26px;
+}
+
+/* The title gives way first (its field narrows); the buttons keep their size. */
+.compactTitle {
+	display: flex;
+	flex: 0 1 auto;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.bar[data-compact] .actions {
+	flex: none;
+	align-items: center;
+}
+
+@media (max-width: 600px) {
+	.bar[data-compact] {
+		flex-wrap: wrap;
+	}
+}
+
 /* Narrow screens: the main buttons share the width, side by side. */
 @media (max-width: 600px) {
 	.actions > * {

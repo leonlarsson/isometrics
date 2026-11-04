@@ -21,6 +21,7 @@ import {
 	NumberField,
 	PeriodsField,
 	RadioGroupField,
+	ReadOutField,
 	resetToDefault,
 	Section,
 	SelectField,
@@ -223,6 +224,12 @@ export const KitPage = () => {
 										value: "off",
 									}}
 									hint="A switch can have a hint too."
+								/>
+
+								<ReadOutField
+									label="Read out"
+									value="A value only read here, one line however long it gets, the rest on hover"
+									hint="It may change while shown, and never moves what's below."
 								/>
 
 								<CheckboxGroupField

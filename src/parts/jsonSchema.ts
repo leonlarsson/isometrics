@@ -4,7 +4,7 @@ import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { sceneJsonSchema } from "#/scene/jsonSchema";
 import { isHiddenRoute, ROAD_KINDS } from "#/scene/roads";
-import type { TRoadKind } from "#/scene/schema";
+import { PREFAB_KIND_PREFIX, type TRoadKind } from "#/scene/schema";
 import { PATCH_LISTS } from "#/scene/worldPatch";
 
 import { PARTS, partName, type TAnyPart } from "./registry";
@@ -37,13 +37,15 @@ Colours: each kind lists its colours by id (a house has roof and door, a car bod
 "colors": { "facade": { "data": { "color": { "key": "occupancy", "valueAtLowColor": 50, "valueAtHighColor": 100, "lowColor": "#2bb58c", "highColor": "#e0483b" } } } }
 "colors": { "surface": { "data": { "color": { "key": "congestion" } } } }
 
-Roads: points are [x, z], [x, z, altitude] or [x, z, altitude, width]; an altitude above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. loops: true makes a loop. heldUpBy says what holds raised sections up. Kinds ${HIDDEN_KINDS} are invisible routes, e.g. a ferry line across water. A road's traffic sets how vehicles drive on it (drivingLane, and turnStyle and leansInTurns, null = the world's traffic). A vehicle part drives along a road with follow: { roadId, speed, startDistance, drivesTheOtherWay }; startDistance is the distance from the road's first point where it starts, and drivesTheOtherWay drives it against the order of its points (in the other lane).
+Roads: points are [x, z], [x, z, altitude] or [x, z, altitude, width]; an altitude above 0 lifts the road (bridges, flyovers), and a width there overrides the road's width. loops: true makes a loop. heldUpBy says what holds raised sections up. Kinds ${HIDDEN_KINDS} are invisible routes, e.g. a ferry line across water. A road's traffic sets how vehicles drive on it (drivingLane, and turnStyle, leansInTurns and drivesThroughJunctions, null = the world's traffic). A vehicle part drives along a road with follow: { roadId, speed, startDistance, drivesTheOtherWay }; startDistance is the distance from the road's first point where it starts, and drivesTheOtherWay drives it against the order of its points (in the other lane). Roads meet at junctions: { id, ends: [{ roadId, end: "start" | "end" }] } joins road ends at one point, and vehicles drive on through them onto other roads unless drivesThroughJunctions (world, road or follow) is false.
 
 Areas: polygons of [x, z] or [x, z, lift] corners (water, grass, sand, plaza, or raised land with a height), with peaks inside for hills. A water area's water overrides the world's water.
 
 Fences: fences, walls, hedges and railings, each a line of points ([x, z], or [x, z, lift] to raise it that far above the ground there) with a kind; it stands on the ground under it, raised land included. Posts stand at every point and are spaced evenly in between (postSpacing, the kind's by default); hedges and walls show no posts, so for them postSpacing is the longest straight section. loops: true closes it; cornerRadius rounds its corners. builtShare (0–1) builds only the first part of it, and data: { "builtShare": { key, valueAtFull } } takes that from a data value, e.g. a site fence that grows with a project's progress.
 
-Traffic: traffic holds how vehicles drive in the whole world: drivingSide, turnStyle, leansInTurns, keepsDistance and overtakes.
+Prefabs: prefabs holds the world's own designs, each { id, name, description, entities, fences }: objects and fences as in the world, laid out round the prefab's origin (the middle of its footprint on the ground at [0, 0], its lowest piece at altitude 0, its front facing +z). Ids start with "prefab_". An entity whose kind is a prefab's id is a copy of it: placed, turned and scaled as one object, and every copy changes when the design does. Pieces are parts, never prefabs. Their data bindings read the world's data, and "row.<column>" reads the row the copy follows.
+
+Traffic: traffic holds how vehicles drive in the whole world: drivingSide, turnStyle, leansInTurns, drivesThroughJunctions, keepsDistance and overtakes.
 
 Time of day: lighting.time sets the hour (sun, sky, and lit windows, lamps and headlights after dark); leave it null for plain daylight. lighting.timeSource can make the time pass (cycle), follow the viewer's clock, or come from a data value (data, with lighting.data: { "time": { "key": "hour" } }).
 
@@ -166,14 +168,30 @@ export const worldJsonSchema = () => {
 	if (!entity?.properties) {
 		return { ...schema, description: GUIDE };
 	}
+	const partKinds = PARTS.map((part) => ({
+		const: part.kind,
+		title: partName(part),
+		description: describePart(part),
+	}));
 	entity.properties.kind = {
-		description: "Which part this is.",
-		oneOf: PARTS.map((part) => ({
-			const: part.kind,
-			title: partName(part),
-			description: describePart(part),
-		})),
+		description: "Which part this is, or for a copy of one of the world's prefabs, its id.",
+		oneOf: [
+			...partKinds,
+			{
+				type: "string",
+				pattern: `^${PREFAB_KIND_PREFIX}`,
+				title: "A prefab",
+				description:
+					"A copy of one of the world's prefabs (prefabs), by its id: drawn as its pieces, moved, turned and sized as one object.",
+			},
+		],
 	};
+	// A prefab's pieces are parts, never prefabs (ADR-0134).
+	const prefab = (schema.properties?.prefabs as { items?: TJsonSchema } | undefined)?.items;
+	const piece = (prefab?.properties?.entities as { items?: TJsonSchema } | undefined)?.items;
+	if (piece?.properties) {
+		piece.properties.kind = { description: "Which part this piece is.", oneOf: partKinds };
+	}
 	const fence = (schema.properties?.fences as { items?: TJsonSchema } | undefined)?.items;
 	if (fence?.properties) {
 		fence.properties.kind = {

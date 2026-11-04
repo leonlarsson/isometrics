@@ -6,5 +6,9 @@ declare module "cloudflare:workers" {
 		USER_WORLDS?: import("#/server/userWorlds").IUserWorldStore;
 		/** At most so many shares a minute from one address; not in every deployment (previews). */
 		USER_WORLD_UPLOADS?: { limit: (options: { key: string }) => Promise<{ success: boolean }> };
+		/** Prefabs shared by link (ADR-0134); missing where a deployment lacks the binding. */
+		USER_PREFABS?: import("#/server/userPrefabs").IUserPrefabStore;
+		/** At most so many prefab shares a minute from one address; not in every deployment. */
+		USER_PREFAB_UPLOADS?: { limit: (options: { key: string }) => Promise<{ success: boolean }> };
 	};
 }

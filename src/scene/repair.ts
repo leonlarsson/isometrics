@@ -11,6 +11,7 @@ import {
 	EntitySchema,
 	FenceSchema,
 	MoodSchema,
+	PrefabSchema,
 	RoadSchema,
 	SCENE_VERSION,
 	SceneSchema,
@@ -26,7 +27,8 @@ import {
  * read. Rather than refuse the whole world over one bad value, keep
  * everything that is still valid:
  *
- * - each object, road, area, fence, data value, viewpoint and mood is checked on its own;
+ * - each object, road, area, fence, prefab, data value, viewpoint and mood is checked on its
+ *   own (a prefab's pieces each within it, ADR-0134);
  * - an invalid field is removed so its default applies;
  * - an invalid entry in a list (one road point, one data key) is dropped;
  * - an item that still can't be read (e.g. it has no id) is removed;
@@ -42,6 +44,7 @@ export interface IRepairReport {
 		roads: number;
 		areas: number;
 		fences: number;
+		prefabs: number;
 		values: number;
 		tables: number;
 		sources: number;
@@ -118,12 +121,41 @@ const LISTS = [
 	{ path: ["roads"], schema: RoadSchema, id: "id", counter: "roads" },
 	{ path: ["areas"], schema: AreaSchema, id: "id", counter: "areas" },
 	{ path: ["fences"], schema: FenceSchema, id: "id", counter: "fences" },
+	{ path: ["prefabs"], schema: PrefabSchema, id: "id", counter: "prefabs" },
 	{ path: ["data", "values"], schema: DataValueSchema, id: "key", counter: "values" },
 	{ path: ["data", "tables"], schema: DataTableSchema, id: "key", counter: "tables" },
 	{ path: ["data", "sources"], schema: DataSourceSchema, id: "id", counter: "sources" },
 	{ path: ["viewpoints"], schema: ViewpointSchema, id: "id", counter: "viewpoints" },
 	{ path: ["moods"], schema: MoodSchema, id: "id", counter: "moods" },
 ] as const;
+
+/**
+ * A prefab with each of its pieces repaired on its own, as the world's own objects and fences are
+ * (ADR-0134), so one bad field resets that field rather than losing the piece. Pieces that still
+ * can't be read are left out, each a fix. A copy, and how many fixes it took; anything else
+ * passes through.
+ */
+const withPiecesRepaired = (prefab: unknown): { value: unknown; fixes: number } => {
+	if (typeof prefab !== "object" || prefab === null || Array.isArray(prefab)) {
+		return { value: prefab, fixes: 0 };
+	}
+	const copy: Record<string, unknown> = { ...prefab };
+	let fixes = 0;
+	for (const [key, schema] of [
+		["entities", EntitySchema],
+		["fences", FenceSchema],
+	] as const) {
+		const pieces = copy[key];
+		if (Array.isArray(pieces)) {
+			copy[key] = pieces.flatMap((piece) => {
+				const repaired = repairValue(schema, piece);
+				fixes += repaired ? repaired.fixes : 1;
+				return repaired ? [repaired.value] : [];
+			});
+		}
+	}
+	return { value: copy, fixes };
+};
 
 type TSceneKey = keyof typeof SceneSchema.shape;
 /** Top-level fields that hold lists (or only groups of lists, like data). */
@@ -188,6 +220,7 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 			roads: 0,
 			areas: 0,
 			fences: 0,
+			prefabs: 0,
 			values: 0,
 			tables: 0,
 			sources: 0,
@@ -229,7 +262,8 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 		const kept: unknown[] = [];
 		const seen = new Set<unknown>();
 		for (const item of Array.isArray(items) ? items : []) {
-			const repaired = repairValue(schema, item);
+			const pieces = counter === "prefabs" ? withPiecesRepaired(item) : { value: item, fixes: 0 };
+			const repaired = repairValue(schema, pieces.value);
 			const itemId = (repaired?.value as Record<string, unknown> | undefined)?.[id];
 			if (!repaired || seen.has(itemId)) {
 				report.removed[counter] += 1;
@@ -237,7 +271,7 @@ export const repairScene = (input: unknown): { scene: TScene; report: IRepairRep
 			}
 			seen.add(itemId);
 			kept.push(repaired.value);
-			report.fixed += repaired.fixes;
+			report.fixed += repaired.fixes + pieces.fixes;
 		}
 		writePath(cleaned, path, kept);
 	}
@@ -261,13 +295,14 @@ export const parseOrRepairScene = (
 
 /** A short, plain description of what a repair changed, for the user. */
 export const describeRepairs = (report: IRepairReport) => {
-	const { objects, roads, areas, fences, values, tables, sources, viewpoints, moods } =
+	const { objects, roads, areas, fences, prefabs, values, tables, sources, viewpoints, moods } =
 		report.removed;
 	const removed = [
 		objects && plural(objects, "object", "objects"),
 		roads && plural(roads, "road", "roads"),
 		areas && plural(areas, "area", "areas"),
 		fences && plural(fences, "fence", "fences"),
+		prefabs && plural(prefabs, "prefab", "prefabs"),
 		values && plural(values, "data value", "data values"),
 		tables && plural(tables, "data table", "data tables"),
 		sources && plural(sources, "data source", "data sources"),
@@ -275,7 +310,7 @@ export const describeRepairs = (report: IRepairReport) => {
 		moods && plural(moods, "mood", "moods"),
 	].filter((part): part is string => Boolean(part));
 	const removedCount =
-		objects + roads + areas + fences + values + tables + sources + viewpoints + moods;
+		objects + roads + areas + fences + prefabs + values + tables + sources + viewpoints + moods;
 
 	const parts: string[] = [];
 	if (report.newerVersion) {

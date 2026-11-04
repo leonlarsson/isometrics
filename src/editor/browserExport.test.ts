@@ -89,6 +89,20 @@ describe("exporting this browser", () => {
 });
 
 describe("round trip", () => {
+	it("keeps the list of worlds in its order when worlds were saved in the same millisecond", () => {
+		vi.useFakeTimers({ now: Date.UTC(2026, 10, 4) });
+		try {
+			fillBrowser();
+			const text = makeBrowserExport(collectBrowserItems());
+			const before = stored();
+			vi.stubGlobal("localStorage", memoryStorage());
+			replaceBrowser(readBrowserExport(text));
+			expect(stored()).toEqual(before);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("an export replacing an empty browser brings back everything, exactly", () => {
 		fillBrowser();
 		const text = makeBrowserExport(collectBrowserItems());
@@ -439,5 +453,34 @@ describe("a file that isn't a browser's export, or a hostile one", () => {
 		replaceBrowser(readBrowserExport(text));
 		expect(localStorage.getItem(ALLOWED)).toBeNull();
 		expect(localStorage.getItem(PREFERENCES_KEY)).toBe("theirs");
+	});
+});
+
+describe("My prefabs in an export (ADR-0134)", () => {
+	const LIBRARY = "isometrics:prefabs";
+	const ids = () =>
+		(JSON.parse(localStorage.getItem(LIBRARY) ?? "[]") as { id: string; name: string }[]).map(
+			(prefab) => `${prefab.id}:${prefab.name}`,
+		);
+	const file = () =>
+		readBrowserExport(
+			exportOf({
+				[LIBRARY]: JSON.stringify([
+					{ id: "prefab_a", name: "Theirs" },
+					{ id: "prefab_b", name: "New" },
+				]),
+			}),
+		);
+
+	it("adds a file's prefabs beside this browser's, keeping this browser's own as they are", () => {
+		localStorage.setItem(LIBRARY, JSON.stringify([{ id: "prefab_a", name: "Mine" }]));
+		addToBrowser(file());
+		expect(ids()).toEqual(["prefab_a:Mine", "prefab_b:New"]);
+	});
+
+	it("replaces them with the file's, as the worlds are", () => {
+		localStorage.setItem(LIBRARY, JSON.stringify([{ id: "prefab_c", name: "Gone" }]));
+		replaceBrowser(file());
+		expect(ids()).toEqual(["prefab_a:Theirs", "prefab_b:New"]);
 	});
 });

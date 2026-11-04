@@ -1,5 +1,6 @@
 import { toggleSidePanes, useSidePanes } from "#/editor/sidePanes";
 import { useEditor } from "#/editor/store";
+import { whyNoWorldAction } from "#/editor/whatIsOpen";
 
 import { AppMenu } from "./AppMenu";
 import { Button, IconButton, IconButtonGroup } from "./Button";
@@ -44,7 +45,13 @@ export const AppRow = () => {
 						variant="ghost"
 						icon="sparkle"
 						iconTone="accent"
-						onClick={() => useEditor.getState().setBuildWithAi(hasWorld ? "change" : "new")}
+						onClick={() =>
+							useEditor
+								.getState()
+								.setBuildWithAi(
+									whyNoWorldAction(useEditor.getState().whatIsOpen) === null ? "change" : "new",
+								)
+						}
 					>
 						AI
 					</Button>

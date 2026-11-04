@@ -1,4 +1,5 @@
 import { useEditor } from "#/editor/store";
+import { junctionIndexOf } from "#/scene/junctions";
 import { pointWidth, roadEnds, roadNameOf, type TRoadEnd } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
@@ -14,6 +15,12 @@ import {
 	valuesDiffer,
 } from "./fields";
 
+/** A road's point at one of its ends, as [x, z, altitude]. */
+const endPoint = (road: TRoad, end: TRoadEnd): [number, number, number] => {
+	const point = end === "start" ? road.points[0] : road.points[road.points.length - 1];
+	return [point[0], point[1], point[2]];
+};
+
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
 const MAX_JOIN_OPTIONS = 3;
@@ -21,6 +28,7 @@ const MAX_JOIN_OPTIONS = 3;
 /** Controls for the selected control point: position, height, and point actions. */
 export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) => {
 	const roads = useEditor((s) => s.scene.roads);
+	const junctions = useEditor((s) => s.scene.junctions);
 	const point = road.points[index];
 	if (!point) {
 		return null;
@@ -36,6 +44,14 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 				? "end"
 				: null;
 	const canSplit = road.loops || end === null;
+	// The junction this end is at, if any (ADR-0136), and the other road ends there.
+	const junction = end ? junctions[junctionIndexOf(junctions, road.id, end)] : undefined;
+	const others = (junction?.ends ?? []).filter((e) => !(e.roadId === road.id && e.end === end));
+	const otherRoads = others.flatMap((e) => {
+		const other = roads.find((r) => r.id === e.roadId);
+		return other ? [{ road: other, end: e.end }] : [];
+	});
+	const names = [...new Set(otherRoads.map((other) => `“${roadNameOf(other.road)}”`))];
 
 	const joinOptions = end
 		? roads
@@ -122,14 +138,50 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 					</Button>
 				)}
 
-				{end && (
+				{end && !junction && (
 					<Button size="sm" icon="edit" onClick={() => store().continueDrawing(road.id, end)}>
 						Continue drawing
 					</Button>
 				)}
 			</ButtonGroup>
 
-			{end && joinOptions.length > 0 && (
+			{end && junction && (
+				<ButtonGroup vertical>
+					<GroupLabel>At a junction</GroupLabel>
+
+					<Hint>
+						{`Connected to ${names.join(" and ")}: vehicles drive on from one road to another. Moving this point moves the junction, and the other roads' ends follow.`}
+					</Hint>
+
+					<Button size="sm" icon="road" block onClick={() => store().drawRoadFrom(road.id, end)}>
+						Draw a road from here
+					</Button>
+
+					{otherRoads.length === 1 && otherRoads[0].road.id !== road.id && (
+						<Button
+							size="sm"
+							icon="join"
+							block
+							onClick={() =>
+								store().joinRoads(road.id, end, otherRoads[0].road.id, otherRoads[0].end)
+							}
+						>
+							Join into one road
+						</Button>
+					)}
+
+					<Button
+						size="sm"
+						icon="cut"
+						block
+						onClick={() => store().disconnectRoadEnd(road.id, end)}
+					>
+						Disconnect
+					</Button>
+				</ButtonGroup>
+			)}
+
+			{end && !junction && joinOptions.length > 0 && (
 				<ButtonGroup vertical>
 					<GroupLabel>Join with</GroupLabel>
 
@@ -147,6 +199,34 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 								: `${roadNameOf(option.road)} (${option.end})`}
 						</Button>
 					))}
+				</ButtonGroup>
+			)}
+
+			{end && !junction && joinOptions.some((option) => option.road.id !== road.id) && (
+				<ButtonGroup vertical>
+					<GroupLabel>Connect at a junction with</GroupLabel>
+
+					{joinOptions
+						.filter((option) => option.road.id !== road.id)
+						.map((option) => (
+							<Button
+								key={`${option.road.id}:${option.end}`}
+								size="sm"
+								icon="road"
+								block
+								meta={`${option.distance.toFixed(1)} away`}
+								onClick={() =>
+									store().connectRoads(road.id, end, {
+										kind: "end",
+										roadId: option.road.id,
+										end: option.end,
+										point: endPoint(option.road, option.end),
+									})
+								}
+							>
+								{`${roadNameOf(option.road)} (${option.end})`}
+							</Button>
+						))}
 				</ButtonGroup>
 			)}
 		</Section>

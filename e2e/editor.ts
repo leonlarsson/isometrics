@@ -3,10 +3,13 @@ import { test as base, expect, type Page } from "@playwright/test";
 import type { IEditorState, useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import {
+	EntitySchema,
+	RoadSchema,
 	type TArea,
 	type TEntity,
 	type TFence,
 	type TFenceGate,
+	type TJunction,
 	type TRoad,
 	type TViewPose,
 	WorldDataSchema,
@@ -28,6 +31,12 @@ declare global {
 		pose: () => TViewPose | null;
 		/** Draw calls per frame (every render pass), averaged over `frames` frames. */
 		drawCalls: (frames?: number) => Promise<number>;
+		/** The road a vehicle is on now and which way, as its route highlight marks it (ADR-0136). */
+		roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
+		/** The roads each way ahead the route highlight shows goes along, by vehicle id (ADR-0136). */
+		routesShown: () => Record<string, string[]>;
+		/** Where a driving vehicle is drawn now, on the ground. */
+		poseOf: (entityId: string) => { position: [number, number] } | null;
 	};
 }
 
@@ -114,6 +123,8 @@ export const entity = (page: Page, id: string) =>
 export interface ITestWorld {
 	entities?: Partial<TEntity>[];
 	roads?: Partial<TRoad>[];
+	/** Junctions between the roads' ends (ADR-0136); none if left out. */
+	junctions?: TJunction[];
 	areas?: Partial<TArea>[];
 	fences?: (Partial<Omit<TFence, "gates">> & { gates?: Partial<TFenceGate>[] })[];
 	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
@@ -127,11 +138,24 @@ export interface ITestWorld {
  */
 export const loadWorld = async (page: Page, given: ITestWorld) => {
 	// The data with its defaults filled in, as a world file's are when it opens.
-	const world = { ...given, data: given.data ? WorldDataSchema.parse(given.data) : undefined };
+	const world = {
+		...given,
+		data: given.data ? WorldDataSchema.parse(given.data) : undefined,
+		// A road's defaults, for when the world open has no road to copy them from.
+		// An object's too.
+		entityDefaults: EntitySchema.parse({ id: "entity", kind: "house_01" }),
+		roadDefaults: RoadSchema.parse({
+			id: "road",
+			points: [
+				[0, 0],
+				[1, 0],
+			],
+		}),
+	};
 	await page.evaluate((world) => {
 		const state = globalThis.__editorStore.getState();
 		const scene = structuredClone(state.scene);
-		const template = { ...scene.entities[0] };
+		const template = { ...(scene.entities[0] ?? world.entityDefaults) };
 		scene.entities = (world.entities ?? []).map((e) => ({
 			...template,
 			name: "",
@@ -157,17 +181,23 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 			isLocked: false,
 			...e,
 		})) as typeof scene.entities;
-		const road = scene.roads[0];
+		const road = scene.roads[0] ?? world.roadDefaults;
 		scene.roads = (world.roads ?? []).map((r) => ({
 			...road,
 			name: "",
 			loops: false,
 			colors: {},
-			traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+			traffic: {
+				drivingLane: "side",
+				turnStyle: null,
+				leansInTurns: null,
+				drivesThroughJunctions: null,
+			},
 			isHidden: false,
 			isLocked: false,
 			...r,
 		})) as typeof scene.roads;
+		scene.junctions = world.junctions ?? [];
 		const area = scene.areas[0];
 		scene.areas = (world.areas ?? []).map((a) => ({
 			...area,

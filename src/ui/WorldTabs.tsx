@@ -349,6 +349,22 @@ export const TrafficTab = () => {
 			/>
 
 			<SwitchField
+				label="Drive through junctions onto other roads"
+				checked={scene.traffic.drivesThroughJunctions}
+				onChange={(v) =>
+					commit((s) => {
+						s.traffic.drivesThroughJunctions = v;
+					})
+				}
+				inherit={resetToDefault(scene.traffic.drivesThroughJunctions, true, () =>
+					commit((s) => {
+						s.traffic.drivesThroughJunctions = true;
+					}),
+				)}
+				hint="At each junction, vehicles pick a way on at random. Off, each keeps to the road it starts on and turns round at its junctions. Roads and vehicles can override this."
+			/>
+
+			<SwitchField
 				inherit={resetToDefault(scene.traffic.keepsDistance, true, () =>
 					commit((s) => {
 						s.traffic.keepsDistance = true;
