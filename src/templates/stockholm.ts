@@ -323,6 +323,8 @@ const STORTORGET_MIDDLE: TVec2 = [1.9, 1.3];
 const onStortorget = inFrame(STORTORGET_MIDDLE, 25);
 const PALACE_MIDDLE: TVec2 = [6.4, -17.6];
 const byThePalace = inFrame(PALACE_MIDDLE, 25);
+/** Storkyrkan, across the top of Slottsbacken from the palace. */
+const STORKYRKAN: TVec2 = [-2.3, -7.8];
 
 /** Gamla stan's squares. */
 const STORTORGET = turnedRect(STORTORGET_MIDDLE, 25, 4.6, 3.6);
@@ -333,10 +335,10 @@ const MYNTTORGET = rect(-8.6, -18, -4.2, -15.4);
 /** Slottsbacken: down from Storkyrkan along the palace's south front to Skeppsbron. */
 const SLOTTSBACKEN = (
 	[
-		[-3.6, 5.3],
+		[-6.4, 5.3],
 		[9.4, 5.3],
 		[9.4, 8.6],
-		[-3.6, 8.6],
+		[-6.4, 8.6],
 	] as TVec2[]
 ).map(byThePalace);
 /** The palace's quay on the water to the north, Lejonbacken. */
@@ -1194,7 +1196,7 @@ const KEEP_OUT: TVec2[][] = [
 	turnedRect(PALACE_MIDDLE, 25, 13.8, 10.6), // the palace and its wings
 	SLOTTSBACKEN,
 	PALACE_QUAY,
-	turnedRect([-1.5, -8.4], 115, 3.6, 7), // Storkyrkan
+	turnedRect(STORKYRKAN, 115, 3.6, 7), // Storkyrkan
 	STORTORGET,
 	turnedRect([5.4, 6.9], -65, 4, 6.6), // Tyska kyrkan and its churchyard
 	JARNTORGET,
@@ -1333,7 +1335,7 @@ const landmarks: TEntityInput[] = [
 		id: "storkyrkan",
 		kind: "church_02",
 		name: "Storkyrkan",
-		position: [-1.5, -8.4],
+		position: STORKYRKAN,
 		altitude: ISLAND,
 		// Its tower to the east, at the top of Slottsbacken.
 		rotation: turned(115),
@@ -1799,33 +1801,85 @@ const isBuildable = (point: TVec2) =>
 	) &&
 	BLOCK_KEEP_OUT.every((zone) => !isInsidePolygon(point, zone));
 
-const BLOCK_SIZE: TVec2 = [6.6, 5.5];
-const BLOCK_STREET = 1.3;
+/**
+ * The districts' grids, [x, z] of one block's middle, and which blocks to try from it. Big
+ * blocks are laid first, then smaller ones (two rows back to back) wherever a big one won't fit:
+ * along the waterfronts, between the parks, up to the cliffs.
+ */
+const DISTRICTS = [
+	// Norrmalm, from Klara sjö to Blasieholmen.
+	{
+		origin: [-2, -52],
+		big: { columns: [-8, 6], rows: [-1, 3] },
+		small: { columns: [-12, 9], rows: [-3, 5] },
+		floorCount: 7,
+	},
+	// Kungsholmen, round Stadshuset.
+	{
+		origin: [-89.3, -43],
+		big: { columns: [0, 1], rows: [-2, 3] },
+		small: { columns: [-1, 3], rows: [-5, 7] },
+		floorCount: 6,
+	},
+	// Södermalm's heights.
+	{
+		origin: [-83, 50.6],
+		big: { columns: [0, 16], rows: [-1, 1] },
+		small: { columns: [0, 24], rows: [-3, 3] },
+		floorCount: 6,
+	},
+] as const;
+const BIG_BLOCK: TVec2 = [6.6, 5.5];
+const SMALL_BLOCK: TVec2 = [4.4, 3.3];
 
-const cityBlocks: TEntityInput[] = (
-	[
-		// Norrmalm, from Klara sjö to Blasieholmen.
-		{ origin: [-2, -52], columns: [-8, 6], rows: [-1, 3], floorCount: 7 },
-		// Kungsholmen, round Stadshuset.
-		{ origin: [-84.6, -43], columns: [0, 1], rows: [-2, 3], floorCount: 6 },
-		// Södermalm's heights.
-		{ origin: [-83, 50.6], columns: [0, 16], rows: [-1, 1], floorCount: 6 },
-	] as const
-)
-	.flatMap(({ origin, columns, rows, floorCount }) =>
-		layBlocks(
-			{
-				origin: [...origin],
-				turn: 0,
-				size: BLOCK_SIZE,
-				street: BLOCK_STREET,
-				columns: [...columns],
-				rows: [...rows],
-			},
-			isBuildable,
-		).map((block) => ({ block, floorCount })),
-	)
-	.flatMap(({ block, floorCount }, i) => cityBlock(block, floorCount, i));
+/** The grid shifted by these shares of a block and its street, to fit more in round the edges. */
+const SHIFTS: TVec2[] = [0, 1 / 3, 2 / 3].flatMap((x) =>
+	[0, 1 / 3, 2 / 3].map((z): TVec2 => [x, z]),
+);
+
+/** What's been laid, each with the street round it: x and z from and to (the grids aren't turned). */
+const builtOn: [number, number, number, number][] = [];
+const isFree = ([x, z]: TVec2) =>
+	builtOn.every(([x1, z1, x2, z2]) => x <= x1 || x >= x2 || z <= z1 || z >= z2) &&
+	isBuildable([x, z]);
+
+/** Lays blocks of a size over the districts, at each shift of the grid, clear of all laid before. */
+const layAll = (size: TVec2, street: number, pick: "big" | "small") =>
+	SHIFTS.flatMap(([shiftX, shiftZ]) =>
+		DISTRICTS.flatMap((district) => {
+			const laid = layBlocks(
+				{
+					origin: [
+						district.origin[0] + shiftX * (size[0] + street),
+						district.origin[1] + shiftZ * (size[1] + street),
+					],
+					turn: 0,
+					size,
+					street,
+					columns: [...district[pick].columns],
+					rows: [...district[pick].rows],
+				},
+				isFree,
+			);
+			builtOn.push(
+				...laid.map(({ centre: [x, z] }): [number, number, number, number] => [
+					x - size[0] / 2 - street,
+					z - size[1] / 2 - street,
+					x + size[0] / 2 + street,
+					z + size[1] / 2 + street,
+				]),
+			);
+			return laid.map((block) => ({
+				block,
+				floorCount: district.floorCount - (pick === "small" ? 1 : 0),
+			}));
+		}),
+	);
+
+const cityBlocks: TEntityInput[] = [
+	...layAll(BIG_BLOCK, 1.3, "big"),
+	...layAll(SMALL_BLOCK, 1, "small"),
+].flatMap(({ block, floorCount }, i) => cityBlock(block, floorCount, i));
 
 /** The tall houses along Söder Mälarstrand, at the foot of Mariaberget's cliff. */
 const soderShoreRows: TEntityInput[] = layRowsAlong({
@@ -1856,16 +1910,19 @@ const soderShoreRows: TEntityInput[] = layRowsAlong({
 /** Skeppsholmen's old naval buildings, long and yellow, along the island. */
 const skeppsholmenRows: TEntityInput[] = (
 	[
-		[53, -23.5, 5],
-		[60, -20, 6],
-		[70, -13, 6],
-		[78, -6, 6],
-	] as [number, number, number][]
-).map(([x, z, houseCount], i) => ({
+		[53, -23.5, -41, 5],
+		[60, -20, -41, 6],
+		[70, -13, -41, 6],
+		[78, -6, -41, 6],
+		[84.3, -1, -41, 5],
+		[62.9, -2.3, 139, 5],
+		[59, 2.3, -41, 5],
+	] as [number, number, number, number][]
+).map(([x, z, turn, houseCount], i) => ({
 	...mainlandRow(
 		`skeppsholmen_row_${i}`,
 		[x, z],
-		-41,
+		turn,
 		houseCount,
 		{ floorCount: 3, houseWidth: 1.2, shopShare: 0 },
 		i,
@@ -2440,10 +2497,10 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_centralbron",
 		name: "Centralbron",
 		description: "The evening traffic's headlights along the canal.",
-		target: [-17, 25],
+		target: [-17, 22],
 		targetAltitude: 1,
 		azimuth: 255,
-		elevation: 16,
+		elevation: 20,
 		span: 22,
 		projection: "perspective",
 		moodId: "mood_night",
@@ -2480,7 +2537,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		target: [-42, -5],
 		targetAltitude: 1,
 		azimuth: 262,
-		elevation: 12,
+		elevation: 15,
 		span: 70,
 		projection: "perspective",
 		moodId: "mood_evening",
