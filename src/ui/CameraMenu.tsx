@@ -28,7 +28,7 @@ const LENSES = [
 /**
  * The toolbar's camera menu (ADR-0062): diorama or perspective view, a lens a
  * click away, re-centring, and the way to the Camera tab and Preferences. The
- * overlays have a menu of their own beside the shading switcher (ADR-0134).
+ * overlays have a menu of their own beside the shading switcher (ADR-0141).
  */
 export const CameraMenu = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");

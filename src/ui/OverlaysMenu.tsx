@@ -60,7 +60,7 @@ const OverlayItems = () => {
 };
 
 /**
- * The toolbar's Overlays menu (ADR-0134), beside the shading switcher, like Blender's: what's
+ * The toolbar's Overlays menu (ADR-0141), beside the shading switcher, like Blender's: what's
  * drawn over the view (the compass, the view label, viewpoints, the grids), shown or hidden in a
  * click. They're this browser's preferences (ADR-0062), the same as on Preferences → Overlays.
  */

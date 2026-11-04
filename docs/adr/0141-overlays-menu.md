@@ -3,7 +3,7 @@ status: proposed
 date: 2026-11-04
 ---
 
-# 0134. An Overlays menu beside the shading switcher
+# 0141. An Overlays menu beside the shading switcher
 
 ## Context and problem statement
 

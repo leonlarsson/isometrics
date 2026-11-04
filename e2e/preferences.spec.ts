@@ -164,7 +164,7 @@ test.describe("Preferences (ADR-0062, ADR-0068)", () => {
 		);
 	});
 
-	test("the Overlays menu hides the compass, Preferences follow, and it shows again (ADR-0134)", async ({
+	test("the Overlays menu hides the compass, Preferences follow, and it shows again (ADR-0141)", async ({
 		page,
 	}) => {
 		const compass = page.getByRole("button", { name: "Look straight down" });
