@@ -5,6 +5,10 @@ import { apartmentBlock01 } from "./buildings/apartment_block_01";
 import { barn01 } from "./buildings/barn_01";
 import { cafe01 } from "./buildings/cafe_01";
 import { church01 } from "./buildings/church_01";
+import { church02 } from "./buildings/church_02";
+import { church03 } from "./buildings/church_03";
+import { church04 } from "./buildings/church_04";
+import { cityHall01 } from "./buildings/city_hall_01";
 import { depot01 } from "./buildings/depot_01";
 import { factory01 } from "./buildings/factory_01";
 import { grandstand01 } from "./buildings/grandstand_01";
@@ -13,6 +17,7 @@ import { house01 } from "./buildings/house_01";
 import { houseCluster01 } from "./buildings/house_cluster_01";
 import { lighthouse01 } from "./buildings/lighthouse_01";
 import { officeTower01 } from "./buildings/office_tower_01";
+import { palace01 } from "./buildings/palace_01";
 import { petrolStation01 } from "./buildings/petrol_station_01";
 import { school01 } from "./buildings/school_01";
 import { shedCluster01 } from "./buildings/shed_cluster_01";
@@ -20,6 +25,7 @@ import { shop01 } from "./buildings/shop_01";
 import { shop02 } from "./buildings/shop_02";
 import { tentCluster01 } from "./buildings/tent_cluster_01";
 import { terracedRow01 } from "./buildings/terraced_row_01";
+import { terracedRow02 } from "./buildings/terraced_row_02";
 import { towerCluster01 } from "./buildings/tower_cluster_01";
 import { warehouse01 } from "./buildings/warehouse_01";
 import { bench01 } from "./furniture/bench_01";
@@ -121,11 +127,17 @@ export const PARTS: TAnyPart[] = [
 	apartmentBlock01,
 	house01,
 	terracedRow01,
+	terracedRow02,
 	shop01,
 	shop02,
 	cafe01,
 	school01,
 	church01,
+	church02,
+	church03,
+	church04,
+	palace01,
+	cityHall01,
 	depot01,
 	factory01,
 	petrolStation01,
