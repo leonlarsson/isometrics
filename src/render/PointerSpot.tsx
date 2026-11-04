@@ -9,6 +9,7 @@ import { isOverWorld } from "#/lib/pointer";
 import type { TViewPose } from "#/scene/schema";
 
 import { drawCallsPerFrame } from "./drawCalls";
+import { routesShown } from "./RouteHighlight";
 import { currentView } from "./viewpoints";
 
 const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -60,6 +61,7 @@ export const PointerSpot = () => {
 				pose: () => TViewPose | null;
 				drawCalls: (frames?: number) => Promise<number>;
 				roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
+				routesShown: () => Record<string, string[]>;
 			};
 		};
 		if (import.meta.env.DEV) {
@@ -81,6 +83,8 @@ export const PointerSpot = () => {
 					const entity = useEditor.getState().scene.entities.find((e) => e.id === entityId);
 					return entity ? roadOfVehicleNow(entity) : null;
 				},
+				// The roads each way ahead the route highlight shows goes along, by vehicle id.
+				routesShown: () => Object.fromEntries(routesShown),
 			};
 		}
 		return () => {

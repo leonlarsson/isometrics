@@ -33,6 +33,8 @@ declare global {
 		drawCalls: (frames?: number) => Promise<number>;
 		/** The road a vehicle is on now and which way, as its route highlight marks it (ADR-0136). */
 		roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
+		/** The roads each way ahead the route highlight shows goes along, by vehicle id (ADR-0136). */
+		routesShown: () => Record<string, string[]>;
 	};
 }
 

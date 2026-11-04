@@ -470,7 +470,7 @@ test.describe("junctions (ADR-0136)", () => {
 		expect(await read(page, (s) => s.scene.junctions.map((j) => j.ends.length))).toEqual([2]);
 	});
 
-	test("a vehicle that crossed a junction, once selected, marks the road it's on now", async ({
+	test("a vehicle that crossed a junction, once selected, marks the road it's on now and the way ahead", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -504,6 +504,7 @@ test.describe("junctions (ADR-0136)", () => {
 				},
 			],
 			entities: [
+				{ id: "bus", kind: "bus_01", position: [-10, 6] },
 				{
 					id: "car",
 					kind: "car_01",
@@ -519,6 +520,21 @@ test.describe("junctions (ADR-0136)", () => {
 			],
 		});
 		await showView(page, [-4, -4], 30);
+		// Dropped on a road with a junction, the preview shows the way it will go: on through the
+		// junction, not back and forth along the one road.
+		await act(page, (s) =>
+			s.setFollowOffer({
+				entityId: "bus",
+				roadId: "west",
+				startDistance: 5,
+				drivesTheOtherWay: false,
+				position: [-10, 6],
+			}),
+		);
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.routesShown().bus?.slice(0, 2)))
+			.toEqual(["west", "north"]);
+		await act(page, (s) => s.setFollowOffer(null));
 		await act(page, (s) => {
 			if (!s.playing) {
 				s.togglePlaying();
@@ -537,7 +553,11 @@ test.describe("junctions (ADR-0136)", () => {
 			roadId: "north",
 			drivesTheOtherWay: false,
 		});
-		expect(await read(page, (s) => s.scene.entities[0].follow?.roadId)).toBe("west");
+		expect(await read(page, (s) => s.scene.entities[1].follow?.roadId)).toBe("west");
+		// Its way ahead starts on the road it's on now.
+		await expect
+			.poll(() => page.evaluate(() => globalThis.__editorView.routesShown().car?.[0]))
+			.toBe("north");
 		await page.getByRole("tab", { name: "Motion" }).click();
 		await expect(page.getByText("Now on “North”")).toBeVisible();
 	});

@@ -288,13 +288,17 @@ export interface IJoinOffer {
 export interface IRoutePreview {
 	roadId: string;
 	drivesTheOtherWay: boolean;
+	/** Distance along the road where it would start (a follow's `startDistance`). */
+	startDistance: number;
+	/**
+	 * The vehicle (or the id it will get, while it's placed from Add to scene): on a road with a
+	 * junction its way across the network is seeded by it, so the preview shows that way (ADR-0136).
+	 */
+	entityId: string;
 }
 
 /** A vehicle that was just dropped onto a road; the UI asks whether it should drive along it. */
 export interface IFollowOffer extends IRoutePreview {
-	entityId: string;
-	/** Distance along the road where it would start (a follow's `startDistance`). */
-	startDistance: number;
 	/** Where it was dropped; the offer lapses once it has moved. */
 	position: TVec2;
 }
