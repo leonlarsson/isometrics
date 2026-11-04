@@ -141,6 +141,26 @@ describe("copying and pasting things (ADR-0068)", () => {
 			[20, 10],
 		]);
 	});
+
+	it("pasted at a spot onto a shape, lands on its top, a stack kept a stack (ADR-0138)", () => {
+		useEditor.getState().loadScene(
+			SceneSchema.parse({
+				version: 1,
+				entities: [
+					{ id: "pedestal", kind: "box_01", position: [5, 5], props: { width: 3, depth: 3 } },
+					{ id: "low", kind: "box_01", position: [0, 0] },
+					{ id: "high", kind: "box_01", position: [0, 0], altitude: 1 },
+				],
+			}),
+		);
+		select("low", "high");
+		pasteText(selectedThingsText()!, { at: [5, 5] });
+		const pasted = useEditor
+			.getState()
+			.scene.entities.slice(-2)
+			.map((e) => e.altitude);
+		expect(pasted).toEqual([1, 2]);
+	});
 });
 
 describe("names of pasted things (ADR-0068)", () => {

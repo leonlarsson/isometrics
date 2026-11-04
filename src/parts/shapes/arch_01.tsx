@@ -15,6 +15,7 @@ import {
 	sizeProps,
 	useShapeGeometry,
 } from "./shapeKit";
+import { flatTop } from "./shapeTops";
 
 const ArchSchema = z.object({
 	...sizeProps({ width: 1.5, depth: 0.5, height: 1.5 }),
@@ -56,6 +57,7 @@ export const arch01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: flatTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		const outline = { ...p, opening: "arch" as const };
 		const geometry = useShapeGeometry(openingKey("arch", outline, p.depth, p.sideCount), () =>

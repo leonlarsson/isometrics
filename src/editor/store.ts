@@ -6,14 +6,13 @@ import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { APP_NAME } from "#/lib/app";
 import { normalizeDegrees, round, snap } from "#/lib/math";
 import { getPart } from "#/parts/registry";
+import { altitudeMovedTo, standingAltitudeAt } from "#/parts/standing";
 import {
 	AREA_KIND_LABELS,
 	AREA_KINDS,
-	altitudeMovedTo,
 	areaTopAt,
 	cornerLift,
 	cornerWithLift,
-	groundHeightAt,
 	isInsidePolygon,
 	isWaterArea,
 	liftForTop,
@@ -2046,9 +2045,10 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			addEntity: (input) => {
 				const entity = EntitySchema.parse({ ...input, id: input.id ?? newId(input.kind) });
-				// Without a height of its own, it stands on the ground where it's put (ADR-0098).
+				// Without a height of its own, it stands on what's where it's put: the ground, or the top of
+				// a shape (ADR-0098, ADR-0138).
 				if (input.altitude === undefined) {
-					entity.altitude = groundHeightAt(get().scene.areas, entity.position);
+					entity.altitude = standingAltitudeAt(get().scene, entity.position);
 				}
 				get().commit((scene) => {
 					scene.entities.push(entity);
@@ -2121,14 +2121,10 @@ export const createEditorStore = (openScene?: TScene) => {
 					id,
 					(entity) => {
 						const to: TVec2 = [round(position[0]), round(position[1])];
-						// Placed freely, as high above the ground there as here (ADR-0098).
+						// Placed freely, as high above what it stands on there as here: the ground, or the top of
+						// a shape (ADR-0098, ADR-0138).
 						if (how?.followGround) {
-							entity.altitude = altitudeMovedTo(
-								get().scene.areas,
-								entity.altitude,
-								entity.position,
-								to,
-							);
+							entity.altitude = altitudeMovedTo(get().scene, entity, to);
 						}
 						entity.position = to;
 					},

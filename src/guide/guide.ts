@@ -38,7 +38,7 @@ export const GUIDE: IGuideSection[] = [
 				kind: "points",
 				points: [
 					"**Objects**: buildings, vehicles, trees, lamps and more, from **Add to scene** on the left. Each has its own settings: size, colours, lights.",
-					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point. A fence can have gates, open or shut by hand or from data, and an area makes one round itself with **Fence along the edge**.",
+					"**Roads**, **areas** (water, grass, sand, plazas, raised land) and **fences**, drawn point by point. A fence can have gates, open or shut by hand or from data, and an area makes one round itself with **Fence along the edge**. With **Textured surfaces** on (World tab, Ground), the ground and areas are drawn as grass, sand, gravel, paving, concrete, cobbles, dirt or snow, in their own colours.",
 					"**Label cards** float over objects with a title and values.",
 					"**Data**: **values** (one number, like registered users), **tables** (rows, one for each warehouse, game or city) and the **sources** they're read from: a spreadsheet, a link or an API.",
 					"Things **follow data**: an object follows a table row, and its size, colours, lights and card show the row's columns. Roads show flows (from, to, amount) with their width and vehicles.",
@@ -222,6 +222,7 @@ export const GUIDE: IGuideSection[] = [
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",
 					"Roads follow rows the same way, with `flow: { enabled: true }` and `data.width` / `data.vehicleDensity` bindings for amounts.",
+					"Textured ground and areas: `surface: { enabled: true }`, then `ground.surface.kind` (`grass_01`, `paving_01`, …) for the ground; areas follow their kind (a plaza is paving) unless `surface.kind` says otherwise.",
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground), each with where it is.",
 					"Long worlds are best handed over as a file, `world.json`: **Upload a file…** in Build with AI opens it.",

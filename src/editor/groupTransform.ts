@@ -1,4 +1,6 @@
 import { clamp, normalizeDegrees, round } from "#/lib/math";
+import { getPart } from "#/parts/registry";
+import { standingAltitudeAt } from "#/parts/standing";
 import {
 	cornerLift,
 	cornerWithLift,
@@ -9,6 +11,7 @@ import {
 import type {
 	TArea,
 	TAreaPoint,
+	TEntity,
 	TFence,
 	TFencePoint,
 	TRoad,
@@ -80,13 +83,26 @@ export const groupStartOf = (
 				!thing.isLocked && selectedItems.some((item) => item.kind === kind && item.id === thing.id),
 		);
 	const unlocked = picked(scene.entities, "entity");
+	// How high each stands above what it stands on that doesn't move with it: the ground, or a shape
+	// left where it is (ADR-0098, ADR-0138). One on another that moves too stays on it, and so does
+	// a copy on a copy (Ctrl+drag): the originals left in their places don't count.
+	const placeOf = (entity: TEntity) =>
+		JSON.stringify([entity.kind, entity.position, entity.altitude, entity.rotation, entity.scale]);
+	const movingPlaces = new Set(unlocked.map(placeOf));
+	const moving = new Set(unlocked.map((entity) => entity.id));
+	for (const entity of scene.entities) {
+		if (getPart(entity.kind)?.topHeightAt && movingPlaces.has(placeOf(entity))) {
+			moving.add(entity.id);
+		}
+	}
 	const entities = unlocked
 		.filter((entity) => !entity.follow)
 		.map(({ id, position, altitude, rotation, scale }) => ({
 			id,
 			position,
 			altitude,
-			aboveGround: altitude - groundHeightAt(scene.areas, position),
+			aboveGround:
+				altitude - standingAltitudeAt(scene, position, { except: moving, base: altitude }),
 			rotation,
 			scale,
 		}));
@@ -213,6 +229,13 @@ export const transformGroup = (
 		return { ...area, points, peaks, height: start.height };
 	});
 
+	// What else they land on: the shapes that stay where they are (ADR-0138).
+	const groundThere = { areas: groundThen, entities: store.scene.entities };
+	const moving = new Set([
+		...from.entities.map((start) => start.id),
+		...from.drivers.map((start) => start.id),
+	]);
+
 	store.commit((scene) => {
 		for (const start of from.entities) {
 			const entity = scene.entities.find((e) => e.id === start.id);
@@ -223,7 +246,7 @@ export const transformGroup = (
 			// Placed freely, as high above the ground there as it was (ADR-0098); lifted with the
 			// rest either way. Objects may sink into the ground (ADR-0097).
 			const height = followGround
-				? groundHeightAt(groundThen, entity.position) + start.aboveGround
+				? standingAltitudeAt(groundThere, entity.position, { except: moving }) + start.aboveGround
 				: start.altitude;
 			entity.altitude = round(Math.max(LOWEST_ALTITUDE, height + lift));
 			// A group turns around the vertical; each keeps its tilt (ADR-0097).

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { Box, spread } from "../primitives";
+import { flatTop } from "../shapes/shapeTops";
 import { definePart } from "../types";
 
 /**
@@ -152,6 +153,9 @@ export const shippingContainer01 = definePart({
 	sizeAlong: { x: "length" },
 	footprint: (p) => [p.length, WIDTH],
 	height: (p) => p.containerCount * HEIGHT,
+	// Containers stack: one dropped or dragged onto another lands on its roof (ADR-0138).
+	topHeightAt: (p, x, z) =>
+		flatTop({ width: p.length, depth: WIDTH, height: p.containerCount * HEIGHT }, x, z),
 	Component: ({ props: p, colors }) => (
 		<group>
 			{Array.from({ length: p.containerCount }, (_, i) => i * HEIGHT).map((y) => (

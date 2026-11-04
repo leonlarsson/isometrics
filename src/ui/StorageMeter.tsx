@@ -1,16 +1,13 @@
-import { STORAGE_LIMIT_CHARS, storageUsage } from "#/editor/persistence";
+import {
+	formatStorageSize as formatSize,
+	STORAGE_LIMIT_CHARS,
+	storageUsage,
+} from "#/editor/persistence";
 
 import styles from "./StorageMeter.module.css";
 
 /** From this share of the limit on, the meter warns that storage is almost full. */
 const ALMOST_FULL = 0.8;
-
-const KB = 1024;
-const MB = 1024 * 1024;
-
-/** "320 KB" / "1.2 MB", counting a character as a byte, in the same units as the 5 MB limit. */
-const formatSize = (chars: number) =>
-	chars >= MB ? `${(chars / MB).toFixed(1)} MB` : `${Math.ceil(chars / KB)} KB`;
 
 /**
  * How much of the browser's storage for this site the worlds and backups use,

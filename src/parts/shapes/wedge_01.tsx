@@ -14,6 +14,7 @@ import {
 	sizeProps,
 	useShapeGeometry,
 } from "./shapeKit";
+import { wedgeTop } from "./shapeTops";
 
 const WedgeSchema = z.object({
 	...lookProps,
@@ -53,6 +54,7 @@ export const wedge01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: wedgeTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		const ridge = p.depth / 2 - p.ridgeShare * p.depth;
 		const geometry = useShapeGeometry(

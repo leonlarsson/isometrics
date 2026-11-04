@@ -9,7 +9,7 @@ import { toRadians } from "#/lib/math";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolvePartLights } from "#/parts/lightModel";
 import { getPart, resolveProps } from "#/parts/registry";
-import { groundHeightAt } from "#/scene/areas";
+import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import type { TVec2 } from "#/scene/schema";
 
 import { SelectionFrame } from "./EntityNode";
@@ -140,14 +140,16 @@ export const PlacementPreview = () => {
 				};
 				return { placement, drop };
 			}
-			// On the ground as it stands under the pointer, raised land too (ADR-0098).
-			const point = surfacePointOnRay(raycaster.ray, event.altKey);
+			// On what's under the pointer: the ground as it stands, raised land too (ADR-0098), or the
+			// top of a shape (ADR-0138).
+			const { scene } = useEditor.getState();
+			const point = surfacePointOnRay(raycaster.ray, event.altKey, 0, topsToStandOn(scene));
 			return point
 				? {
-						// On the ground there: on top of raised land (ADR-0098).
+						// Standing on it there.
 						placement: {
 							point,
-							altitude: groundHeightAt(useEditor.getState().scene.areas, point),
+							altitude: standingAltitudeAt(scene, point),
 							heading: 0,
 							pitch: 0,
 						},

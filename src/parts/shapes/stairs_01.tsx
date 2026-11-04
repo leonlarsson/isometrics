@@ -12,6 +12,7 @@ import {
 	sizeField,
 	sizeProps,
 } from "./shapeKit";
+import { stairsTop } from "./shapeTops";
 
 const StairsSchema = z.object({
 	...lookProps,
@@ -39,6 +40,7 @@ export const stairs01 = definePart({
 	sizeAlong: { x: "width", y: "height", z: "depth" },
 	footprint: (p) => [p.width, p.depth],
 	height: (p) => p.height,
+	topHeightAt: stairsTop,
 	Component: ({ props: p, colors, transparency, lights }) => {
 		const tread = p.depth / p.stepCount;
 		const rise = p.height / p.stepCount;
