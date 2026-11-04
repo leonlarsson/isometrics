@@ -94,6 +94,8 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			keepsOverGround: false,
 			keepsIsometricAngle: true,
 			turntable: { enabled: true, speed: -6, delay: 20 },
+			// The tour came later (ADR-0139): its default, which changes nothing.
+			tour: { enabled: false, holdSeconds: 6 },
 			tiltShift: { enabled: true, blurStrength: 0.6, sharpBandHeight: 0.2, sharpBandPosition: 0.4 },
 		});
 		expect(scene.backdrop).toMatchObject({ kind: "gradient", gradientAngle: 90 });

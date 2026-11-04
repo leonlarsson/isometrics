@@ -138,6 +138,37 @@ export const gatePlaceAt = (fence: Pick<TFence, "points" | "loops">, spot: reado
 };
 
 /**
+ * Where a gate dragged to a spot goes (ADR-0133): onto the stretch passing
+ * nearest it, at the place there nearest it, a multiple of `step` from the
+ * stretch's first point when given (snapping), and kept far enough from the
+ * stretch's ends for the gate's `width` to fit (in its middle if it can't).
+ */
+export const gateDraggedTo = (
+	fence: Pick<TFence, "points" | "loops">,
+	width: number,
+	spot: readonly number[],
+	step?: number,
+): Pick<TFenceGate, "spanIndex" | "alongShare"> | null => {
+	const place = gatePlaceAt(fence, spot);
+	if (!place) {
+		return null;
+	}
+	const [a, b] = fenceStretches(fence)[place.spanIndex];
+	const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+	if (length <= width || length < 1e-9) {
+		return { spanIndex: place.spanIndex, alongShare: 0.5 };
+	}
+	// Unrounded, so a snapped distance comes out exact.
+	const { share } = nearestOnLine([a, b], spot);
+	let distance = share * length;
+	if (step && step > 0) {
+		distance = Math.round(distance / step) * step;
+	}
+	distance = Math.min(length - width / 2, Math.max(width / 2, distance));
+	return { spanIndex: place.spanIndex, alongShare: round(distance / length, 4) };
+};
+
+/**
  * A fence's gates once its points change (a point added or taken out, the
  * fence split, joined or opened; ADR-0133): each stays where it stood on the
  * ground, on whichever of `onto` (the fences it is now part of) passes nearest
