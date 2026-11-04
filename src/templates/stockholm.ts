@@ -1623,35 +1623,75 @@ const mainlandRow = (
 	},
 });
 
-/** Norrmalm and Kungsholmen behind the waterfront: blocks of flats and offices. */
+/**
+ * Norrmalm and Kungsholmen behind the waterfront: stone city blocks, rows of
+ * tall houses round a courtyard, each side a row (light to draw, ADR-0142).
+ */
+const HOUSE_IN_BLOCK = 1.1;
+const cityBlock = (
+	[x, z, width, depth, floorCount]: [number, number, number, number, number],
+	i: number,
+): TEntityInput[] => {
+	// Back to back where the block is too narrow for a courtyard, their eaves just apart.
+	const rowDepth = Math.min(2, depth / 2 - 0.05);
+	const more = { floorCount, depth: rowDepth, gableShare: 0.05, floorCountVariation: 0 };
+	const across = Math.floor(width / HOUSE_IN_BLOCK);
+	const along = Math.floor((depth - 2 * rowDepth) / HOUSE_IN_BLOCK);
+	return [
+		mainlandRow(`city_block_${i}_south`, [x, z + depth / 2 - rowDepth / 2], 0, across, more, i),
+		mainlandRow(
+			`city_block_${i}_north`,
+			[x, z - depth / 2 + rowDepth / 2],
+			180,
+			across,
+			more,
+			i + 3,
+		),
+		...(along > 0
+			? [
+					mainlandRow(
+						`city_block_${i}_east`,
+						[x + width / 2 - rowDepth / 2, z],
+						90,
+						along,
+						more,
+						i + 1,
+					),
+					mainlandRow(
+						`city_block_${i}_west`,
+						[x - width / 2 + rowDepth / 2, z],
+						-90,
+						along,
+						more,
+						i + 4,
+					),
+				]
+			: []),
+	];
+};
+
 const mainlandBlocks: TEntityInput[] = (
 	[
 		// [x, z, width, depth, floors]
-		[-40, -52, 6, 4, 7],
-		[-31, -54, 5, 5, 8],
-		[-20, -55, 6, 4, 7],
-		[-12, -55, 5, 4.4, 8],
-		[-2, -55, 6, 4.4, 7],
-		[20, -50, 5, 4, 7],
-		[28, -50, 6, 4, 6],
-		[38, -48, 5, 4, 6],
-		[-46, -56, 4, 5, 6],
-		[-84, -50, 6, 4, 6],
-		[-75, -50, 6, 4, 7],
-		[-66, -50, 5, 4, 6],
-		[-84, -38, 5, 4, 6],
-		[-84, -28, 5, 6, 5],
-		[60, -60, 7, 3, 6],
-		[72, -60, 7, 3, 6],
-		[84, -60, 6, 3, 6],
+		[-40, -52, 6.6, 4.4, 7],
+		[-31, -54, 5.5, 5.5, 8],
+		[-20, -55, 6.6, 4.4, 7],
+		[-12, -55, 5.5, 4.4, 8],
+		[-2, -55, 6.6, 4.4, 7],
+		[20, -50, 5.5, 4.4, 7],
+		[28, -50, 6.6, 4.4, 6],
+		[38, -48, 5.5, 4.4, 6],
+		[-46, -56, 4.4, 5.5, 6],
+		[-84, -50, 6.6, 4.4, 6],
+		[-75, -50, 6.6, 4.4, 7],
+		[-66, -50, 5.5, 4.4, 6],
+		[-84, -38, 5.5, 4.4, 6],
+		[-84, -28, 5.5, 6.6, 5],
+		[60, -60, 7.7, 3.4, 6],
+		[72, -60, 7.7, 3.4, 6],
+		[84, -60, 6.6, 3.4, 6],
 	] as [number, number, number, number, number][]
-).map(([x, z, width, depth, floorCount], i) => ({
-	id: `city_block_${i}`,
-	kind: "apartment_block_01",
-	position: [x, z] as TVec2,
-	colors: paint({ walls: CITY_WALLS[(i * 3) % CITY_WALLS.length] }),
-	props: { width, depth, floorCount },
-}));
+).flatMap(cityBlock);
 
 /** Rows along the waterfronts: Strömgatan's, Blasieholmen's, Strandvägen's. */
 const mainlandRows: TEntityInput[] = [

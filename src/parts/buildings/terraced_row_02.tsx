@@ -1,19 +1,23 @@
+import { useLayoutEffect, useMemo } from "react";
+import type * as THREE from "three";
 import { z } from "zod";
 
 import { lightEmission } from "../lights";
-import { jitter, spread } from "../primitives";
-import type { IResolvedLight } from "../types";
+import { jitter, Mat, spread, type TV3 } from "../primitives";
+import type { IPartRenderProps } from "../types";
 import { definePart } from "../types";
 
-import { Block, isWindowLit, Prism, shadeOf } from "./clusterPieces";
-import { PaneRow } from "./windowKit";
+import { isWindowLit, shadeOf } from "./clusterPieces";
+import { createPieces } from "./mergedKit";
 
 /**
  * An old town's row of tall narrow houses (Gamla stan, Bryggen, Amsterdam's
  * canals): each house its own height, colour and roof, most with their eaves
- * to the street and some with a gable, plain or stepped. Drawn from a handful
- * of shapes of size 1 (`clusterPieces`), so every house of every row shares
- * them and they're drawn together (ADR-0086); its windows light one by one.
+ * to the street and some with a gable, plain or stepped. The whole
+ * row is built once as one geometry with a colour per vertex (`mergedKit`,
+ * ADR-0142), with its lit windows and its shop windows a mesh each, so an old
+ * town of hundreds of houses is a few hundred meshes; its windows light one by
+ * one, a floor of a house (a flat) at a time.
  */
 
 const TerraceSchema = z.object({
@@ -101,157 +105,227 @@ const tallestOf = (p: TTerrace) =>
 /** Window columns across a house's front: three on most, two on narrow ones, four on wide. */
 const columnsOf = (houseWidth: number) => (houseWidth < 0.72 ? 2 : houseWidth > 1.25 ? 4 : 3);
 
-interface IHouseProps {
-	house: IHouse;
-	p: TTerrace;
-	index: number;
-	colors: Record<(typeof WALL_COLOURS)[number] | "roof" | "trim" | "doors", string>;
-	glass: string;
-	windows: IResolvedLight;
-	shops: IResolvedLight;
-}
+/** Where a point on a house's front (or, side −1, its back) is in the row: x across the house, z out from its middle. */
+const onFace = (house: IHouse, side: number, x: number, y: number, z: number): TV3 => [
+	house.x + side * x,
+	y,
+	side * z,
+];
 
-const House = ({ house, p, index, colors, glass, windows, shops }: IHouseProps) => {
-	const { wallHeight, roof, roofHeight } = house;
+/** Where a house's windows are: each floor's, the one downstairs beside the door, the gable's; each with when it lights. */
+const windowsOf = (p: TTerrace) => {
 	const front = p.depth / 2;
-	const wall = shadeOf(colors[WALL_COLOURS[house.wallTone]], house.shade);
-	const roofColor = shadeOf(colors.roof, house.shade * 0.8);
-	const columns = columnsOf(p.houseWidth);
-	const across = spread(columns, p.houseWidth * 0.86);
-	// The facades the windows are on: the front, and the back when the row is seen from behind too.
-	const faces = p.hasWindowsAtTheBack ? [1, -1] : [1];
-	const score = (k: number) => jitter(p.seed * 977 + index * 61 + k);
+	const across = spread(columnsOf(p.houseWidth), p.houseWidth * 0.86);
+	const sides = p.hasWindowsAtTheBack ? [1, -1] : [1];
+	return housesOf(p).flatMap((house, index) => {
+		const score = (k: number) => jitter(p.seed * 977 + index * 61 + k);
+		const turn = (side: number) => (side === 1 ? 0 : Math.PI);
+		return [
+			// Upstairs: a row of windows on each floor, a flat each, lit in its own turn.
+			...sides.flatMap((side) =>
+				Array.from({ length: house.floors - 1 }, (_, floor) => ({
+					panes: across.map((x) =>
+						onFace(house, side, x, GROUND_FLOOR + FLOOR * (floor + 0.5), front),
+					),
+					size: PANE,
+					out: 0.004,
+					turn: turn(side),
+					side,
+					score: score(side * 500 + floor * 7),
+				})),
+			),
+			// Downstairs, beside the door, where there's no shop.
+			...(house.hasShop
+				? []
+				: sides.map((side) => ({
+						panes: [onFace(house, side, -house.doorAt * p.houseWidth * 0.8, 0.24, front)],
+						size: [PANE[0], PANE[1] * 0.9] as const,
+						out: 0.012,
+						turn: turn(side),
+						side,
+						score: score(side * 500 + 99),
+					}))),
+			// The gable's, on gabled houses.
+			...(house.roof === "eaves"
+				? []
+				: [
+						{
+							panes: [onFace(house, 1, 0, house.wallHeight + house.roofHeight * 0.3, front)],
+							size: [PANE[0] * 0.8, PANE[1] * 0.75] as const,
+							out: 0.046,
+							turn: 0,
+							side: 1,
+							score: score(999),
+						},
+					]),
+		];
+	});
+};
+
+type TRowColors = Record<(typeof WALL_COLOURS)[number] | "roof" | "trim" | "doors", string>;
+
+/** The whole row but its lit windows and shop windows, as one geometry with a colour per vertex. */
+const bodyOf = (p: TTerrace, colors: TRowColors, glass: string) => {
+	const pieces = createPieces();
+	const front = p.depth / 2;
+	const sides = p.hasWindowsAtTheBack ? [1, -1] : [1];
 	const doorWidth = Math.min(0.2, p.houseWidth * 0.26);
+	for (const house of housesOf(p)) {
+		const { x, wallHeight, roof, roofHeight } = house;
+		const wall = shadeOf(colors[WALL_COLOURS[house.wallTone]], house.shade);
+		const roofColor = shadeOf(colors.roof, house.shade * 0.8);
+		pieces.box({
+			at: [x, wallHeight / 2, 0],
+			size: [p.houseWidth, wallHeight, p.depth],
+			color: wall,
+		});
+		// A cornice along the top of the front and back.
+		pieces.box({
+			at: [x, wallHeight - CORNICE / 2, 0],
+			size: [p.houseWidth - 0.01, CORNICE, p.depth + 0.05],
+			color: colors.trim,
+		});
+		for (const side of sides) {
+			pieces.box({
+				at: onFace(house, side, house.doorAt * p.houseWidth, 0.17, front + 0.008),
+				size: [doorWidth, 0.3, 0.016],
+				color: colors.doors,
+			});
+		}
+		if (roof === "eaves") {
+			// Its ridge along the street, the roof just over the walls' front and back.
+			pieces.prism({
+				at: [x, wallHeight, 0],
+				size: [p.houseWidth + 0.004, roofHeight, p.depth + EAVES * 2],
+				color: roofColor,
+			});
+			// Its side walls' gables under the roof, seen where a neighbour is lower.
+			pieces.prism({
+				at: [x, wallHeight, 0],
+				size: [p.houseWidth + 0.01, roofHeight * 0.97, p.depth],
+				color: wall,
+			});
+			if (house.hasChimney) {
+				pieces.box({
+					at: [x + p.houseWidth * 0.28, wallHeight + roofHeight * 0.7, -p.depth * 0.08],
+					size: [0.1, roofHeight * 0.75, 0.12],
+					color: shadeOf(wall, -0.3),
+				});
+			}
+		} else {
+			// Its gable to the street: the ridge runs back from the front.
+			pieces.prism({
+				at: [x, wallHeight, -0.01],
+				size: [p.depth - 0.02, roofHeight, p.houseWidth + 0.06],
+				color: roofColor,
+				turn: Math.PI / 2,
+			});
+			if (roof === "gable") {
+				// The gable's wall, up into the roof, just in front of it.
+				pieces.prism({
+					at: [x, wallHeight - 0.001, front + 0.012],
+					size: [0.05, roofHeight * 0.98, p.houseWidth],
+					color: wall,
+					turn: Math.PI / 2,
+				});
+			} else {
+				// A stepped gable: the front wall rising past the roof in steps.
+				for (const step of [0, 1, 2, 3]) {
+					pieces.box({
+						at: [x, wallHeight + (roofHeight * (step + 0.5)) / 4 + 0.02, front - 0.025],
+						size: [p.houseWidth * (1 - step * 0.24) + 0.02, roofHeight / 4 + 0.04, 0.07],
+						color: wall,
+					});
+				}
+			}
+		}
+	}
+	// Every window's glass, dark; the lit ones are drawn again just in front (litWindowsOf).
+	for (const window of windowsOf(p)) {
+		for (const [px, py, pz] of window.panes) {
+			pieces.pane({
+				at: [px, py, pz + window.side * window.out],
+				size: [window.size[0], window.size[1], 1],
+				color: glass,
+				turn: window.turn,
+			});
+		}
+	}
+	return pieces.geometry();
+};
+
+/** The windows lit now, as one geometry just in front of their glass; null when none is. */
+const litWindowsOf = (p: TTerrace, litPaneShare: number) => {
+	const pieces = createPieces();
+	for (const window of windowsOf(p)) {
+		if (!isWindowLit(window.score, litPaneShare)) {
+			continue;
+		}
+		for (const [px, py, pz] of window.panes) {
+			pieces.pane({
+				at: [px, py, pz + window.side * (window.out + 0.003)],
+				size: [window.size[0], window.size[1], 1],
+				color: "#ffffff",
+				turn: window.turn,
+			});
+		}
+	}
+	return pieces.isEmpty() ? null : pieces.geometry();
+};
+
+/** The shop windows downstairs, as one geometry; null when there are none. */
+const shopWindowsOf = (p: TTerrace) => {
+	const pieces = createPieces();
+	const front = p.depth / 2;
+	for (const house of housesOf(p)) {
+		if (!house.hasShop) {
+			continue;
+		}
+		for (const side of p.hasWindowsAtTheBack ? [1, -1] : [1]) {
+			pieces.box({
+				at: onFace(house, side, -house.doorAt * p.houseWidth * 0.75, 0.2, front + 0.008),
+				size: [p.houseWidth * 0.42, 0.22, 0.014],
+				color: "#ffffff",
+			});
+		}
+	}
+	return pieces.isEmpty() ? null : pieces.geometry();
+};
+
+/** Keeps a geometry while what it's built from stays the same, and lets it go when it's replaced. */
+const useGeometry = (build: () => THREE.BufferGeometry | null, key: string) => {
+	const geometry = useMemo(build, [key]);
+	useLayoutEffect(() => () => geometry?.dispose(), [geometry]);
+	return geometry;
+};
+
+const Row = ({
+	props: p,
+	colors,
+	palette,
+	lights,
+}: IPartRenderProps<TTerrace, keyof TRowColors>) => {
+	const look = JSON.stringify([p, colors, palette.glass]);
+	const body = useGeometry(() => bodyOf(p, colors, palette.glass), look);
+	const litPaneShare = lights.windows.litPaneShare;
+	const lit = useGeometry(() => litWindowsOf(p, litPaneShare), `${look}|${litPaneShare}`);
+	const shops = useGeometry(() => shopWindowsOf(p), look);
 	return (
-		<group position={[house.x, 0, 0]}>
-			<Block
-				position={[0, wallHeight / 2, 0]}
-				size={[p.houseWidth, wallHeight, p.depth]}
-				color={wall}
-			/>
+		<group>
+			<mesh geometry={body ?? undefined} castShadow receiveShadow>
+				<meshStandardMaterial vertexColors roughness={0.85} metalness={0} flatShading />
+			</mesh>
 
-			{/* A cornice along the top of the front and back. */}
-			<Block
-				position={[0, wallHeight - CORNICE / 2, 0]}
-				size={[p.houseWidth - 0.01, CORNICE, p.depth + 0.05]}
-				color={colors.trim}
-				castShadow={false}
-			/>
+			{lit && (
+				<mesh geometry={lit} visible={lights.windows.on}>
+					<Mat color={palette.glass} {...lightEmission(lights.windows, 1.3)} />
+				</mesh>
+			)}
 
-			{faces.map((side) => (
-				<group key={side} rotation={[0, side === 1 ? 0 : Math.PI, 0]}>
-					{/* Upstairs: a row of windows on each floor, a flat each, lit in its own turn. */}
-					{Array.from({ length: house.floors - 1 }, (_, floor) => {
-						const y = GROUND_FLOOR + FLOOR * (floor + 0.5);
-						return (
-							<PaneRow
-								key={y}
-								xs={across}
-								size={PANE}
-								position={[0, y, front + 0.004]}
-								color={glass}
-								{...(isWindowLit(score(side * 500 + floor * 7), windows.litPaneShare)
-									? lightEmission(windows, 1.3)
-									: {})}
-							/>
-						);
-					})}
-
-					{/* Downstairs: a door, and a shop window or two windows. */}
-					<Block
-						position={[house.doorAt * p.houseWidth, 0.17, front + 0.008]}
-						size={[doorWidth, 0.3, 0.016]}
-						color={colors.doors}
-						castShadow={false}
-					/>
-
-					{house.hasShop ? (
-						<Block
-							position={[-house.doorAt * p.houseWidth * 0.75, 0.2, front + 0.008]}
-							size={[p.houseWidth * 0.42, 0.22, 0.014]}
-							color={glass}
-							castShadow={false}
-							{...lightEmission(shops, 1.2)}
-						/>
-					) : (
-						<Block
-							position={[-house.doorAt * p.houseWidth * 0.8, 0.24, front + 0.006]}
-							size={[PANE[0], PANE[1] * 0.9, 0.012]}
-							color={glass}
-							castShadow={false}
-							{...(isWindowLit(score(side * 500 + 99), windows.litPaneShare)
-								? lightEmission(windows, 1.3)
-								: {})}
-						/>
-					)}
-				</group>
-			))}
-
-			{roof === "eaves" ? (
-				<>
-					{/* Its ridge along the street, the roof just over the walls' front and back. */}
-					<Prism
-						position={[0, wallHeight, 0]}
-						size={[p.houseWidth + 0.004, roofHeight, p.depth + EAVES * 2]}
-						color={roofColor}
-					/>
-
-					{/* Its side walls' gables under the roof, seen where a neighbour is lower. */}
-					<Prism
-						position={[0, wallHeight, 0]}
-						size={[p.houseWidth + 0.01, roofHeight * 0.97, p.depth]}
-						color={wall}
-						castShadow={false}
-					/>
-
-					{house.hasChimney && (
-						<Block
-							position={[p.houseWidth * 0.28, wallHeight + roofHeight * 0.7, -p.depth * 0.08]}
-							size={[0.1, roofHeight * 0.75, 0.12]}
-							color={shadeOf(wall, -0.3)}
-						/>
-					)}
-				</>
-			) : (
-				<>
-					{/* Its gable to the street: the ridge runs back from the front. */}
-					<Prism
-						position={[0, wallHeight, -0.01]}
-						size={[p.depth - 0.02, roofHeight, p.houseWidth + 0.06]}
-						rotation={[0, Math.PI / 2, 0]}
-						color={roofColor}
-					/>
-
-					{roof === "gable" ? (
-						// The gable's wall, up into the roof, just in front of it.
-						<Prism
-							position={[0, wallHeight - 0.001, front + 0.012]}
-							size={[0.05, roofHeight * 0.98, p.houseWidth]}
-							rotation={[0, Math.PI / 2, 0]}
-							color={wall}
-							castShadow={false}
-						/>
-					) : (
-						// A stepped gable: the front wall rising past the roof in steps.
-						[0, 1, 2, 3].map((step) => (
-							<Block
-								key={step}
-								position={[0, wallHeight + (roofHeight * (step + 0.5)) / 4 + 0.02, front - 0.025]}
-								size={[p.houseWidth * (1 - step * 0.24) + 0.02, roofHeight / 4 + 0.04, 0.07]}
-								color={wall}
-							/>
-						))
-					)}
-
-					{/* A window in the gable. */}
-					<Block
-						position={[0, wallHeight + roofHeight * 0.3, front + 0.04]}
-						size={[PANE[0] * 0.8, PANE[1] * 0.75, 0.012]}
-						color={glass}
-						castShadow={false}
-						{...(isWindowLit(score(999), windows.litPaneShare) ? lightEmission(windows, 1.3) : {})}
-					/>
-				</>
+			{shops && (
+				<mesh geometry={shops} receiveShadow>
+					<Mat color={palette.glass} {...lightEmission(lights.shops, 1.2)} />
+				</mesh>
 			)}
 		</group>
 	);
@@ -339,20 +413,5 @@ export const terracedRow02 = definePart({
 		from: Math.min(...housesOf(p).map((house) => house.wallHeight)),
 	}),
 	height: tallestOf,
-	Component: ({ props: p, colors, palette, lights }) => (
-		<group>
-			{housesOf(p).map((house, i) => (
-				<House
-					key={house.x}
-					house={house}
-					p={p}
-					index={i}
-					colors={colors}
-					glass={palette.glass}
-					windows={lights.windows}
-					shops={lights.shops}
-				/>
-			))}
-		</group>
-	),
+	Component: Row,
 });
