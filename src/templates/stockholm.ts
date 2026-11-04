@@ -16,7 +16,7 @@ import {
 	type TVec2,
 } from "#/scene/schema";
 
-import { type ILaidBlock, inFrame, layBlocks, turnedRect } from "./cityBlocks";
+import { type IBlockGrid, inFrame, layBlocks, rowsAround, turnedRect } from "./cityBlocks";
 import { paint } from "./paint";
 import {
 	edgeDistance,
@@ -614,6 +614,11 @@ const SODER_SHORE_POINTS: TVec2[] = [
 	[8, 41.6],
 	[12.5, 42.5],
 ];
+/** Between Söder Mälarstrand and the cliff above it, where its tall houses stand. */
+const SODER_SHORE_STRIP: TVec2[] = [
+	...SODER_SHORE_POINTS,
+	...SODERMALM_OUTLINE.slice(0, 6).reverse(),
+];
 
 /** A bridge: a raised road, its deck at the heights its points give, on piers. */
 const bridge = (
@@ -663,7 +668,9 @@ const GOTGATAN_POINTS: [number, number, number][] = [
 	[13, 47, 1.65],
 	...Array.from({ length: 14 }, (_, i): [number, number, number] => {
 		const z = 47.8 + i;
-		return [13.1, z, round(onSoder(13.1, z) + 0.03, 2)];
+		// Turned a little east of south, as Södermalm's streets are.
+		const x = round(13.1 + 0.07 * i, 2);
+		return [x, z, round(onSoder(x, z) + 0.03, 2)];
 	}),
 ];
 
@@ -1731,38 +1738,78 @@ const lowestUnder = (at: TVec2, turn: number, length: number, depth: number) =>
 		).map((point) => onSoder(...inFrame(at, turn)(point))),
 	);
 
-/**
- * The city's stone blocks, on Norrmalm, Kungsholmen and Södermalm's heights: rows of tall
- * houses round a courtyard, each side a row (light to draw, ADR-0143).
- */
-const HOUSE_IN_BLOCK = 1.1;
-const cityBlock = (block: ILaidBlock, floorCount: number, i: number): TEntityInput[] => {
-	const [width, depth] = block.size;
-	const at = inFrame(block.centre, block.turn);
-	// Back to back where the block is too narrow for a courtyard, their eaves just apart.
-	const rowDepth = Math.min(2, depth / 2 - 0.05);
-	const more = { floorCount, depth: rowDepth, gableShare: 0.05, floorCountVariation: 0 };
-	const across = Math.floor(width / HOUSE_IN_BLOCK);
-	const along = Math.floor((depth - 2 * rowDepth) / HOUSE_IN_BLOCK);
-	const row = (side: string, local: TVec2, turn: number, count: number, colour: number) => {
-		const position = at(local);
-		const length = count * HOUSE_IN_BLOCK;
-		return {
-			...mainlandRow(`city_block_${i}_${side}`, position, block.turn + turn, count, more, colour),
-			altitude: lowestUnder(position, block.turn + turn, length, rowDepth),
-		};
-	};
-	return [
-		row("south", [0, depth / 2 - rowDepth / 2], 0, across, i),
-		row("north", [0, -depth / 2 + rowDepth / 2], 180, across, i + 3),
-		...(along > 0
-			? [
-					row("east", [width / 2 - rowDepth / 2, 0], 90, along, i + 1),
-					row("west", [-width / 2 + rowDepth / 2, 0], -90, along, i + 4),
-				]
-			: []),
-	];
+/** A share from 0 to 1, always the same for the same n: the city's variety, the same every time. */
+const shareOf = (n: number) => {
+	const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+	return x - Math.floor(x);
 };
+const pickOf = <T>(list: readonly T[], n: number) => list[Math.floor(shareOf(n) * list.length)];
+
+/** Stockholm's stucco and stone: ochres, yellows, salmon, rust, greys, beige, off-white. */
+const CITY_FACADES = [
+	"#d9b77a",
+	"#e8d6a8",
+	"#d99c7f",
+	"#c9c3b5",
+	"#e3cfa8",
+	"#c98f63",
+	"#efe2c4",
+	"#b8a58a",
+	"#e6c27a",
+	"#a9a39a",
+	"#d8b9a0",
+	"#b86f4f",
+	"#f1ebdc",
+	"#cdb27c",
+];
+/** Mostly dark sheet metal; some red tiles, some copper gone green. */
+const CITY_ROOFS = ["#4a4545", "#3f3c3d", "#55504d", "#2f2d2e", "#5d5753"];
+const TILES = "#9c4a36";
+const COPPER = "#6f9a86";
+
+/** Big buildings of the mainland, where the real ones are big. */
+const CENTRALSTATIONEN: TVec2 = [-56, -56];
+const SHERATON: TVec2 = [-41.5, -40.5];
+const MARIA_MAGDALENA: TVec2 = [-27, 50];
+
+const bigBuildings: TEntityInput[] = [
+	{
+		id: "centralstationen",
+		kind: "palace_01",
+		name: "Stockholms centralstation",
+		position: CENTRALSTATIONEN,
+		rotation: turned(111),
+		colors: paint({ walls: "#c9b48e", trim: "#e6dcc6", plinth: "#a8987c", roof: "#4f5a55" }),
+		props: {
+			width: 10,
+			depth: 4.2,
+			floorCount: 3,
+			wingDepth: 1.4,
+			showsSideWings: false,
+			seed: 31,
+		},
+	},
+	{
+		id: "sheraton",
+		kind: "office_tower_01",
+		name: "Sheraton",
+		position: SHERATON,
+		rotation: turned(21),
+		colors: paint({ facade: "#6b5a4a", grid: "#3a3430" }),
+		props: { width: 5.4, depth: 3.8, floorCount: 8 },
+	},
+	{
+		id: "maria_magdalena_kyrka",
+		kind: "church_01",
+		name: "Maria Magdalena kyrka",
+		position: MARIA_MAGDALENA,
+		altitude: lowestUnder(MARIA_MAGDALENA, -75, 6.6, 2.9),
+		// Its tower to the west, along Hornsgatan.
+		rotation: turned(-75),
+		colors: paint({ walls: "#e6d3a8", roof: "#4f5a55" }),
+		props: { width: 2.6, depth: 6, towerHeight: 4.2 },
+	},
+];
 
 /** Roads as lines with their half widths, to keep the blocks off them. */
 const ROAD_LINES = ROADS.filter((road) => road.kind !== "hidden_route_01").map((road) => ({
@@ -1781,12 +1828,16 @@ const BLOCK_KEEP_OUT: TVec2[][] = [
 	turnedRect(STADSMUSEET, 0, 6.4, 5.2),
 	turnedRect(TUNNEL_MOUTH, -78.2, 4, 3.4),
 	turnedRect(KATARINAHISSEN_AT, 0, 2, 2),
+	turnedRect(CENTRALSTATIONEN, 111, 11.4, 6),
+	turnedRect(SHERATON, 21, 6.6, 5),
+	turnedRect(MARIA_MAGDALENA, -75, 8.4, 4.6),
 	KUNGSTRADGARDEN,
 	KARL_XII_TORG,
 	GUSTAV_ADOLFS_TORG,
 	STADSHUSET_GARDEN,
 	DJURGARDEN,
 	IVAR_LOS_PARK,
+	SODER_SHORE_STRIP,
 ];
 
 /** Whether a city block may stand on a point: on land, off the roads, clear of Södermalm's cliffs. */
@@ -1801,85 +1852,257 @@ const isBuildable = (point: TVec2) =>
 	) &&
 	BLOCK_KEEP_OUT.every((zone) => !isInsidePolygon(point, zone));
 
+interface IDistrict {
+	name: string;
+	/** Where its blocks may stand; neighbouring districts meet a street apart. */
+	area: TVec2[];
+	/** Its street blocks, turned as its streets run (traced from the aerial picture). */
+	grid: IBlockGrid;
+	/** How deep its houses are, and how wide each about. */
+	rowDepth: number;
+	houseWidth: number;
+	/** The fewest and most houses to a building's row, and floors to a house. */
+	houses: [number, number];
+	floors: [number, number];
+	/** What share of its roofs are red tiles, and copper. */
+	tileShare: number;
+	copperShare: number;
+	gableShare: number;
+	shopShare: number;
+}
+
+const DISTRICTS: IDistrict[] = [
+	{
+		// Kungsholmen round Stadshuset: Hantverkargatan's blocks, turned a little to the north-east.
+		name: "Kungsholmen",
+		area: [
+			[-93, -62],
+			[-78.5, -62],
+			[-73.7, -45],
+			[-68.5, -36],
+			[-65, -29],
+			[-66, -15],
+			[-93, -15],
+		],
+		grid: {
+			origin: [-84, -40],
+			turn: 15,
+			widths: [6.2, 7.4, 5.6],
+			depths: [5.2, 4.4, 6],
+			street: 1,
+			columns: [-3, 3],
+			rows: [-5, 5],
+		},
+		rowDepth: 1.8,
+		houseWidth: 1.1,
+		houses: [2, 5],
+		floors: [5, 7],
+		tileShare: 0.05,
+		copperShare: 0.03,
+		gableShare: 0.05,
+		shopShare: 0.6,
+	},
+	{
+		// Lower Norrmalm from Klara sjö to Gustav Adolfs torg: Jakobsgatan's and Fredsgatan's blocks.
+		name: "Norrmalm",
+		area: [
+			[-78.5, -62],
+			[-10, -62],
+			[-10, -25],
+			[-65, -25],
+			[-68.5, -36],
+			[-73.7, -45],
+		],
+		grid: {
+			origin: [-38, -46],
+			turn: 21,
+			widths: [7.4, 5.8, 8.6, 6.4],
+			depths: [5.6, 4.6, 6.4],
+			street: 1,
+			columns: [-6, 6],
+			rows: [-5, 5],
+		},
+		rowDepth: 1.9,
+		houseWidth: 1.2,
+		houses: [3, 6],
+		floors: [6, 8],
+		tileShare: 0,
+		copperShare: 0.04,
+		gableShare: 0.03,
+		shopShare: 0.85,
+	},
+	{
+		// Norrmalm round the Opera and Kungsträdgården, its streets north and south.
+		name: "Norrmalm",
+		area: [
+			[-10, -62],
+			[46, -62],
+			[46, -50],
+			[16, -50],
+			[16, -25],
+			[-10, -25],
+		],
+		grid: {
+			origin: [0, -56],
+			turn: 0,
+			widths: [6.8, 5.2, 7.6],
+			depths: [5.6, 6.4, 4.8],
+			street: 1,
+			columns: [-3, 7],
+			rows: [-2, 4],
+		},
+		rowDepth: 1.9,
+		houseWidth: 1.2,
+		houses: [3, 6],
+		floors: [6, 8],
+		tileShare: 0,
+		copperShare: 0.04,
+		gableShare: 0.03,
+		shopShare: 0.85,
+	},
+	{
+		// Blasieholmen, its blocks along its quays.
+		name: "Blasieholmen",
+		area: [
+			[16, -50],
+			[46, -50],
+			[46, -25],
+			[16, -25],
+		],
+		grid: {
+			origin: [30, -40],
+			turn: -38,
+			widths: [6.4, 5.4],
+			depths: [5.2, 4.4],
+			street: 1,
+			columns: [-4, 4],
+			rows: [-4, 4],
+		},
+		rowDepth: 1.8,
+		houseWidth: 1.2,
+		houses: [2, 5],
+		floors: [5, 7],
+		tileShare: 0,
+		copperShare: 0.04,
+		gableShare: 0.03,
+		shopShare: 0.6,
+	},
+	{
+		// Södermalm west of Slussen: Hornsgatan's and Bastugatan's blocks over Mariaberget.
+		name: "Södermalm",
+		area: [
+			[-93, 30],
+			[-8, 30],
+			[-8, 62],
+			[-93, 62],
+		],
+		grid: {
+			origin: [-50, 50],
+			turn: 15,
+			widths: [6.6, 5.4, 7.6],
+			depths: [5, 4.2, 5.8],
+			street: 1,
+			columns: [-8, 8],
+			rows: [-4, 4],
+		},
+		rowDepth: 1.6,
+		houseWidth: 1,
+		houses: [2, 5],
+		floors: [4, 6],
+		tileShare: 0.25,
+		copperShare: 0.03,
+		gableShare: 0.15,
+		shopShare: 0.45,
+	},
+	{
+		// Södermalm east of Slussen: along Götgatan, up to Mosebacke.
+		name: "Södermalm",
+		area: [
+			[-8, 30],
+			[60, 30],
+			[60, 62],
+			[-8, 62],
+		],
+		grid: {
+			origin: [20, 55],
+			turn: 4,
+			widths: [6, 5, 7],
+			depths: [4.8, 5.6, 4.2],
+			street: 1,
+			columns: [-5, 5],
+			rows: [-3, 3],
+		},
+		rowDepth: 1.6,
+		houseWidth: 1,
+		houses: [2, 5],
+		floors: [4, 6],
+		tileShare: 0.25,
+		copperShare: 0.03,
+		gableShare: 0.15,
+		shopShare: 0.5,
+	},
+];
+
 /**
- * The districts' grids, [x, z] of one block's middle, and which blocks to try from it. Big
- * blocks are laid first, then smaller ones (two rows back to back) wherever a big one won't fit:
- * along the waterfronts, between the parks, up to the cliffs.
+ * The city's stone blocks, on Norrmalm, Kungsholmen and Södermalm's heights: buildings edge to
+ * edge along every street front, courtyards inside, each a row of a few houses of its own
+ * height and colours (light to draw, ADR-0143).
  */
-const DISTRICTS = [
-	// Norrmalm, from Klara sjö to Blasieholmen.
-	{
-		origin: [-2, -52],
-		big: { columns: [-8, 6], rows: [-1, 3] },
-		small: { columns: [-12, 9], rows: [-3, 5] },
-		floorCount: 7,
-	},
-	// Kungsholmen, round Stadshuset.
-	{
-		origin: [-89.3, -43],
-		big: { columns: [0, 1], rows: [-2, 3] },
-		small: { columns: [-1, 3], rows: [-5, 7] },
-		floorCount: 6,
-	},
-	// Södermalm's heights.
-	{
-		origin: [-83, 50.6],
-		big: { columns: [0, 16], rows: [-1, 1] },
-		small: { columns: [0, 24], rows: [-3, 3] },
-		floorCount: 6,
-	},
-] as const;
-const BIG_BLOCK: TVec2 = [6.6, 5.5];
-const SMALL_BLOCK: TVec2 = [4.4, 3.3];
-
-/** The grid shifted by these shares of a block and its street, to fit more in round the edges. */
-const SHIFTS: TVec2[] = [0, 1 / 3, 2 / 3].flatMap((x) =>
-	[0, 1 / 3, 2 / 3].map((z): TVec2 => [x, z]),
-);
-
-/** What's been laid, each with the street round it: x and z from and to (the grids aren't turned). */
-const builtOn: [number, number, number, number][] = [];
-const isFree = ([x, z]: TVec2) =>
-	builtOn.every(([x1, z1, x2, z2]) => x <= x1 || x >= x2 || z <= z1 || z >= z2) &&
-	isBuildable([x, z]);
-
-/** Lays blocks of a size over the districts, at each shift of the grid, clear of all laid before. */
-const layAll = (size: TVec2, street: number, pick: "big" | "small") =>
-	SHIFTS.flatMap(([shiftX, shiftZ]) =>
-		DISTRICTS.flatMap((district) => {
-			const laid = layBlocks(
-				{
-					origin: [
-						district.origin[0] + shiftX * (size[0] + street),
-						district.origin[1] + shiftZ * (size[1] + street),
-					],
-					turn: 0,
-					size,
-					street,
-					columns: [...district[pick].columns],
-					rows: [...district[pick].rows],
-				},
-				isFree,
-			);
-			builtOn.push(
-				...laid.map(({ centre: [x, z] }): [number, number, number, number] => [
-					x - size[0] / 2 - street,
-					z - size[1] / 2 - street,
-					x + size[0] / 2 + street,
-					z + size[1] / 2 + street,
-				]),
-			);
-			return laid.map((block) => ({
-				block,
-				floorCount: district.floorCount - (pick === "small" ? 1 : 0),
-			}));
+const cityRows: TEntityInput[] = DISTRICTS.flatMap((district) =>
+	layBlocks(
+		district.grid,
+		(point) =>
+			isInsidePolygon(point, district.area) &&
+			edgeDistance(point, district.area) > district.grid.street / 2 &&
+			isBuildable(point),
+	).flatMap((block) =>
+		rowsAround(block, {
+			rowDepth: district.rowDepth,
+			houseWidth: district.houseWidth,
+			housesInRow: (n) =>
+				district.houses[0] +
+				Math.floor(
+					shareOf(block.centre[0] * 7 + block.centre[1] * 13 + n) *
+						(district.houses[1] - district.houses[0] + 1),
+				),
+		}).map((row) => ({ row, district })),
+	),
+).map(({ row, district }, i): TEntityInput => {
+	const roofShare = shareOf(i * 5 + 1);
+	const roof =
+		roofShare < district.tileShare
+			? TILES
+			: roofShare < district.tileShare + district.copperShare
+				? COPPER
+				: pickOf(CITY_ROOFS, i * 5 + 2);
+	return {
+		id: `city_row_${i}`,
+		kind: "terraced_row_02",
+		name: `${district.name} ${i + 1}`,
+		position: row.position,
+		altitude: lowestUnder(row.position, row.turn, row.houseCount * row.houseWidth, row.depth),
+		rotation: turned(row.turn),
+		colors: paint({
+			walls: pickOf(CITY_FACADES, i * 5 + 3),
+			secondWalls: pickOf(CITY_FACADES, i * 5 + 4),
+			thirdWalls: pickOf(CITY_FACADES, i * 5 + 5),
+			fourthWalls: pickOf(CITY_FACADES, i * 5 + 6),
+			roof,
 		}),
-	);
-
-const cityBlocks: TEntityInput[] = [
-	...layAll(BIG_BLOCK, 1.3, "big"),
-	...layAll(SMALL_BLOCK, 1, "small"),
-].flatMap(({ block, floorCount }, i) => cityBlock(block, floorCount, i));
+		props: {
+			houseCount: row.houseCount,
+			houseWidth: row.houseWidth,
+			depth: row.depth,
+			floorCount:
+				district.floors[0] +
+				Math.floor(shareOf(i * 5 + 7) * (district.floors[1] - district.floors[0] + 1)),
+			floorCountVariation: 0,
+			gableShare: district.gableShare,
+			shopShare: district.shopShare,
+			seed: 300 + i,
+		},
+	};
+});
 
 /** The tall houses along Söder Mälarstrand, at the foot of Mariaberget's cliff. */
 const soderShoreRows: TEntityInput[] = layRowsAlong({
@@ -1892,7 +2115,7 @@ const soderShoreRows: TEntityInput[] = layRowsAlong({
 		},
 	],
 	// Between the road and the cliff.
-	land: [...SODER_SHORE_POINTS, ...SODERMALM_OUTLINE.slice(0, 6).reverse()],
+	land: SODER_SHORE_STRIP,
 	// Not under Centralbron.
 	keepOut: [turnedRect([-11.5, 38.5], -78.2, 7, 4)],
 	shoreMargin: 0.15,
@@ -2575,7 +2798,8 @@ export const createStockholmScene = (): TScene =>
 			...landmarks,
 			...oldTownHouses,
 			...wallLanterns,
-			...cityBlocks,
+			...cityRows,
+			...bigBuildings,
 			...soderShoreRows,
 			...skeppsholmenRows,
 			...lamps,
