@@ -7,7 +7,6 @@ import {
 } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 
-import { IconButtonGroup } from "./Button";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 
@@ -60,25 +59,23 @@ const OverlayItems = () => {
 };
 
 /**
- * The toolbar's Overlays menu (ADR-0141), beside the shading switcher, like Blender's: what's
+ * The view bar's Overlays menu (ADR-0141, ADR-0142), beside the shading switcher, like Blender's: what's
  * drawn over the view (the compass, the view label, viewpoints, the grids), shown or hidden in a
  * click. They're this browser's preferences (ADR-0062), the same as on Preferences → Overlays.
  */
 export const OverlaysMenu = () => (
-	<IconButtonGroup cluster="Overlays">
-		<Menu.Root>
-			<Menu.Trigger label="Overlays" tooltip="Overlays">
-				<Icon name="overlays" size={18} />
-			</Menu.Trigger>
+	<Menu.Root>
+		<Menu.Trigger label="Overlays" tooltip="Overlays">
+			<Icon name="overlays" size={18} />
+		</Menu.Trigger>
 
-			<Menu.Popup>
-				<OverlayItems />
-			</Menu.Popup>
-		</Menu.Root>
-	</IconButtonGroup>
+		<Menu.Popup>
+			<OverlayItems />
+		</Menu.Popup>
+	</Menu.Root>
 );
 
-/** The Overlays menu folded into the toolbar's More, with the shading switcher (ADR-0080). */
+/** The Overlays menu folded into the view bar's More, with the shading switcher (ADR-0080). */
 export const OverlaysSubmenu = () => (
 	<Menu.Submenu icon="overlays" label="Overlays">
 		<OverlayItems />

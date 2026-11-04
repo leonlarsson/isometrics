@@ -8,8 +8,6 @@ import { Menu } from "./Menu";
 import { moodName, moodTime } from "./MoodsSection";
 import { viewpointName } from "./ViewpointsSection";
 
-import styles from "./ViewpointsMenu.module.css";
-
 /** Save the camera's view as a new viewpoint (Views menu and the context menus). */
 export const saveCurrentView = () => {
 	const pose = currentView.read?.();
@@ -18,12 +16,17 @@ export const saveCurrentView = () => {
 	}
 };
 
+interface IViewpointsMenuProps {
+	/** Whether its button says "Views" beside its icon; the view bar leaves it out when short of room. */
+	showsLabel: boolean;
+}
+
 /**
- * The toolbar's Views menu: glide to any viewpoint (keys 1–9 do too), put on
+ * The view bar's Views menu: glide to any viewpoint (keys 1–9 do too), put on
  * one of the world's moods, and in Edit mode save the current view or open the
  * list in the Viewpoints tab.
  */
-export const ViewpointsMenu = () => {
+export const ViewpointsMenu = ({ showsLabel }: IViewpointsMenuProps) => {
 	const scene = useEditor((s) => s.scene);
 	const preferences = usePreferences();
 	const { viewpoints, moods } = scene;
@@ -32,10 +35,10 @@ export const ViewpointsMenu = () => {
 
 	return (
 		<Menu.Root>
-			<Menu.Trigger label="Viewpoints">
+			<Menu.Trigger label="Viewpoints" tooltip={showsLabel ? undefined : "Viewpoints"}>
 				<Icon name="camera" size={16} />
 
-				<span className={styles.label}>Views</span>
+				{showsLabel && <span>Views</span>}
 			</Menu.Trigger>
 
 			<Menu.Popup>

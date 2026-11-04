@@ -144,3 +144,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0139](0139-viewpoint-tour.md) | A tour steps through the viewpoints on its own in View mode | proposed |
 | [0140](0140-a-browsers-export.md) | A browser's export: everything this site keeps, in one file, added or replacing | proposed |
 | [0141](0141-overlays-menu.md) | An Overlays menu beside the shading switcher, and a ground grid overlay | proposed |
+| [0142](0142-app-row-and-view-bar.md) | The top bar in two rows: an app row across the window, a view bar over the view | proposed |
