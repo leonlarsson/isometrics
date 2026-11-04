@@ -362,7 +362,7 @@ const FenceGateHandle = ({ fence, index, at, direction }: IFenceGateHandleProps)
 
 	return (
 		<group
-			position={at}
+			position={[at[0], at[1] + HANDLE_LIFT, at[2]]}
 			rotation={[0, Math.atan2(-direction[1], direction[0]), 0]}
 			ref={handle}
 			{...drag}
