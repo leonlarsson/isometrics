@@ -4,7 +4,7 @@ import { useEditor } from "#/editor/store";
 
 import { IconButton, IconButtonGroup } from "./Button";
 import { CameraMenu } from "./CameraMenu";
-import { Icon } from "./Icon";
+import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 import { OverlaysMenu, OverlaysSubmenu } from "./OverlaysMenu";
 import { ShadingMenu, ShadingMenuGroup, ShadingSwitcher } from "./ShadingSwitcher";
@@ -23,6 +23,32 @@ const withSeparators = (groups: Record<string, ReactNode[]>) =>
 			index === 0 ? items : [<Menu.Separator key={`${name}-line`} />, ...items],
 		);
 
+/** The tool the view's drags use: one at a time, Select unless another is picked. */
+type TTool = "select" | "box" | "paint";
+
+const pickTool = (tool: TTool) => {
+	const store = useEditor.getState();
+	if (tool === "box") {
+		store.setBoxSelect("add");
+	} else if (tool === "paint") {
+		store.setPainting(true);
+	} else {
+		store.setBoxSelect(null);
+		store.setPainting(false);
+	}
+};
+
+const TOOLS: { tool: TTool; icon: TIconName; label: string; inMenu: string }[] = [
+	{ tool: "select", icon: "pointer", label: "Select", inMenu: "Select" },
+	{ tool: "box", icon: "boxSelect", label: "Select with a box (B)", inMenu: "Select with a box" },
+	{
+		tool: "paint",
+		icon: "brush",
+		label: "Paint objects: trees, bushes, rocks… (N)",
+		inMenu: "Paint objects",
+	},
+];
+
 interface IViewBarProps {
 	/**
 	 * On phones, inside the app row: one row for both, as the phone toolbar was (ADR-0046),
@@ -33,9 +59,11 @@ interface IViewBarProps {
 
 /**
  * The view bar (ADR-0142): the 3D view's own bar, across the top of the view between the side
- * panels, with what's about editing and looking: the Edit/View switch, undo and redo, the tools,
- * then Views, Overlays, the shading switcher and the camera. It folds by its own width, in steps
- * (useViewBarFolds), into More; what's about the app and this browser is in the app row above.
+ * panels. On the left what's about editing: the Edit/View switch, undo and redo, the tools (one at
+ * a time, like a paint program's) and Snap to grid; on the right what's about looking, in groups
+ * by meaning: the view (Views, Overlays, shading), motion (play) and the camera. It folds by its
+ * own width, in steps (useViewBarFolds), into More, which keeps the bar's order; what's about the
+ * app and this browser is in the app row above.
  */
 export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 	const mode = useEditor((s) => s.mode);
@@ -51,17 +79,14 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 	const resetView = useEditor((s) => s.resetView);
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const toggleProjection = useEditor((s) => s.toggleProjection);
-	const boxSelecting = useEditor((s) => s.boxSelect === "add");
-	const toggleBoxSelect = () => useEditor.getState().setBoxSelect(boxSelecting ? null : "add");
-	const painting = useEditor((s) => s.painting);
-	const togglePainting = () => useEditor.getState().setPainting(!painting);
+	const tool = useEditor((s): TTool => (s.painting ? "paint" : s.boxSelect ? "box" : "select"));
 	const theme = useThemeCycle();
 	const editing = mode === "edit";
 
 	const bar = useRef<HTMLDivElement>(null);
 	const folds = useViewBarFolds(bar, mode, isInline ? "viewMenus" : null);
 
-	// What the bar has folded away at this width (only that), as the More menu.
+	// What the bar has folded away at this width (only that), as the More menu, in the bar's order.
 	const more = withSeparators({
 		history: [
 			folds("history") && editing && (
@@ -85,25 +110,23 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 				/>
 			),
 		],
-		switches: [
-			folds("view") && (
-				<Menu.CheckboxItem
-					key="play"
-					icon="play"
-					label="Play motion"
-					checked={playing}
-					onCheckedChange={togglePlaying}
-				/>
-			),
-			folds("viewMenus") && (
-				<Menu.CheckboxItem
-					key="perspective"
-					icon="perspective"
-					label="Perspective"
-					checked={perspective}
-					onCheckedChange={toggleProjection}
-				/>
-			),
+		tools: TOOLS.filter(
+			// Painting is a desktop tool; the phone toolbar never had it (ADR-0046).
+			(item) => !(isInline && item.tool === "paint"),
+		).map(
+			(item) =>
+				folds("tools") &&
+				editing && (
+					<Menu.CheckboxItem
+						key={item.tool}
+						icon={item.icon}
+						label={item.inMenu}
+						checked={tool === item.tool}
+						onCheckedChange={() => pickTool(item.tool)}
+					/>
+				),
+		),
+		snap: [
 			folds("tools") && editing && (
 				<Menu.CheckboxItem
 					key="snap"
@@ -113,34 +136,37 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 					onCheckedChange={toggleSnapping}
 				/>
 			),
-			folds("tools") && editing && (
-				<Menu.Item
-					key="box"
-					icon="boxSelect"
-					label="Select with a box"
-					description="Then drag over what to select"
-					onClick={toggleBoxSelect}
-				/>
-			),
-			// Painting is a desktop tool; the phone toolbar never had it (ADR-0046).
-			folds("tools") && editing && !isInline && (
-				<Menu.CheckboxItem
-					key="paint"
-					icon="brush"
-					label="Paint objects"
-					checked={painting}
-					onCheckedChange={togglePainting}
-				/>
-			),
 		],
-		look: [
+		view: [
 			folds("viewMenus") && <ShadingMenuGroup key="shading" />,
 			folds("viewMenus") && <OverlaysSubmenu key="overlays" />,
 		],
-		rest: [
-			folds("view") && (
+		motion: [
+			folds("playAndRecentre") && (
+				<Menu.CheckboxItem
+					key="play"
+					icon="play"
+					label="Play motion"
+					checked={playing}
+					onCheckedChange={togglePlaying}
+				/>
+			),
+		],
+		camera: [
+			folds("viewMenus") && (
+				<Menu.CheckboxItem
+					key="perspective"
+					icon="perspective"
+					label="Perspective"
+					checked={perspective}
+					onCheckedChange={toggleProjection}
+				/>
+			),
+			folds("playAndRecentre") && (
 				<Menu.Item key="recentre" icon="focus" label="Re-centre camera" onClick={resetView} />
 			),
+		],
+		app: [
 			isInline && (
 				<Menu.Item
 					key="theme"
@@ -181,7 +207,6 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 					))}
 				</fieldset>
 
-				{/* Buttons come in clusters, like the mode switch: history, the tools, the view. */}
 				{editing && !folds("history") && (
 					<IconButtonGroup cluster="History">
 						<IconButton
@@ -204,8 +229,26 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 					</IconButtonGroup>
 				)}
 
+				{/* The tools, one at a time: the one in use shows pressed, Select when none other is. */}
 				{editing && !folds("tools") && (
-					<IconButtonGroup cluster="Editing">
+					<IconButtonGroup cluster="Tools">
+						{TOOLS.map((item) => (
+							<IconButton
+								key={item.tool}
+								size="md"
+								tooltipSide="bottom"
+								icon={item.icon}
+								label={item.label}
+								pressed={tool === item.tool}
+								onClick={() => pickTool(item.tool)}
+							/>
+						))}
+					</IconButtonGroup>
+				)}
+
+				{/* A switch on where moves land, with any tool: apart from the tools. */}
+				{editing && !folds("tools") && (
+					<IconButtonGroup cluster="Snapping">
 						<IconButton
 							size="md"
 							tooltipSide="bottom"
@@ -214,50 +257,43 @@ export const ViewBar = ({ isInline = false }: IViewBarProps) => {
 							pressed={snapping}
 							onClick={toggleSnapping}
 						/>
-
-						<IconButton
-							size="md"
-							tooltipSide="bottom"
-							icon="boxSelect"
-							label="Select with a box (B)"
-							pressed={boxSelecting}
-							onClick={toggleBoxSelect}
-						/>
-
-						<IconButton
-							size="md"
-							tooltipSide="bottom"
-							icon="brush"
-							label="Paint objects: trees, bushes, rocks… (N)"
-							pressed={painting}
-							onClick={togglePainting}
-						/>
 					</IconButtonGroup>
 				)}
 			</div>
 
 			<div className={styles.end}>
-				<ViewpointsMenu showsLabel={!folds("viewsLabel")} />
-
-				{!folds("viewMenus") && <OverlaysMenu />}
-
-				{!folds("viewMenus") && (folds("shading") ? <ShadingMenu /> : <ShadingSwitcher />)}
-
-				{!folds("viewMenus") && (
+				{/* The view: which one, what's drawn over it, and how it's shaded. */}
+				<div className={styles.group}>
 					<IconButtonGroup cluster="View">
-						{!folds("view") && (
-							<IconButton
-								size="md"
-								tooltipSide="bottom"
-								icon={playing ? "pause" : "play"}
-								label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
-								onClick={togglePlaying}
-							/>
-						)}
+						<ViewpointsMenu showsLabel={!folds("viewsLabel")} />
 
+						{!folds("viewMenus") && <OverlaysMenu />}
+
+						{!folds("viewMenus") && folds("shading") && <ShadingMenu />}
+					</IconButtonGroup>
+
+					{!folds("shading") && <ShadingSwitcher />}
+				</div>
+
+				{/* Motion: the world's vehicles, boats and day running or held. */}
+				{!folds("playAndRecentre") && (
+					<IconButtonGroup cluster="Motion">
+						<IconButton
+							size="md"
+							tooltipSide="bottom"
+							icon={playing ? "pause" : "play"}
+							label={playing ? "Pause motion (Space)" : "Play motion (Space)"}
+							onClick={togglePlaying}
+						/>
+					</IconButtonGroup>
+				)}
+
+				{/* The camera: its menu, and back to the start. */}
+				{!folds("viewMenus") && (
+					<IconButtonGroup cluster="Camera">
 						<CameraMenu />
 
-						{!folds("view") && (
+						{!folds("playAndRecentre") && (
 							<IconButton
 								size="md"
 								tooltipSide="bottom"

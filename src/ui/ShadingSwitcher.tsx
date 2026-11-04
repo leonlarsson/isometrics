@@ -178,16 +178,14 @@ export const ShadingMenu = () => {
 				"shadeStandard");
 
 	return (
-		<IconButtonGroup cluster="Shading">
-			<Menu.Root>
-				<Menu.Trigger label="Shading" tooltip="Shading">
-					<Icon name={icon} size={18} />
-				</Menu.Trigger>
+		<Menu.Root>
+			<Menu.Trigger label="Shading" tooltip="Shading">
+				<Icon name={icon} size={18} />
+			</Menu.Trigger>
 
-				<Menu.Popup>
-					<ShadingMenuGroup />
-				</Menu.Popup>
-			</Menu.Root>
-		</IconButtonGroup>
+			<Menu.Popup>
+				<ShadingMenuGroup />
+			</Menu.Popup>
+		</Menu.Root>
 	);
 };

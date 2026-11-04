@@ -29,6 +29,7 @@
 /* In a cluster (IconButtonGroup's sunken pill, a fieldset): as tall and round as its icon buttons. */
 fieldset > .trigger {
 	height: 30px;
+	padding: 0 6px 0 8px;
 	border-radius: 999px;
 }
 

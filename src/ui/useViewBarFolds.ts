@@ -7,16 +7,16 @@ import type { TEditorMode } from "#/editor/store";
  * between the side panels, so it folds by its own width, not the window's.
  * - `shading`: the shading switcher becomes one Shading menu
  * - `viewsLabel`: Views shows just its icon
- * - `view`: play and Re-centre camera move into More
+ * - `playAndRecentre`: play and Re-centre camera move into More
  * - `modeLabels`: Edit and View show just their icons (their words stay their names)
- * - `tools`: snap, box select and paint move into More
+ * - `tools`: the tools (Select, box select, paint) and Snap to grid move into More
  * - `viewMenus`: the shading, overlays and camera menus move into More (the phone toolbar's More)
  * - `history`: undo and redo move into More, for a view squeezed between two wide panels
  */
 export const VIEW_BAR_FOLDS = [
 	"shading",
 	"viewsLabel",
-	"view",
+	"playAndRecentre",
 	"modeLabels",
 	"tools",
 	"viewMenus",
@@ -33,21 +33,21 @@ export type TViewBarFold = (typeof VIEW_BAR_FOLDS)[number];
  */
 const ROOM_NEEDED: Record<TEditorMode, Record<TViewBarFold, number>> = {
 	edit: {
-		shading: 920,
-		viewsLabel: 738,
-		view: 692,
-		modeLabels: 666,
-		tools: 586,
-		viewMenus: 474,
-		history: 276,
+		shading: 927,
+		viewsLabel: 747,
+		playAndRecentre: 702,
+		modeLabels: 670,
+		tools: 598,
+		viewMenus: 446,
+		history: 278,
 	},
 	view: {
-		shading: 730,
-		viewsLabel: 548,
-		view: 502,
-		modeLabels: 476,
+		shading: 699,
+		viewsLabel: 519,
+		playAndRecentre: 474,
+		modeLabels: 442,
 		tools: 0,
-		viewMenus: 400,
+		viewMenus: 370,
 		history: 0,
 	},
 };

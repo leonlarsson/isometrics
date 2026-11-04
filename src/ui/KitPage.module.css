@@ -34,8 +34,10 @@
 	overflow: hidden;
 }
 
+/* Tall enough for its panels; what's past it scrolls inside, never over the cluster demo below. */
 .railDemo {
-	height: 300px;
+	height: 380px;
+	overflow: hidden;
 }
 
 .clusterDemo {

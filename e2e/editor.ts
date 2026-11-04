@@ -317,7 +317,7 @@ export const viewBar = (page: Page) => page.locator("[data-view-bar]");
 
 /**
  * Hide both side panels (the app row's button), so the view bar has the window's width: its
- * shading buttons need about 950px of it, more than the view has between the panels at 1440px.
+ * shading buttons need about 930px of it, more than the view has between the panels at 1440px.
  */
 export const hideSidePanels = async (page: Page) => {
 	await page.getByRole("button", { name: "Hide the side panels (Ctrl+Space)" }).click();

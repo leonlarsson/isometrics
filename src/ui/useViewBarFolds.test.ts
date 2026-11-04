@@ -28,7 +28,7 @@ describe("the view bar's folds (ADR-0142)", () => {
 	it("keeps the editor's words at 1280px with the side panels open", () => {
 		// 1280 less Add to scene (248) and the properties (360), as a new browser has them.
 		const folded = VIEW_BAR_FOLDS.slice(0, foldsAt(1280 - 248 - 360, "edit"));
-		expect(folded).toEqual(["shading", "viewsLabel", "view"]);
+		expect(folded).toEqual(["shading", "viewsLabel", "playAndRecentre"]);
 	});
 
 	it("on phones folds exactly as the phone toolbar did, whatever the width", () => {

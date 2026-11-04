@@ -7,7 +7,6 @@ import {
 } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 
-import { IconButtonGroup } from "./Button";
 import { Icon, type TIconName } from "./Icon";
 import { Menu } from "./Menu";
 
@@ -65,17 +64,15 @@ const OverlayItems = () => {
  * click. They're this browser's preferences (ADR-0062), the same as on Preferences → Overlays.
  */
 export const OverlaysMenu = () => (
-	<IconButtonGroup cluster="Overlays">
-		<Menu.Root>
-			<Menu.Trigger label="Overlays" tooltip="Overlays">
-				<Icon name="overlays" size={18} />
-			</Menu.Trigger>
+	<Menu.Root>
+		<Menu.Trigger label="Overlays" tooltip="Overlays">
+			<Icon name="overlays" size={18} />
+		</Menu.Trigger>
 
-			<Menu.Popup>
-				<OverlayItems />
-			</Menu.Popup>
-		</Menu.Root>
-	</IconButtonGroup>
+		<Menu.Popup>
+			<OverlayItems />
+		</Menu.Popup>
+	</Menu.Root>
 );
 
 /** The Overlays menu folded into the view bar's More, with the shading switcher (ADR-0080). */

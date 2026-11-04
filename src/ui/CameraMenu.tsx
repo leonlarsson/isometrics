@@ -116,7 +116,7 @@ export const CameraMenu = () => {
 				)}
 
 				<Menu.Item
-					icon="user"
+					icon="cog"
 					label="Preferences…"
 					description="How the camera moves for you"
 					onClick={() => store().setPreferencesOpen(true)}

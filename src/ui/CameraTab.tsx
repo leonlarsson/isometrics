@@ -119,7 +119,7 @@ export const CameraTab = () => {
 
 						<Button
 							size="sm"
-							icon="user"
+							icon="cog"
 							onClick={() => useEditor.getState().setPreferencesOpen(true)}
 						>
 							Preferences…

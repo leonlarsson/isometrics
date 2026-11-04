@@ -77,7 +77,7 @@ export const AppRow = () => {
 						<IconButton
 							size="md"
 							tooltipSide="bottom"
-							icon="user"
+							icon="cog"
 							label="Preferences… (Ctrl+,)"
 							onClick={() => useEditor.getState().setPreferencesOpen(true)}
 						/>
