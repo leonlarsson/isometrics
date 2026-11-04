@@ -119,6 +119,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 	const followers = entities.filter((e) => roadOfVehicleNow(e, now)?.roadId === road.id).length;
 	const sceneTurns = useEditor((s) => s.scene.traffic.turnStyle);
 	const sceneLeans = useEditor((s) => s.scene.traffic.leansInTurns);
+	const sceneDrivesThrough = useEditor((s) => s.scene.traffic.drivesThroughJunctions);
 	const driving = useEditor((s) => s.scene.traffic.drivingSide);
 	const edit = useRoadEdit(road);
 	const reset = useRoadReset(road);
@@ -239,6 +240,26 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 							}),
 						value: sceneLeans ? "on" : "off",
 					}}
+				/>
+
+				<SwitchField
+					label="Drive through junctions onto other roads"
+					checked={road.traffic.drivesThroughJunctions ?? sceneDrivesThrough}
+					onChange={(v) =>
+						edit("throughJunctions", (r) => {
+							r.traffic.drivesThroughJunctions = v;
+						})
+					}
+					inherit={{
+						from: "scene",
+						inherited: road.traffic.drivesThroughJunctions === null,
+						onReset: () =>
+							edit("throughJunctions", (r) => {
+								r.traffic.drivesThroughJunctions = null;
+							}),
+						value: sceneDrivesThrough ? "on" : "off",
+					}}
+					hint="For vehicles that start on this road. Off, they keep to it and turn round at its junctions."
 				/>
 
 				<Hint>

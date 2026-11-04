@@ -65,7 +65,8 @@ export const GUIDE: IGuideSection[] = [
 					"Draw a road: **Add to scene**, **Roads**, then click points on the ground; Enter or a double-click finishes it.",
 					"To start or end a new road on another one, click on that road (or on its end): a ring shows where, and clicking there connects them at a **junction**. Ending on a road finishes the new one. Hold **Alt** to put a point there without connecting.",
 					"To connect roads already drawn, drag a road's end onto another road, or onto its end, and let go: the bar offers **Connect** (or **Join**, to make one road of two).",
-					"With **Play motion** on (Space), vehicles on connected roads drive on at each junction, along a way picked at random, and turn round only at a dead end.",
+					"With **Play motion** on (Space), vehicles on connected roads drive on at each junction, along a way picked at random, and turn round only at a dead end. Selected, a vehicle shows the way ahead of it.",
+					"To keep a vehicle on its own road, turn off **Drive through junctions onto other roads** in its **Motion** tab: it turns round at junctions as at dead ends. A road's **Traffic** panel and the world's traffic settings have the same switch, for every vehicle that starts on the road or in the world.",
 				],
 			},
 			{

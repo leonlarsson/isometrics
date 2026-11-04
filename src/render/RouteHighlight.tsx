@@ -6,7 +6,7 @@ import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { keepOnHotReload } from "#/lib/hot";
 import { roadNetworkOf } from "#/scene/junctions";
-import { pathAhead } from "#/scene/network";
+import { drivesAcrossNetwork, pathAhead } from "#/scene/network";
 import type { IPathSample } from "#/scene/paths";
 import { createRouteSampler } from "#/scene/routes";
 import type { TRoad } from "#/scene/schema";
@@ -145,6 +145,8 @@ interface IWayAcross {
 	seed: string;
 	/** A vehicle driving now: shown from how far it has driven, else from where it would start. */
 	isDriving: boolean;
+	/** Its own setting for driving through junctions (null: its road's, else the world's). */
+	drivesThroughJunctions: boolean | null;
 }
 
 /**
@@ -241,6 +243,7 @@ export const RouteHighlight = () => {
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
 	const junctions = useEditor((s) => s.scene.junctions);
+	const traffic = useEditor((s) => s.scene.traffic);
 
 	const routes = useMemo(() => {
 		const network = roadNetworkOf(roads, junctions);
@@ -252,6 +255,10 @@ export const RouteHighlight = () => {
 						drivesTheOtherWay: offered.drivesTheOtherWay,
 						seed: offered.entityId,
 						isDriving: false,
+						// The vehicle's own setting, if it has one already (one driving, dragged elsewhere).
+						drivesThroughJunctions:
+							entities.find((e) => e.id === offered.entityId)?.follow?.drivesThroughJunctions ??
+							null,
 					},
 				]
 			: editing
@@ -265,6 +272,7 @@ export const RouteHighlight = () => {
 										drivesTheOtherWay: entity.follow.drivesTheOtherWay,
 										seed: entity.id,
 										isDriving: true,
+										drivesThroughJunctions: entity.follow.drivesThroughJunctions,
 									},
 								]
 							: [];
@@ -276,7 +284,7 @@ export const RouteHighlight = () => {
 			if (!road) {
 				return [];
 			}
-			if (network.connects(road.id)) {
+			if (drivesAcrossNetwork(network, road, traffic, way)) {
 				return [{ key: `ahead:${way.seed}`, road, way, ahead: true }];
 			}
 			// Without junctions: the road's lane, once per road and direction, as always.
@@ -287,7 +295,7 @@ export const RouteHighlight = () => {
 			seen.add(key);
 			return [{ key, road, way, ahead: false }];
 		});
-	}, [offered, editing, selectedItems, entities, roads, junctions]);
+	}, [offered, editing, selectedItems, entities, roads, junctions, traffic]);
 
 	return (
 		<>

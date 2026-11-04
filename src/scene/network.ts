@@ -1,8 +1,8 @@
 import { cutLine, type IRoadNetwork, pointAlongLine } from "./junctions";
 import { createPathSampler, type IPathSample, type IPathSampler, uTurnLength } from "./paths";
-import { laneOffset, polylineLength, type TRoadEnd } from "./roads";
+import { laneOffset, polylineLength, resolveDrivesThroughJunctions, type TRoadEnd } from "./roads";
 import { centerlineOf, type IRouteSampler, type ITrafficPlace } from "./routes";
-import type { TDrivingSide, TRoadPoint } from "./schema";
+import type { TDrivingSide, TFollow, TRoad, TRoadPoint, TScene } from "./schema";
 
 /**
  * A vehicle driving a road network (ADR-0136): from where it starts on its
@@ -20,6 +20,25 @@ const HISTORY = 40;
 const CURVE_STEPS = 10;
 /** The cycle traffic sees a network vehicle in: longer than anything, so it never wraps. */
 export const NETWORK_RING = 1e7;
+
+/**
+ * Whether a vehicle starting on `road` drives a trip across the network: the road has a junction
+ * at an end, and the settings (`resolveDrivesThroughJunctions`: the vehicle's, else the road's,
+ * else the world's) let it drive through. Otherwise it keeps to its road, as before junctions.
+ * The one test for it: vehicles, the route highlight and the drop preview all ask this.
+ */
+export const drivesAcrossNetwork = (
+	network: IRoadNetwork,
+	road: Pick<TRoad, "id" | "traffic">,
+	traffic: Pick<TScene["traffic"], "drivesThroughJunctions">,
+	follow: Pick<TFollow, "drivesThroughJunctions"> | null | undefined,
+) =>
+	network.connects(road.id) &&
+	resolveDrivesThroughJunctions(
+		traffic.drivesThroughJunctions,
+		road.traffic.drivesThroughJunctions,
+		follow?.drivesThroughJunctions,
+	);
 
 /** A way out of a junction: a road end, driven away from the junction. */
 export interface IWayOut {

@@ -329,9 +329,16 @@ export const FollowSchema = z
 			.describe(
 				"Whether this vehicle leans in turns (boats into them), if its kind does; null = the road's (traffic.leansInTurns), else the world's.",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether this vehicle drives on through junctions onto other roads (ADR-0136); false = it keeps to its road, turning round at a junction as at a dead end. null = the road's (traffic.drivesThroughJunctions), else the world's.",
+			),
 	})
 	.describe(
-		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round.",
+		"Makes a vehicle drive along a road; open roads are driven back and forth, loops round and round. A road with a junction at an end leads on to other roads.",
 	);
 
 export const DetailsSchema = z
@@ -736,6 +743,13 @@ export const RoadTrafficSchema = z
 			.describe(
 				"Whether vehicles on this road lean in turns; null = the world's (traffic.leansInTurns).",
 			),
+		drivesThroughJunctions: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether vehicles that start on this road drive on through its junctions onto other roads (ADR-0136); false = they keep to it. null = the world's (traffic.drivesThroughJunctions).",
+			),
 	})
 	.describe("How vehicles drive on this road.");
 
@@ -911,6 +925,12 @@ export const TrafficSchema = z
 			.default(true)
 			.describe(
 				"Whether vehicles lean in turns, as far as their kind does (boats into them), unless a road or vehicle says otherwise.",
+			),
+		drivesThroughJunctions: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether vehicles drive on through junctions onto other roads, picking a way at random at each (ADR-0136), unless a road or vehicle says otherwise; false = each keeps to the road it starts on, turning round at a junction as at a dead end.",
 			),
 		keepsDistance: z
 			.boolean()

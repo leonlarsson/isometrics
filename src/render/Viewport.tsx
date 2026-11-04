@@ -16,6 +16,7 @@ import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
 import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
+import { drivesAcrossNetwork } from "#/scene/network";
 import type { TEntity, TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
 
@@ -99,6 +100,8 @@ interface IEntitiesShared {
 	roads: TScene["roads"];
 	/** The roads and junctions as a network (ADR-0136): vehicles on a road with a junction drive on. */
 	network: IRoadNetwork;
+	/** The world's traffic settings: whether vehicles drive through junctions, unless overridden. */
+	traffic: TScene["traffic"];
 	data: TScene["data"];
 	selectedItems: readonly ISceneItem[];
 	selectedId: string | null;
@@ -148,6 +151,7 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 		return null;
 	}
 	const roadId = entity.follow?.roadId;
+	const road = roadId ? (shared.roads.find((r) => r.id === roadId) ?? null) : null;
 	const Node = followsTheSun(entity)
 		? EntityWithSun
 		: followsTheHour(entity)
@@ -160,8 +164,12 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 		<Node
 			entity={entityAsDrawn(entity, data)}
 			world={shared.world}
-			road={roadId ? (shared.roads.find((road) => road.id === roadId) ?? null) : null}
-			network={roadId && shared.network.connects(roadId) ? shared.network : null}
+			road={road}
+			network={
+				road && drivesAcrossNetwork(shared.network, road, shared.traffic, entity.follow)
+					? shared.network
+					: null
+			}
 			data={data}
 			hour={null}
 			selected={includesItem(shared.selectedItems, "entity", id)}
@@ -210,6 +218,7 @@ const Entities = memo(() => {
 		useShallow((s) => ({
 			roads: s.scene.roads,
 			network: roadNetworkOf(s.scene.roads, s.scene.junctions),
+			traffic: s.scene.traffic,
 			data,
 			selectedItems: s.selectedItems,
 			selectedId: s.selectedId,

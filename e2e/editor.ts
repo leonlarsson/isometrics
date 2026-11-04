@@ -35,6 +35,8 @@ declare global {
 		roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
 		/** The roads each way ahead the route highlight shows goes along, by vehicle id (ADR-0136). */
 		routesShown: () => Record<string, string[]>;
+		/** Where a driving vehicle is drawn now, on the ground. */
+		poseOf: (entityId: string) => { position: [number, number] } | null;
 	};
 }
 
@@ -185,7 +187,12 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 			name: "",
 			loops: false,
 			colors: {},
-			traffic: { drivingLane: "side", turnStyle: null, leansInTurns: null },
+			traffic: {
+				drivingLane: "side",
+				turnStyle: null,
+				leansInTurns: null,
+				drivesThroughJunctions: null,
+			},
 			isHidden: false,
 			isLocked: false,
 			...r,

@@ -14,6 +14,7 @@ import { standingAltitudeAt } from "#/parts/standing";
 import type { ILightSpec } from "#/parts/types";
 import {
 	polylineLength,
+	resolveDrivesThroughJunctions,
 	resolveLeansInTurns,
 	resolveTurnStyle,
 	roadCenterlineOf,
@@ -651,6 +652,12 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 	/** What this vehicle inherits: its road's setting, else the scene's. */
 	const roadTurns = resolveTurnStyle(sceneTurns, followedRoad?.traffic.turnStyle, null);
 	const roadLeans = resolveLeansInTurns(sceneLeans, followedRoad?.traffic.leansInTurns, null);
+	const sceneDrivesThrough = useEditor((s) => s.scene.traffic.drivesThroughJunctions);
+	const roadDrivesThrough = resolveDrivesThroughJunctions(
+		sceneDrivesThrough,
+		followedRoad?.traffic.drivesThroughJunctions,
+		null,
+	);
 	// Whether its kind leans in turns at all (a part's turnLean).
 	const leans = getPart(entity.kind)?.turnLean !== undefined;
 
@@ -824,6 +831,30 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 							}}
 						/>
 					)}
+
+					<SwitchField
+						label="Drive through junctions onto other roads"
+						checked={entity.follow.drivesThroughJunctions ?? roadDrivesThrough}
+						onChange={(v) =>
+							edit("follow.throughJunctions", (e) => {
+								if (e.follow) {
+									e.follow.drivesThroughJunctions = v;
+								}
+							})
+						}
+						inherit={{
+							from: followedRoad?.traffic.drivesThroughJunctions != null ? "road" : "scene",
+							inherited: entity.follow.drivesThroughJunctions === null,
+							onReset: () =>
+								edit("follow.throughJunctions", (e) => {
+									if (e.follow) {
+										e.follow.drivesThroughJunctions = null;
+									}
+								}),
+							value: roadDrivesThrough ? "on" : "off",
+						}}
+						hint="Off, it keeps to the road it starts on and turns round at its junctions."
+					/>
 				</>
 			)}
 

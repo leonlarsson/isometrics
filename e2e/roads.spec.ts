@@ -515,6 +515,7 @@ test.describe("junctions (ADR-0136)", () => {
 						drivesTheOtherWay: false,
 						turnStyle: null,
 						leansInTurns: null,
+						drivesThroughJunctions: null,
 					},
 				},
 			],
@@ -560,5 +561,78 @@ test.describe("junctions (ADR-0136)", () => {
 			.toBe("north");
 		await page.getByRole("tab", { name: "Motion" }).click();
 		await expect(page.getByText("Now on “North”")).toBeVisible();
+	});
+
+	test("a vehicle told not to drive through junctions keeps to its road", async ({ page }) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 0],
+						[0, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "north",
+					name: "North",
+					points: [
+						[0, 0, 0],
+						[0, -20, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "north", end: "start" },
+					],
+				},
+			],
+			entities: [
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "west",
+						startDistance: 15,
+						speed: 4,
+						drivesTheOtherWay: false,
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
+				},
+			],
+		});
+		await showView(page, [-8, -4], 30);
+		await act(page, (s) => s.select("car"));
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await page.getByRole("switch", { name: "Drive through junctions onto other roads" }).click();
+		expect(await read(page, (s) => s.scene.entities[0].follow?.drivesThroughJunctions)).toBe(false);
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		// It reaches the junction within a couple of seconds, turns round there, and drives back west.
+		let furthestWest = 0;
+		for (let i = 0; i < 16; i++) {
+			await page.waitForTimeout(500);
+			const pose = await page.evaluate(() => globalThis.__editorView.poseOf("car"));
+			expect(pose).not.toBeNull();
+			const [x, z] = pose?.position ?? [0, 0];
+			expect(Math.abs(z)).toBeLessThan(1.6);
+			expect(x).toBeLessThan(1.6);
+			furthestWest = Math.min(furthestWest, x);
+		}
+		expect(furthestWest).toBeLessThan(-6);
+		// Its highlight is its own road's, there and back, not a way ahead across the junction.
+		expect(await page.evaluate(() => globalThis.__editorView.routesShown().car)).toBeUndefined();
 	});
 });

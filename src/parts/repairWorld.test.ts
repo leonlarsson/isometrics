@@ -50,6 +50,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			drivingSide: "left",
 			turnStyle: "sharp",
 			leansInTurns: false,
+			drivesThroughJunctions: true,
 			keepsDistance: false,
 			overtakes: false,
 		});
@@ -168,6 +169,7 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 			drivesTheOtherWay: true,
 			turnStyle: "smooth",
 			leansInTurns: true,
+			drivesThroughJunctions: null,
 		});
 		expect(car.colors.body.color).toBe("#00ff00");
 		expect(car.lights.headlights.whenOn).toBe("on");

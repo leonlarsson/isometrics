@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { roadNetworkOf } from "./junctions";
-import { chanceOf, createNetworkTrip, pathAhead, pickWayOut, roadsDriven } from "./network";
+import {
+	chanceOf,
+	createNetworkTrip,
+	drivesAcrossNetwork,
+	pathAhead,
+	pickWayOut,
+	roadsDriven,
+} from "./network";
+import { resolveDrivesThroughJunctions } from "./roads";
+import { createRouteSampler } from "./routes";
 import { JunctionSchema, RoadSchema, type TJunction, type TRoad, type TRoadInput } from "./schema";
 
 const road = (id: string, points: TRoadInput["points"], input: Partial<TRoadInput> = {}): TRoad =>
@@ -253,5 +262,45 @@ describe("pathAhead", () => {
 		expect(ahead.samples[0].position[0]).toBeCloseTo(20 + 0.528, 2);
 		expect(ahead.samples[0].position[1]).toBeCloseTo(5, 1);
 		expect(ahead.roads.slice(0, 2)).toEqual(["right", "top"]);
+	});
+});
+
+describe("driving through junctions, or not", () => {
+	it("follows the vehicle's own setting, else its road's, else the world's", () => {
+		expect(resolveDrivesThroughJunctions(true, null, null)).toBe(true);
+		expect(resolveDrivesThroughJunctions(true, false, null)).toBe(false);
+		expect(resolveDrivesThroughJunctions(false, true, null)).toBe(true);
+		expect(resolveDrivesThroughJunctions(true, false, true)).toBe(true);
+		expect(resolveDrivesThroughJunctions(true, null, false)).toBe(false);
+	});
+
+	it("drives across the network only from a road with a junction, when the settings let it", () => {
+		const network = block();
+		const top = network.roadById("top") as TRoad;
+		const on = { drivesThroughJunctions: true };
+		const off = { drivesThroughJunctions: false };
+		expect(drivesAcrossNetwork(network, top, on, null)).toBe(true);
+		expect(drivesAcrossNetwork(network, top, off, null)).toBe(false);
+		expect(drivesAcrossNetwork(network, top, on, { drivesThroughJunctions: false })).toBe(false);
+		expect(drivesAcrossNetwork(network, top, off, { drivesThroughJunctions: true })).toBe(true);
+		const keepsTo = { ...top, traffic: { ...top.traffic, drivesThroughJunctions: false } };
+		expect(drivesAcrossNetwork(network, keepsTo, on, null)).toBe(false);
+		const alone = road("alone", [
+			[0, 50],
+			[10, 50],
+		]);
+		expect(drivesAcrossNetwork(network, alone, on, null)).toBe(false);
+	});
+
+	it("off, a vehicle keeps to its road, turning round at its junctions as at dead ends", () => {
+		const top = block().roadById("top") as TRoad;
+		// What a vehicle that doesn't drive through gets: its road's own route, there and back.
+		const route = createRouteSampler(top, "right", { smoothing: 0.5 });
+		for (let d = 0; d < 200; d += 0.5) {
+			const { position } = route.at(2, d);
+			expect(Math.abs(position[1])).toBeLessThan(1.5);
+			expect(position[0]).toBeGreaterThan(-1.5);
+			expect(position[0]).toBeLessThan(21.5);
+		}
 	});
 });
