@@ -56,6 +56,8 @@ Round two (2026-10-29: culling kept per camera, a shape's own batch drawn as ins
 
 Weather (ADR-0102) costs nothing in clear weather: the commit before it measured the same.
 
+Real lights chosen by the picture (ADR-0144) cost the live view what they did: the same number of point lights (Nice 16, Ultra 64) and draws, and per frame each lit source is placed on screen instead of measured from the target. A still picture now has up to 192 real lights, as many as keep lights × drawn pixels within the biggest picture's with 64, and as the card's shaders have room for; its shaders are rebuilt for them on its first frame. Measure a render of a big town at night on a real GPU (`node.exe scripts/shots.mjs … --graphics ultra --hours 22` for the live view, Render a picture for a still).
+
 Textured surfaces (ADR-0137) cost nothing while a world doesn't ask for them: its materials compile with the same shaders, and Brightwater's pictures before and after were the same pixels (but for moving vehicles). On, they add a pattern to the ground's and areas' pixels only; measure it on a real GPU with `scripts/shots.mjs --world surface.enabled=true`.
 
 Then the pointer (findings 25 and 26), the mouse moved over the 2,888 objects:

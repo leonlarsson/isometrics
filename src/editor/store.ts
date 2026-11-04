@@ -331,7 +331,7 @@ export interface IEditorState {
 	 */
 	selectedItems: ISceneItem[];
 	/**
-	 * B or Shift+B was pressed (or the toolbar's Select box): the next drag on the view draws a box
+	 * B or Shift+B was pressed (or the view bar's Select with a box): the next drag on the view draws a box
 	 * that adds what's inside to the selection, or takes it out. Runtime UI state.
 	 */
 	boxSelect: "add" | "remove" | null;

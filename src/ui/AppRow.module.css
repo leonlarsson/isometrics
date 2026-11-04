@@ -1,0 +1,42 @@
+/* The app row (ADR-0142): slim, across the whole window, over the side panels and the view. */
+.appRow {
+	box-sizing: border-box;
+	height: var(--app-row-height);
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 8px 0 10px;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+/* The logo, File, AI and the save status: they give up room before the tray does. */
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+
+.tray {
+	flex: none;
+	display: flex;
+	align-items: center;
+}
+
+/* Phones: one row, with the view bar in it after the save status (ADR-0046). */
+@media (max-width: 700px) {
+	.appRow {
+		height: 48px;
+		gap: 4px;
+		padding: 0 6px;
+	}
+
+	/* File and the save status side by side, with no room to spare. */
+	.brand {
+		flex: none;
+		gap: 2px;
+	}
+}

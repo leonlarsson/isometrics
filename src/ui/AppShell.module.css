@@ -82,8 +82,17 @@
 	border-left: 1px solid var(--border);
 }
 
+/* The view's column: the view bar on top (ADR-0142), the stage under it taking the rest. */
+.view {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
 .stage {
 	position: relative;
+	flex: 1;
 	min-width: 0;
 	min-height: 0;
 	background: radial-gradient(

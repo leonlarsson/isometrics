@@ -31,6 +31,13 @@ const twoHouses = async (page: Page) => {
 	await page.mouse.move(x, y + 120);
 };
 
+/**
+ * A spot on the roof of a house_01 at scale 2 standing at `[x, z]`: on its left slope, between the
+ * gizmo in the middle and the left side's size handle, found from the world rather than as pixels
+ * from the view's centre, so it stays on the roof however big the view is.
+ */
+const roofOf = (page: Page, [x, z]: [number, number]) => screenOf(page, [x - 1.3, 3.9, z + 0.6]);
+
 test.describe("keyboard transforms (ADR-0029)", () => {
 	test.beforeEach(async ({ page }) => {
 		await openEditor(page);
@@ -218,9 +225,8 @@ test.describe("duplicating (ADR-0067, ADR-0068)", () => {
 	});
 
 	test("Ctrl+drag on a selected object leaves the original and drags a copy", async ({ page }) => {
-		const { x, y } = await viewCentre(page);
 		// The left of the house's roof, clear of its gizmo (whose up arrow is in the middle).
-		const roof = { x: x - 50, y: y - 60 };
+		const roof = await roofOf(page, [0, 0]);
 		await page.keyboard.down("Control");
 		await page.mouse.move(roof.x, roof.y);
 		await page.mouse.down();
@@ -235,7 +241,7 @@ test.describe("duplicating (ADR-0067, ADR-0068)", () => {
 });
 
 test.describe("snapping", () => {
-	test("the toolbar turns snapping off; moves then land anywhere", async ({ page }) => {
+	test("the view bar turns snapping off; moves then land anywhere", async ({ page }) => {
 		await openEditor(page);
 		await twoHouses(page);
 		await page.getByRole("button", { name: "Snap to grid: on" }).click();
@@ -274,7 +280,7 @@ test.describe("on raised land (ADR-0098)", () => {
 		// Grab the roof, clear of the gizmo, and move the pointer as far as 9 along and 2 up on screen:
 		// the ground it points at is then the plateau's top, 9 further on.
 		const house = await screenOf(page, [0, 0, 0]);
-		const roof = { x: house.x - 50, y: house.y - 60 };
+		const roof = await roofOf(page, [0, 0]);
 		const there = await screenOf(page, [9, 2, 0]);
 		await page.mouse.move(roof.x, roof.y);
 		await page.mouse.down();
