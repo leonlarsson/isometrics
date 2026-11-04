@@ -362,7 +362,35 @@ export const saveWorkshop = (): TPrefab | null => {
 	return design;
 };
 
-/** Leave without saving: back to the world as it was. */
+/** Leave without saving, now: back to the world as it was. */
 export const leaveWorkshopWithoutSaving = () => {
+	store().setWorkshopLeaving(null);
 	store().leaveWorkshop();
+};
+
+/**
+ * The one way out of the Workshop without saving, whatever leads there (its bar's Leave without
+ * saving, New world, Open file, a recent world…): straight away while nothing was built, else
+ * asked first (the Workshop bar's question, `workshopLeaving`). Then `then` runs, from the world
+ * the Workshop came from. Outside the Workshop, `then` runs at once.
+ */
+export const leaveWorkshopFirst = (then: () => void = () => {}) => {
+	const { whatIsOpen, past, setWorkshopLeaving } = store();
+	if (!workshopOf(whatIsOpen)) {
+		then();
+		return;
+	}
+	if (past.length === 0) {
+		leaveWorkshopWithoutSaving();
+		then();
+		return;
+	}
+	setWorkshopLeaving({ then });
+};
+
+/** The question's yes: leave, then do what was asked. */
+export const confirmLeavingWorkshop = () => {
+	const leaving = store().workshopLeaving;
+	leaveWorkshopWithoutSaving();
+	leaving?.then();
 };

@@ -18,7 +18,8 @@ import {
 } from "./persistence";
 import { useEditor } from "./store";
 import { notify } from "./toasts";
-import { keepsOpenWorld, OWN_WORLD } from "./whatIsOpen";
+import { keepsOpenWorld, OWN_WORLD, whyNoWorldAction, workshopOf } from "./whatIsOpen";
+import { leaveWorkshopFirst } from "./workshop";
 
 /**
  * File menu actions, shared by the menu and the keyboard shortcuts. They act on
@@ -79,6 +80,11 @@ const uniqueTitle = (title: string) => {
  * passes the world it copies, so its camera starts where that one's was.
  */
 export const startNewWorld = (scene: TScene, copiedFrom: string | null = null) => {
+	// Out of the Workshop first, asked if something was built there (ADR-0134).
+	if (workshopOf(useEditor.getState().whatIsOpen)) {
+		leaveWorkshopFirst(() => startNewWorld(scene, copiedFrom));
+		return;
+	}
 	saveBeforeSwitching();
 	const view = rememberedView(copiedFrom);
 	const world = { ...scene, meta: { ...scene.meta, title: uniqueTitle(scene.meta.title) } };
@@ -91,6 +97,11 @@ export const startNewWorld = (scene: TScene, copiedFrom: string | null = null) =
 
 /** Switch to a world saved in this browser. */
 export const openSavedWorld = (id: string) => {
+	// Out of the Workshop first, asked if something was built there (ADR-0134).
+	if (workshopOf(useEditor.getState().whatIsOpen)) {
+		leaveWorkshopFirst(() => openSavedWorld(id));
+		return;
+	}
 	// Already showing it (not a preview over it, nor the home screen with it stored as open).
 	if (id === openWorldId() && keepsOpenWorld(useEditor.getState().whatIsOpen)) {
 		return;
@@ -122,7 +133,8 @@ const copyOf = (scene: TScene): TScene => ({
 
 /** Copy the open world into a new one, named "… (copy)", and switch to it. */
 export const duplicateWorld = () => {
-	if (useEditor.getState().whatIsOpen.kind === "world") {
+	// Not the Workshop's world, nor nothing (ADR-0134).
+	if (whyNoWorldAction(useEditor.getState().whatIsOpen) === null) {
 		startNewWorld(copyOf(useEditor.getState().scene), openWorldId());
 	}
 };
@@ -269,8 +281,12 @@ export const closePreview = () => {
 
 /** Download the open world as a JSON file. */
 export const saveWorldFile = () => {
-	// Nothing to save on the home screen, or while a link is opening.
-	if (useEditor.getState().whatIsOpen.kind === "world") {
+	// Nothing to save on the home screen, or while a link is opening; the Workshop's world isn't
+	// one to keep (ADR-0134): Ctrl+S says so.
+	const why = whyNoWorldAction(useEditor.getState().whatIsOpen);
+	if (why === null) {
 		downloadScene(useEditor.getState().scene);
+	} else if (workshopOf(useEditor.getState().whatIsOpen)) {
+		notify("Nothing to save to a file here", "Save the prefab, or leave the Workshop first.");
 	}
 };

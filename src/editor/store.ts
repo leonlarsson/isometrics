@@ -455,6 +455,12 @@ export interface IEditorState {
 	 * given, is then made to it as one undo step (saving the prefab). Returns whether it was open.
 	 */
 	leaveWorkshop: (change?: (scene: Draft<TScene>) => void) => boolean;
+	/**
+	 * Leaving the Workshop with something built in it is being asked about (editor/workshop's
+	 * `leaveWorkshopFirst`): what to do once it's left. Runtime only.
+	 */
+	workshopLeaving: { then: () => void } | null;
+	setWorkshopLeaving: (leaving: { then: () => void } | null) => void;
 	/** Cancel an unfinished gesture: back to `before`, dropping the undo step it made. */
 	revertTo: (before: TScene) => void;
 	/** Set while a gizmo or keyboard transform is running, so Esc can cancel it. */
@@ -1677,6 +1683,8 @@ export const createEditorStore = (openScene?: TScene) => {
 			},
 			setWhatIsOpen: (whatIsOpen) => set({ whatIsOpen }),
 			setAskingToKeep: (isAskingToKeep) => set({ isAskingToKeep }),
+			workshopLeaving: null,
+			setWorkshopLeaving: (leaving) => set({ workshopLeaving: leaving }),
 			enterWorkshop: (world, workshop) => {
 				set({
 					whatIsOpen: { kind: "world", preview: null, workshop },

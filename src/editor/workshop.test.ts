@@ -4,11 +4,20 @@ import { SceneSchema } from "#/scene/schema";
 
 import { pasteText, selectedThingsText } from "./clipboard";
 import { useEditor } from "./store";
-import { keepsOpenWorld, OWN_WORLD, whyNoWorkshop, workshopOf } from "./whatIsOpen";
+import {
+	keepsOpenWorld,
+	labelWithReason,
+	OWN_WORLD,
+	whyNoWorkshop,
+	whyNoWorldAction,
+	workshopOf,
+} from "./whatIsOpen";
 import {
 	centredPieces,
+	confirmLeavingWorkshop,
 	designOf,
 	editPrefab,
+	leaveWorkshopFirst,
 	leaveWorkshopWithoutSaving,
 	makeNewPrefab,
 	makePrefabFromSelection,
@@ -200,6 +209,36 @@ describe("making and changing prefabs in the Workshop (ADR-0134)", () => {
 		pasteText(text ?? "");
 		expect(s().scene.entities).toEqual([]);
 		leaveWorkshopWithoutSaving();
+	});
+
+	it("greys out acting on the open world as a world while it's the Workshop's", () => {
+		expect(whyNoWorldAction(s().whatIsOpen)).toBeNull();
+		makeNewPrefab(null);
+		expect(whyNoWorldAction(s().whatIsOpen)).toBe("not in the Workshop");
+		expect(labelWithReason("Save to file", whyNoWorldAction(s().whatIsOpen))).toBe(
+			"Save to file (not in the Workshop)",
+		);
+		leaveWorkshopWithoutSaving();
+	});
+
+	it("leaving any other way asks first once something was built, then carries on", () => {
+		const done: string[] = [];
+		makeNewPrefab(null);
+		// Nothing built: straight out.
+		leaveWorkshopFirst(() => done.push("empty"));
+		expect(workshopOf(s().whatIsOpen)).toBeNull();
+		expect(done).toEqual(["empty"]);
+
+		makeNewPrefab(null);
+		s().addEntity({ kind: "box_01", name: "", position: [0, 0] });
+		leaveWorkshopFirst(() => done.push("built"));
+		// Asked: still in the Workshop until the answer.
+		expect(workshopOf(s().whatIsOpen)).not.toBeNull();
+		expect(s().workshopLeaving).not.toBeNull();
+		confirmLeavingWorkshop();
+		expect(workshopOf(s().whatIsOpen)).toBeNull();
+		expect(s().workshopLeaving).toBeNull();
+		expect(done).toEqual(["empty", "built"]);
 	});
 
 	it("isn't opened from a preview", () => {

@@ -103,6 +103,23 @@ export const keepsOpenWorld = (whatIsOpen: TWhatIsOpen) =>
 	whatIsOpen.kind === "world" && whatIsOpen.preview === null && whatIsOpen.workshop === null;
 
 /**
+ * Why actions on the open world as a world (Share a link…, Save to file, Duplicate world, Delete
+ * world…, Change this world…) don't apply now, in the words a greyed-out item adds to its label
+ * ("Save to file (not in the Workshop)"), or null when they do: there's no world open, or it's
+ * the Workshop's, which is no world to pass on or keep (ADR-0134). One answer for every item.
+ */
+export const whyNoWorldAction = (whatIsOpen: TWhatIsOpen): string | null => {
+	if (whatIsOpen.kind !== "world") {
+		return "no world is open";
+	}
+	return whatIsOpen.workshop ? "not in the Workshop" : null;
+};
+
+/** A menu item's label with why it's greyed out, if it is. */
+export const labelWithReason = (label: string, why: string | null) =>
+	why ? `${label} (${why})` : label;
+
+/**
  * Why prefabs can't be made or changed now, in the words a greyed-out option says it with
  * ("Make a prefab… (keep a copy first)"), or null when they can (ADR-0134).
  */

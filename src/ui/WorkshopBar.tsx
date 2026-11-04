@@ -1,9 +1,8 @@
-import { useState } from "react";
-
 import { useEditor } from "#/editor/store";
 import { workshopOf } from "#/editor/whatIsOpen";
 import {
-	leaveWorkshopWithoutSaving,
+	confirmLeavingWorkshop,
+	leaveWorkshopFirst,
 	newPrefabName,
 	renamePrefabInWorkshop,
 	saveWorkshop,
@@ -21,14 +20,15 @@ import styles from "./WorkshopBar.module.css";
 /**
  * The Workshop's bar over the view (ADR-0134): the prefab's name, Save the
  * prefab (back to the world, which keeps it, as one undo step) and Leave
- * without saving (asked first once something was built). What's built here
- * of objects and fences is the prefab; the rest of this world is the world's.
+ * without saving. Leaving with something built is asked here first, whatever
+ * asked to leave (this bar, New world, Open file, a recent world…:
+ * `leaveWorkshopFirst`). What's built here of objects and fences is the
+ * prefab; the rest of this world is the world's.
  */
 export const WorkshopBar = () => {
 	const workshop = useEditor((s) => workshopOf(s.whatIsOpen));
 	const hasPieces = useEditor((s) => workshopHasPieces(s.scene));
-	const hasChanged = useEditor((s) => s.past.length > 0);
-	const [isAsking, setAsking] = useState(false);
+	const isAsking = useEditor((s) => s.workshopLeaving !== null);
 	if (!workshop) {
 		return null;
 	}
@@ -42,9 +42,7 @@ export const WorkshopBar = () => {
 				title={before ? `The Workshop: changing ${startName}` : "The Workshop: a new prefab"}
 				actions={
 					<>
-						<Button onClick={() => (hasChanged ? setAsking(true) : leaveWorkshopWithoutSaving())}>
-							Leave without saving
-						</Button>
+						<Button onClick={() => leaveWorkshopFirst()}>Leave without saving</Button>
 
 						<Button variant="primary" icon="check" disabled={!hasPieces} onClick={saveWorkshop}>
 							Save the prefab
@@ -77,12 +75,16 @@ export const WorkshopBar = () => {
 
 			<ConfirmDialog
 				open={isAsking}
-				onOpenChange={setAsking}
+				onOpenChange={(open) => {
+					if (!open) {
+						useEditor.getState().setWorkshopLeaving(null);
+					}
+				}}
 				title="Leave without saving?"
 				description={`What you built in the Workshop is left behind, and ${world} stays as it was.`}
 				confirmLabel="Leave without saving"
 				cancelLabel="Keep building"
-				onConfirm={leaveWorkshopWithoutSaving}
+				onConfirm={confirmLeavingWorkshop}
 				danger
 			/>
 		</>
