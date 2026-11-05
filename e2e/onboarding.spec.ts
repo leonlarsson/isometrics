@@ -236,6 +236,14 @@ test.describe("POST /api/worlds/validate (ADR-0117)", () => {
 		});
 		expect(notJson.status()).toBe(400);
 
+		// Nested too deep is said in our words, not as the stack running out (ADR-0145).
+		const deep = await request.post("/api/worlds/validate", {
+			data: Buffer.from(`${"[".repeat(5000)}${"]".repeat(5000)}`),
+			headers: { "Content-Type": "application/json" },
+		});
+		expect(deep.status()).toBe(400);
+		expect((await deep.json()).problems[0].what).toMatch(/nested more than 64 levels/);
+
 		// A patch, with the world it changes (ADR-0118), and its format.
 		const patched = await (
 			await request.post("/api/worlds/validate", {
