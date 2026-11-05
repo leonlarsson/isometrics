@@ -4,17 +4,19 @@
 
 Build animated 3D miniature worlds that show your data: drop in buildings, vehicles and trees, draw roads, bridges, water, parks and raised land, label it all with your numbers, and present the result as a living map of your business.
 
-![Lantern Bay at golden hour, from the bay: towers along the waterfront mirrored in the water](docs/gallery/lantern-bay-bay-18.3.jpg)
+![Stockholm at blue hour, the palace from the water: Gamla stan's quayside houses and the royal palace lit under a pink sky, the Riksdag on its island beside them, lamps along the quay reflected in Strömmen](docs/gallery/stockholm-palace-19.6.jpg)
 
 ## Gallery
 
 | | |
 |---|---|
+| ![Stockholm at dusk: Gamla stan between its waters under an orange sky, Riddarholmen, Norrmalm, Södermalm and Skeppsholmen around it](docs/gallery/stockholm-gamla_stan-18.7.jpg) | ![Stockholm at night: lamps tracing every quay and bridge around Gamla stan, lit windows across the city](docs/gallery/stockholm-gamla_stan-22.5.jpg) |
+| ![Stortorget at blue hour: street lamps light the old square, its well and the stepped gables around it](docs/gallery/stockholm-stortorget-19.6.jpg) | ![Lantern Bay at golden hour, from the bay: towers along the waterfront mirrored in the water](docs/gallery/lantern-bay-bay-18.3.jpg) |
 | ![Lantern Bay at night: lamps along the promenade, lit windows reflected in the bay](docs/gallery/lantern-bay-promenade-21.5.jpg) | ![Lantern Bay's harbour basin at blue hour, the yachts and lit towers mirrored in still water](docs/gallery/lantern-bay-basin-19.8.jpg) |
 | ![Lantern Bay at a glance, with its evening in numbers on data cards](docs/gallery/lantern-bay-cards-overview-18.3.jpg) | ![Brightwater with its live numbers on data cards: stadium, park, ring road, marina, depot](docs/gallery/brightwater-cards-overview-daylight.jpg) |
 | ![Lantern Bay's lighthouse point at night, its beam sweeping the bay below the lit towers](docs/gallery/lantern-bay-lighthouse-21.5.jpg) | ![Lantern Bay's harbour lanes at golden hour: shops and a café terrace under string lights by the quay](docs/gallery/lantern-bay-lanes-18.3.jpg) |
 | ![Brightwater's downtown at golden hour, long shadows across the river](docs/gallery/brightwater-downtown-17.8.jpg) | ![Brightwater at night on the dark theme: lit windows, street lamps, headlights and boats](docs/gallery/brightwater-dark-overview-22.jpg) |
-| ![Brightwater's old town at golden hour: the high street with shops, a café terrace, the church and the tram](docs/gallery/brightwater-old_town-17.8.jpg) | ![Brightwater's farmland by day: fields inside a farm track, a tractor, the barn, greenhouses and Hollow Wood](docs/gallery/brightwater-farmland-15.jpg) |
+| ![Brightwater's old town at golden hour: the high street with shops, a café terrace and the church, lorries at the depot](docs/gallery/brightwater-old_town-17.8.jpg) | ![Brightwater's farmland by day: fields inside a farm track, a tractor, the barn, greenhouses and Hollow Wood](docs/gallery/brightwater-farmland-15.jpg) |
 
 Drawn on the Ultra graphics preset. `node scripts/gallery.mjs` retakes them all (on WSL with Windows' node, `node.exe`, for the real GPU) from a running `pnpm dev`.
 

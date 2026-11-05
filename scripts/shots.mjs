@@ -42,10 +42,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT = join(ROOT, "shots");
 const onWindows = process.platform === "win32";
-/** Where the app keeps preferences (editor/preferences), from APP_NAME (src/lib/app.ts). */
-const PREFERENCES_KEY = `${readFileSync(join(ROOT, "src/lib/app.ts"), "utf8")
+/** The app's name in its storage keys, from APP_NAME (src/lib/app.ts). */
+const STORAGE_PREFIX = readFileSync(join(ROOT, "src/lib/app.ts"), "utf8")
 	.match(/APP_NAME = "([^"]+)"/)[1]
-	.toLowerCase()}:preferences`;
+	.toLowerCase();
+/** Where the app keeps preferences (editor/preferences). */
+const PREFERENCES_KEY = `${STORAGE_PREFIX}:preferences`;
+/** The welcome's "seen" mark (editor/welcome.ts): a new browser is greeted over the view (ADR-0116). */
+const WELCOME_SEEN_KEY = `${STORAGE_PREFIX}:welcome-seen`;
 
 /** Playwright, also from Windows' node on a WSL checkout, which can't follow pnpm's links. */
 const loadPlaywright = async () => {
@@ -237,6 +241,7 @@ await context.addInitScript(({ key, value }) => localStorage.setItem(key, JSON.s
 	key: PREFERENCES_KEY,
 	value: preferences,
 });
+await context.addInitScript((key) => localStorage.setItem(key, "1"), WELCOME_SEEN_KEY);
 await context.addInitScript(timeFrames);
 const page = await context.newPage();
 const errors = [];
@@ -305,7 +310,12 @@ for (const view of views) {
 						: id === "pose"
 							? { id, targetAltitude: 0, ...own }
 							: store.getState().scene.viewpoints.find((v) => v.id === id);
-				store.setState({ flight: { pose, nonce: Date.now(), instant: true } });
+				// With its projection, as the store's own flights do: the sky and clouds are drawn only
+				// while the editor's projection is perspective, whatever the camera shows.
+				store.setState({
+					...(pose.projection ? { projection: pose.projection } : {}),
+					flight: { pose, nonce: Date.now(), instant: true },
+				});
 			},
 			{ id: view, close: CLOSE, own: options.pose ? JSON.parse(options.pose) : null },
 		);
