@@ -148,3 +148,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0142](0142-app-row-and-view-bar.md) | The top bar in two rows: an app row across the window, a view bar over the view | proposed |
 | [0143](0143-parts-of-many-pieces-as-one-geometry.md) | Parts of many pieces are built as one geometry, with a colour per vertex | proposed |
 | [0144](0144-real-lights-by-the-picture.md) | Real lights chosen by the picture, fading out at the edge; more of them in a still picture | proposed |
+| [0146](0146-starter-pictures-made-ahead-of-time.md) | The built-in worlds' pictures are made ahead of time, and each starter's link previews with its own | proposed |

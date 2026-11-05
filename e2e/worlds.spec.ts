@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
 import {
+	act,
 	appMenu,
 	expect,
 	fileMenu,
@@ -137,6 +138,65 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await home.getByRole("button", { name: /^Mine/ }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Mine");
 		await expect(page.locator("canvas")).toHaveCount(1);
+	});
+
+	test("the home screen says what the app is, and opens a starter or the example", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await act(page, (s) => s.setWhatIsOpen({ kind: "home", why: { kind: "chosen" } }));
+		const home = page.getByRole("main", { name: "Home" });
+		await expect(home).toContainText("a city to build, or a map that shows your data");
+		// Each starter with its picture, a file made ahead of time (ADR-0146).
+		const castle = home.getByRole("button", { name: /^Shape Castle/ });
+		await expect(castle.locator('img[src^="/starters/shape-castle-"]')).toBeVisible();
+		await castle.click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Shape Castle");
+
+		await act(page, (s) => s.setWhatIsOpen({ kind: "home", why: { kind: "chosen" } }));
+		await home.getByRole("button", { name: "Explore an example" }).click();
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toMatch(/^Brightwater/);
+	});
+
+	test("a starter's link previews as the starter, a shared world's in words of our own", async ({
+		page,
+	}) => {
+		const htmlOf = async (path: string) => (await page.request.get(path)).text();
+		const stockholm = await htmlOf("/templates/stockholm");
+		expect(stockholm).toContain("<title>Stockholm · Isometrics</title>");
+		expect(stockholm).toMatch(
+			/property="og:image" content="https:\/\/[^"]+\/starters\/stockholm-preview\.jpg"/,
+		);
+		expect(stockholm).toMatch(/property="og:description" content="Gamla stan/);
+		// Never the sharer's words: anyone can write a world's title.
+		expect(await htmlOf("/w/abcdefghijkl")).toContain(
+			"<title>A world shared on Isometrics</title>",
+		);
+		expect(await htmlOf("/p/abcdefghijkl")).toContain(
+			"<title>A prefab shared on Isometrics</title>",
+		);
+		expect(await htmlOf("/guide")).toMatch(/property="og:title" content="Guide · Isometrics"/);
+	});
+
+	test("a template that reads outside sources opens without asking over it: its bar asks", async ({
+		page,
+	}) => {
+		test.slow();
+		const outside: string[] = [];
+		page.on("request", (request) => {
+			if (request.url().includes("battlefieldstats")) {
+				outside.push(request.url());
+			}
+		});
+		await openPage(page, "/templates/battlefield-territory");
+		await page.locator("[data-loading-screen]").waitFor({ state: "detached", timeout: 120_000 });
+		await expect(page.getByText(/external sources wait for your yes/)).toBeVisible();
+		await expect(page.getByRole("button", { name: "Review and allow…" })).toBeVisible();
+		await expect(
+			page.getByRole("alertdialog", { name: "This world uses external sources" }),
+		).toHaveCount(0);
+		// Nothing is read from them until they're allowed (ADR-0119).
+		expect(outside).toEqual([]);
 	});
 
 	test("All worlds lists them, with a search", async ({ page }) => {

@@ -18,6 +18,25 @@ const FILL = 0.9;
 /** Framing one thing: leave room around it, and don't zoom in closer than this many units. */
 const FOCUS_FILL = 0.6;
 const FOCUS_MIN_SIZE = 16;
+/**
+ * On a portrait screen (a phone), the ground is framed from nearer along its longer side instead
+ * when that shows it at least this much bigger: from the corner, a long world is a thin strip.
+ */
+const PORTRAIT_GAIN = 1.3;
+/** How far from straight along that side (degrees): a little, so it isn't seen square on. */
+const PORTRAIT_SLANT = 5;
+const slant = THREE.MathUtils.degToRad(PORTRAIT_SLANT);
+/** From nearer along the ground's width (x) or its depth (z), as high above it as VIEW_DIRECTION. */
+const ALONG_WIDTH = new THREE.Vector3(
+	Math.SQRT2 * Math.cos(slant),
+	0.9,
+	Math.SQRT2 * Math.sin(slant),
+).normalize();
+const ALONG_DEPTH = new THREE.Vector3(
+	Math.SQRT2 * Math.sin(slant),
+	0.9,
+	Math.SQRT2 * Math.cos(slant),
+).normalize();
 
 const corner = new THREE.Vector3();
 const offset = new THREE.Vector3();
@@ -41,7 +60,10 @@ const fitToCanvas = (camera: THREE.Camera, width: number, height: number) => {
 /**
  * Frames the ground: the camera looks along VIEW_DIRECTION, and the zoom (or,
  * for the perspective camera, the distance) comes from the ground's projected
- * corners. With a `frameBox` (frame selection, F) it frames that box instead,
+ * corners. On a portrait screen it looks from nearer along the ground's
+ * longer side instead, when that shows the ground much bigger
+ * (PORTRAIT_GAIN): a phone would otherwise show a long world as a thin strip.
+ * Wide screens are framed as always. With a `frameBox` (frame selection, F) it frames that box instead,
  * from the angle you're looking at it. Runs once the canvas has a size, on
  * ground resize, and when "re-centre" or "frame selection" is requested; not
  * on every canvas resize (that would throw away the user's pan and zoom when a
@@ -82,30 +104,43 @@ export const CameraRig = () => {
 			: [groundWidth, FRAME_HEIGHT, groundDepth];
 		const target = new THREE.Vector3(cx, box ? cy : 0, cz);
 		// Re-centring goes back to the iso view; framing one thing keeps the angle you're looking from.
-		const direction = box
+		let direction = box
 			? camera.position.clone().sub(controls.target).normalize()
 			: VIEW_DIRECTION.clone();
+		const fill = box ? FOCUS_FILL : FILL;
 
-		camera.position.copy(direction).multiplyScalar(CAMERA_DISTANCE).add(target);
-		camera.lookAt(target);
-		camera.updateMatrixWorld();
-
-		// How far the box reaches from its centre, across and up the screen.
-		let maxX = 0;
-		let maxY = 0;
-		const centre = target.clone().applyMatrix4(camera.matrixWorldInverse);
-		for (const x of [cx - sx / 2, cx + sx / 2]) {
-			for (const y of [cy - sy / 2, cy + sy / 2]) {
-				for (const z of [cz - sz / 2, cz + sz / 2]) {
-					corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).sub(centre);
-					maxX = Math.max(maxX, Math.abs(corner.x));
-					maxY = Math.max(maxY, Math.abs(corner.y));
+		/** Puts the camera along a direction, and says the pixels per world unit that fit the box. */
+		const scaleFrom = (along: THREE.Vector3) => {
+			camera.position.copy(along).multiplyScalar(CAMERA_DISTANCE).add(target);
+			camera.lookAt(target);
+			camera.updateMatrixWorld();
+			// How far the box reaches from its centre, across and up the screen.
+			let maxX = 0;
+			let maxY = 0;
+			const centre = target.clone().applyMatrix4(camera.matrixWorldInverse);
+			for (const x of [cx - sx / 2, cx + sx / 2]) {
+				for (const y of [cy - sy / 2, cy + sy / 2]) {
+					for (const z of [cz - sz / 2, cz + sz / 2]) {
+						corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse).sub(centre);
+						maxX = Math.max(maxX, Math.abs(corner.x));
+						maxY = Math.max(maxY, Math.abs(corner.y));
+					}
 				}
 			}
+			return Math.min(width / (2 * maxX), height / (2 * maxY)) * fill;
+		};
+
+		let scale = scaleFrom(direction);
+		if (!box && height > width) {
+			const along = groundWidth >= groundDepth ? ALONG_WIDTH : ALONG_DEPTH;
+			const alongScale = scaleFrom(along);
+			if (alongScale >= scale * PORTRAIT_GAIN) {
+				direction = along.clone();
+				scale = alongScale;
+			} else {
+				scaleFrom(direction);
+			}
 		}
-		const fill = box ? FOCUS_FILL : FILL;
-		// Pixels per world unit that fit the box.
-		const scale = Math.min(width / (2 * maxX), height / (2 * maxY)) * fill;
 		if (camera instanceof THREE.OrthographicCamera) {
 			camera.zoom = scale;
 		} else if (camera instanceof THREE.PerspectiveCamera) {
