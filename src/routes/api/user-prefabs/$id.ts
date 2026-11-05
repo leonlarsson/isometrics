@@ -23,8 +23,7 @@ const notSetUp = () => {
 	);
 };
 
-// A shared prefab as JSON (ADR-0134): GET it, or DELETE it with its key (Authorization: Bearer <key>),
-// or with the admin token (ADR-0145, docs/runbooks/takedown.md).
+// A shared prefab as JSON (ADR-0134): GET it, or DELETE it with its key (Authorization: Bearer <key>).
 export const Route = createFileRoute("/api/user-prefabs/$id")({
 	server: {
 		handlers: {
@@ -57,12 +56,7 @@ export const Route = createFileRoute("/api/user-prefabs/$id")({
 					return notSetUp();
 				}
 				const key = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-				const result = await deleteUserPrefab(
-					env.USER_PREFABS,
-					params.id,
-					key,
-					env.ADMIN_DELETE_TOKEN,
-				);
+				const result = await deleteUserPrefab(env.USER_PREFABS, params.id, key);
 				const status = result === "deleted" ? 200 : result === "gone" ? 404 : 403;
 				return Response.json({ result }, { status, headers: HEADERS });
 			},

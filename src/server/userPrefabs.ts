@@ -2,14 +2,8 @@ import { repairWorld } from "#/parts/repairWorld";
 import { safeJson } from "#/scene/safeJson";
 import { SCENE_VERSION } from "#/scene/schema";
 
-import {
-	bytesOf,
-	MOST_SHARED_PREFAB_BYTES,
-	sizeInWords,
-	tooLongIn,
-	tooManyInPrefab,
-} from "./shareLimits";
-import { fitMetadata, isAdminToken, sameSecret } from "./sharingControls";
+import { bytesOf, MOST_SHARED_PREFAB_BYTES, sizeInWords } from "./shareLimits";
+import { fitMetadata, sameSecret } from "./sharingControls";
 import { GZIP, gzipText, textOfStored } from "./storedText";
 import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWorlds";
 
@@ -18,7 +12,7 @@ import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWor
  * by link are (ADR-0120): only when someone asks (Share a link… on a prefab's
  * tile), public to anyone with the link until it expires, each share a
  * snapshot under a new random key, never overwritten. Only prefabs that read
- * as written are kept, held to the limits in `shareLimits.ts` (ADR-0145): it's
+ * as written are kept, no bigger than `shareLimits.ts` says (ADR-0145): it's
  * not a place to keep anything else. Kept gzipped since ADR-0145; plain-text
  * entries kept before are still read. No Cloudflare imports here: the routes
  * pass the store in.
@@ -102,13 +96,6 @@ export const shareUserPrefab = async (
 			`It isn't JSON a prefab could be: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
-	// Before anything else is done with it: no text a page long, no list to freeze a tab (ADR-0145).
-	const tooMuch = tooLongIn(parsed) ?? tooManyInPrefab(parsed);
-	if (tooMuch) {
-		throw new UserPrefabError(
-			`It holds more than can be shared: ${tooMuch.where}, ${tooMuch.what}.`,
-		);
-	}
 	// Read as a world holding it alone: kept only as written, never repaired into something else.
 	let prefab: unknown;
 	try {
@@ -164,25 +151,20 @@ export const readUserPrefab = async (store: IUserPrefabStore, id: string) => {
 	return value === null ? null : { json: await textOfStored(value), metadata };
 };
 
-/**
- * Delete a shared prefab with the key that came with it, or with the admin token (the
- * `ADMIN_DELETE_TOKEN` secret, for taking down what shouldn't be there: docs/runbooks/takedown.md).
- */
+/** Delete a shared prefab with the key that came with it (compared in constant time). */
 export const deleteUserPrefab = async (
 	store: IUserPrefabStore,
 	id: string,
 	deleteKey: string,
-	adminToken?: unknown,
 ): Promise<"deleted" | "gone" | "refused"> => {
 	const found = await readUserPrefab(store, id);
 	if (!found) {
 		return "gone";
 	}
-	const isAllowed =
-		(await isAdminToken(deleteKey, adminToken)) ||
-		(found.metadata !== null &&
-			(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash)));
-	if (!isAllowed) {
+	if (
+		!found.metadata ||
+		!(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash))
+	) {
 		return "refused";
 	}
 	await store.delete(id);

@@ -2,12 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { textUpTo } from "#/lib/textUpTo";
 import { rateLimitKeyOf } from "#/server/rateLimitKey";
-import {
-	MOST_SHARED_ITEMS,
-	MOST_SHARED_WORLD_BYTES,
-	MOST_TEXT_LENGTH,
-	sizeInWords,
-} from "#/server/shareLimits";
+import { MOST_SHARED_WORLD_BYTES, sizeInWords } from "#/server/shareLimits";
 import { isSharingDisabled, SHARING_PAUSED } from "#/server/sharingControls";
 import {
 	DEFAULT_USER_WORLD_EXPIRY,
@@ -37,7 +32,7 @@ const HOW_TO = {
 	about:
 		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its kind (world or patch), its url (a world opens in the editor; a patch's is for pasting into Build with AI → Change this world, and isn't opened on its own), its jsonUrl (the JSON), when it expires, and a deleteKey to DELETE it early. It's checked first: a world must open exactly as written (no repairs), and a patch must be one (only the world's fields, lists changed by remove, change and add, values each field takes), at most an hour and 500 kB. Anything else is refused with 400 and its problems, where and what.",
 	expiresIn: `One of ${USER_WORLD_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_WORLD_EXPIRY} when left out.`,
-	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_WORLD_BYTES)} as kept (defaults left out); no text over ${MOST_TEXT_LENGTH.toLocaleString("en")} characters, at most ${MOST_SHARED_ITEMS.entities.toLocaleString("en")} objects and ${MOST_SHARED_ITEMS.dataRows.toLocaleString("en")} data rows; a few shares a minute.`,
+	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_WORLD_BYTES)} as kept (defaults left out), and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",
 };
 
@@ -62,7 +57,7 @@ export const Route = createFileRoute("/api/user-worlds/")({
 
 /** Share what was posted: limited per sender, refused when too big or not a world. */
 const share = async (request: Request) => {
-	// The kill switch (ADR-0145, docs/runbooks/takedown.md): nothing new is kept while it's on.
+	// The kill switch (ADR-0145): nothing new is kept while it's on.
 	if (isSharingDisabled(env.SHARING_DISABLED)) {
 		return problem(SHARING_PAUSED, 503);
 	}

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { compactWorld } from "#/parts/compactWorld";
 import { createEmptyScene, TEMPLATES } from "#/templates";
 
-import { MOST_SHARED_ITEMS, MOST_SHARED_WORLD_BYTES, MOST_TEXT_LENGTH } from "./shareLimits";
-import { LEAST_ADMIN_TOKEN_LENGTH, MOST_METADATA_BYTES } from "./sharingControls";
+import { MOST_SHARED_WORLD_BYTES } from "./shareLimits";
+import { MOST_METADATA_BYTES } from "./sharingControls";
 import { isGzip } from "./storedText";
 import {
 	deleteUserWorld,
@@ -134,13 +134,7 @@ describe("worlds shared by link (ADR-0120)", () => {
 		expect(await refusedFor({ data: { secrets: 1 } })).toMatch(/data\.secrets/);
 		// Only for handing changes back: an hour at most, 500 kB at most.
 		expect(await refusedFor({ meta: { title: "x" } }, 86_400)).toMatch(/an hour at most/);
-		expect(
-			await refusedFor({
-				entities: {
-					remove: Array.from({ length: 15_000 }, (_, i) => `an_old_object_with_a_long_name_${i}`),
-				},
-			}),
-		).toMatch(/500 kB/);
+		expect(await refusedFor({ meta: { title: "x".repeat(600_000) } })).toMatch(/500 kB/);
 		expect(kept.size).toBe(1);
 	});
 
@@ -172,7 +166,7 @@ describe("worlds shared by link (ADR-0120)", () => {
 	});
 });
 
-describe("what a shared world can hold (ADR-0145)", () => {
+describe("how a shared world is kept (ADR-0145)", () => {
 	const refusal = async (scene: unknown) => {
 		const { store, kept } = memoryStore();
 		const error = await shareUserWorld(store, JSON.stringify(scene), 3600, ORIGIN).catch(
@@ -191,64 +185,8 @@ describe("what a shared world can hold (ADR-0145)", () => {
 		}
 	});
 
-	it("refuse a text over 2,000 characters anywhere, saying where", async () => {
-		const scene = createEmptyScene({ title: "Long" });
-		expect(await refusal({ ...scene, meta: { ...scene.meta, title: "x".repeat(2001) } })).toMatch(
-			/meta\.title, a text of 2,001 characters: at most 2,000/,
-		);
-		const withValue = structuredClone(scene) as Record<string, unknown> & typeof scene;
-		withValue.data.values = [
-			{ key: "notes", label: "Notes", value: "y".repeat(MOST_TEXT_LENGTH + 1) },
-		] as never;
-		expect(await refusal(withValue)).toMatch(/data\.values\[0\]\.value/);
-		// Keys too: a record's key is text as much as its values are.
-		expect(await refusal({ ...scene, meta: { ...scene.meta, ["k".repeat(3000)]: 1 } })).toMatch(
-			/meta, a name \(key\) of 3,000 characters/,
-		);
-		// 2,000 is still fine.
-		const { store } = memoryStore();
-		await expect(
-			shareUserWorld(
-				store,
-				JSON.stringify({ ...scene, meta: { ...scene.meta, title: "x".repeat(MOST_TEXT_LENGTH) } }),
-				3600,
-				ORIGIN,
-			),
-		).resolves.toMatchObject({ kind: "world" });
-	});
-
-	it("refuse more things than a tab should be asked to draw", async () => {
-		const scene = createEmptyScene({ title: "Crowded" });
-		const many = (count: number) =>
-			Array.from({ length: count }, (_, i) => ({
-				id: `o${i}`,
-				kind: "house_01",
-				position: [0, 0],
-			}));
-		expect(await refusal({ ...scene, entities: many(MOST_SHARED_ITEMS.entities + 1) })).toMatch(
-			/entities, 10,001 of them: a shared world has at most 10,000/,
-		);
-		const rows = Array.from({ length: MOST_SHARED_ITEMS.dataRows / 2 + 1 }, () => ({ a: 1 }));
-		expect(
-			await refusal({
-				...scene,
-				data: {
-					...scene.data,
-					tables: [
-						{ key: "t", name: "T", columns: [{ key: "a", name: "A" }], rows },
-						{ key: "u", name: "U", columns: [{ key: "a", name: "A" }], rows },
-					],
-				},
-			}),
-		).toMatch(/data\.tables, 20,002 rows in all/);
-		expect(
-			await refusal({ isPatch: true, entities: { add: many(MOST_SHARED_ITEMS.entities + 1) } }),
-		).toMatch(/entities, 10,001 of them/);
-	});
-
 	it("refuse a world bigger than 1.5 MB as kept, in words", async () => {
 		const scene = createEmptyScene({ title: "Heavy" });
-		// Under every count limit, but too big as kept.
 		const entities = Array.from({ length: 9000 }, (_, i) => ({
 			id: `object_${i}`,
 			kind: "house_01",
@@ -307,21 +245,5 @@ describe("what a shared world can hold (ADR-0145)", () => {
 			// biome-ignore lint/suspicious/noControlCharactersInRegex: checking there are none
 			expect(metadata?.title).not.toMatch(/[\u0000-\u001f\u2028]/);
 		}
-	});
-
-	it("delete any share with the admin token, never with a short or missing one", async () => {
-		const { store } = memoryStore();
-		const token = "t".repeat(LEAST_ADMIN_TOKEN_LENGTH);
-		const shared = await shareUserWorld(store, world(), 3600, ORIGIN);
-		expect(await deleteUserWorld(store, shared.id, token)).toBe("refused");
-		expect(await deleteUserWorld(store, shared.id, token, undefined)).toBe("refused");
-		expect(await deleteUserWorld(store, shared.id, "", "")).toBe("refused");
-		expect(await deleteUserWorld(store, shared.id, "short", "short")).toBe("refused");
-		expect(await deleteUserWorld(store, shared.id, `${token}x`, token)).toBe("refused");
-		expect(await deleteUserWorld(store, shared.id, token, token)).toBe("deleted");
-		expect(await deleteUserWorld(store, shared.id, token, token)).toBe("gone");
-		// Its own key still works with a token set.
-		const again = await shareUserWorld(store, world(), 3600, ORIGIN);
-		expect(await deleteUserWorld(store, again.id, again.deleteKey, token)).toBe("deleted");
 	});
 });

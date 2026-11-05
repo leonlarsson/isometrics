@@ -2,12 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { textUpTo } from "#/lib/textUpTo";
 import { rateLimitKeyOf } from "#/server/rateLimitKey";
-import {
-	MOST_PREFAB_ITEMS,
-	MOST_SHARED_PREFAB_BYTES,
-	MOST_TEXT_LENGTH,
-	sizeInWords,
-} from "#/server/shareLimits";
+import { MOST_SHARED_PREFAB_BYTES, sizeInWords } from "#/server/shareLimits";
 import { isSharingDisabled, SHARING_PAUSED } from "#/server/sharingControls";
 import {
 	DEFAULT_USER_PREFAB_EXPIRY,
@@ -34,7 +29,7 @@ const HOW_TO = {
 	about:
 		"Shares a prefab by link (ADR-0134): POST it as JSON, shaped as one of a world's prefabs (/api/worlds/schema). It's kept for ?expiresIn seconds and anyone with the link can open it and add it to their own prefabs until then. The answer has its url (/p/<id>, which opens it in the editor), its jsonUrl, when it expires, and a deleteKey to DELETE it early. It must read exactly as written; anything else is refused with 400.",
 	expiresIn: `One of ${USER_PREFAB_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_PREFAB_EXPIRY} when left out.`,
-	limit: `At most ${MOST_USER_PREFAB_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_PREFAB_BYTES)} as kept; no text over ${MOST_TEXT_LENGTH.toLocaleString("en")} characters, at most ${MOST_PREFAB_ITEMS.entities.toLocaleString("en")} pieces; a few shares a minute.`,
+	limit: `At most ${MOST_USER_PREFAB_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_PREFAB_BYTES)} as kept, and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",
 };
 
@@ -59,7 +54,7 @@ export const Route = createFileRoute("/api/user-prefabs/")({
 
 /** Share what was posted: limited per sender, refused when too big or not a prefab. */
 const share = async (request: Request) => {
-	// The kill switch (ADR-0145, docs/runbooks/takedown.md): nothing new is kept while it's on.
+	// The kill switch (ADR-0145): nothing new is kept while it's on.
 	if (isSharingDisabled(env.SHARING_DISABLED)) {
 		return problem(SHARING_PAUSED, 503);
 	}

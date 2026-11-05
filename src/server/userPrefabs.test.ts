@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MOST_PREFAB_ITEMS } from "./shareLimits";
-import { LEAST_ADMIN_TOKEN_LENGTH, MOST_METADATA_BYTES } from "./sharingControls";
+import { MOST_METADATA_BYTES } from "./sharingControls";
 import { isGzip } from "./storedText";
 import {
 	deleteUserPrefab,
@@ -88,7 +87,7 @@ describe("prefabs shared by link (ADR-0134)", () => {
 	});
 });
 
-describe("what a shared prefab can hold (ADR-0145)", () => {
+describe("how a shared prefab is kept (ADR-0145)", () => {
 	const refusal = async (text: string) => {
 		const { store, kept } = memoryStore();
 		const error = await shareUserPrefab(store, text, 3600, ORIGIN).catch(
@@ -101,19 +100,7 @@ describe("what a shared prefab can hold (ADR-0145)", () => {
 	const pieces = (count: number, extra: Record<string, unknown> = {}) =>
 		Array.from({ length: count }, (_, i) => ({ id: `piece_${i}`, kind: "box_01", ...extra }));
 
-	it("refuse a text over 2,000 characters, saying where", async () => {
-		expect(await refusal(prefab({ description: "x".repeat(2001) }))).toMatch(
-			/description, a text of 2,001 characters/,
-		);
-		expect(
-			await refusal(prefab({ entities: [{ id: "box", kind: "box_01", name: "n".repeat(5000) }] })),
-		).toMatch(/entities\[0\]\.name/);
-	});
-
-	it("refuse more pieces than a prefab is, and more than 300 kB as kept", async () => {
-		expect(await refusal(prefab({ entities: pieces(MOST_PREFAB_ITEMS.entities + 1) }))).toMatch(
-			/entities, 2,001 of them: a shared prefab has at most 2,000/,
-		);
+	it("refuse a prefab bigger than 300 kB as kept, in words", async () => {
 		expect(
 			await refusal(prefab({ entities: pieces(1900, { name: "A piece with a name ".repeat(5) }) })),
 		).toMatch(/as kept: at most 300 kB/);
@@ -137,14 +124,5 @@ describe("what a shared prefab can hold (ADR-0145)", () => {
 			metadata: { name: "Kiosk", createdAt: "", expiresAt: "", deleteKeyHash: "0" },
 		});
 		expect((await readUserPrefab(store, old))?.json).toBe(prefab());
-	});
-
-	it("delete any share with the admin token", async () => {
-		const { store } = memoryStore();
-		const token = "p".repeat(LEAST_ADMIN_TOKEN_LENGTH);
-		const shared = await shareUserPrefab(store, prefab(), 3600, ORIGIN);
-		expect(await deleteUserPrefab(store, shared.id, token)).toBe("refused");
-		expect(await deleteUserPrefab(store, shared.id, "wrong", token)).toBe("refused");
-		expect(await deleteUserPrefab(store, shared.id, token, token)).toBe("deleted");
 	});
 });

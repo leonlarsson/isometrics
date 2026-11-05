@@ -5,14 +5,8 @@ import { type IWorldIssue, validateWorld } from "#/parts/validateWorld";
 import { safeJson } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
-import {
-	bytesOf,
-	MOST_SHARED_WORLD_BYTES,
-	sizeInWords,
-	tooLongIn,
-	tooManyInWorld,
-} from "./shareLimits";
-import { fitMetadata, isAdminToken, sameSecret } from "./sharingControls";
+import { bytesOf, MOST_SHARED_WORLD_BYTES, sizeInWords } from "./shareLimits";
+import { fitMetadata, sameSecret } from "./sharingControls";
 import { GZIP, gzipText, textOfStored } from "./storedText";
 
 /**
@@ -22,8 +16,8 @@ import { GZIP, gzipText, textOfStored } from "./storedText";
  * snapshot under a new random key, never overwritten, so KV's eventual
  * consistency can only mean "not there yet" (for up to a minute elsewhere in
  * the world), never an old version. Only worlds that read as worlds (stored as
- * read, defaults left out) and patches are kept, held to the limits in
- * `shareLimits.ts` (ADR-0145): it's not a place to keep anything else. Kept
+ * read, defaults left out) and patches are kept, no bigger than
+ * `shareLimits.ts` says (ADR-0145): it's not a place to keep anything else. Kept
  * gzipped since ADR-0145; plain-text entries kept before are still read. No
  * Cloudflare imports here: the routes pass the store in.
  */
@@ -135,15 +129,6 @@ export const shareUserWorld = async (
 			`It isn't JSON a world could be: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
-	// Before anything else is done with it: no text a page long, no list long enough to freeze
-	// the tab of whoever opens it (ADR-0145).
-	const tooMuch = tooLongIn(parsed) ?? tooManyInWorld(parsed);
-	if (tooMuch) {
-		throw new UserWorldError(
-			`It holds more than can be shared: ${tooMuch.where}, ${tooMuch.what}.`,
-			[tooMuch],
-		);
-	}
 	let kept: string;
 	let kind: IUserWorldMeta["kind"];
 	let title: string;
@@ -233,25 +218,20 @@ export const readUserWorld = async (store: IUserWorldStore, id: string) => {
 	return value === null ? null : { json: await textOfStored(value), metadata };
 };
 
-/**
- * Delete a shared world with the key that came with it, or with the admin token (the
- * `ADMIN_DELETE_TOKEN` secret, for taking down what shouldn't be there: docs/runbooks/takedown.md).
- */
+/** Delete a shared world with the key that came with it (compared in constant time). */
 export const deleteUserWorld = async (
 	store: IUserWorldStore,
 	id: string,
 	deleteKey: string,
-	adminToken?: unknown,
 ): Promise<"deleted" | "gone" | "refused"> => {
 	const found = await readUserWorld(store, id);
 	if (!found) {
 		return "gone";
 	}
-	const isAllowed =
-		(await isAdminToken(deleteKey, adminToken)) ||
-		(found.metadata !== null &&
-			(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash)));
-	if (!isAllowed) {
+	if (
+		!found.metadata ||
+		!(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash))
+	) {
 		return "refused";
 	}
 	await store.delete(id);

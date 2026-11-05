@@ -1,8 +1,7 @@
 /**
- * The owner's controls over sharing (ADR-0145, docs/runbooks/takedown.md):
- * pausing it (the `SHARING_DISABLED` var), deleting any share (the
- * `ADMIN_DELETE_TOKEN` secret, in place of its delete key), and the metadata
- * kept with each share, held under KV's limit whatever its title. No
+ * The owner's controls over sharing (ADR-0145): pausing it (the
+ * `SHARING_DISABLED` var), delete keys compared in constant time, and the
+ * metadata kept with each share, held under KV's limit whatever its title. No
  * Cloudflare imports here: the routes pass the settings in.
  */
 
@@ -15,9 +14,6 @@ export const isSharingDisabled = (setting: unknown) =>
 	setting === 1 ||
 	(typeof setting === "string" &&
 		["true", "1", "yes", "on"].includes(setting.trim().toLowerCase()));
-
-/** A shorter admin token is never accepted: a guessable secret would be worse than none. */
-export const LEAST_ADMIN_TOKEN_LENGTH = 32;
 
 const digestOf = async (text: string) =>
 	new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
@@ -34,12 +30,6 @@ export const sameSecret = async (given: string, expected: string) => {
 	}
 	return difference === 0;
 };
-
-/** Whether `given` is the admin token (`ADMIN_DELETE_TOKEN`); never when it isn't set, or too short. */
-export const isAdminToken = async (given: string, adminToken: unknown) =>
-	typeof adminToken === "string" &&
-	adminToken.length >= LEAST_ADMIN_TOKEN_LENGTH &&
-	(await sameSecret(given, adminToken));
 
 /** KV keeps at most 1,024 bytes of metadata as JSON; ours stays under this. */
 export const MOST_METADATA_BYTES = 900;

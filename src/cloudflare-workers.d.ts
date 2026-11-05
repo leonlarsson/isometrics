@@ -18,11 +18,5 @@ declare module "cloudflare:workers" {
 		WORLD_VALIDATIONS?: IRateLimit;
 		/** A var: "true" pauses sharing (POST answers 503), ADR-0145; "false" or missing, not. */
 		SHARING_DISABLED?: string | boolean;
-		/**
-		 * A secret (`wrangler secret put ADMIN_DELETE_TOKEN`, never in the repo): taken in place of
-		 * a share's delete key, to take anything down (docs/runbooks/takedown.md). Missing, no
-		 * share can be deleted without its own key.
-		 */
-		ADMIN_DELETE_TOKEN?: string;
 	};
 }

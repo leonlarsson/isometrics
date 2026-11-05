@@ -8,12 +8,3 @@ export const APP_NAME = "Isometrics";
 
 /** Where the app's code is kept, for the app menu's Star it on GitHub. */
 export const SOURCE_URL = "https://github.com/leonlarsson/isometrics";
-
-/**
- * Where a shared world or prefab is reported (ADR-0145): Report, in a shared
- * link's preview bar, opens an email to it with the link and its id.
- *
- * TODO(owner): a placeholder (`.invalid` is a domain that can never exist):
- * put the address that reads reports here before launch.
- */
-export const ABUSE_CONTACT = "abuse-contact-not-set@example.invalid";

@@ -62,12 +62,8 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		// A preview in View mode (ADR-0121): nothing kept in their browser yet.
 		expect(await read(theirs, (s) => s.mode)).toBe("view");
 		await expect(theirs.getByText("Preview of a shared world")).toBeVisible();
-		// Said to be someone else's, with Report: an email with its link and id (ADR-0145).
+		// Said to be someone else's (ADR-0145).
 		await expect(theirs.getByText(/Made by someone else and shared by link/)).toBeVisible();
-		const report =
-			(await theirs.getByRole("link", { name: "Report", exact: true }).getAttribute("href")) ?? "";
-		expect(report).toMatch(/^mailto:/);
-		expect(decodeURIComponent(report)).toContain(`Link: ${link}`);
 		expect(await theirs.evaluate(() => localStorage.getItem("isometrics:world-index"))).toBeNull();
 		// Edit asks to keep a copy first; then it's theirs, saved, and the address is the editor's own.
 		await theirs.getByRole("button", { name: "Edit", exact: true }).click();

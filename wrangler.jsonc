@@ -10,10 +10,9 @@
     "enabled": true
   },
 
-  // SHARING_DISABLED is the kill switch for sharing by link (ADR-0145, docs/runbooks/takedown.md):
-  // "true" and every POST to /api/user-worlds and /api/user-prefabs answers 503, "Sharing is paused
-  // for now"; links already shared keep opening. The admin token that deletes any share,
-  // ADMIN_DELETE_TOKEN, is a secret (`wrangler secret put ADMIN_DELETE_TOKEN`), never written here.
+  // SHARING_DISABLED is the kill switch for sharing by link (ADR-0145): "true" and every POST to
+  // /api/user-worlds and /api/user-prefabs answers 503, "Sharing is paused for now"; links already
+  // shared keep opening.
   "vars": {
     "SHARING_DISABLED": "false"
   },
@@ -36,12 +35,7 @@
 
   // Pull requests get a preview build (wrangler preview). Its plain settings follow the top level, but
   // bindings and vars aren't inherited: each is listed here too.
-  //
-  // WARNING (ADR-0145, docs/runbooks/takedown.md, "Preview builds"): the KV namespaces below are
-  // PRODUCTION's. A preview build of a pull request reads, writes and deletes the very worlds and
-  // prefabs people shared on the live site. Before launch, the owner should create two preview
-  // namespaces (`wrangler kv namespace create "Isometrics User Worlds (previews)"`, and the same for
-  // prefabs), put their ids here, and confirm that pull requests from forks are never built.
+  // Previews share production's KV namespaces on purpose.
   "previews": {
     "vars": {
       "SHARING_DISABLED": "false"

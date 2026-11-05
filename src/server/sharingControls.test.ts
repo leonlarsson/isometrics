@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	fitMetadata,
-	isAdminToken,
-	isSharingDisabled,
-	LEAST_ADMIN_TOKEN_LENGTH,
-	MOST_METADATA_BYTES,
-	sameSecret,
-} from "./sharingControls";
+import { fitMetadata, isSharingDisabled, MOST_METADATA_BYTES, sameSecret } from "./sharingControls";
 
 const bytesOf = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
@@ -26,16 +19,6 @@ describe("the owner's controls over sharing (ADR-0145)", () => {
 		expect(await sameSecret("abc", "abd")).toBe(false);
 		expect(await sameSecret("abc", "abcd")).toBe(false);
 		expect(await sameSecret("", "")).toBe(true);
-	});
-
-	it("take the admin token only when it's set and long enough", async () => {
-		const token = "s".repeat(LEAST_ADMIN_TOKEN_LENGTH);
-		expect(await isAdminToken(token, token)).toBe(true);
-		expect(await isAdminToken(token, undefined)).toBe(false);
-		expect(await isAdminToken("", "")).toBe(false);
-		expect(await isAdminToken("short", "short")).toBe(false);
-		expect(await isAdminToken(token.slice(1), token)).toBe(false);
-		expect(await isAdminToken(token, 42)).toBe(false);
 	});
 
 	it("fit metadata under KV's limit, by whole characters, without control characters", () => {
