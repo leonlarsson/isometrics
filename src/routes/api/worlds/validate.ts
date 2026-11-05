@@ -3,11 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { textUpTo } from "#/lib/textUpTo";
 import { repairWorld } from "#/parts/repairWorld";
 import { validatePatch, validateWorld } from "#/parts/validateWorld";
-import { UnsafeJsonError } from "#/scene/safeJson";
+import { safeJson, UnsafeJsonError } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
+import { rateLimitKeyOf } from "#/server/rateLimitKey";
 
-/** Bigger bodies are turned away: no world needs this much (ADR-0119). */
-const MOST_BYTES = 5_000_000;
+import { env } from "cloudflare:workers";
+
+/**
+ * Bigger bodies are turned away: no world needs this much (ADR-0119; Stockholm, the biggest
+ * template, is about 840 kB with its defaults written out). Lowered from 5 MB by ADR-0145.
+ */
+const MOST_BYTES = 2_000_000;
 
 /**
  * Anyone may ask, from any site or tool (it reads nothing and keeps nothing);
@@ -26,7 +32,7 @@ const HOW_TO = {
 	example: "curl -X POST -H 'Content-Type: application/json' --data @world.json <this address>",
 	patch:
 		'To check a patch (ADR-0118), POST { "world": <the world it changes>, "patch": <the patch> }: the answer also says what the patch changes (changes), and its own problems start with "patch".',
-	limit: `At most ${MOST_BYTES.toLocaleString("en")} bytes.`,
+	limit: `At most ${MOST_BYTES.toLocaleString("en")} bytes, and 30 checks a minute.`,
 	format: "/api/worlds/schema",
 	guide: "/guide.md",
 };
@@ -72,6 +78,18 @@ export const Route = createFileRoute("/api/worlds/validate")({
 			GET: () => Response.json(HOW_TO, { headers: HEADERS }),
 			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			POST: async ({ request }) => {
+				// The rate limit, where the binding is there: per IPv4 address, or per IPv6 /64 (ADR-0145).
+				if (env.WORLD_VALIDATIONS) {
+					const key = rateLimitKeyOf(request.headers.get("cf-connecting-ip"));
+					const { success } = await env.WORLD_VALIDATIONS.limit({ key });
+					if (!success) {
+						return unreadable(
+							"(the request)",
+							"too many checks from here just now: try again in a minute",
+							429,
+						);
+					}
+				}
 				const text = await textUpTo(request, MOST_BYTES);
 				if (text === null) {
 					return unreadable(
@@ -87,6 +105,16 @@ export const Route = createFileRoute("/api/worlds/validate")({
 					return unreadable(
 						"(the world)",
 						`isn't JSON: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
+				// Made safe before anything walks it (ADR-0119): nesting too deep is said in our words,
+				// not as the stack running out.
+				try {
+					input = safeJson(input);
+				} catch (error) {
+					return unreadable(
+						"(the world)",
+						error instanceof UnsafeJsonError ? error.message : "it couldn't be read",
 					);
 				}
 				// Whatever goes wrong in checking (nesting too deep, anything unforeseen) is an answer, not a crash.

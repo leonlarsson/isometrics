@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MOST_METADATA_BYTES } from "./sharingControls";
 import {
 	deleteUserPrefab,
 	type IUserPrefabMeta,
@@ -78,5 +79,44 @@ describe("prefabs shared by link (ADR-0134)", () => {
 		await refused(prefab(), 5);
 		await refused(prefab({ description: "x".repeat(MOST_USER_PREFAB_BYTES) }));
 		expect(kept.size).toBe(0);
+	});
+});
+
+describe("how a shared prefab is kept (ADR-0145)", () => {
+	const refusal = async (text: string) => {
+		const { store, kept } = memoryStore();
+		const error = await shareUserPrefab(store, text, 3600, ORIGIN).catch(
+			(caught: unknown) => caught,
+		);
+		expect(kept.size).toBe(0);
+		expect(error).toBeInstanceOf(UserPrefabError);
+		return (error as UserPrefabError).message;
+	};
+	const pieces = (count: number, extra: Record<string, unknown> = {}) =>
+		Array.from({ length: count }, (_, i) => ({ id: `piece_${i}`, kind: "box_01", ...extra }));
+
+	it("refuse a prefab bigger than 300 kB as kept, in words", async () => {
+		expect(
+			await refusal(prefab({ entities: pieces(1900, { name: "A piece with a name ".repeat(5) }) })),
+		).toMatch(/as kept: at most 300 kB/);
+	});
+
+	it("fit any name in metadata", async () => {
+		const { store, kept } = memoryStore();
+		const shared = await shareUserPrefab(store, prefab({ name: "😀\n".repeat(600) }), 3600, ORIGIN);
+		const entry = kept.get(shared.id);
+		expect(new TextEncoder().encode(JSON.stringify(entry?.metadata)).length).toBeLessThanOrEqual(
+			MOST_METADATA_BYTES,
+		);
+		expect(entry?.metadata.name).not.toContain("\n");
+		expect(JSON.parse((await readUserPrefab(store, shared.id))?.json ?? "{}").id).toBe(
+			"prefab_kiosk",
+		);
+		const old = "B".repeat(22);
+		await store.put(old, prefab(), {
+			expirationTtl: 3600,
+			metadata: { name: "Kiosk", createdAt: "", expiresAt: "", deleteKeyHash: "0" },
+		});
+		expect((await readUserPrefab(store, old))?.json).toBe(prefab());
 	});
 });

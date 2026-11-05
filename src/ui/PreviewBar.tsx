@@ -8,12 +8,18 @@ import { sitesOf, useWaitingSources } from "#/editor/sourceRefresh";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import { previewOf } from "#/editor/whatIsOpen";
+import { APP_NAME } from "#/lib/app";
 import { localDateTime } from "#/lib/when";
 import { prefabName } from "#/parts/prefabParts";
 
 import { AllowSourcesDialog } from "./AllowSourcesDialog";
 import { Button } from "./Button";
 import { FloatingBar, FloatingBarNote } from "./FloatingBar";
+
+/** What a shared link holds was made by whoever shared it (ADR-0145): said plainly. */
+const MadeBySomeoneElse = () => (
+	<span>{`Made by someone else and shared by link, not by ${APP_NAME}.`}</span>
+);
 
 /**
  * While a world from a link is open as a preview (ADR-0121): says it isn't
@@ -22,7 +28,8 @@ import { FloatingBar, FloatingBarNote } from "./FloatingBar";
  * home). External sources it reads that this browser hasn't allowed are said
  * in a row of their own, for as long as they wait: a preview has no Data
  * tab. One is named in full, with Allow it; several open a list of every
- * address in full first (Review and allow…), so nothing is allowed unseen. It shows once the world is on screen, and can be hidden, until
+ * address in full first (Review and allow…), so nothing is allowed unseen. A
+ * shared world or prefab says it was made by someone else (ADR-0145). It shows once the world is on screen, and can be hidden, until
  * the page reloads or another preview opens (Edit still asks to keep a copy).
  */
 export const PreviewBar = () => {
@@ -81,6 +88,8 @@ export const PreviewBar = () => {
 					Add it to My prefabs to place it in any of your worlds.
 					{preview.expiresAt && ` The link works until ${localDateTime(preview.expiresAt)}.`}
 				</span>
+
+				<MadeBySomeoneElse />
 			</FloatingBar>
 		);
 	}
@@ -114,6 +123,8 @@ export const PreviewBar = () => {
 					Not kept in this browser: keep a copy to edit it or come back later.
 					{preview.expiresAt && ` The link works until ${localDateTime(preview.expiresAt)}.`}
 				</span>
+
+				{preview.from === "shared" && <MadeBySomeoneElse />}
 
 				{waiting.length > 0 && (
 					<FloatingBarNote

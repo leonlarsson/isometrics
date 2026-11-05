@@ -155,7 +155,17 @@ const fetchLinked = async (
  * from addresses this browser hasn't allowed: then it waits for `answerLink`.
  */
 export const openLink = async (link: ILinkAsked) => {
-	const { setWhatIsOpen } = useEditor.getState();
+	const { setWhatIsOpen, whatIsOpen } = useEditor.getState();
+	// Already being fetched (the start effect running twice, as React's strict mode does in
+	// development): asked once, so a missing link is asked for no more than its few tries (ADR-0145).
+	if (
+		whatIsOpen.kind === "link" &&
+		whatIsOpen.link.from === link.from &&
+		whatIsOpen.link.id === link.id &&
+		whatIsOpen.step.kind === "fetching"
+	) {
+		return;
+	}
 	setWhatIsOpen({ kind: "link", link, step: { kind: "fetching", waited: null } });
 	let fetched: { scene: TScene; expiresAt: string | null };
 	try {

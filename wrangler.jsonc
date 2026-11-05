@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  
+
   "name": "isometrics",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,6 +10,13 @@
     "enabled": true
   },
 
+  // SHARING_DISABLED is the kill switch for sharing by link (ADR-0145): "true" and every POST to
+  // /api/user-worlds and /api/user-prefabs answers 503, "Sharing is paused for now"; links already
+  // shared keep opening.
+  "vars": {
+    "SHARING_DISABLED": "false"
+  },
+
   // Worlds people share by link (ADR-0120): one snapshot per key, deleted by KV when it expires.
   // Prefabs people share by link (ADR-0134), the same way: the Isometrics User Prefabs namespace.
   "kv_namespaces": [
@@ -17,23 +24,30 @@
     { "binding": "USER_PREFABS", "id": "6f1ee6e868f74e6eb799f06ea97d9515" }
   ],
 
-  // At most 10 shared worlds, and 10 shared prefabs, a minute from one address, so the stores can't
-  // be flooded.
+  // At most 10 shared worlds, and 10 shared prefabs, a minute from one sender (an IPv4 address, or
+  // an IPv6 /64, ADR-0145), so the stores can't be flooded; and 30 checks a minute of
+  // /api/worlds/validate, which keeps nothing but costs time to answer.
   "ratelimits": [
     { "name": "USER_WORLD_UPLOADS", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
-    { "name": "USER_PREFAB_UPLOADS", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }
+    { "name": "USER_PREFAB_UPLOADS", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } },
+    { "name": "WORLD_VALIDATIONS", "namespace_id": "1005", "simple": { "limit": 30, "period": 60 } }
   ],
 
   // Pull requests get a preview build (wrangler preview). Its plain settings follow the top level, but
-  // bindings aren't inherited: each is listed here too (the same KV namespace as production for now).
+  // bindings and vars aren't inherited: each is listed here too.
+  // Previews share production's KV namespaces on purpose.
   "previews": {
+    "vars": {
+      "SHARING_DISABLED": "false"
+    },
     "kv_namespaces": [
       { "binding": "USER_WORLDS", "id": "a74a79e512924e1d8f78cc010d5b7426" },
       { "binding": "USER_PREFABS", "id": "6f1ee6e868f74e6eb799f06ea97d9515" }
     ],
     "ratelimits": [
       { "name": "USER_WORLD_UPLOADS", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
-      { "name": "USER_PREFAB_UPLOADS", "namespace_id": "1004", "simple": { "limit": 10, "period": 60 } }
+      { "name": "USER_PREFAB_UPLOADS", "namespace_id": "1004", "simple": { "limit": 10, "period": 60 } },
+      { "name": "WORLD_VALIDATIONS", "namespace_id": "1006", "simple": { "limit": 30, "period": 60 } }
     ]
   }
 }

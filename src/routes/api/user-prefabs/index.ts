@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { textUpTo } from "#/lib/textUpTo";
+import { rateLimitKeyOf } from "#/server/rateLimitKey";
+import { MOST_SHARED_PREFAB_BYTES, sizeInWords } from "#/server/shareLimits";
+import { isSharingDisabled, SHARING_PAUSED } from "#/server/sharingControls";
 import {
 	DEFAULT_USER_PREFAB_EXPIRY,
 	MOST_USER_PREFAB_BYTES,
@@ -11,7 +14,7 @@ import {
 
 import { env } from "cloudflare:workers";
 
-/** Anyone may share, from any site or tool; answers are JSON, never sniffed as anything else. */
+/** Anyone may share, from any site or tool (as worlds); answers are JSON, never sniffed as anything else. */
 const HEADERS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -26,7 +29,7 @@ const HOW_TO = {
 	about:
 		"Shares a prefab by link (ADR-0134): POST it as JSON, shaped as one of a world's prefabs (/api/worlds/schema). It's kept for ?expiresIn seconds and anyone with the link can open it and add it to their own prefabs until then. The answer has its url (/p/<id>, which opens it in the editor), its jsonUrl, when it expires, and a deleteKey to DELETE it early. It must read exactly as written; anything else is refused with 400.",
 	expiresIn: `One of ${USER_PREFAB_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_PREFAB_EXPIRY} when left out.`,
-	limit: `At most ${MOST_USER_PREFAB_BYTES.toLocaleString("en")} bytes, and a few shares a minute.`,
+	limit: `At most ${MOST_USER_PREFAB_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_PREFAB_BYTES)} as kept, and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",
 };
 
@@ -49,18 +52,23 @@ export const Route = createFileRoute("/api/user-prefabs/")({
 	},
 });
 
-/** Share what was posted: limited per address, refused when too big or not a prefab. */
+/** Share what was posted: limited per sender, refused when too big or not a prefab. */
 const share = async (request: Request) => {
+	// The kill switch (ADR-0145): nothing new is kept while it's on.
+	if (isSharingDisabled(env.SHARING_DISABLED)) {
+		return problem(SHARING_PAUSED, 503);
+	}
 	if (!env.USER_PREFABS) {
 		console.error(
 			"POST /api/user-prefabs: the USER_PREFABS KV binding is missing (wrangler.jsonc)",
 		);
 		return problem("Sharing prefabs isn't set up on this site.", 503);
 	}
-	const sender = request.headers.get("cf-connecting-ip") ?? "unknown";
-	// The rate limit, where the binding is there (it may not be in every deployment).
+	// The rate limit, where the binding is there (it may not be in every deployment): per IPv4
+	// address, or per IPv6 /64 (ADR-0145).
 	if (env.USER_PREFAB_UPLOADS) {
-		const { success } = await env.USER_PREFAB_UPLOADS.limit({ key: sender });
+		const key = rateLimitKeyOf(request.headers.get("cf-connecting-ip"));
+		const { success } = await env.USER_PREFAB_UPLOADS.limit({ key });
 		if (!success) {
 			return problem("Too many shares from here just now: try again in a minute.", 429);
 		}

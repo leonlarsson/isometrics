@@ -41,6 +41,8 @@ export const ShareDialog = () => {
 	const [seconds, setSeconds] = useState(SHARE_DEFAULT_SECONDS);
 	const [made, setMade] = useState<ISharedLink | null>(null);
 	const [sharing, setSharing] = useState(false);
+	// What the site said when it isn't taking shares (paused by its owner, ADR-0145): said in place.
+	const [paused, setPaused] = useState<string | null>(null);
 	const { copiedKey, copy } = useCopy();
 	const copyLink = (link: ISharedLink, key: string) =>
 		copy(link.url, "Link copied", { key, detail: link.url });
@@ -50,6 +52,7 @@ export const ShareDialog = () => {
 		asking.current += 1;
 		useEditor.getState().setShareOpen(false);
 		setMade(null);
+		setPaused(null);
 	};
 
 	const share = async () => {
@@ -61,6 +64,10 @@ export const ShareDialog = () => {
 				setMade(link);
 			}
 		} catch (error) {
+			if (error instanceof ShareError && error.isPaused) {
+				setPaused(error.message);
+				return;
+			}
 			notify(
 				"It couldn't be shared",
 				error instanceof ShareError ? error.message : "Try again in a moment.",
@@ -142,8 +149,23 @@ export const ShareDialog = () => {
 						)}
 					/>
 
-					<Button variant="primary" icon="newTab" disabled={sharing} onClick={() => void share()}>
-						{sharing ? "Making it…" : "Create a public link"}
+					{paused && (
+						<Hint>
+							<strong>{paused}</strong> Save to file still works for sending a world.
+						</Hint>
+					)}
+
+					<Button
+						variant="primary"
+						icon="newTab"
+						disabled={sharing || paused !== null}
+						onClick={() => void share()}
+					>
+						{sharing
+							? "Making it…"
+							: paused
+								? "Create a public link (sharing is paused)"
+								: "Create a public link"}
 					</Button>
 				</FieldGroup>
 			)}

@@ -5,6 +5,9 @@ import { type IWorldIssue, validateWorld } from "#/parts/validateWorld";
 import { safeJson } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
+import { bytesOf, MOST_SHARED_WORLD_BYTES, sizeInWords } from "./shareLimits";
+import { fitMetadata } from "./sharingControls";
+
 /**
  * Worlds shared by link (ADR-0120), kept in Cloudflare KV. Nothing is kept
  * unless someone asks (Share a link…, or an AI posting its answer), and what's
@@ -12,8 +15,9 @@ import { isWorldPatch } from "#/scene/worldPatch";
  * snapshot under a new random key, never overwritten, so KV's eventual
  * consistency can only mean "not there yet" (for up to a minute elsewhere in
  * the world), never an old version. Only worlds that read as worlds (stored as
- * read, defaults left out) and patches are kept: it's not a place to keep
- * anything else. No Cloudflare imports here: the routes pass the store in.
+ * read, defaults left out) and patches are kept, no bigger than
+ * `shareLimits.ts` says (ADR-0145): it's not a place to keep anything else. No
+ * Cloudflare imports here: the routes pass the store in.
  */
 
 /** What the routes hand in: the KV namespace, as much of it as is used. */
@@ -46,7 +50,10 @@ export const USER_WORLD_EXPIRIES = [3600, 86_400, 604_800, 2_592_000] as const;
 /** Kept this long when the asker doesn't say: an AI handing back its answer. */
 export const DEFAULT_USER_WORLD_EXPIRY = 3600;
 
-/** More than this isn't kept (the same limit as POST /api/worlds/validate). */
+/**
+ * More than this isn't read: a world sent with its defaults written out can be a few times what
+ * it is as kept, without them (at most MOST_SHARED_WORLD_BYTES).
+ */
 export const MOST_USER_WORLD_BYTES = 5_000_000;
 
 /** A patch is only for handing changes back (ADR-0118): kept an hour at most, and this big at most. */
@@ -130,7 +137,7 @@ export const shareUserWorld = async (
 				`A patch is kept for an hour at most (expiresIn ${MOST_PATCH_SECONDS}): it's only for handing changes back.`,
 			);
 		}
-		if (new TextEncoder().encode(text).length > MOST_PATCH_BYTES) {
+		if (bytesOf(text) > MOST_PATCH_BYTES) {
 			throw new UserWorldError(
 				`A patch is at most ${MOST_PATCH_BYTES / 1000} kB: for bigger changes, send the whole world.`,
 			);
@@ -164,19 +171,28 @@ export const shareUserWorld = async (
 		kind = "world";
 		title = scene.meta.title;
 		kept = JSON.stringify(compactWorld(scene));
+		const bytes = bytesOf(kept);
+		if (bytes > MOST_SHARED_WORLD_BYTES) {
+			throw new UserWorldError(
+				`The world is ${sizeInWords(bytes)} as kept (its defaults left out): at most ${sizeInWords(MOST_SHARED_WORLD_BYTES)} can be shared. Fewer objects or less data would bring it under; Save to file sends a world of any size.`,
+			);
+		}
 	}
 	const id = randomKey(16);
 	const deleteKey = randomKey(32);
 	const expiresAt = new Date(now.getTime() + expiresIn * 1000).toISOString();
 	await store.put(id, kept, {
 		expirationTtl: expiresIn,
-		metadata: {
-			kind,
-			title: title.slice(0, 200),
-			createdAt: now.toISOString(),
-			expiresAt,
-			deleteKeyHash: await sha256(deleteKey),
-		},
+		metadata: fitMetadata(
+			{
+				kind,
+				title,
+				createdAt: now.toISOString(),
+				expiresAt,
+				deleteKeyHash: await sha256(deleteKey),
+			},
+			"title",
+		),
 	});
 	return {
 		id,

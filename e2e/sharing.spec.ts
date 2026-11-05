@@ -62,6 +62,8 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		// A preview in View mode (ADR-0121): nothing kept in their browser yet.
 		expect(await read(theirs, (s) => s.mode)).toBe("view");
 		await expect(theirs.getByText("Preview of a shared world")).toBeVisible();
+		// Said to be someone else's (ADR-0145).
+		await expect(theirs.getByText(/Made by someone else and shared by link/)).toBeVisible();
 		expect(await theirs.evaluate(() => localStorage.getItem("isometrics:world-index"))).toBeNull();
 		// Edit asks to keep a copy first; then it's theirs, saved, and the address is the editor's own.
 		await theirs.getByRole("button", { name: "Edit", exact: true }).click();
@@ -207,5 +209,39 @@ test.describe("worlds shared by link (ADR-0120)", () => {
 		await expect(dialog).toContainText("Ready to open.");
 		await dialog.getByRole("button", { name: "Open it", exact: true }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("From an AI");
+	});
+
+	test("a mistyped or expired link is asked for a few times, not a minute (ADR-0145)", async ({
+		page,
+	}) => {
+		let asked = 0;
+		page.on("request", (request) => {
+			if (request.url().includes("/api/user-worlds/AAAAAAAAAAAAAAAAAAAAAA")) {
+				asked += 1;
+			}
+		});
+		await openPage(page, "/w/AAAAAAAAAAAAAAAAAAAAAA");
+		await expect(page.getByRole("main", { name: "Home" })).toBeVisible({ timeout: 30_000 });
+		expect(asked).toBeLessThanOrEqual(4);
+		expect(asked).toBeGreaterThan(0);
+	});
+
+	test("while sharing is paused, Share a link says so in place (ADR-0145)", async ({ page }) => {
+		await openEditor(page);
+		// The site's answer while its owner has paused sharing (SHARING_DISABLED).
+		await page.route("**/api/user-worlds?*", (route) =>
+			route.fulfill({
+				status: 503,
+				contentType: "application/json",
+				body: JSON.stringify({ error: "Sharing is paused for now. Try again later." }),
+			}),
+		);
+		await fileMenu(page, /Share a link/);
+		const dialog = page.getByRole("dialog", { name: "Share a link" });
+		await dialog.getByRole("button", { name: "Create a public link" }).click();
+		await expect(dialog).toContainText("Sharing is paused for now. Try again later.");
+		await expect(
+			dialog.getByRole("button", { name: "Create a public link (sharing is paused)" }),
+		).toBeDisabled();
 	});
 });

@@ -5,9 +5,11 @@ import {
 	downloadScene,
 	downloadSceneBackup,
 	readSavedRaw,
+	readSaveStatus,
 	startFreshAfterCrash,
 } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
+import { storageAvailable } from "#/lib/storage";
 
 import { Button } from "./Button";
 
@@ -29,12 +31,33 @@ const downloadWorld = () => {
 };
 
 /**
+ * What can truly be said about the world being saved (ADR-0145): only that it
+ * was, and when, if the save status says so; nothing at all is kept when the
+ * browser blocks storage; otherwise it may not be (a preview, a change not
+ * saved yet, a first visit).
+ */
+const savedWords = () => {
+	if (!storageAvailable()) {
+		return "This browser doesn’t let the site store anything, so nothing is saved: download your world to keep it, then try again.";
+	}
+	const status = readSaveStatus();
+	if (status.state === "saved") {
+		const when = status.at
+			? ` at ${new Date(status.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+			: "";
+		return `Your world was last saved in this browser${when}; changes since may not be. Download a copy to be safe, then try again or start fresh.`;
+	}
+	return "Your world may not be saved in this browser. Download a copy to be safe, then try again or start fresh.";
+};
+
+/**
  * Shown instead of a blank page when rendering crashes. Users can save their
  * world, retry, or start fresh; starting fresh backs the saved world up first
  * (ADR-0020), so nothing is lost.
  */
 export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 	const [problem, setProblem] = useState<string | null>(null);
+	const text = `The editor hit an error and couldn’t continue. ${savedWords()}`;
 
 	return (
 		<main className={styles.page} role="alert">
@@ -42,10 +65,7 @@ export const ErrorScreen = ({ error, reset }: ErrorComponentProps) => {
 
 			<h1 className={styles.title}>Something went wrong</h1>
 
-			<p className={styles.text}>
-				The editor hit an error and couldn’t continue. Your world is still saved in this browser.
-				Download a copy to be safe, then try again or start fresh.
-			</p>
+			<p className={styles.text}>{text}</p>
 
 			<div className={styles.actions}>
 				<Button variant="primary" onClick={downloadWorld}>

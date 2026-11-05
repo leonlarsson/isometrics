@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { useSyncExternalStore } from "react";
 
 import { APP_NAME } from "#/lib/app";
+import { storageAvailable } from "#/lib/storage";
 import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
@@ -390,7 +391,8 @@ export const openStoredWorld = (id: string): TStoredSceneResult => {
 	return result;
 };
 
-let warnedFull = false;
+/** Said once already; with no storage at all, the app said so as it opened (ADR-0145). */
+let warnedFull = !storageAvailable();
 /** Set by `wipeEverything`: nothing is saved any more, until the page reloads. */
 let wiped = false;
 
@@ -407,7 +409,10 @@ export type TSaveStatus =
 	| { state: "saved"; at: number }
 	| { state: "failed"; reason: "full" | "unavailable" | "wiped" };
 
-let saveStatus: TSaveStatus = { state: "new" };
+// Not saved from the start when the browser blocks storage (ADR-0145): never "Not saved yet".
+let saveStatus: TSaveStatus = storageAvailable()
+	? { state: "new" }
+	: { state: "failed", reason: "unavailable" };
 const saveStatusListeners = new Set<() => void>();
 
 const setSaveStatus = (next: TSaveStatus) => {

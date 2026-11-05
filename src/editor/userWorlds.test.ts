@@ -4,7 +4,13 @@ import { validateWorld } from "#/parts/validateWorld";
 import type { TScene } from "#/scene/schema";
 import { createEmptyScene } from "#/templates";
 
-import { shareWorld } from "./userWorlds";
+import {
+	fetchSharedWorld,
+	MOST_TRIES,
+	ShareError,
+	secondsLeftToTry,
+	shareWorld,
+} from "./userWorlds";
 
 describe("sharing from the app (ADR-0120)", () => {
 	afterEach(() => {
@@ -49,5 +55,51 @@ describe("sharing from the app (ADR-0120)", () => {
 		expect(warn).toHaveBeenCalled();
 		// The world in the editor isn't touched.
 		expect(broken.entities).toHaveLength(2);
+	});
+
+	it("says when sharing is paused, so the dialog can say it too (ADR-0145)", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				Response.json({ error: "Sharing is paused for now. Try again later." }, { status: 503 }),
+			),
+		);
+		const error = await shareWorld(createEmptyScene({ title: "Mine" }), 3600).catch(
+			(caught: unknown) => caught,
+		);
+		expect(error).toBeInstanceOf(ShareError);
+		expect((error as ShareError).isPaused).toBe(true);
+		expect((error as ShareError).message).toBe("Sharing is paused for now. Try again later.");
+	});
+});
+
+describe("waiting for a link that isn't there (ADR-0145)", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+	});
+
+	it("asks a few times for a link not shared from here, a minute for one that was", () => {
+		expect(secondsLeftToTry(1, 0, false, 0)).toBe(12);
+		expect(secondsLeftToTry(3, 0, false, 8000)).toBe(4);
+		expect(secondsLeftToTry(MOST_TRIES, 0, false, 12_000)).toBeNull();
+		expect(secondsLeftToTry(MOST_TRIES, 0, true, 12_000)).toBe(48);
+		expect(secondsLeftToTry(15, 0, true, 60_000)).toBeNull();
+	});
+
+	it("gives up on a mistyped or expired link after a few tries", async () => {
+		vi.useFakeTimers();
+		const asked = vi.fn(async () => Response.json({ error: "No world here." }, { status: 404 }));
+		vi.stubGlobal("fetch", asked);
+		const waits: number[] = [];
+		const fetching = fetchSharedWorld("AAAAAAAAAAAAAAAAAAAAAA", {
+			onWaiting: (tries) => waits.push(tries),
+		}).catch((error: unknown) => error);
+		await vi.runAllTimersAsync();
+		const error = await fetching;
+		expect(error).toBeInstanceOf(ShareError);
+		expect((error as ShareError).message).toBe("No world here.");
+		expect(asked).toHaveBeenCalledTimes(MOST_TRIES);
+		expect(waits).toEqual([1, 2, 3]);
 	});
 });

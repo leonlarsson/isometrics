@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
+import { storageAvailable } from "#/lib/storage";
 
 /**
  * Addresses this browser has agreed to read (ADR-0119). A world can name any
@@ -30,7 +31,7 @@ const loadAllowed = (): Set<string> => {
 /** The addresses this browser has said yes to; components re-render when one is allowed. */
 export const useAllowedLinks = keepOnHotReload("allowedLinks", () =>
 	create<{ links: ReadonlySet<string> }>(() => ({
-		links: typeof localStorage === "undefined" ? new Set() : loadAllowed(),
+		links: storageAvailable() ? loadAllowed() : new Set(),
 	})),
 );
 

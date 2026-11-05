@@ -16,6 +16,23 @@ export const webAddress = (address: string | null | undefined): string | null =>
 };
 
 /**
+ * A link's words when its name comes from untrusted data (ADR-0145): the
+ * name with the link's host after it, "Statistics Sweden (scb.se)", so a
+ * name can't pass a link off as another site's. Just the host when it has no
+ * name, or the name is the host.
+ */
+export const linkWords = (name: string | null | undefined, address: string) => {
+	let host: string;
+	try {
+		host = new URL(address).host;
+	} catch {
+		return name || address;
+	}
+	const named = (name ?? "").trim();
+	return named && named.toLowerCase() !== host.toLowerCase() ? `${named} (${host})` : host;
+};
+
+/**
  * An IPv4 address written as IPv6 (`::ffff:127.0.0.1`, which URLs write
  * `::ffff:7f00:1`) as plain IPv4, so it's checked as the address it reaches.
  */

@@ -2,10 +2,11 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
+import { storageAvailable } from "#/lib/storage";
 import { repairWorld } from "#/parts/repairWorld";
 import { SCENE_VERSION, type TPrefab } from "#/scene/schema";
 
-import { ShareError } from "./userWorlds";
+import { type IWaiting, ShareError, secondsLeftToTry, TRY_AGAIN_MS } from "./userWorlds";
 
 /**
  * Prefabs shared by link, in the browser (ADR-0134): sharing one (a public
@@ -52,7 +53,7 @@ const saveLinks = (links: ISharedPrefabLink[]) => {
 /** The prefab links this browser shared that haven't expired, newest first. */
 export const useSharedPrefabLinks = keepOnHotReload("sharedPrefabLinks", () =>
 	create<{ links: ISharedPrefabLink[] }>(() => ({
-		links: typeof localStorage === "undefined" ? [] : loadLinks(),
+		links: storageAvailable() ? loadLinks() : [],
 	})),
 );
 
@@ -79,7 +80,7 @@ export const sharePrefab = async (prefab: TPrefab, seconds: number): Promise<ISh
 		throw new ShareError("The site couldn't be reached: are you offline?");
 	}
 	if (!response.ok) {
-		throw new ShareError(await errorOf(response));
+		throw new ShareError(await errorOf(response), { isPaused: response.status === 503 });
 	}
 	const shared = (await response.json()) as Pick<
 		ISharedPrefabLink,
@@ -112,17 +113,19 @@ export const stopSharingPrefab = async (link: ISharedPrefabLink) => {
 	saveLinks(useSharedPrefabLinks.getState().links.filter((each) => each.id !== link.id));
 };
 
-/** How long a new link may take to reach every part of the world (KV's eventual consistency). */
-const ARRIVING_SECONDS = 60;
+/** Whether this browser shared the prefab link with this id (so it may just be arriving). */
+export const sharedPrefabFromHere = (id: string) =>
+	useSharedPrefabLinks.getState().links.some((link) => link.id === id);
 
 /**
  * A shared prefab, from this site only, read as any prefab from outside is (`repairWorld`). A
- * link shared moments ago may not be here yet: asked again every few seconds for up to a minute,
- * `onWaiting` told each time. Throws a `ShareError` saying why it can't.
+ * link shared moments ago may not be here yet: asked again every few seconds, `onWaiting` told
+ * each time, for up to a minute when this browser shared it, else a few times (as shared worlds
+ * are, `secondsLeftToTry`). Throws a `ShareError` saying why it can't.
  */
 export const fetchSharedPrefab = async (
 	id: string,
-	{ onWaiting }: { onWaiting?: (tries: number, secondsLeft: number) => void } = {},
+	{ onWaiting, waitsTheMinute = sharedPrefabFromHere(id) }: IWaiting = {},
 ): Promise<{ prefab: TPrefab; expiresAt: string | null }> => {
 	const started = Date.now();
 	for (let tries = 1; ; tries++) {
@@ -146,11 +149,11 @@ export const fetchSharedPrefab = async (
 			}
 			return { prefab, expiresAt: response.headers.get("X-Prefab-Expires") };
 		}
-		const secondsLeft = ARRIVING_SECONDS - Math.round((Date.now() - started) / 1000);
-		if (response.status !== 404 || secondsLeft <= 0) {
+		const secondsLeft = secondsLeftToTry(tries, started, waitsTheMinute);
+		if (response.status !== 404 || secondsLeft === null) {
 			throw new ShareError(await errorOf(response));
 		}
 		onWaiting?.(tries, secondsLeft);
-		await new Promise((resolve) => setTimeout(resolve, 4000));
+		await new Promise((resolve) => setTimeout(resolve, TRY_AGAIN_MS));
 	}
 };

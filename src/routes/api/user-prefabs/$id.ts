@@ -4,10 +4,11 @@ import { deleteUserPrefab, readUserPrefab } from "#/server/userPrefabs";
 
 import { env } from "cloudflare:workers";
 
+/**
+ * No CORS here (ADR-0145): the app reads shared prefabs from its own site, and tools read them as
+ * any page is read, so no other site's page needs to read what strangers share.
+ */
 const HEADERS = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	"X-Content-Type-Options": "nosniff",
 	// Shared prefabs are public to whoever has the link, not to search engines.
 	"X-Robots-Tag": "noindex, nofollow",
@@ -26,7 +27,6 @@ const notSetUp = () => {
 export const Route = createFileRoute("/api/user-prefabs/$id")({
 	server: {
 		handlers: {
-			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			GET: async ({ params }) => {
 				if (!env.USER_PREFABS) {
 					return notSetUp();

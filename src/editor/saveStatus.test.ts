@@ -42,6 +42,26 @@ describe("save status (ADR-0057)", () => {
 		expect(readSaveStatus()).toEqual({ state: "new" });
 	});
 
+	it("starts as not saved when the browser blocks storage, and opens anyway (ADR-0145)", async () => {
+		Object.defineProperty(globalThis, "localStorage", {
+			configurable: true,
+			get() {
+				throw new DOMException("The operation is insecure.", "SecurityError");
+			},
+		});
+		try {
+			const { readSaveStatus, loadStoredScene } = await fresh();
+			// Every module that reads storage as it loads, loaded without throwing.
+			await import("./linkTrust");
+			await import("./userWorlds");
+			await import("./userPrefabs");
+			loadStoredScene();
+			expect(readSaveStatus()).toEqual({ state: "failed", reason: "unavailable" });
+		} finally {
+			Reflect.deleteProperty(globalThis, "localStorage");
+		}
+	});
+
 	it("is saved when a stored world opens, as of its last save", async () => {
 		vi.setSystemTime(1_000_000);
 		(await fresh()).saveScene(scene("Mine"));

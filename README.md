@@ -1,5 +1,7 @@
 # Isometrics
 
+**Try it in your browser: [isometrics.leonlarsson.com](https://isometrics.leonlarsson.com)**, nothing to install. The source is here for reference ([source available](#license), not open source).
+
 Build animated 3D miniature worlds that show your data: drop in buildings, vehicles and trees, draw roads, bridges, water, parks and raised land, label it all with your numbers, and present the result as a living map of your business.
 
 ![Lantern Bay at golden hour, from the bay: towers along the waterfront mirrored in the water](docs/gallery/lantern-bay-bay-18.3.jpg)
@@ -16,14 +18,9 @@ Build animated 3D miniature worlds that show your data: drop in buildings, vehic
 
 Drawn on the Ultra graphics preset. `node scripts/gallery.mjs` retakes them all (on WSL with Windows' node, `node.exe`, for the real GPU) from a running `pnpm dev`.
 
-## Quick start
+## Getting started
 
-```bash
-pnpm install
-pnpm dev          # http://localhost:3000
-```
-
-The app opens with **Brightwater**, a small harbour city that shows off most of the editor (bridge, flyover, hill, stadium, marina, live data cards). On a first visit a welcome offers three ways in: build a city (New world, with **Uses data** off), explore an example (Brightwater, opened as a world of your own), or build with your own AI; **Welcome…** in the app menu (the logo) brings it back. Your work autosaves in the browser; the **File** menu starts a new empty world or a template, opens or saves worlds as `.json` files, and has **Build with AI** (a new world, or change this one): describe the world, copy a prompt into any AI chat, and open the file or paste the answer it gives back. **Share a link…** makes a public link to a snapshot of the world, kept for an hour to 30 days, that opens it for anyone who has it, as a preview kept only if they keep a copy. With no world open (a link that didn't open, the open world just deleted, or by choice in Preferences) a home screen offers the ways to start and lists your worlds. `/guide` walks through it all with a real API. The file format is published as JSON Schema at `/api/worlds/schema`, with every part kind, its props and a short guide, the templates are served as complete worlds at `/api/worlds/templates`, and `/api/worlds/validate` checks a world, so you (or your AI) can write worlds by hand and open them. `/parts` is a catalogue of every part, with pictures in both themes by day and at night, and each part's colours, lights and settings.
+Open [isometrics.leonlarsson.com](https://isometrics.leonlarsson.com). The app opens with **Brightwater**, a small harbour city that shows off most of the editor (bridge, flyover, hill, stadium, marina, live data cards). On a first visit a welcome offers three ways in: build a city (New world, with **Uses data** off), explore an example (Brightwater, opened as a world of your own), or build with your own AI; **Welcome…** in the app menu (the logo) brings it back. Your work autosaves in the browser; the **File** menu starts a new empty world or a template, opens or saves worlds as `.json` files, and has **Build with AI** (a new world, or change this one): describe the world, copy a prompt into any AI chat, and open the file or paste the answer it gives back. **Share a link…** makes a public link to a snapshot of the world, kept for an hour to 30 days, that opens it for anyone who has it, as a preview kept only if they keep a copy. With no world open (a link that didn't open, the open world just deleted, or by choice in Preferences) a home screen offers the ways to start and lists your worlds. `/guide` walks through it all with a real API. The file format is published as JSON Schema at `/api/worlds/schema`, with every part kind, its props and a short guide, the templates are served as complete worlds at `/api/worlds/templates`, and `/api/worlds/validate` checks a world, so you (or your AI) can write worlds by hand and open them. `/parts` is a catalogue of every part, with pictures in both themes by day and at night, and each part's colours, lights and settings.
 
 ## Using the editor
 
@@ -61,7 +58,11 @@ The app opens with **Brightwater**, a small harbour city that shows off most of 
 
 ## Development
 
+For the owner and anyone working on it with permission (see [License](#license)):
+
 ```bash
+pnpm install
+pnpm dev          # http://localhost:3000
 pnpm test         # unit tests
 pnpm typecheck    # TypeScript
 pnpm check        # Biome + JSX spacing check: the gate to pass before committing
