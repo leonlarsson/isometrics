@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { canDraw3d } from "#/render/webgl";
 import { AppShell } from "#/ui/AppShell";
+import { BootSplash } from "#/ui/BootSplash";
 import { ErrorScreen } from "#/ui/ErrorScreen";
 import { NoWebGlScreen } from "#/ui/NoWebGlScreen";
 
@@ -11,6 +12,8 @@ import { NoWebGlScreen } from "#/ui/NoWebGlScreen";
 export const Route = createFileRoute("/_editor")({
 	ssr: false,
 	component: Editor,
+	// What the server sends, until the editor's code has loaded and replaces it.
+	pendingComponent: BootSplash,
 	// A crash shows a recovery screen instead of a blank page (ADR-0020).
 	errorComponent: ErrorScreen,
 });

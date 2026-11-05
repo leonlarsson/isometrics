@@ -1,7 +1,7 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { APP_NAME } from "#/lib/app";
+import { APP_NAME, SITE_URL } from "#/lib/app";
 import { ErrorScreen } from "#/ui/ErrorScreen";
 import { NotFound } from "#/ui/NotFound";
 
@@ -37,6 +37,10 @@ export const Route = createRootRoute({
 				content: "website",
 			},
 			{
+				property: "og:site_name",
+				content: APP_NAME,
+			},
+			{
 				property: "og:title",
 				content: APP_NAME,
 			},
@@ -45,8 +49,14 @@ export const Route = createRootRoute({
 				content: DESCRIPTION,
 			},
 			{
+				// Absolute: most link previews ignore a relative picture.
 				property: "og:image",
-				content: "/og.png",
+				content: `${SITE_URL}/og.png`,
+			},
+			{
+				property: "og:image:alt",
+				content:
+					"A miniature 3D city with data cards floating over its buildings, by day and by night.",
 			},
 			{
 				property: "og:image:width",
@@ -60,10 +70,9 @@ export const Route = createRootRoute({
 				name: "twitter:card",
 				content: "summary_large_image",
 			},
-			// Not public yet: keep search engines out. Remove (with the header below) at launch.
 			{
-				name: "robots",
-				content: "noindex, nofollow",
+				name: "twitter:image",
+				content: `${SITE_URL}/og.png`,
 			},
 		],
 		scripts: [
@@ -84,11 +93,20 @@ export const Route = createRootRoute({
 				type: "image/svg+xml",
 				href: "/favicon.svg",
 			},
+			// For browsers without SVG icons, and a phone's home screen.
+			{
+				rel: "icon",
+				type: "image/png",
+				sizes: "32x32",
+				href: "/favicon-32.png",
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png",
+			},
 		],
 	}),
 	headers: () => ({
-		// Same as the robots meta tag, for crawlers that only read headers.
-		"X-Robots-Tag": "noindex, nofollow",
 		// Security (ADR-0119): no other site may frame the editor (clickjacking), no sniffing, little
 		// referrer, and no camera, microphone or location. The Content Security Policy (scripts only
 		// from this site or with the page's nonce, and more) is set per request with that nonce, in
