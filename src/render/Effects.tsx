@@ -18,6 +18,7 @@ import type { IGraphics, TDrawnGraphics } from "#/editor/graphics";
 import { useEditor } from "#/editor/store";
 import { skyLightAt } from "#/scene/sun";
 
+import { drawnAsOnCanvas } from "./drawnAsOnCanvas";
 import { BandBlurShader, bandBlurSettings, useTiltShiftShown } from "./TiltShift";
 
 /**
@@ -35,19 +36,6 @@ const FULL_SCREEN_VERTEX = /* glsl */ `
 		vUv = position.xy * 0.5 + 0.5;
 		gl_Position = vec4(position.xy, 1.0, 1.0);
 	}`;
-
-/**
- * A buffer drawn into as the canvas is: flagged as an XR target, three tone-maps each material
- * (the painted lights that opt out keep their colours) and writes sRGB only there and on the
- * canvas, so a material keeps one shader for both. The flag changes nothing else for a half-float
- * buffer.
- */
-const drawnAsOnCanvas = (target: THREE.WebGLRenderTarget) => {
-	if (!(target as { isXRRenderTarget?: boolean }).isXRRenderTarget) {
-		Object.assign(target, { isXRRenderTarget: true });
-		target.texture.colorSpace = THREE.SRGBColorSpace;
-	}
-};
 
 /**
  * The scene drawn exactly as onto the canvas, so Standard's look stays, then

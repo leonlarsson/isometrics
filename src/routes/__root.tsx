@@ -1,8 +1,7 @@
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, lazyRouteComponent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { APP_NAME } from "#/lib/app";
-import { ErrorScreen } from "#/ui/ErrorScreen";
 import { NotFound } from "#/ui/NotFound";
 
 import appCss from "../styles.css?url";
@@ -100,7 +99,9 @@ export const Route = createRootRoute({
 	}),
 	shellComponent: RootDocument,
 	notFoundComponent: NotFound,
-	errorComponent: ErrorScreen,
+	// Loaded when needed: it reaches into the editor (to save the world), which pages without one
+	// (the guide, the parts) never load otherwise. The editor's own route has it ready (_editor).
+	errorComponent: lazyRouteComponent(() => import("#/ui/ErrorScreen"), "ErrorScreen"),
 });
 
 // Route files keep `Route` first; the hoisted function declaration makes that possible (ADR-0015).
