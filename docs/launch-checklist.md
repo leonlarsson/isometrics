@@ -6,23 +6,19 @@ The public launch at https://isometrics.leonlarsson.com: what's done in code, an
 
 ### Cloudflare (owner)
 
-- [ ] **Workers Paid** ($5 a month). Free can't take a front-page day:
+- [x] **Workers Paid.** Free couldn't take a front-page day:
   - 10 ms of CPU per request, while a share takes about 500 ms
-  - 100k requests a day, while every page's HTML is a Worker request
-  - 1,000 KV writes a day, so sharing would stop after the first 1,000 shares
+  - 100k requests a day
+  - 1,000 KV writes a day
 - [ ] **A usage or billing notification** in the dashboard.
 - [ ] **The custom domain:** attach `isometrics.leonlarsson.com` to the Worker.
-- [ ] **Redirect `isometrics.ragnarok.workers.dev` to it.**
-  - Worlds are kept per address, so do this before posting.
-  - Bring your own worlds across first: Export this browser on the old address, then import the file on the new one (ADR-0140).
+  - Worlds are kept per address, so your own worlds on the workers.dev address stay there.
+  - To bring them across: Export this browser on the old address, then import the file on the new one (ADR-0140).
 - [ ] **HSTS** in the zone's SSL/TLS settings.
-- [ ] **Previews:** pull-request previews use production's KV namespaces, and the repo is public.
-  - Create separate preview namespaces.
-  - Confirm that pull requests from forks aren't built.
-- [ ] **After the hardening PR merges:**
-  - `wrangler secret put ADMIN_DELETE_TOKEN`
-  - set the abuse contact address (`ABUSE_CONTACT`)
-  - read `docs/runbooks/takedown.md`
+- **Not doing:**
+  - a redirect from workers.dev
+  - separate preview KV namespaces (previews share production's on purpose)
+  - reporting and admin takedowns (shares are deleted straight from KV if ever needed)
 
 ### GitHub (owner)
 
@@ -51,7 +47,7 @@ The public launch at https://isometrics.leonlarsson.com: what's done in code, an
 | Done | The hashed build files cached for a year (`_headers`). | `launch-prep` |
 | Done | The banner says "Early preview", explains how to keep a copy, and can be closed. | `launch-prep` |
 | Done | The README has the live link and says the source is available, not open. | `launch-prep` |
-| In progress | Sharing limits (size, strings, IPv6), stored gzipped, an admin delete, a kill switch, Report on shared worlds, no-WebGL and blocked-storage screens. | `launch-hardening` |
+| In progress | Sharing: a size cap per share, stored gzipped, IPv6 rate limits per /64, a kill switch, and a "made by someone else" note. No-WebGL and blocked-storage screens. | `launch-hardening` |
 | In progress | Starter pictures made ahead of time, link previews per page, the home screen, built-in templates not asking about sources on open, a shader warm-up, `/guide` lighter. | `launch-first-impression` |
 
 ## Decided
@@ -60,6 +56,9 @@ The public launch at https://isometrics.leonlarsson.com: what's done in code, an
 - **Welcome:** stays as it is, with Build a city preselected.
 - **Graphics:** new browsers start on Standard.
 - **Licence:** all rights reserved, worded as source-available.
+- **Sharing:**
+  - A size cap and gzip, but no caps on text or list lengths.
+  - A kill switch, but no Report link and no admin delete.
 
 ## Open
 
