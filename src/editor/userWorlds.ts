@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
+import { storageAvailable } from "#/lib/storage";
 import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
@@ -63,12 +64,23 @@ const saveLinks = (links: ISharedLink[]) => {
 /** The links this browser shared that haven't expired, newest first. */
 export const useSharedLinks = keepOnHotReload("sharedLinks", () =>
 	create<{ links: ISharedLink[] }>(() => ({
-		links: typeof localStorage === "undefined" ? [] : loadLinks(),
+		links: storageAvailable() ? loadLinks() : [],
 	})),
 );
 
 /** Why sharing or reading a shared world didn't work, in words. */
-export class ShareError extends Error {}
+export class ShareError extends Error {
+	/**
+	 * The site isn't taking shares now (it answered 503: sharing is paused by its owner, ADR-0145,
+	 * or isn't set up): the share dialogs say so in place, not only in a toast.
+	 */
+	readonly isPaused: boolean;
+
+	constructor(message: string, { isPaused = false } = {}) {
+		super(message);
+		this.isPaused = isPaused;
+	}
+}
 
 /** The first few problems a refusal lists, said after its message. */
 const PROBLEMS_SAID = 3;
@@ -118,7 +130,7 @@ export const shareWorld = async (
 		throw new ShareError("The site couldn't be reached: are you offline?");
 	}
 	if (!response.ok) {
-		throw new ShareError(await errorOf(response));
+		throw new ShareError(await errorOf(response), { isPaused: response.status === 503 });
 	}
 	const shared = (await response.json()) as Omit<ISharedLink, "title" | "isHandoff">;
 	const link: ISharedLink = { ...shared, title: scene.meta.title, isHandoff };
@@ -158,6 +170,44 @@ export const sharedWorldIdOf = (text: string, origin = window.location.origin) =
 /** How long a new link may take to reach every part of the world (KV's eventual consistency). */
 const ARRIVING_SECONDS = 60;
 
+/** How often a link that isn't here yet is asked again, in milliseconds. */
+export const TRY_AGAIN_MS = 4000;
+
+/**
+ * A link this browser didn't just share (or a person didn't just paste from an AI) is asked this
+ * many times at most (ADR-0145): a mistyped or expired one says so in seconds, not after a minute
+ * of asking the site every few seconds.
+ */
+export const MOST_TRIES = 4;
+
+/** How a link that isn't here (404) is waited for: a minute, or MOST_TRIES tries. */
+export interface IWaiting {
+	/** Told after each try that found nothing: how many so far, and the seconds left. */
+	onWaiting?: (tries: number, secondsLeft: number) => void;
+	/** Wait out the whole minute: a link just made (shared from this browser, an AI's answer). */
+	waitsTheMinute?: boolean;
+}
+
+/**
+ * The seconds left to keep asking for a link that wasn't there after `tries` tries, since
+ * `started` (ms), or null to give up.
+ */
+export const secondsLeftToTry = (
+	tries: number,
+	started: number,
+	waitsTheMinute: boolean,
+	now = Date.now(),
+): number | null => {
+	const secondsLeft = waitsTheMinute
+		? ARRIVING_SECONDS - Math.round((now - started) / 1000)
+		: ((MOST_TRIES - tries) * TRY_AGAIN_MS) / 1000;
+	return secondsLeft > 0 ? secondsLeft : null;
+};
+
+/** Whether this browser shared the world with this id (so its link may just be arriving). */
+export const sharedFromHere = (id: string) =>
+	useSharedLinks.getState().links.some((link) => link.id === id);
+
 /** A shared world as fetched: its JSON text, and when its link expires (ISO), if said. */
 export interface IFetchedWorld {
 	text: string;
@@ -167,12 +217,13 @@ export interface IFetchedWorld {
 /**
  * A shared world's JSON text, from this site only. A link shared moments ago
  * may not have reached this part of the world yet: it's asked again every few
- * seconds for up to a minute, `onWaiting` told each time (how many tries so far,
- * and the seconds left), before giving up.
+ * seconds, `onWaiting` told each time (how many tries so far, and the seconds
+ * left), for up to a minute when it was just made (shared from this browser,
+ * or `waitsTheMinute`), else MOST_TRIES times, before giving up.
  */
 export const fetchSharedWorld = async (
 	id: string,
-	{ onWaiting }: { onWaiting?: (tries: number, secondsLeft: number) => void } = {},
+	{ onWaiting, waitsTheMinute = sharedFromHere(id) }: IWaiting = {},
 ): Promise<IFetchedWorld> => {
 	const started = Date.now();
 	for (let tries = 1; ; tries++) {
@@ -185,11 +236,11 @@ export const fetchSharedWorld = async (
 		if (response.ok) {
 			return { text: await response.text(), expiresAt: response.headers.get("X-World-Expires") };
 		}
-		const secondsLeft = ARRIVING_SECONDS - Math.round((Date.now() - started) / 1000);
-		if (response.status !== 404 || secondsLeft <= 0) {
+		const secondsLeft = secondsLeftToTry(tries, started, waitsTheMinute);
+		if (response.status !== 404 || secondsLeft === null) {
 			throw new ShareError(await errorOf(response));
 		}
 		onWaiting?.(tries, secondsLeft);
-		await new Promise((resolve) => setTimeout(resolve, 4000));
+		await new Promise((resolve) => setTimeout(resolve, TRY_AGAIN_MS));
 	}
 };

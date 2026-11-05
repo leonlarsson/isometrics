@@ -148,3 +148,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0142](0142-app-row-and-view-bar.md) | The top bar in two rows: an app row across the window, a view bar over the view | proposed |
 | [0143](0143-parts-of-many-pieces-as-one-geometry.md) | Parts of many pieces are built as one geometry, with a colour per vertex | proposed |
 | [0144](0144-real-lights-by-the-picture.md) | Real lights chosen by the picture, fading out at the edge; more of them in a still picture | proposed |
+| [0145](0145-sharing-hardened-for-strangers.md) | Sharing hardened for strangers: limits, gzip in KV, a kill switch and takedowns; screens for browsers that can't draw or keep anything | proposed |

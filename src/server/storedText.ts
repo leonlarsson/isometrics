@@ -28,7 +28,7 @@ export const isGzip = (bytes: Uint8Array) =>
 
 /** A kept entry's text: unzipped when it's gzip, read as UTF-8 when it's plain text (kept before). */
 export const textOfStored = async (stored: ArrayBuffer | Uint8Array): Promise<string> => {
-	const bytes = stored instanceof Uint8Array ? stored : new Uint8Array(stored);
+	const bytes = new Uint8Array(stored);
 	if (!isGzip(bytes)) {
 		return new TextDecoder().decode(bytes);
 	}

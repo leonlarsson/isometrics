@@ -30,6 +30,7 @@ import { formatHour } from "#/scene/sun";
 
 import { AppRow } from "./AppRow";
 import { BoxSelectBar } from "./BoxSelectBar";
+import { DrawingLostBar, NothingSavedBar } from "./BrowserLimitBars";
 import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
@@ -415,6 +416,10 @@ export const AppShell = () => {
 
 									{/* The bars over the top of the view, one under another when several show. */}
 									<div className={styles.topBars}>
+										{showsWorld && <DrawingLostBar />}
+
+										{showsWorld && <NothingSavedBar />}
+
 										{showsWorld && <PreviewBar />}
 
 										{showsWorld && <WorkshopBar />}

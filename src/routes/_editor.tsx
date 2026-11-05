@@ -1,14 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { canDraw3d } from "#/render/webgl";
 import { AppShell } from "#/ui/AppShell";
 import { ErrorScreen } from "#/ui/ErrorScreen";
+import { NoWebGlScreen } from "#/ui/NoWebGlScreen";
 
 // The editor, for its own address and the links it opens (ADR-0129): one route around them, so
 // going from a link back to / (a kept copy, the home screen) leaves it as it is instead of starting
 // it over. WebGL and localStorage only, so no server rendering.
 export const Route = createFileRoute("/_editor")({
 	ssr: false,
-	component: AppShell,
+	component: Editor,
 	// A crash shows a recovery screen instead of a blank page (ADR-0020).
 	errorComponent: ErrorScreen,
 });
+
+// Without WebGL 2 nothing can be drawn: a screen that says how to fix it, before the view would
+// fail and show the crash screen (ADR-0145).
+function Editor() {
+	return canDraw3d() ? <AppShell /> : <NoWebGlScreen />;
+}

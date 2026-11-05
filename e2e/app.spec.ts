@@ -64,6 +64,48 @@ test.describe("opening and saving (ADR-0006, ADR-0020, ADR-0026, ADR-0057)", () 
 	});
 });
 
+test.describe("browsers that can't do everything (ADR-0145)", () => {
+	test("without WebGL, a screen says how to draw 3D, never the crash screen", async ({ page }) => {
+		await page.addInitScript(() => {
+			const getContext = HTMLCanvasElement.prototype.getContext;
+			HTMLCanvasElement.prototype.getContext = function (
+				this: HTMLCanvasElement,
+				kind: string,
+				...rest: unknown[]
+			) {
+				return kind.startsWith("webgl") || kind === "experimental-webgl"
+					? null
+					: (getContext as (...args: unknown[]) => unknown).call(this, kind, ...rest);
+			} as typeof getContext;
+		});
+		await page.goto("/");
+		const screen = page.getByRole("alert");
+		await expect(screen).toContainText("Your browser can’t draw 3D here");
+		await expect(screen).toContainText("hardware acceleration");
+		await expect(screen.getByRole("link", { name: "the guide" })).toHaveAttribute("href", "/guide");
+		await expect(screen.getByRole("link", { name: "the parts" })).toHaveAttribute("href", "/parts");
+		await expect(page.getByText("Something went wrong")).toHaveCount(0);
+		await expect(page.locator("canvas")).toHaveCount(0);
+	});
+
+	test("with site data blocked, the app opens and says nothing will be saved", async ({ page }) => {
+		await page.addInitScript(() => {
+			for (const name of ["localStorage", "sessionStorage"]) {
+				Object.defineProperty(window, name, {
+					configurable: true,
+					get() {
+						throw new DOMException("The operation is insecure.", "SecurityError");
+					},
+				});
+			}
+		});
+		await openEditor(page);
+		await expect(page.getByText("Nothing will be saved in this browser")).toBeVisible();
+		await expect(page.getByText("Something went wrong")).toHaveCount(0);
+		await expect(page.getByRole("button", { name: /^Not saved: more about saving/ })).toBeVisible();
+	});
+});
+
 test.describe("the world format for people and AIs (ADR-0032, ADR-0034)", () => {
 	test("/api/worlds/schema describes the world, with every part kind", async ({ request }) => {
 		const schema = await (await request.get("/api/worlds/schema")).json();

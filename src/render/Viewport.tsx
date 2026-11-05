@@ -1,6 +1,6 @@
 import { SoftShadows } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { lazy, memo, Suspense, useLayoutEffect, useMemo } from "react";
+import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useSceneHours } from "#/editor/dayClock";
@@ -69,9 +69,17 @@ import { Weather, WeatherShading } from "./Weather";
 import { Wireframe } from "./Wireframe";
 import { WorkshopMarker } from "./WorkshopMarker";
 import { WorldReady } from "./WorldReady";
+import { watchForLostDrawing } from "./webgl";
 
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
 const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
+
+/** Says when the view's WebGL context is lost, for the bar that offers to reload (ADR-0145). */
+const LostDrawingWatch = () => {
+	const canvas = useThree((s) => s.gl.domElement);
+	useEffect(() => watchForLostDrawing(canvas), [canvas]);
+	return null;
+};
 
 const Lights = () => {
 	const palette = usePalette();
@@ -353,6 +361,8 @@ export const Viewport = () => {
 				}
 			}}
 		>
+			<LostDrawingWatch />
+
 			<StillScene />
 
 			<Lights />

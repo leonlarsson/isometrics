@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { isLocalHost, webAddress } from "./webAddress";
+import { isLocalHost, linkWords, webAddress } from "./webAddress";
 
 describe("web addresses from untrusted data", () => {
+	it("name a link with its host, so a name can't pass it off as another site's (ADR-0145)", () => {
+		expect(linkWords("Your bank", "https://phish.example/login")).toBe("Your bank (phish.example)");
+		expect(linkWords("", "https://scb.se/data")).toBe("scb.se");
+		expect(linkWords(null, "https://scb.se:8443/data")).toBe("scb.se:8443");
+		expect(linkWords("SCB.se", "https://scb.se/")).toBe("scb.se");
+		expect(linkWords("Name", "not a link")).toBe("Name");
+	});
+
 	it("keeps https and http, and nothing else", () => {
 		expect(webAddress("https://battlefieldstats.com")).toBe("https://battlefieldstats.com");
 		expect(webAddress("http://example.com/a")).toBe("http://example.com/a");
