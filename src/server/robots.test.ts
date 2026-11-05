@@ -16,13 +16,8 @@ describe("robotsTagFor", () => {
 		expect(robotsTagFor(new URL("/p/abc123", SITE_URL))).toBe("noindex, nofollow");
 	});
 
-	it("keeps previews and other addresses out", () => {
-		expect(robotsTagFor(new URL("https://isometrics.ragnarok.workers.dev/"))).toBe(
-			"noindex, nofollow",
-		);
-		expect(robotsTagFor(new URL("https://stockholm-isometrics.ragnarok.workers.dev/"))).toBe(
-			"noindex, nofollow",
-		);
+	it("keeps every other address out (previews, other hosts, a local server)", () => {
+		expect(robotsTagFor(new URL("https://preview.example.com/"))).toBe("noindex, nofollow");
 		expect(robotsTagFor(new URL("http://localhost:3000/"))).toBe("noindex, nofollow");
 	});
 });
