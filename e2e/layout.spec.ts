@@ -269,7 +269,9 @@ test.describe("dialogs", () => {
 		await page.getByRole("button", { name: "Close", exact: true }).click();
 		await expect(dialog).toBeHidden();
 		await openDialog();
+		// To the pixel, as above: the middle can land a hair off a whole pixel as its content settles.
 		const reopened = await middle();
-		expect([reopened.x, reopened.y]).toEqual([centred.x, centred.y]);
+		expect(reopened.x).toBeCloseTo(centred.x, 0);
+		expect(reopened.y).toBeCloseTo(centred.y, 0);
 	});
 });
