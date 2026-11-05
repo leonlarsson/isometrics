@@ -148,7 +148,7 @@ export const Welcome = () => {
 			/>
 
 			<Hint>
-				{`Behind this is “${title}”: look around first if you like. Every way in is there later too: the ${APP_NAME} menu (the logo, top left) has Welcome…, and the guide walks through it all, with a real API.`}
+				{`Behind this is “${title}”: look around first if you like. Every way in is there later too, under Welcome… (in the ${APP_NAME} menu, the logo at the top left; on a phone, at the end of File), and the guide walks through it all, with a real API.`}
 			</Hint>
 
 			<Button size="sm" icon="newTab" onClick={openGuide}>

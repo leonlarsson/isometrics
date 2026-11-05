@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { usePrefersDark } from "#/editor/useTheme";
+import { usePrefersDark } from "#/editor/prefersDark";
 import { APP_NAME } from "#/lib/app";
 import { PARTS, partName, resolveProps, sizeInWords, type TAnyPart } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";

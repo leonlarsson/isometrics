@@ -1,22 +1,10 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo } from "react";
 
 import { resolveTheme, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { useSceneNight } from "./dayClock";
+import { usePrefersDark } from "./prefersDark";
 import { useEditor } from "./store";
-
-const QUERY = "(prefers-color-scheme: dark)";
-
-const subscribe = (callback: () => void) => {
-	const media = window.matchMedia(QUERY);
-	media.addEventListener("change", callback);
-	return () => media.removeEventListener("change", callback);
-};
-
-const prefersDark = () => window.matchMedia(QUERY).matches;
-
-/** Whether the device asks for dark colours (the system theme), following it as it changes. */
-export const usePrefersDark = () => useSyncExternalStore(subscribe, prefersDark, () => false);
 
 export const useResolvedTheme = (): TResolvedTheme => {
 	const preference = useEditor((s) => s.scene.theme);

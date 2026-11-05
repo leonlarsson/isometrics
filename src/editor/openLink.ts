@@ -149,8 +149,9 @@ const fetchLinked = async (
 
 /**
  * Open the world a link names, with nothing else loaded. Templates are ours:
- * they open straight away (their addresses wait for a yes in the world, as
- * from New world). A shared world opens straight away too, unless it reads
+ * they open straight away, with no question over them: their addresses wait
+ * for a yes in the preview's bar (Review and allow…), and nothing is read
+ * from them before it. A shared world opens straight away too, unless it reads
  * from addresses this browser hasn't allowed: then it waits for `answerLink`.
  */
 export const openLink = async (link: ILinkAsked) => {
@@ -161,6 +162,11 @@ export const openLink = async (link: ILinkAsked) => {
 		fetched = await fetchLinked(link);
 	} catch (error) {
 		failed(link, error instanceof ShareError ? error.message : "It couldn't be opened.");
+		return;
+	}
+	// A template's addresses count as asked about: the bar says they wait, with Allow.
+	if (link.from === "template") {
+		openAsPreview(link, fetched.scene, null, outsideAddressesOf(fetched.scene));
 		return;
 	}
 	const addresses = link.from === "shared" ? outsideAddressesOf(fetched.scene) : [];
