@@ -2,87 +2,39 @@ import type { TScene } from "#/scene/schema";
 
 import { createBattlefieldTerritoryScene } from "./battlefieldTerritory";
 import { createBrightwaterScene } from "./brightwater";
+import { type ITemplateEntry, TEMPLATE_CATALOGUE, type TTemplateId } from "./catalogue";
 import { createExtractionShootersScene } from "./extractionShooters";
 import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
 import { createShapeCastleScene } from "./shapeCastle";
 import { createStockholmScene } from "./stockholm";
 
+export {
+	TEMPLATE_CATEGORIES,
+	type TTemplateCategory,
+} from "./catalogue";
 export { createEmptyScene } from "./empty";
 
-/** What a starter world is: a place to look at and build on, or a map made to show data. */
-export type TTemplateCategory = "places" | "dataMaps";
-
-/** The categories, in the order File → New world offers them, with their names. */
-export const TEMPLATE_CATEGORIES: { value: TTemplateCategory; label: string }[] = [
-	{ value: "places", label: "Places" },
-	{ value: "dataMaps", label: "Data maps" },
-];
-
-export interface ITemplateInfo {
-	id: string;
-	name: string;
-	description: string;
-	category: TTemplateCategory;
+export interface ITemplateInfo extends ITemplateEntry {
 	create: () => TScene;
 }
 
-export const TEMPLATES: ITemplateInfo[] = [
-	{
-		id: "brightwater",
-		name: "Brightwater",
-		description: "Harbour city: river bridge, flyover, hill, stadium, marina and live city data",
-		category: "places",
-		create: createBrightwaterScene,
-	},
-	{
-		id: "lantern-bay",
-		name: "Lantern Bay",
-		description:
-			"Waterfront at dusk: lit towers, lamps on the promenade, a mirror-calm harbour. Best with Graphics: Ultra",
-		category: "places",
-		create: createLanternBayScene,
-	},
-	{
-		id: "stockholm",
-		name: "Stockholm",
-		description:
-			"Gamla stan and its waters on a two-minute evening: lanterns, lit windows one by one, a floodlit palace and churches, Centralbron's traffic, ferries and example data. Best with Graphics: Nice or Ultra",
-		category: "places",
-		create: createStockholmScene,
-	},
-	{
-		id: "monaco",
-		name: "Monaco street circuit",
-		description: "F1 street circuit around a harbour: Casino hill, hairpin, tunnel, race data",
-		category: "places",
-		create: createMonacoScene,
-	},
-	{
-		id: "shape-castle",
-		name: "Shape Castle",
-		description:
-			"A castle by a river built only from shapes: walls, towers, a keep lit after dark, an arch bridge. No data, a world to build on",
-		category: "places",
-		create: createShapeCastleScene,
-	},
-	{
-		id: "battlefield-territory",
-		name: "Battlefield territory",
-		description:
-			"A data map from Battlefield Stats: a cluster per game sized by messages, flows to the bot, a live users count and a story of the months",
-		category: "dataMaps",
-		create: createBattlefieldTerritoryScene,
-	},
-	{
-		id: "extraction-shooters",
-		name: "Extraction shooter territory",
-		description:
-			"A data map of Steam players: a cluster per game, roads for shared audiences, stat tiles and no data where there's none",
-		category: "dataMaps",
-		create: createExtractionShootersScene,
-	},
-];
+/** Each starter's world, by its id in the catalogue. */
+const CREATE: Record<TTemplateId, () => TScene> = {
+	brightwater: createBrightwaterScene,
+	"lantern-bay": createLanternBayScene,
+	stockholm: createStockholmScene,
+	monaco: createMonacoScene,
+	"shape-castle": createShapeCastleScene,
+	"battlefield-territory": createBattlefieldTerritoryScene,
+	"extraction-shooters": createExtractionShootersScene,
+};
+
+/** The starter worlds, in the catalogue's order (./catalogue: their names and what they're about). */
+export const TEMPLATES: ITemplateInfo[] = TEMPLATE_CATALOGUE.map((entry) => ({
+	...entry,
+	create: CREATE[entry.id],
+}));
 
 /** A template by its id (`lantern-bay`, ADR-0126). */
 export const templateById = (id: string) => TEMPLATES.find((template) => template.id === id);

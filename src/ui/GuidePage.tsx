@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useEffect } from "react";
 
-import { usePrefersDark } from "#/editor/useTheme";
+import { usePrefersDark } from "#/editor/prefersDark";
 import { GUIDE, GUIDE_INTRO, type IGuideSection, type TGuideBlock } from "#/guide/guide";
 import { APP_NAME } from "#/lib/app";
 

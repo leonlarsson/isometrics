@@ -24,6 +24,7 @@ import {
 	type TTransformMode,
 	useEditor,
 } from "./store";
+import { setViewShowsData, useViewShowsData } from "./viewData";
 
 const isTextEntry = (target: EventTarget | null) =>
 	target instanceof HTMLElement &&
@@ -287,14 +288,21 @@ export const useShortcuts = () => {
 		},
 		{
 			hotkey: "Escape",
-			// Cancel dragging a new part in, or dismiss the offer to drive along a road; otherwise
-			// step out one level: a selected point first, then the road or object.
+			// Cancel dragging a new part in, close View mode's data over the map (Back to the map), or
+			// dismiss the offer to drive along a road; otherwise step out one level: a selected point
+			// first, then the road or object. One Escape for all of them, so each press does one thing.
 			callback: () => {
 				const state = useEditor.getState();
 				if (state.cancelGesture) {
 					state.cancelGesture();
 				} else if (state.boxSelect) {
 					state.setBoxSelect(null);
+				} else if (
+					state.mode === "view" &&
+					state.scene.data.enabled &&
+					useViewShowsData.getState().showsData
+				) {
+					setViewShowsData(false);
 				} else if (state.cameraFollow) {
 					state.stopFollowing();
 				} else if (state.placingKind) {

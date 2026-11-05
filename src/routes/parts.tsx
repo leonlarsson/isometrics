@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { APP_NAME } from "#/lib/app";
 import {
 	hasObjectSettings,
 	NO_OBJECT_SETTINGS,
 	ObjectSettingsSchema,
 	type TObjectSettings,
 } from "#/scene/objectSettings";
+import { PARTS_LINK_PREVIEW } from "#/ui/linkPreviews";
 import { PartsCatalogue } from "#/ui/PartsCatalogue";
 
 interface IPartsSearch {
@@ -30,7 +30,7 @@ const readSearch = (search: Record<string, unknown>): IPartsSearch => {
 export const Route = createFileRoute("/parts")({
 	ssr: false,
 	validateSearch: readSearch,
-	head: () => ({ meta: [{ title: `Parts · ${APP_NAME}` }] }),
+	head: () => ({ meta: PARTS_LINK_PREVIEW }),
 	component: Parts,
 });
 

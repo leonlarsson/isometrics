@@ -49,16 +49,20 @@ test.describe("the welcome (ADR-0116)", () => {
 	test.use({ welcomes: true });
 
 	test("greets a new browser once; Build a city starts a world without data", async ({ page }) => {
-		// The editor loads three times in it, and New world draws its starters' pictures.
+		// The editor loads twice in it.
 		test.slow();
 		await openEditor(page);
 		const welcome = page.getByRole("dialog", { name: /Welcome to/ });
 		await expect(welcome).toBeVisible();
+		// Its pictures are the starters' files, made ahead of time (ADR-0146), nothing drawn live.
+		await expect(welcome.locator('img[src^="/starters/lantern-bay-"]')).toBeVisible();
+		await expect(welcome.locator('img[src^="/starters/brightwater-"]')).toBeVisible();
 		await welcome.getByRole("radio", { name: /Build a city/ }).click();
 		await welcome.getByRole("button", { name: "Start" }).click();
 
 		const newWorld = page.getByRole("dialog", { name: "New world" });
 		await expect(newWorld).toBeVisible();
+		await expect(newWorld.locator('img[src^="/starters/blank-blocks-"]')).toBeVisible();
 		await expect(newWorld.getByRole("switch", { name: "Uses data" })).not.toBeChecked();
 		await newWorld.getByRole("button", { name: "Create" }).click();
 		expect(await read(page, (s) => s.scene.data.enabled)).toBe(false);

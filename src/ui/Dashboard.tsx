@@ -1,5 +1,3 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
-
 import { followersByRow } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
 import { setViewShowsData, useViewShowsData } from "#/editor/viewData";
@@ -85,10 +83,6 @@ export const WorldDataView = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const usesData = useUsesData();
 	const open = showsData && inView && usesData;
-	useHotkey("Escape", () => setViewShowsData(false), {
-		enabled: open,
-		meta: { name: "Back to the map" },
-	});
 	if (!open) {
 		return null;
 	}

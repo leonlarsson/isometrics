@@ -4,6 +4,7 @@ import {
 	act,
 	expect,
 	fileMenu,
+	groundSpot,
 	menuItem,
 	openEditor,
 	read,
@@ -162,6 +163,28 @@ test.describe("phones (ADR-0030, ADR-0046)", () => {
 		await expect(sheet).toHaveAttribute("data-sheet", "open");
 	});
 
+	test("a long world opens framed for the tall screen, not as a strip across it", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		// The starter, Brightwater, is twice as wide as it's deep: seen from nearer along its width.
+		const { width, depth } = await read(page, (s) => s.scene.ground);
+		const corners = await Promise.all(
+			[
+				[-width / 2, -depth / 2],
+				[width / 2, -depth / 2],
+				[-width / 2, depth / 2],
+				[width / 2, depth / 2],
+			].map((corner) => groundSpot(page, corner)),
+		);
+		const ys = corners.map((corner) => corner.y);
+		const xs = corners.map((corner) => corner.x);
+		// From the corner it took about a third of the height; now it's nearly half, still in the width.
+		expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(844 * 0.4);
+		expect(Math.min(...xs)).toBeGreaterThanOrEqual(0);
+		expect(Math.max(...xs)).toBeLessThanOrEqual(390);
+	});
+
 	test("the sheet's panels scroll when they're taller than it", async ({ page }) => {
 		await openEditor(page);
 		// The World tab's panels are taller than the sheet.
@@ -246,7 +269,9 @@ test.describe("dialogs", () => {
 		await page.getByRole("button", { name: "Close", exact: true }).click();
 		await expect(dialog).toBeHidden();
 		await openDialog();
+		// To the pixel, as above: the middle can land a hair off a whole pixel as its content settles.
 		const reopened = await middle();
-		expect([reopened.x, reopened.y]).toEqual([centred.x, centred.y]);
+		expect(reopened.x).toBeCloseTo(centred.x, 0);
+		expect(reopened.y).toBeCloseTo(centred.y, 0);
 	});
 });

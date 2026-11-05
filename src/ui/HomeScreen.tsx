@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 
-import { openSavedWorld, openWorldFile } from "#/editor/fileActions";
+import { openSavedWorld, openWorldFile, startNewWorld } from "#/editor/fileActions";
 import { listWorlds, subscribeWorldList } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
+import { useResolvedTheme } from "#/editor/useTheme";
 import type { THomeReason } from "#/editor/whatIsOpen";
 import { APP_NAME } from "#/lib/app";
+import { TEMPLATES } from "#/templates";
 
+import { ActionCards } from "./ActionCards";
 import { Button } from "./Button";
+import { Hint } from "./fields";
 import { Icon } from "./Icon";
 import { List, ListItem } from "./List";
-import { openGuide } from "./Welcome";
+import { useWorldPictures } from "./useWorldPictures";
+import { exploreExample, openGuide, PITCH } from "./Welcome";
 import { formatEdited } from "./WorldsDialog";
 
 import styles from "./HomeScreen.module.css";
@@ -53,16 +58,20 @@ const noticeOf = (why: THomeReason): { title: string; text: string; isProblem: b
 };
 
 /**
- * No world open (ADR-0121), like an empty editor window: why, if there's
- * anything to say (a link that couldn't be opened, one not opened, no worlds
- * left), the ways to start (New world…, Open file…, Build with AI) and
- * one's worlds in this browser to open. On start too, if Preferences say so.
+ * No world open (ADR-0121), like an empty editor window: what the app is, in
+ * a line, why it shows, if there's anything to say (a link that couldn't be
+ * opened, one not opened, no worlds left), the ways to start (Explore an
+ * example, New world…, Open file…, Build with AI), the starter worlds with
+ * their pictures, each opening a copy, and one's worlds in this browser to
+ * open. It's where someone lands from a shared link that has expired, so it
+ * says what the app is as the welcome does. On start too, if Preferences say so.
  */
 export const HomeScreen = () => {
 	const why = useEditor((s) => (s.whatIsOpen.kind === "home" ? s.whatIsOpen.why : null));
 	// Read once, and again when an import adds worlds (ADR-0140): nothing else changes the list here.
 	const [worlds, setWorlds] = useState(listWorlds);
 	useEffect(() => subscribeWorldList(() => setWorlds(listWorlds())), []);
+	const picture = useWorldPictures(useResolvedTheme(), TEMPLATES, why !== null);
 	if (!why) {
 		return null;
 	}
@@ -77,6 +86,8 @@ export const HomeScreen = () => {
 
 					<h1 className={styles.title}>{APP_NAME}</h1>
 				</header>
+
+				<p className={styles.pitch}>{PITCH}</p>
 
 				{notice && (
 					<div className={styles.notice} data-problem={notice.isProblem || undefined} role="status">
@@ -96,8 +107,11 @@ export const HomeScreen = () => {
 					</h2>
 
 					<div className={styles.actions}>
+						<Button variant="primary" icon="eye" onClick={exploreExample}>
+							Explore an example
+						</Button>
+
 						<Button
-							variant="primary"
 							icon="file"
 							onClick={() => store().setNewWorld({ shows: "all", usesData: null })}
 						>
@@ -112,6 +126,23 @@ export const HomeScreen = () => {
 							Build with AI…
 						</Button>
 					</div>
+				</section>
+
+				<section className={styles.section} aria-labelledby="home-starters">
+					<h2 id="home-starters" className={styles.heading}>
+						Starter worlds
+					</h2>
+
+					<ActionCards
+						cards={TEMPLATES.map((template) => ({
+							title: template.name,
+							about: template.description,
+							picture: picture(template.id),
+							onChoose: () => startNewWorld(template.create()),
+						}))}
+					/>
+
+					<Hint>A copy opens as a new world; change anything.</Hint>
 				</section>
 
 				<section className={styles.section} aria-labelledby="home-worlds">
