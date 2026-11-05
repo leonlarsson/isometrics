@@ -42,10 +42,12 @@ export const NoWebGlScreen = () => (
 
 		<p className={styles.hint}>
 			Meanwhile, read{" "}
+
 			<a className={styles.link} href="/guide">
 				the guide
 			</a>{" "}
 			to see how a world is made, or browse{" "}
+
 			<a className={styles.link} href="/parts">
 				the parts
 			</a>
