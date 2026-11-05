@@ -37,6 +37,10 @@ export const Route = createRootRoute({
 				content: "website",
 			},
 			{
+				property: "og:site_name",
+				content: APP_NAME,
+			},
+			{
 				property: "og:title",
 				content: APP_NAME,
 			},
@@ -50,6 +54,11 @@ export const Route = createRootRoute({
 				content: `${SITE_URL}/og.png`,
 			},
 			{
+				property: "og:image:alt",
+				content:
+					"A miniature 3D city with data cards floating over its buildings, by day and by night.",
+			},
+			{
 				property: "og:image:width",
 				content: "1200",
 			},
@@ -60,6 +69,10 @@ export const Route = createRootRoute({
 			{
 				name: "twitter:card",
 				content: "summary_large_image",
+			},
+			{
+				name: "twitter:image",
+				content: `${SITE_URL}/og.png`,
 			},
 		],
 		scripts: [
@@ -79,6 +92,17 @@ export const Route = createRootRoute({
 				rel: "icon",
 				type: "image/svg+xml",
 				href: "/favicon.svg",
+			},
+			// For browsers without SVG icons, and a phone's home screen.
+			{
+				rel: "icon",
+				type: "image/png",
+				sizes: "32x32",
+				href: "/favicon-32.png",
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png",
 			},
 		],
 	}),
