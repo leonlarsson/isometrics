@@ -7,7 +7,7 @@ import {
 import { selectSelectedEntity, useEditor } from "#/editor/store";
 import { useViewShowsData } from "#/editor/viewData";
 import { useUsesData, useWorldData } from "#/editor/worldData";
-import { webAddress } from "#/lib/webAddress";
+import { linkWords, webAddress } from "#/lib/webAddress";
 import { formatWhen } from "#/lib/when";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
@@ -119,7 +119,7 @@ export const DetailSheet = () => {
 
 					{link ? (
 						<a href={link} target="_blank" rel="noopener noreferrer">
-							{main.name || link}
+							{linkWords(main.name, link)}
 						</a>
 					) : (
 						main.name || "this world's data"
@@ -244,7 +244,7 @@ export const RoadDetailSheet = () => {
 							target="_blank"
 							rel="noopener noreferrer"
 						>
-							{source.name || source.pageUrl}
+							{linkWords(source.name, source.pageUrl ?? "")}
 						</a>
 					) : (
 						source.name || "this world's data"

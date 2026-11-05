@@ -37,12 +37,15 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 	const [seconds, setSeconds] = useState(SHARE_DEFAULT_SECONDS);
 	const [made, setMade] = useState<ISharedPrefabLink | null>(null);
 	const [sharing, setSharing] = useState(false);
+	// What the site said when it isn't taking shares (paused by its owner, ADR-0145): said in place.
+	const [paused, setPaused] = useState<string | null>(null);
 	const { copiedKey, copy } = useCopy();
 	// Bumped on closing: a share that finishes after it isn't shown as the next one's.
 	const asking = useRef(0);
 	const close = () => {
 		asking.current += 1;
 		setMade(null);
+		setPaused(null);
 		onClose();
 	};
 	// The link just made, else the form to make one (even when it was shared before: a fresh
@@ -62,6 +65,10 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 				setMade(link);
 			}
 		} catch (error) {
+			if (error instanceof ShareError && error.isPaused) {
+				setPaused(error.message);
+				return;
+			}
 			notify(
 				"It couldn't be shared",
 				error instanceof ShareError ? error.message : "Try again in a moment.",
@@ -145,8 +152,23 @@ export const SharePrefabDialog = ({ prefab, onClose }: ISharePrefabDialogProps) 
 						)}
 					/>
 
-					<Button variant="primary" icon="newTab" disabled={sharing} onClick={() => void share()}>
-						{sharing ? "Making it…" : "Create a public link"}
+					{paused && (
+						<Hint>
+							<strong>{paused}</strong>
+						</Hint>
+					)}
+
+					<Button
+						variant="primary"
+						icon="newTab"
+						disabled={sharing || paused !== null}
+						onClick={() => void share()}
+					>
+						{sharing
+							? "Making it…"
+							: paused
+								? "Create a public link (sharing is paused)"
+								: "Create a public link"}
 					</Button>
 				</FieldGroup>
 			)}

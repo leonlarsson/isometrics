@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createEmptyScene } from "#/templates";
+import { compactWorld } from "#/parts/compactWorld";
+import { createEmptyScene, TEMPLATES } from "#/templates";
 
+import { MOST_SHARED_WORLD_BYTES } from "./shareLimits";
+import { MOST_METADATA_BYTES } from "./sharingControls";
 import {
 	deleteUserWorld,
 	type IUserWorldMeta,
@@ -155,5 +158,60 @@ describe("worlds shared by link (ADR-0120)", () => {
 	it("never look up an id that isn't one", async () => {
 		const { store } = memoryStore();
 		expect(await readUserWorld(store, "../../etc")).toBeNull();
+	});
+});
+
+describe("how a shared world is kept (ADR-0145)", () => {
+	const refusal = async (scene: unknown) => {
+		const { store, kept } = memoryStore();
+		const error = await shareUserWorld(store, JSON.stringify(scene), 3600, ORIGIN).catch(
+			(caught: unknown) => caught,
+		);
+		expect(kept.size).toBe(0);
+		expect(error).toBeInstanceOf(UserWorldError);
+		return (error as UserWorldError).message;
+	};
+
+	it("keep every template and old world as it is", async () => {
+		const { store } = memoryStore();
+		for (const template of TEMPLATES) {
+			const shared = await shareUserWorld(store, JSON.stringify(template.create()), 3600, ORIGIN);
+			expect(shared.kind, template.id).toBe("world");
+		}
+	});
+
+	it("refuse a world bigger than 1.5 MB as kept, in words", async () => {
+		const scene = createEmptyScene({ title: "Heavy" });
+		const entities = Array.from({ length: 9000 }, (_, i) => ({
+			id: `object_${i}`,
+			kind: "house_01",
+			name: `A house with a long enough name to weigh something, number ${i}`,
+			position: [i, i],
+			details: { description: "d".repeat(120) },
+		}));
+		const heavy = { ...scene, entities };
+		expect(JSON.stringify(compactWorld(heavy as never)).length).toBeGreaterThan(
+			MOST_SHARED_WORLD_BYTES,
+		);
+		expect(await refusal(heavy)).toMatch(/as kept \(its defaults left out\): at most 1\.5 MB/);
+	});
+
+	it("keep any title in metadata KV takes, without control characters", async () => {
+		const { store, kept } = memoryStore();
+		const scene = createEmptyScene({ title: "x" });
+		for (const title of ["\u2028".repeat(1000), "😀".repeat(1000), 'a"\\\u0000\n'.repeat(400)]) {
+			const shared = await shareUserWorld(
+				store,
+				JSON.stringify({ ...scene, meta: { ...scene.meta, title: title.slice(0, 2000) } }),
+				3600,
+				ORIGIN,
+			);
+			const metadata = kept.get(shared.id)?.metadata;
+			expect(new TextEncoder().encode(JSON.stringify(metadata)).length).toBeLessThanOrEqual(
+				MOST_METADATA_BYTES,
+			);
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: checking there are none
+			expect(metadata?.title).not.toMatch(/[\u0000-\u001f\u2028]/);
+		}
 	});
 });

@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { textUpTo } from "#/lib/textUpTo";
+import { rateLimitKeyOf } from "#/server/rateLimitKey";
+import { MOST_SHARED_WORLD_BYTES, sizeInWords } from "#/server/shareLimits";
+import { isSharingDisabled, SHARING_PAUSED } from "#/server/sharingControls";
 import {
 	DEFAULT_USER_WORLD_EXPIRY,
 	MOST_USER_WORLD_BYTES,
@@ -11,7 +14,10 @@ import {
 
 import { env } from "cloudflare:workers";
 
-/** Anyone may share, from any site or tool; answers are JSON, never sniffed as anything else. */
+/**
+ * Anyone may share, from any site or tool (an AI making requests from a page of its own too,
+ * ADR-0120, so CORS stays open here); answers are JSON, never sniffed as anything else.
+ */
 const HEADERS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -26,7 +32,7 @@ const HOW_TO = {
 	about:
 		"Shares a world by link (ADR-0120): POST it (or a patch) as JSON. It's kept for ?expiresIn seconds and anyone with the link can open it until then. The answer has its kind (world or patch), its url (a world opens in the editor; a patch's is for pasting into Build with AI → Change this world, and isn't opened on its own), its jsonUrl (the JSON), when it expires, and a deleteKey to DELETE it early. It's checked first: a world must open exactly as written (no repairs), and a patch must be one (only the world's fields, lists changed by remove, change and add, values each field takes), at most an hour and 500 kB. Anything else is refused with 400 and its problems, where and what.",
 	expiresIn: `One of ${USER_WORLD_EXPIRIES.join(", ")} seconds (an hour, a day, a week, 30 days); ${DEFAULT_USER_WORLD_EXPIRY} when left out.`,
-	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes, and a few shares a minute.`,
+	limit: `At most ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes sent, and ${sizeInWords(MOST_SHARED_WORLD_BYTES)} as kept (defaults left out), and a few shares a minute.`,
 	public: "Anyone with the link can open what's shared here. Share nothing private.",
 };
 
@@ -49,16 +55,21 @@ export const Route = createFileRoute("/api/user-worlds/")({
 	},
 });
 
-/** Share what was posted: limited per address, refused when too big or not a world. */
+/** Share what was posted: limited per sender, refused when too big or not a world. */
 const share = async (request: Request) => {
+	// The kill switch (ADR-0145): nothing new is kept while it's on.
+	if (isSharingDisabled(env.SHARING_DISABLED)) {
+		return problem(SHARING_PAUSED, 503);
+	}
 	if (!env.USER_WORLDS) {
 		console.error("POST /api/user-worlds: the USER_WORLDS KV binding is missing (wrangler.jsonc)");
 		return problem("Sharing isn't set up on this site.", 503);
 	}
-	const sender = request.headers.get("cf-connecting-ip") ?? "unknown";
-	// The rate limit, where the binding is there (it may not be in every deployment, e.g. previews).
+	// The rate limit, where the binding is there (it may not be in every deployment): per IPv4
+	// address, or per IPv6 /64 (ADR-0145).
 	if (env.USER_WORLD_UPLOADS) {
-		const { success } = await env.USER_WORLD_UPLOADS.limit({ key: sender });
+		const key = rateLimitKeyOf(request.headers.get("cf-connecting-ip"));
+		const { success } = await env.USER_WORLD_UPLOADS.limit({ key });
 		if (!success) {
 			return problem("Too many shares from here just now: try again in a minute.", 429);
 		}
@@ -70,7 +81,10 @@ const share = async (request: Request) => {
 	);
 	const text = await textUpTo(request, MOST_USER_WORLD_BYTES);
 	if (text === null) {
-		return problem(`It's more than ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes.`, 413);
+		return problem(
+			`It's more than ${MOST_USER_WORLD_BYTES.toLocaleString("en")} bytes, and at most ${sizeInWords(MOST_SHARED_WORLD_BYTES)} can be shared (defaults left out).`,
+			413,
+		);
 	}
 	try {
 		const shared = await shareUserWorld(

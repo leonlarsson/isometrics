@@ -175,7 +175,8 @@ export const BuildWithAiDialog = () => {
 		// Replaced before it's read (another link, an answer): what this link gives is dropped.
 		let isReplaced = false;
 		setReadingLink(answer.trim());
-		fetchSharedWorld(id)
+		// An AI's answer was just posted: worth waiting out the minute a new link can take.
+		fetchSharedWorld(id, { waitsTheMinute: true })
 			.then(({ text }) => {
 				if (!isReplaced) {
 					setAnswer(text);

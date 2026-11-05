@@ -2,6 +2,8 @@ import { repairWorld } from "#/parts/repairWorld";
 import { safeJson } from "#/scene/safeJson";
 import { SCENE_VERSION } from "#/scene/schema";
 
+import { bytesOf, MOST_SHARED_PREFAB_BYTES, sizeInWords } from "./shareLimits";
+import { fitMetadata } from "./sharingControls";
 import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWorlds";
 
 /**
@@ -9,8 +11,9 @@ import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWor
  * by link are (ADR-0120): only when someone asks (Share a link… on a prefab's
  * tile), public to anyone with the link until it expires, each share a
  * snapshot under a new random key, never overwritten. Only prefabs that read
- * as written are kept: it's not a place to keep anything else. No Cloudflare
- * imports here: the routes pass the store in.
+ * as written are kept, no bigger than `shareLimits.ts` says (ADR-0145): it's
+ * not a place to keep anything else. No Cloudflare imports here: the routes
+ * pass the store in.
  */
 
 /** What the routes hand in: the KV namespace, as much of it as is used. */
@@ -42,7 +45,10 @@ export const USER_PREFAB_EXPIRIES = USER_WORLD_EXPIRIES;
 /** Kept this long when the asker doesn't say. */
 export const DEFAULT_USER_PREFAB_EXPIRY = 604_800;
 
-/** More than this isn't kept: a prefab is a few pieces, not a world. */
+/**
+ * More than this isn't read: a prefab is a few pieces, not a world (and is kept at most
+ * MOST_SHARED_PREFAB_BYTES, as read).
+ */
 export const MOST_USER_PREFAB_BYTES = 1_000_000;
 
 /** A shared prefab's id: 22 characters of 128 random bits, base64url, as a shared world's. */
@@ -75,7 +81,7 @@ export const shareUserPrefab = async (
 			`Kept for 3600, 86400, 604800 or 2592000 seconds (an hour, a day, a week, 30 days), not ${expiresIn}.`,
 		);
 	}
-	if (new TextEncoder().encode(text).length > MOST_USER_PREFAB_BYTES) {
+	if (bytesOf(text) > MOST_USER_PREFAB_BYTES) {
 		throw new UserPrefabError(`A prefab is at most ${MOST_USER_PREFAB_BYTES / 1000} kB.`);
 	}
 	let parsed: unknown;
@@ -99,18 +105,28 @@ export const shareUserPrefab = async (
 			"It isn't a prefab that reads as written: { id (starting with prefab_), name, description, entities, fences }, as in a world's prefabs (/api/worlds/schema).",
 		);
 	}
+	const kept = JSON.stringify(prefab);
+	const bytes = bytesOf(kept);
+	if (bytes > MOST_SHARED_PREFAB_BYTES) {
+		throw new UserPrefabError(
+			`The prefab is ${sizeInWords(bytes)} as kept: at most ${sizeInWords(MOST_SHARED_PREFAB_BYTES)} can be shared. Fewer pieces would bring it under.`,
+		);
+	}
 	const name = String((prefab as { name?: unknown }).name ?? "");
 	const id = randomKey(16);
 	const deleteKey = randomKey(32);
 	const expiresAt = new Date(now.getTime() + expiresIn * 1000).toISOString();
-	await store.put(id, JSON.stringify(prefab), {
+	await store.put(id, kept, {
 		expirationTtl: expiresIn,
-		metadata: {
-			name: name.slice(0, 200),
-			createdAt: now.toISOString(),
-			expiresAt,
-			deleteKeyHash: await sha256(deleteKey),
-		},
+		metadata: fitMetadata(
+			{
+				name,
+				createdAt: now.toISOString(),
+				expiresAt,
+				deleteKeyHash: await sha256(deleteKey),
+			},
+			"name",
+		),
 	});
 	return {
 		id,
