@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fitMetadata, isSharingDisabled, MOST_METADATA_BYTES, sameSecret } from "./sharingControls";
+import { fitMetadata, isSharingDisabled, MOST_METADATA_BYTES } from "./sharingControls";
 
 const bytesOf = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
@@ -12,13 +12,6 @@ describe("the owner's controls over sharing (ADR-0145)", () => {
 		for (const off of [undefined, null, false, 0, "", "false", "0", "no", "off", "paused?"]) {
 			expect(isSharingDisabled(off), String(off)).toBe(false);
 		}
-	});
-
-	it("compare secrets whole, whatever their lengths", async () => {
-		expect(await sameSecret("abc", "abc")).toBe(true);
-		expect(await sameSecret("abc", "abd")).toBe(false);
-		expect(await sameSecret("abc", "abcd")).toBe(false);
-		expect(await sameSecret("", "")).toBe(true);
 	});
 
 	it("fit metadata under KV's limit, by whole characters, without control characters", () => {

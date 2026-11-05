@@ -1,7 +1,6 @@
 /**
  * The owner's controls over sharing (ADR-0145): pausing it (the
- * `SHARING_DISABLED` var), delete keys compared in constant time, and the
- * metadata kept with each share, held under KV's limit whatever its title. No
+ * `SHARING_DISABLED` var) and the metadata kept with each share, held under KV's limit whatever its title. No
  * Cloudflare imports here: the routes pass the settings in.
  */
 
@@ -14,22 +13,6 @@ export const isSharingDisabled = (setting: unknown) =>
 	setting === 1 ||
 	(typeof setting === "string" &&
 		["true", "1", "yes", "on"].includes(setting.trim().toLowerCase()));
-
-const digestOf = async (text: string) =>
-	new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
-
-/**
- * Whether two secrets are the same, in time that doesn't depend on where they
- * differ: both are hashed first, so their lengths don't show either.
- */
-export const sameSecret = async (given: string, expected: string) => {
-	const [a, b] = await Promise.all([digestOf(given), digestOf(expected)]);
-	let difference = 0;
-	for (let index = 0; index < a.length; index++) {
-		difference |= a[index] ^ b[index];
-	}
-	return difference === 0;
-};
 
 /** KV keeps at most 1,024 bytes of metadata as JSON; ours stays under this. */
 export const MOST_METADATA_BYTES = 900;

@@ -3,7 +3,7 @@ import { safeJson } from "#/scene/safeJson";
 import { SCENE_VERSION } from "#/scene/schema";
 
 import { bytesOf, MOST_SHARED_PREFAB_BYTES, sizeInWords } from "./shareLimits";
-import { fitMetadata, sameSecret } from "./sharingControls";
+import { fitMetadata } from "./sharingControls";
 import { GZIP, gzipText, textOfStored } from "./storedText";
 import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWorlds";
 
@@ -151,7 +151,7 @@ export const readUserPrefab = async (store: IUserPrefabStore, id: string) => {
 	return value === null ? null : { json: await textOfStored(value), metadata };
 };
 
-/** Delete a shared prefab with the key that came with it (compared in constant time). */
+/** Delete a shared prefab with the key that came with it. */
 export const deleteUserPrefab = async (
 	store: IUserPrefabStore,
 	id: string,
@@ -161,10 +161,7 @@ export const deleteUserPrefab = async (
 	if (!found) {
 		return "gone";
 	}
-	if (
-		!found.metadata ||
-		!(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash))
-	) {
+	if (!found.metadata || (await sha256(deleteKey)) !== found.metadata.deleteKeyHash) {
 		return "refused";
 	}
 	await store.delete(id);

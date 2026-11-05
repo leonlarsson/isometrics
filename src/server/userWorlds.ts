@@ -6,7 +6,7 @@ import { safeJson } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
 import { bytesOf, MOST_SHARED_WORLD_BYTES, sizeInWords } from "./shareLimits";
-import { fitMetadata, sameSecret } from "./sharingControls";
+import { fitMetadata } from "./sharingControls";
 import { GZIP, gzipText, textOfStored } from "./storedText";
 
 /**
@@ -218,7 +218,7 @@ export const readUserWorld = async (store: IUserWorldStore, id: string) => {
 	return value === null ? null : { json: await textOfStored(value), metadata };
 };
 
-/** Delete a shared world with the key that came with it (compared in constant time). */
+/** Delete a shared world with the key that came with it. */
 export const deleteUserWorld = async (
 	store: IUserWorldStore,
 	id: string,
@@ -228,10 +228,7 @@ export const deleteUserWorld = async (
 	if (!found) {
 		return "gone";
 	}
-	if (
-		!found.metadata ||
-		!(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash))
-	) {
+	if (!found.metadata || (await sha256(deleteKey)) !== found.metadata.deleteKeyHash) {
 		return "refused";
 	}
 	await store.delete(id);
