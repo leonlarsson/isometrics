@@ -71,8 +71,19 @@ const PICTURE_SOURCES = TEMPLATES.filter((template) =>
 	WAYS_IN.some((way) => way.picture !== "prompt" && way.picture.starter === template.id),
 );
 
+/** What the app is, in a line: the welcome's, and the home screen's under the name. */
+export const PITCH = "Small animated 3D worlds: a city to build, or a map that shows your data.";
+
 /** The guide, in a tab of its own so the editor stays as it is. */
 export const openGuide = () => window.open("/guide", "_blank", "noopener");
+
+/** Explore an example: Brightwater, a finished harbour city, as a world of one's own. */
+export const exploreExample = () => {
+	const brightwater = TEMPLATES.find((template) => template.id === "brightwater");
+	if (brightwater) {
+		startNewWorld(brightwater.create());
+	}
+};
 
 /** Open what a way in leads to. */
 const go = (choice: TWelcomeChoice) => {
@@ -86,10 +97,7 @@ const go = (choice: TWelcomeChoice) => {
 	}
 	// Brightwater as a world of their own, straight away: on a first visit, in place of the starter behind.
 	if (choice === "example") {
-		const brightwater = TEMPLATES.find((template) => template.id === "brightwater");
-		if (brightwater) {
-			startNewWorld(brightwater.create());
-		}
+		exploreExample();
 	}
 };
 
@@ -134,7 +142,7 @@ export const Welcome = () => {
 			open={open}
 			onOpenChange={(next) => !next && close()}
 			title={`Welcome to ${APP_NAME}`}
-			description="Small animated 3D worlds: a city to build, or a map that shows your data. How would you like to start?"
+			description={`${PITCH} How would you like to start?`}
 			closeLabel="Look around first"
 			confirm={{ label: "Start", onConfirm: () => start(choice) }}
 			wide

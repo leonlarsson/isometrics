@@ -5,12 +5,18 @@
 	gap: 8px;
 }
 
+/* With pictures (starters to open): smaller cards, more to a row (two on a phone). */
+.choices[data-pictured] {
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
 .choice {
 	all: unset;
 	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	min-width: 0;
 	padding: 12px 14px;
 	border: 1px solid var(--border-strong);
 	border-radius: var(--radius-md);
@@ -19,15 +25,49 @@
 	cursor: pointer;
 }
 
+.choices[data-pictured] .choice {
+	padding: 6px 6px 10px;
+}
+
 .choice strong {
 	font-size: 13px;
 	font-weight: 600;
 }
 
-.choice span {
+.about {
 	font-size: 12px;
 	line-height: 1.45;
 	color: var(--text-muted);
+}
+
+.choices[data-pictured] strong,
+.choices[data-pictured] .about {
+	padding: 0 4px;
+}
+
+.choices[data-pictured] .about {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* As ChoiceCards' pictures: the space kept while it loads. */
+.picture {
+	display: grid;
+	place-items: center;
+	aspect-ratio: 8 / 5;
+	margin-bottom: 4px;
+	overflow: hidden;
+	border-radius: var(--radius-sm);
+	background: radial-gradient(ellipse at 50% 40%, var(--surface) 0%, var(--bg) 80%);
+}
+
+.picture > img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
 }
 
 .choice:hover:not(:disabled) {

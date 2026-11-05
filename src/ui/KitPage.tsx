@@ -529,6 +529,29 @@ export const KitPage = () => {
 												},
 											]}
 										/>
+
+										<ActionCards
+											cards={[
+												{
+													title: "With a picture",
+													about:
+														"A starter to open: smaller cards, the line cut off after two lines.",
+													onChoose: () => notify("Chose With a picture"),
+													picture: (
+														<img
+															src={`/starters/brightwater-${dark ? "dark" : "light"}.webp`}
+															alt=""
+														/>
+													),
+												},
+												{
+													title: "Picture loading",
+													about: "The frame keeps its space.",
+													onChoose: () => notify("Chose Picture loading"),
+													picture: null,
+												},
+											]}
+										/>
 									</Section>
 
 									<Section title="Chips">
