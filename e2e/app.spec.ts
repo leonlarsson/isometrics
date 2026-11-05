@@ -82,8 +82,8 @@ test.describe("browsers that can't do everything (ADR-0145)", () => {
 		const screen = page.getByRole("alert");
 		await expect(screen).toContainText("Your browser can’t draw 3D here");
 		await expect(screen).toContainText("hardware acceleration");
-		await expect(screen.getByRole("link", { name: "the guide" })).toHaveAttribute("href", "/guide");
-		await expect(screen.getByRole("link", { name: "the parts" })).toHaveAttribute("href", "/parts");
+		await expect(screen.getByRole("link", { name: "Read the guide" })).toHaveAttribute("href", "/guide");
+		await expect(screen.getByRole("link", { name: "Browse the parts" })).toHaveAttribute("href", "/parts");
 		await expect(page.getByText("Something went wrong")).toHaveCount(0);
 		await expect(page.locator("canvas")).toHaveCount(0);
 	});

@@ -40,18 +40,16 @@ export const NoWebGlScreen = () => (
 			</Button>
 		</div>
 
-		<p className={styles.hint}>
-			Meanwhile, read{" "}
+		<p className={styles.hint}>Meanwhile, see how a world is made, or what it can be built from:</p>
 
+		<p className={styles.links}>
 			<a className={styles.link} href="/guide">
-				the guide
-			</a>{" "}
-			to see how a world is made, or browse{" "}
+				Read the guide
+			</a>
 
 			<a className={styles.link} href="/parts">
-				the parts
+				Browse the parts
 			</a>
-			.
 		</p>
 	</main>
 );
