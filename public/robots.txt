@@ -1,0 +1,6 @@
+# Worlds and prefabs shared by link are other people's content, not the site's (server/robots.ts).
+User-agent: *
+Disallow: /w/
+Disallow: /p/
+Disallow: /api/user-worlds
+Disallow: /api/user-prefabs

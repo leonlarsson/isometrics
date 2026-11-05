@@ -1,0 +1,7 @@
+# Hashed build files never change under their name: browsers may keep them for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Starter pictures (scripts/starter-pictures.mjs) keep their names when retaken: a day, then check again.
+/starters/*
+  Cache-Control: public, max-age=86400

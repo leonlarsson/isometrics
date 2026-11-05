@@ -1,17 +1,26 @@
 .banner {
-	margin: 0;
 	flex: none;
-	padding: 6px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 2px 8px 2px 16px;
 	background: var(--accent-soft);
 	color: var(--text);
 	border-bottom: 1px solid var(--border);
 	font-size: 12px;
-	text-align: center;
 	line-height: 1.4;
 }
 
+.text {
+	margin: 0;
+	min-width: 0;
+	text-align: center;
+}
+
+/* In the text's colour: the accent on its soft background is too faint to read (WCAG AA). */
 .banner strong {
-	color: var(--accent);
+	color: var(--text);
 }
 
 .long,
@@ -23,11 +32,14 @@
 	display: none;
 }
 
-/* Phones: one short line instead of four, cut off rather than wrapped. */
+/* Phones: one short line, cut off rather than wrapped. */
 @media (max-width: 700px) {
 	.banner {
-		padding: 4px 12px;
+		padding: 0 4px 0 12px;
 		font-size: 11px;
+	}
+
+	.text {
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
