@@ -5,6 +5,16 @@ import { type IWorldIssue, validateWorld } from "#/parts/validateWorld";
 import { safeJson } from "#/scene/safeJson";
 import { isWorldPatch } from "#/scene/worldPatch";
 
+import {
+	bytesOf,
+	MOST_SHARED_WORLD_BYTES,
+	sizeInWords,
+	tooLongIn,
+	tooManyInWorld,
+} from "./shareLimits";
+import { fitMetadata, isAdminToken, sameSecret } from "./sharingControls";
+import { GZIP, gzipText, textOfStored } from "./storedText";
+
 /**
  * Worlds shared by link (ADR-0120), kept in Cloudflare KV. Nothing is kept
  * unless someone asks (Share a link…, or an AI posting its answer), and what's
@@ -12,19 +22,21 @@ import { isWorldPatch } from "#/scene/worldPatch";
  * snapshot under a new random key, never overwritten, so KV's eventual
  * consistency can only mean "not there yet" (for up to a minute elsewhere in
  * the world), never an old version. Only worlds that read as worlds (stored as
- * read, defaults left out) and patches are kept: it's not a place to keep
- * anything else. No Cloudflare imports here: the routes pass the store in.
+ * read, defaults left out) and patches are kept, held to the limits in
+ * `shareLimits.ts` (ADR-0145): it's not a place to keep anything else. Kept
+ * gzipped since ADR-0145; plain-text entries kept before are still read. No
+ * Cloudflare imports here: the routes pass the store in.
  */
 
 /** What the routes hand in: the KV namespace, as much of it as is used. */
 export interface IUserWorldStore {
 	getWithMetadata: (
 		key: string,
-		type: "text",
-	) => Promise<{ value: string | null; metadata: IUserWorldMeta | null }>;
+		type: "arrayBuffer",
+	) => Promise<{ value: ArrayBuffer | null; metadata: IUserWorldMeta | null }>;
 	put: (
 		key: string,
-		value: string,
+		value: Uint8Array | string,
 		options: { expirationTtl: number; metadata: IUserWorldMeta },
 	) => Promise<void>;
 	delete: (key: string) => Promise<void>;
@@ -38,6 +50,8 @@ export interface IUserWorldMeta {
 	expiresAt: string;
 	/** SHA-256 of the delete key, never the key itself. */
 	deleteKeyHash: string;
+	/** "gzip" when kept gzipped (ADR-0145); left out by entries kept before, as plain text. */
+	encoding?: typeof GZIP;
 }
 
 /** How long a shared world is kept, in seconds: an hour, a day, a week or 30 days. */
@@ -46,7 +60,10 @@ export const USER_WORLD_EXPIRIES = [3600, 86_400, 604_800, 2_592_000] as const;
 /** Kept this long when the asker doesn't say: an AI handing back its answer. */
 export const DEFAULT_USER_WORLD_EXPIRY = 3600;
 
-/** More than this isn't kept (the same limit as POST /api/worlds/validate). */
+/**
+ * More than this isn't read: a world sent with its defaults written out can be a few times what
+ * it is as kept, without them (at most MOST_SHARED_WORLD_BYTES).
+ */
 export const MOST_USER_WORLD_BYTES = 5_000_000;
 
 /** A patch is only for handing changes back (ADR-0118): kept an hour at most, and this big at most. */
@@ -118,6 +135,15 @@ export const shareUserWorld = async (
 			`It isn't JSON a world could be: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
+	// Before anything else is done with it: no text a page long, no list long enough to freeze
+	// the tab of whoever opens it (ADR-0145).
+	const tooMuch = tooLongIn(parsed) ?? tooManyInWorld(parsed);
+	if (tooMuch) {
+		throw new UserWorldError(
+			`It holds more than can be shared: ${tooMuch.where}, ${tooMuch.what}.`,
+			[tooMuch],
+		);
+	}
 	let kept: string;
 	let kind: IUserWorldMeta["kind"];
 	let title: string;
@@ -130,7 +156,7 @@ export const shareUserWorld = async (
 				`A patch is kept for an hour at most (expiresIn ${MOST_PATCH_SECONDS}): it's only for handing changes back.`,
 			);
 		}
-		if (new TextEncoder().encode(text).length > MOST_PATCH_BYTES) {
+		if (bytesOf(text) > MOST_PATCH_BYTES) {
 			throw new UserWorldError(
 				`A patch is at most ${MOST_PATCH_BYTES / 1000} kB: for bigger changes, send the whole world.`,
 			);
@@ -164,19 +190,29 @@ export const shareUserWorld = async (
 		kind = "world";
 		title = scene.meta.title;
 		kept = JSON.stringify(compactWorld(scene));
+		const bytes = bytesOf(kept);
+		if (bytes > MOST_SHARED_WORLD_BYTES) {
+			throw new UserWorldError(
+				`The world is ${sizeInWords(bytes)} as kept (its defaults left out): at most ${sizeInWords(MOST_SHARED_WORLD_BYTES)} can be shared. Fewer objects or less data would bring it under; Save to file sends a world of any size.`,
+			);
+		}
 	}
 	const id = randomKey(16);
 	const deleteKey = randomKey(32);
 	const expiresAt = new Date(now.getTime() + expiresIn * 1000).toISOString();
-	await store.put(id, kept, {
+	await store.put(id, await gzipText(kept), {
 		expirationTtl: expiresIn,
-		metadata: {
-			kind,
-			title: title.slice(0, 200),
-			createdAt: now.toISOString(),
-			expiresAt,
-			deleteKeyHash: await sha256(deleteKey),
-		},
+		metadata: fitMetadata(
+			{
+				kind,
+				title,
+				createdAt: now.toISOString(),
+				expiresAt,
+				deleteKeyHash: await sha256(deleteKey),
+				encoding: GZIP,
+			},
+			"title",
+		),
 	});
 	return {
 		id,
@@ -193,21 +229,29 @@ export const readUserWorld = async (store: IUserWorldStore, id: string) => {
 	if (!USER_WORLD_ID.test(id)) {
 		return null;
 	}
-	const { value, metadata } = await store.getWithMetadata(id, "text");
-	return value === null ? null : { json: value, metadata };
+	const { value, metadata } = await store.getWithMetadata(id, "arrayBuffer");
+	return value === null ? null : { json: await textOfStored(value), metadata };
 };
 
-/** Delete a shared world with the key that came with it. */
+/**
+ * Delete a shared world with the key that came with it, or with the admin token (the
+ * `ADMIN_DELETE_TOKEN` secret, for taking down what shouldn't be there: docs/runbooks/takedown.md).
+ */
 export const deleteUserWorld = async (
 	store: IUserWorldStore,
 	id: string,
 	deleteKey: string,
+	adminToken?: unknown,
 ): Promise<"deleted" | "gone" | "refused"> => {
 	const found = await readUserWorld(store, id);
 	if (!found) {
 		return "gone";
 	}
-	if (!found.metadata || (await sha256(deleteKey)) !== found.metadata.deleteKeyHash) {
+	const isAllowed =
+		(await isAdminToken(deleteKey, adminToken)) ||
+		(found.metadata !== null &&
+			(await sameSecret(await sha256(deleteKey), found.metadata.deleteKeyHash)));
+	if (!isAllowed) {
 		return "refused";
 	}
 	await store.delete(id);

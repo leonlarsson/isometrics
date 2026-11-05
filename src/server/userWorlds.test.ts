@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { createEmptyScene } from "#/templates";
+import { compactWorld } from "#/parts/compactWorld";
+import { createEmptyScene, TEMPLATES } from "#/templates";
 
+import { MOST_SHARED_ITEMS, MOST_SHARED_WORLD_BYTES, MOST_TEXT_LENGTH } from "./shareLimits";
+import { LEAST_ADMIN_TOKEN_LENGTH, MOST_METADATA_BYTES } from "./sharingControls";
+import { isGzip } from "./storedText";
 import {
 	deleteUserWorld,
 	type IUserWorldMeta,
@@ -12,16 +16,20 @@ import {
 	UserWorldError,
 } from "./userWorlds";
 
-/** An in-memory KV namespace, keeping what was put and how long for. */
+/** An in-memory KV namespace, keeping what was put (as bytes, as KV does) and how long for. */
 const memoryStore = () => {
-	const kept = new Map<string, { value: string; metadata: IUserWorldMeta; ttl: number }>();
+	const kept = new Map<string, { value: Uint8Array; metadata: IUserWorldMeta; ttl: number }>();
 	const store: IUserWorldStore = {
 		getWithMetadata: async (key) => {
 			const found = kept.get(key);
-			return { value: found?.value ?? null, metadata: found?.metadata ?? null };
+			return {
+				value: found ? (found.value.slice().buffer as ArrayBuffer) : null,
+				metadata: found?.metadata ?? null,
+			};
 		},
 		put: async (key, value, { expirationTtl, metadata }) => {
-			kept.set(key, { value, metadata, ttl: expirationTtl });
+			const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+			kept.set(key, { value: bytes, metadata, ttl: expirationTtl });
 		},
 		delete: async (key) => {
 			kept.delete(key);
@@ -126,7 +134,13 @@ describe("worlds shared by link (ADR-0120)", () => {
 		expect(await refusedFor({ data: { secrets: 1 } })).toMatch(/data\.secrets/);
 		// Only for handing changes back: an hour at most, 500 kB at most.
 		expect(await refusedFor({ meta: { title: "x" } }, 86_400)).toMatch(/an hour at most/);
-		expect(await refusedFor({ meta: { title: "x".repeat(600_000) } })).toMatch(/500 kB/);
+		expect(
+			await refusedFor({
+				entities: {
+					remove: Array.from({ length: 15_000 }, (_, i) => `an_old_object_with_a_long_name_${i}`),
+				},
+			}),
+		).toMatch(/500 kB/);
 		expect(kept.size).toBe(1);
 	});
 
@@ -155,5 +169,159 @@ describe("worlds shared by link (ADR-0120)", () => {
 	it("never look up an id that isn't one", async () => {
 		const { store } = memoryStore();
 		expect(await readUserWorld(store, "../../etc")).toBeNull();
+	});
+});
+
+describe("what a shared world can hold (ADR-0145)", () => {
+	const refusal = async (scene: unknown) => {
+		const { store, kept } = memoryStore();
+		const error = await shareUserWorld(store, JSON.stringify(scene), 3600, ORIGIN).catch(
+			(caught: unknown) => caught,
+		);
+		expect(kept.size).toBe(0);
+		expect(error).toBeInstanceOf(UserWorldError);
+		return (error as UserWorldError).message;
+	};
+
+	it("keep every template and old world as it is", async () => {
+		const { store } = memoryStore();
+		for (const template of TEMPLATES) {
+			const shared = await shareUserWorld(store, JSON.stringify(template.create()), 3600, ORIGIN);
+			expect(shared.kind, template.id).toBe("world");
+		}
+	});
+
+	it("refuse a text over 2,000 characters anywhere, saying where", async () => {
+		const scene = createEmptyScene({ title: "Long" });
+		expect(await refusal({ ...scene, meta: { ...scene.meta, title: "x".repeat(2001) } })).toMatch(
+			/meta\.title, a text of 2,001 characters: at most 2,000/,
+		);
+		const withValue = structuredClone(scene) as Record<string, unknown> & typeof scene;
+		withValue.data.values = [
+			{ key: "notes", label: "Notes", value: "y".repeat(MOST_TEXT_LENGTH + 1) },
+		] as never;
+		expect(await refusal(withValue)).toMatch(/data\.values\[0\]\.value/);
+		// Keys too: a record's key is text as much as its values are.
+		expect(await refusal({ ...scene, meta: { ...scene.meta, ["k".repeat(3000)]: 1 } })).toMatch(
+			/meta, a name \(key\) of 3,000 characters/,
+		);
+		// 2,000 is still fine.
+		const { store } = memoryStore();
+		await expect(
+			shareUserWorld(
+				store,
+				JSON.stringify({ ...scene, meta: { ...scene.meta, title: "x".repeat(MOST_TEXT_LENGTH) } }),
+				3600,
+				ORIGIN,
+			),
+		).resolves.toMatchObject({ kind: "world" });
+	});
+
+	it("refuse more things than a tab should be asked to draw", async () => {
+		const scene = createEmptyScene({ title: "Crowded" });
+		const many = (count: number) =>
+			Array.from({ length: count }, (_, i) => ({
+				id: `o${i}`,
+				kind: "house_01",
+				position: [0, 0],
+			}));
+		expect(await refusal({ ...scene, entities: many(MOST_SHARED_ITEMS.entities + 1) })).toMatch(
+			/entities, 10,001 of them: a shared world has at most 10,000/,
+		);
+		const rows = Array.from({ length: MOST_SHARED_ITEMS.dataRows / 2 + 1 }, () => ({ a: 1 }));
+		expect(
+			await refusal({
+				...scene,
+				data: {
+					...scene.data,
+					tables: [
+						{ key: "t", name: "T", columns: [{ key: "a", name: "A" }], rows },
+						{ key: "u", name: "U", columns: [{ key: "a", name: "A" }], rows },
+					],
+				},
+			}),
+		).toMatch(/data\.tables, 20,002 rows in all/);
+		expect(
+			await refusal({ isPatch: true, entities: { add: many(MOST_SHARED_ITEMS.entities + 1) } }),
+		).toMatch(/entities, 10,001 of them/);
+	});
+
+	it("refuse a world bigger than 1.5 MB as kept, in words", async () => {
+		const scene = createEmptyScene({ title: "Heavy" });
+		// Under every count limit, but too big as kept.
+		const entities = Array.from({ length: 9000 }, (_, i) => ({
+			id: `object_${i}`,
+			kind: "house_01",
+			name: `A house with a long enough name to weigh something, number ${i}`,
+			position: [i, i],
+			details: { description: "d".repeat(120) },
+		}));
+		const heavy = { ...scene, entities };
+		expect(JSON.stringify(compactWorld(heavy as never)).length).toBeGreaterThan(
+			MOST_SHARED_WORLD_BYTES,
+		);
+		expect(await refusal(heavy)).toMatch(/as kept \(its defaults left out\): at most 1\.5 MB/);
+	});
+
+	it("keep it gzipped, and read entries kept before as plain text", async () => {
+		const { store, kept } = memoryStore();
+		const stockholm = TEMPLATES.find((each) => each.id === "stockholm")?.create();
+		const shared = await shareUserWorld(store, JSON.stringify(stockholm), 3600, ORIGIN);
+		const entry = kept.get(shared.id);
+		expect(entry && isGzip(entry.value)).toBe(true);
+		expect(entry?.metadata.encoding).toBe("gzip");
+		const found = await readUserWorld(store, shared.id);
+		const asKept = JSON.stringify(compactWorld(stockholm as never));
+		expect(found?.json).toBe(asKept);
+		// About thirteen times smaller.
+		expect(entry?.value.length).toBeLessThan(asKept.length / 8);
+		// An entry from before ADR-0145: plain JSON text, no encoding in its metadata.
+		const old = "A".repeat(22);
+		await store.put(old, '{"version":1,"meta":{"title":"Before"}}', {
+			expirationTtl: 3600,
+			metadata: {
+				kind: "world",
+				title: "Before",
+				createdAt: "2026-11-01T00:00:00.000Z",
+				expiresAt: "2026-11-08T00:00:00.000Z",
+				deleteKeyHash: "0",
+			},
+		});
+		expect((await readUserWorld(store, old))?.json).toBe('{"version":1,"meta":{"title":"Before"}}');
+	});
+
+	it("keep any title in metadata KV takes, without control characters", async () => {
+		const { store, kept } = memoryStore();
+		const scene = createEmptyScene({ title: "x" });
+		for (const title of ["\u2028".repeat(1000), "😀".repeat(1000), 'a"\\\u0000\n'.repeat(400)]) {
+			const shared = await shareUserWorld(
+				store,
+				JSON.stringify({ ...scene, meta: { ...scene.meta, title: title.slice(0, 2000) } }),
+				3600,
+				ORIGIN,
+			);
+			const metadata = kept.get(shared.id)?.metadata;
+			expect(new TextEncoder().encode(JSON.stringify(metadata)).length).toBeLessThanOrEqual(
+				MOST_METADATA_BYTES,
+			);
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: checking there are none
+			expect(metadata?.title).not.toMatch(/[\u0000-\u001f\u2028]/);
+		}
+	});
+
+	it("delete any share with the admin token, never with a short or missing one", async () => {
+		const { store } = memoryStore();
+		const token = "t".repeat(LEAST_ADMIN_TOKEN_LENGTH);
+		const shared = await shareUserWorld(store, world(), 3600, ORIGIN);
+		expect(await deleteUserWorld(store, shared.id, token)).toBe("refused");
+		expect(await deleteUserWorld(store, shared.id, token, undefined)).toBe("refused");
+		expect(await deleteUserWorld(store, shared.id, "", "")).toBe("refused");
+		expect(await deleteUserWorld(store, shared.id, "short", "short")).toBe("refused");
+		expect(await deleteUserWorld(store, shared.id, `${token}x`, token)).toBe("refused");
+		expect(await deleteUserWorld(store, shared.id, token, token)).toBe("deleted");
+		expect(await deleteUserWorld(store, shared.id, token, token)).toBe("gone");
+		// Its own key still works with a token set.
+		const again = await shareUserWorld(store, world(), 3600, ORIGIN);
+		expect(await deleteUserWorld(store, again.id, again.deleteKey, token)).toBe("deleted");
 	});
 });

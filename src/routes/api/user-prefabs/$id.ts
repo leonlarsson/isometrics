@@ -4,10 +4,11 @@ import { deleteUserPrefab, readUserPrefab } from "#/server/userPrefabs";
 
 import { env } from "cloudflare:workers";
 
+/**
+ * No CORS here (ADR-0145): the app reads shared prefabs from its own site, and tools read them as
+ * any page is read, so no other site's page needs to read what strangers share.
+ */
 const HEADERS = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	"X-Content-Type-Options": "nosniff",
 	// Shared prefabs are public to whoever has the link, not to search engines.
 	"X-Robots-Tag": "noindex, nofollow",
@@ -22,11 +23,11 @@ const notSetUp = () => {
 	);
 };
 
-// A shared prefab as JSON (ADR-0134): GET it, or DELETE it with its key (Authorization: Bearer <key>).
+// A shared prefab as JSON (ADR-0134): GET it, or DELETE it with its key (Authorization: Bearer <key>),
+// or with the admin token (ADR-0145, docs/runbooks/takedown.md).
 export const Route = createFileRoute("/api/user-prefabs/$id")({
 	server: {
 		handlers: {
-			OPTIONS: () => new Response(null, { status: 204, headers: HEADERS }),
 			GET: async ({ params }) => {
 				if (!env.USER_PREFABS) {
 					return notSetUp();
@@ -56,7 +57,12 @@ export const Route = createFileRoute("/api/user-prefabs/$id")({
 					return notSetUp();
 				}
 				const key = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-				const result = await deleteUserPrefab(env.USER_PREFABS, params.id, key);
+				const result = await deleteUserPrefab(
+					env.USER_PREFABS,
+					params.id,
+					key,
+					env.ADMIN_DELETE_TOKEN,
+				);
 				const status = result === "deleted" ? 200 : result === "gone" ? 404 : 403;
 				return Response.json({ result }, { status, headers: HEADERS });
 			},
