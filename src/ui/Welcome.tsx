@@ -5,7 +5,6 @@ import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
 import { markWelcomed, shouldWelcome } from "#/editor/welcome";
 import { APP_NAME } from "#/lib/app";
-import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
 import { TEMPLATES } from "#/templates";
 
 import { Button } from "./Button";
@@ -13,6 +12,7 @@ import { ChoiceCards, type IChoiceCard } from "./ChoiceCards";
 import { Dialog } from "./Dialog";
 import { Hint } from "./fields";
 import { Icon, type TIconName } from "./Icon";
+import { useWorldPictures } from "./useWorldPictures";
 
 import styles from "./Welcome.module.css";
 
@@ -67,10 +67,9 @@ const WAYS_IN: {
 	},
 ];
 
-const PICTURE_SOURCES: IScenePictureSource[] = TEMPLATES.filter((template) =>
+const PICTURE_SOURCES = TEMPLATES.filter((template) =>
 	WAYS_IN.some((way) => way.picture !== "prompt" && way.picture.starter === template.id),
 );
-const NO_PICTURES: IScenePictureSource[] = [];
 
 /** The guide, in a tab of its own so the editor stays as it is. */
 export const openGuide = () => window.open("/guide", "_blank", "noopener");
@@ -105,7 +104,7 @@ export const Welcome = () => {
 	const open = useEditor((s) => s.welcomeOpen);
 	const title = useEditor((s) => s.scene.meta.title);
 	const [choice, setChoice] = useState<TWelcomeChoice>("city");
-	const pictures = useScenePictures(useResolvedTheme(), open ? PICTURE_SOURCES : NO_PICTURES);
+	const picture = useWorldPictures(useResolvedTheme(), PICTURE_SOURCES, open);
 
 	useEffect(() => {
 		if (shouldWelcome()) {
@@ -127,12 +126,7 @@ export const Welcome = () => {
 		title: way.title,
 		titleIcon: way.titleIcon,
 		description: way.description,
-		picture:
-			way.picture === "prompt" ? (
-				<PromptPicture />
-			) : pictures[way.picture.starter] ? (
-				<img src={pictures[way.picture.starter]} alt="" />
-			) : null,
+		picture: way.picture === "prompt" ? <PromptPicture /> : picture(way.picture.starter),
 	}));
 
 	return (

@@ -3,15 +3,21 @@ import { useEffect, useMemo, useState } from "react";
 import { startNewWorld } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { useResolvedTheme } from "#/editor/useTheme";
-import { type IScenePictureSource, useScenePictures } from "#/render/scenePictures";
 import { plural } from "#/scene/format";
-import { SceneSchema, type TDrivingSide, type TScene, type TThemePreference } from "#/scene/schema";
+import type { TDrivingSide, TScene, TThemePreference } from "#/scene/schema";
 import {
 	createEmptyScene,
 	TEMPLATE_CATEGORIES,
 	TEMPLATES,
 	type TTemplateCategory,
 } from "#/templates";
+import {
+	blankPictureId,
+	GROUND_PRESET_IDS,
+	GROUND_PRESETS,
+	STARTER_PICTURE_SOURCES,
+	type TGroundPreset,
+} from "#/templates/pictures";
 
 import { Button } from "./Button";
 import { ChipGroup } from "./ChipGroup";
@@ -27,24 +33,12 @@ import {
 	TextField,
 } from "./fields";
 import { useCopy } from "./useCopy";
+import { useWorldPictures } from "./useWorldPictures";
 
 import styles from "./NewWorldDialog.module.css";
 
 const BLANK = "blank";
 const BLANK_TITLE = "Untitled world";
-
-/** Ground sizes to start a blank world from; any exact size can be set later in the World tab. */
-const GROUND_PRESETS = {
-	corner: { name: "Corner", width: 24, depth: 18, fits: "a street corner" },
-	blocks: { name: "Blocks", width: 40, depth: 30, fits: "a few blocks" },
-	district: { name: "District", width: 80, depth: 60, fits: "a neighbourhood" },
-	town: { name: "Town", width: 120, depth: 90, fits: "a small town" },
-	city: { name: "City", width: 240, depth: 180, fits: "a whole city" },
-};
-
-type TGroundPreset = keyof typeof GROUND_PRESETS;
-
-const GROUND_PRESET_IDS = Object.keys(GROUND_PRESETS) as TGroundPreset[];
 
 interface INewWorldChoices {
 	/** "blank", or the id of the starter template to copy. */
@@ -66,35 +60,6 @@ const DEFAULT_CHOICES: INewWorldChoices = {
 	drivingSide: "right",
 	usesData: null,
 };
-
-const blankPictureId = (preset: TGroundPreset) => `${BLANK}:${preset}`;
-
-/**
- * The Blank card's picture for a ground size: the bare ground with a house, a
- * tree and a car in the middle, which stay the same size as the ground grows,
- * so the picture shows how big it is. They aren't in the world it creates.
- */
-const blankPictureScene = (preset: TGroundPreset) => {
-	const { width, depth } = GROUND_PRESETS[preset];
-	return SceneSchema.parse({
-		...createEmptyScene({ ground: { width, depth } }),
-		entities: [
-			{ id: "scale_house", kind: "house_01", position: [-1.2, 0] },
-			{ id: "scale_tree", kind: "round_tree_01", position: [1.4, -0.9] },
-			{ id: "scale_car", kind: "car_01", position: [1.6, 1.3] },
-		],
-	});
-};
-
-/** The cards' pictures: bare ground at each preset size (all rendered, so switching is instant), then each starter. */
-const PICTURE_SOURCES: IScenePictureSource[] = [
-	...GROUND_PRESET_IDS.map((preset) => ({
-		id: blankPictureId(preset),
-		create: () => blankPictureScene(preset),
-	})),
-	...TEMPLATES,
-];
-const NO_PICTURES: IScenePictureSource[] = [];
 
 /** What a starter comes with, data first (it's what worlds are for, ADR-0019); zero counts are left out. */
 const contentsOf = (scene: TScene) => {
@@ -143,7 +108,8 @@ export const NewWorldDialog = () => {
 	const [category, setCategory] = useState<TTemplateCategory | "all">("all");
 	// Empty means the placeholder: the starter's own title, or "Untitled world".
 	const [name, setName] = useState("");
-	const pictures = useScenePictures(useResolvedTheme(), open ? PICTURE_SOURCES : NO_PICTURES);
+	// The cards' pictures: bare ground at each preset size (so switching is instant), then each starter.
+	const picture = useWorldPictures(useResolvedTheme(), STARTER_PICTURE_SOURCES, open);
 
 	useEffect(() => {
 		if (asked !== null) {
@@ -197,7 +163,6 @@ export const NewWorldDialog = () => {
 		);
 	};
 
-	const picture = (id: string) => (pictures[id] ? <img src={pictures[id]} alt="" /> : null);
 	const cards: IChoiceCard<string>[] = [
 		{
 			value: BLANK,

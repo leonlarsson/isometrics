@@ -27,12 +27,15 @@ import { frameBoxIn } from "./thumbnails";
 import { useSurfaceShading } from "./useSurfaceShading";
 
 /**
- * Pictures of whole worlds (the starters in File → New world), rendered in
- * the browser from the worlds themselves, like the part thumbnails (ADR-0036):
- * the ground, areas, roads and objects as they stand when the world opens,
- * seen from the default angle on a transparent background. One offscreen
- * canvas renders what's asked for, then goes away; the images live in memory
- * only. See docs/adr/0047-new-world-dialog.md.
+ * Pictures of whole worlds, rendered in the browser from the worlds
+ * themselves, like the part thumbnails (ADR-0036): the ground, areas, roads
+ * and objects as they stand when the world opens, seen from the default angle
+ * on a transparent background. One offscreen canvas renders what's asked for,
+ * then goes away; the images live in memory only. See
+ * docs/adr/0047-new-world-dialog.md. The built-in worlds' pictures are made
+ * the same way ahead of time (`renderScenePictures`, from
+ * scripts/starter-pictures.mjs) and shipped as files (ADR-0146): live, this
+ * draws only what has no file.
  */
 
 export type TScenePictures = Readonly<Record<string, string>>;
@@ -45,7 +48,22 @@ export interface IScenePictureSource {
 
 /** CSS pixels; rendered at twice that for sharp cards. */
 export const SCENE_PICTURE_SIZE = { width: 240, height: 150 };
-const DPR = 2;
+
+/** How a picture is rendered: its size in CSS pixels, at how many device pixels each, and its file type. */
+export interface IScenePictureFormat {
+	size: { width: number; height: number };
+	dpr: number;
+	/** A type the canvas encodes (`image/png`, `image/webp`, `image/jpeg`), and its quality from 0 to 1. */
+	type: string;
+	quality?: number;
+}
+
+/** The cards' pictures: lossless, at twice the card's size. */
+export const CARD_PICTURE_FORMAT: IScenePictureFormat = {
+	size: SCENE_PICTURE_SIZE,
+	dpr: 2,
+	type: "image/png",
+};
 /** How much of the picture the world fills. */
 const FILL = 0.94;
 /** Parts that build asynchronously (text) get this long before the picture is taken anyway. */
@@ -154,11 +172,12 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 interface IPictureProps {
 	scene: TScene;
 	palette: IScenePalette;
+	format: IScenePictureFormat;
 	onShot: (url: string) => void;
 }
 
 /** Shows one world, frames it, renders one frame and hands back the picture. */
-const Picture = ({ scene, palette, onShot }: IPictureProps) => {
+const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 	const gl = useThree((s) => s.gl);
 	const three = useThree((s) => s.scene);
 	const camera = useThree((s) => s.camera);
@@ -176,9 +195,9 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 			return;
 		}
 		shot.current = true;
-		frameBoxIn(camera, box.setFromObject(group.current), SCENE_PICTURE_SIZE, FILL);
+		frameBoxIn(camera, box.setFromObject(group.current), format.size, FILL);
 		gl.render(three, camera);
-		onShot(gl.domElement.toDataURL("image/png"));
+		onShot(gl.domElement.toDataURL(format.type, format.quality));
 	};
 
 	const onReady = () => {
@@ -290,12 +309,11 @@ const Picture = ({ scene, palette, onShot }: IPictureProps) => {
 	);
 };
 
-/** Render everything asked for so far, publishing each picture as soon as it's ready. */
-const work = async () => {
-	if (working) {
-		return;
-	}
-	working = true;
+/**
+ * An offscreen canvas that renders worlds one at a time, in a format. Throws when there's no WebGL.
+ * `close` when done: it lets go of its WebGL context.
+ */
+const openPictureRoot = async (format: IScenePictureFormat) => {
 	// <Canvas> teaches R3F three's classes; this root may come before any canvas (the home screen's
 	// New world…), so it teaches them too.
 	extend(THREE as unknown as Parameters<typeof extend>[0]);
@@ -307,25 +325,67 @@ const work = async () => {
 			shadows: "percentage",
 			orthographic: true,
 			camera: { near: 0.1, far: 500 },
-			size: { ...SCENE_PICTURE_SIZE, top: 0, left: 0 },
-			dpr: DPR,
+			size: { ...format.size, top: 0, left: 0 },
+			dpr: format.dpr,
 			frameloop: "never",
 		});
+	} catch (error) {
+		root.unmount();
+		throw error;
+	}
+	return {
+		shoot: (scene: TScene, theme: TResolvedTheme, key: string) =>
+			new Promise<string>((resolve) => {
+				root.render(
+					<Picture
+						key={`${theme}:${key}`}
+						scene={scene}
+						palette={scenePalettes[theme]}
+						format={format}
+						onShot={resolve}
+					/>,
+				);
+			}),
+		close: () => root.unmount(),
+	};
+};
+
+/**
+ * Pictures of worlds for a theme, by source id, rendered one after another in
+ * a format, as data URLs: for making the built-in worlds' picture files ahead
+ * of time (scripts/starter-pictures.mjs, ADR-0146).
+ */
+export const renderScenePictures = async (
+	sources: readonly IScenePictureSource[],
+	theme: TResolvedTheme,
+	format: IScenePictureFormat = CARD_PICTURE_FORMAT,
+) => {
+	const root = await openPictureRoot(format);
+	const pictures: Record<string, string> = {};
+	try {
+		for (const source of sources) {
+			pictures[source.id] = await root.shoot(source.create(), theme, source.id);
+		}
+	} finally {
+		root.close();
+	}
+	return pictures;
+};
+
+/** Render everything asked for so far, publishing each picture as soon as it's ready. */
+const work = async () => {
+	if (working) {
+		return;
+	}
+	working = true;
+	let root: Awaited<ReturnType<typeof openPictureRoot>> | null = null;
+	try {
+		root = await openPictureRoot(CARD_PICTURE_FORMAT);
 		for (let next = pending.shift(); next; next = pending.shift()) {
 			const { theme, source } = next;
 			await idle();
 			try {
-				const scene = source.create();
-				const url = await new Promise<string>((resolve) => {
-					root.render(
-						<Picture
-							key={`${theme}:${source.id}`}
-							scene={scene}
-							palette={scenePalettes[theme]}
-							onShot={resolve}
-						/>,
-					);
-				});
+				const url = await root.shoot(source.create(), theme, source.id);
 				cache.set(theme, { ...(cache.get(theme) ?? EMPTY), [source.id]: url });
 				notify();
 			} catch (error) {
@@ -338,7 +398,7 @@ const work = async () => {
 		console.warn("Could not render world pictures", error);
 		pending.length = 0;
 	} finally {
-		root.unmount();
+		root?.close();
 		working = false;
 	}
 	// Asked for while this run was finishing.
