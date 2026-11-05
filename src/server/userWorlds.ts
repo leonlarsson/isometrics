@@ -7,7 +7,6 @@ import { isWorldPatch } from "#/scene/worldPatch";
 
 import { bytesOf, MOST_SHARED_WORLD_BYTES, sizeInWords } from "./shareLimits";
 import { fitMetadata } from "./sharingControls";
-import { GZIP, gzipText, textOfStored } from "./storedText";
 
 /**
  * Worlds shared by link (ADR-0120), kept in Cloudflare KV. Nothing is kept
@@ -17,8 +16,7 @@ import { GZIP, gzipText, textOfStored } from "./storedText";
  * consistency can only mean "not there yet" (for up to a minute elsewhere in
  * the world), never an old version. Only worlds that read as worlds (stored as
  * read, defaults left out) and patches are kept, no bigger than
- * `shareLimits.ts` says (ADR-0145): it's not a place to keep anything else. Kept
- * gzipped since ADR-0145; plain-text entries kept before are still read. No
+ * `shareLimits.ts` says (ADR-0145): it's not a place to keep anything else. No
  * Cloudflare imports here: the routes pass the store in.
  */
 
@@ -26,11 +24,11 @@ import { GZIP, gzipText, textOfStored } from "./storedText";
 export interface IUserWorldStore {
 	getWithMetadata: (
 		key: string,
-		type: "arrayBuffer",
-	) => Promise<{ value: ArrayBuffer | null; metadata: IUserWorldMeta | null }>;
+		type: "text",
+	) => Promise<{ value: string | null; metadata: IUserWorldMeta | null }>;
 	put: (
 		key: string,
-		value: Uint8Array | string,
+		value: string,
 		options: { expirationTtl: number; metadata: IUserWorldMeta },
 	) => Promise<void>;
 	delete: (key: string) => Promise<void>;
@@ -44,8 +42,6 @@ export interface IUserWorldMeta {
 	expiresAt: string;
 	/** SHA-256 of the delete key, never the key itself. */
 	deleteKeyHash: string;
-	/** "gzip" when kept gzipped (ADR-0145); left out by entries kept before, as plain text. */
-	encoding?: typeof GZIP;
 }
 
 /** How long a shared world is kept, in seconds: an hour, a day, a week or 30 days. */
@@ -185,7 +181,7 @@ export const shareUserWorld = async (
 	const id = randomKey(16);
 	const deleteKey = randomKey(32);
 	const expiresAt = new Date(now.getTime() + expiresIn * 1000).toISOString();
-	await store.put(id, await gzipText(kept), {
+	await store.put(id, kept, {
 		expirationTtl: expiresIn,
 		metadata: fitMetadata(
 			{
@@ -194,7 +190,6 @@ export const shareUserWorld = async (
 				createdAt: now.toISOString(),
 				expiresAt,
 				deleteKeyHash: await sha256(deleteKey),
-				encoding: GZIP,
 			},
 			"title",
 		),
@@ -214,8 +209,8 @@ export const readUserWorld = async (store: IUserWorldStore, id: string) => {
 	if (!USER_WORLD_ID.test(id)) {
 		return null;
 	}
-	const { value, metadata } = await store.getWithMetadata(id, "arrayBuffer");
-	return value === null ? null : { json: await textOfStored(value), metadata };
+	const { value, metadata } = await store.getWithMetadata(id, "text");
+	return value === null ? null : { json: value, metadata };
 };
 
 /** Delete a shared world with the key that came with it. */

@@ -5,7 +5,6 @@ import { createEmptyScene, TEMPLATES } from "#/templates";
 
 import { MOST_SHARED_WORLD_BYTES } from "./shareLimits";
 import { MOST_METADATA_BYTES } from "./sharingControls";
-import { isGzip } from "./storedText";
 import {
 	deleteUserWorld,
 	type IUserWorldMeta,
@@ -16,20 +15,16 @@ import {
 	UserWorldError,
 } from "./userWorlds";
 
-/** An in-memory KV namespace, keeping what was put (as bytes, as KV does) and how long for. */
+/** An in-memory KV namespace, keeping what was put and how long for. */
 const memoryStore = () => {
-	const kept = new Map<string, { value: Uint8Array; metadata: IUserWorldMeta; ttl: number }>();
+	const kept = new Map<string, { value: string; metadata: IUserWorldMeta; ttl: number }>();
 	const store: IUserWorldStore = {
 		getWithMetadata: async (key) => {
 			const found = kept.get(key);
-			return {
-				value: found ? (found.value.slice().buffer as ArrayBuffer) : null,
-				metadata: found?.metadata ?? null,
-			};
+			return { value: found?.value ?? null, metadata: found?.metadata ?? null };
 		},
 		put: async (key, value, { expirationTtl, metadata }) => {
-			const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
-			kept.set(key, { value: bytes, metadata, ttl: expirationTtl });
+			kept.set(key, { value, metadata, ttl: expirationTtl });
 		},
 		delete: async (key) => {
 			kept.delete(key);
@@ -199,33 +194,6 @@ describe("how a shared world is kept (ADR-0145)", () => {
 			MOST_SHARED_WORLD_BYTES,
 		);
 		expect(await refusal(heavy)).toMatch(/as kept \(its defaults left out\): at most 1\.5 MB/);
-	});
-
-	it("keep it gzipped, and read entries kept before as plain text", async () => {
-		const { store, kept } = memoryStore();
-		const stockholm = TEMPLATES.find((each) => each.id === "stockholm")?.create();
-		const shared = await shareUserWorld(store, JSON.stringify(stockholm), 3600, ORIGIN);
-		const entry = kept.get(shared.id);
-		expect(entry && isGzip(entry.value)).toBe(true);
-		expect(entry?.metadata.encoding).toBe("gzip");
-		const found = await readUserWorld(store, shared.id);
-		const asKept = JSON.stringify(compactWorld(stockholm as never));
-		expect(found?.json).toBe(asKept);
-		// About thirteen times smaller.
-		expect(entry?.value.length).toBeLessThan(asKept.length / 8);
-		// An entry from before ADR-0145: plain JSON text, no encoding in its metadata.
-		const old = "A".repeat(22);
-		await store.put(old, '{"version":1,"meta":{"title":"Before"}}', {
-			expirationTtl: 3600,
-			metadata: {
-				kind: "world",
-				title: "Before",
-				createdAt: "2026-11-01T00:00:00.000Z",
-				expiresAt: "2026-11-08T00:00:00.000Z",
-				deleteKeyHash: "0",
-			},
-		});
-		expect((await readUserWorld(store, old))?.json).toBe('{"version":1,"meta":{"title":"Before"}}');
 	});
 
 	it("keep any title in metadata KV takes, without control characters", async () => {

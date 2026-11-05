@@ -20,7 +20,6 @@ describe("the owner's controls over sharing (ADR-0145)", () => {
 			createdAt: "2026-11-05T00:00:00.000Z",
 			expiresAt: "2026-12-05T00:00:00.000Z",
 			deleteKeyHash: "f".repeat(64),
-			encoding: "gzip",
 		};
 		expect(fitMetadata({ ...base, title: "Harbour" }, "title").title).toBe("Harbour");
 		expect(fitMetadata({ ...base, title: " Two\nlines\u0000\t" }, "title").title).toBe("Two lines");

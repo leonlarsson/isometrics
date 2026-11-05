@@ -3,11 +3,11 @@ status: proposed
 date: 2026-11-05
 ---
 
-# 0145. Sharing hardened for strangers: a size cap, gzip in KV and a kill switch; screens for browsers that can't draw or keep anything
+# 0145. Sharing hardened for strangers: a size cap and a kill switch; screens for browsers that can't draw or keep anything
 
 ## Context and problem statement
 
-Sharing by link (ADR-0120, ADR-0134) was built for people sharing their own worlds and AIs handing back answers. A public launch brings visitors who may misuse it: a share was a 5 MB, 30-day public text host, limited per IP address (an IPv6 /64 is billions of addresses), stored uncompressed, with no way for the owner to stop new shares, and nothing on a shared world's preview saying who made it. At the same time strangers arrive in browsers the app had never met: WebGL turned off, site data blocked, links mistyped. Those showed the crash screen ("Your world is still saved", which was false) or asked the site for a missing link every 4 seconds for a minute. Use is expected to be low, and the site runs on Workers Paid.
+Sharing by link (ADR-0120, ADR-0134) was built for people sharing their own worlds and AIs handing back answers. A public launch brings visitors who may misuse it: a share was a 5 MB, 30-day public text host, limited per IP address (an IPv6 /64 is billions of addresses), with no way for the owner to stop new shares, and nothing on a shared world's preview saying who made it. At the same time strangers arrive in browsers the app had never met: WebGL turned off, site data blocked, links mistyped. Those showed the crash screen ("Your world is still saved", which was false) or asked the site for a missing link every 4 seconds for a minute. Use is expected to be low, and the site runs on Workers Paid.
 
 ## Decision drivers
 
@@ -21,17 +21,17 @@ Sharing by link (ADR-0120, ADR-0134) was built for people sharing their own worl
 ## Considered options
 
 1. Limits in the schema, as for any world.
-2. A size cap at share time only (`server/shareLimits.ts`), gzip in KV and a kill switch var; takedowns straight from KV.
-3. Also caps on texts and lists, an admin token for takedowns and a Report link to an abuse address.
-4. Moving shares to R2 or Durable Objects with their own accounting.
+2. A size cap at share time only (`server/shareLimits.ts`) and a kill switch var; takedowns straight from KV.
+3. As 2, and kept gzipped in KV (about 13 times smaller).
+4. Also caps on texts and lists, an admin token for takedowns and a Report link to an abuse address.
+5. Moving shares to R2 or Durable Objects with their own accounting.
 
 ## Decision outcome
 
-Chosen option: **2**. The schema is what saved worlds and files are read with: tightening it would break worlds people have (ADR-0026, ADR-0106). Share time is where a stranger's world arrives; there it can be refused in our words. With low use expected, 3 is more than needed: the owner deletes from KV if something must go. KV stays (ADR-0120's reasons hold); 4 is more machinery than limits need.
+Chosen option: **2**. The schema is what saved worlds and files are read with: tightening it would break worlds people have (ADR-0026, ADR-0106). Share time is where a stranger's world arrives; there it can be refused in our words. With low use expected, 3 and 4 are more than needed: gzip saves pennies on honest shares and nothing on junk (which doesn't compress), and the owner deletes from KV if something must go. KV stays (ADR-0120's reasons hold); 5 is more machinery than limits need.
 
 - **Who's counted** (`server/rateLimitKey.ts`): the share and check rate limits count an IPv4 address on its own and an IPv6 address by its /64 (`2001:db8:1:2::/64`); an IPv4-mapped IPv6 address is its IPv4 one; anything unreadable shares one key.
 - **How big a share can be** (`server/shareLimits.ts`): as kept, a world is at most **1.5 MB** (defaults left out; Stockholm, the biggest template, is about 519 kB) and a prefab **300 kB**, refused in our words. What's sent is still read up to 5 MB (worlds) and 1 MB (prefabs), as a world sent with its defaults written out can be a few times its kept size. Every template and old-world fixture is well inside it, a test checks.
-- **Kept gzipped** (`server/storedText.ts`): `CompressionStream("gzip")` in the Worker before `put`, `DecompressionStream` on reading (Stockholm keeps as about 40 kB). The metadata says `encoding: "gzip"`; entries kept before have no encoding and are plain JSON text. Reading goes by the bytes themselves: gzip starts with `1f 8b`, which no JSON text does, so either kind reads whatever its metadata says. GET answers the JSON as before.
 - **Metadata** (`fitMetadata`, `server/sharingControls.ts`): the title (or a prefab's name) without control characters or line separators, cut by whole characters until the metadata is at most 900 bytes as JSON (KV's limit is 1,024), so no title can make a share fail.
 - **The kill switch:** the `SHARING_DISABLED` var (`wrangler.jsonc`, `"false"`): `"true"` (or `1`, `yes`, `on`) and every POST to `/api/user-worlds` and `/api/user-prefabs` answers 503 "Sharing is paused for now. Try again later."; links already shared keep opening. The share dialogs say it in place and grey out Create a public link ("(sharing is paused)").
 - **Someone else's:** a shared world's and a shared prefab's preview bar says "Made by someone else and shared by link, not by Isometrics". A data source's link names its host after its name: "Name (example.com)", so a name can't pass a link off as another site's.
@@ -70,4 +70,4 @@ To stop all new shares: Cloudflare dashboard → Workers & Pages → `isometrics
 
 ## More information
 
-ADR-0119 (untrusted input), ADR-0120 (worlds shared by link), ADR-0121 (what's open), ADR-0134 (prefabs shared by link). `server/rateLimitKey.ts`, `server/shareLimits.ts`, `server/storedText.ts`, `server/sharingControls.ts`, `lib/storage.ts`, `render/webgl.ts`, `ui/NoWebGlScreen.tsx`, `ui/BrowserLimitBars.tsx`.
+ADR-0119 (untrusted input), ADR-0120 (worlds shared by link), ADR-0121 (what's open), ADR-0134 (prefabs shared by link). `server/rateLimitKey.ts`, `server/shareLimits.ts`, `server/sharingControls.ts`, `lib/storage.ts`, `render/webgl.ts`, `ui/NoWebGlScreen.tsx`, `ui/BrowserLimitBars.tsx`.

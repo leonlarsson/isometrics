@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { MOST_METADATA_BYTES } from "./sharingControls";
-import { isGzip } from "./storedText";
 import {
 	deleteUserPrefab,
 	type IUserPrefabMeta,
@@ -13,20 +12,16 @@ import {
 	UserPrefabError,
 } from "./userPrefabs";
 
-/** An in-memory KV namespace, keeping what was put (as bytes, as KV does) and how long for. */
+/** An in-memory KV namespace, keeping what was put and how long for. */
 const memoryStore = () => {
-	const kept = new Map<string, { value: Uint8Array; metadata: IUserPrefabMeta; ttl: number }>();
+	const kept = new Map<string, { value: string; metadata: IUserPrefabMeta; ttl: number }>();
 	const store: IUserPrefabStore = {
 		getWithMetadata: async (key) => {
 			const found = kept.get(key);
-			return {
-				value: found ? (found.value.slice().buffer as ArrayBuffer) : null,
-				metadata: found?.metadata ?? null,
-			};
+			return { value: found?.value ?? null, metadata: found?.metadata ?? null };
 		},
 		put: async (key, value, { expirationTtl, metadata }) => {
-			const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
-			kept.set(key, { value: bytes, metadata, ttl: expirationTtl });
+			kept.set(key, { value, metadata, ttl: expirationTtl });
 		},
 		delete: async (key) => {
 			kept.delete(key);
@@ -106,11 +101,10 @@ describe("how a shared prefab is kept (ADR-0145)", () => {
 		).toMatch(/as kept: at most 300 kB/);
 	});
 
-	it("keep it gzipped, read old plain entries, and fit any name in metadata", async () => {
+	it("fit any name in metadata", async () => {
 		const { store, kept } = memoryStore();
 		const shared = await shareUserPrefab(store, prefab({ name: "😀\n".repeat(600) }), 3600, ORIGIN);
 		const entry = kept.get(shared.id);
-		expect(entry && isGzip(entry.value)).toBe(true);
 		expect(new TextEncoder().encode(JSON.stringify(entry?.metadata)).length).toBeLessThanOrEqual(
 			MOST_METADATA_BYTES,
 		);

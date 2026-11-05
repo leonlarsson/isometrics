@@ -4,7 +4,6 @@ import { SCENE_VERSION } from "#/scene/schema";
 
 import { bytesOf, MOST_SHARED_PREFAB_BYTES, sizeInWords } from "./shareLimits";
 import { fitMetadata } from "./sharingControls";
-import { GZIP, gzipText, textOfStored } from "./storedText";
 import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWorlds";
 
 /**
@@ -13,8 +12,7 @@ import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWor
  * tile), public to anyone with the link until it expires, each share a
  * snapshot under a new random key, never overwritten. Only prefabs that read
  * as written are kept, no bigger than `shareLimits.ts` says (ADR-0145): it's
- * not a place to keep anything else. Kept gzipped since ADR-0145; plain-text
- * entries kept before are still read. No Cloudflare imports here: the routes
+ * not a place to keep anything else. No Cloudflare imports here: the routes
  * pass the store in.
  */
 
@@ -22,11 +20,11 @@ import { randomKey, sha256, USER_WORLD_EXPIRIES, USER_WORLD_ID } from "./userWor
 export interface IUserPrefabStore {
 	getWithMetadata: (
 		key: string,
-		type: "arrayBuffer",
-	) => Promise<{ value: ArrayBuffer | null; metadata: IUserPrefabMeta | null }>;
+		type: "text",
+	) => Promise<{ value: string | null; metadata: IUserPrefabMeta | null }>;
 	put: (
 		key: string,
-		value: Uint8Array | string,
+		value: string,
 		options: { expirationTtl: number; metadata: IUserPrefabMeta },
 	) => Promise<void>;
 	delete: (key: string) => Promise<void>;
@@ -39,8 +37,6 @@ export interface IUserPrefabMeta {
 	expiresAt: string;
 	/** SHA-256 of the delete key, never the key itself. */
 	deleteKeyHash: string;
-	/** "gzip" when kept gzipped (ADR-0145); left out by entries kept before, as plain text. */
-	encoding?: typeof GZIP;
 }
 
 /** How long a shared prefab is kept, in seconds: an hour, a day, a week or 30 days (as worlds). */
@@ -120,7 +116,7 @@ export const shareUserPrefab = async (
 	const id = randomKey(16);
 	const deleteKey = randomKey(32);
 	const expiresAt = new Date(now.getTime() + expiresIn * 1000).toISOString();
-	await store.put(id, await gzipText(kept), {
+	await store.put(id, kept, {
 		expirationTtl: expiresIn,
 		metadata: fitMetadata(
 			{
@@ -128,7 +124,6 @@ export const shareUserPrefab = async (
 				createdAt: now.toISOString(),
 				expiresAt,
 				deleteKeyHash: await sha256(deleteKey),
-				encoding: GZIP,
 			},
 			"name",
 		),
@@ -147,8 +142,8 @@ export const readUserPrefab = async (store: IUserPrefabStore, id: string) => {
 	if (!USER_PREFAB_ID.test(id)) {
 		return null;
 	}
-	const { value, metadata } = await store.getWithMetadata(id, "arrayBuffer");
-	return value === null ? null : { json: await textOfStored(value), metadata };
+	const { value, metadata } = await store.getWithMetadata(id, "text");
+	return value === null ? null : { json: value, metadata };
 };
 
 /** Delete a shared prefab with the key that came with it. */
