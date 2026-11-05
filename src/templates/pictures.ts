@@ -1,6 +1,8 @@
 import { SceneSchema, type TScene } from "#/scene/schema";
 import type { TResolvedTheme } from "#/scene/theme";
 
+export { starterPreviewOf } from "./catalogue";
+
 import { createEmptyScene } from "./empty";
 import { TEMPLATES } from "./index";
 
@@ -65,7 +67,3 @@ export const starterPictureOf = (id: string, theme: TResolvedTheme) =>
 	STARTER_PICTURE_SOURCES.some((source) => source.id === id)
 		? `/starters/${id}-${theme}.webp`
 		: null;
-
-/** Where a starter's link preview is, on this site (a JPEG on the light background), or null. */
-export const starterPreviewOf = (id: string) =>
-	TEMPLATES.some((template) => template.id === id) ? `/starters/${id}-preview.jpg` : null;
