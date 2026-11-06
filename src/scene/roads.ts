@@ -917,27 +917,52 @@ export const buildElevatedSides = (
 		for (const sign of [-1, 1] as const) {
 			const pa = sign < 0 ? a.left : a.right;
 			const pb = sign < 0 ? b.left : b.right;
-			// Where a slip road's deck joins this one at a gore (ADR-0148), the gore's edge is the deck's.
-			const opened = open.some(
-				(stretch) => stretch.side === sign && middle >= stretch.from && middle <= stretch.to,
-			);
-			if (!fullBank && !opened) {
-				deck.quads.push([
-					[pa[0], ha, pa[1]],
-					[pb[0], hb, pb[1]],
-					[pa[0], Math.max(0, ha - DECK_THICKNESS), pa[1]],
-					[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
-				]);
+			// Where a slip road's deck joins this one at a gore (ADR-0148), the gore's edge is the deck's:
+			// the segment is cut where such a stretch starts or ends, and its pieces in it are left out.
+			const from = 2 * middle - travelled;
+			const to = travelled;
+			const cuts = [0, 1];
+			for (const stretch of open) {
+				if (stretch.side === sign) {
+					for (const at of [stretch.from, stretch.to]) {
+						if (at > from && at < to) {
+							cuts.push((at - from) / (to - from));
+						}
+					}
+				}
 			}
-			// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at once
-			// where it reaches their height: from nothing a third of the way there to whole at it.
-			if (options.railings && !opened && (ha >= RAILING_MIN / 3 || hb >= RAILING_MIN / 3)) {
-				railings.quads.push([
-					[pa[0], ha + railingHeightAt(ha), pa[1]],
-					[pb[0], hb + railingHeightAt(hb), pb[1]],
-					[pa[0], ha, pa[1]],
-					[pb[0], hb, pb[1]],
-				]);
+			cuts.sort((x, y) => x - y);
+			for (let c = 0; c < cuts.length - 1; c++) {
+				const [t0, t1] = [cuts[c], cuts[c + 1]];
+				const at = from + ((t0 + t1) / 2) * (to - from);
+				if (
+					open.some((stretch) => stretch.side === sign && at >= stretch.from && at <= stretch.to)
+				) {
+					continue;
+				}
+				// Exactly its ends where it isn't cut, so an uncut road draws as it always did.
+				const lerp2 = (t: number): TVec2 =>
+					t === 0 ? pa : t === 1 ? pb : [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
+				const [qa, qb] = [lerp2(t0), lerp2(t1)];
+				const [h0, h1] = [t0 === 0 ? ha : ha + (hb - ha) * t0, t1 === 1 ? hb : ha + (hb - ha) * t1];
+				if (!fullBank) {
+					deck.quads.push([
+						[qa[0], h0, qa[1]],
+						[qb[0], h1, qb[1]],
+						[qa[0], Math.max(0, h0 - DECK_THICKNESS), qa[1]],
+						[qb[0], Math.max(0, h1 - DECK_THICKNESS), qb[1]],
+					]);
+				}
+				// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at
+				// once where it reaches their height: from nothing a third of the way there to whole at it.
+				if (options.railings && (h0 >= RAILING_MIN / 3 || h1 >= RAILING_MIN / 3)) {
+					railings.quads.push([
+						[qa[0], h0 + railingHeightAt(h0), qa[1]],
+						[qb[0], h1 + railingHeightAt(h1), qb[1]],
+						[qa[0], h0, qa[1]],
+						[qb[0], h1, qb[1]],
+					]);
+				}
 			}
 			if (options.embankment) {
 				// Slope outward and down to the ground, from the bank's top edge.
