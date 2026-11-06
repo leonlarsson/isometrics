@@ -49,7 +49,7 @@ import { turned } from "./turned";
 
 // ---------------------------------------------------------------- the land
 
-const GROUND: TVec2 = [330, 224];
+const GROUND: TVec2 = [330, 240];
 const HALF: TVec2 = [GROUND[0] / 2, GROUND[1] / 2];
 
 /** The stack's middle, and the cloverleaf's, on the east–west freeway. */
@@ -295,11 +295,11 @@ const stackRamps: TRoadInput[] = [0, 1, 2, 3].flatMap((k) => {
 
 // ---------------------------------------------------------------- the freeways
 
-const RIVER_Z: [number, number] = [86, 99];
+const RIVER_Z: [number, number] = [86, 106];
 
 /** Where the hills' tunnels take the freeways: the ridge to the north, the hills west, east and south. */
 const NORTH_TUNNEL_Z = -90;
-const SOUTH_TUNNEL_Z = 103;
+const SOUTH_TUNNEL_Z = 112;
 const WEST_TUNNEL_X = -156;
 const EAST_TUNNEL_X = 158;
 
@@ -742,7 +742,7 @@ const HILL_COLOR = "#999263";
  */
 const railX = (z: number) => STACK[0] + z - STACK[1];
 const RAIL_NORTH_Z = -94;
-const RAIL_SOUTH_Z = 104;
+const RAIL_SOUTH_Z = 113;
 
 /** A cliff for a tunnel: two corners at full height either side of where the road goes in. */
 const portal = (at: TVec2, along: TVec2, half: number): [[number, number], [number, number]] => [
@@ -800,7 +800,7 @@ const AREAS: TAreaInput[] = [
 			[-10, -106, 2],
 			[-160, -50, 3],
 			[-161, 40, 2],
-			...rollingOver([-150, -110], [40, -100], 18, 1),
+			...rollingOver([-150, -118], [40, -102], 18, 1),
 			...rollingOver([-164, -80], [-157, 70], 8, 40),
 		],
 	},
@@ -828,23 +828,23 @@ const AREAS: TAreaInput[] = [
 		height: HILL_HEIGHT,
 		colors: { surface: { color: HILL_COLOR } },
 		points: [
-			[-HALF[0], 101, DOWN],
-			[-80, 101, DOWN],
-			[-62, 102, -5],
+			[-HALF[0], 109, DOWN],
+			[-80, 109, DOWN],
+			[-62, 110, -5],
 			...portal([STACK[0], SOUTH_TUNNEL_Z], [1, 0], 9),
-			[-20, 102, -6],
-			[20, 101, DOWN],
+			[-20, 110, -6],
+			[20, 109, DOWN],
 			...portal([railX(RAIL_SOUTH_Z), RAIL_SOUTH_Z], [Math.SQRT1_2, -Math.SQRT1_2], 5),
-			[100, 101, DOWN],
-			[HALF[0], 100, DOWN],
+			[100, 109, DOWN],
+			[HALF[0], 108, DOWN],
 			[HALF[0], HALF[1]],
 			[-HALF[0], HALF[1]],
 		],
 		peaks: [
-			[-120, 109, 2],
-			[0, 110, 3],
-			[110, 109, 2],
-			...rollingOver([-160, 104], [160, 111], 14, 120),
+			[-120, 116, 2],
+			[0, 117, 3],
+			[110, 116, 2],
+			...rollingOver([-160, 112], [160, 119], 14, 120),
 		],
 	},
 	{
@@ -1777,7 +1777,7 @@ const vergeTrees: TEntityInput[] = jitteredGrid(3.2, 500)
 
 /** On the hills: pines and scrub, standing on the slopes. */
 const hillTrees: TEntityInput[] = jitteredGrid(4.2, 900)
-	.filter((point, i) => hillAt(point) > 0.6 && shareOf(i * 5) < 0.6 && isFreeForTree(point))
+	.filter((point, i) => hillAt(point) > 0.6 && shareOf(i * 5) < 0.42 && isFreeForTree(point))
 	.map((point, i) => {
 		const n = i * 11 + 3;
 		const kind =
