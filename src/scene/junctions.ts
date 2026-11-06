@@ -1,4 +1,4 @@
-import { isHiddenRoute, polylineLength, ROAD_KINDS, type TRoadEnd } from "./roads";
+import { isHiddenRoute, polylineLength, ROAD_KINDS, type TRoadEnd, throughPointsAt } from "./roads";
 import { centerlineOf, projectOntoRoad } from "./routes";
 import type { TJunction, TJunctionEnd, TRoad, TRoadPoint, TVec2 } from "./schema";
 
@@ -401,10 +401,31 @@ export const junctionPad = (
 };
 
 /** The nearest point on a road's straight lines between its control points, and which line. */
-export const nearestOnControlLines = (road: Pick<TRoad, "points" | "loops">, at: TVec2) => {
+export const nearestOnControlLines = (
+	road: Pick<TRoad, "points" | "loops"> & Partial<Pick<TRoad, "curveShape">>,
+	at: TVec2,
+) => {
 	const n = road.points.length;
 	const count = road.loops && n > 2 ? n : n - 1;
 	let best: { segment: number; point: TRoadPoint; gap: number; share: number } | null = null;
+	// A smooth road (ADR-0148): the nearest place on its curve, so a point put there keeps its shape.
+	if (road.curveShape === "throughPoints") {
+		const pts = road.points.map((p): TRoadPoint => [p[0], p[1], p[2] ?? 0]);
+		for (let i = 0; i < count; i++) {
+			const a = road.points[i];
+			const b = road.points[(i + 1) % n];
+			for (let s = 0; s <= 32; s++) {
+				const t = s / 32;
+				const [x, z] = throughPointsAt(pts, road.loops && n > 2, i, t);
+				const point: TRoadPoint = [x, z, a[2] + (b[2] - a[2]) * t];
+				const gap = hypot2(point, at);
+				if (!best || gap < best.gap) {
+					best = { segment: i, point, gap, share: t };
+				}
+			}
+		}
+		return best;
+	}
 	for (let i = 0; i < count; i++) {
 		const a = road.points[i];
 		const b = road.points[(i + 1) % n];

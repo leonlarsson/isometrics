@@ -1703,7 +1703,11 @@ describe("junctions (ADR-0136)", () => {
 		s().drawRoadFrom("main", "start");
 		s().addDrawingPoint([-10, 10]);
 		s().addDrawingPoint([15, 10]);
-		s().finishDrawing();
+		const drawn = s().finishDrawing() as string;
+		// Straight from point to point, so the next road can end on its line at z = 10.
+		s().updateRoad(drawn, (road) => {
+			road.curveShape = "roundedCorners";
+		});
 		expect(s().scene.junctions).toHaveLength(1);
 		expect(s().scene.junctions[0].ends).toContainEqual({
 			roadId: "main",
