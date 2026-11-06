@@ -734,7 +734,7 @@ const riversideJunctions = [
 /** The hills: as high as this, sloping down to the valley, with cliffs where the tunnels go in. */
 const HILL_HEIGHT = 10;
 const DOWN = -HILL_HEIGHT;
-const HILL_COLOR = "#a39a68";
+const HILL_COLOR = "#999263";
 
 /**
  * The rail line's way across, high over everything: from a tunnel in the ridge's north-west
@@ -749,6 +749,25 @@ const portal = (at: TVec2, along: TVec2, half: number): [[number, number], [numb
 	[round2(at[0] - along[0] * half), round2(at[1] - along[1] * half)],
 	[round2(at[0] + along[0] * half), round2(at[1] + along[1] * half)],
 ];
+
+/** Gentle rises and dips over a hill, the same each time, so its slopes aren't flat planes. */
+const rollingOver = (
+	from: TVec2,
+	to: TVec2,
+	count: number,
+	seed: number,
+): [number, number, number][] =>
+	Array.from({ length: count }, (_, i): [number, number, number] => {
+		const r = (n: number) => {
+			const x = Math.sin((seed + i) * 12.9898 + n * 78.233) * 43758.5453;
+			return x - Math.floor(x);
+		};
+		return [
+			round2(from[0] + (to[0] - from[0]) * r(1)),
+			round2(from[1] + (to[1] - from[1]) * r(2)),
+			round2(-1.5 + 3.5 * r(3)),
+		];
+	});
 
 const AREAS: TAreaInput[] = [
 	{
@@ -781,6 +800,8 @@ const AREAS: TAreaInput[] = [
 			[-10, -106, 2],
 			[-160, -50, 3],
 			[-161, 40, 2],
+			...rollingOver([-150, -110], [40, -100], 18, 1),
+			...rollingOver([-164, -80], [-157, 70], 8, 40),
 		],
 	},
 	{
@@ -798,7 +819,7 @@ const AREAS: TAreaInput[] = [
 			[159, 72, DOWN],
 			[HALF[0], 76],
 		],
-		peaks: [[163, -20, 2]],
+		peaks: [[163, -20, 2], ...rollingOver([160, -64], [164, 70], 6, 80)],
 	},
 	{
 		id: "south_hills",
@@ -823,6 +844,7 @@ const AREAS: TAreaInput[] = [
 			[-120, 109, 2],
 			[0, 110, 3],
 			[110, 109, 2],
+			...rollingOver([-160, 104], [160, 111], 14, 120),
 		],
 	},
 	{
@@ -1063,8 +1085,8 @@ const fromRow = (column: string, atLow: number, atHigh: number, low: number, hig
 	highSetting: high,
 });
 
-/** Busy roads turn a dusty red as they fill up, from 70% full. */
-const CONGESTED = "#a8665a";
+/** A hint of warmth on roads past 80% full; how full shows mostly by how many vehicles, how slow, and the cards. */
+const CONGESTED = "#9a8077";
 
 /** How many vehicles per 10 units each way at its fullest: three lanes of queue on a carriageway. */
 const densityAtFullest = (rowId: string) =>
@@ -1127,7 +1149,7 @@ const withTraffic = (road: TRoadInput): TRoadInput => {
 				data: {
 					color: {
 						key: "row.congestion",
-						valueAtLowColor: 0.7,
+						valueAtLowColor: 0.8,
 						valueAtHighColor: 1,
 						lowColor: ROAD_COLOR,
 						highColor: CONGESTED,
@@ -1345,7 +1367,25 @@ const stackGardens: TAreaInput[] = [0, 1, 2, 3].flatMap((k) => [
 	},
 ]);
 
-const GARDENS = [...stackGardens, ...cloverGardens];
+/**
+ * The ground the ramps leave between them, as the land round an interchange is kept: gravel
+ * under the flyovers in the stack's middle.
+ */
+const verges: TAreaInput[] = [
+	...[0, 1, 2, 3].map(
+		(k): TAreaInput => ({
+			id: `stack_gravel_${k + 1}`,
+			kind: "sand_01",
+			name: `Gravel under the stack ${k + 1}`,
+			height: 0.01,
+			colors: { surface: { color: "#c7bda6" } },
+			surface: { kind: "gravel_01" },
+			points: blob(stackPlace(13, 13, k), 6.5, k * 1.3 + 0.4),
+		}),
+	),
+];
+
+const GARDENS = [...stackGardens, ...cloverGardens, ...verges];
 
 const tree = (
 	id: string,
@@ -1424,45 +1464,206 @@ interface IDistrict {
 	name: string;
 	from: TVec2;
 	to: TVec2;
-	/** A lot's size, and the street between lots. */
-	lot: number;
-	street: number;
 }
 
-const ROOFS = ["#c0693f", "#b55a3a", "#8d877e", "#a88b66", "#c98a55", "#9a5b44", "#c27a4a"];
-const WALLS = ["#efe3c8", "#e8d2b0", "#f3ede1", "#e9c9b0", "#dcd3bf", "#f0dcae"];
+const ROOFS = ["#b9603d", "#a8573a", "#8d877e", "#a88b66", "#c07f52", "#93573f", "#b87449"];
 const SHOP_WALLS = ["#e6d3ad", "#d9b98c", "#f1e6cf", "#c9a27a", "#e8c79a"];
 const GLASS = ["#5f7a8c", "#6d8796", "#7c8f95", "#4f6a7a", "#8aa0a8", "#9aa7a0"];
+const LAWNS = ["#93a05c", "#8c9a57", "#a0a565", "#86955a", "#a7a86f"];
+const STREET = "#b4ad9f";
 
 /** The valley's districts, round the freeways; downtown north-east of the cloverleaf. */
 const DISTRICTS: IDistrict[] = [
-	{ id: "northgate", name: "Northgate", from: [-150, -90], to: [-58, -8], lot: 6.5, street: 1.4 },
-	{ id: "ridgeview", name: "Ridgeview", from: [-32, -92], to: [66, -8], lot: 6.5, street: 1.4 },
-	{ id: "westside", name: "Westside", from: [-150, 8], to: [-58, 82], lot: 6.5, street: 1.4 },
-	{ id: "riverbend", name: "Riverbend", from: [-32, 8], to: [66, 76], lot: 6.5, street: 1.4 },
-	{ id: "harbor", name: "Downtown", from: [68, -110], to: [158, -50], lot: 7, street: 2.6 },
-	{ id: "eastside", name: "Eastside", from: [68, 50], to: [156, 76], lot: 7, street: 2.4 },
+	{ id: "northgate", name: "Northgate", from: [-150, -90], to: [-58, -6] },
+	{ id: "ridgeview", name: "Ridgeview", from: [-32, -92], to: [66, -6] },
+	{ id: "westside", name: "Westside", from: [-150, 6], to: [-58, 82] },
+	{ id: "riverbend", name: "Riverbend", from: [-32, 6], to: [66, 76] },
+	{ id: "harbor", name: "Downtown", from: [68, -110], to: [158, -50] },
+	{ id: "eastside", name: "Eastside", from: [68, 50], to: [156, 76] },
 ];
 
 const isDowntown = (district: IDistrict) => district.id === "harbor";
 const DOWNTOWN_MIDDLE: TVec2 = [118, -86];
 
-/** Every lot that's clear, in each district, on its grid. */
-const cityLots = DISTRICTS.flatMap((district) => {
-	const pitch = district.lot + district.street;
+/**
+ * A suburb is laid in blocks, as the first reference picture's: each block two rows of houses
+ * back to back, their fronts on the streets north and south of it, a front yard and a garden
+ * each, the streets between the blocks. A house is built only where its lot is clear of the
+ * roads, the gardens and the rail, so the blocks end where the freeways run.
+ */
+const LOT_WIDTH = 3.4;
+const LOT_DEPTH = 4.4;
+const LOTS_IN_A_ROW = 5;
+const STREET_WIDTH = 2.2;
+const BLOCK: TVec2 = [LOTS_IN_A_ROW * LOT_WIDTH, LOT_DEPTH * 2];
+
+interface IHouseLot {
+	district: IDistrict;
+	/** The middle of the lot, and which way its front faces: +1 south, −1 north. */
+	centre: TVec2;
+	faces: 1 | -1;
+	/** Its block, and its place along its row. */
+	block: number;
+	index: number;
+}
+
+const houseLots: IHouseLot[] = DISTRICTS.filter((district) => !isDowntown(district)).flatMap(
+	(district) => {
+		const lots: IHouseLot[] = [];
+		const [pitchX, pitchZ] = [BLOCK[0] + STREET_WIDTH, BLOCK[1] + STREET_WIDTH];
+		let block = 0;
+		for (let bx = district.from[0] + pitchX / 2; bx <= district.to[0] - pitchX / 2; bx += pitchX) {
+			for (
+				let bz = district.from[1] + pitchZ / 2;
+				bz <= district.to[1] - pitchZ / 2;
+				bz += pitchZ
+			) {
+				block += 1;
+				for (const faces of [-1, 1] as const) {
+					for (let i = 0; i < LOTS_IN_A_ROW; i++) {
+						const centre: TVec2 = [
+							round2(bx - BLOCK[0] / 2 + LOT_WIDTH * (i + 0.5)),
+							round2(bz + (faces * LOT_DEPTH) / 2),
+						];
+						if (isBuildable(centre, LOT_DEPTH)) {
+							lots.push({ district, centre, faces, block, index: i });
+						}
+					}
+				}
+			}
+		}
+		return lots;
+	},
+);
+
+/** Now and then a block's south row is a strip of shops with its car park, instead of houses. */
+const isShopLot = (lot: IHouseLot) =>
+	lot.faces === 1 && shareOf(lot.block * 7.3 + lot.district.from[0]) < 0.12;
+
+const houses: TEntityInput[] = houseLots.map((lot, n) => {
+	const { centre, faces } = lot;
+	// The house towards the street, its front yard before it, its garden behind.
+	const at: TVec2 = [centre[0], round2(centre[1] + faces * 0.55)];
+	const id = `${lot.district.id}_${n + 1}`;
+	if (isShopLot(lot)) {
+		return {
+			id,
+			kind: "shop_02",
+			name: `${lot.district.name} shops ${n + 1}`,
+			position: [at[0], round2(at[1] - faces * 0.6)],
+			rotation: turned(faces > 0 ? 0 : 180),
+			colors: paint({ walls: pickOf(SHOP_WALLS, n) }),
+			props: { width: 3.2, depth: 1.8, floorCount: 1 },
+		};
+	}
+	return {
+		id,
+		kind: "house_01",
+		name: `${lot.district.name} ${n + 1}`,
+		position: at,
+		rotation: turned(faces > 0 ? 0 : 180),
+		colors: paint({ roof: pickOf(ROOFS, n) }),
+		props: {
+			width: round2(2.1 + 0.3 * shareOf(n + 1)),
+			depth: 1.9,
+			height: round2(0.95 + 0.25 * shareOf(n + 2)),
+			roofHeight: 0.75,
+			showsChimney: shareOf(n + 3) < 0.3,
+		},
+	};
+});
+
+/**
+ * The ground under the suburbs, as flat parts that all draw together (ADR-0086): each lot's
+ * share of the street, grey, with its lawn on top (a car park's tarmac for a shop's lot).
+ */
+/** The lots of each block, by district and block: a whole block's ground is laid as one. */
+const blocksOfLots: IHouseLot[][] = (() => {
+	const byBlock = new Map<string, IHouseLot[]>();
+	for (const lot of houseLots) {
+		const key = `${lot.district.id}:${lot.block}`;
+		byBlock.set(key, [...(byBlock.get(key) ?? []), lot]);
+	}
+	return [...byBlock.values()];
+})();
+
+const lotGround: TEntityInput[] = blocksOfLots.flatMap((lots, b) => {
+	const { district } = lots[0];
+	const name = district.name;
+	const yard = (id: string, at: TVec2, width: number, fill: string): TEntityInput => ({
+		id,
+		kind: "zone_01",
+		name: `${name} yards`,
+		position: at,
+		altitude: 0.012,
+		colors: paint({ fill }),
+		props: { width: round2(width), depth: round2(LOT_DEPTH - 0.45) },
+	});
+	if (lots.length === LOTS_IN_A_ROW * 2) {
+		// A whole block: its streets round it, and a lawn along each row (a car park under shops).
+		const middle: TVec2 = [
+			round2(lots.reduce((sum, lot) => sum + lot.centre[0], 0) / lots.length),
+			round2(lots.reduce((sum, lot) => sum + lot.centre[1], 0) / lots.length),
+		];
+		return [
+			{
+				id: `${district.id}_block_${b + 1}_streets`,
+				kind: "zone_01",
+				name: `${name} streets`,
+				position: middle,
+				colors: paint({ fill: STREET }),
+				props: { width: round2(BLOCK[0] + STREET_WIDTH), depth: round2(BLOCK[1] + STREET_WIDTH) },
+			},
+			...([-1, 1] as const).map((faces) =>
+				yard(
+					`${district.id}_block_${b + 1}_${faces > 0 ? "south" : "north"}_yards`,
+					[middle[0], round2(middle[1] + faces * (LOT_DEPTH / 2) - faces * 0.1)],
+					BLOCK[0] - 0.25,
+					lots.some((lot) => lot.faces === faces && isShopLot(lot))
+						? "#9d9a93"
+						: pickOf(LAWNS, b * 2 + faces),
+				),
+			),
+		];
+	}
+	// A block cut short by a road: each lot's own share of the street, and its own yard.
+	return lots.flatMap((lot) => {
+		const { centre, faces } = lot;
+		const n = houseLots.indexOf(lot);
+		const atRowEnd = lot.index === 0 || lot.index === LOTS_IN_A_ROW - 1;
+		const endShift = atRowEnd ? (lot.index === 0 ? -1 : 1) * (STREET_WIDTH / 4) : 0;
+		return [
+			{
+				id: `${district.id}_${n + 1}_street`,
+				kind: "zone_01",
+				name: `${name} street`,
+				position: [round2(centre[0] + endShift), round2(centre[1] + (faces * STREET_WIDTH) / 4)],
+				colors: paint({ fill: STREET }),
+				props: {
+					width: round2(LOT_WIDTH + (atRowEnd ? STREET_WIDTH / 2 : 0)),
+					depth: round2(LOT_DEPTH + STREET_WIDTH / 2),
+				},
+			},
+			yard(
+				`${district.id}_${n + 1}_yard`,
+				[centre[0], round2(centre[1] - faces * 0.1)],
+				LOT_WIDTH - 0.25,
+				isShopLot(lot) ? "#9d9a93" : pickOf(LAWNS, n),
+			),
+		];
+	});
+});
+
+/** Downtown: towers and blocks of flats on a grid of plazas, tallest round its middle. */
+const DOWNTOWN_LOT = 7;
+const DOWNTOWN_STREET = 2.6;
+const towerLots = DISTRICTS.filter(isDowntown).flatMap((district) => {
+	const pitch = DOWNTOWN_LOT + DOWNTOWN_STREET;
 	const lots: { district: IDistrict; centre: TVec2 }[] = [];
-	for (
-		let x = district.from[0] + district.lot / 2;
-		x <= district.to[0] - district.lot / 2 + 1e-6;
-		x += pitch
-	) {
-		for (
-			let z = district.from[1] + district.lot / 2;
-			z <= district.to[1] - district.lot / 2 + 1e-6;
-			z += pitch
-		) {
+	for (let x = district.from[0] + pitch / 2; x <= district.to[0] - pitch / 2; x += pitch) {
+		for (let z = district.from[1] + pitch / 2; z <= district.to[1] - pitch / 2; z += pitch) {
 			const centre: TVec2 = [round2(x), round2(z)];
-			if (isBuildable(centre, district.lot)) {
+			if (isBuildable(centre, DOWNTOWN_LOT)) {
 				lots.push({ district, centre });
 			}
 		}
@@ -1470,97 +1671,53 @@ const cityLots = DISTRICTS.flatMap((district) => {
 	return lots;
 });
 
-/** What stands on a lot: towers downtown, now and then a strip of shops on a car park, else houses. */
-const lotKindOf = (district: IDistrict, n: number) =>
-	isDowntown(district) ? "towers" : shareOf(n + 11) < 0.12 ? "shops" : "houses";
-
-/** A block of houses, as a village of them. */
-const suburb = (id: string, name: string, centre: TVec2, n: number, lot: number): TEntityInput => ({
-	id,
-	kind: "house_cluster_01",
-	name,
-	position: centre,
-	rotation: turned(Math.floor(shareOf(n) * 4) * 90),
-	colors: paint({ roofs: pickOf(ROOFS, n + 1), walls: pickOf(WALLS, n + 2) }),
-	props: {
-		width: round2(lot),
-		builtShare: 1,
-		seed: 1 + Math.floor(shareOf(n + 4) * 900),
-	},
+const towers: TEntityInput[] = towerLots.flatMap(({ district, centre }, n) => {
+	const near = Math.hypot(centre[0] - DOWNTOWN_MIDDLE[0], centre[1] - DOWNTOWN_MIDDLE[1]);
+	const floors = Math.max(4, Math.round(30 - near * 0.55 - shareOf(n) * 8));
+	const isTower = floors > 9;
+	return [
+		{
+			id: `${district.id}_${n + 1}`,
+			kind: isTower ? "office_tower_01" : "apartment_block_01",
+			name: `${district.name} ${n + 1}`,
+			position: centre,
+			rotation: turned(Math.floor(shareOf(n + 9) * 2) * 90),
+			colors: paint(
+				isTower ? { facade: pickOf(GLASS, n), grid: "#e9e4d8" } : { walls: pickOf(SHOP_WALLS, n) },
+			),
+			props: isTower
+				? {
+						width: round2(DOWNTOWN_LOT * (0.6 + 0.25 * shareOf(n + 2))),
+						depth: round2(DOWNTOWN_LOT * (0.6 + 0.25 * shareOf(n + 3))),
+						floorCount: Math.min(40, floors),
+					}
+				: { width: round2(DOWNTOWN_LOT * 0.9), depth: 3, floorCount: Math.min(16, floors) },
+		},
+		{
+			id: `${district.id}_${n + 1}_plaza`,
+			kind: "zone_01",
+			name: `${district.name} plaza`,
+			position: centre,
+			colors: paint({ fill: "#c2bcae" }),
+			props: { width: DOWNTOWN_LOT + DOWNTOWN_STREET, depth: DOWNTOWN_LOT + DOWNTOWN_STREET },
+		},
+	];
 });
 
-/** A strip of shops along the back of its lot, facing its car park. */
-const stripMall = (id: string, centre: TVec2, n: number, lot: number): TEntityInput[] =>
-	Array.from({ length: 3 }, (_, i) => ({
-		id: `${id}_shop_${i + 1}`,
-		kind: "shop_02",
-		position: [
-			round2(centre[0] - lot / 2 + 1.35 + i * 2.65),
-			round2(centre[1] - lot / 2 + 1.3),
-		] as TVec2,
-		colors: paint({ walls: pickOf(SHOP_WALLS, n + i) }),
-		props: { width: 2.5, depth: 1.8, floorCount: 1 },
-	}));
+const cityBuildings = [...houses, ...towers];
+const cityGround = lotGround;
 
-const cityBuildings: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) => {
-	const id = `${district.id}_${n + 1}`;
-	const name = `${district.name} ${n + 1}`;
-	const kind = lotKindOf(district, n);
-	if (kind === "towers") {
-		const near = Math.hypot(centre[0] - DOWNTOWN_MIDDLE[0], centre[1] - DOWNTOWN_MIDDLE[1]);
-		const floors = Math.max(4, Math.round(30 - near * 0.55 - shareOf(n) * 8));
-		const isTower = floors > 9;
-		return [
-			{
-				id,
-				kind: isTower ? "office_tower_01" : "apartment_block_01",
-				name,
-				position: centre,
-				rotation: turned(Math.floor(shareOf(n + 9) * 2) * 90),
-				colors: paint(
-					isTower
-						? { facade: pickOf(GLASS, n), grid: "#e9e4d8" }
-						: { walls: pickOf(SHOP_WALLS, n) },
-				),
-				props: isTower
-					? {
-							width: round2(district.lot * (0.6 + 0.25 * shareOf(n + 2))),
-							depth: round2(district.lot * (0.6 + 0.25 * shareOf(n + 3))),
-							floorCount: Math.min(40, floors),
-						}
-					: { width: round2(district.lot * 0.9), depth: 3, floorCount: Math.min(16, floors) },
-			},
-		];
-	}
-	if (kind === "shops") {
-		return stripMall(id, centre, n, district.lot);
-	}
-	return [suburb(id, name, centre, n, district.lot)];
-});
-
-/** The strips of shops' car parks. */
-const carParks: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) =>
-	lotKindOf(district, n) === "shops"
-		? [
-				{
-					// A flat part rather than an area, so all of them draw together (ADR-0086).
-					id: `${district.id}_${n + 1}_car_park`,
-					kind: "zone_01",
-					name: `${district.name} car park`,
-					position: centre,
-					colors: paint({ fill: "#a7a49c" }),
-					props: { width: district.lot, depth: district.lot },
-				},
-			]
-		: [],
-);
-
-/** Whether a point is on a lot already built on. */
+/** Whether a point is on a lot already built on (or its share of the street). */
 const onALot = ([x, z]: TVec2, margin: number) =>
-	cityLots.some(
-		({ district, centre }) =>
-			Math.abs(x - centre[0]) < district.lot / 2 + margin &&
-			Math.abs(z - centre[1]) < district.lot / 2 + margin,
+	houseLots.some(
+		({ centre }) =>
+			Math.abs(x - centre[0]) < LOT_WIDTH / 2 + margin &&
+			Math.abs(z - centre[1]) < LOT_DEPTH / 2 + margin,
+	) ||
+	towerLots.some(
+		({ centre }) =>
+			Math.abs(x - centre[0]) < DOWNTOWN_LOT / 2 + margin &&
+			Math.abs(z - centre[1]) < DOWNTOWN_LOT / 2 + margin,
 	);
 
 // ---------------------------------------------------------------- trees
@@ -1591,7 +1748,7 @@ const isFreeForTree = (point: TVec2) =>
 	Math.abs(point[0]) < HALF[0] - 1 &&
 	Math.abs(point[1]) < HALF[1] - 1 &&
 	clearOfRoads(point, 1.2) &&
-	!onALot(point, 0.4) &&
+	!onALot(point, STREET_WIDTH / 2 + 0.4) &&
 	!GARDEN_ZONES.some((zone) => isInsidePolygon(point, zone)) &&
 	!RIVER.some((river) => isInsidePolygon(point, river) || edgeDistance(point, river) < 1) &&
 	!inRailCorridor(point, 2.5);
@@ -1628,26 +1785,40 @@ const hillTrees: TEntityInput[] = jitteredGrid(4.2, 900)
 		return tree(`hill_tree_${i + 1}`, kind, point, n, { altitude: hillAt(point) });
 	});
 
-/** Palms along the city's streets, at the corners of lots now and then. */
-const streetTrees: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) => {
-	if (isDowntown(district)) {
-		return [];
-	}
-	// Along the street on its east side and at its south-east corner: a palm or a shade tree.
-	const gap = district.lot / 2 + district.street / 2;
-	const spots: TVec2[] = [
-		[centre[0] + gap, centre[1] - district.lot / 4],
-		[centre[0] + district.lot / 4, centre[1] + gap],
-		[centre[0] + gap, centre[1] + gap],
+/** Trees in the suburbs: one in a garden now and then, and palms and shade trees along the kerbs. */
+const streetTrees: TEntityInput[] = houseLots.flatMap((lot, n) => {
+	const { centre, faces } = lot;
+	const garden: TVec2 = [
+		round2(centre[0] + (shareOf(n + 0.7) - 0.5) * 1.6),
+		round2(centre[1] - faces * (LOT_DEPTH / 2 - 0.5)),
 	];
-	return spots.flatMap((at, i) => {
-		const m = n * 5 + i;
-		if (shareOf(m) > 0.62 || !isFreeForTree(at) || hillAt(at) !== 0) {
-			return [];
-		}
-		const kind = shareOf(m + 0.5) < 0.45 ? "palm_tree_01" : "round_tree_01";
-		return [tree(`street_tree_${n + 1}_${i + 1}`, kind, at, m)];
-	});
+	const kerb: TVec2 = [
+		round2(centre[0] + LOT_WIDTH / 2),
+		round2(centre[1] + faces * (LOT_DEPTH / 2 + 0.45)),
+	];
+	const trees: TEntityInput[] = [];
+	if (shareOf(n * 3) < 0.4 && !isShopLot(lot)) {
+		trees.push(
+			tree(
+				`garden_tree_${n + 1}`,
+				shareOf(n * 3 + 1) < 0.5 ? "round_tree_01" : "round_tree_02",
+				garden,
+				n,
+				{ scale: 0.75 },
+			),
+		);
+	}
+	if (shareOf(n * 5) < 0.45 && clearOfRoads(kerb, 1)) {
+		trees.push(
+			tree(
+				`kerb_tree_${n + 1}`,
+				shareOf(n * 5 + 1) < 0.55 ? "palm_tree_01" : "round_tree_01",
+				kerb,
+				n + 1,
+			),
+		);
+	}
+	return trees;
 });
 
 // ---------------------------------------------------------------- lamps, cards and vehicles to ride along
@@ -2040,7 +2211,7 @@ const ENTITIES = placedClear([
 	...lamps,
 	...rideAlongs,
 	...cityBuildings,
-	...carParks,
+	...cityGround,
 	...gardenTrees,
 	...streetTrees,
 	...vergeTrees,
