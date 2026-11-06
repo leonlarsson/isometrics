@@ -2,6 +2,7 @@ import { Line } from "@react-three/drei";
 import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import { roadAsDrawn, valuesOfRoad } from "#/editor/roadFlows";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
@@ -65,7 +66,7 @@ const ribbonGeometry = (
 };
 
 /** Two triangles per quad (top-a, top-b, bottom-a, bottom-b), shifted up by `y`. */
-const wallGeometry = (wall: IWall, y: number) => {
+const wallGeometry = (wall: IWall, y: number, isSmooth = false) => {
 	const positions: number[] = [];
 	for (const [ta, tb, ba, bb] of wall.quads) {
 		for (const [px, py, pz] of [ta, tb, ba, ba, tb, bb]) {
@@ -74,6 +75,14 @@ const wallGeometry = (wall: IWall, y: number) => {
 	}
 	const geometry = new THREE.BufferGeometry();
 	geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+	// A railing or deck edge is smooth round a bend (ADR-0148): its quads share their corners, so
+	// its shading bends with it instead of showing a facet a quad.
+	if (isSmooth) {
+		const shared = mergeVertices(geometry);
+		shared.computeVertexNormals();
+		geometry.dispose();
+		return shared;
+	}
 	geometry.computeVertexNormals();
 	return geometry;
 };
@@ -228,9 +237,9 @@ export const RoadBody = ({
 			openStretches,
 		],
 	);
-	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y), [sides, y]));
+	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y, true), [sides, y]));
 	const underside = useDisposable(useMemo(() => wallGeometry(sides.underside, y), [sides, y]));
-	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y), [sides, y]));
+	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y, true), [sides, y]));
 	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
 	// Its pillars (ADR-0148): spaced, as chosen at its points, and clear of what's below when it
 	// keeps them so; one geometry for all of them.

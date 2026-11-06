@@ -1,6 +1,7 @@
 import type { IColorSpec } from "./colors";
 import type {
 	TDrivingSide,
+	TPillarKind,
 	TRoad,
 	TRoadCurveShape,
 	TRoadKind,
@@ -144,6 +145,15 @@ export const NEW_ROAD_SETTINGS = {
 	curveShape: "throughPoints",
 	pillarsKeepClear: true,
 } as const satisfies Partial<TRoad>;
+
+/** What each pillar kind is called in the editor (ADR-0148). */
+export const PILLAR_KIND_LABELS: Record<TPillarKind, string> = {
+	post_01: "Square posts",
+	column_01: "Round columns",
+	hammerhead_01: "Hammerheads (a column and a crosshead)",
+	pair_01: "Pairs of posts under its edges",
+	wall_01: "Walls across",
+};
 
 /** Default width per style when drawing a new road. */
 export const ROAD_KIND_WIDTH = Object.fromEntries(
@@ -945,22 +955,25 @@ export const buildElevatedSides = (
 					t === 0 ? pa : t === 1 ? pb : [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
 				const [qa, qb] = [lerp2(t0), lerp2(t1)];
 				const [h0, h1] = [t0 === 0 ? ha : ha + (hb - ha) * t0, t1 === 1 ? hb : ha + (hb - ha) * t1];
+				// Both sides face outwards (the right side's quads run the other way), so each side's faces and
+				// normals point away from the road, and shadows don't stripe a side seen from its back.
+				const [qs, qe, hs, he] = sign > 0 ? [qb, qa, h1, h0] : [qa, qb, h0, h1];
 				if (!fullBank) {
 					deck.quads.push([
-						[qa[0], h0, qa[1]],
-						[qb[0], h1, qb[1]],
-						[qa[0], Math.max(0, h0 - DECK_THICKNESS), qa[1]],
-						[qb[0], Math.max(0, h1 - DECK_THICKNESS), qb[1]],
+						[qs[0], hs, qs[1]],
+						[qe[0], he, qe[1]],
+						[qs[0], Math.max(0, hs - DECK_THICKNESS), qs[1]],
+						[qe[0], Math.max(0, he - DECK_THICKNESS), qe[1]],
 					]);
 				}
 				// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at
 				// once where it reaches their height: from nothing a third of the way there to whole at it.
 				if (options.railings && (h0 >= RAILING_MIN / 3 || h1 >= RAILING_MIN / 3)) {
 					railings.quads.push([
-						[qa[0], h0 + railingHeightAt(h0), qa[1]],
-						[qb[0], h1 + railingHeightAt(h1), qb[1]],
-						[qa[0], h0, qa[1]],
-						[qb[0], h1, qb[1]],
+						[qs[0], hs + railingHeightAt(hs), qs[1]],
+						[qe[0], he + railingHeightAt(he), qe[1]],
+						[qs[0], hs, qs[1]],
+						[qe[0], he, qe[1]],
 					]);
 				}
 			}
