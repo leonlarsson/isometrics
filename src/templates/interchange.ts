@@ -1753,6 +1753,29 @@ const isFreeForTree = (point: TVec2) =>
 	!RIVER.some((river) => isInsidePolygon(point, river) || edgeDistance(point, river) < 1) &&
 	!inRailCorridor(point, 2.5);
 
+/**
+ * Palms in two rows down the rail line's corridor, its viaduct's pillars to stand between them:
+ * a palm avenue across the valley, where the city keeps clear for the line.
+ */
+const RAIL_PALM_SPACING = 4;
+const railPalms: TEntityInput[] = linePoints(
+	[railX(RAIL_NORTH_Z + 6), RAIL_NORTH_Z + 6],
+	[railX(RAIL_SOUTH_Z - 30), RAIL_SOUTH_Z - 30],
+	RAIL_PALM_SPACING,
+).flatMap(([x, z], i) =>
+	([-1, 1] as const).flatMap((side): TEntityInput[] => {
+		const at: TVec2 = [round2(x + side * 2.2), round2(z - side * 2.2)];
+		const isClear =
+			clearOfRoads(at, 1.2) &&
+			!onALot(at, STREET_WIDTH / 2 + 0.4) &&
+			hillAt(at) === 0 &&
+			!RIVER.some((river) => isInsidePolygon(at, river) || edgeDistance(at, river) < 1);
+		return isClear
+			? [tree(`rail_palm_${i + 1}_${side > 0 ? "e" : "w"}`, "palm_tree_01", at, i * 2 + side)]
+			: [];
+	}),
+);
+
 /** Along the freeways and ramps: clumps of trees on the verges, as the dry land round interchanges is planted. */
 const vergeTrees: TEntityInput[] = jitteredGrid(3.2, 500)
 	.filter(
@@ -2214,6 +2237,7 @@ const ENTITIES = placedClear([
 	...cityGround,
 	...gardenTrees,
 	...streetTrees,
+	...railPalms,
 	...vergeTrees,
 	...hillTrees,
 ]);
