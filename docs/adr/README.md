@@ -151,3 +151,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0145](0145-sharing-hardened-for-strangers.md) | Sharing hardened for strangers: a size cap and a kill switch; screens for browsers that can't draw or keep anything | proposed |
 | [0146](0146-starter-pictures-made-ahead-of-time.md) | The built-in worlds' pictures are made ahead of time, and each starter's link previews with its own | proposed |
 | [0147](0147-flows-that-drive-on.md) | A road's flow can drive on through junctions: background traffic without placing vehicles | proposed |
+| [0148](0148-roads-for-interchanges.md) | Roads for interchanges: one-way roads, ways through junctions, pillars, raised junctions, merges, lanes, flows that follow data, and rail | proposed |
