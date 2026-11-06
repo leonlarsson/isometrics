@@ -469,6 +469,8 @@ export const RoadMesh = memo(
 					trimEnd={trimEnd}
 					pillarWorld={pillarWorld}
 					openRailings={openRailings}
+					bareStart={bareStart}
+					bareEnd={bareEnd}
 				/>
 
 				<RoadFlow
