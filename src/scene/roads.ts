@@ -142,6 +142,7 @@ export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
  */
 export const NEW_ROAD_SETTINGS = {
 	curveShape: "throughPoints",
+	pillarsKeepClear: true,
 } as const satisfies Partial<TRoad>;
 
 /** Default width per style when drawing a new road. */
@@ -163,6 +164,11 @@ export const DECK_THICKNESS = 0.3;
 /** Railings appear where the road is at least this high. */
 export const RAILING_MIN = 0.5;
 export const RAILING_HEIGHT = 0.3;
+/** How tall a railing is where the deck is `height` up: none low down, growing in to whole at RAILING_MIN. */
+export const railingHeightAt = (height: number) => {
+	const share = Math.min(1, Math.max(0, (height - RAILING_MIN / 3) / ((RAILING_MIN * 2) / 3)));
+	return RAILING_HEIGHT * share * share * (3 - 2 * share);
+};
 /** Default distance between pillars along the road, and the minimum height that gets one. */
 export const PILLAR_SPACING = 4;
 export const PILLAR_MIN = 0.8;
@@ -606,6 +612,46 @@ export const roadCenterlineOf = (
 		Partial<Pick<TRoad, "curveShape">>,
 ) => roadCenterline(road.points, road.loops, road.cornerRadius, road.width, road.curveShape);
 
+/** How far along a road its grade is measured over, so a short wobble isn't taken for a slope. */
+const GRADE_RUN = 2;
+
+/**
+ * A road's steepest grade (ADR-0148): the most it rises or falls per unit along the ground over
+ * any `GRADE_RUN` of its centre line, and how far along that is.
+ */
+export const steepestGrade = (
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width"> &
+		Partial<Pick<TRoad, "curveShape">>,
+	/** Only within this far of its start or end (along it), when given. */
+	near?: { end: TRoadEnd; within: number },
+) => {
+	const line = roadCenterlineOf(road);
+	const pts = road.loops && line.length > 2 ? [...line, line[0]] : line;
+	const along = [0];
+	for (let i = 1; i < pts.length; i++) {
+		along.push(along[i - 1] + length(sub(xz(pts[i]), xz(pts[i - 1]))));
+	}
+	let best = { grade: 0, along: 0 };
+	let j = 0;
+	for (let i = 0; i < pts.length; i++) {
+		while (j < pts.length - 1 && along[j] - along[i] < GRADE_RUN) {
+			j++;
+		}
+		const run = along[j] - along[i];
+		const total = along[along.length - 1];
+		const counts =
+			!near ||
+			(near.end === "start" ? along[i] <= near.within : along[j] >= total - near.within);
+		if (counts && run >= GRADE_RUN * 0.5) {
+			const grade = Math.abs(pts[j][2] - pts[i][2]) / run;
+			if (grade > best.grade) {
+				best = { grade, along: along[i] };
+			}
+		}
+	}
+	return best;
+};
+
 /** Total ground length of a polyline (heights ignored), including the closing segment for loops. */
 export const polylineLength = (points: readonly (readonly number[])[], closed: boolean) => {
 	let total = 0;
@@ -871,10 +917,12 @@ export const buildElevatedSides = (
 					[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
 				]);
 			}
-			if (options.railings && ha >= RAILING_MIN && hb >= RAILING_MIN) {
+			// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at once
+			// where it reaches their height: from nothing a third of the way there to whole at it.
+			if (options.railings && (ha >= RAILING_MIN / 3 || hb >= RAILING_MIN / 3)) {
 				railings.quads.push([
-					[pa[0], ha + RAILING_HEIGHT, pa[1]],
-					[pb[0], hb + RAILING_HEIGHT, pb[1]],
+					[pa[0], ha + railingHeightAt(ha), pa[1]],
+					[pb[0], hb + railingHeightAt(hb), pb[1]],
 					[pa[0], ha, pa[1]],
 					[pb[0], hb, pb[1]],
 				]);

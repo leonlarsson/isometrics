@@ -10,14 +10,13 @@ import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import { cutLine } from "#/scene/junctions";
+import { type IPillarWorld, placePillars } from "#/scene/pillars";
 import {
 	buildElevatedSides,
 	buildRibbon,
-	DECK_THICKNESS,
 	dashPolyline,
 	type IWall,
 	isHiddenRoute,
-	pillarPositions,
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
@@ -25,6 +24,7 @@ import type { TDataValue, TEntity, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
+import { pillarGeometry } from "./pillarGeometry";
 import { arrowColorOn, OneWayArrows, RoadFlow } from "./RoadFlow";
 import { setViewCursor } from "./viewCursor";
 
@@ -34,7 +34,6 @@ const LAYER_STEP = 0.003;
 const MARKING_DASH = 0.6;
 const MARKING_GAP = 0.6;
 const MARKING_HALF_WIDTH = 0.05;
-const PILLAR_SIZE = 0.45;
 
 /** Build one BufferGeometry from several ribbons; each vertex sits at `y` plus its height. */
 const ribbonGeometry = (
@@ -112,6 +111,8 @@ interface IRoadBodyProps {
 	 */
 	trimStart?: number;
 	trimEnd?: number;
+	/** What its pillars keep clear of, when it keeps them clear (ADR-0148). Default: nothing. */
+	pillarWorld?: IPillarWorld | null;
 }
 
 /**
@@ -146,6 +147,7 @@ export const RoadBody = ({
 	selected,
 	handlers = {},
 	trimStart = 0,
+	pillarWorld = null,
 	trimEnd = 0,
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
@@ -205,12 +207,17 @@ export const RoadBody = ({
 	const underside = useDisposable(useMemo(() => wallGeometry(sides.underside, y), [sides, y]));
 	const railings = useDisposable(useMemo(() => wallGeometry(sides.railings, y), [sides, y]));
 	const embankment = useDisposable(useMemo(() => wallGeometry(sides.embankment, y), [sides, y]));
+	// Its pillars (ADR-0148): spaced, as chosen at its points, and clear of what's below when it
+	// keeps them so; one geometry for all of them.
 	const pillars = useMemo(
 		() =>
 			road.heldUpBy === "pillars" && !hidden
-				? pillarPositions(center, road.loops, road.pillarSpacing)
+				? placePillars(road, center, { world: pillarWorld, trimStart })
 				: [],
-		[center, road.loops, road.heldUpBy, road.pillarSpacing, hidden],
+		[road, center, hidden, pillarWorld, trimStart],
+	);
+	const pillarMesh = useDisposable(
+		useMemo(() => pillarGeometry(pillars, road.pillarKind, y), [pillars, road.pillarKind, y]),
 	);
 
 	// A road with traffic keeps clearer of snow (ADR-0102): its share, a uniform the shading reads.
@@ -248,7 +255,8 @@ export const RoadBody = ({
 				)}
 			</mesh>
 
-			{ROAD_KINDS[road.kind].centreLine && road.showsCentreLine && (
+			{/* A one-way road has no centre line: nothing comes the other way (ADR-0148). */}
+			{ROAD_KINDS[road.kind].centreLine && road.showsCentreLine && !road.isOneWay && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} userData={snowShare} />
 				</mesh>
@@ -290,16 +298,11 @@ export const RoadBody = ({
 				</mesh>
 			)}
 
-			{pillars.map(([x, z, h]) => {
-				const pillarHeight = Math.max(0.1, h - DECK_THICKNESS);
-				return (
-					<mesh key={`${x}:${z}`} position={[x, y + pillarHeight / 2, z]} castShadow receiveShadow>
-						<boxGeometry args={[PILLAR_SIZE, pillarHeight, PILLAR_SIZE]} />
-
-						<meshStandardMaterial color={palette.deck} roughness={0.9} />
-					</mesh>
-				);
-			})}
+			{pillars.length > 0 && (
+				<mesh geometry={pillarMesh} castShadow receiveShadow>
+					<meshStandardMaterial color={palette.deck} roughness={0.9} />
+				</mesh>
+			)}
 
 			{hidden && (
 				<Line
@@ -355,6 +358,19 @@ export const RoadMesh = memo(({ road: stored, layer, trimStart, trimEnd }: IRoad
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectRoad = useEditor((s) => s.selectRoad);
 	const ground = useEditor((s) => s.scene.ground);
+	// What its pillars keep clear of (ADR-0148): only a raised road on pillars that keeps them clear
+	// follows the other roads, junctions and areas, so other roads don't draw again for every change.
+	const keepsClear =
+		stored.pillarsKeepClear &&
+		stored.heldUpBy === "pillars" &&
+		stored.points.some((point) => point[2] > 0);
+	const roads = useEditor((s) => (keepsClear ? s.scene.roads : null));
+	const junctions = useEditor((s) => (keepsClear ? s.scene.junctions : null));
+	const areas = useEditor((s) => (keepsClear ? s.scene.areas : null));
+	const pillarWorld = useMemo(
+		() => (roads && junctions && areas ? { roads, junctions, areas } : null),
+		[roads, junctions, areas],
+	);
 
 	const editable = mode === "edit" && !drawing;
 	const handlers: TRoadHandlers = editable
@@ -412,6 +428,7 @@ export const RoadMesh = memo(({ road: stored, layer, trimStart, trimEnd }: IRoad
 				handlers={handlers}
 				trimStart={trimStart}
 				trimEnd={trimEnd}
+				pillarWorld={pillarWorld}
 			/>
 
 			<RoadFlow

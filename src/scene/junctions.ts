@@ -1,3 +1,4 @@
+import { choicesAfterInsert, choicesAfterSplit } from "./pillarChoices";
 import { isHiddenRoute, polylineLength, ROAD_KINDS, type TRoadEnd, throughPointsAt } from "./roads";
 import { centerlineOf, projectOntoRoad } from "./routes";
 import type { TJunction, TJunctionEnd, TRoad, TRoadPoint, TVec2 } from "./schema";
@@ -41,6 +42,12 @@ export interface INetworkJunction {
 	 * through it and mostly carry straight on (ADR-0148). Otherwise they pick any way, as before.
 	 */
 	hasOneWayRoad: boolean;
+	/**
+	 * A gore (ADR-0148): a slip road joining or leaving a carriageway at a shallow angle, by the
+	 * indices of its ends: the slip road's, the carriageway's end it runs beside, and how far along
+	 * the slip road it has peeled away from it (where it's cut back). Null for every other junction.
+	 */
+	gore: { slip: number; beside: number; cut: number } | null;
 }
 
 export interface IRoadNetwork {
@@ -117,6 +124,93 @@ const directionAt = (line: readonly TRoadPoint[], end: TRoadEnd): TVec2 => {
 	return normalize([to[0] - from[0], to[1] - from[1]]);
 };
 
+/** Ends this close to opposite (cosine) carry straight on: a carriageway through a gore. */
+const IN_LINE = Math.cos((160 * Math.PI) / 180);
+/** A slip road this close to the carriageway (cosine, 35°) runs beside it: a gore. */
+const BESIDE = Math.cos((35 * Math.PI) / 180);
+
+/**
+ * Whether a junction's ends make a gore (ADR-0148), and which is the slip road and which the
+ * carriageway end beside it: three drawn one-way roads, two of them in line (one arriving, one
+ * leaving: the carriageway), and the third at a shallow angle to one of them, going the same way
+ * (both leaving: a diverge; both arriving: a merge). Only one-way roads, which no world before
+ * ADR-0148 had, so every older junction stays a pad.
+ */
+export const goreOf = (
+	ends: readonly { direction: TVec2; end: TRoadEnd; isOneWay: boolean; isDrawn: boolean }[],
+) => {
+	if (ends.length !== 3 || ends.some((end) => !end.isOneWay || !end.isDrawn)) {
+		return null;
+	}
+	const dot = (a: TVec2, b: TVec2) => a[0] * b[0] + a[1] * b[1];
+	for (let slip = 0; slip < 3; slip++) {
+		const [i, j] = [0, 1, 2].filter((k) => k !== slip);
+		const [a, b] = [ends[i], ends[j]];
+		if (dot(a.direction, b.direction) > IN_LINE || a.end === b.end) {
+			continue;
+		}
+		for (const beside of [i, j]) {
+			if (
+				ends[beside].end === ends[slip].end &&
+				dot(ends[beside].direction, ends[slip].direction) > BESIDE
+			) {
+				return { slip, beside };
+			}
+		}
+	}
+	return null;
+};
+
+/**
+ * How far along a slip road (from its end at a gore) it has peeled away from the carriageway beside
+ * it: where their surfaces stop overlapping, its centre line half their widths from the other's.
+ */
+const peelDistance = (slip: TRoad, slipEnd: TRoadEnd, beside: TRoad, besideEnd: TRoadEnd) => {
+	const line = centerlineOf(slip);
+	const ordered = slipEnd === "start" ? line : [...line].reverse();
+	const other = centerlineOf(beside);
+	const along = besideEnd === "start" ? other : [...other].reverse();
+	const halfOf = (p: TRoadPoint, road: TRoad) => (p[3] ?? road.width) / 2;
+	const gapTo = (p: TRoadPoint) => {
+		let best = Number.POSITIVE_INFINITY;
+		let half = beside.width / 2;
+		for (let i = 1; i < along.length; i++) {
+			const a = along[i - 1];
+			const b = along[i];
+			const dx = b[0] - a[0];
+			const dz = b[1] - a[1];
+			const len2 = dx * dx + dz * dz;
+			const t =
+				len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / len2));
+			const gap = Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dz * t));
+			if (gap < best) {
+				best = gap;
+				half = halfOf(a, beside);
+			}
+		}
+		return { gap: best, half };
+	};
+	const total = polylineLength(ordered, false);
+	let travelled = 0;
+	let before = { gap: 0, needed: 0, at: 0 };
+	for (let i = 0; i < ordered.length; i++) {
+		if (i > 0) {
+			travelled += hypot2(ordered[i], ordered[i - 1]);
+		}
+		const { gap, half } = gapTo(ordered[i]);
+		const needed = half + halfOf(ordered[i], slip);
+		if (gap >= needed) {
+			// Between the last point that overlapped and this one.
+			const over = before.needed - before.gap;
+			const clear = gap - needed;
+			const share = over + clear > 0 ? over / (over + clear) : 0;
+			return Math.min(total * MOST_OF_A_ROAD, before.at + (travelled - before.at) * share);
+		}
+		before = { gap, needed, at: travelled };
+	}
+	return total * MOST_OF_A_ROAD;
+};
+
 const networks = new WeakMap<readonly TRoad[], WeakMap<readonly TJunction[], IRoadNetwork>>();
 
 /**
@@ -183,6 +277,31 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				leadsTo,
 			};
 		});
+		// A slip road joining or leaving a carriageway (ADR-0148): the carriageway isn't cut, and the
+		// slip road is cut back to where it has peeled away from it; the gore between is its surface.
+		const gore = goreOf(shaped);
+		if (gore) {
+			const slip = shaped[gore.slip];
+			const beside = shaped[gore.beside];
+			const cut = peelDistance(
+				byId.get(slip.roadId) as TRoad,
+				slip.end,
+				byId.get(beside.roadId) as TRoad,
+				beside.end,
+			);
+			built.push({
+				id: junction.id,
+				place,
+				hasOneWayRoad: true,
+				gore: { slip: gore.slip, beside: gore.beside, cut },
+				ends: shaped.map((end, i) => ({
+					...end,
+					routeTrim: i === gore.slip ? cut : 0,
+					drawTrim: i === gore.slip ? cut : 0,
+				})),
+			});
+			continue;
+		}
 		const routeTrims = trimsAtJunction(shaped);
 		const drawn = shaped.filter((end) => end.isDrawn);
 		const drawTrims = trimsAtJunction(drawn);
@@ -190,6 +309,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 			id: junction.id,
 			place,
 			hasOneWayRoad: shaped.some((end) => end.isOneWay),
+			gore: null,
 			ends: shaped.map((end, i) => ({
 				...end,
 				routeTrim: routeTrims[i],
@@ -301,6 +421,61 @@ export interface IJunctionPad {
 }
 
 /**
+ * A gore's surface (ADR-0148): the slip road's own surface from the junction to where it's cut
+ * back, beside and over the carriageway's (which runs through uncut), so the two read as one deck
+ * that splits in a long taper. A band along the slip road's line, its edges exactly its ribbon's,
+ * reaching a little over its cut end so no crack shows; its edges are what a raised gore's deck
+ * edge is drawn along.
+ */
+const gorePad = (
+	network: IRoadNetwork,
+	junction: INetworkJunction,
+	gore: { slip: number; cut: number },
+): IJunctionPad | null => {
+	const end = junction.ends[gore.slip];
+	const road = network.roadById(end.roadId);
+	if (!road || gore.cut <= 1e-3) {
+		return null;
+	}
+	const line = centerlineOf(road);
+	const length = polylineLength(line, false);
+	const from = end.end === "start" ? 0 : Math.max(0, length - gore.cut - PAD_OVERLAP);
+	const to = end.end === "start" ? Math.min(length, gore.cut + PAD_OVERLAP) : length;
+	const band = cutLine(line, from, length - to);
+	if (band.length < 2) {
+		return null;
+	}
+	const right: TRoadPoint[] = [];
+	const left: TRoadPoint[] = [];
+	band.forEach((p, i) => {
+		const a = band[Math.max(0, i - 1)];
+		const b = band[Math.min(band.length - 1, i + 1)];
+		const side = rightOf(normalize([b[0] - a[0], b[1] - a[1]]));
+		const half = (p[3] ?? road.width) / 2;
+		right.push([p[0] + side[0] * half, p[1] + side[1] * half, p[2]]);
+		left.push([p[0] - side[0] * half, p[1] - side[1] * half, p[2]]);
+	});
+	const [px, pz, ph] = junction.place;
+	const outline = [...right, ...[...left].reverse()];
+	const vertices: TRoadPoint[] = [[px, pz, ph], ...outline];
+	const n = right.length;
+	const indices: number[] = [];
+	const up = (i0: number, i1: number, i2: number) => {
+		const [a, b, c] = [vertices[i0], vertices[i1], vertices[i2]];
+		const facesUp = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]) > 0;
+		indices.push(...(facesUp ? [i0, i1, i2] : [i0, i2, i1]));
+	};
+	// Quads between the band's two edges: right i is outline i, left i is outline 2n - 1 - i.
+	for (let i = 0; i < n - 1; i++) {
+		const [r0, r1] = [1 + i, 2 + i];
+		const [l0, l1] = [1 + (2 * n - 1 - i), 1 + (2 * n - 2 - i)];
+		up(r0, r1, l1);
+		up(r0, l1, l0);
+	}
+	return { vertices, indices, edges: [right, left], colorRoadId: road.id };
+};
+
+/**
  * The junction's surface (ADR-0136): round its drawn roads' cut ends in turn,
  * each end's edge exactly where the road's surface stops (and a little over
  * it), and between neighbours a curve through where their edges would meet:
@@ -312,6 +487,9 @@ export const junctionPad = (
 	network: IRoadNetwork,
 	junction: INetworkJunction,
 ): IJunctionPad | null => {
+	if (junction.gore) {
+		return gorePad(network, junction, junction.gore);
+	}
 	const drawn = junction.ends.filter((end) => end.isDrawn && end.drawTrim > 1e-3);
 	if (drawn.length < 2) {
 		return null;
@@ -629,6 +807,7 @@ export const connectToMiddle = (
 		index = (to.segment + 1) % n;
 	} else {
 		points.splice(index, 0, cut);
+		target.pillarsAtPoints = choicesAfterInsert(target.pillarsAtPoints ?? [], index);
 	}
 	if (!target.loops && (index === 0 || index === points.length - 1)) {
 		return null; // that's an end: connect to the end instead
@@ -642,6 +821,10 @@ export const connectToMiddle = (
 		// Open the loop at the cut: it becomes both the start and the end.
 		target.points = [...points.slice(index), ...points.slice(0, index), at];
 		target.loops = false;
+		target.pillarsAtPoints = target.pillarsAtPoints.map((choice) => ({
+			...choice,
+			pointIndex: (choice.pointIndex - index + points.length) % points.length,
+		}));
 		secondId = target.id;
 		ends.push(newEnd(target.id, "end"), newEnd(target.id, "start"));
 	} else {
@@ -653,6 +836,10 @@ export const connectToMiddle = (
 			name: target.name ? `${target.name} (2)` : "",
 			points: second,
 		};
+		[target.pillarsAtPoints, copy.pillarsAtPoints] = choicesAfterSplit(
+			target.pillarsAtPoints,
+			index,
+		);
 		target.points = first;
 		world.roads.splice(world.roads.indexOf(target) + 1, 0, copy);
 		// The road's last end, if it was at a junction, is now the second half's.
