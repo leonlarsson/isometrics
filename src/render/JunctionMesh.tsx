@@ -174,18 +174,16 @@ const JunctionBody = memo(
 			() => (world ? junctionPillars(network, junction, world) : null),
 			[network, junction, world],
 		);
-		// Its lane lines (a gore's, ADR-0148), dashed like the roads' markings.
+		// Its markings (a gore's, ADR-0148): lane lines dashed like the roads' markings, and the
+		// gore's edges and chevrons solid.
 		const laneLines = useMemo(() => {
-			const lines = pad?.laneLines ?? [];
+			const dashed = (pad?.laneLines ?? []).flatMap((line) =>
+				dashPolyline(line, false, MARKING_DASH, MARKING_GAP),
+			);
+			const lines = [...dashed, ...(pad?.paintedLines ?? [])].filter((line) => line.length > 1);
 			return lines.length > 0
 				? ribbonGeometry(
-						lines.flatMap((line) =>
-							dashPolyline(line, false, MARKING_DASH, MARKING_GAP).map((dash) => ({
-								center: dash,
-								halfWidth: MARKING_HALF_WIDTH,
-								closed: false,
-							})),
-						),
+						lines.map((center) => ({ center, halfWidth: MARKING_HALF_WIDTH, closed: false })),
 						y + 0.002,
 					)
 				: null;

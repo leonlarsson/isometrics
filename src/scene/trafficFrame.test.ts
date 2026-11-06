@@ -58,9 +58,10 @@ const closestApproach = (vehicles: Map<string, IDrivingVehicle>, seconds = 60) =
 		}));
 		for (let i = 0; i < placed.length; i++) {
 			for (let j = i + 1; j < placed.length; j++) {
-				// Not while they settle from where they were put (at first some start inside a junction), and
-				// not vehicles shrinking out or growing in where they start over.
-				if (frame < 5 * 30 || placed[i].size < 1 || placed[j].size < 1) {
+				// Not while they settle from where they were put (at first some start inside a junction, a
+				// gore's as long as its painted part and lane, and drive out of it), and not vehicles
+				// shrinking out or growing in where they start over.
+				if (frame < 10 * 30 || placed[i].size < 1 || placed[j].size < 1) {
 					continue;
 				}
 				const [a, b] = [placed[i].at, placed[j].at];

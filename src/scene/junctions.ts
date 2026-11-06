@@ -82,6 +82,12 @@ const MOST_TRIM = 4;
 const MOST_OF_A_ROAD = 0.8;
 /** How far the junction's surface reaches over each road's cut end, so no crack shows. */
 const PAD_OVERLAP = 0.04;
+/** Room left between the two roads at a gore's blunt end, as a share of the slip road's half width. */
+const NOSE_GAP = 0.8;
+/** How far a gore's painted lines keep in from its edges, and its chevrons' spacing and depth. */
+const GORE_LINE_INSET = 0.08;
+const CHEVRON_SPACING = 1.1;
+const CHEVRON_DEPTH = 0.6;
 /** Steps in each curve between two roads at a junction. */
 const KERB_STEPS = 8;
 
@@ -251,6 +257,8 @@ interface IGoreSection {
 	/** How far out on the slip road's side the deck reaches (at least `half`), and its height there. */
 	reach: number;
 	reachHeight: number;
+	/** How far out the slip road's inner edge is where it's outside the carriageway: the gore between. */
+	inner: number | null;
 }
 
 /**
@@ -302,20 +310,28 @@ const goreDeckOf = (
 	};
 	const tip = slipPart[slipPart.length - 1] ?? line[0];
 	const side: -1 | 1 = project(tip).lateral >= 0 ? 1 : -1;
-	// The slip road's outer edge, against the carriageway.
-	const outer = slipPart.map((p, i) => {
-		const [a, b] = [slipPart[Math.max(0, i - 1)], slipPart[Math.min(slipPart.length - 1, i + 1)]];
-		const r = rightOf(normalize([b[0] - a[0], b[1] - a[1]]));
-		const half = (p[3] ?? slip.width) / 2;
-		const edge: TVec2 = [p[0] + r[0] * half * side, p[1] + r[1] * half * side];
-		const placed = project(edge);
-		return { along: placed.along, reach: placed.lateral * side, height: p[2] };
-	});
-	const length = Math.max(0, ...outer.map((o) => o.along));
-	/** How far out the slip road's outer edge is, and how high, at `s` along the carriageway. */
-	const outerAt = (s: number) => {
-		for (let i = 1; i < outer.length; i++) {
-			const [a, b] = [outer[i - 1], outer[i]];
+	/** One of the slip road's edges against the carriageway: 1 its outer edge, -1 its inner one. */
+	const edgeOf = (edge: 1 | -1) =>
+		slipPart.map((p, i) => {
+			const [a, b] = [slipPart[Math.max(0, i - 1)], slipPart[Math.min(slipPart.length - 1, i + 1)]];
+			const r = rightOf(normalize([b[0] - a[0], b[1] - a[1]]));
+			const half = ((p[3] ?? slip.width) / 2) * side * edge;
+			const placed = project([p[0] + r[0] * half, p[1] + r[1] * half]);
+			return { along: placed.along, reach: placed.lateral * side, height: p[2] };
+		});
+	const outer = edgeOf(1);
+	const inner = edgeOf(-1);
+	// The nose: the slip road's cut end, square across it from its outer corner to its inner one
+	// (further from the junction, as it leans away). The deck ends square across the carriageway at
+	// the inner corner, and between the two roads there it's the gore's blunt end.
+	const fallback = { along: 0, reach: 0, height: line[0][2] };
+	const outerCorner = outer[outer.length - 1] ?? fallback;
+	const innerCorner = inner[inner.length - 1] ?? outerCorner;
+	const length = Math.max(0, outerCorner.along, innerCorner.along);
+	/** Where one of the slip road's edges is (how far out, how high) at `s` along the carriageway. */
+	const edgeAt = (edge: typeof outer, s: number) => {
+		for (let i = 1; i < edge.length; i++) {
+			const [a, b] = [edge[i - 1], edge[i]];
 			if ((s >= a.along && s <= b.along) || (s <= a.along && s >= b.along)) {
 				const t = b.along === a.along ? 0 : (s - a.along) / (b.along - a.along);
 				return {
@@ -326,10 +342,51 @@ const goreDeckOf = (
 		}
 		return null;
 	};
-	// How far from the junction the deck takes to widen to the slip road's full width.
-	const taper = Math.max(4, length * 0.6);
-	const stations = new Set<number>([0, length]);
-	for (let s = 0.5; s < length; s += 0.5) {
+	/** The deck's edge on the slip road's side: the slip road's outer edge, then its cut end. */
+	const outerAt = (s: number) => {
+		const on = edgeAt(outer, s);
+		if (on) {
+			return on;
+		}
+		const across = innerCorner.along - outerCorner.along;
+		if (s > outerCorner.along && across > 1e-6) {
+			const t = Math.min(1, (s - outerCorner.along) / across);
+			return {
+				reach: outerCorner.reach + (innerCorner.reach - outerCorner.reach) * t,
+				height: outerCorner.height + (innerCorner.height - outerCorner.height) * t,
+			};
+		}
+		return null;
+	};
+	// The deck's edge on the slip road's side: the slip road's outer edge where it's outside the
+	// carriageway's, eased in near the junction so it leaves the carriageway's edge without a kink
+	// (a cubic from nothing, flat, to the slip road's edge, matching its slope where it takes over).
+	const halfAt = (s: number) => (pointAlongLine(line, s)[3] ?? beside.width) / 2;
+	const excessAt = (s: number) => {
+		const out = outerAt(Math.max(0, Math.min(length, s)));
+		return out ? out.reach - halfAt(s) : 0;
+	};
+	let leaves = length;
+	for (let s = 0; s <= length; s += 0.1) {
+		if (excessAt(s) > 1e-3) {
+			leaves = s;
+			break;
+		}
+	}
+	const easeEnd = Math.min(length * 0.5, leaves + 2 * slip.width);
+	const easeTo = excessAt(easeEnd);
+	const easeSlope = (excessAt(easeEnd + 0.05) - excessAt(easeEnd - 0.05)) / 0.1;
+	const ease =
+		easeTo > 1e-3 && easeEnd > 1e-3
+			? {
+					a: (3 * easeTo - easeSlope * easeEnd) / easeEnd ** 2,
+					b: (easeSlope * easeEnd - 2 * easeTo) / easeEnd ** 3,
+				}
+			: null;
+	const excess = (s: number) =>
+		ease && s < easeEnd ? Math.max(0, ease.a * s * s + ease.b * s ** 3) : Math.max(0, excessAt(s));
+	const stations = new Set<number>([0, length, outerCorner.along]);
+	for (let s = 0.25; s < length; s += 0.25) {
 		stations.add(s);
 	}
 	for (const s of along) {
@@ -338,6 +395,7 @@ const goreDeckOf = (
 		}
 	}
 	const sections = [...stations]
+		.filter((s) => s >= 0 && s <= length)
 		.sort((a, b) => a - b)
 		.map((s): IGoreSection => {
 			const centre = pointAlongLine(line, s);
@@ -346,10 +404,8 @@ const goreDeckOf = (
 			const right = rightOf(normalize([ahead[0] - behind[0], ahead[1] - behind[1]]));
 			const half = (centre[3] ?? beside.width) / 2;
 			const out = outerAt(s);
-			// Widening from the junction in a smooth taper (its edge leaves the carriageway's without a
-			// kink), to the slip road's own outer edge where that's further out.
-			const tapered = half + Math.min(1, s / taper) ** 2 * slip.width;
-			const reach = out && out.reach > half ? Math.min(out.reach, tapered) : half;
+			const reach = half + excess(s);
+			const innerEdge = edgeAt(inner, s);
 			return {
 				along: s,
 				centre,
@@ -357,16 +413,24 @@ const goreDeckOf = (
 				half,
 				reach,
 				reachHeight: out && out.reach > half ? out.height : centre[2],
+				inner:
+					s >= innerCorner.along - 1e-6
+						? innerCorner.reach
+						: innerEdge && innerEdge.reach > half
+							? Math.min(innerEdge.reach, reach)
+							: null,
 			};
 		});
-	// A little over the roads' own surfaces past the nose, as wide as at it, so no crack shows there.
-	const last = sections[sections.length - 1];
-	if (last) {
-		const over = PAD_OVERLAP * 1.5;
-		const centre = pointAlongLine(line, last.along + over);
-		sections.push({ ...last, along: last.along + over, centre });
-	}
-	return { length, side, sections, slipHalf: slip.width / 2 };
+	return {
+		length,
+		side,
+		sections,
+		slipHalf: slip.width / 2,
+		/** How far along the slip road's outer corner is: from there its cut end crosses the deck. */
+		outerAlong: outerCorner.along,
+		// Which way traffic goes along it: towards the junction at a merge, away at a diverge.
+		travel: (besideEnd === "end" ? -1 : 1) as -1 | 1,
+	};
 };
 
 const networks = new WeakMap<readonly TRoad[], WeakMap<readonly TJunction[], IRoadNetwork>>();
@@ -450,6 +514,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				slip.end,
 				byId.get(beside.roadId) as TRoad,
 				beside.end,
+				1 + NOSE_GAP,
 			);
 			// The carriageway beside it is cut back to the nose too: the deck between is the gore's own,
 			// one surface the width of both (ADR-0148).
@@ -469,7 +534,13 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				ends: shaped.map((end, i) => ({
 					...end,
 					routeTrim: i === gore.slip ? cut : 0,
-					drawTrim: i === gore.slip ? cut : i === gore.beside ? deck.length : 0,
+					// Both reach a little under the deck, so no crack shows where it meets them.
+					drawTrim:
+						i === gore.slip
+							? Math.max(0, cut - PAD_OVERLAP)
+							: i === gore.beside
+								? Math.max(0, deck.length - PAD_OVERLAP)
+								: 0,
 				})),
 			});
 			continue;
@@ -593,6 +664,8 @@ export interface IJunctionPad {
 	railingEdges?: TRoadPoint[][];
 	/** Lines painted on it, as centre lines of dashes to draw: a gore's lane line (ADR-0148). */
 	laneLines?: TRoadPoint[][];
+	/** Solid lines painted on it: a gore's edges and chevrons (ADR-0148). */
+	paintedLines?: TRoadPoint[][];
 	/** The road it takes its colour from: its first paved road, else its first drawn road. */
 	colorRoadId: string;
 }
@@ -616,7 +689,9 @@ export const goreDeckAt = (network: IRoadNetwork, junction: INetworkJunction) =>
  * A gore's surface (ADR-0148): one deck, the carriageway from the junction to the nose, widened
  * wherever the slip road runs outside it, so the two are one road surface, not two decks pushed
  * into each other. Both its long edges are the deck's edges (walls, underside and railings when
- * raised); a lane line runs along the carriageway's edge where the slip road's lane lies beside it.
+ * raised); between the two roads at the nose it ends bluntly (a wall and a railing across when
+ * raised). On it a painted gore runs back from the nose to where the roads' edges meet, and a lane
+ * line on from there along the carriageway's edge while the slip road's lane lies beside it.
  * The carriageway and the slip road are cut back to the nose, where their own surfaces take over.
  */
 const gorePad = (
@@ -636,12 +711,37 @@ const gorePad = (
 	if (sections.length < 2) {
 		return null;
 	}
-	// The far edge and the slip road's side, each a little past the nose, so no crack shows there.
 	const point = (section: IGoreSection, lateral: number, height: number): TRoadPoint => [
 		section.centre[0] + section.right[0] * lateral,
 		section.centre[1] + section.right[1] * lateral,
 		height,
 	];
+	/** The section at `s` along, between the two worked out either side of it. */
+	const sectionAt = (s: number): IGoreSection => {
+		const i = sections.findIndex((each) => each.along >= s);
+		if (i <= 0) {
+			return sections[i === 0 ? 0 : sections.length - 1];
+		}
+		const [a, b] = [sections[i - 1], sections[i]];
+		const t = b.along === a.along ? 0 : (s - a.along) / (b.along - a.along);
+		const mix = (x: number, y: number) => x + (y - x) * t;
+		return {
+			along: s,
+			centre: lerpPoint(a.centre, b.centre, t),
+			right: normalize([mix(a.right[0], b.right[0]), mix(a.right[1], b.right[1])]),
+			half: mix(a.half, b.half),
+			reach: mix(a.reach, b.reach),
+			reachHeight: mix(a.reachHeight, b.reachHeight),
+			inner: a.inner !== null && b.inner !== null ? mix(a.inner, b.inner) : null,
+		};
+	};
+	/** A point on the deck's surface: `out` from the carriageway's centre towards the slip road. */
+	const onDeck = (s: number, out: number): TRoadPoint => {
+		const section = sectionAt(s);
+		const t = (out + section.half) / Math.max(1e-6, section.reach + section.half);
+		const height = section.centre[2] + (section.reachHeight - section.centre[2]) * t;
+		return point(section, side * out, height);
+	};
 	const far = sections.map((s) => point(s, -side * s.half, s.centre[2]));
 	const near = sections.map((s) => point(s, side * s.reach, s.reachHeight));
 	const n = sections.length;
@@ -659,14 +759,79 @@ const gorePad = (
 		up(f0, f1, n1);
 		up(f0, n1, n0);
 	}
+	// The blunt end between the two roads at the nose, from the carriageway's edge to the slip road's.
+	const last = sections[n - 1];
+	const nose =
+		last.inner !== null && last.inner > last.half + 1e-3
+			? [point(last, side * last.half, last.centre[2]), onDeck(last.along, last.inner)]
+			: null;
+	// The slip road's side up to its outer corner: past it, across the slip road's cut end, the deck
+	// goes on as the slip road, so that's no edge.
+	const outside = near.filter((_, i) => sections[i].along <= deck.outerAlong + 1e-6);
 	// Its edges go round it one way (the deck's walls face out on their left): along the far edge
-	// from the junction, back along the slip road's side; the other way round when the slip road is
-	// on the left.
-	const edges = side > 0 ? [far, [...near].reverse()] : [[...far].reverse(), near];
+	// from the junction, across the nose and back along the slip road's side; the other way round
+	// when the slip road is on the left.
+	const edges =
+		side > 0
+			? [far, ...(nose ? [nose] : []), [...outside].reverse()]
+			: [[...far].reverse(), ...(nose ? [[...nose].reverse()] : []), outside];
+
+	// The painted gore (ADR-0148): from the nose, a solid line along each road's edge to where they
+	// meet, chevrons between pointing the way traffic goes, then a dashed lane line along the
+	// carriageway's edge for as long as the slip road's lane lies beside it.
+	const inset = GORE_LINE_INSET;
+	const widthAt = (s: number) => {
+		const inner = sectionAt(s).inner;
+		return inner === null ? 0 : inner - sectionAt(s).half - 2 * inset;
+	};
+	// Where the two lines meet: going back from the nose, the first place the gore closes.
+	let meet = last.along;
+	for (let i = n - 1; i >= 0; i--) {
+		const width = sections[i].inner === null ? -1 : widthAt(sections[i].along);
+		if (width <= 0) {
+			const after = sections[Math.min(n - 1, i + 1)];
+			const wAfter = widthAt(after.along);
+			meet =
+				wAfter > 0 && after.along > sections[i].along
+					? sections[i].along + ((after.along - sections[i].along) * -width) / (wAfter - width)
+					: after.along;
+			break;
+		}
+		meet = sections[i].along;
+	}
+	const end = last.along - inset;
+	const painted: TRoadPoint[][] = [];
+	if (end - meet > 0.2) {
+		const stations = [
+			meet,
+			...sections.map((s) => s.along).filter((s) => s > meet && s < end),
+			end,
+		];
+		const edgeOut = (s: number) => sectionAt(s).half + inset;
+		const innerOut = (s: number) => Math.max(edgeOut(s), (sectionAt(s).inner ?? 0) - inset);
+		painted.push(stations.map((s) => onDeck(s, edgeOut(s))));
+		painted.push(stations.map((s) => onDeck(s, innerOut(s))));
+		// Chevrons from the nose back, each an arrowhead pointing the way traffic goes, its arms back
+		// to the lines.
+		const first = end - 0.3 - (deck.travel < 0 ? CHEVRON_DEPTH : 0);
+		for (let tip = first; tip > meet; tip -= CHEVRON_SPACING) {
+			const arms = tip - deck.travel * CHEVRON_DEPTH;
+			if (arms < meet || arms > end || Math.min(widthAt(arms), widthAt(tip)) < 0.2) {
+				continue;
+			}
+			const middle = (edgeOut(tip) + innerOut(tip)) / 2;
+			const apex = onDeck(tip, middle);
+			painted.push([onDeck(arms, edgeOut(arms) + 0.05), apex]);
+			painted.push([apex, onDeck(arms, innerOut(arms) - 0.05)]);
+		}
+	}
 	// The lane line: along the carriageway's edge, where the slip road's lane lies beside it.
-	const laneLine = sections
-		.filter((s) => s.reach - s.half > deck.slipHalf)
-		.map((s) => point(s, side * s.half, s.centre[2]));
+	const besideLane = sections.filter((s) => s.along <= meet && s.reach - s.half > deck.slipHalf);
+	const laneLine = besideLane.map((s) => onDeck(s.along, s.half));
+	const lastBeside = besideLane[besideLane.length - 1];
+	if (lastBeside && painted.length > 0 && lastBeside.along < meet - 1e-3) {
+		laneLine.push(onDeck(meet, sectionAt(meet).half));
+	}
 	const railed = slip.showsRailings || beside.showsRailings;
 	return {
 		vertices,
@@ -674,6 +839,7 @@ const gorePad = (
 		edges,
 		railingEdges: railed ? edges : [],
 		laneLines: laneLine.length > 1 ? [laneLine] : [],
+		paintedLines: painted,
 		colorRoadId: beside.id,
 	};
 };
