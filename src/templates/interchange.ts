@@ -568,6 +568,8 @@ const boulevard: TRoadInput[] = BOULEVARD_PIECES.map((points, i) => ({
 type TEndRef = readonly [string, "start" | "end", (readonly [string, "start" | "end"])[]?];
 const junction = (id: string, ends: TEndRef[]) => ({
 	id,
+	// Raised junctions stand on pillars of their own, as the editor makes them.
+	standsOnPillars: true,
 	ends: ends.map(([roadId, end, leadsTo]) => ({
 		roadId,
 		end,
