@@ -1068,16 +1068,34 @@ const CONGESTED = "#a8665a";
 const densityAtFullest = (rowId: string) =>
 	["nb", "sb", "eb", "wb"].includes(rowId) ? 3.6 : rowId === "boulevard" ? 2.6 : 2;
 
-/** The vehicles a road's flow sends on, by its id, so every kind turns up everywhere. */
-const vehicleKindOf = (roadId: string, i: number) => {
-	if (roadId.startsWith("boulevard_")) {
-		return i % 3 === 0 ? "bus_01" : "car_01";
-	}
-	return ["car_01", "car_01", "delivery_van_01", "car_01", "truck_01", "car_01"][i % 6];
+/**
+ * The roads whose flows send traffic onto the network, and with what: the long run of each
+ * carriageway through the stack, each flyover and right turn, two loops, the boulevard's ends
+ * and the riverside. Their vehicles drive on everywhere, so every road is busy; a flow on every
+ * one of the 51 roads would draw each road's vehicles on their own, for no more traffic.
+ */
+const FLOW_VEHICLES: Record<string, string> = {
+	nb_2: "car_01",
+	sb_2: "car_01",
+	eb_2: "car_01",
+	wb_6: "car_01",
+	nb_to_wb: "truck_01",
+	wb_to_sb: "car_01",
+	sb_to_eb: "delivery_van_01",
+	eb_to_nb: "car_01",
+	nb_to_eb: "car_01",
+	wb_to_nb: "delivery_van_01",
+	sb_to_wb: "truck_01",
+	eb_to_sb: "car_01",
+	loop_se: "car_01",
+	loop_nw: "car_01",
+	boulevard_1: "car_01",
+	boulevard_5: "bus_01",
+	riverside_west: "car_01",
 };
 
 /** A road with its traffic: a flow that drives on through the network, its amount and colour from its row. */
-const withTraffic = (road: TRoadInput, i: number): TRoadInput => {
+const withTraffic = (road: TRoadInput): TRoadInput => {
 	const rowId = trafficRowOf(road.id);
 	if (!rowId) {
 		return road;
@@ -1088,8 +1106,8 @@ const withTraffic = (road: TRoadInput, i: number): TRoadInput => {
 		...road,
 		dataRow: { tableKey: "traffic", rowKey: row.key },
 		flow: {
-			enabled: true,
-			vehicleKind: vehicleKindOf(road.id, i),
+			enabled: road.id in FLOW_VEHICLES,
+			vehicleKind: FLOW_VEHICLES[road.id] ?? "car_01",
 			vehicleCountAlong: 4,
 			vehicleCountAgainst: 0,
 			speed: isFreeway ? 5 : 3.6,
@@ -1285,7 +1303,7 @@ const cloverGardens: TAreaInput[] = QUADRANTS.flatMap((quadrant, q) => {
 			`island_${quadrant}_bed`,
 			centre,
 			ISLAND_RADIUS - 1.4,
-			6,
+			4,
 			q % 2 === 0 ? 110 : -110,
 			BED_COLORS.slice(q % 2, (q % 2) + 4).concat(BED_COLORS.slice(0, 2)),
 		),
@@ -1499,16 +1517,17 @@ const cityBuildings: TEntityInput[] = cityLots.flatMap(({ district, centre }, n)
 });
 
 /** The strips of shops' car parks. */
-const carParks: TAreaInput[] = cityLots.flatMap(({ district, centre }, n) =>
+const carParks: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) =>
 	lotKindOf(district, n) === "shops"
 		? [
 				{
+					// A flat part rather than an area, so all of them draw together (ADR-0086).
 					id: `${district.id}_${n + 1}_car_park`,
-					kind: "plaza_01",
+					kind: "zone_01",
 					name: `${district.name} car park`,
-					height: 0.01,
-					colors: { surface: { color: "#a7a49c" } },
-					points: square(centre, district.lot / 2, district.lot / 2),
+					position: centre,
+					colors: paint({ fill: "#a7a49c" }),
+					props: { width: district.lot, depth: district.lot },
 				},
 			]
 		: [],
@@ -1728,6 +1747,39 @@ const lamps: TEntityInput[] = [
 	...medianLamps("crosstown_lamp", [WEST_TUNNEL_X + 4, STACK[1]], [EAST_TUNNEL_X - 4, STACK[1]]),
 ];
 
+/** The tunnels' mouths, where the freeways go into the hills: both carriageways under one portal. */
+const TUNNEL_WIDTH = CARRIAGEWAY_OFFSET * 2 + CARRIAGEWAY_WIDTH + 0.8;
+
+const tunnelMouth = (
+	id: string,
+	name: string,
+	at: TVec2,
+	turn: number,
+	altitude: number,
+): TEntityInput => ({
+	id,
+	kind: "tunnel_01",
+	name,
+	position: at,
+	altitude,
+	rotation: turned(turn),
+	colors: paint({ walls: "#b9ad8c", roof: "#a39a68" }),
+	props: { length: 5, width: round2(TUNNEL_WIDTH), height: 1.5 },
+});
+
+const tunnels: TEntityInput[] = [
+	tunnelMouth("tunnel_north", "Ridge tunnel", [STACK[0], NORTH_TUNNEL_Z - 1.5], 90, LEVEL_FREEWAY),
+	tunnelMouth(
+		"tunnel_south",
+		"South hills tunnel",
+		[STACK[0], SOUTH_TUNNEL_Z + 1.5],
+		90,
+		LEVEL_FREEWAY,
+	),
+	tunnelMouth("tunnel_west", "West hills tunnel", [WEST_TUNNEL_X - 1.5, STACK[1]], 0, 0),
+	tunnelMouth("tunnel_east", "East hill tunnel", [EAST_TUNNEL_X + 1.5, STACK[1]], 0, 0),
+];
+
 /** A few vehicles of their own, to select, follow and ride along with, driving on through the network. */
 const rideAlongs: TEntityInput[] = [
 	{
@@ -1871,8 +1923,8 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		description: "The Valley Freeway crossing the river into the south hills.",
 		target: [STACK[0], 92],
 		targetAltitude: 2,
-		azimuth: 195,
-		elevation: 12,
+		azimuth: 25,
+		elevation: 16,
 		span: 44,
 		projection: "perspective",
 	},
@@ -1962,9 +2014,11 @@ const placedClear = (entities: TEntityInput[]): TEntityInput[] => {
 
 const ENTITIES = placedClear([
 	...gantries,
+	...tunnels,
 	...lamps,
 	...rideAlongs,
 	...cityBuildings,
+	...carParks,
 	...gardenTrees,
 	...streetTrees,
 	...vergeTrees,
@@ -1998,7 +2052,7 @@ export const createInterchangeScene = (): TScene =>
 		viewpoints: VIEWPOINTS,
 		onScreen: { tileKeys: ["total_vehicles", "worst_delay"] },
 		data: DATA,
-		areas: [...AREAS, ...GARDENS, ...carParks],
+		areas: [...AREAS, ...GARDENS],
 		roads: ROADS,
 		junctions: JUNCTIONS,
 		entities: ENTITIES,
