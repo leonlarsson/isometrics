@@ -24,7 +24,10 @@ type TRouteRoad = Pick<
 const centerlines = new WeakMap<object, TRoadPoint[]>();
 
 /** A road's centre line (`roadCenterlineOf`), worked out once per road object. */
-export const centerlineOf = (road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width">) => {
+export const centerlineOf = (
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width"> &
+		Partial<Pick<TRoad, "curveShape">>,
+) => {
 	let line = centerlines.get(road);
 	if (!line) {
 		line = roadCenterlineOf(road);

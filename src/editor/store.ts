@@ -50,6 +50,7 @@ import {
 } from "#/scene/objectSettings";
 import {
 	joinedPoints,
+	NEW_ROAD_SETTINGS,
 	pointWidth,
 	polylineLength,
 	ROAD_KIND_LABELS,
@@ -3261,6 +3262,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					points: drawing.points,
 					width: ROAD_KIND_WIDTH[drawing.style],
 					loops,
+					...NEW_ROAD_SETTINGS,
 				});
 				// Its first and last points put on another road's end or line connect there (ADR-0136).
 				const connected: string[] = [];

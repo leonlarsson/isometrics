@@ -396,7 +396,7 @@ export const RoadHandles = () => {
 
 	return (
 		<group>
-			{segmentMidpoints(road.points, road.loops).map(({ index, point }) => (
+			{segmentMidpoints(road.points, road.loops, road.curveShape).map(({ index, point }) => (
 				<InsertHandle
 					key={`insert-${index}`}
 					roadId={road.id}
