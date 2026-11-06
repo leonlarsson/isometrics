@@ -248,6 +248,66 @@ const peelDistance = (
 	return total * MOST_OF_A_ROAD;
 };
 
+/**
+ * How far along a carriageway (from its end at a gore) a slip road's outer edge crosses its edge
+ * (ADR-0148): where the carriageway's railing on that side stops and the gore's begins, so the two
+ * meet at one point.
+ */
+const railingHandover = (slip: TRoad, slipEnd: TRoadEnd, beside: TRoad, besideEnd: TRoadEnd) => {
+	const line = centerlineOf(slip);
+	const ordered = slipEnd === "start" ? line : [...line].reverse();
+	const full = centerlineOf(beside);
+	const other = besideEnd === "start" ? full : [...full].reverse();
+	const besideHalf = beside.width / 2;
+	/** The nearest place on the carriageway's line: how far from it, and how far along it. */
+	const nearest = (p: TVec2) => {
+		let best = { gap: Number.POSITIVE_INFINITY, along: 0 };
+		let travelled = 0;
+		for (let i = 1; i < other.length; i++) {
+			const [a, b] = [other[i - 1], other[i]];
+			const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+			const len = Math.hypot(dx, dz);
+			const t =
+				len === 0
+					? 0
+					: Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (len * len)));
+			const gap = Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dz * t));
+			if (gap < best.gap) {
+				best = { gap, along: travelled + len * t };
+			}
+			travelled += len;
+		}
+		return best;
+	};
+	let previous: { at: TVec2; gap: number } | null = null;
+	for (let i = 0; i < ordered.length; i++) {
+		const p = ordered[i];
+		const [a, b] = [ordered[Math.max(0, i - 1)], ordered[Math.min(ordered.length - 1, i + 1)]];
+		const side = rightOf(normalize([b[0] - a[0], b[1] - a[1]]));
+		const half = (p[3] ?? slip.width) / 2;
+		const edges: TVec2[] = [
+			[p[0] + side[0] * half, p[1] + side[1] * half],
+			[p[0] - side[0] * half, p[1] - side[1] * half],
+		];
+		const [outer, gap] = edges
+			.map((edge): [TVec2, number] => [edge, nearest(edge).gap])
+			.reduce((far, each) => (each[1] > far[1] ? each : far));
+		if (gap >= besideHalf) {
+			if (!previous) {
+				return 0;
+			}
+			const t = (besideHalf - previous.gap) / (gap - previous.gap);
+			const crossing: TVec2 = [
+				previous.at[0] + (outer[0] - previous.at[0]) * t,
+				previous.at[1] + (outer[1] - previous.at[1]) * t,
+			];
+			return nearest(crossing).along;
+		}
+		previous = { at: outer, gap };
+	}
+	return 0;
+};
+
 /** No railings opened: shared, so a road drawn with it stays the same between renders. */
 const NO_OPEN_RAILINGS: IOpenRailing[] = [];
 
@@ -334,15 +394,11 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				beside.end,
 			);
 			// Where its outer edge leaves the carriageway's: from there the railing on that side is the gore's.
-			const outside = Math.min(
-				cut,
-				peelDistance(
-					byId.get(slip.roadId) as TRoad,
-					slip.end,
-					byId.get(beside.roadId) as TRoad,
-					beside.end,
-					-1,
-				),
+			const outside = railingHandover(
+				byId.get(slip.roadId) as TRoad,
+				slip.end,
+				byId.get(beside.roadId) as TRoad,
+				beside.end,
 			);
 			// Which side of the carriageway (in the order of its points) the slip road is on.
 			const slipLine = centerlineOf(byId.get(slip.roadId) as TRoad);
@@ -697,7 +753,15 @@ export const junctionPad = (
 		indices.push(...(facesUp ? [0, b, c] : [0, c, b]));
 	}
 	const paved = cuts.find((cut) => ROAD_KINDS[cut.road.kind].centreLine) ?? cuts[0];
-	return { vertices, indices, edges, colorRoadId: paved.road.id };
+	// Raised, its kerbs between the roads carry on their railings (ADR-0148).
+	const railed = cuts.some((cut) => cut.road.showsRailings);
+	return {
+		vertices,
+		indices,
+		edges,
+		railingEdges: railed ? edges : [],
+		colorRoadId: paved.road.id,
+	};
 };
 
 /** The nearest point on a road's straight lines between its control points, and which line. */
