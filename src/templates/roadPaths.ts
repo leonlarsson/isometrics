@@ -14,7 +14,7 @@ import type { TVec2 } from "#/scene/schema";
 export type TPathPoint = [number, number, number];
 
 /** About how far apart the points of a curve are, in grid units. */
-export const CURVE_STEP = 3;
+export const CURVE_STEP = 4;
 
 const distance = (a: readonly number[], b: readonly number[]) =>
 	Math.hypot(b[0] - a[0], b[1] - a[1]);

@@ -305,7 +305,7 @@ const EAST_TUNNEL_X = 158;
 
 /** Points along straight lines between corners, every few units, each at an altitude. */
 const linePath = (points: TVec2[], altitude: (point: TVec2) => number) => {
-	const dense = joinPath(...points.slice(1).map((point, i) => linePoints(points[i], point, 3)));
+	const dense = joinPath(...points.slice(1).map((point, i) => linePoints(points[i], point, 9)));
 	return dense.map(([x, z]): TPathPoint => [round2(x), round2(z), altitude([x, z])]);
 };
 
@@ -1397,8 +1397,9 @@ const tree = (
 	id,
 	kind,
 	position: [round2(position[0]), round2(position[1])],
-	rotation: turned(Math.round(shareOf(n) * 360)),
-	scale: round2(0.8 + 0.45 * shareOf(n + 0.5)),
+	// Only a palm looks different turned; the others are round, and a turn would only add bytes.
+	...(kind === "palm_tree_01" ? { rotation: turned(Math.round(shareOf(n) * 360)) } : {}),
+	scale: Math.round((0.8 + 0.45 * shareOf(n + 0.5)) * 10) / 10,
 	...more,
 });
 
@@ -1466,7 +1467,8 @@ interface IDistrict {
 	to: TVec2;
 }
 
-const ROOFS = ["#b9603d", "#a8573a", "#8d877e", "#a88b66", "#c07f52", "#93573f", "#b87449"];
+/** Terracotta and grey roofs; null is the house's own (an orange tile), which a saved world needn't spell out. */
+const ROOFS = ["#b9603d", "#a8573a", "#8d877e", null, "#a88b66", "#c07f52", "#93573f", null];
 const SHOP_WALLS = ["#e6d3ad", "#d9b98c", "#f1e6cf", "#c9a27a", "#e8c79a"];
 const GLASS = ["#5f7a8c", "#6d8796", "#7c8f95", "#4f6a7a", "#8aa0a8", "#9aa7a0"];
 const LAWNS = ["#93a05c", "#8c9a57", "#a0a565", "#86955a", "#a7a86f"];
@@ -1544,7 +1546,7 @@ const houses: TEntityInput[] = houseLots.map((lot, n) => {
 	const { centre, faces } = lot;
 	// The house towards the street, its front yard before it, its garden behind.
 	const at: TVec2 = [centre[0], round2(centre[1] + faces * 0.55)];
-	const id = `${lot.district.id}_${n + 1}`;
+	const id = `house_${n + 1}`;
 	if (isShopLot(lot)) {
 		return {
 			id,
@@ -1562,16 +1564,13 @@ const houses: TEntityInput[] = houseLots.map((lot, n) => {
 	return {
 		id,
 		kind: "house_01",
-		name: `${lot.district.name} ${n + 1}`,
 		position: at,
 		rotation: turned(faces > 0 ? 0 : 180),
 		colors: paint({ roof: pickOf(ROOFS, n) }),
 		props: {
-			width: round2(2.1 + 0.3 * shareOf(n + 1)),
-			depth: 1.9,
-			height: round2(0.95 + 0.25 * shareOf(n + 2)),
-			roofHeight: 0.75,
-			showsChimney: shareOf(n + 3) < 0.3,
+			width: Math.round((2.1 + 0.3 * shareOf(n + 1)) * 10) / 10,
+			height: Math.round((0.95 + 0.25 * shareOf(n + 2)) * 10) / 10,
+			...(shareOf(n + 3) < 0.7 ? { showsChimney: false } : {}),
 		},
 	};
 });
@@ -1591,12 +1590,10 @@ const blocksOfLots: IHouseLot[][] = (() => {
 })();
 
 const lotGround: TEntityInput[] = blocksOfLots.flatMap((lots, b) => {
-	const { district } = lots[0];
-	const name = district.name;
 	const yard = (id: string, at: TVec2, width: number, fill: string): TEntityInput => ({
 		id,
 		kind: "zone_01",
-		name: `${name} yards`,
+
 		position: at,
 		altitude: 0.012,
 		colors: paint({ fill }),
@@ -1610,16 +1607,16 @@ const lotGround: TEntityInput[] = blocksOfLots.flatMap((lots, b) => {
 		];
 		return [
 			{
-				id: `${district.id}_block_${b + 1}_streets`,
+				id: `streets_${b + 1}`,
 				kind: "zone_01",
-				name: `${name} streets`,
+
 				position: middle,
 				colors: paint({ fill: STREET }),
 				props: { width: round2(BLOCK[0] + STREET_WIDTH), depth: round2(BLOCK[1] + STREET_WIDTH) },
 			},
 			...([-1, 1] as const).map((faces) =>
 				yard(
-					`${district.id}_block_${b + 1}_${faces > 0 ? "south" : "north"}_yards`,
+					`yards_${b + 1}_${faces > 0 ? "s" : "n"}`,
 					[middle[0], round2(middle[1] + faces * (LOT_DEPTH / 2) - faces * 0.1)],
 					BLOCK[0] - 0.25,
 					lots.some((lot) => lot.faces === faces && isShopLot(lot))
@@ -1637,9 +1634,9 @@ const lotGround: TEntityInput[] = blocksOfLots.flatMap((lots, b) => {
 		const endShift = atRowEnd ? (lot.index === 0 ? -1 : 1) * (STREET_WIDTH / 4) : 0;
 		return [
 			{
-				id: `${district.id}_${n + 1}_street`,
+				id: `street_${n + 1}`,
 				kind: "zone_01",
-				name: `${name} street`,
+
 				position: [round2(centre[0] + endShift), round2(centre[1] + (faces * STREET_WIDTH) / 4)],
 				colors: paint({ fill: STREET }),
 				props: {
@@ -1648,7 +1645,7 @@ const lotGround: TEntityInput[] = blocksOfLots.flatMap((lots, b) => {
 				},
 			},
 			yard(
-				`${district.id}_${n + 1}_yard`,
+				`yard_${n + 1}`,
 				[centre[0], round2(centre[1] - faces * 0.1)],
 				LOT_WIDTH - 0.25,
 				isShopLot(lot) ? "#9d9a93" : pickOf(LAWNS, n),
@@ -1762,7 +1759,7 @@ const vergeTrees: TEntityInput[] = jitteredGrid(3.2, 500)
 		(point, i) =>
 			hillAt(point) === 0 &&
 			!clearOfRoads(point, 6) &&
-			shareOf(i * 7) < 0.55 &&
+			shareOf(i * 7) < 0.4 &&
 			isFreeForTree(point),
 	)
 	.map((point, i) => {
@@ -1775,7 +1772,7 @@ const vergeTrees: TEntityInput[] = jitteredGrid(3.2, 500)
 					: shareOf(n + 2) < 0.5
 						? "round_tree_02"
 						: "bush_01";
-		return tree(`verge_tree_${i + 1}`, kind, point, n);
+		return tree(`verge_${i + 1}`, kind, point, n);
 	});
 
 /** On the hills: pines and scrub, standing on the slopes. */
@@ -1785,7 +1782,7 @@ const hillTrees: TEntityInput[] = jitteredGrid(4.2, 900)
 		const n = i * 11 + 3;
 		const kind =
 			shareOf(n) < 0.45 ? "pine_tree_01" : shareOf(n + 1) < 0.5 ? "pine_tree_02" : "bush_01";
-		return tree(`hill_tree_${i + 1}`, kind, point, n, { altitude: hillAt(point) });
+		return tree(`hill_${i + 1}`, kind, point, n, { altitude: hillAt(point) });
 	});
 
 /** Trees in the suburbs: one in a garden now and then, and palms and shade trees along the kerbs. */
@@ -1803,7 +1800,7 @@ const streetTrees: TEntityInput[] = houseLots.flatMap((lot, n) => {
 	if (shareOf(n * 3) < 0.4 && !isShopLot(lot)) {
 		trees.push(
 			tree(
-				`garden_tree_${n + 1}`,
+				`garden_${n + 1}`,
 				shareOf(n * 3 + 1) < 0.5 ? "round_tree_01" : "round_tree_02",
 				garden,
 				n,
@@ -1814,7 +1811,7 @@ const streetTrees: TEntityInput[] = houseLots.flatMap((lot, n) => {
 	if (shareOf(n * 5) < 0.45 && clearOfRoads(kerb, 1)) {
 		trees.push(
 			tree(
-				`kerb_tree_${n + 1}`,
+				`kerb_${n + 1}`,
 				shareOf(n * 5 + 1) < 0.55 ? "palm_tree_01" : "round_tree_01",
 				kerb,
 				n + 1,
