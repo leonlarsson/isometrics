@@ -150,7 +150,15 @@ interface ILeg {
 	 * the end of a one-way road with no way on, ADR-0148) by vanishing to start over where it began.
 	 */
 	exit:
-		| { kind: "junction"; way: IWayOut; curve: TRoadPoint[]; curveLength: number }
+		| {
+				kind: "junction";
+				way: IWayOut;
+				curve: TRoadPoint[];
+				curveLength: number;
+				/** The junction, and whether its vehicles give way to each other (a road there is one-way). */
+				junctionId: string;
+				givesWay: boolean;
+		  }
 		| { kind: "turn"; turnLength: number }
 		| { kind: "startOver" };
 	/** It has just started over (ADR-0148): it grows in from where it comes onto the road. */
@@ -277,7 +285,27 @@ export const createNetworkTrip = (
 		const via = junction.place;
 		const curve: TRoadPoint[] = [];
 		let curveLength = 0;
-		if (!same(a, b)) {
+		// Through a gore (ADR-0148), onto or off a slip road along the slip road's own line over the
+		// stretch it shares with the carriageway; straight on along the carriageway.
+		const gore = junction.gore;
+		const slip = gore ? junction.ends[gore.slip] : null;
+		const slipLine =
+			slip && slip.roadId === way.roadId && slip.end === way.end
+				? cutLine(nextLine, 0, Math.max(0, (next?.length ?? 0) - nextTrim))
+				: slip && slip.roadId === id && slip.end === exitEnd
+					? cutLine(line, bodyTo, 0)
+					: null;
+		if (gore && slipLine) {
+			let last = a;
+			for (const point of [...slipLine, b]) {
+				if (same(point, last)) {
+					continue;
+				}
+				curveLength += Math.hypot(point[0] - last[0], point[1] - last[1]);
+				curve.push([point[0], point[1], point[2]]);
+				last = point;
+			}
+		} else if (!same(a, b)) {
 			let last = a;
 			for (let step = 1; step <= CURVE_STEPS; step++) {
 				const t = step / CURVE_STEPS;
@@ -297,7 +325,14 @@ export const createNetworkTrip = (
 			from: start,
 			bodyFrom,
 			bodyTo,
-			exit: { kind: "junction", way, curve, curveLength },
+			exit: {
+				kind: "junction",
+				way,
+				curve,
+				curveLength,
+				junctionId: junction.id,
+				givesWay: junction.hasOneWayRoad,
+			},
 			startsAt,
 			ownLength: Math.max(1e-6, bodyTo + curveLength - start),
 			previous,
@@ -454,6 +489,37 @@ export const createNetworkTrip = (
 		return piece.sampler.at(Math.min(Math.max(0, piece.offset + along), most));
 	};
 
+	/** How far past a junction a vehicle still counts as in it: its rear may still be there. */
+	const STILL_IN = 3;
+	/** The junctions where vehicles give way that a vehicle `along` its leg is coming to or leaving. */
+	const junctionsAround = (leg: ILeg, along: number) => {
+		const exitEnd = leg.direction > 0 ? "end" : "start";
+		const ahead =
+			leg.exit.kind === "junction" && leg.exit.givesWay
+				? {
+						junctionAhead: {
+							id: leg.exit.junctionId,
+							from: `${leg.roadId}:${exitEnd}`,
+							entersIn: leg.bodyTo - along,
+						},
+					}
+				: {};
+		const previous = leg.previous;
+		const behind =
+			previous?.exit.kind === "junction" &&
+			previous.exit.givesWay &&
+			along - leg.bodyFrom < STILL_IN
+				? {
+						junctionBehind: {
+							id: previous.exit.junctionId,
+							from: `${previous.roadId}:${previous.direction > 0 ? "end" : "start"}`,
+							leftBy: along - leg.bodyFrom,
+						},
+					}
+				: {};
+		return { ...ahead, ...behind };
+	};
+
 	const place = (_offset: number, travelled = 0): ITrafficPlace => {
 		const leg = legAt(travelled);
 		if (!leg) {
@@ -498,7 +564,12 @@ export const createNetworkTrip = (
 			direction: leg.direction,
 			turning: along > leg.bodyTo + 1e-6,
 			...(leg.isOneWay ? { isOneWay: true } : {}),
-			network: { roadId: leg.roadId, length: leg.length, next },
+			network: {
+				roadId: leg.roadId,
+				length: leg.length,
+				next,
+				...junctionsAround(leg, along),
+			},
 		};
 	};
 

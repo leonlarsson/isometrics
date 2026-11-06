@@ -726,6 +726,25 @@ export const RoadKindSchema = z
 	);
 
 // See docs/adr/0148-roads-for-interchanges.md.
+export const PillarKindSchema = z
+	.enum(["post_01", "column_01", "hammerhead_01", "pair_01", "wall_01"])
+	.describe(
+		"What a raised road's pillars look like (numbered so each can get variants): post_01 = a square post (as pillars always were), column_01 = a round column, hammerhead_01 = a column with a crosshead under the deck (motorway viaducts, rail), pair_01 = two posts under the deck's edges joined by a beam, wall_01 = a thin wall across under the deck.",
+	);
+
+/** A choice about pillars at one of a road's points (ADR-0148). */
+export const PillarAtPointSchema = z
+	.object({
+		pointIndex: z.number().int().min(0).describe("Which point: 0 = its first."),
+		placement: z
+			.enum(["here", "noneHere", "noneToNextPoint"])
+			.default("here")
+			.describe(
+				"here = a pillar stands at the point (and no other within half the spacing; it stands even where pillarsKeepClear would move it); noneHere = no pillar within half the spacing of the point; noneToNextPoint = no pillars from the point to the next one.",
+			),
+	})
+	.describe("A choice about pillars at one of a road's points.");
+
 export const RoadCurveShapeSchema = z
 	.enum(["roundedCorners", "throughPoints"])
 	.describe(
@@ -879,6 +898,19 @@ export const RoadSchema = z
 			.max(40)
 			.default(4)
 			.describe("With heldUpBy pillars: the distance between pillars, in grid units."),
+		pillarKind: PillarKindSchema.default("post_01"),
+		pillarsKeepClear: z
+			.boolean()
+			.default(false)
+			.describe(
+				"With heldUpBy pillars: whether its pillars keep clear of what's below the deck: other roads and junctions, water areas, and its own lower turns (a spiral). A pillar that would stand in one moves along the road, up to half the spacing, else isn't built. Roads drawn in the editor have it on; worlds written by hand should set it true (ADR-0148).",
+			),
+		pillarsAtPoints: z
+			.array(PillarAtPointSchema)
+			.default([])
+			.describe(
+				'With heldUpBy pillars: choices made at its points, one per point, e.g. [{ "pointIndex": 3, "placement": "noneToNextPoint" }]. Points not listed get pillars as spaced.',
+			),
 		embankmentAngle: z
 			.number()
 			.min(10)
@@ -2026,6 +2058,8 @@ export type TJunctionEnd = TJunction["ends"][number];
 export type TJunctionInput = z.input<typeof JunctionSchema>;
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
 export type TRoadCurveShape = z.output<typeof RoadCurveShapeSchema>;
+export type TPillarKind = z.output<typeof PillarKindSchema>;
+export type TPillarAtPoint = z.output<typeof PillarAtPointSchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
 export type TArea = z.output<typeof AreaSchema>;

@@ -11,7 +11,7 @@ import { plural } from "#/scene/format";
 import { roadNetworkOf } from "#/scene/junctions";
 import { waysOut } from "#/scene/network";
 import { describeRepairs } from "#/scene/repair";
-import { polylineLength, roadCenterlineOf } from "#/scene/roads";
+import { isHiddenRoute, polylineLength, roadCenterlineOf, steepestGrade } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TEntity, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
@@ -57,6 +57,9 @@ export interface IWorldValidation {
 /** More objects or table rows than these make a world slow and big to keep: said as a warning. */
 const MOST_OBJECTS = 20_000;
 const MOST_ROWS = 100_000;
+
+/** The steepest a one-way road (a carriageway or ramp) may climb before validate says so (ADR-0148). */
+const STEEPEST_RAMP = 0.12;
 
 /** A road's settings in `road.data` that set how many vehicles its flow has (ADR-0112). */
 const FLOW_DATA_SETTINGS = ["vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst"];
@@ -294,6 +297,16 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 				warn(
 					`${where}.flow.drivesThroughJunctions`,
 					"is on, but the road has no junction at either end, so its flow's vehicles stay on it. Connect it to another road (`junctions`) for them to drive on",
+				);
+			}
+		}
+		// A carriageway or ramp (one-way, ADR-0148) steeper than any real one reads as a wall.
+		if (road.isOneWay && !isHiddenRoute(road.kind)) {
+			const steepest = steepestGrade(road);
+			if (steepest.grade > STEEPEST_RAMP) {
+				warn(
+					`${where}.points`,
+					`climbs ${Math.round(steepest.grade * 100)}% about ${roughly(steepest.along)} along it, steeper than a ramp should be (motorway ramps climb about 6%, ${Math.round(STEEPEST_RAMP * 100)}% at most). Lengthen the ramp: spread its rise over more distance`,
 				);
 			}
 		}

@@ -3,7 +3,13 @@ import { useFrame } from "@react-three/fiber";
 import { useEditor } from "#/editor/store";
 import { keepOnHotReload } from "#/lib/hot";
 import type { IRouteSampler, ITrafficPlace } from "#/scene/routes";
-import { type ITrafficCar, type ITrafficState, stepRoadTraffic } from "#/scene/traffic";
+import {
+	giveWayStops,
+	type IJunctionVehicle,
+	type ITrafficCar,
+	type ITrafficState,
+	stepRoadTraffic,
+} from "#/scene/traffic";
 
 /**
  * Vehicles driving along roads, moved together each frame so they keep their
@@ -39,6 +45,8 @@ const roadStates = keepOnHotReload(
 
 /** How far past the end of its road a vehicle looks for the one ahead on the road it goes on to. */
 const LOOKS_BEYOND = 30;
+/** How far before a junction's line a vehicle that gives way stops. */
+const GIVE_WAY_MARGIN = 0.3;
 
 /** A vehicle placed in its road's traffic this frame. */
 interface IPlaced {
@@ -100,6 +108,7 @@ export const TrafficStep = () => {
 		}
 		// By the road each is on now: its own road, or on a network the one it has driven on to.
 		const roads = new Map<string, IPlaced[]>();
+		const atJunctions: IJunctionVehicle[] = [];
 		const byStream = new Map<string, IPlaced[]>();
 		const addTo = (lists: Map<string, IPlaced[]>, key: string, placed: IPlaced) => {
 			const list = lists.get(key);
@@ -116,7 +125,18 @@ export const TrafficStep = () => {
 			if (place.network) {
 				addTo(byStream, `${place.network.roadId}:${place.direction}`, placed);
 			}
+			// At junctions where a road is one-way, vehicles from different ends take turns (ADR-0148).
+			const network = place.network;
+			if (network?.junctionAhead) {
+				const { id: junctionId, from, entersIn } = network.junctionAhead;
+				atJunctions.push({ id, junctionId, from, entersIn, length: vehicle.length });
+			}
+			if (network?.junctionBehind) {
+				const { id: junctionId, from, leftBy } = network.junctionBehind;
+				atJunctions.push({ id, junctionId, from, leftBy, length: vehicle.length });
+			}
 		}
+		const stops = atJunctions.length > 0 ? giveWayStops(atJunctions) : null;
 		for (const [roadId, vehicles] of roads) {
 			const first = vehicles[0];
 			const length = first.place.network?.length ?? first.vehicle.sampler.length;
@@ -125,6 +145,12 @@ export const TrafficStep = () => {
 			}
 			const cars: ITrafficCar[] = vehicles.map((placed) => {
 				const { id, vehicle, place } = placed;
+				let beyond = place.network ? beyondOf(placed, byStream) : null;
+				// Waiting at a junction's line: as if behind a vehicle standing there.
+				const stop = stops?.get(id);
+				if (stop !== undefined && (!beyond || beyond.distance - beyond.length / 2 > stop)) {
+					beyond = { distance: Math.max(0, stop - GIVE_WAY_MARGIN), length: 0, speed: 0 };
+				}
 				return {
 					id,
 					stream: place.stream,
@@ -135,7 +161,7 @@ export const TrafficStep = () => {
 					turning: place.turning,
 					length: vehicle.length,
 					speed: vehicle.speed,
-					beyond: place.network ? beyondOf(placed, byStream) : null,
+					beyond,
 				};
 			});
 			// A network road is driven one way at a time between junctions, never round.

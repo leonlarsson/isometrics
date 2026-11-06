@@ -30,6 +30,7 @@ describe("sceneJsonSchema", () => {
 			"junctions.ends.end",
 			"junctions.ends.leadsTo.roadId",
 			"junctions.ends.leadsTo.end",
+			"roads.pillarsAtPoints.pointIndex",
 			"onScreen.legend.label",
 			"roads.dataRow.tableKey",
 			"roads.dataRow.rowKey",
