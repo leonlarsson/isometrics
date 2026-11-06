@@ -1,8 +1,14 @@
 import type { z } from "zod";
 
 import { isRecord, type TRecord } from "#/lib/record";
-import { FLOW_EASE_LENGTH, flowVehicleLength, shortestRoadForFlow } from "#/scene/flows";
+import {
+	FLOW_EASE_LENGTH,
+	flowDrivesOn,
+	flowVehicleLength,
+	shortestRoadForFlow,
+} from "#/scene/flows";
 import { plural } from "#/scene/format";
+import { roadNetworkOf } from "#/scene/junctions";
 import { describeRepairs } from "#/scene/repair";
 import { polylineLength, roadCenterlineOf } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
@@ -21,7 +27,8 @@ import { repairWorld, upgradeWorld } from "./repairWorld";
  * would repair (reset to a default) or leave out; **warnings** are what opens
  * but won't look as meant (a part kind that doesn't exist, a card value that
  * reads nothing, an object off the ground, objects inside each other or on a
- * road, a flow on a road too short for it or joined at a junction). Some are
+ * road, a flow on a road too short for it, joined at a junction or set to
+ * drive on without one). Some are
  * meant, so they're never problems. No React.
  */
 
@@ -249,6 +256,7 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 	const joinedRoads = new Set(
 		scene.junctions.flatMap((junction) => junction.ends.map((end) => end.roadId)),
 	);
+	const network = roadNetworkOf(scene.roads, scene.junctions);
 	scene.roads.forEach((road, index) => {
 		const where = `roads[${index}] "${road.id}"`;
 		const vehicle = road.flow.enabled ? getPart(road.flow.vehicleKind) : undefined;
@@ -257,7 +265,9 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		}
 		// A flow (ADR-0112) is drawn on its own road: too short a road, or one that's joined, won't show it as meant.
 		if (road.flow.enabled && !road.isHidden) {
-			if (vehicle) {
+			// Driving on (ADR-0147), its vehicles shrink nowhere: they grow in once and drive the network.
+			const drivesOn = flowDrivesOn(network, road);
+			if (vehicle && !drivesOn) {
 				const vehicleLength = flowVehicleLength(
 					road.flow,
 					vehicle.footprint(resolveProps(vehicle, {}))[0],
@@ -273,10 +283,16 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 			}
 			// A flow whose amount follows data shows what it's for; one that doesn't is likely meant as traffic.
 			const followsData = FLOW_DATA_SETTINGS.some((setting) => road.data[setting]);
-			if (joinedRoads.has(road.id) && !followsData) {
+			if (joinedRoads.has(road.id) && !followsData && !road.flow.drivesThroughJunctions) {
 				warn(
 					`${where}.flow`,
-					"the road is joined at a junction, but its flow's vehicles stay on this road and shrink at its ends. A flow shows an amount from data (a from, to, amount table); for traffic that drives on through junctions, place vehicle objects that follow the road (`follow`) and leave the flow off",
+					"the road is joined at a junction, but its flow's vehicles stay on this road and shrink at its ends. A flow shows an amount from data (a from, to, amount table); for background traffic that drives on through junctions, turn on its `flow.drivesThroughJunctions`, or place vehicle objects that follow the road (`follow`) for particular vehicles",
+				);
+			}
+			if (road.flow.drivesThroughJunctions && !network.connects(road.id)) {
+				warn(
+					`${where}.flow.drivesThroughJunctions`,
+					"is on, but the road has no junction at either end, so its flow's vehicles stay on it. Connect it to another road (`junctions`) for them to drive on",
 				);
 			}
 		}

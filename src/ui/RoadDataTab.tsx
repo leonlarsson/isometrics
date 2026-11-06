@@ -2,6 +2,7 @@ import { ROAD_DATA_SETTINGS, type TRoadDataSetting, valuesOfRoad } from "#/edito
 import { useEditor } from "#/editor/store";
 import { useWorldData } from "#/editor/worldData";
 import { PARTS, partName } from "#/parts/registry";
+import { roadNetworkOf } from "#/scene/junctions";
 import { RoadFlowSchema, type TDataBinding, type TRoad } from "#/scene/schema";
 
 import { DataDrivenField } from "./DataDrivenField";
@@ -19,11 +20,17 @@ const VEHICLE_OPTIONS = PARTS.filter((part) => part.canFollowPath).map((part) =>
 
 /**
  * A road's Data tab (ADR-0108, ADR-0112): the table row it follows (a "from,
- * to, amount" table), its flow (vehicles each way, how many from data) and its
- * width from data.
+ * to, amount" table), its flow (vehicles each way, how many from data, or
+ * background traffic that drives on through junctions, ADR-0147) and its width
+ * from data.
  */
 export const RoadDataTab = ({ road }: { road: TRoad }) => {
 	const updateRoad = useEditor((s) => s.updateRoad);
+	// Whether it has a junction at an end, which its flow needs to drive on (ADR-0147).
+	const isJoined = useEditor((s) =>
+		roadNetworkOf(s.scene.roads, s.scene.junctions).connects(road.id),
+	);
+	const drivesOn = road.flow.drivesThroughJunctions && isJoined;
 	const values = valuesOfRoad(road, useWorldData());
 	const editFlow = (field: string, change: Partial<TRoad["flow"]>) =>
 		updateRoad(
@@ -85,7 +92,7 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 				id="data.flow"
 				icon="traffic"
 				title="Flow"
-				keywords="flow traffic vehicles direction amount from to data arrows"
+				keywords="flow traffic vehicles direction amount from to data arrows junctions background busy"
 				actions={
 					<SwitchField
 						label="Show"
@@ -97,10 +104,37 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 			>
 				{road.flow.enabled ? (
 					<>
-						<Hint>
-							Vehicles show how much goes each way: more vehicles, more flow; they drive the way it
-							goes, and arrows on the road point the bigger way.
-						</Hint>
+						{drivesOn ? (
+							<Hint>
+								Background traffic: its vehicles start on this road, then drive on through its
+								junctions, picking a way at each and turning round at dead ends. The counts are how
+								many start here.
+							</Hint>
+						) : (
+							<Hint>
+								Vehicles show how much goes each way: more vehicles, more flow; they drive the way
+								it goes, and arrows on the road point the bigger way.
+							</Hint>
+						)}
+
+						<SwitchField
+							label={
+								isJoined
+									? "Drive through junctions onto other roads"
+									: "Drive through junctions onto other roads (no junction at its ends)"
+							}
+							checked={road.flow.drivesThroughJunctions}
+							onChange={(drivesThroughJunctions) =>
+								editFlow("drivesThroughJunctions", { drivesThroughJunctions })
+							}
+							inherit={reset("drivesThroughJunctions")}
+							disabled={!isJoined}
+							hint={
+								isJoined
+									? "Busy streets without placing vehicles. Off, they keep to this road and show its amount."
+									: "Connect an end of this road to another road for its vehicles to drive on."
+							}
+						/>
 
 						<SelectField
 							label="Vehicle"
@@ -162,16 +196,22 @@ export const RoadDataTab = ({ road }: { road: TRoad }) => {
 						/>
 
 						<SwitchField
-							label="Arrows on the road"
+							label={
+								drivesOn
+									? "Arrows on the road (none while its vehicles drive on)"
+									: "Arrows on the road"
+							}
 							checked={road.flow.showsArrows}
 							onChange={(showsArrows) => editFlow("showsArrows", { showsArrows })}
 							inherit={reset("showsArrows")}
+							disabled={drivesOn}
 						/>
 					</>
 				) : (
 					<Hint>
 						Show a flow along this road: vehicles from its first point to its last and back, as many
-						as a value or a column of its row says (goods between depots, people between depots).
+						as a value or a column of its row says (goods between depots, people between depots), or
+						background traffic that drives on through its junctions.
 					</Hint>
 				)}
 			</Section>

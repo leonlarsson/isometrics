@@ -316,7 +316,32 @@ describe("warning of flows that can't work", () => {
 		expect(said).toContain(
 			'roads[0] "west".flow: the road is joined at a junction, but its flow\'s vehicles stay on this road',
 		);
+		expect(said).toContain("turn on its `flow.drivesThroughJunctions`");
 		expect(said).toContain("place vehicle objects that follow the road (`follow`)");
+	});
+
+	it("doesn't warn of a flow that drives on through its junction (ADR-0147), only of one with none", () => {
+		const said = warningsOf({
+			roads: [
+				// Too short for a flow that keeps to it, but driving on it shrinks nowhere.
+				straightRoad("west", -3, 0, { flow: { enabled: true, drivesThroughJunctions: true } }),
+				straightRoad("east", 0, 20),
+				straightRoad("alone", 40, 60, { flow: { enabled: true, drivesThroughJunctions: true } }),
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "east", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).not.toContain('"west".flow');
+		expect(said).toContain(
+			'roads[2] "alone".flow.drivesThroughJunctions: is on, but the road has no junction at either end',
+		);
 	});
 });
 

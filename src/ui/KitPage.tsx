@@ -226,6 +226,14 @@ export const KitPage = () => {
 									hint="A switch can have a hint too."
 								/>
 
+								<SwitchField
+									inherit={resetToDefault(on, START.on, () => setOn(START.on))}
+									label="Switch, disabled (says why)"
+									checked={on}
+									onChange={setOn}
+									disabled
+								/>
+
 								<ReadOutField
 									label="Read out"
 									value="A value only read here, one line however long it gets, the rest on hover"

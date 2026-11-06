@@ -15,6 +15,8 @@ interface ISwitchFieldProps {
 	/** The value differs between the selected things (ADR-0064). */
 	mixed?: boolean;
 	hint?: ReactNode;
+	/** It can't be changed now: shown greyed, as it is, with the reason in its label or hint. */
+	disabled?: boolean;
 }
 
 /** An on/off switch with its label on the right. Fits in a section's header too. */
@@ -25,13 +27,23 @@ export const SwitchField = ({
 	inherit,
 	mixed,
 	hint,
+	disabled = false,
 }: ISwitchFieldProps & TResettable) => {
 	const match = useSearchMatch(label);
 	const wrapped = Boolean(inherit || mixed || hint);
 	const field = (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the switch inside is the labelled control
-		<label className={styles.switchField} data-search-match={wrapped ? undefined : match}>
-			<Switch.Root className={styles.switch} checked={checked} onCheckedChange={onChange}>
+		<label
+			className={styles.switchField}
+			data-search-match={wrapped ? undefined : match}
+			data-disabled={disabled || undefined}
+		>
+			<Switch.Root
+				className={styles.switch}
+				checked={checked}
+				onCheckedChange={onChange}
+				disabled={disabled}
+			>
 				<Switch.Thumb className={styles.switchThumb} />
 			</Switch.Root>
 

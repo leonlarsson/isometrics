@@ -11,7 +11,9 @@ import { linkWords, webAddress } from "#/lib/webAddress";
 import { formatWhen } from "#/lib/when";
 import { valuesOfEntity } from "#/parts/propData";
 import { partNameOf } from "#/parts/registry";
+import { flowDrivesOn } from "#/scene/flows";
 import { formatValue } from "#/scene/format";
+import { roadNetworkOf } from "#/scene/junctions";
 import { columnOfKey, nameOfDataKey, tableOfRow } from "#/scene/rowData";
 import type { TDataSource, TDataValue, TWorldData } from "#/scene/schema";
 
@@ -150,6 +152,7 @@ export const RoadDetailSheet = () => {
 	const shown = useEditor((s) => s.scene.onScreen.showsDetails);
 	const showsData = useViewShowsData((s) => s.showsData);
 	const usesData = useUsesData();
+	const network = useEditor((s) => roadNetworkOf(s.scene.roads, s.scene.junctions));
 
 	// A road's sheet is its flow in data terms: none with data off (ADR-0115).
 	if (mode !== "view" || !stored || !shown || showsData || !usesData) {
@@ -171,11 +174,13 @@ export const RoadDetailSheet = () => {
 	const title = road.name || "Road";
 	const way = !road.flow.enabled
 		? null
-		: along > 0 && against > 0
-			? "Vehicles drive both ways: the amount has no direction."
-			: along > 0
-				? "Vehicles drive one way, along it, down the middle; the arrows on it point the way."
-				: "Vehicles drive one way, against its points, down the middle; the arrows on it point the way.";
+		: flowDrivesOn(network, road)
+			? "Vehicles start on this road and drive on through its junctions onto other roads: traffic, not an amount from here to there."
+			: along > 0 && against > 0
+				? "Vehicles drive both ways: the amount has no direction."
+				: along > 0
+					? "Vehicles drive one way, along it, down the middle; the arrows on it point the way."
+					: "Vehicles drive one way, against its points, down the middle; the arrows on it point the way.";
 
 	return (
 		<aside className={styles.sheet} data-label-obstacle="" aria-label={`${title} details`}>

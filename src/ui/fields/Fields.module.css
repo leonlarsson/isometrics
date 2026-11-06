@@ -719,6 +719,16 @@ textarea.input {
 	transform: translateX(14px);
 }
 
+/* A switch that can't be changed now, greyed like a disabled slider (its label or hint says why). */
+.switchField[data-disabled] {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.switchField[data-disabled] .switch {
+	cursor: default;
+}
+
 /* -------------------------------------------------------------- checkbox */
 
 .checklist {
