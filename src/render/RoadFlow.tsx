@@ -2,17 +2,13 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import {
-	flowDirection,
-	flowOffsets,
-	flowVehicleLength,
-	vehiclesOnStream,
-} from "#/editor/roadFlows";
+import { flowDirection, flowOffsets, vehiclesOnStream } from "#/editor/roadFlows";
 import { useEditor } from "#/editor/store";
 import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
 import { shareGeometryAs } from "#/parts/primitives";
 import { getPart, resolveProps } from "#/parts/registry";
+import { FLOW_EASE_LENGTH, flowVehicleLength } from "#/scene/flows";
 import { isHiddenRoute } from "#/scene/roads";
 import { createOneWaySampler } from "#/scene/routes";
 import type { TDataValue, TDrivingSide, TRoad } from "#/scene/schema";
@@ -26,9 +22,6 @@ import { useInstancedPart } from "./InstancedParts";
  * the bigger flow goes. They're drawn by the road, not objects of the world,
  * and moved by one frame callback per road.
  */
-
-/** How far from a stream's ends vehicles grow in and shrink out, in grid units. */
-const EASE_LENGTH = 1.5;
 
 /** Grid units between arrows on the road. */
 const ARROW_SPACING = 5;
@@ -168,7 +161,11 @@ const Stream = ({
 			const along = sampler.length > 0 ? distance % sampler.length : 0;
 			const sample = sampler.at(distance);
 			// Grows in at the start and shrinks out at the end, so the jump back isn't seen.
-			const ease = Math.min(1, along / EASE_LENGTH, (sampler.length - along) / EASE_LENGTH);
+			const ease = Math.min(
+				1,
+				along / FLOW_EASE_LENGTH,
+				(sampler.length - along) / FLOW_EASE_LENGTH,
+			);
 			group.position.set(sample.position[0], altitude + sample.height, sample.position[1]);
 			group.rotation.set(0, sample.heading, sample.pitch, "YZX");
 			group.scale.setScalar(Math.max(0.001, ease) * road.flow.vehicleScale);

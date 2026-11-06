@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { flowVehicleLength } from "#/scene/flows";
 import { RoadFlowSchema, SceneSchema, WorldDataSchema } from "#/scene/schema";
 
 import { drawRoadsForEachRow } from "./dataRows";
 import {
 	flowDirection,
 	flowOffsets,
-	flowVehicleLength,
 	roadAsDrawn,
 	valuesOfRoad,
 	vehiclesOnStream,

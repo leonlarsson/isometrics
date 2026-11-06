@@ -292,6 +292,11 @@ export interface IPartDefinition<P extends object, C extends string = string> {
 	renamedLights?: Readonly<Record<string, string>>;
 	/** It lies flat on the ground (a marked zone): other parts can be placed on top of it. */
 	flat?: boolean;
+	/**
+	 * It's made to stand over a road, which passes through it (a tunnel): checking
+	 * a world (ADR-0117) doesn't warn that it stands on one.
+	 */
+	standsOverRoads?: boolean;
 	/** It builds its geometry asynchronously (e.g. text) and calls `onReady` when done. */
 	rendersAsync?: boolean;
 	/**
