@@ -15,7 +15,7 @@ import { useWorldData } from "#/editor/worldData";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
-import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
+import { type IRoadNetwork, roadNetworkOf, standsOnOwnPillars } from "#/scene/junctions";
 import { drivesAcrossNetwork } from "#/scene/network";
 import { isPrefabKind, type TEntity, type TScene } from "#/scene/schema";
 import { sunAt } from "#/scene/sun";
@@ -310,6 +310,8 @@ const Roads = () => {
 						trimStart={trims.start}
 						trimEnd={trims.end}
 						openRailings={network.openRailingsOf(road.id)}
+						bareStart={standsOnOwnPillars(network.junctionAt(road.id, "start"))}
+						bareEnd={standsOnOwnPillars(network.junctionAt(road.id, "end"))}
 					/>
 				);
 			})}

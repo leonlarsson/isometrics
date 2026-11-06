@@ -987,7 +987,13 @@ export const JunctionSchema = z
 			)
 			.min(2)
 			.describe(
-				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width.",
+				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width, or at another altitude (more than 0.05 above or below it).",
+			),
+		standsOnPillars: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether a raised junction stands on pillars of its own under its surface, in its first pillared road's pillarKind (ADR-0148); false = only its roads' pillars hold it up, beside it. Junctions made in the editor have it on; worlds written by hand should set it true.",
 			),
 	})
 	.describe(

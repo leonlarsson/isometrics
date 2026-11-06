@@ -118,6 +118,9 @@ interface IRoadBodyProps {
 	pillarWorld?: IPillarWorld | null;
 	/** Where its railings open to a slip road beside it at a gore (ADR-0148): from an end, how far, which side. */
 	openRailings?: readonly IOpenRailing[];
+	/** No pillars of its own beside a junction at its first or last point that has its own (ADR-0148). */
+	bareStart?: boolean;
+	bareEnd?: boolean;
 }
 
 /**
@@ -154,6 +157,8 @@ export const RoadBody = ({
 	trimStart = 0,
 	pillarWorld = null,
 	openRailings = NO_OPEN_RAILINGS,
+	bareStart = false,
+	bareEnd = false,
 	trimEnd = 0,
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
@@ -232,9 +237,9 @@ export const RoadBody = ({
 	const pillars = useMemo(
 		() =>
 			road.heldUpBy === "pillars" && !hidden
-				? placePillars(road, center, { world: pillarWorld, trimStart })
+				? placePillars(road, center, { world: pillarWorld, trimStart, bareStart, bareEnd })
 				: [],
-		[road, center, hidden, pillarWorld, trimStart],
+		[road, center, hidden, pillarWorld, trimStart, bareStart, bareEnd],
 	);
 	const pillarMesh = useDisposable(
 		useMemo(() => pillarGeometry(pillars, road.pillarKind, y), [pillars, road.pillarKind, y]),
@@ -358,13 +363,24 @@ interface IRoadMeshProps {
 	trimEnd: number;
 	/** Where its railings open to a slip road beside it (ADR-0148). */
 	openRailings?: readonly IOpenRailing[];
+	/** A junction at its first or last point stands on its own pillars, so it has none beside it. */
+	bareStart?: boolean;
+	bareEnd?: boolean;
 }
 
 /** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
 export const USED_ROAD_SNOW = 0.08;
 
 export const RoadMesh = memo(
-	({ road: stored, layer, trimStart, trimEnd, openRailings }: IRoadMeshProps) => {
+	({
+		road: stored,
+		layer,
+		trimStart,
+		trimEnd,
+		openRailings,
+		bareStart,
+		bareEnd,
+	}: IRoadMeshProps) => {
 		// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
 		// flow as data sets them (ADR-0112).
 		const data = valuesOfRoad(stored, useWorldData());

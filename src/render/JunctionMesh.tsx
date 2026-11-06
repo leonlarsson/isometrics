@@ -9,10 +9,12 @@ import {
 	junctionPad,
 	roadNetworkOf,
 } from "#/scene/junctions";
+import { type IPillarWorld, junctionPillars } from "#/scene/pillars";
 import { DECK_THICKNESS, ELEVATED_MIN, railingHeightAt } from "#/scene/roads";
 import type { TDataValue, TJunction, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+import { pillarGeometry } from "./pillarGeometry";
 import { roadBaseY, roadColor, roadsInUse, USED_ROAD_SNOW } from "./RoadMesh";
 
 /**
@@ -116,12 +118,14 @@ interface IJunctionBodyProps {
 	layer: number;
 	palette: IScenePalette;
 	data: readonly TDataValue[];
+	/** What its pillars keep clear of (ADR-0148); none drawn without it. */
+	world: IPillarWorld | null;
 	/** Whether vehicles drive any of its roads: then it keeps clear of snow as they do. */
 	used: boolean;
 }
 
 const JunctionBody = memo(
-	({ network, junction, layer, palette, data, used }: IJunctionBodyProps) => {
+	({ network, junction, layer, palette, data, used, world }: IJunctionBodyProps) => {
 		const pad = junctionPad(network, junction);
 		const y = roadBaseY(layer) + PAD_LIFT;
 		// Built again only when its shape does, not on every change to any road.
@@ -141,6 +145,17 @@ const JunctionBody = memo(
 			snowFactor.value = used ? USED_ROAD_SNOW : 1;
 		}, [used, snowFactor]);
 
+		// The pillars it stands on, raised (ADR-0148).
+		const standsOn = useMemo(
+			() => (world ? junctionPillars(network, junction, world) : null),
+			[network, junction, world],
+		);
+		const pillarMesh = useMemo(
+			() => (standsOn ? pillarGeometry(standsOn.pillars, standsOn.kind, roadBaseY(layer)) : null),
+			[standsOn, layer],
+		);
+		useLayoutEffect(() => () => pillarMesh?.dispose(), [pillarMesh]);
+
 		const colorRoad = pad ? network.roadById(pad.colorRoadId) : undefined;
 		if (!geometry || !colorRoad) {
 			return null;
@@ -155,6 +170,12 @@ const JunctionBody = memo(
 						userData={snowShare}
 					/>
 				</mesh>
+
+				{pillarMesh && (
+					<mesh geometry={pillarMesh} castShadow receiveShadow>
+						<meshStandardMaterial color={palette.deck} roughness={0.9} />
+					</mesh>
+				)}
 
 				{geometry.railings && (
 					<mesh geometry={geometry.railings} castShadow>
@@ -183,6 +204,8 @@ interface IJunctionBodiesProps {
 export const JunctionBodies = ({ roads, junctions, palette, data }: IJunctionBodiesProps) => {
 	const network = roadNetworkOf(roads, junctions);
 	const used = useEditor((s) => roadsInUse(s.scene.entities));
+	const areas = useEditor((s) => s.scene.areas);
+	const world = useMemo(() => ({ roads, junctions, areas }), [roads, junctions, areas]);
 	if (network.junctions.length === 0) {
 		return null;
 	}
@@ -197,6 +220,7 @@ export const JunctionBodies = ({ roads, junctions, palette, data }: IJunctionBod
 			palette={palette}
 			data={data}
 			used={junction.ends.some((end) => used.has(end.roadId))}
+			world={world}
 		/>
 	));
 };
