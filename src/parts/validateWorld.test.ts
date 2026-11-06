@@ -8,15 +8,7 @@ import { issuesForAi, validatePatch, validateWorld } from "./validateWorld";
  * Warnings a template is known to have, each a thing to fix in the template (found when
  * the check came in): any other is new, and fails. Fixed, take it out.
  */
-const KNOWN_WARNINGS: Record<string, string[]> = {
-	stockholm: [
-		// Street lamps standing on another road's surface, one under a bridge's deck.
-		'entities[940] "riddarholmsbron_lamp_11".position',
-		'entities[1043] "soder_malarstrand_lamp_13".position',
-	],
-	// A flow between two games drawn close together: its cars never reach full size.
-	"extraction-shooters": ['roads[8] "overlap_bf6_delta".flow'],
-};
+const KNOWN_WARNINGS: Record<string, string[]> = {};
 
 /** A small world of these things on an empty ground, checked: its warnings, one per line. */
 const warningsOf = (world: Record<string, unknown>) =>
