@@ -210,11 +210,14 @@ const spiral: TRoadPoint[] = Array.from({ length: 13 }, (_, i) => {
 });
 
 describe("rounded corners (ADR-0148)", () => {
-	it("draw every template's roads exactly as before curve shapes", () => {
+	it("draw every template road with rounded corners exactly as before curve shapes", () => {
 		let compared = 0;
 		for (const template of TEMPLATES) {
 			for (const road of template.create().roads) {
-				expect(road.curveShape).toBe("roundedCorners");
+				// Only rounded corners promise the old line; a smooth road (a ramp in a new template) is new.
+				if (road.curveShape !== "roundedCorners") {
+					continue;
+				}
 				expect(roadCenterlineOf(road)).toEqual(
 					oldCenterline(road.points, road.loops, road.cornerRadius, road.width),
 				);
