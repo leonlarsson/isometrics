@@ -751,7 +751,7 @@ export const RoadTrafficSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"Whether vehicles that start on this road drive on through its junctions onto other roads (ADR-0136); false = they keep to it. null = the world's (traffic.drivesThroughJunctions).",
+				"Whether vehicle objects that start on this road drive on through its junctions onto other roads (ADR-0136); false = they keep to it. null = the world's (traffic.drivesThroughJunctions). Its flow has its own switch (flow.drivesThroughJunctions).",
 			),
 	})
 	.describe("How vehicles drive on this road.");
@@ -759,7 +759,8 @@ export const RoadTrafficSchema = z
 /**
  * A flow along a road (ADR-0112): vehicles that show how much goes from its
  * first point to its last and back, by how many there are and which way they
- * drive, readable without colour. Drawn by the road itself; they aren't objects.
+ * drive, readable without colour; or, driving on through junctions, background
+ * traffic (ADR-0147). Drawn by the road itself; they aren't objects.
  */
 export const RoadFlowSchema = z
 	.object({
@@ -767,7 +768,7 @@ export const RoadFlowSchema = z
 			.boolean()
 			.default(false)
 			.describe(
-				"Whether it shows a flow: an amount from data (a from, to, amount table) as vehicles that keep to this road, from its first point to its last and back, growing in and shrinking out at its ends. They aren't objects of the world, and not everyday traffic: for that, place vehicle objects that follow the road (an object's `follow`), which drive on through junctions.",
+				"Whether it shows a flow: vehicles drawn by the road, not objects of the world. By default they show an amount from data (a from, to, amount table) and keep to this road, from its first point to its last and back, growing in and shrinking out at its ends; with drivesThroughJunctions on they're background traffic that drives on across the network.",
 			),
 		vehicleKind: z
 			.string()
@@ -812,10 +813,18 @@ export const RoadFlowSchema = z
 		showsArrows: z
 			.boolean()
 			.default(true)
-			.describe("Whether arrows on the road point the way the bigger flow goes."),
+			.describe(
+				"Whether arrows on the road point the way the bigger flow goes (not while its vehicles drive on through junctions: they're traffic then, not a direction).",
+			),
+		drivesThroughJunctions: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether its vehicles drive on through junctions onto other roads (ADR-0147): background traffic, the easy way to make streets busy without placing vehicles. They start spread along this road, then pick a way at random at each junction and turn round at dead ends, as vehicle objects that follow a road do; the counts and density are then how many start on this road, and it shows no arrows. Only on a road with a junction at an end; otherwise they keep to it. Its own switch, off by default and not the world's or the road's traffic.drivesThroughJunctions (those are for vehicle objects), so a flow showing an amount stays on its road.",
+			),
 	})
 	.describe(
-		"Vehicles along the road showing a flow from data: how much, and which way. For everyday traffic, place vehicle objects that follow the road (`follow`) instead.",
+		"Vehicles drawn along the road by the road itself: a flow from data (how much, and which way), or with drivesThroughJunctions background traffic across the network. For particular vehicles (one to select, follow or label), place vehicle objects that follow the road (`follow`).",
 	);
 
 export type TRoadFlow = z.output<typeof RoadFlowSchema>;
@@ -943,7 +952,7 @@ export const TrafficSchema = z
 			.boolean()
 			.default(true)
 			.describe(
-				"Whether vehicles drive on through junctions onto other roads, picking a way at random at each (ADR-0136), unless a road or vehicle says otherwise; false = each keeps to the road it starts on, turning round at a junction as at a dead end.",
+				"Whether vehicles drive on through junctions onto other roads, picking a way at random at each (ADR-0136), unless a road or vehicle says otherwise; false = each keeps to the road it starts on, turning round at a junction as at a dead end. Road flows have their own switch (a road's flow.drivesThroughJunctions).",
 			),
 		keepsDistance: z
 			.boolean()

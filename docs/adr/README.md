@@ -150,3 +150,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0144](0144-real-lights-by-the-picture.md) | Real lights chosen by the picture, fading out at the edge; more of them in a still picture | proposed |
 | [0145](0145-sharing-hardened-for-strangers.md) | Sharing hardened for strangers: a size cap and a kill switch; screens for browsers that can't draw or keep anything | proposed |
 | [0146](0146-starter-pictures-made-ahead-of-time.md) | The built-in worlds' pictures are made ahead of time, and each starter's link previews with its own | proposed |
+| [0147](0147-flows-that-drive-on.md) | A road's flow can drive on through junctions: background traffic without placing vehicles | proposed |

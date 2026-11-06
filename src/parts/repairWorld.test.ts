@@ -322,6 +322,10 @@ describe("reading a world saved while features said isOn (ADR-0128)", () => {
 		expect(scene.roads[0].flow.enabled).toBe(true);
 	});
 
+	it("keeps its flow on its own road, as it was drawn (ADR-0147)", () => {
+		expect(scene.roads[0].flow.drivesThroughJunctions).toBe(false);
+	});
+
 	it("has a place for every field once upgraded, so none is dropped unread", () => {
 		const raw = upgradePartSettings(upgradeLegacyIds(fixture("every-field-500c046")));
 		expect(fieldsWithoutAPlace(raw, scene)).toEqual([]);

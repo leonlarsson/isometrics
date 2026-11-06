@@ -3,7 +3,7 @@ import type { Draft } from "immer";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { roadOfVehicleNow, useVehiclesNow } from "#/editor/vehiclesNow";
-import { useWorldData } from "#/editor/worldData";
+import { useUsesData, useWorldData } from "#/editor/worldData";
 import { changeColorSetting, type TColorSettingChange } from "#/scene/objectSettings";
 import {
 	isHiddenRoute,
@@ -40,7 +40,7 @@ import {
 } from "./fields";
 import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
-import { RoadDataTab } from "./RoadDataTab";
+import { RoadDataTab, RoadFlowSection } from "./RoadDataTab";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
 
 const STYLE_OPTIONS = (Object.keys(ROAD_KIND_LABELS) as TRoadKind[]).map((value) => ({
@@ -124,6 +124,7 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 	const edit = useRoadEdit(road);
 	const reset = useRoadReset(road);
 	const length = polylineLength(roadCenterlineOf(road), road.loops);
+	const usesData = useUsesData();
 
 	return (
 		<>
@@ -267,6 +268,9 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 					{followers > 0 && ` · ${followers} vehicle${followers === 1 ? "" : "s"} driving here`}
 				</Hint>
 			</Section>
+
+			{/* Its flow is in its Data tab, which a world without data doesn't have (ADR-0115, ADR-0147). */}
+			{!usesData && <RoadFlowSection road={road} />}
 		</>
 	);
 };
