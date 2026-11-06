@@ -259,7 +259,9 @@ const ramp = (
 	curveShape: "throughPoints",
 	showsCentreLine: false,
 	heldUpBy: "pillars",
-	pillarSpacing: 5,
+	pillarSpacing: 7,
+	pillarKind: "column_01",
+	pillarsKeepClear: true,
 	colors: { surface: { color: ROAD_COLOR }, embankment: { color: DECK_COLOR } },
 	...more,
 });
@@ -274,7 +276,7 @@ const stackRamps: TRoadInput[] = [0, 1, 2, 3].flatMap((k) => {
 			`${from}_to_${left}`,
 			`Flyover, ${CARRIAGEWAY_NAMES[k]} to ${CARRIAGEWAY_NAMES[(k + 1) % 4]}`,
 			placed(flyoverPoints(flyoverOf(k)), k),
-			{ pillarSpacing: 6 },
+			{ pillarSpacing: 8 },
 		),
 		ramp(
 			`${from}_to_${right}`,
@@ -426,7 +428,9 @@ const carriageways: TRoadInput[] = CARRIAGEWAYS.flatMap((id) =>
 			curveShape: "throughPoints",
 			showsCentreLine: false,
 			heldUpBy: "pillars",
-			pillarSpacing: 6,
+			pillarSpacing: 7,
+			pillarKind: "hammerhead_01",
+			pillarsKeepClear: true,
 			colors: { surface: { color: ROAD_COLOR }, embankment: { color: DECK_COLOR } },
 		}),
 	),
@@ -552,7 +556,9 @@ const boulevard: TRoadInput[] = BOULEVARD_PIECES.map((points, i) => ({
 	width: BOULEVARD_WIDTH,
 	cornerRadius: 3,
 	heldUpBy: "pillars",
-	pillarSpacing: 4,
+	pillarSpacing: 5,
+	pillarKind: "wall_01",
+	pillarsKeepClear: true,
 	colors: { surface: { color: ROAD_COLOR }, embankment: { color: DECK_COLOR } },
 }));
 
