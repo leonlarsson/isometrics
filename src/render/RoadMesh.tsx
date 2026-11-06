@@ -10,7 +10,7 @@ import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
-import { cutLine, type IOpenRailing } from "#/scene/junctions";
+import { cutLine } from "#/scene/junctions";
 import { type IPillarWorld, placePillars } from "#/scene/pillars";
 import {
 	buildElevatedSides,
@@ -18,7 +18,6 @@ import {
 	dashPolyline,
 	type IWall,
 	isHiddenRoute,
-	polylineLength,
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
@@ -33,14 +32,12 @@ import { setViewCursor } from "./viewCursor";
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
 const BASE_Y = 0.012;
 const LAYER_STEP = 0.003;
-const MARKING_DASH = 0.6;
-const MARKING_GAP = 0.6;
-const MARKING_HALF_WIDTH = 0.05;
-const NO_OPEN_RAILINGS: readonly IOpenRailing[] = [];
-const NO_OPEN_STRETCHES: readonly { from: number; to: number; side: -1 | 1 }[] = [];
+export const MARKING_DASH = 0.6;
+export const MARKING_GAP = 0.6;
+export const MARKING_HALF_WIDTH = 0.05;
 
 /** Build one BufferGeometry from several ribbons; each vertex sits at `y` plus its height. */
-const ribbonGeometry = (
+export const ribbonGeometry = (
 	ribbons: { center: TRoadPoint[]; halfWidth: number; closed: boolean }[],
 	y: number,
 ) => {
@@ -125,8 +122,6 @@ interface IRoadBodyProps {
 	trimEnd?: number;
 	/** What its pillars keep clear of, when it keeps them clear (ADR-0148). Default: nothing. */
 	pillarWorld?: IPillarWorld | null;
-	/** Where its railings open to a slip road beside it at a gore (ADR-0148): from an end, how far, which side. */
-	openRailings?: readonly IOpenRailing[];
 	/** No pillars of its own beside a junction at its first or last point that has its own (ADR-0148). */
 	bareStart?: boolean;
 	bareEnd?: boolean;
@@ -165,7 +160,6 @@ export const RoadBody = ({
 	handlers = {},
 	trimStart = 0,
 	pillarWorld = null,
-	openRailings = NO_OPEN_RAILINGS,
 	bareStart = false,
 	bareEnd = false,
 	trimEnd = 0,
@@ -201,18 +195,6 @@ export const RoadBody = ({
 			[center, road.loops, y],
 		),
 	);
-	// Stretches along its drawn line where a slip road's deck joins its own (ADR-0148).
-	const openStretches = useMemo(() => {
-		if (openRailings.length === 0) {
-			return NO_OPEN_STRETCHES;
-		}
-		const total = polylineLength(center, false);
-		return openRailings.map(({ end, from, to, side }) =>
-			end === "start"
-				? { from: from - trimStart, to: to - trimStart, side }
-				: { from: total - (to - trimEnd), to: total - (from - trimEnd), side },
-		);
-	}, [openRailings, center, trimStart, trimEnd]);
 	const sides = useMemo(
 		() =>
 			buildElevatedSides(center, road.loops, road.width / 2, {
@@ -221,7 +203,6 @@ export const RoadBody = ({
 				embankmentAngle: road.embankmentAngle,
 				embankmentWidth: road.embankmentWidth,
 				bounds: [groundWidth / 2, groundDepth / 2],
-				openRailings: openStretches,
 			}),
 		[
 			center,
@@ -234,7 +215,6 @@ export const RoadBody = ({
 			hidden,
 			groundWidth,
 			groundDepth,
-			openStretches,
 		],
 	);
 	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y, true), [sides, y]));
@@ -370,8 +350,6 @@ interface IRoadMeshProps {
 	/** How far it's cut back at each end for a junction (ADR-0136). */
 	trimStart: number;
 	trimEnd: number;
-	/** Where its railings open to a slip road beside it (ADR-0148). */
-	openRailings?: readonly IOpenRailing[];
 	/** A junction at its first or last point stands on its own pillars, so it has none beside it. */
 	bareStart?: boolean;
 	bareEnd?: boolean;
@@ -381,15 +359,7 @@ interface IRoadMeshProps {
 export const USED_ROAD_SNOW = 0.08;
 
 export const RoadMesh = memo(
-	({
-		road: stored,
-		layer,
-		trimStart,
-		trimEnd,
-		openRailings,
-		bareStart,
-		bareEnd,
-	}: IRoadMeshProps) => {
+	({ road: stored, layer, trimStart, trimEnd, bareStart, bareEnd }: IRoadMeshProps) => {
 		// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
 		// flow as data sets them (ADR-0112).
 		const data = valuesOfRoad(stored, useWorldData());
@@ -477,7 +447,6 @@ export const RoadMesh = memo(
 					trimStart={trimStart}
 					trimEnd={trimEnd}
 					pillarWorld={pillarWorld}
-					openRailings={openRailings}
 					bareStart={bareStart}
 					bareEnd={bareEnd}
 				/>

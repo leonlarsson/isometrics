@@ -10,7 +10,7 @@ import {
 	choicesAfterSplit,
 } from "./pillarChoices";
 import { type IPillarWorld, pillarObstacles, placePillars } from "./pillars";
-import { pillarPositions, roadCenterlineOf } from "./roads";
+import { pillarPositions, pillarSpacingOf, roadCenterlineOf } from "./roads";
 import { centerlineOf } from "./routes";
 import { AreaSchema, RoadSchema, type TRoad, type TRoadInput } from "./schema";
 
@@ -52,7 +52,7 @@ describe("pillars (ADR-0148)", () => {
 				const line = cutLine(roadCenterlineOf(each), trims.start, trims.end);
 				const placed = placePillars(each, line, { world, trimStart: trims.start });
 				expect(placed.map((pillar) => [pillar.x, pillar.z, pillar.height])).toEqual(
-					pillarPositions(line, each.loops, each.pillarSpacing),
+					pillarPositions(line, each.loops, pillarSpacingOf(each)),
 				);
 			}
 		}

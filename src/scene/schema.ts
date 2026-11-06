@@ -896,8 +896,11 @@ export const RoadSchema = z
 			.number()
 			.min(1)
 			.max(40)
-			.default(4)
-			.describe("With heldUpBy pillars: the distance between pillars, in grid units."),
+			.nullable()
+			.default(null)
+			.describe(
+				"With heldUpBy pillars: the distance between pillars, in grid units. null = its pillar kind's: 4 for post_01 (as roads always had), and about four times the road's width (8 to 20) for the others, as real viaducts span (ADR-0148).",
+			),
 		pillarKind: PillarKindSchema.default("post_01"),
 		pillarsKeepClear: z
 			.boolean()
