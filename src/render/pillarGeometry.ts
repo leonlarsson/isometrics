@@ -67,7 +67,8 @@ export const pillarGeometry = (pillars: readonly IPillar[], kind: TPillarKind, y
 			case "hammerhead_01": {
 				const cap = Math.min(0.45, top * 0.35);
 				piece(unitColumn, pillar, true, [0.28, top - cap, 0.28], [0, (top - cap) / 2, 0]);
-				piece(unitBox, pillar, true, [0.6, cap, across * 0.86], [0, top - cap / 2, 0]);
+				// The crosshead sits under the deck, well inside its edges.
+				piece(unitBox, pillar, true, [0.5, cap, across * 0.7], [0, top - cap / 2, 0]);
 				break;
 			}
 			case "pair_01": {
