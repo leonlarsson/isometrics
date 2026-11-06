@@ -721,3 +721,63 @@ test.describe("junctions (ADR-0136)", () => {
 		await expect(drivesOn.last()).toBeChecked();
 	});
 });
+
+test.describe("roads for interchanges (ADR-0148)", () => {
+	test("a road made one-way: its vehicles drive its way only, and Reverse direction turns it", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "ramp",
+					name: "Ramp",
+					points: [
+						[-12, 0, 0],
+						[12, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			entities: [
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "ramp",
+						startDistance: 12,
+						speed: 4,
+						drivesTheOtherWay: true,
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+		await act(page, (s) => s.selectRoad("ramp"));
+		await page.getByRole("tab", { name: "Road", exact: true }).click();
+		await page.getByRole("switch", { name: "One-way (in the order of its points)" }).click();
+		expect(await read(page, (s) => s.scene.roads[0].isOneWay)).toBe(true);
+		// Its vehicle's own way doesn't apply: it drives east, along the road's points.
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		const xAt = async () =>
+			(await page.evaluate(() => globalThis.__editorView.poseOf("car")))?.position[0] ?? 0;
+		const before = await xAt();
+		await page.waitForTimeout(600);
+		const after = await xAt();
+		expect(after > before || after < before - 15).toBe(true);
+		await act(page, (s) => s.selectRoad("ramp"));
+		await page.getByRole("button", { name: "Reverse direction" }).click();
+		expect(await read(page, (s) => s.scene.roads[0].points[0][0])).toBe(12);
+		await act(page, (s) => s.select("car"));
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await expect(
+			page.getByRole("switch", { name: "Drive the other way (one-way road)" }),
+		).toBeDisabled();
+	});
+});

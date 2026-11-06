@@ -7,6 +7,7 @@ import { useUsesData, useWorldData } from "#/editor/worldData";
 import { changeColorSetting, type TColorSettingChange } from "#/scene/objectSettings";
 import {
 	isHiddenRoute,
+	NEW_ROAD_SETTINGS,
 	pointWidth,
 	polylineLength,
 	ROAD_KIND_LABELS,
@@ -21,12 +22,13 @@ import {
 	RoadSchema,
 	type TDrivingLane,
 	type TRoad,
+	type TRoadCurveShape,
 	type TRoadHeldUpBy,
 	type TRoadKind,
 	type TTurnStyle,
 } from "#/scene/schema";
 
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, IconButton, IconButtonGroup } from "./Button";
 import { FollowDataNote } from "./FollowDataNote";
 import {
 	Hint,
@@ -178,7 +180,32 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 				/>
 			</Section>
 
-			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
+			<Section
+				id="road.traffic"
+				icon="car"
+				title="Traffic"
+				keywords="vehicles lanes turns one-way direction reverse"
+			>
+				<SwitchField
+					inherit={reset("isOneWay")}
+					label="One-way (in the order of its points)"
+					checked={road.isOneWay}
+					onChange={(v) =>
+						edit("isOneWay", (r) => {
+							r.isOneWay = v;
+						})
+					}
+					hint={
+						road.isOneWay
+							? "Vehicles drive it only from its first point to its last; arrows on it show the way while editing."
+							: undefined
+					}
+				/>
+
+				<Button size="sm" icon="reverse" onClick={() => useEditor.getState().reverseRoad(road.id)}>
+					Reverse direction
+				</Button>
+
 				{!isHiddenRoute(road.kind) && (
 					<SelectField<TDrivingLane>
 						inherit={resetToDefault(
@@ -320,9 +347,30 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 					</Hint>
 				)}
 
+				<SelectField<TRoadCurveShape>
+					inherit={reset("curveShape", "smooth through the points", NEW_ROAD_SETTINGS.curveShape)}
+					label="Curve"
+					value={road.curveShape}
+					options={[
+						{ value: "throughPoints", label: "Smooth through the points" },
+						{ value: "roundedCorners", label: "Rounded corners" },
+					]}
+					hint={
+						road.curveShape === "throughPoints"
+							? "One smooth curve through every point: place points along the way it should go."
+							: "Straight from point to point, each corner rounded by Curves."
+					}
+					onChange={(v) =>
+						edit("curveShape", (r) => {
+							r.curveShape = v;
+						})
+					}
+				/>
+
 				<SliderField
 					inherit={reset("cornerRadius")}
-					label="Curves"
+					disabled={road.curveShape !== "roundedCorners"}
+					label={road.curveShape === "roundedCorners" ? "Curves" : "Curves (rounded corners only)"}
 					value={road.cornerRadius}
 					min={0}
 					max={15}

@@ -1505,6 +1505,66 @@ describe("names of copies (ADR-0068)", () => {
 	});
 });
 
+describe("reversing a road (ADR-0148)", () => {
+	it("turns its points, junction ends, flow and vehicles round, in one undo step", () => {
+		const store = createEditorStore(
+			SceneSchema.parse({
+				version: 1,
+				roads: [
+					{
+						id: "a",
+						isOneWay: true,
+						points: [
+							[0, 0],
+							[10, 0],
+							[10, 10],
+						],
+						cornerRadius: 0,
+						flow: { enabled: true, vehicleCountAlong: 3, vehicleCountAgainst: 1 },
+					},
+					{
+						id: "b",
+						points: [
+							[10, 10],
+							[20, 10],
+						],
+					},
+				],
+				junctions: [
+					{
+						id: "j",
+						ends: [
+							{ roadId: "a", end: "end", leadsTo: [{ roadId: "b", end: "start" }] },
+							{ roadId: "b", end: "start", leadsTo: [{ roadId: "a", end: "end" }] },
+						],
+					},
+				],
+				entities: [{ id: "van", kind: "car_01", follow: { roadId: "a", startDistance: 4 } }],
+			}),
+		);
+		const s = () => store.getState();
+		s().reverseRoad("a");
+		const road = s().scene.roads[0];
+		expect(road.points).toEqual([
+			[10, 10, 0],
+			[10, 0, 0],
+			[0, 0, 0],
+		]);
+		expect(road.flow.vehicleCountAlong).toBe(1);
+		expect(road.flow.vehicleCountAgainst).toBe(3);
+		expect(s().scene.junctions[0].ends).toEqual([
+			{ roadId: "a", end: "start", leadsTo: [{ roadId: "b", end: "start" }] },
+			{ roadId: "b", end: "start", leadsTo: [{ roadId: "a", end: "start" }] },
+		]);
+		expect(s().scene.entities[0].follow).toMatchObject({
+			startDistance: 16,
+			drivesTheOtherWay: true,
+		});
+		s().undo();
+		expect(s().scene.roads[0].points[0]).toEqual([0, 0, 0]);
+	});
+});
+
 describe("junctions (ADR-0136)", () => {
 	/** A world with a road along x and one coming down to it from the north, not yet connected. */
 	const makeRoads = () =>
@@ -1624,9 +1684,17 @@ describe("junctions (ADR-0136)", () => {
 		});
 		s().insertRoadPoint("main", 1, [0, 0, 0]);
 		const second = s().splitRoad("main", 1) as string;
-		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: second, end: "end" });
+		expect(s().scene.junctions[0].ends).toContainEqual({
+			roadId: second,
+			end: "end",
+			leadsTo: null,
+		});
 		s().joinRoads("main", "end", second, "start");
-		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: "main", end: "end" });
+		expect(s().scene.junctions[0].ends).toContainEqual({
+			roadId: "main",
+			end: "end",
+			leadsTo: null,
+		});
 	});
 
 	it("connects a new road drawn from a road's end and onto another's middle", () => {
@@ -1635,9 +1703,17 @@ describe("junctions (ADR-0136)", () => {
 		s().drawRoadFrom("main", "start");
 		s().addDrawingPoint([-10, 10]);
 		s().addDrawingPoint([15, 10]);
-		s().finishDrawing();
+		const drawn = s().finishDrawing() as string;
+		// Straight from point to point, so the next road can end on its line at z = 10.
+		s().updateRoad(drawn, (road) => {
+			road.curveShape = "roundedCorners";
+		});
 		expect(s().scene.junctions).toHaveLength(1);
-		expect(s().scene.junctions[0].ends).toContainEqual({ roadId: "main", end: "start" });
+		expect(s().scene.junctions[0].ends).toContainEqual({
+			roadId: "main",
+			end: "start",
+			leadsTo: null,
+		});
 
 		s().startDrawing("road_01");
 		s().addDrawingPoint([5, 20]);

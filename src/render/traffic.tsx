@@ -148,7 +148,13 @@ export const TrafficStep = () => {
 					states.set(id, { ...vehicle.state, shift: 0, shiftRate: 0, passing: null });
 				}
 			}
-			const moves = stepRoadTraffic({ length, loop, overtakes }, cars, states, dt);
+			// A one-way road has no oncoming lane to overtake in (ADR-0148).
+			const moves = stepRoadTraffic(
+				{ length, loop, overtakes: overtakes && !first.place.isOneWay },
+				cars,
+				states,
+				dt,
+			);
 			for (const { id, vehicle } of vehicles) {
 				vehicle.travelled += moves.get(id) ?? 0;
 				vehicle.state = states.get(id) ?? null;

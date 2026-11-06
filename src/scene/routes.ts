@@ -1,4 +1,4 @@
-import { createPathSampler, type IPathSample } from "./paths";
+import { createPathSampler, type IPathSample, type IPathSampler } from "./paths";
 import { laneOffset, roadCenterlineOf } from "./roads";
 import {
 	FollowSchema,
@@ -15,13 +15,19 @@ import {
  * See docs/adr/0017-drawable-roads.md and 0031-two-way-routes-and-road-drops.md.
  */
 
-type TRouteRoad = Pick<TRoad, "points" | "loops" | "cornerRadius" | "width" | "kind" | "traffic">;
+type TRouteRoad = Pick<
+	TRoad,
+	"points" | "loops" | "cornerRadius" | "width" | "kind" | "traffic" | "isOneWay"
+>;
 
 // Roads are immutable (immer), so each road object's centre line only needs computing once.
 const centerlines = new WeakMap<object, TRoadPoint[]>();
 
 /** A road's centre line (`roadCenterlineOf`), worked out once per road object. */
-export const centerlineOf = (road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width">) => {
+export const centerlineOf = (
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width"> &
+		Partial<Pick<TRoad, "curveShape">>,
+) => {
 	let line = centerlines.get(road);
 	if (!line) {
 		line = roadCenterlineOf(road);
@@ -55,6 +61,8 @@ export interface ITrafficPlace {
 	direction: 1 | -1;
 	/** Turning around at an open road's end, or (on a network) going through a junction. */
 	turning: boolean;
+	/** On a one-way road (ADR-0148): nothing comes the other way, so it can't overtake into it. */
+	isOneWay?: boolean;
 	/**
 	 * On a road network (ADR-0136): the road it's on now and its length, and where it goes on to:
 	 * which road, which way, where along it it comes on, and how far it has to go until then.
@@ -87,7 +95,15 @@ export interface IRouteSampler {
 	turn: number;
 	/** Where a vehicle (as for `at`) is in the road's traffic. */
 	place: (offset: number, travelled?: number) => ITrafficPlace;
+	/**
+	 * How big a vehicle (as for `at`) is drawn, 0 to 1: it shrinks out at a one-way road's end with
+	 * no way on and grows in where it starts over (ADR-0148). Always 1 when not given.
+	 */
+	sizeAt?: (offset: number, travelled?: number) => number;
 }
+
+/** How far a vehicle grows in or shrinks out where it appears or vanishes, in grid units. */
+export const GROWS_OVER = 1.5;
 
 export interface IRouteOptions {
 	/** Heading smoothing (see `turnSmoothing`). */
@@ -96,18 +112,55 @@ export interface IRouteOptions {
 	reverse?: boolean;
 }
 
-/** A road as a route for vehicles, in its driving lane, either way round. */
+/**
+ * An open one-way road as a route (ADR-0148): first to last, shrinking out at its end and growing
+ * in again at its start, round and round, never back. Traffic sees one stream round that cycle.
+ */
+const oneWayRoute = (sampler: IPathSampler, start: (offset: number) => number): IRouteSampler => {
+	const { length } = sampler;
+	const along = (offset: number, travelled = 0) => wrap(start(offset) + travelled, length);
+	return {
+		length,
+		period: length,
+		turn: 0,
+		at: (offset, travelled = 0) => sampler.at(along(offset, travelled)),
+		travel: (d) => sampler.at(wrap(d, length)),
+		place: (offset, travelled = 0) => {
+			const position = along(offset, travelled);
+			return {
+				stream: "forward",
+				ring: length,
+				position,
+				centre: position,
+				direction: 1,
+				turning: false,
+				isOneWay: true,
+			};
+		},
+		sizeAt: (offset, travelled = 0) => {
+			const position = along(offset, travelled);
+			return Math.max(0, Math.min(1, position / GROWS_OVER, (length - position) / GROWS_OVER));
+		},
+	};
+};
+
+/** A road as a route for vehicles, in its driving lane, either way round (one-way: its way). */
 export const createRouteSampler = (
 	road: TRouteRoad,
 	driving: TDrivingSide,
-	{ smoothing = 0, reverse = false }: IRouteOptions = {},
+	{ smoothing = 0, reverse: asked = false }: IRouteOptions = {},
 ): IRouteSampler => {
+	// A one-way road is driven only in the order of its points (ADR-0148).
+	const reverse = asked && !road.isOneWay;
 	const line = centerlineOf(road);
 	const sampler = createPathSampler(reverse ? reversed(line, road.loops) : line, road.loops, {
 		lane: laneOffset(road, driving),
 		smoothing,
 	});
 	const start = (offset: number) => (reverse ? sampler.length - offset : offset);
+	if (road.isOneWay && !road.loops && sampler.length > 0) {
+		return oneWayRoute(sampler, start);
+	}
 	const { length, period, turn } = sampler;
 	const looped = period === length;
 

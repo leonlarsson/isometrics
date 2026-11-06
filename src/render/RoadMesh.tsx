@@ -25,7 +25,7 @@ import type { TDataValue, TEntity, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
-import { RoadFlow } from "./RoadFlow";
+import { arrowColorOn, OneWayArrows, RoadFlow } from "./RoadFlow";
 import { setViewCursor } from "./viewCursor";
 
 /** Each road sits slightly above the previous one so overlapping junctions don't flicker. */
@@ -313,6 +313,15 @@ export const RoadBody = ({
 			)}
 
 			{selected && <Line points={outline} color={palette.selection} lineWidth={3} />}
+
+			{/* Which way a one-way road goes, while editing (ADR-0148). */}
+			{editing && road.isOneWay && (
+				<OneWayArrows
+					road={road}
+					color={hidden ? palette.selection : arrowColorOn(roadColor(road, palette, data))}
+					y={y + 0.006}
+				/>
+			)}
 		</group>
 	);
 };

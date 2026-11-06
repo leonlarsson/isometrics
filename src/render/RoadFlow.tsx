@@ -122,7 +122,8 @@ const Stream = ({
 	// Its vehicles at their size on this road (ADR-0135): spaced and turning by that length.
 	const length = flowVehicleLength(road.flow, part ? part.footprint(resolveProps(part, {}))[0] : 1);
 	// A flow that goes one way only drives down the middle, so no lane of the road stays empty.
-	const oneWay = road.flow.vehicleCountAlong === 0 || road.flow.vehicleCountAgainst === 0;
+	const oneWay =
+		road.isOneWay || road.flow.vehicleCountAlong === 0 || road.flow.vehicleCountAgainst === 0;
 	const sampler = useMemo(
 		() =>
 			createOneWaySampler(
@@ -303,7 +304,10 @@ const DrivingOnStream = ({
 			}
 			const sample = entry.sampler.at(0, entry.travelled);
 			const out = entry.state ? entry.state.shift * passOffset : 0;
-			const size = flowVehicleSize(entry.startsAt + entry.travelled, roadLength, true);
+			const size = Math.min(
+				flowVehicleSize(entry.startsAt + entry.travelled, roadLength, true),
+				entry.sampler.sizeAt?.(0, entry.travelled) ?? 1,
+			);
 			group.position.set(
 				sample.position[0] + Math.sin(sample.heading) * out,
 				sample.height,
@@ -368,6 +372,42 @@ const FlowArrows = ({ road, color, y }: { road: TRoad; color: string; y: number 
 	);
 };
 
+/** Grid units between the arrows that show a one-way road's way while editing. */
+const ONE_WAY_ARROW_SPACING = 8;
+
+/**
+ * Arrows on a one-way road while editing (ADR-0148), pointing the way it's driven, so which way
+ * a carriageway or ramp goes is seen at a glance. Not drawn in View mode.
+ */
+export const OneWayArrows = ({ road, color, y }: { road: TRoad; color: string; y: number }) => {
+	const arrows = useMemo(() => {
+		const centre = { ...road, traffic: { ...road.traffic, drivingLane: "centre" as const } };
+		const sampler = createOneWaySampler(centre, "right");
+		const count = Math.max(1, Math.floor(sampler.length / ONE_WAY_ARROW_SPACING));
+		return Array.from({ length: count }, (_, index) => {
+			const sample = sampler.at(((index + 0.5) * sampler.length) / count);
+			return { position: sample.position, height: sample.height, heading: sample.heading };
+		});
+	}, [road]);
+	const geometry = chevronGeometry();
+	const scale = Math.min(1.2, road.width * 0.3);
+	return (
+		<>
+			{arrows.map((arrow) => (
+				<mesh
+					key={`${arrow.position[0]},${arrow.position[1]}`}
+					geometry={geometry}
+					position={[arrow.position[0], y + arrow.height, arrow.position[1]]}
+					rotation={[0, arrow.heading, 0]}
+					scale={scale}
+				>
+					<meshBasicMaterial color={color} transparent opacity={0.8} depthWrite={false} />
+				</mesh>
+			))}
+		</>
+	);
+};
+
 /**
  * The arrows' colour on a road's surface: much darker on a light road, much lighter on a dark one,
  * so they read on any road in either theme (the road's own markings are white, lost on light roads).
@@ -422,7 +462,7 @@ export const RoadFlow = ({
 					network={network}
 					driving={driving}
 					reverse
-					count={road.flow.vehicleCountAgainst}
+					count={road.isOneWay ? 0 : road.flow.vehicleCountAgainst}
 					palette={palette}
 					data={data}
 				/>
@@ -445,7 +485,7 @@ export const RoadFlow = ({
 				road={road}
 				driving={driving}
 				reverse
-				count={road.flow.vehicleCountAgainst}
+				count={road.isOneWay ? 0 : road.flow.vehicleCountAgainst}
 				palette={palette}
 				data={data}
 				altitude={0}
