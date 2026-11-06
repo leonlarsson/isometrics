@@ -121,7 +121,8 @@ const GAMES: IGame[] = [
 		appid: 2507950,
 		players: 99_334,
 		kind: "tower_cluster_01",
-		position: [23.8, 11.2],
+		// 1.5 further from Battlefield 6 than it was, so the flow between them has room for its cars.
+		position: [24.6, 9.9],
 		color: "#d1a03b",
 		past: [1.9, 1.7, 1.5, 1.4, 1.3, 1.2, 1.25, 1.1, 1.05, 1.0, 1.05, 1],
 		average: 1.06,

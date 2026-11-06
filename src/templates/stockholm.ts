@@ -1,7 +1,9 @@
 import { round } from "#/lib/math";
 import { groundHeightAt, isInsidePolygon } from "#/scene/areas";
+import { roadSurfacesOf } from "#/scene/roadSurface";
 import {
 	AreaSchema,
+	RoadSchema,
 	SCENE_VERSION,
 	SceneSchema,
 	type TAreaInput,
@@ -2376,6 +2378,20 @@ const lampsAlong = (
 			...more,
 		}));
 
+/** The streets' surfaces, to keep lamps off them. */
+const roadSurfaces = roadSurfacesOf(ROADS.map((road) => RoadSchema.parse(road)));
+
+/**
+ * Whether a lamp stands clear of every street: not on a road where two meet, nor under a
+ * bridge's deck low enough to cut through it (a lamp is a little taller than its height prop).
+ */
+const standsClearOfRoads = (lamp: TEntityInput) => {
+	const [x, z] = lamp.position ?? [0, 0];
+	const base = lamp.altitude ?? 0;
+	const top = base + Number(lamp.props?.height ?? 1) + 0.2;
+	return !roadSurfaces.at(x, z).some((hit) => hit.altitude >= base - 0.25 && hit.altitude <= top);
+};
+
 const lamps: TEntityInput[] = [
 	// Centralbron's lamps, along both sides of the deck.
 	...lampsAlong(
@@ -2423,7 +2439,7 @@ const lamps: TEntityInput[] = [
 	...[SODER_SHORE_ID, STADSGARDEN_ID].flatMap((id) =>
 		lampsAlong(id, "street_lamp_01", 6, 0.75, "left", { props: { height: 1.1 } }),
 	),
-];
+].filter(standsClearOfRoads);
 
 /** Lanterns round Stortorget, on Slottsbacken and the squares, and park lamps in the gardens. */
 const squareLamps: TEntityInput[] = [
