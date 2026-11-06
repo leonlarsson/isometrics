@@ -4,6 +4,7 @@ import { createBattlefieldTerritoryScene } from "./battlefieldTerritory";
 import { createBrightwaterScene } from "./brightwater";
 import { type ITemplateEntry, TEMPLATE_CATALOGUE, type TTemplateId } from "./catalogue";
 import { createExtractionShootersScene } from "./extractionShooters";
+import { createInterchangeScene } from "./interchange";
 import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
 import { createShapeCastleScene } from "./shapeCastle";
@@ -24,6 +25,7 @@ const CREATE: Record<TTemplateId, () => TScene> = {
 	brightwater: createBrightwaterScene,
 	"lantern-bay": createLanternBayScene,
 	stockholm: createStockholmScene,
+	interchange: createInterchangeScene,
 	monaco: createMonacoScene,
 	"shape-castle": createShapeCastleScene,
 	"battlefield-territory": createBattlefieldTerritoryScene,
