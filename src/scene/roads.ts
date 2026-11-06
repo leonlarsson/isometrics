@@ -640,8 +640,7 @@ export const steepestGrade = (
 		const run = along[j] - along[i];
 		const total = along[along.length - 1];
 		const counts =
-			!near ||
-			(near.end === "start" ? along[i] <= near.within : along[j] >= total - near.within);
+			!near || (near.end === "start" ? along[i] <= near.within : along[j] >= total - near.within);
 		if (counts && run >= GRADE_RUN * 0.5) {
 			const grade = Math.abs(pts[j][2] - pts[i][2]) / run;
 			if (grade > best.grade) {
@@ -865,6 +864,11 @@ export const buildElevatedSides = (
 		embankmentWidth?: number;
 		/** Keep embankment feet on the ground slab: half its width (x) and depth (z). */
 		bounds?: TVec2;
+		/**
+		 * Stretches with no railing on one side (ADR-0148), by distance along the line and side (1 =
+		 * right of its way, -1 = left): where a slip road joins it at a gore, so their decks are one.
+		 */
+		openRailings?: readonly { from: number; to: number; side: -1 | 1 }[];
 	},
 ) => {
 	const keepOnGround = (p: TVec2): TVec2 =>
@@ -887,10 +891,14 @@ export const buildElevatedSides = (
 	const bankEdges = bankScale < 1 ? vertexEdges(center, closed, halfWidth, bankScale) : edges;
 	const n = edges.length;
 	const segments = closed && n > 2 ? n : n - 1;
+	const open = options.openRailings ?? [];
+	let travelled = 0;
 	for (let i = 0; i < segments; i++) {
 		const a = edges[i];
 		const b = edges[(i + 1) % n];
 		const [ha, hb] = [a.point[2], b.point[2]];
+		const middle = travelled + length(sub(xz(b.point), xz(a.point))) / 2;
+		travelled += length(sub(xz(b.point), xz(a.point)));
 		if (ha <= ELEVATED_MIN && hb <= ELEVATED_MIN) {
 			continue;
 		}
@@ -909,7 +917,11 @@ export const buildElevatedSides = (
 		for (const sign of [-1, 1] as const) {
 			const pa = sign < 0 ? a.left : a.right;
 			const pb = sign < 0 ? b.left : b.right;
-			if (!fullBank) {
+			// Where a slip road's deck joins this one at a gore (ADR-0148), the gore's edge is the deck's.
+			const opened = open.some(
+				(stretch) => stretch.side === sign && middle >= stretch.from && middle <= stretch.to,
+			);
+			if (!fullBank && !opened) {
 				deck.quads.push([
 					[pa[0], ha, pa[1]],
 					[pb[0], hb, pb[1]],
@@ -919,7 +931,7 @@ export const buildElevatedSides = (
 			}
 			// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at once
 			// where it reaches their height: from nothing a third of the way there to whole at it.
-			if (options.railings && (ha >= RAILING_MIN / 3 || hb >= RAILING_MIN / 3)) {
+			if (options.railings && !opened && (ha >= RAILING_MIN / 3 || hb >= RAILING_MIN / 3)) {
 				railings.quads.push([
 					[pa[0], ha + railingHeightAt(ha), pa[1]],
 					[pb[0], hb + railingHeightAt(hb), pb[1]],

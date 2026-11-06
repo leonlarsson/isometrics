@@ -9,7 +9,7 @@ import { usePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
-import { cutLine } from "#/scene/junctions";
+import { cutLine, type IOpenRailing } from "#/scene/junctions";
 import { type IPillarWorld, placePillars } from "#/scene/pillars";
 import {
 	buildElevatedSides,
@@ -17,6 +17,7 @@ import {
 	dashPolyline,
 	type IWall,
 	isHiddenRoute,
+	polylineLength,
 	ROAD_KINDS,
 	roadCenterlineOf,
 } from "#/scene/roads";
@@ -34,6 +35,8 @@ const LAYER_STEP = 0.003;
 const MARKING_DASH = 0.6;
 const MARKING_GAP = 0.6;
 const MARKING_HALF_WIDTH = 0.05;
+const NO_OPEN_RAILINGS: readonly IOpenRailing[] = [];
+const NO_OPEN_STRETCHES: readonly { from: number; to: number; side: -1 | 1 }[] = [];
 
 /** Build one BufferGeometry from several ribbons; each vertex sits at `y` plus its height. */
 const ribbonGeometry = (
@@ -113,6 +116,8 @@ interface IRoadBodyProps {
 	trimEnd?: number;
 	/** What its pillars keep clear of, when it keeps them clear (ADR-0148). Default: nothing. */
 	pillarWorld?: IPillarWorld | null;
+	/** Where its railings open to a slip road beside it at a gore (ADR-0148): from an end, how far, which side. */
+	openRailings?: readonly IOpenRailing[];
 }
 
 /**
@@ -148,6 +153,7 @@ export const RoadBody = ({
 	handlers = {},
 	trimStart = 0,
 	pillarWorld = null,
+	openRailings = NO_OPEN_RAILINGS,
 	trimEnd = 0,
 }: IRoadBodyProps) => {
 	const groundWidth = ground.width;
@@ -181,6 +187,18 @@ export const RoadBody = ({
 			[center, road.loops, y],
 		),
 	);
+	// Stretches along its drawn line where a slip road's deck joins its own (ADR-0148).
+	const openStretches = useMemo(() => {
+		if (openRailings.length === 0) {
+			return NO_OPEN_STRETCHES;
+		}
+		const total = polylineLength(center, false);
+		return openRailings.map(({ end, from, to, side }) =>
+			end === "start"
+				? { from: from - trimStart, to: to - trimStart, side }
+				: { from: total - (to - trimEnd), to: total - (from - trimEnd), side },
+		);
+	}, [openRailings, center, trimStart, trimEnd]);
 	const sides = useMemo(
 		() =>
 			buildElevatedSides(center, road.loops, road.width / 2, {
@@ -189,6 +207,7 @@ export const RoadBody = ({
 				embankmentAngle: road.embankmentAngle,
 				embankmentWidth: road.embankmentWidth,
 				bounds: [groundWidth / 2, groundDepth / 2],
+				openRailings: openStretches,
 			}),
 		[
 			center,
@@ -201,6 +220,7 @@ export const RoadBody = ({
 			hidden,
 			groundWidth,
 			groundDepth,
+			openStretches,
 		],
 	);
 	const deck = useDisposable(useMemo(() => wallGeometry(sides.deck, y), [sides, y]));
@@ -336,72 +356,57 @@ interface IRoadMeshProps {
 	/** How far it's cut back at each end for a junction (ADR-0136). */
 	trimStart: number;
 	trimEnd: number;
+	/** Where its railings open to a slip road beside it (ADR-0148). */
+	openRailings?: readonly IOpenRailing[];
 }
 
 /** How much of the snow settles on a road vehicles drive: barely any, they keep it clear (ADR-0102). */
 export const USED_ROAD_SNOW = 0.08;
 
-export const RoadMesh = memo(({ road: stored, layer, trimStart, trimEnd }: IRoadMeshProps) => {
-	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
-	// flow as data sets them (ADR-0112).
-	const data = valuesOfRoad(stored, useWorldData());
-	const road = roadAsDrawn(stored, data);
-	const palette = usePalette();
-	const mode = useEditor(drawnModeOf);
-	const usesData = useEditor((s) => s.scene.data.enabled);
-	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
-	const selected = useEditor(
-		(s) =>
-			isItemSelected(s, "road", road.id) &&
-			!(s.boxDrag?.removing && isItemBoxed(s, "road", road.id)),
-	);
-	const drawing = useEditor((s) => s.drawing !== null);
-	const selectRoad = useEditor((s) => s.selectRoad);
-	const ground = useEditor((s) => s.scene.ground);
-	// What its pillars keep clear of (ADR-0148): only a raised road on pillars that keeps them clear
-	// follows the other roads, junctions and areas, so other roads don't draw again for every change.
-	const keepsClear =
-		stored.pillarsKeepClear &&
-		stored.heldUpBy === "pillars" &&
-		stored.points.some((point) => point[2] > 0);
-	const roads = useEditor((s) => (keepsClear ? s.scene.roads : null));
-	const junctions = useEditor((s) => (keepsClear ? s.scene.junctions : null));
-	const areas = useEditor((s) => (keepsClear ? s.scene.areas : null));
-	const pillarWorld = useMemo(
-		() => (roads && junctions && areas ? { roads, junctions, areas } : null),
-		[roads, junctions, areas],
-	);
+export const RoadMesh = memo(
+	({ road: stored, layer, trimStart, trimEnd, openRailings }: IRoadMeshProps) => {
+		// What it reads: the world's values and its row's columns (ADR-0108); drawn with its width and
+		// flow as data sets them (ADR-0112).
+		const data = valuesOfRoad(stored, useWorldData());
+		const road = roadAsDrawn(stored, data);
+		const palette = usePalette();
+		const mode = useEditor(drawnModeOf);
+		const usesData = useEditor((s) => s.scene.data.enabled);
+		// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
+		const selected = useEditor(
+			(s) =>
+				isItemSelected(s, "road", road.id) &&
+				!(s.boxDrag?.removing && isItemBoxed(s, "road", road.id)),
+		);
+		const drawing = useEditor((s) => s.drawing !== null);
+		const selectRoad = useEditor((s) => s.selectRoad);
+		const ground = useEditor((s) => s.scene.ground);
+		// What its pillars keep clear of (ADR-0148): only a raised road on pillars that keeps them clear
+		// follows the other roads, junctions and areas, so other roads don't draw again for every change.
+		const keepsClear =
+			stored.pillarsKeepClear &&
+			stored.heldUpBy === "pillars" &&
+			stored.points.some((point) => point[2] > 0);
+		const roads = useEditor((s) => (keepsClear ? s.scene.roads : null));
+		const junctions = useEditor((s) => (keepsClear ? s.scene.junctions : null));
+		const areas = useEditor((s) => (keepsClear ? s.scene.areas : null));
+		const pillarWorld = useMemo(
+			() => (roads && junctions && areas ? { roads, junctions, areas } : null),
+			[roads, junctions, areas],
+		);
 
-	const editable = mode === "edit" && !drawing;
-	const handlers: TRoadHandlers = editable
-		? {
-				onClick: (e: ThreeEvent<MouseEvent>) => {
-					// Stop here so the ground behind doesn't deselect, even after a camera drag.
-					e.stopPropagation();
-					if (!isClick(e)) {
-						return;
-					}
-					if (isToggleClick(e.nativeEvent)) {
-						useEditor.getState().toggleSelected({ kind: "road", id: road.id });
-					} else {
-						selectRoad(road.id);
-					}
-				},
-				onPointerOver: (e: ThreeEvent<PointerEvent>) => {
-					e.stopPropagation();
-					setViewCursor("pointer");
-				},
-				onPointerOut: () => {
-					setViewCursor("");
-				},
-				onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
-			}
-		: // In View mode a road that shows data opens its details, its flow in data terms (ADR-0112).
-			mode === "view" && usesData && (road.dataRow !== null || Object.keys(road.data).length > 0)
+		const editable = mode === "edit" && !drawing;
+		const handlers: TRoadHandlers = editable
 			? {
 					onClick: (e: ThreeEvent<MouseEvent>) => {
+						// Stop here so the ground behind doesn't deselect, even after a camera drag.
 						e.stopPropagation();
-						if (isClick(e)) {
+						if (!isClick(e)) {
+							return;
+						}
+						if (isToggleClick(e.nativeEvent)) {
+							useEditor.getState().toggleSelected({ kind: "road", id: road.id });
+						} else {
 							selectRoad(road.id);
 						}
 					},
@@ -412,32 +417,52 @@ export const RoadMesh = memo(({ road: stored, layer, trimStart, trimEnd }: IRoad
 					onPointerOut: () => {
 						setViewCursor("");
 					},
+					onContextMenu: openContextMenuOnClick({ kind: "road", id: road.id }),
 				}
-			: {};
+			: // In View mode a road that shows data opens its details, its flow in data terms (ADR-0112).
+				mode === "view" && usesData && (road.dataRow !== null || Object.keys(road.data).length > 0)
+				? {
+						onClick: (e: ThreeEvent<MouseEvent>) => {
+							e.stopPropagation();
+							if (isClick(e)) {
+								selectRoad(road.id);
+							}
+						},
+						onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+							e.stopPropagation();
+							setViewCursor("pointer");
+						},
+						onPointerOut: () => {
+							setViewCursor("");
+						},
+					}
+				: {};
 
-	return (
-		<>
-			<RoadBody
-				road={road}
-				layer={layer}
-				palette={palette}
-				data={data}
-				ground={ground}
-				editing={mode === "edit"}
-				selected={selected && mode === "edit"}
-				handlers={handlers}
-				trimStart={trimStart}
-				trimEnd={trimEnd}
-				pillarWorld={pillarWorld}
-			/>
+		return (
+			<>
+				<RoadBody
+					road={road}
+					layer={layer}
+					palette={palette}
+					data={data}
+					ground={ground}
+					editing={mode === "edit"}
+					selected={selected && mode === "edit"}
+					handlers={handlers}
+					trimStart={trimStart}
+					trimEnd={trimEnd}
+					pillarWorld={pillarWorld}
+					openRailings={openRailings}
+				/>
 
-			<RoadFlow
-				road={road}
-				palette={palette}
-				data={data}
-				surfaceY={roadBaseY(layer)}
-				surfaceColor={roadColor(road, palette, data)}
-			/>
-		</>
-	);
-});
+				<RoadFlow
+					road={road}
+					palette={palette}
+					data={data}
+					surfaceY={roadBaseY(layer)}
+					surfaceColor={roadColor(road, palette, data)}
+				/>
+			</>
+		);
+	},
+);

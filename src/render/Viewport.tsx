@@ -309,6 +309,7 @@ const Roads = () => {
 						layer={index}
 						trimStart={trims.start}
 						trimEnd={trims.end}
+						openRailings={network.openRailingsOf(road.id)}
 					/>
 				);
 			})}
