@@ -697,7 +697,15 @@ export const junctionPad = (
 		indices.push(...(facesUp ? [0, b, c] : [0, c, b]));
 	}
 	const paved = cuts.find((cut) => ROAD_KINDS[cut.road.kind].centreLine) ?? cuts[0];
-	return { vertices, indices, edges, colorRoadId: paved.road.id };
+	// Raised, its kerbs between the roads carry on their railings (ADR-0148).
+	const railed = cuts.some((cut) => cut.road.showsRailings);
+	return {
+		vertices,
+		indices,
+		edges,
+		railingEdges: railed ? edges : [],
+		colorRoadId: paved.road.id,
+	};
 };
 
 /** The nearest point on a road's straight lines between its control points, and which line. */
