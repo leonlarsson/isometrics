@@ -1548,12 +1548,15 @@ const houses: TEntityInput[] = houseLots.map((lot, n) => {
 	if (isShopLot(lot)) {
 		return {
 			id,
-			kind: "shop_02",
+			kind: "shop_01",
 			name: `${lot.district.name} shops ${n + 1}`,
 			position: [at[0], round2(at[1] - faces * 0.6)],
 			rotation: turned(faces > 0 ? 0 : 180),
-			colors: paint({ walls: pickOf(SHOP_WALLS, n) }),
-			props: { width: 3.2, depth: 1.8, floorCount: 1 },
+			colors: paint({
+				walls: pickOf(SHOP_WALLS, n),
+				awning: pickOf(["#2f7a5d", "#b4553a", "#3d5f8a", "#c9a23f"], n + 1),
+			}),
+			props: { width: 3.1, depth: 2, floorCount: 1 },
 		};
 	}
 	return {
