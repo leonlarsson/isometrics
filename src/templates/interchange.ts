@@ -1864,7 +1864,7 @@ const MOODS = [
 	mood("mood_night", "Night", { time: 22.5, timeSource: "fixed" }),
 ];
 
-const OVERVIEW = { target: [-6, -4] as TVec2, azimuth: 302, elevation: 36, span: 250 };
+const OVERVIEW = { target: [-20, -4] as TVec2, azimuth: 302, elevation: 34, span: 200 };
 
 const VIEWPOINTS: TSceneInput["viewpoints"] = [
 	{
@@ -1912,11 +1912,11 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_merge",
 		name: "A merge",
 		description: "The flyover and the right turn come together, then join the eastbound freeway.",
-		target: stackPlace(HIGH_FLYOVER.joinAt + 6, RAMP_OFFSET - 1.5, 0),
-		targetAltitude: 1,
-		azimuth: 250,
-		elevation: 24,
-		span: 26,
+		target: stackPlace(HIGH_FLYOVER.entryAt - 6, 4.5, 0),
+		targetAltitude: 0,
+		azimuth: 205,
+		elevation: 20,
+		span: 22,
 		projection: "perspective",
 	},
 	{
