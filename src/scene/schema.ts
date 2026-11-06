@@ -767,7 +767,7 @@ export const RoadFlowSchema = z
 			.boolean()
 			.default(false)
 			.describe(
-				"Whether vehicles drive along it showing a flow (they aren't objects of the world).",
+				"Whether it shows a flow: an amount from data (a from, to, amount table) as vehicles that keep to this road, from its first point to its last and back, growing in and shrinking out at its ends. They aren't objects of the world, and not everyday traffic: for that, place vehicle objects that follow the road (an object's `follow`), which drive on through junctions.",
 			),
 		vehicleKind: z
 			.string()
@@ -814,7 +814,9 @@ export const RoadFlowSchema = z
 			.default(true)
 			.describe("Whether arrows on the road point the way the bigger flow goes."),
 	})
-	.describe("Vehicles along the road showing a flow: how much, and which way.");
+	.describe(
+		"Vehicles along the road showing a flow from data: how much, and which way. For everyday traffic, place vehicle objects that follow the road (`follow`) instead.",
+	);
 
 export type TRoadFlow = z.output<typeof RoadFlowSchema>;
 

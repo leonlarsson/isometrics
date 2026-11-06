@@ -25,6 +25,7 @@ export const tunnel01 = definePart({
 	category: "infrastructure",
 	description: "Covered road section, open at both ends; place it over a road",
 	keywords: ["underpass", "covered", "bridge"],
+	standsOverRoads: true,
 	schema: TunnelSchema,
 	renamedProps: { building: "buildingHeight", buildingFloors: "buildingHeight" },
 	fields: [

@@ -1,15 +1,17 @@
 import type { z } from "zod";
 
-import { turnedHalfSize } from "#/lib/math";
 import { isRecord, type TRecord } from "#/lib/record";
+import { FLOW_EASE_LENGTH, flowVehicleLength, shortestRoadForFlow } from "#/scene/flows";
 import { plural } from "#/scene/format";
 import { describeRepairs } from "#/scene/repair";
+import { polylineLength, roadCenterlineOf } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
-import { SceneSchema, type TDataBinding, type TScene } from "#/scene/schema";
+import { SceneSchema, type TDataBinding, type TEntity, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
+import { bodiesOf, objectsInEachOther, objectsOnRoads, reachAlongXAndZ } from "./bodies";
 import { partIn } from "./prefabParts";
-import { getBasePart, getPart, resolveProps } from "./registry";
+import { getBasePart, getPart, resolveProps, type TAnyPart } from "./registry";
 import { repairWorld, upgradeWorld } from "./repairWorld";
 
 /**
@@ -18,7 +20,9 @@ import { repairWorld, upgradeWorld } from "./repairWorld";
  * world pasted back into Build with AI. **Problems** are what opening it
  * would repair (reset to a default) or leave out; **warnings** are what opens
  * but won't look as meant (a part kind that doesn't exist, a card value that
- * reads nothing, an object off the ground). No React.
+ * reads nothing, an object off the ground, objects inside each other or on a
+ * road, a flow on a road too short for it or joined at a junction). Some are
+ * meant, so they're never problems. No React.
  */
 
 export interface IWorldIssue {
@@ -46,8 +50,14 @@ export interface IWorldValidation {
 const MOST_OBJECTS = 20_000;
 const MOST_ROWS = 100_000;
 
+/** A road's settings in `road.data` that set how many vehicles its flow has (ADR-0112). */
+const FLOW_DATA_SETTINGS = ["vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst"];
+
 /** More issues than this of one sort are summed up, not listed. */
 const MOST_ISSUES = 40;
+
+/** More than these objects in each other, or on roads, are summed up, so other sorts still show. */
+const MOST_OF_A_SORT = 10;
 
 const LISTS = [
 	"entities",
@@ -59,6 +69,9 @@ const LISTS = [
 	"viewpoints",
 	"moods",
 ] as const;
+
+/** A distance as it's said: to a tenth, or a hundredth below 1 (0.05, 1.5, 12). */
+const roughly = (distance: number) => String(Number(distance.toFixed(distance < 1 ? 2 : 1)));
 
 /** A path with each list entry named by its id where it has one. */
 const pathWithIds = (root: unknown, path: readonly PropertyKey[]) => {
@@ -89,6 +102,18 @@ const readableKeys = (scene: TScene, row: TScene["entities"][number]["dataRow"])
 		keys.add(`row.${column.key}`);
 	}
 	return { keys, table };
+};
+
+const propsKnown = new WeakMap<TAnyPart, Set<string>>();
+
+/** The props a part has, read from its schema once (big worlds have a thousand objects). */
+const propsOf = (part: TAnyPart) => {
+	let props = propsKnown.get(part);
+	if (!props) {
+		props = new Set(Object.keys(part.schema.parse({}) as TRecord));
+		propsKnown.set(part, props);
+	}
+	return props;
 };
 
 /** What opens but won't look as meant. */
@@ -135,7 +160,7 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 			warn(`${where}.kind`, `"${entity.kind}" isn't a part kind: it's drawn as a placeholder box`);
 			return;
 		}
-		const known = new Set(Object.keys(part.schema.parse({}) as TRecord));
+		const known = propsOf(part);
 		for (const prop of Object.keys(entity.props)) {
 			if (!known.has(prop)) {
 				warn(
@@ -160,8 +185,9 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		// Standing over the ground's edge, floating on nothing.
 		if (!entity.follow && !part.flat && part.category !== "markers") {
 			// Its footprint turned as it stands: how far it reaches along x and along z.
-			const [width, depth] = part.footprint(resolveProps(part, entity.props));
-			const [reachX, reachZ] = turnedHalfSize(width, depth, entity.rotation[1], entity.scale);
+			const reaches = bodiesOf(entity, part).map(reachAlongXAndZ);
+			const reachX = Math.max(0, ...reaches.map((reach) => reach[0]));
+			const reachZ = Math.max(0, ...reaches.map((reach) => reach[1]));
 			const [x, z] = entity.position;
 			if (Math.abs(x) + reachX > halfWidth + 0.05 || Math.abs(z) + reachZ > halfDepth + 0.05) {
 				warn(
@@ -191,10 +217,68 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		});
 	});
 
+	// Objects standing inside each other (one pair once), and on roads (ADR-0117).
+	const partOf = (kind: string) => partIn(kind, scene.prefabs);
+	const indexOf = new Map(scene.entities.map((entity, index) => [entity, index]));
+	const entityAt = (entity: TEntity) => `entities[${indexOf.get(entity)}] "${entity.id}"`;
+	// Asked for one more than are listed, so a world of thousands in one place isn't millions of pairs.
+	const inEachOther = objectsInEachOther(scene.entities, partOf, MOST_OF_A_SORT + 1);
+	for (const { a, b, overlap } of inEachOther.slice(0, MOST_OF_A_SORT)) {
+		warn(
+			`${entityAt(a)}.position`,
+			`stands inside "${b.id}": they overlap by ${roughly(overlap)} where their heights meet, so one shows through the other. Move them apart (an object takes up its part's footprint, times its scale, round its position), or stand one on the other with its \`altitude\` at the other's top`,
+		);
+	}
+	if (inEachOther.length > MOST_OF_A_SORT) {
+		warn("entities", "and more objects inside each other");
+	}
+	// Its edge reaching over the road's is how a lamp or a bench stands at the kerb.
+	const onRoads = objectsOnRoads(scene.entities, scene.roads, partOf).filter(
+		(found) => found.isMiddleOnRoad || found.onRoadShare >= 0.5,
+	);
+	for (const { entity, road, isMiddleOnRoad } of onRoads.slice(0, MOST_OF_A_SORT)) {
+		warn(
+			`${entityAt(entity)}.position`,
+			`[${entity.position.join(", ")}] is on road "${road.id}" (${isMiddleOnRoad ? "its middle" : "most of it"}): vehicles on the road drive through it. Move it beside the road, whose surface reaches half its \`width\` either side of the line through its points`,
+		);
+	}
+	if (onRoads.length > MOST_OF_A_SORT) {
+		warn("entities", `and ${plural(onRoads.length - MOST_OF_A_SORT, "more object")} on roads`);
+	}
+
+	const joinedRoads = new Set(
+		scene.junctions.flatMap((junction) => junction.ends.map((end) => end.roadId)),
+	);
 	scene.roads.forEach((road, index) => {
 		const where = `roads[${index}] "${road.id}"`;
-		if (road.flow.enabled && !getPart(road.flow.vehicleKind)) {
+		const vehicle = road.flow.enabled ? getPart(road.flow.vehicleKind) : undefined;
+		if (road.flow.enabled && !vehicle) {
 			warn(`${where}.flow.vehicleKind`, `"${road.flow.vehicleKind}" isn't a part kind`);
+		}
+		// A flow (ADR-0112) is drawn on its own road: too short a road, or one that's joined, won't show it as meant.
+		if (road.flow.enabled && !road.isHidden) {
+			if (vehicle) {
+				const vehicleLength = flowVehicleLength(
+					road.flow,
+					vehicle.footprint(resolveProps(vehicle, {}))[0],
+				);
+				const length = polylineLength(roadCenterlineOf(road), road.loops);
+				const needed = shortestRoadForFlow(vehicleLength);
+				if (length < needed) {
+					warn(
+						`${where}.flow`,
+						`the road is ${roughly(length)} long, too short for its flow's vehicles to reach full size: they grow in and shrink out over ${FLOW_EASE_LENGTH} at each end, and a ${vehicle.kind} at this flow's size is ${roughly(vehicleLength)} long, so it takes a road of at least ${roughly(needed)}. Make the road longer, or show this amount on a longer one`,
+					);
+				}
+			}
+			// A flow whose amount follows data shows what it's for; one that doesn't is likely meant as traffic.
+			const followsData = FLOW_DATA_SETTINGS.some((setting) => road.data[setting]);
+			if (joinedRoads.has(road.id) && !followsData) {
+				warn(
+					`${where}.flow`,
+					"the road is joined at a junction, but its flow's vehicles stay on this road and shrink at its ends. A flow shows an amount from data (a from, to, amount table); for traffic that drives on through junctions, place vehicle objects that follow the road (`follow`) and leave the flow off",
+				);
+			}
 		}
 		rowRead(where, road.dataRow);
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);

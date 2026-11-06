@@ -4,13 +4,48 @@ import { createEmptyScene, TEMPLATES } from "#/templates";
 
 import { issuesForAi, validatePatch, validateWorld } from "./validateWorld";
 
+/**
+ * Warnings a template is known to have, each a thing to fix in the template (found when
+ * the check came in): any other is new, and fails. Fixed, take it out.
+ */
+const KNOWN_WARNINGS: Record<string, string[]> = {
+	stockholm: [
+		// Street lamps standing on another road's surface, one under a bridge's deck.
+		'entities[940] "riddarholmsbron_lamp_11".position',
+		'entities[1043] "soder_malarstrand_lamp_13".position',
+	],
+	// A flow between two games drawn close together: its cars never reach full size.
+	"extraction-shooters": ['roads[8] "overlap_bf6_delta".flow'],
+};
+
+/** A small world of these things on an empty ground, checked: its warnings, one per line. */
+const warningsOf = (world: Record<string, unknown>) =>
+	validateWorld(JSON.parse(JSON.stringify({ ...createEmptyScene(), ...world })))
+		.warnings.map((issue) => `${issue.where}: ${issue.what}`)
+		.join("\n");
+
+/** A straight road along x, from `from` to `to`, 2.4 wide. */
+const straightRoad = (
+	id: string,
+	from: number,
+	to: number,
+	more: Record<string, unknown> = {},
+) => ({
+	id,
+	points: [
+		[from, 0],
+		[to, 0],
+	],
+	...more,
+});
+
 describe("checking a world", () => {
 	it.each(TEMPLATES.map((template) => [template.id, template.create] as const))(
-		"%s checks out with no problems or warnings",
-		(_, create) => {
+		"%s checks out with no problems or warnings but those known",
+		(id, create) => {
 			const check = validateWorld(JSON.parse(JSON.stringify(create())));
 			expect(check.problems).toEqual([]);
-			expect(check.warnings).toEqual([]);
+			expect(check.warnings.map((issue) => issue.where)).toEqual(KNOWN_WARNINGS[id] ?? []);
 			expect(check.isValid).toBe(true);
 		},
 	);
@@ -108,6 +143,188 @@ describe("checking a world", () => {
 		expect(said).toContain('the start of road "c" is 15.0 from the junction');
 		expect(said).toContain('road "gone" doesn\'t exist');
 		expect(said).not.toContain("fewer than two");
+	});
+});
+
+describe("warning of objects inside each other", () => {
+	it("names each pair once, with how much they overlap", () => {
+		const said = warningsOf({
+			entities: [
+				{ id: "a", kind: "house_01", position: [0, 0] },
+				{ id: "b", kind: "house_01", position: [1, 0] },
+			],
+		});
+		expect(said).toContain('entities[0] "a".position: stands inside "b": they overlap by 1.7');
+		expect(said).not.toContain('"b".position');
+	});
+
+	it("passes over what's meant to sit on or in things, and what stands on another", () => {
+		const said = warningsOf({
+			entities: [
+				{ id: "house", kind: "house_01", position: [0, 0] },
+				// Apart.
+				{ id: "neighbour", kind: "house_01", position: [10, 0] },
+				// A marker, a flat zone, a hidden object and a vehicle on a road, all in the house.
+				{ id: "beacon", kind: "beacon_01", position: [0, 0] },
+				{ id: "zone", kind: "zone_01", position: [0, 0] },
+				{ id: "hidden", kind: "house_01", position: [0.5, 0], isHidden: true },
+				{ id: "car", kind: "car_01", position: [0, 0], follow: { roadId: "r" } },
+				// A container stacked on another (ADR-0138).
+				{ id: "low", kind: "shipping_container_01", position: [20, 0] },
+				{ id: "high", kind: "shipping_container_01", position: [20, 0], altitude: 0.7 },
+			],
+			roads: [straightRoad("r", -30, -20)],
+		});
+		expect(said).not.toContain("stands inside");
+	});
+
+	it("stops counting pairs in a world of thousands in one place", () => {
+		const check = validateWorld(
+			JSON.parse(
+				JSON.stringify({
+					...createEmptyScene(),
+					entities: Array.from({ length: 2000 }, (_, i) => ({
+						id: `e${i}`,
+						kind: "house_01",
+						position: [0, 0],
+					})),
+				}),
+			),
+		);
+		expect(
+			check.warnings.some((issue) => issue.what === "and more objects inside each other"),
+		).toBe(true);
+	});
+});
+
+describe("warning of objects on roads", () => {
+	it("warns of one whose middle or most of it is on a road", () => {
+		const said = warningsOf({
+			entities: [
+				{ id: "middle", kind: "house_01", position: [0, 0] },
+				// In the middle of a small ring road: its middle off the road, but most of it on it.
+				{ id: "most", kind: "house_01", position: [0, 30] },
+			],
+			roads: [
+				straightRoad("main", -20, 20),
+				{
+					id: "ring",
+					points: [
+						[-2, 28],
+						[2, 28],
+						[2, 32],
+						[-2, 32],
+					],
+					loops: true,
+					cornerRadius: 2,
+				},
+			],
+		});
+		expect(said).toContain(
+			'entities[0] "middle".position: [0, 0] is on road "main" (its middle): vehicles on the road drive through it',
+		);
+		expect(said).toContain('entities[1] "most".position: [0, 30] is on road "ring" (most of it)');
+	});
+
+	it("sums up more than ten", () => {
+		const said = warningsOf({
+			entities: Array.from({ length: 13 }, (_, i) => ({
+				id: `h${i}`,
+				kind: "bench_01",
+				position: [i * 2 - 12, 0],
+			})),
+			roads: [straightRoad("main", -20, 20)],
+		});
+		expect(said.match(/is on road "main"/g)).toHaveLength(10);
+		expect(said).toContain("entities: and 3 more objects on roads");
+	});
+
+	it("passes over what stands beside it, at its kerb, parked on it, made for it or under it", () => {
+		const said = warningsOf({
+			entities: [
+				{ id: "beside", kind: "house_01", position: [0, 4] },
+				// A lamp at the kerb, reaching just onto the road.
+				{ id: "lamp", kind: "street_lamp_01", position: [4, 1.3] },
+				{ id: "parked", kind: "car_01", position: [-4, 0.5] },
+				{ id: "tunnel", kind: "tunnel_01", position: [10, 0] },
+				{ id: "hidden", kind: "house_01", position: [-10, 0], isHidden: true },
+				// Under a bridge, and on a hidden route.
+				{ id: "under", kind: "house_01", position: [0, 30] },
+				{ id: "route", kind: "house_01", position: [0, -30] },
+			],
+			roads: [
+				straightRoad("main", -20, 20),
+				{
+					id: "bridge",
+					points: [
+						[-10, 30, 4],
+						[10, 30, 4],
+					],
+				},
+				{
+					id: "ferry",
+					kind: "hidden_route_01",
+					points: [
+						[-10, -30],
+						[10, -30],
+					],
+				},
+			],
+		});
+		expect(said).not.toContain("is on road");
+	});
+});
+
+describe("warning of flows that can't work", () => {
+	it("warns of a flow on a road too short for its vehicles to reach full size", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("stub", 0, 3, { flow: { enabled: true } }),
+				straightRoad("long", 0, 20, { flow: { enabled: true } }),
+				// Off: no flow to draw.
+				straightRoad("off", 0, 3),
+			].map((road, index) => ({ ...road, points: road.points.map(([x]) => [x, index * 10]) })),
+		});
+		expect(said).toContain(
+			'roads[0] "stub".flow: the road is 3 long, too short for its flow\'s vehicles to reach full size',
+		);
+		expect(said).toContain("at least 4.3");
+		expect(said).not.toContain('"long".flow');
+		expect(said).not.toContain('"off".flow');
+	});
+
+	it("warns once of a flow on a road joined at a junction, unless its amount follows data", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("west", -20, 0, { flow: { enabled: true } }),
+				straightRoad("east", 0, 20),
+				{
+					id: "south",
+					points: [
+						[0, 0],
+						[0, 20],
+					],
+					flow: { enabled: true },
+					data: { vehicleDensity: { key: "busy" } },
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "east", end: "start" },
+						{ roadId: "south", end: "start" },
+					],
+				},
+			],
+			data: { enabled: true, values: [{ key: "busy", label: "Busy", value: 3 }] },
+		});
+		expect(said.match(/joined at a junction/g)).toHaveLength(1);
+		expect(said).toContain(
+			'roads[0] "west".flow: the road is joined at a junction, but its flow\'s vehicles stay on this road',
+		);
+		expect(said).toContain("place vehicle objects that follow the road (`follow`)");
 	});
 });
 

@@ -86,13 +86,6 @@ export const vehiclesOnStream = (
 	return Math.min(wanted, Math.max(1, Math.floor(length / (vehicleLength * 1.6))));
 };
 
-/**
- * How long a flow's vehicles are on its road: their part's length at the
- * flow's vehicle size (ADR-0135), which spaces them and rounds their turns.
- */
-export const flowVehicleLength = (flow: Pick<TRoad["flow"], "vehicleScale">, partLength: number) =>
-	partLength * flow.vehicleScale;
-
 /** Which way the bigger flow goes, for the road's arrows: 1 along its points, -1 against, 0 even. */
 export const flowDirection = (
 	flow: Pick<TRoad["flow"], "vehicleCountAlong" | "vehicleCountAgainst">,
