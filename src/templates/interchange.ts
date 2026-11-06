@@ -1061,8 +1061,8 @@ const fromRow = (column: string, atLow: number, atHigh: number, low: number, hig
 	highSetting: high,
 });
 
-/** Busy roads turn brick red as they fill, past half full. */
-const CONGESTED = "#b4473c";
+/** Busy roads turn a dusty red as they fill up, from 70% full. */
+const CONGESTED = "#a8665a";
 
 /** How many vehicles per 10 units each way at its fullest: three lanes of queue on a carriageway. */
 const densityAtFullest = (rowId: string) =>
@@ -1107,7 +1107,7 @@ const withTraffic = (road: TRoadInput, i: number): TRoadInput => {
 				data: {
 					color: {
 						key: "row.congestion",
-						valueAtLowColor: 0.55,
+						valueAtLowColor: 0.7,
 						valueAtHighColor: 1,
 						lowColor: ROAD_COLOR,
 						highColor: CONGESTED,
@@ -1459,7 +1459,7 @@ const stripMall = (id: string, centre: TVec2, n: number, lot: number): TEntityIn
 			round2(centre[1] - lot / 2 + 1.3),
 		] as TVec2,
 		colors: paint({ walls: pickOf(SHOP_WALLS, n + i) }),
-		props: { width: 2.5, depth: 2.2, floorCount: 1 + Math.floor(shareOf(n + i) * 2) },
+		props: { width: 2.5, depth: 1.8, floorCount: 1 },
 	}));
 
 const cityBuildings: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) => {
@@ -1588,20 +1588,123 @@ const hillTrees: TEntityInput[] = jitteredGrid(4.2, 900)
 	});
 
 /** Palms along the city's streets, at the corners of lots now and then. */
-const streetPalms: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) => {
-	if (isDowntown(district) || shareOf(n * 3) > 0.5) {
+const streetTrees: TEntityInput[] = cityLots.flatMap(({ district, centre }, n) => {
+	if (isDowntown(district)) {
 		return [];
 	}
-	const at: TVec2 = [
-		centre[0] + district.lot / 2 + district.street / 2,
-		centre[1] - district.lot / 2 + 0.6,
+	// Along the street on its east side and at its south-east corner: a palm or a shade tree.
+	const gap = district.lot / 2 + district.street / 2;
+	const spots: TVec2[] = [
+		[centre[0] + gap, centre[1] - district.lot / 4],
+		[centre[0] + district.lot / 4, centre[1] + gap],
+		[centre[0] + gap, centre[1] + gap],
 	];
-	return isFreeForTree(at) && hillAt(at) === 0
-		? [tree(`street_palm_${n + 1}`, "palm_tree_01", at, n)]
-		: [];
+	return spots.flatMap((at, i) => {
+		const m = n * 5 + i;
+		if (shareOf(m) > 0.62 || !isFreeForTree(at) || hillAt(at) !== 0) {
+			return [];
+		}
+		const kind = shareOf(m + 0.5) < 0.45 ? "palm_tree_01" : "round_tree_01";
+		return [tree(`street_tree_${n + 1}_${i + 1}`, kind, at, m)];
+	});
 });
 
 // ---------------------------------------------------------------- lamps, cards and vehicles to ride along
+
+/** A gantry over a carriageway: two posts, a beam, and a green sign with its card, following its row. */
+interface IGantry {
+	rowId: "nb" | "sb" | "eb" | "wb";
+	sign: string;
+	/** Where it stands on the carriageway's centre line, which way the traffic drives, how high the road is. */
+	at: TVec2;
+	heading: TVec2;
+	altitude: number;
+}
+
+const GANTRY_HEIGHT = 1.7;
+const STEEL = "#8e9196";
+
+/** An object's turn (degrees about the vertical) that lays its x along a direction on the ground. */
+const turnAlong = ([x, z]: TVec2) => round2((Math.atan2(-z, x) * 180) / Math.PI);
+
+const gantry = ({ rowId, sign, at, heading, altitude }: IGantry): TEntityInput[] => {
+	const id = `gantry_${rowId}`;
+	const name = `${FREEWAY_NAMES[rowId]} gantry`;
+	const across: TVec2 = [-heading[1], heading[0]];
+	// On a viaduct the posts stand on the deck's edges; on the ground, just off it.
+	const reach = altitude > 0 ? CARRIAGEWAY_WIDTH / 2 - 0.12 : CARRIAGEWAY_WIDTH / 2 + 0.3;
+	const post = (side: number): TEntityInput => ({
+		id: `${id}_post_${side > 0 ? "right" : "left"}`,
+		kind: "box_01",
+		name,
+		position: [round2(at[0] + across[0] * reach * side), round2(at[1] + across[1] * reach * side)],
+		altitude,
+		colors: paint({ surface: STEEL }),
+		props: { width: 0.16, depth: 0.16, height: GANTRY_HEIGHT },
+	});
+	const row = TRAFFIC_ROWS[rowId];
+	return [
+		post(1),
+		post(-1),
+		{
+			id: `${id}_beam`,
+			kind: "box_01",
+			name,
+			position: [round2(at[0]), round2(at[1])],
+			altitude: round2(altitude + GANTRY_HEIGHT - 0.18),
+			rotation: turned(turnAlong(across)),
+			colors: paint({ surface: STEEL }),
+			props: { width: round2(reach * 2 + 0.16), depth: 0.16, height: 0.18 },
+		},
+		{
+			id: `${id}_sign`,
+			kind: "text_01",
+			name: `${row.key} sign`,
+			position: [round2(at[0] - heading[0] * 0.12), round2(at[1] - heading[1] * 0.12)],
+			altitude: round2(altitude + GANTRY_HEIGHT - 0.2),
+			// Facing the traffic coming towards it.
+			rotation: turned(round2((Math.atan2(-heading[0], -heading[1]) * 180) / Math.PI)),
+			colors: paint({ letters: "#f4f4ef", plate: "#1f6a45" }),
+			props: { text: sign, letterHeight: 0.34, layout: "standing", showsPlate: true },
+			dataRow: { tableKey: "traffic", rowKey: row.key },
+			label: {
+				title: row.key,
+				dataKeys: ["row.vehicles_per_hour", "row.average_speed", "row.delay_minutes"],
+				offset: [0, 0.9, 0],
+			},
+			details: {
+				description: `${EXAMPLE}. How full it is shows three ways: more vehicles, slower, and the road turning red.`,
+				dataKeys: [
+					"row.vehicles_per_hour",
+					"row.average_speed",
+					"row.delay_minutes",
+					"row.congestion",
+				],
+			},
+		},
+	];
+};
+
+const GANTRIES: IGantry[] = [
+	{
+		rowId: "nb",
+		sign: "Valley Fwy  North",
+		at: [NB_X, -76],
+		heading: [0, -1],
+		altitude: LEVEL_FREEWAY,
+	},
+	{
+		rowId: "sb",
+		sign: "Valley Fwy  South",
+		at: [SB_X, 72],
+		heading: [0, 1],
+		altitude: LEVEL_FREEWAY,
+	},
+	{ rowId: "eb", sign: "Crosstown Fwy  East", at: [-143, EB_Z], heading: [1, 0], altitude: 0 },
+	{ rowId: "wb", sign: "Crosstown Fwy  West", at: [55, WB_Z], heading: [-1, 0], altitude: 0 },
+];
+
+const gantries: TEntityInput[] = GANTRIES.flatMap(gantry);
 
 /** Lamps down the freeways' medians, where they run on the ground, every so far. */
 const LAMP_SPACING = 9;
@@ -1610,6 +1713,10 @@ const medianLamps = (id: string, from: TVec2, to: TVec2): TEntityInput[] =>
 	linePoints(from, to, LAMP_SPACING)
 		.slice(1, -1)
 		.filter((point) => clearOfRoads(point, 0.25))
+		// Not under a gantry.
+		.filter((point) =>
+			GANTRIES.every(({ at }) => Math.hypot(point[0] - at[0], point[1] - at[1]) > 4),
+		)
 		.map((point, i) => ({
 			id: `${id}_${i + 1}`,
 			kind: "street_lamp_01",
@@ -1619,32 +1726,6 @@ const medianLamps = (id: string, from: TVec2, to: TVec2): TEntityInput[] =>
 
 const lamps: TEntityInput[] = [
 	...medianLamps("crosstown_lamp", [WEST_TUNNEL_X + 4, STACK[1]], [EAST_TUNNEL_X - 4, STACK[1]]),
-];
-
-/** A card over a freeway's median, following its row: vehicles an hour, speed, delay. */
-const freewayCard = (id: string, rowId: string, at: TVec2): TEntityInput => ({
-	id,
-	kind: "street_lamp_01",
-	name: `${TRAFFIC_ROWS[rowId].key} card`,
-	position: at,
-	props: { height: 2 },
-	dataRow: { tableKey: "traffic", rowKey: TRAFFIC_ROWS[rowId].key },
-	label: {
-		title: TRAFFIC_ROWS[rowId].key,
-		dataKeys: ["row.vehicles_per_hour", "row.average_speed", "row.delay_minutes"],
-		offset: [0, 1.2, 0],
-	},
-	details: {
-		description: `${EXAMPLE}. How full it is shows three ways: more vehicles, slower, and the road turning red.`,
-		dataKeys: ["row.vehicles_per_hour", "row.average_speed", "row.delay_minutes", "row.congestion"],
-	},
-});
-
-const freewayCards: TEntityInput[] = [
-	freewayCard("card_nb", "nb", [STACK[0], STACK[1] + 44]),
-	freewayCard("card_sb", "sb", [STACK[0], STACK[1] - 46]),
-	freewayCard("card_eb", "eb", [STACK[0] - 46, STACK[1]]),
-	freewayCard("card_wb", "wb", [STACK[0] + 40, STACK[1]]),
 ];
 
 /** A few vehicles of their own, to select, follow and ride along with, driving on through the network. */
@@ -1880,12 +1961,12 @@ const placedClear = (entities: TEntityInput[]): TEntityInput[] => {
 };
 
 const ENTITIES = placedClear([
-	...freewayCards,
+	...gantries,
 	...lamps,
 	...rideAlongs,
 	...cityBuildings,
 	...gardenTrees,
-	...streetPalms,
+	...streetTrees,
 	...vergeTrees,
 	...hillTrees,
 ]);
