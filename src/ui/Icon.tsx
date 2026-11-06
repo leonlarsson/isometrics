@@ -1,6 +1,8 @@
 /** Minimal stroke icon set (24×24 viewBox). Add paths here as needed. */
 const PATHS = {
 	undo: "M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
+	// Two arrows the opposite ways: Reverse direction (a road, ADR-0148).
+	reverse: "M4 7h16M16 3l4 4-4 4M20 17H4M8 13l-4 4 4 4",
 	redo: "m15 14 5-5-5-5M20 9H9a5 5 0 0 0 0 10h3",
 	grid: "M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18",
 	play: "M7 4v16l13-8z",

@@ -248,7 +248,8 @@ export const EntityNode = memo(
 		// Smooth turns take about half of its length.
 		const vehicleLength = part ? vehicleLengthOf(part, props, entity.scale) : 1;
 		const turns = resolveTurnStyle(sceneTurns, road?.traffic.turnStyle, entity.follow?.turnStyle);
-		const reverse = entity.follow?.drivesTheOtherWay ?? false;
+		// A one-way road is driven its way, whatever the vehicle says (ADR-0148).
+		const reverse = (entity.follow?.drivesTheOtherWay ?? false) && !road?.isOneWay;
 		// How it leans in turns (ADR-0082), if its kind does and the settings let it.
 		const turnLean = resolveLeansInTurns(
 			sceneLeans,
@@ -277,6 +278,13 @@ export const EntityNode = memo(
 				: createRouteSampler(road, driving, { reverse, smoothing });
 		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);
 		const following = Boolean(sampler && entity.follow);
+		// Whole again once it leaves a route that shrank it (ADR-0148).
+		useEffect(
+			() => () => {
+				outer.current?.scale.setScalar(1);
+			},
+			[sampler],
+		);
 		// On a network it drives on from road to road: where it is now is kept for the views that show
 		// its road (editor/vehiclesNow), and forgotten once it stops driving this trip.
 		const drivesNetwork = Boolean(road && network?.connects(road.id));
@@ -347,6 +355,12 @@ export const EntityNode = memo(
 			const x = sample.position[0] + Math.sin(sample.heading) * out;
 			const z = sample.position[1] + Math.cos(sample.heading) * out;
 			outer.current.position.set(x, entity.altitude + sample.height, z);
+			// Shrinking out at a one-way road's end with no way on, growing in where it starts over (ADR-0148).
+			if (sampler.sizeAt) {
+				outer.current.scale.setScalar(
+					Math.max(0.001, sampler.sizeAt(entity.follow.startDistance, current?.travelled ?? 0)),
+				);
+			}
 			// Heading around Y, then nose up/down on slopes (vehicles face +X, so pitch is about Z).
 			// Leaning in a turn (ADR-0082), eased in and out.
 			let roll = 0;

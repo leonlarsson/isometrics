@@ -52,6 +52,7 @@ Every field has a `.describe()` for `/api/worlds/schema`. Defaults are the old b
 
 | Field | Type, default | Meaning |
 |---|---|---|
+| `curveShape` | `"roundedCorners" \| "throughPoints"`, `"roundedCorners"`; **new in the editor: `"throughPoints"`** | How its line bends between its points. roundedCorners = straight between the points, each corner rounded with `cornerRadius` (as every road was); throughPoints = one smooth curve through every point, with no corners and no straight stretches unless the points lie in line; `cornerRadius` doesn't apply. |
 | `isOneWay` | boolean, `false` | Vehicles drive it only in the order of its points, first to last. Its vehicles' `follow.drivesTheOtherWay` and its flow's `vehicleCountAgainst` don't apply. Two-way when false, as every road was. |
 | `laneCountEachWay` | integer 1–4, `1` | Lanes in each way it's driven; on a one-way road, its lanes. 1 = as every road was. |
 | `showsLaneLines` | boolean, `true` | Whether dashed lines are drawn between lanes going the same way (kinds with markings). With one lane each way there are none, so old roads draw as they did. |
@@ -87,7 +88,7 @@ No new list of things with ids, so `PATCH_LISTS` is unchanged; `pillarsAtPoints`
 A trip (`createNetworkTrip`, ADR-0136) and a route on a single road follow these rules. Who drives: vehicle objects that follow a road, and flows.
 
 - **Never against a one-way road.** A way out of a junction onto a one-way road is only its `start` (driving away from its first point). A vehicle on a one-way road drives forward whatever its `drivesTheOtherWay` says.
-- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it **starts over** where it started, shrinking out over its last 1.5 units and growing in again (the size flows already use, `FLOW_EASE_LENGTH`), as a flow's own stream does. Validate warns of such a road.
+- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it **starts over** where it started, shrinking out over its last 1.5 units and growing in again (the size flows already use, `FLOW_EASE_LENGTH`), as a flow's own stream does. A dead end at the edge of the world is meant (traffic leaving the map), so validate only warns of a one-way road into a junction with no way out of it allowed.
 - **The way chosen** (`pickWayOut`, now given the arrival direction and each way's departure direction):
   - the end it came in by is never a way out (as before);
   - with `leadsTo` on the end it arrives by, only those (still never against a one-way road);
@@ -98,6 +99,16 @@ A trip (`createNetworkTrip`, ADR-0136) and a route on a single road follow these
 - `traffic.drivesThroughJunctions` and a flow's own switch are unchanged.
 
 **Editing.** The road's **Road** tab, Traffic panel: **One-way (in the order of its points)** (a switch, Reset to off) and **Reverse direction** (a button: the road's points turned round, its junction ends swapped, its `pillarsAtPoints` re-indexed, and the vehicles that start on it moved to where they were, driving the same way on the ground). A one-way road shows small arrows on its surface in Edit mode, so its way is seen. The Flow panel's **Vehicles the other way** is greyed out on a one-way road, its label saying **(one-way road)**; so is a vehicle's **Drive the other way**. A connected end's point panel lists **Vehicles arriving here go on to**: a switch per other end at the junction (greyed out, "(one-way, the other way)", where one-way rules forbid it), all on while `leadsTo` is null; turning one off writes the list, **Reset** writes null.
+
+### Smooth curves (added after the first design, at the owner's ask)
+
+The study's pictures show where every point of a spiral or a loop ramp is: each corner is a quadratic fillet whose radius is capped at half of each neighbouring stretch, so with points close together (a spiral, a sweeping ramp) the fillets are tiny and the line is mostly straight stretches with small elbows, and its curvature jumps where a fillet meets a straight part.
+
+- **`curveShape: "throughPoints"`** draws the road as a **centripetal Catmull-Rom spline** (alpha 0.5: no cusps, no loops within a stretch, no overshoot past sharp turns) through every point. An open road ends at its first and last points, heading at its neighbours; a loop closes on itself with no seam. It's sampled by how much it bends (a sample every 3.75° of turn, at most 256 a stretch) and every half unit along ramps, so a tight loop is round and a long straight stretch is one segment.
+- **Altitudes and widths** are pinned at each point (its station, as for rounded corners) and eased between them by a **monotone cubic** (Fritsch–Carlson) instead of the smoothstep rounded corners use: through every point's value with no overshoot, and a steady grade stays steady through the points between, so a spiral ramp climbs evenly instead of levelling off at every point (which smoothstep does, and which reads as steps on a spiral). It levels at a peak, a dip and an open road's ends, as roads always have.
+- **One centre line for everything.** `roadCenterlineOf` (and `centerlineOf`, its cache) is the one place the line is made; vehicles and their samplers, pillars, junction cut-backs and pads, the road's surface for objects standing on roads (`roadSurface`), the route highlight, the point handles' Insert dots (the curve's middle between two points, not the straight line's), connecting a road to another's middle (the nearest place on the curve) and validate all read it, so they follow either shape.
+- **Why not smooth for every saved road.** The owner allowed it if it's clearly better and harms nothing. It isn't, for most saved roads: town streets are drawn with a few points at their corners (Brightwater's, Stockholm's), and a spline through a corner point swings out round it in a wide arc, off the street's straight stretches and, on the templates, into buildings beside the road (checked: switching every template road to `throughPoints` gives validate warnings of objects on roads that the rounded corners don't). Spirals and ramps, which do suffer, are new and drawn with many points. So the default stays **roundedCorners** (every saved world draws exactly as before) and **every road drawn in the editor is `throughPoints`**, its points placed where the curve should pass; **Curve** in the Shape tab switches either way (Reset goes back to a new road's, smooth). Templates keep their shape.
+- **Editing.** The Shape tab's **Whole road** panel: **Curve** (**Smooth through the points** / **Rounded corners**), next to **Curves** (the corner radius), which is greyed out while the road is smooth, its label saying **(rounded corners only)**.
 
 ### Pillars
 
@@ -146,7 +157,7 @@ Pillars of a road are built as **one geometry** per road (they were a mesh each)
 
 ### Checking a world (ADR-0117)
 
-New warnings: a one-way road whose last end leads nowhere (vehicles on it start over); a junction whose ends are at different altitudes (the end left out, and how to fix it); a junction end's `leadsTo` naming an end not at the junction, or onto a one-way road against its way, or leaving no way at all; a `here` pillar standing in a road below; a `pillarsAtPoints` entry past the road's last point or repeated; a lane narrower than the road's vehicles. Every template passes with no warnings.
+New warnings: a one-way road into a junction with no way out of it allowed (vehicles on it start over); a junction whose ends are at different altitudes (the end left out, and how to fix it); a junction end's `leadsTo` naming an end not at the junction, or onto a one-way road against its way, or leaving no way at all; a `here` pillar standing in a road below; a `pillarsAtPoints` entry past the road's last point or repeated; a lane narrower than the road's vehicles. Every template passes with no warnings.
 
 ### The guide
 
@@ -164,6 +175,7 @@ Commits on the `roads-for-interchanges` branch (PR "feat: roads for interchanges
 |---|---|
 | This design | (this commit) |
 | One-way roads and the way through a junction | to come |
+| Smooth curves (`curveShape`) | to come |
 | Pillars | to come |
 | Raised junctions | to come |
 | Merges and diverges | to come |

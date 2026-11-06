@@ -729,7 +729,7 @@ export const RoadKindSchema = z
 export const DrivingLaneSchema = z
 	.enum(["side", "centre"])
 	.describe(
-		"Where vehicles drive: in a lane on the world's driving side, or down the centre (one-way roads, race tracks).",
+		"Where vehicles drive: in a lane on the world's driving side, or all down the centre (race tracks, a single file; a road driven one way only is isOneWay).",
 	);
 
 /** How vehicles behave on one road: its own settings, and the world's `traffic` ones it overrides. */
@@ -846,6 +846,12 @@ export const RoadSchema = z
 			.default(false)
 			.describe("Whether it loops back from the last point to the first."),
 		width: z.number().min(0.4).max(20).default(2.4).describe("Width in grid units."),
+		isOneWay: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether vehicles drive it only one way, in the order of its points (from its first point to its last): a motorway's carriageway, a ramp, a one-way street. Its vehicles' follow.drivesTheOtherWay and its flow's vehicleCountAgainst don't apply; at a junction vehicles never turn onto it against its way, and at a junction where any road is one-way they don't turn back through it and mostly carry straight on (ADR-0148). A vehicle reaching its last point with no way on starts over where it started. false = driven both ways.",
+			),
 		cornerRadius: z
 			.number()
 			.min(0)
@@ -909,6 +915,14 @@ export const RoadEndSchema = z
 	.enum(["start", "end"])
 	.describe("Which end of a road: start = its first point, end = its last.");
 
+/** A road end named from elsewhere: a junction end's leadsTo (ADR-0148). */
+export const JunctionEndRefSchema = z
+	.object({
+		roadId: z.string().describe("Id of the road whose end it is."),
+		end: RoadEndSchema,
+	})
+	.describe("A road end at the same junction.");
+
 // See docs/adr/0136-road-junctions.md.
 export const JunctionSchema = z
 	.object({
@@ -919,6 +933,13 @@ export const JunctionSchema = z
 					.object({
 						roadId: z.string().describe("Id of the road whose end it is."),
 						end: RoadEndSchema,
+						leadsTo: z
+							.array(JunctionEndRefSchema)
+							.nullable()
+							.default(null)
+							.describe(
+								'The ends at this junction that vehicles arriving by this end may leave by (the turns allowed from it), e.g. [{ "roadId": "ramp", "end": "start" }]. null = any way the rules allow: never back the way it came, never against a one-way road, and at a junction where a road is one-way no turning back through it (ADR-0148).',
+							),
 					})
 					.describe("One road end at the junction."),
 			)
@@ -928,7 +949,7 @@ export const JunctionSchema = z
 			),
 	})
 	.describe(
-		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random. A junction is where its ends are.",
+		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random (where a road is one-way: never against it, not turning back, mostly straight on; ADR-0148). A junction is where its ends are.",
 	);
 
 export const DrivingSideSchema = z
@@ -1992,6 +2013,7 @@ export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
 export type TJunction = z.output<typeof JunctionSchema>;
 export type TJunctionEnd = TJunction["ends"][number];
+export type TJunctionInput = z.input<typeof JunctionSchema>;
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;

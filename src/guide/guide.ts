@@ -102,6 +102,24 @@ export const GUIDE: IGuideSection[] = [
 		],
 	},
 	{
+		id: "interchanges",
+		title: "Motorways and interchanges",
+		blocks: [
+			{
+				kind: "steps",
+				steps: [
+					"Draw each carriageway and ramp as its own road, in the way it's driven: select it and turn on **One-way (in the order of its points)** in its **Road** tab's **Traffic** panel. Arrows on it show its way while editing; **Reverse direction** turns it round.",
+					"Connect them at junctions as any roads. Where a road is one-way, vehicles never turn onto it against its way, don't turn back through a junction, and mostly carry straight on, leaving at a ramp now and then.",
+					"To choose the turns yourself, click a connected end's point: under **Vehicles arriving here go on to**, turn off the ways they shouldn't take. **Reset** allows every way again.",
+				],
+			},
+			{
+				kind: "note",
+				text: "A one-way road whose last point leads nowhere (the edge of the world) is fine: its vehicles shrink away there and start again where they began.",
+			},
+		],
+	},
+	{
 		id: "walkthrough",
 		title: "Walkthrough: a world from the Battlefield Stats API",
 		blocks: [
@@ -271,6 +289,7 @@ export const GUIDE: IGuideSection[] = [
 					'Particular vehicles (one to select, follow with the camera, give a card or have follow data) are vehicle objects that follow a road: `{ "id": "bus_1", "kind": "bus_01", "follow": { "roadId": "main", "speed": 2, "startDistance": 0 } }` drives road `main` from its first point (`startDistance` in grid units along it) at 2 grid units a second (1 to 3 reads well); its `position` is ignored while it follows. Open roads are driven back and forth, loops round and round, and `"drivesTheOtherWay": true` drives the other lane; spread several vehicles on one road by their `startDistance`.',
 					'Roads meet at `junctions`: `{ "id": "j1", "ends": [{ "roadId": "main", "end": "end" }, { "roadId": "side", "end": "start" }] }` joins road ends (`start` = a road\'s first point, `end` = its last) that are at the same x, z and altitude. A T or a crossroads joins the ends of the roads that meet there, so the road going through is two roads. Vehicle objects that follow a road drive on across junctions onto the roads joined there; a road\'s flow stays on its own road unless its `drivesThroughJunctions` is on.',
 					'Background traffic, the easy way to make streets busy: a flow with `"drivesThroughJunctions": true` on roads joined at `junctions`, e.g. `"flow": { "enabled": true, "drivesThroughJunctions": true, "vehicleKind": "car_01", "vehicleDensity": 1, "speed": 2 }`. Its vehicles start spread along that road, then drive on through the junctions, picking a way at each and turning round at dead ends; its counts (`vehicleCountAlong`, `vehicleCountAgainst`) or `vehicleDensity` are how many start on it, and it shows no arrows. Give a few roads of the network one each (different `vehicleKind`s for variety). It does nothing on a road with no junction at its ends, and it never follows the world\'s or a road\'s `traffic.drivesThroughJunctions` (those are for vehicle objects).',
+					'Interchanges (ADR-0148): each carriageway and ramp is a road with `"isOneWay": true`, its points in the order it\'s driven, e.g. `{ "id": "north-in", "isOneWay": true, "points": [[0, 60, 0], [0, 10, 0]] }`. At a junction vehicles never turn onto a one-way road against its way, and where any road is one-way they don\'t turn back through it and mostly carry straight on. To allow only some turns, give a junction end `"leadsTo": [{ "roadId": "out", "end": "start" }]` (the ends vehicles arriving by it may leave by). A one-way road whose last point has no junction is fine at the world\'s edge: its vehicles start over where they began.',
 					"Textured ground and areas: `surface: { enabled: true }`, then `ground.surface.kind` (`grass_01`, `paving_01`, …) for the ground; areas follow their kind (a plaza is paving) unless `surface.kind` says otherwise.",
 					"Fields left out get their defaults, so leave out what stays at its default; unknown or invalid fields are repaired or dropped when the world opens.",
 					"Check a world before handing it over: POST it as JSON to `/api/worlds/validate`. It answers whether it opens as written (`isValid`), with its `problems` (what opening it would repair or leave out) and `warnings` (what opens but won't look as meant: a part kind that doesn't exist, a card value that reads nothing, an object off the ground, objects inside each other or standing on a road, a flow on a road too short for its vehicles, or joined at a junction without driving on through it), each with where it is. Some warnings can be meant: fix those that aren't.",

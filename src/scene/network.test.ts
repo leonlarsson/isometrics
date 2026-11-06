@@ -304,3 +304,162 @@ describe("driving through junctions, or not", () => {
 		}
 	});
 });
+
+describe("one-way roads and the way through a junction (ADR-0148)", () => {
+	/** A carriageway in to a junction, on out of it, a ramp off it, and the other carriageway back. */
+	const interchange = (backBeside = false) =>
+		roadNetworkOf(
+			[
+				road(
+					"in",
+					[
+						[-20, 0],
+						[0, 0],
+					],
+					{ isOneWay: true },
+				),
+				road(
+					"out",
+					[
+						[0, 0],
+						[20, 0],
+					],
+					{ isOneWay: true },
+				),
+				road(
+					"ramp",
+					[
+						[0, 0],
+						[0, 20],
+					],
+					{ isOneWay: true },
+				),
+				road("back", [[0, 0], backBeside ? [-20, 1] : [-20, -30]], { isOneWay: true }),
+			],
+			[junction("j", ["in", "end"], ["out", "start"], ["ramp", "start"], ["back", "start"])],
+		);
+
+	it("never drives a one-way road against its way, whatever the vehicle says", () => {
+		const one = road(
+			"a",
+			[
+				[0, 0],
+				[20, 0],
+			],
+			{ isOneWay: true },
+		);
+		const sampler = createRouteSampler(one, "right", { reverse: true });
+		let x = sampler.at(2, 0).position[0];
+		for (let d = 0.5; d < 15; d += 0.5) {
+			const next = sampler.at(2, d).position[0];
+			expect(next).toBeGreaterThan(x);
+			x = next;
+		}
+		// Down its middle: a one-way road's one lane is all of it.
+		expect(sampler.at(2, 0).position[1]).toBeCloseTo(0);
+	});
+
+	it("starts over at the end of a one-way road with no way on, shrinking out and growing in", () => {
+		const one = road(
+			"a",
+			[
+				[0, 0],
+				[20, 0],
+			],
+			{ isOneWay: true },
+		);
+		const sampler = createRouteSampler(one, "right");
+		expect(sampler.at(0, 25).position[0]).toBeCloseTo(5);
+		expect(sampler.sizeAt?.(0, 19.9)).toBeLessThan(0.1);
+		expect(sampler.sizeAt?.(0, 10)).toBe(1);
+		expect(sampler.place(0, 10).isOneWay).toBe(true);
+		const network = roadNetworkOf(
+			[
+				one,
+				road(
+					"b",
+					[
+						[20, 0],
+						[20, 20],
+					],
+					{ isOneWay: true },
+				),
+			],
+			[junction("j", ["a", "end"], ["b", "start"])],
+		);
+		const onNetwork = createNetworkTrip(network, "a", {
+			driving: "right",
+			startDistance: 5,
+			seed: "car",
+		});
+		// Its dead end leads back to where it started, again and again.
+		expect(roadsDriven(onNetwork, 80)).toEqual(["a", "b", "a", "b", "a"]);
+		expect(onNetwork.sizeAt?.(0, 50)).toBe(1);
+	});
+
+	it("never turns onto a one-way road against its way, nor back through the junction", () => {
+		const network = interchange(true);
+		for (let n = 0; n < 60; n++) {
+			const roads = roadsDriven(trip(network, "in", `car${n}`), 30);
+			expect(roads[0]).toBe("in");
+			// "back" leaves almost the way "in" arrived: a U-turn, never taken while there's another way.
+			expect(["out", "ramp"]).toContain(roads[1]);
+		}
+	});
+
+	it("mostly carries straight on at a junction where a road is one-way", () => {
+		const network = interchange();
+		const counts = new Map<string, number>();
+		for (let n = 0; n < 400; n++) {
+			const next = roadsDriven(trip(network, "in", `car${n}`), 30)[1];
+			counts.set(next, (counts.get(next) ?? 0) + 1);
+		}
+		expect(counts.get("out") ?? 0).toBeGreaterThan(250);
+		expect(counts.get("ramp") ?? 0).toBeGreaterThan(30);
+	});
+
+	it("takes only the turns its end allows (leadsTo)", () => {
+		const roads = crossroads();
+		const network = roadNetworkOf(
+			["west", "east", "north", "south"].map((id) => roads.roadById(id) as TRoad),
+			[
+				JunctionSchema.parse({
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end", leadsTo: [{ roadId: "north", end: "start" }] },
+						{ roadId: "east", end: "start" },
+						{ roadId: "north", end: "start" },
+						{ roadId: "south", end: "end" },
+					],
+				}),
+			],
+		);
+		for (let n = 0; n < 30; n++) {
+			expect(roadsDriven(trip(network, "west", `car${n}`, { startDistance: 2 }), 30)[1]).toBe(
+				"north",
+			);
+		}
+	});
+
+	it("picks exactly as before where no road is one-way and no turns are set", () => {
+		const ways = [
+			{ roadId: "a", end: "start" as const },
+			{ roadId: "b", end: "start" as const },
+			{ roadId: "c", end: "end" as const },
+		];
+		for (let n = 0; n < 50; n++) {
+			const chance = chanceOf("car", n);
+			expect(pickWayOut(ways, chance, null)).toBe(pickWayOut(ways, chance));
+		}
+		const network = crossroads();
+		expect(network.junctions[0].hasOneWayRoad).toBe(false);
+		const counts = new Map<string, number>();
+		for (let n = 0; n < 300; n++) {
+			const next = roadsDriven(trip(network, "west", `car${n}`), 30)[1];
+			counts.set(next, (counts.get(next) ?? 0) + 1);
+		}
+		for (const way of ["east", "north", "south"]) {
+			expect(counts.get(way) ?? 0).toBeGreaterThan(70);
+		}
+	});
+});

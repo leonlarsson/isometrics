@@ -810,7 +810,10 @@ const MotionTab = ({ entity }: { entity: TEntity }) => {
 					/>
 
 					<SwitchField
-						label="Drive the other way"
+						label={
+							followedRoad?.isOneWay ? "Drive the other way (one-way road)" : "Drive the other way"
+						}
+						disabled={followedRoad?.isOneWay}
 						checked={entity.follow.drivesTheOtherWay}
 						onChange={(v) =>
 							edit("follow.drivesTheOtherWay", (e) => {

@@ -4,12 +4,13 @@ import type { IEditorState, useEditor } from "#/editor/store";
 import { APP_NAME } from "#/lib/app";
 import {
 	EntitySchema,
+	JunctionSchema,
 	RoadSchema,
 	type TArea,
 	type TEntity,
 	type TFence,
 	type TFenceGate,
-	type TJunction,
+	type TJunctionInput,
 	type TRoad,
 	type TViewPose,
 	WorldDataSchema,
@@ -124,7 +125,7 @@ export interface ITestWorld {
 	entities?: Partial<TEntity>[];
 	roads?: Partial<TRoad>[];
 	/** Junctions between the roads' ends (ADR-0136); none if left out. */
-	junctions?: TJunction[];
+	junctions?: TJunctionInput[];
 	areas?: Partial<TArea>[];
 	fences?: (Partial<Omit<TFence, "gates">> & { gates?: Partial<TFenceGate>[] })[];
 	/** The world's data (values, tables, sources), parsed with their defaults; the starter's if left out. */
@@ -141,6 +142,7 @@ export const loadWorld = async (page: Page, given: ITestWorld) => {
 	const world = {
 		...given,
 		data: given.data ? WorldDataSchema.parse(given.data) : undefined,
+		junctions: given.junctions?.map((junction) => JunctionSchema.parse(junction)),
 		// A road's defaults, for when the world open has no road to copy them from.
 		// An object's too.
 		entityDefaults: EntitySchema.parse({ id: "entity", kind: "house_01" }),

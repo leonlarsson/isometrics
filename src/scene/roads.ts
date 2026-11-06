@@ -745,10 +745,11 @@ export const dashPolyline = (
  * Hidden routes have no lanes, so vehicles drive on the line itself.
  */
 export const laneOffset = (
-	road: Pick<TRoad, "width" | "kind" | "traffic">,
+	road: Pick<TRoad, "width" | "kind" | "traffic"> & Partial<Pick<TRoad, "isOneWay">>,
 	driving: TDrivingSide,
 ) => {
-	if (isHiddenRoute(road.kind) || road.traffic.drivingLane === "centre") {
+	// A one-way road's one lane is all of it: vehicles drive down its middle (ADR-0148).
+	if (isHiddenRoute(road.kind) || road.traffic.drivingLane === "centre" || road.isOneWay) {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);
