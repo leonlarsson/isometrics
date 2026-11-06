@@ -34,6 +34,7 @@ import {
 	disconnectEnd,
 	endPointOf,
 	junctionsAfterJoin,
+	junctionsAfterReverse,
 	junctionsAfterSplit,
 	roadAnchorAt,
 	settleJunctions,
@@ -50,8 +51,10 @@ import {
 import {
 	joinedPoints,
 	pointWidth,
+	polylineLength,
 	ROAD_KIND_LABELS,
 	ROAD_KIND_WIDTH,
+	roadCenterlineOf,
 	roadNameOf,
 	type TRoadEnd,
 } from "#/scene/roads";
@@ -761,6 +764,12 @@ export interface IEditorState {
 	 * point (returns the new road's id); a loop opens there (returns its own id).
 	 */
 	splitRoad: (id: string, index: number) => string | null;
+	/**
+	 * Turn a road round (ADR-0148): its points in the other order, so a one-way road goes the other
+	 * way. Its junction ends swap, its flow's counts swap, and vehicles that start on it start where
+	 * they were, driving the same way on the ground.
+	 */
+	reverseRoad: (id: string) => void;
 	/** Join two road ends into one road; joining a road's own two ends makes a loop. */
 	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
 	/**
@@ -2536,6 +2545,50 @@ export const createEditorStore = (openScene?: TScene) => {
 				});
 				set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
 				return second.id;
+			},
+
+			reverseRoad: (id) => {
+				const road = get().scene.roads.find((r) => r.id === id);
+				if (!road) {
+					return;
+				}
+				const length = polylineLength(roadCenterlineOf(road), road.loops);
+				const count = road.points.length;
+				get().commit((scene) => {
+					const r = scene.roads.find((each) => each.id === id);
+					if (!r) {
+						return;
+					}
+					// A loop keeps its first point, so it goes round the other way from the same place.
+					r.points = r.loops ? [r.points[0], ...r.points.slice(1).reverse()] : r.points.reverse();
+					const flow = r.flow;
+					[flow.vehicleCountAlong, flow.vehicleCountAgainst] = [
+						flow.vehicleCountAgainst,
+						flow.vehicleCountAlong,
+					];
+					const along = r.data.vehicleCountAlong;
+					const against = r.data.vehicleCountAgainst;
+					delete r.data.vehicleCountAlong;
+					delete r.data.vehicleCountAgainst;
+					if (against) {
+						r.data.vehicleCountAlong = against;
+					}
+					if (along) {
+						r.data.vehicleCountAgainst = along;
+					}
+					junctionsAfterReverse(scene, id);
+					for (const entity of scene.entities) {
+						if (entity.follow?.roadId === id) {
+							const from = length - entity.follow.startDistance;
+							entity.follow.startDistance = round(r.loops && from >= length ? 0 : from);
+							entity.follow.drivesTheOtherWay = !entity.follow.drivesTheOtherWay;
+						}
+					}
+				});
+				const point = get().selectedPointIndex;
+				if (get().selectedRoadId === id && point !== null) {
+					set({ selectedPointIndex: road.loops ? (count - point) % count : count - 1 - point });
+				}
 			},
 
 			joinRoads: (aId, aEnd, bId, bEnd) => {

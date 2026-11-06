@@ -26,7 +26,7 @@ import {
 	type TTurnStyle,
 } from "#/scene/schema";
 
-import { IconButton, IconButtonGroup } from "./Button";
+import { Button, IconButton, IconButtonGroup } from "./Button";
 import { FollowDataNote } from "./FollowDataNote";
 import {
 	Hint,
@@ -178,7 +178,32 @@ const RoadTab = ({ road }: { road: TRoad }) => {
 				/>
 			</Section>
 
-			<Section id="road.traffic" icon="car" title="Traffic" keywords="vehicles lanes turns">
+			<Section
+				id="road.traffic"
+				icon="car"
+				title="Traffic"
+				keywords="vehicles lanes turns one-way direction reverse"
+			>
+				<SwitchField
+					inherit={reset("isOneWay")}
+					label="One-way (in the order of its points)"
+					checked={road.isOneWay}
+					onChange={(v) =>
+						edit("isOneWay", (r) => {
+							r.isOneWay = v;
+						})
+					}
+					hint={
+						road.isOneWay
+							? "Vehicles drive it only from its first point to its last; arrows on it show the way while editing."
+							: undefined
+					}
+				/>
+
+				<Button size="sm" icon="reverse" onClick={() => useEditor.getState().reverseRoad(road.id)}>
+					Reverse direction
+				</Button>
+
 				{!isHiddenRoute(road.kind) && (
 					<SelectField<TDrivingLane>
 						inherit={resetToDefault(

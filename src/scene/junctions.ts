@@ -20,6 +20,10 @@ export interface INetworkEnd {
 	halfWidth: number;
 	/** Whether the road is drawn (hidden routes aren't). */
 	isDrawn: boolean;
+	/** Whether its road is driven only in the order of its points (ADR-0148). */
+	isOneWay: boolean;
+	/** The ends vehicles arriving by this one may leave by, or null for any the rules allow (ADR-0148). */
+	leadsTo: readonly { roadId: string; end: TRoadEnd }[] | null;
 	/** How far from the junction vehicles' curves through it join the road. */
 	routeTrim: number;
 	/** How far from the junction the road's surface is cut back (0 for hidden routes). */
@@ -32,6 +36,11 @@ export interface INetworkJunction {
 	place: TRoadPoint;
 	/** Its ends, two or more. */
 	ends: INetworkEnd[];
+	/**
+	 * Whether any of its roads is one-way: an interchange's junction, where vehicles don't turn back
+	 * through it and mostly carry straight on (ADR-0148). Otherwise they pick any way, as before.
+	 */
+	hasOneWayRoad: boolean;
 }
 
 export interface IRoadNetwork {
@@ -140,8 +149,8 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 	const built: INetworkJunction[] = [];
 	for (const junction of junctions) {
 		let place: TRoadPoint | null = null;
-		const ends: { road: TRoad; end: TRoadEnd }[] = [];
-		for (const { roadId, end } of junction.ends) {
+		const ends: { road: TRoad; end: TRoadEnd; leadsTo: INetworkEnd["leadsTo"] }[] = [];
+		for (const { roadId, end, leadsTo = null } of junction.ends) {
 			const road = byId.get(roadId);
 			if (!road || road.loops || road.points.length < 2 || used.has(keyOf(roadId, end))) {
 				continue;
@@ -153,7 +162,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				continue;
 			}
 			used.add(keyOf(roadId, end));
-			ends.push({ road, end });
+			ends.push({ road, end, leadsTo });
 		}
 		if (place === null || ends.length < 2) {
 			for (const { road, end } of ends) {
@@ -161,7 +170,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 			}
 			continue;
 		}
-		const shaped = ends.map(({ road, end }) => {
+		const shaped = ends.map(({ road, end, leadsTo }) => {
 			const line = centerlineOf(road);
 			const at = end === "start" ? line[0] : line[line.length - 1];
 			return {
@@ -170,6 +179,8 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				direction: directionAt(line, end),
 				halfWidth: (at[3] ?? road.width) / 2,
 				isDrawn: !isHiddenRoute(road.kind),
+				isOneWay: road.isOneWay ?? false,
+				leadsTo,
 			};
 		});
 		const routeTrims = trimsAtJunction(shaped);
@@ -178,6 +189,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 		built.push({
 			id: junction.id,
 			place,
+			hasOneWayRoad: shaped.some((end) => end.isOneWay),
 			ends: shaped.map((end, i) => ({
 				...end,
 				routeTrim: routeTrims[i],
@@ -419,8 +431,48 @@ export interface IJunctionWorld {
 	junctions: TJunction[];
 }
 
-const sameEnd = (a: TJunctionEnd, roadId: string, end: TRoadEnd) =>
+const sameEnd = (a: { roadId: string; end: TRoadEnd }, roadId: string, end: TRoadEnd) =>
 	a.roadId === roadId && a.end === end;
+
+/** A road end newly at a junction: vehicles arriving by it may go any way the rules allow. */
+const newEnd = (roadId: string, end: TRoadEnd): TJunctionEnd => ({ roadId, end, leadsTo: null });
+
+/**
+ * Every mention of a road end at the junctions, as an end and in other ends' `leadsTo` (ADR-0148),
+ * renamed by `rename` (which returns the new end, or undefined to leave it), as when a road is
+ * split, joined or turned round. Each mention is renamed once, from what it was before.
+ */
+const renameEnds = (
+	world: IJunctionWorld,
+	rename: (roadId: string, end: TRoadEnd) => { roadId: string; end: TRoadEnd } | undefined,
+) => {
+	const apply = (e: { roadId: string; end: TRoadEnd }) => {
+		const to = rename(e.roadId, e.end);
+		if (to) {
+			e.roadId = to.roadId;
+			e.end = to.end;
+		}
+	};
+	for (const junction of world.junctions) {
+		for (const e of junction.ends) {
+			apply(e);
+			for (const to of e.leadsTo ?? []) {
+				apply(to);
+			}
+		}
+	}
+};
+
+/** `leadsTo` no longer naming ends that left a junction (ADR-0148). */
+const forgetLeavers = (junction: TJunction) => {
+	for (const e of junction.ends) {
+		if (e.leadsTo?.some((to) => !junction.ends.some((o) => sameEnd(o, to.roadId, to.end)))) {
+			e.leadsTo = e.leadsTo.filter((to) =>
+				junction.ends.some((o) => sameEnd(o, to.roadId, to.end)),
+			);
+		}
+	}
+};
 
 /** The junction (index) a road end is in, or -1. */
 export const junctionIndexOf = (junctions: readonly TJunction[], roadId: string, end: TRoadEnd) =>
@@ -441,6 +493,7 @@ export const disconnectEnd = (world: IJunctionWorld, roadId: string, end: TRoadE
 	}
 	const junction = world.junctions[index];
 	junction.ends = junction.ends.filter((e) => !sameEnd(e, roadId, end));
+	forgetLeavers(junction);
 	dropSmall(world);
 };
 
@@ -449,6 +502,7 @@ export const disconnectRoads = (world: IJunctionWorld, roadIds: ReadonlySet<stri
 	for (const junction of world.junctions) {
 		if (junction.ends.some((e) => roadIds.has(e.roadId))) {
 			junction.ends = junction.ends.filter((e) => !roadIds.has(e.roadId));
+			forgetLeavers(junction);
 		}
 	}
 	dropSmall(world);
@@ -488,15 +542,12 @@ export const connectEnds = (
 	placeEnd(road, from.end, endPointOf(target, to.end));
 	const index = junctionIndexOf(world.junctions, to.roadId, to.end);
 	if (index >= 0) {
-		world.junctions[index].ends.push({ roadId: from.roadId, end: from.end });
+		world.junctions[index].ends.push(newEnd(from.roadId, from.end));
 		return world.junctions[index].id;
 	}
 	world.junctions.push({
 		id: newId,
-		ends: [
-			{ roadId: to.roadId, end: to.end },
-			{ roadId: from.roadId, end: from.end },
-		],
+		ends: [newEnd(to.roadId, to.end), newEnd(from.roadId, from.end)],
 	});
 	return newId;
 };
@@ -571,7 +622,7 @@ export const connectToMiddle = (
 		target.points = [...points.slice(index), ...points.slice(0, index), at];
 		target.loops = false;
 		secondId = target.id;
-		ends.push({ roadId: target.id, end: "end" }, { roadId: target.id, end: "start" });
+		ends.push(newEnd(target.id, "end"), newEnd(target.id, "start"));
 	} else {
 		const { first, second } = cutPoints(points, index);
 		const firstLength = polylineLength(centerlineOf({ ...target, points: first }), false);
@@ -584,13 +635,9 @@ export const connectToMiddle = (
 		target.points = first;
 		world.roads.splice(world.roads.indexOf(target) + 1, 0, copy);
 		// The road's last end, if it was at a junction, is now the second half's.
-		for (const junction of world.junctions) {
-			for (const e of junction.ends) {
-				if (sameEnd(e, target.id, "end")) {
-					e.roadId = copy.id;
-				}
-			}
-		}
+		renameEnds(world, (roadId, end) =>
+			roadId === target.id && end === "end" ? { roadId: copy.id, end } : undefined,
+		);
 		for (const entity of world.entities) {
 			if (entity.follow?.roadId === target.id && entity.follow.startDistance > firstLength) {
 				entity.follow.roadId = copy.id;
@@ -598,12 +645,12 @@ export const connectToMiddle = (
 			}
 		}
 		secondId = copy.id;
-		ends.push({ roadId: target.id, end: "end" }, { roadId: copy.id, end: "start" });
+		ends.push(newEnd(target.id, "end"), newEnd(copy.id, "start"));
 	}
 	placeEnd(road, from.end, at);
 	world.junctions.push({
 		id: ids.junction,
-		ends: [...ends, { roadId: from.roadId, end: from.end }],
+		ends: [...ends, newEnd(from.roadId, from.end)],
 	});
 	return secondId;
 };
@@ -682,13 +729,14 @@ export const roadAnchorAt = (
 
 /** After a road is split at a point: its last end, if at a junction, is now the second road's. */
 export const junctionsAfterSplit = (world: IJunctionWorld, roadId: string, secondId: string) => {
-	for (const junction of world.junctions) {
-		for (const e of junction.ends) {
-			if (sameEnd(e, roadId, "end")) {
-				e.roadId = secondId;
-			}
-		}
-	}
+	renameEnds(world, (id, end) =>
+		id === roadId && end === "end" ? { roadId: secondId, end } : undefined,
+	);
+};
+
+/** After a road is turned round (ADR-0148): its start is its end and its end its start. */
+export const junctionsAfterReverse = (world: IJunctionWorld, roadId: string) => {
+	renameEnds(world, (id, end) => (id === roadId ? { roadId, end: otherEnd(end) } : undefined));
 };
 
 /**
@@ -710,16 +758,13 @@ export const junctionsAfterJoin = (
 		disconnectEnd(world, aId, otherEnd(aEnd));
 		return;
 	}
-	for (const junction of world.junctions) {
-		for (const e of junction.ends) {
-			if (sameEnd(e, aId, otherEnd(aEnd))) {
-				e.end = "start";
-			} else if (sameEnd(e, bId, otherEnd(bEnd))) {
-				e.roadId = aId;
-				e.end = "end";
-			}
-		}
-	}
+	renameEnds(world, (id, end) =>
+		sameEnd({ roadId: id, end }, aId, otherEnd(aEnd))
+			? { roadId: aId, end: "start" }
+			: sameEnd({ roadId: id, end }, bId, otherEnd(bEnd))
+				? { roadId: aId, end: "end" }
+				: undefined,
+	);
 };
 
 /** Whether two points are at the same place, altitude included. */
@@ -789,6 +834,9 @@ export const settleJunctions = (before: IJunctionWorld, after: IJunctionWorld) =
 		if (leaving.size > 0) {
 			junction.ends = ends.filter((e) => !leaving.has(e));
 		}
+	}
+	for (const junction of after.junctions) {
+		forgetLeavers(junction);
 	}
 	dropSmall(after);
 };

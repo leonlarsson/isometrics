@@ -1,8 +1,14 @@
-import { cutLine, type IRoadNetwork, pointAlongLine } from "./junctions";
+import {
+	cutLine,
+	type INetworkEnd,
+	type INetworkJunction,
+	type IRoadNetwork,
+	pointAlongLine,
+} from "./junctions";
 import { createPathSampler, type IPathSample, type IPathSampler, uTurnLength } from "./paths";
 import { laneOffset, polylineLength, resolveDrivesThroughJunctions, type TRoadEnd } from "./roads";
-import { centerlineOf, type IRouteSampler, type ITrafficPlace } from "./routes";
-import type { TDrivingSide, TFollow, TRoad, TRoadPoint, TScene } from "./schema";
+import { centerlineOf, GROWS_OVER, type IRouteSampler, type ITrafficPlace } from "./routes";
+import type { TDrivingSide, TFollow, TRoad, TRoadPoint, TScene, TVec2 } from "./schema";
 
 /**
  * A vehicle driving a road network (ADR-0136): from where it starts on its
@@ -47,11 +53,71 @@ export interface IWayOut {
 }
 
 /**
- * Which way out a vehicle takes, given a number from 0 to 1: one of them,
- * evenly. (Data could weight the ways later; this is the one place to.)
+ * Which way out a vehicle takes, given a number from 0 to 1: one of them, evenly, or by their
+ * `weights` where it has them (ADR-0148). Evenly, the same chance always picks the same way as
+ * before weights. (Data could weight the ways later; this is the one place to.)
  */
-export const pickWayOut = (ways: readonly IWayOut[], chance: number) =>
-	ways[Math.min(ways.length - 1, Math.floor(chance * ways.length))];
+export const pickWayOut = <W extends IWayOut>(
+	ways: readonly W[],
+	chance: number,
+	weights?: readonly number[] | null,
+) => {
+	if (!weights) {
+		return ways[Math.min(ways.length - 1, Math.floor(chance * ways.length))];
+	}
+	const total = weights.reduce((sum, weight) => sum + weight, 0);
+	let left = chance * total;
+	for (let i = 0; i < ways.length; i++) {
+		left -= weights[i];
+		if (left < 0) {
+			return ways[i];
+		}
+	}
+	return ways[ways.length - 1];
+};
+
+/** A way out turning back further than this from the way a vehicle arrived (150°) is a U-turn. */
+const TURNS_BACK = Math.cos((150 * Math.PI) / 180);
+
+/**
+ * How much a way out is taken at an interchange's junction (ADR-0148), by the cosine of its turn
+ * from the way the vehicle arrived: straight on most, a right angle a quarter as much, a sharp turn
+ * hardly ever.
+ */
+export const straightOnWeight = (cosine: number) => (1 + cosine) ** 2 + 0.05;
+
+/**
+ * The ways a vehicle arriving at a junction by `arriving` (its road's end there) may leave by, from
+ * `candidates` (every other end it could drive), and how much each is taken (ADR-0148): never onto
+ * a one-way road against its way; only those its end `leadsTo` when that's set; and at a junction
+ * where a road is one-way, no turning back through it unless there's no other way, mostly straight
+ * on (`weights`). Elsewhere every way alike (`weights` null), as before.
+ */
+export const waysOut = (
+	junction: INetworkJunction,
+	arriving: INetworkEnd | null,
+	candidates: readonly INetworkEnd[],
+): { ways: INetworkEnd[]; weights: number[] | null } => {
+	let ways = candidates.filter((way) => !(way.isOneWay && way.end === "end"));
+	const allowed = arriving?.leadsTo;
+	if (allowed) {
+		ways = ways.filter((way) =>
+			allowed.some((to) => to.roadId === way.roadId && to.end === way.end),
+		);
+	}
+	if (!junction.hasOneWayRoad || !arriving || ways.length === 0) {
+		return { ways, weights: null };
+	}
+	// The way it arrived: towards the junction, against its road's direction away from it.
+	const inward: TVec2 = [-arriving.direction[0], -arriving.direction[1]];
+	const cosineOf = (way: INetworkEnd) =>
+		inward[0] * way.direction[0] + inward[1] * way.direction[1];
+	const onward = ways.filter((way) => cosineOf(way) > TURNS_BACK);
+	if (onward.length > 0) {
+		ways = onward;
+	}
+	return { ways, weights: ways.map((way) => straightOnWeight(cosineOf(way))) };
+};
 
 /** A number from 0 to 1 for a vehicle's `n`th choice: always the same for the same vehicle and n. */
 export const chanceOf = (seed: string, n: number) => {
@@ -79,10 +145,18 @@ interface ILeg {
 	from: number;
 	bodyFrom: number;
 	bodyTo: number;
-	/** How it leaves: through a junction, along a curve onto another road, or by turning round. */
+	/**
+	 * How it leaves: through a junction, along a curve onto another road, by turning round, or (at
+	 * the end of a one-way road with no way on, ADR-0148) by vanishing to start over where it began.
+	 */
 	exit:
 		| { kind: "junction"; way: IWayOut; curve: TRoadPoint[]; curveLength: number }
-		| { kind: "turn"; turnLength: number };
+		| { kind: "turn"; turnLength: number }
+		| { kind: "startOver" };
+	/** It has just started over (ADR-0148): it grows in from where it comes onto the road. */
+	growsIn: boolean;
+	/** Its road is one-way. */
+	isOneWay: boolean;
 	/** Distance driven when it comes onto this road, and how much of the trip it is. */
 	startsAt: number;
 	ownLength: number;
@@ -134,6 +208,7 @@ export const createNetworkTrip = (
 		previous: ILeg | null,
 		index: number,
 		startsAt: number,
+		growsIn = false,
 	): ILeg | null => {
 		const info = roadInfo(id);
 		if (!info || info.length === 0) {
@@ -142,11 +217,40 @@ export const createNetworkTrip = (
 		const line = oriented(info.line, direction);
 		const exitEnd: TRoadEnd = direction > 0 ? "end" : "start";
 		const junction = network.junctionAt(id, exitEnd);
-		const ways = (junction?.ends ?? []).filter(
-			(e) => !(e.roadId === id && e.end === exitEnd) && (roadInfo(e.roadId)?.length ?? 0) > 0,
-		);
+		const { ways, weights } = junction
+			? waysOut(
+					junction,
+					network.endAt(id, exitEnd),
+					junction.ends.filter(
+						(e) => !(e.roadId === id && e.end === exitEnd) && (roadInfo(e.roadId)?.length ?? 0) > 0,
+					),
+				)
+			: { ways: [], weights: null };
 		const start = Math.min(Math.max(from, 0), info.length);
-		const base = { index, roadId: id, direction, line, length: info.length, lane: info.lane };
+		const isOneWay = info.road.isOneWay ?? false;
+		const base = {
+			index,
+			roadId: id,
+			direction,
+			line,
+			length: info.length,
+			lane: info.lane,
+			growsIn,
+			isOneWay,
+		};
+		if ((!junction || ways.length === 0) && isOneWay) {
+			// Nowhere on and it can't turn round: it vanishes at the end and starts over (ADR-0148).
+			return {
+				...base,
+				from: start,
+				bodyFrom,
+				bodyTo: info.length,
+				exit: { kind: "startOver" },
+				startsAt,
+				ownLength: Math.max(1e-6, info.length - start),
+				previous,
+			};
+		}
 		if (!junction || ways.length === 0) {
 			const turnLength = uTurnLength(info.lane, smoothing);
 			return {
@@ -160,7 +264,7 @@ export const createNetworkTrip = (
 				previous,
 			};
 		}
-		const way = pickWayOut(ways, chanceOf(seed, index));
+		const way = pickWayOut(ways, chanceOf(seed, index), weights);
 		const exitTrim = network.endAt(id, exitEnd)?.routeTrim ?? 0;
 		const bodyTo = Math.max(bodyFrom, info.length - exitTrim);
 		// The curve through the junction, on the centre line: from where this road's cut is, by the
@@ -205,6 +309,9 @@ export const createNetworkTrip = (
 		if (leg.exit.kind === "turn") {
 			return makeLeg(leg.roadId, leg.direction > 0 ? -1 : 1, 0, 0, null, leg.index + 1, startsAt);
 		}
+		if (leg.exit.kind === "startOver") {
+			return makeLeg(roadId, startDirection, startAlong, 0, null, leg.index + 1, startsAt, true);
+		}
 		const { way } = leg.exit;
 		const trim = network.endAt(way.roadId, way.end)?.routeTrim ?? 0;
 		const direction = way.end === "start" ? 1 : -1;
@@ -212,10 +319,12 @@ export const createNetworkTrip = (
 	};
 
 	const startInfo = roadInfo(roadId);
-	const startDirection: 1 | -1 = reverse ? -1 : 1;
+	// A one-way road is driven its way, whatever the vehicle's setting says (ADR-0148).
+	const backwards = reverse && !startInfo?.road.isOneWay;
+	const startDirection: 1 | -1 = backwards ? -1 : 1;
 	const startAlong = startInfo
 		? Math.min(
-				Math.max(0, reverse ? startInfo.length - startDistance : startDistance),
+				Math.max(0, backwards ? startInfo.length - startDistance : startDistance),
 				startInfo.length,
 			)
 		: 0;
@@ -367,12 +476,20 @@ export const createNetworkTrip = (
 						along: network.endAt(leg.exit.way.roadId, leg.exit.way.end)?.routeTrim ?? 0,
 						distance: end - travelled,
 					}
-				: {
-						roadId: leg.roadId,
-						direction: (leg.direction > 0 ? -1 : 1) as 1 | -1,
-						along: 0,
-						distance: end - travelled,
-					};
+				: leg.exit.kind === "startOver"
+					? // It comes back where it started: it keeps its distance to what's there.
+						{
+							roadId,
+							direction: startDirection,
+							along: startAlong,
+							distance: end - travelled,
+						}
+					: {
+							roadId: leg.roadId,
+							direction: (leg.direction > 0 ? -1 : 1) as 1 | -1,
+							along: 0,
+							distance: end - travelled,
+						};
 		return {
 			stream: leg.direction > 0 ? "forward" : "reverse",
 			ring: NETWORK_RING,
@@ -380,8 +497,26 @@ export const createNetworkTrip = (
 			centre: Math.min(leg.length, Math.max(0, leg.direction > 0 ? along : leg.length - along)),
 			direction: leg.direction,
 			turning: along > leg.bodyTo + 1e-6,
+			...(leg.isOneWay ? { isOneWay: true } : {}),
 			network: { roadId: leg.roadId, length: leg.length, next },
 		};
+	};
+
+	/** Shrinking out before it starts over, growing in after (ADR-0148); whole otherwise. */
+	const sizeAt = (_offset: number, travelled = 0) => {
+		const leg = legAt(travelled);
+		if (!leg) {
+			return 1;
+		}
+		const along = leg.from + Math.max(0, travelled - leg.startsAt);
+		let size = 1;
+		if (leg.exit.kind === "startOver") {
+			size = Math.min(size, (leg.bodyTo - along) / GROWS_OVER);
+		}
+		if (leg.growsIn) {
+			size = Math.min(size, (along - leg.from) / GROWS_OVER);
+		}
+		return Math.max(0, Math.min(1, size));
 	};
 
 	return {
@@ -391,6 +526,7 @@ export const createNetworkTrip = (
 		at,
 		travel: (d) => at(0, d),
 		place,
+		sizeAt,
 	};
 };
 

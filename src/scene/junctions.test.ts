@@ -320,9 +320,9 @@ describe("editing junctions", () => {
 		expect(world.roads[1].points[0]).toEqual([0.2, 0, 0]);
 		expect(world.roads[2].points.at(-1)).toEqual([0.2, 0, 0]);
 		expect(world.junctions[0].ends).toEqual([
-			{ roadId: "main", end: "end" },
-			{ roadId: "main-2", end: "start" },
-			{ roadId: "side", end: "end" },
+			{ roadId: "main", end: "end", leadsTo: null },
+			{ roadId: "main-2", end: "start", leadsTo: null },
+			{ roadId: "side", end: "end", leadsTo: null },
 		]);
 		expect(world.entities[0].follow.roadId).toBe("main");
 		expect(world.entities[1].follow).toEqual({ roadId: "main-2", startDistance: 15 - 10.2 });
@@ -368,7 +368,7 @@ describe("editing junctions", () => {
 		world.roads[1].points.push([20, 0, 0]);
 		world.junctions.push(junction("k", ["east", "end"], ["north", "end"]));
 		junctionsAfterSplit(world, "east", "east-2");
-		expect(world.junctions[1].ends[0]).toEqual({ roadId: "east-2", end: "end" });
+		expect(world.junctions[1].ends[0]).toEqual({ roadId: "east-2", end: "end", leadsTo: null });
 	});
 
 	it("keeps a joined road's other ends at their junctions", () => {
@@ -382,8 +382,8 @@ describe("editing junctions", () => {
 		// a's end joins b's end: a as it is, then b reversed, so b's start is the joined road's end.
 		expect(joinedPoints([[0], [1]], "end", [[3], [2]], "end")).toEqual([[0], [1], [2], [3]]);
 		junctionsAfterJoin(world, "a", "end", "b", "end");
-		expect(world.junctions[0].ends[0]).toEqual({ roadId: "a", end: "start" });
-		expect(world.junctions[1].ends[0]).toEqual({ roadId: "a", end: "end" });
+		expect(world.junctions[0].ends[0]).toEqual({ roadId: "a", end: "start", leadsTo: null });
+		expect(world.junctions[1].ends[0]).toEqual({ roadId: "a", end: "end", leadsTo: null });
 	});
 
 	it("takes a deleted road's ends out, and removes a junction left with one end", () => {

@@ -332,6 +332,30 @@ describe("reading a world saved while features said isOn (ADR-0128)", () => {
 	});
 });
 
+describe("reading a world saved before roads for interchanges (ADR-0148)", () => {
+	const { scene, report } = repairWorld(fixture("every-field-bee221c"));
+
+	it("needs no repairs", () => {
+		expect(report).toBeNull();
+	});
+
+	it("keeps its junction and its roads as they were: two-way, any turn", () => {
+		expect(scene.junctions[0].ends.map((end) => end.roadId)).toEqual([
+			"high_street",
+			"side_street",
+		]);
+		expect(scene.junctions[0].ends.every((end) => end.leadsTo === null)).toBe(true);
+		expect(scene.roads.every((road) => !road.isOneWay)).toBe(true);
+		expect(scene.roads[0].flow.drivesThroughJunctions).toBe(true);
+		expect(scene.traffic.drivesThroughJunctions).toBe(false);
+	});
+
+	it("has a place for every field once upgraded, so none is dropped unread", () => {
+		const raw = upgradePartSettings(upgradeLegacyIds(fixture("every-field-bee221c")));
+		expect(fieldsWithoutAPlace(raw, scene)).toEqual([]);
+	});
+});
+
 /**
  * Paths of fields in `raw` that `parsed` has no field for: what parsing
  * dropped. A part's own props are its to read, so they aren't followed.
