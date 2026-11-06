@@ -47,7 +47,7 @@ export const TEMPLATE_CATALOGUE = [
 		id: "interchange",
 		name: "The Interchange",
 		description:
-			"A traffic landscape: a four-level stack, a cloverleaf, a river bridge, a tunnel and a rail viaduct, busy with traffic, and a day of example counts as a story. Best with Graphics: Ultra",
+			"A traffic landscape: a four-level stack, a cloverleaf, a river bridge and tunnels into the hills, busy with traffic, and a day of example counts as a story. Best with Graphics: Ultra",
 		category: "places",
 	},
 	{

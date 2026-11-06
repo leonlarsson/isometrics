@@ -737,8 +737,9 @@ const DOWN = -HILL_HEIGHT;
 const HILL_COLOR = "#999263";
 
 /**
- * The rail line's way across, high over everything: from a tunnel in the ridge's north-west
- * corner, straight over the middle of the stack, across the river into the south hills.
+ * The rail line's way across, kept clear for a viaduct high over everything (ADR-0148's rail,
+ * still to come): from the ridge's north-west corner, straight over the middle of the stack,
+ * across the river to the south hills. Palms line it meanwhile.
  */
 const railX = (z: number) => STACK[0] + z - STACK[1];
 const RAIL_NORTH_Z = -94;
@@ -786,7 +787,6 @@ const AREAS: TAreaInput[] = [
 			[-70, -93, -6],
 			[-100, -96, DOWN],
 			[-118, -97, -4],
-			...portal([railX(RAIL_NORTH_Z), RAIL_NORTH_Z], [-Math.SQRT1_2, Math.SQRT1_2], 5),
 			[-148, -84, DOWN],
 			[-152, -40, DOWN],
 			...portal([WEST_TUNNEL_X, STACK[1]], [0, 1], 9),
@@ -834,7 +834,6 @@ const AREAS: TAreaInput[] = [
 			...portal([STACK[0], SOUTH_TUNNEL_Z], [1, 0], 9),
 			[-20, 110, -6],
 			[20, 109, DOWN],
-			...portal([railX(RAIL_SOUTH_Z), RAIL_SOUTH_Z], [Math.SQRT1_2, -Math.SQRT1_2], 5),
 			[100, 109, DOWN],
 			[HALF[0], 108, DOWN],
 			[HALF[0], HALF[1]],
@@ -2156,11 +2155,12 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		projection: "perspective",
 	},
 	{
-		id: "view_rail",
-		name: "The rail viaduct",
-		description: "The rail line crossing the valley on its own viaduct, over the freeways.",
+		id: "view_palm_avenue",
+		name: "The palm avenue",
+		description:
+			"Two rows of palms across the valley, from the ridge to the river, under the flyovers.",
 		target: [railX(30), 30],
-		targetAltitude: 5,
+		targetAltitude: 2,
 		azimuth: 20,
 		elevation: 14,
 		span: 50,
