@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { flowDirection, flowOffsets, vehiclesOnStream } from "#/editor/roadFlows";
@@ -8,14 +8,21 @@ import { resolvePartColors, resolvePartTransparencies } from "#/parts/colorModel
 import { resolveLights } from "#/parts/lightModel";
 import { shareGeometryAs } from "#/parts/primitives";
 import { getPart, resolveProps } from "#/parts/registry";
-import { createFlowTrip, flowDrivesOn, flowVehicleLength, flowVehicleSize } from "#/scene/flows";
+import {
+	createFlowTrip,
+	flowDrivesOn,
+	flowVehicleLength,
+	flowVehicleSeed,
+	flowVehicleSize,
+} from "#/scene/flows";
 import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
-import { isHiddenRoute, polylineLength } from "#/scene/roads";
+import { isHiddenRoute, laneOffset, polylineLength } from "#/scene/roads";
 import { centerlineOf, createOneWaySampler } from "#/scene/routes";
 import type { TDataValue, TDrivingSide, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { useInstancedPart } from "./InstancedParts";
+import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 
 /**
  * A road's flow (ADR-0112): its vehicles, evenly spaced on one-way streams
@@ -23,7 +30,8 @@ import { useInstancedPart } from "./InstancedParts";
  * the bigger flow goes. They're drawn by the road, not objects of the world,
  * and moved by one frame callback per road. A flow that drives on through
  * junctions (ADR-0147) is background traffic instead: each vehicle starts where
- * it would, then drives a trip of its own across the network, with no arrows.
+ * it would, then drives a trip of its own across the network in the traffic,
+ * with no arrows.
  */
 
 /** Grid units between arrows on the road. */
@@ -192,10 +200,16 @@ const Stream = ({
 	);
 };
 
+/** The key a flow's vehicle drives under in the traffic: never an object's id. */
+const trafficKeyOf = (roadId: string, reverse: boolean, index: number) =>
+	`\u0000${flowVehicleSeed(roadId, reverse, index)}`;
+
 /**
  * A stream of a flow that drives on through junctions (ADR-0147): its vehicles start spread along
  * the road as a stream's do, then each drives its own trip across the network, picking ways at
  * junctions and turning round at dead ends; it grows in once, at the start, and never shrinks.
+ * They join the traffic (ADR-0042) as vehicle objects on a network do, so where streams meet they
+ * keep their distance and queues carry through junctions, instead of driving into each other.
  */
 const DrivingOnStream = ({
 	road,
@@ -216,68 +230,95 @@ const DrivingOnStream = ({
 }) => {
 	const playing = useEditor((s) => s.playing);
 	const part = getPart(road.flow.vehicleKind);
-	const length = flowVehicleLength(road.flow, part ? part.footprint(resolveProps(part, {}))[0] : 1);
+	const footprint = part ? part.footprint(resolveProps(part, {})) : [1, 1];
+	const length = flowVehicleLength(road.flow, footprint[0]);
 	// The road as the network has it, which its trips drive.
-	const roadLength = polylineLength(centerlineOf(network.roadById(road.id) ?? road), false);
+	const own = network.roadById(road.id) ?? road;
+	const roadLength = polylineLength(centerlineOf(own), false);
 	const vehicles = vehiclesOnStream(road.flow, count, roadLength, length);
-	const trips = useMemo(
+	// Each vehicle's place in the traffic: its trip, and how far it has driven (moved by TrafficStep).
+	// New trips (a road, a junction or the flow changed) start again from where the vehicles start: a
+	// trip replays its way from there, so carrying on from far along would cost a frame dearly.
+	const entries = useMemo(
 		() =>
-			flowOffsets(vehicles, roadLength, reverse).map((offset, index) => ({
-				offset,
-				trip: createFlowTrip(network, road.id, {
-					driving,
-					smoothing: length / 2,
-					reverse,
-					offset,
-					length: roadLength,
-					index,
+			flowOffsets(vehicles, roadLength, reverse).map(
+				(offset, index): IDrivingVehicle & { startsAt: number } => ({
+					roadId: road.id,
+					sampler: createFlowTrip(network, road.id, {
+						driving,
+						smoothing: length / 2,
+						reverse,
+						offset,
+						length: roadLength,
+						index,
+					}),
+					offset: 0,
+					speed: road.flow.speed,
+					length,
+					travelled: 0,
+					state: null,
+					startsAt: offset,
 				}),
-			})),
+			),
 		[network, road.id, driving, reverse, length, roadLength, vehicles],
 	);
+	useEffect(() => {
+		const keys = entries.map((_, index) => trafficKeyOf(road.id, reverse, index));
+		entries.forEach((entry, index) => {
+			drivingVehicles.set(keys[index], entry);
+		});
+		return () => {
+			for (const key of keys) {
+				drivingVehicles.delete(key);
+			}
+		};
+	}, [entries, road.id, reverse]);
+	// Out towards the overtaking line, as a vehicle object (render/EntityNode).
+	const lane = laneOffset(own, driving);
+	const passOffset =
+		lane !== 0
+			? -2 * lane
+			: (driving === "right" ? -1 : 1) * Math.max(footprint[1] * road.flow.vehicleScale * 1.3, 0.6);
 	const groups = useRef<(THREE.Group | null)[]>([]);
-	const travelled = useRef(0);
 	// Paused, the vehicles stand still: placed once for what they're placed by, not every frame.
-	const placed = useRef<{ trips: typeof trips; groups: (THREE.Group | null)[] } | null>(null);
-	// New trips (a road or junction changed) start again from where the vehicles start: a trip
-	// replays its way from there, so carrying on from far along would cost a frame dearly.
-	const tripsDriven = useRef(trips);
+	const placed = useRef<{ entries: typeof entries; groups: (THREE.Group | null)[] } | null>(null);
 
-	useFrame((_, delta) => {
-		if (tripsDriven.current !== trips) {
-			tripsDriven.current = trips;
-			travelled.current = 0;
-		}
+	useFrame(() => {
 		const was = placed.current;
-		if (playing) {
-			travelled.current += road.flow.speed * Math.min(delta, 0.1);
-		} else if (
-			was?.trips === trips &&
+		if (
+			!playing &&
+			was?.entries === entries &&
 			was.groups.every((group, i) => group === groups.current[i])
 		) {
 			return;
 		}
 		let placedAll = true;
-		for (let i = 0; i < trips.length; i++) {
+		for (let i = 0; i < entries.length; i++) {
+			const entry = entries[i];
+			entry.speed = road.flow.speed;
 			const group = groups.current[i];
 			if (!group) {
 				placedAll = false;
 				continue;
 			}
-			const { offset, trip } = trips[i];
-			const sample = trip.at(0, travelled.current);
-			const size = flowVehicleSize(offset + travelled.current, roadLength, true);
-			group.position.set(sample.position[0], sample.height, sample.position[1]);
+			const sample = entry.sampler.at(0, entry.travelled);
+			const out = entry.state ? entry.state.shift * passOffset : 0;
+			const size = flowVehicleSize(entry.startsAt + entry.travelled, roadLength, true);
+			group.position.set(
+				sample.position[0] + Math.sin(sample.heading) * out,
+				sample.height,
+				sample.position[1] + Math.cos(sample.heading) * out,
+			);
 			group.rotation.set(0, sample.heading, sample.pitch, "YZX");
 			group.scale.setScalar(Math.max(0.001, size) * road.flow.vehicleScale);
 		}
 		placed.current =
-			placedAll && !playing ? { trips, groups: groups.current.slice(0, trips.length) } : null;
+			placedAll && !playing ? { entries, groups: groups.current.slice(0, entries.length) } : null;
 	});
 
 	return (
 		<>
-			{trips.map((_, index) => (
+			{entries.map((_, index) => (
 				<FlowVehicle
 					// biome-ignore lint/suspicious/noArrayIndexKey: vehicles of a stream are alike, by place
 					key={index}

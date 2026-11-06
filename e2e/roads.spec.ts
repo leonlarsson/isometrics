@@ -635,4 +635,89 @@ test.describe("junctions (ADR-0136)", () => {
 		// Its highlight is its own road's, there and back, not a way ahead across the junction.
 		expect(await page.evaluate(() => globalThis.__editorView.routesShown().car)).toBeUndefined();
 	});
+
+	test("a road's flow can drive on through its junction, greyed out on a road with none (ADR-0147)", async ({
+		page,
+	}) => {
+		const flow = {
+			enabled: true,
+			vehicleKind: "car_01",
+			vehicleCountAlong: 2,
+			vehicleCountAgainst: 1,
+			speed: 3,
+			vehicleScale: 1,
+			vehicleDensity: null,
+			showsArrows: true,
+			drivesThroughJunctions: false,
+		};
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					points: [
+						[-20, 0, 0],
+						[0, 0, 0],
+					],
+					cornerRadius: 0,
+					flow,
+				},
+				{
+					id: "north",
+					points: [
+						[0, 0, 0],
+						[0, -20, 0],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "alone",
+					points: [
+						[-20, 10, 0],
+						[0, 10, 0],
+					],
+					cornerRadius: 0,
+					flow,
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "north", end: "start" },
+					],
+				},
+			],
+		});
+		await act(page, (s) => s.selectRoad("alone"));
+		// The road's Data tab, after the world's.
+		await page.getByRole("tab", { name: "Data", exact: true }).last().click();
+		await expect(
+			page.getByRole("switch", {
+				name: "Drive through junctions onto other roads (no junction at its ends)",
+			}),
+		).toBeDisabled();
+
+		await act(page, (s) => s.selectRoad("west"));
+		const drivesOn = page.getByRole("switch", {
+			name: "Drive through junctions onto other roads",
+			exact: true,
+		});
+		await expect(drivesOn).toBeEnabled();
+		await drivesOn.click();
+		expect(await read(page, (s) => s.scene.roads[0].flow.drivesThroughJunctions)).toBe(true);
+		// Traffic now, not a direction: no arrows while it drives on.
+		await expect(page.getByRole("switch", { name: /^Arrows on the road \(none/ })).toBeDisabled();
+
+		// A world without data has no Data tabs (ADR-0115): the flow is in the road's Road tab, after
+		// Traffic, whose switch for vehicle objects has the same words.
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.data.enabled = false;
+			}),
+		);
+		await page.getByRole("tab", { name: "Road", exact: true }).click();
+		await expect(drivesOn).toHaveCount(2);
+		await expect(drivesOn.last()).toBeChecked();
+	});
 });
