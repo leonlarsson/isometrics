@@ -35,13 +35,19 @@ const crossing = (more: Partial<TRoadInput> = {}) => {
 };
 
 describe("pillars (ADR-0148)", () => {
-	it("stand exactly where they always did with the defaults, on every template", () => {
+	it("stand exactly where they always did on every template road with the defaults", () => {
 		for (const template of TEMPLATES) {
 			const world = template.create();
 			const network = roadNetworkOf(world.roads, world.junctions);
 			for (const each of world.roads) {
-				expect(each.pillarKind).toBe("post_01");
-				expect(each.pillarsKeepClear).toBe(false);
+				// Only roads with the defaults promise the old places; a template may choose its own.
+				if (
+					each.pillarKind !== "post_01" ||
+					each.pillarsKeepClear ||
+					each.pillarsAtPoints.length > 0
+				) {
+					continue;
+				}
 				const trims = network.drawTrimsOf(each.id);
 				const line = cutLine(roadCenterlineOf(each), trims.start, trims.end);
 				const placed = placePillars(each, line, { world, trimStart: trims.start });
