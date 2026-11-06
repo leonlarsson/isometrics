@@ -158,6 +158,8 @@ interface ILeg {
 				/** The junction, and whether its vehicles give way to each other (a road there is one-way). */
 				junctionId: string;
 				givesWay: boolean;
+				/** How far before its cut-back line it's already in the junction: a merge's gore, beside it. */
+				zone: number;
 		  }
 		| { kind: "turn"; turnLength: number }
 		| { kind: "startOver" };
@@ -332,6 +334,13 @@ export const createNetworkTrip = (
 				curveLength,
 				junctionId: junction.id,
 				givesWay: junction.hasOneWayRoad,
+				// Coming along the carriageway to a merge, it reaches the gore where the slip road joins it.
+				zone:
+					junction.gore &&
+					junction.ends[junction.gore.beside].roadId === id &&
+					junction.ends[junction.gore.beside].end === exitEnd
+						? junction.gore.cut
+						: 0,
 			},
 			startsAt,
 			ownLength: Math.max(1e-6, bodyTo + curveLength - start),
@@ -500,7 +509,7 @@ export const createNetworkTrip = (
 						junctionAhead: {
 							id: leg.exit.junctionId,
 							from: `${leg.roadId}:${exitEnd}`,
-							entersIn: leg.bodyTo - along,
+							entersIn: leg.bodyTo - leg.exit.zone - along,
 						},
 					}
 				: {};

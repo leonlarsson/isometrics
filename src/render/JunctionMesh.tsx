@@ -9,10 +9,12 @@ import {
 	junctionPad,
 	roadNetworkOf,
 } from "#/scene/junctions";
-import { DECK_THICKNESS, ELEVATED_MIN } from "#/scene/roads";
+import { type IPillarWorld, junctionPillars } from "#/scene/pillars";
+import { DECK_THICKNESS, ELEVATED_MIN, railingHeightAt } from "#/scene/roads";
 import type { TDataValue, TJunction, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
+import { pillarGeometry } from "./pillarGeometry";
 import { roadBaseY, roadColor, roadsInUse, USED_ROAD_SNOW } from "./RoadMesh";
 
 /**
@@ -43,7 +45,7 @@ const padGeometry = (pad: IJunctionPad, y: number) => {
 
 	const raised = pad.vertices[0][2] > ELEVATED_MIN;
 	if (!raised) {
-		return { surface, sides: null };
+		return { surface, sides: null, railings: null };
 	}
 	// Its edge between the roads, down to the deck's thickness, and the underside under it all.
 	const sidePositions: number[] = [];
@@ -86,7 +88,27 @@ const padGeometry = (pad: IJunctionPad, y: number) => {
 	const sides = new THREE.BufferGeometry();
 	sides.setAttribute("position", new THREE.Float32BufferAttribute(sidePositions, 3));
 	sides.computeVertexNormals();
-	return { surface, sides };
+	// A gore's outer edge has a railing, growing in with the deck's height as a road's (ADR-0148).
+	const railingPositions: number[] = [];
+	for (const edge of pad.railingEdges ?? []) {
+		for (let i = 0; i < edge.length - 1; i++) {
+			const [a, b] = [edge[i], edge[i + 1]];
+			const [ta, tb] = [a[2] + railingHeightAt(a[2]), b[2] + railingHeightAt(b[2])];
+			if (ta - a[2] < 1e-3 && tb - b[2] < 1e-3) {
+				continue;
+			}
+			railingPositions.push(
+				...[a[0], y + ta, a[1], b[0], y + tb, b[1], a[0], y + a[2], a[1]],
+				...[a[0], y + a[2], a[1], b[0], y + tb, b[1], b[0], y + b[2], b[1]],
+			);
+		}
+	}
+	const railings = railingPositions.length > 0 ? new THREE.BufferGeometry() : null;
+	if (railings) {
+		railings.setAttribute("position", new THREE.Float32BufferAttribute(railingPositions, 3));
+		railings.computeVertexNormals();
+	}
+	return { surface, sides, railings };
 };
 
 interface IJunctionBodyProps {
@@ -96,12 +118,14 @@ interface IJunctionBodyProps {
 	layer: number;
 	palette: IScenePalette;
 	data: readonly TDataValue[];
+	/** What its pillars keep clear of (ADR-0148); none drawn without it. */
+	world: IPillarWorld | null;
 	/** Whether vehicles drive any of its roads: then it keeps clear of snow as they do. */
 	used: boolean;
 }
 
 const JunctionBody = memo(
-	({ network, junction, layer, palette, data, used }: IJunctionBodyProps) => {
+	({ network, junction, layer, palette, data, used, world }: IJunctionBodyProps) => {
 		const pad = junctionPad(network, junction);
 		const y = roadBaseY(layer) + PAD_LIFT;
 		// Built again only when its shape does, not on every change to any road.
@@ -111,6 +135,7 @@ const JunctionBody = memo(
 			() => () => {
 				geometry?.surface.dispose();
 				geometry?.sides?.dispose();
+				geometry?.railings?.dispose();
 			},
 			[geometry],
 		);
@@ -119,6 +144,17 @@ const JunctionBody = memo(
 		useLayoutEffect(() => {
 			snowFactor.value = used ? USED_ROAD_SNOW : 1;
 		}, [used, snowFactor]);
+
+		// The pillars it stands on, raised (ADR-0148).
+		const standsOn = useMemo(
+			() => (world ? junctionPillars(network, junction, world) : null),
+			[network, junction, world],
+		);
+		const pillarMesh = useMemo(
+			() => (standsOn ? pillarGeometry(standsOn.pillars, standsOn.kind, roadBaseY(layer)) : null),
+			[standsOn, layer],
+		);
+		useLayoutEffect(() => () => pillarMesh?.dispose(), [pillarMesh]);
 
 		const colorRoad = pad ? network.roadById(pad.colorRoadId) : undefined;
 		if (!geometry || !colorRoad) {
@@ -134,6 +170,18 @@ const JunctionBody = memo(
 						userData={snowShare}
 					/>
 				</mesh>
+
+				{pillarMesh && (
+					<mesh geometry={pillarMesh} castShadow receiveShadow>
+						<meshStandardMaterial color={palette.deck} roughness={0.9} />
+					</mesh>
+				)}
+
+				{geometry.railings && (
+					<mesh geometry={geometry.railings} castShadow>
+						<meshStandardMaterial color={palette.railing} roughness={0.8} side={THREE.DoubleSide} />
+					</mesh>
+				)}
 
 				{geometry.sides && (
 					<mesh geometry={geometry.sides} castShadow receiveShadow>
@@ -156,6 +204,8 @@ interface IJunctionBodiesProps {
 export const JunctionBodies = ({ roads, junctions, palette, data }: IJunctionBodiesProps) => {
 	const network = roadNetworkOf(roads, junctions);
 	const used = useEditor((s) => roadsInUse(s.scene.entities));
+	const areas = useEditor((s) => s.scene.areas);
+	const world = useMemo(() => ({ roads, junctions, areas }), [roads, junctions, areas]);
 	if (network.junctions.length === 0) {
 		return null;
 	}
@@ -170,6 +220,7 @@ export const JunctionBodies = ({ roads, junctions, palette, data }: IJunctionBod
 			palette={palette}
 			data={data}
 			used={junction.ends.some((end) => used.has(end.roadId))}
+			world={world}
 		/>
 	));
 };

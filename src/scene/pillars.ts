@@ -1,5 +1,5 @@
 import { isInsidePolygon } from "./areas";
-import { type IRoadNetwork, junctionPad, roadNetworkOf } from "./junctions";
+import { type INetworkJunction, type IRoadNetwork, junctionPad, roadNetworkOf } from "./junctions";
 import { DECK_THICKNESS, isHiddenRoute, PILLAR_MIN, PILLAR_SPACING } from "./roads";
 import { centerlineOf } from "./routes";
 import type { TArea, TJunction, TPillarKind, TRoad, TRoadPoint } from "./schema";
@@ -303,6 +303,59 @@ export const pillarObstacles = (
 };
 
 /**
+ * The pillars a raised junction stands on (ADR-0148), when its `standsOnPillars` is on: one under
+ * its middle, in the pillar kind of its first road held up by pillars and as wide as its widest
+ * road, moved out along one of its roads (within its surface) when something is below it there.
+ * None for a gore (its roads' own pillars hold it up), a junction on the ground, or one none of
+ * whose roads stand on pillars.
+ */
+export const junctionPillars = (
+	network: IRoadNetwork,
+	junction: INetworkJunction,
+	world: IPillarWorld,
+): { kind: TPillarKind; pillars: IPillar[] } | null => {
+	const height = junction.place[2];
+	if (!junction.standsOnPillars || junction.gore || height < PILLAR_MIN) {
+		return null;
+	}
+	const roads = junction.ends.flatMap((end) => {
+		const road = network.roadById(end.roadId);
+		return road && road.heldUpBy === "pillars" && !isHiddenRoute(road.kind) ? [{ road, end }] : [];
+	});
+	const first = roads[0];
+	if (!first) {
+		return null;
+	}
+	const halfWidth = Math.max(...junction.ends.map((end) => end.halfWidth));
+	const [x, z] = junction.place;
+	const heading = Math.atan2(first.end.direction[1], first.end.direction[0]);
+	const spot: IPillarSpot = { x, z, height, heading, halfWidth };
+	const road = { ...first.road, pillarKind: first.road.pillarKind ?? "post_01" };
+	const keepsClear = roads.some((each) => each.road.pillarsKeepClear);
+	if (!keepsClear) {
+		return { kind: road.pillarKind, pillars: [{ ...spot, along: 0, isForced: false }] };
+	}
+	const obstacles = pillarObstacles(road, [], world);
+	for (let move = 0; move <= Math.max(...junction.ends.map((end) => end.drawTrim)); move += 0.25) {
+		for (const end of junction.ends) {
+			const moved = {
+				...spot,
+				x: x + end.direction[0] * move,
+				z: z + end.direction[1] * move,
+				heading: Math.atan2(end.direction[1], end.direction[0]),
+			};
+			if (obstacles.isClear(moved, Number.NaN)) {
+				return { kind: road.pillarKind, pillars: [{ ...moved, along: 0, isForced: false }] };
+			}
+			if (move === 0) {
+				break;
+			}
+		}
+	}
+	return null;
+};
+
+/**
  * Where a raised road's pillars stand, along `line` (its centre line as drawn, cut back
  * `trimStart` at its first point for a junction), for a road held up by pillars. `world` is what
  * they keep clear of, when the road's `pillarsKeepClear` is on.
@@ -310,7 +363,18 @@ export const pillarObstacles = (
 export const placePillars = (
 	road: TRoad,
 	line: readonly TRoadPoint[],
-	{ world = null, trimStart = 0 }: { world?: IPillarWorld | null; trimStart?: number } = {},
+	{
+		world = null,
+		trimStart = 0,
+		bareStart = false,
+		bareEnd = false,
+	}: {
+		world?: IPillarWorld | null;
+		trimStart?: number;
+		/** No pillars within half a spacing of its first or last point: a junction there has its own. */
+		bareStart?: boolean;
+		bareEnd?: boolean;
+	} = {},
 ): IPillar[] => {
 	const measuredLine = measured(line, road.loops);
 	const step = Math.max(0.5, road.pillarSpacing ?? PILLAR_SPACING);
@@ -369,6 +433,14 @@ export const placePillars = (
 			}
 		}
 		placed.sort((a, b) => a.along - b.along);
+	}
+	// Not right beside a junction that stands on its own pillars (ADR-0148).
+	if (bareStart || bareEnd) {
+		placed = placed.filter(
+			(pillar) =>
+				!(bareStart && pillar.along < step / 2) &&
+				!(bareEnd && pillar.along > measuredLine.total - step / 2),
+		);
 	}
 	// 3. Clear of what's below, moved along the road where it isn't.
 	const obstacles = road.pillarsKeepClear && world ? pillarObstacles(road, line, world) : null;
