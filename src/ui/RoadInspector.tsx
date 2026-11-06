@@ -22,8 +22,8 @@ import {
 import {
 	RoadSchema,
 	type TDrivingLane,
-	type TRoad,
 	type TPillarKind,
+	type TRoad,
 	type TRoadCurveShape,
 	type TRoadHeldUpBy,
 	type TRoadKind,
