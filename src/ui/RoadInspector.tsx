@@ -9,6 +9,7 @@ import {
 	isHiddenRoute,
 	NEW_ROAD_SETTINGS,
 	PILLAR_KIND_LABELS,
+	pillarSpacingOf,
 	pointWidth,
 	polylineLength,
 	ROAD_KIND_LABELS,
@@ -450,10 +451,18 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 							/>
 
 							<SliderField
-								inherit={reset("pillarSpacing")}
+								inherit={{
+									from: "default",
+									inherited: road.pillarSpacing === null,
+									onReset: () =>
+										edit("pillarSpacing", (r) => {
+											r.pillarSpacing = null;
+										}),
+									value: `${pillarSpacingOf({ ...road, pillarSpacing: null })}, by its pillar look`,
+								}}
 								disabled={!onPillars}
 								label={onPillars ? "Pillar spacing" : "Pillar spacing (held up by pillars only)"}
-								value={road.pillarSpacing}
+								value={pillarSpacingOf(road)}
 								min={1}
 								max={20}
 								step={0.5}

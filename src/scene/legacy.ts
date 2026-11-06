@@ -323,6 +323,11 @@ const upgradeRoad = (road: TRecord) => {
 	moveColor(road, "embankmentColor", "embankment");
 	upgradeColors(road.colors);
 	upgradeId(road, LEGACY_ROAD_KINDS);
+	// The pillar spacing every road had, 4, is what a road's square posts take when it says
+	// nothing since ADR-0148 (null): the same places, and spacing that follows a new pillar look.
+	if (road.pillarSpacing === 4 && road.pillarKind === undefined) {
+		road.pillarSpacing = null;
+	}
 };
 
 const upgradeArea = (area: TRecord) => {

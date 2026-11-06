@@ -146,6 +146,23 @@ export const NEW_ROAD_SETTINGS = {
 	pillarsKeepClear: true,
 } as const satisfies Partial<TRoad>;
 
+/**
+ * How far apart a road's pillars stand (ADR-0148): its own spacing, else its pillar kind's: the
+ * square posts' 4 as always, and for columns, hammerheads, pairs and walls about four times the
+ * deck's width, as real viaducts span between supports.
+ */
+export const pillarSpacingOf = (
+	road: Pick<TRoad, "pillarSpacing" | "pillarKind" | "width"> | { pillarSpacing?: number | null },
+) => {
+	if (typeof road.pillarSpacing === "number") {
+		return road.pillarSpacing;
+	}
+	if (!("pillarKind" in road) || road.pillarKind === "post_01") {
+		return PILLAR_SPACING;
+	}
+	return Math.min(20, Math.max(8, road.width * 4));
+};
+
 /** What each pillar kind is called in the editor (ADR-0148). */
 export const PILLAR_KIND_LABELS: Record<TPillarKind, string> = {
 	post_01: "Square posts",

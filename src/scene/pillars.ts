@@ -1,6 +1,12 @@
 import { isInsidePolygon } from "./areas";
-import { type INetworkJunction, type IRoadNetwork, junctionPad, roadNetworkOf } from "./junctions";
-import { DECK_THICKNESS, isHiddenRoute, PILLAR_MIN, PILLAR_SPACING } from "./roads";
+import {
+	goreDeckAt,
+	type INetworkJunction,
+	type IRoadNetwork,
+	junctionPad,
+	roadNetworkOf,
+} from "./junctions";
+import { DECK_THICKNESS, isHiddenRoute, PILLAR_MIN, pillarSpacingOf } from "./roads";
 import { centerlineOf } from "./routes";
 import type { TArea, TJunction, TPillarKind, TRoad, TRoadPoint } from "./schema";
 
@@ -309,13 +315,58 @@ export const pillarObstacles = (
  * None for a gore (its roads' own pillars hold it up), a junction on the ground, or one none of
  * whose roads stand on pillars.
  */
+/**
+ * The pillars under a raised gore's deck (ADR-0148): its carriageway's, spaced as its own along
+ * it, each under the middle of the widened deck and as wide as it there (wider crossheads or a
+ * pair spread further), so the one deck stands on one row of supports, not two.
+ */
+const gorePillars = (
+	network: IRoadNetwork,
+	junction: INetworkJunction,
+	world: IPillarWorld,
+): { kind: TPillarKind; pillars: IPillar[] } | null => {
+	const deck = goreDeckAt(network, junction);
+	if (!deck || deck.beside.heldUpBy !== "pillars" || deck.sections.length < 2) {
+		return null;
+	}
+	const { beside, sections, side } = deck;
+	const step = pillarSpacingOf(beside);
+	const obstacles = beside.pillarsKeepClear ? pillarObstacles(beside, [], world) : null;
+	const pillars: IPillar[] = [];
+	for (let at = step / 2; at <= deck.length; at += step) {
+		const section = sections.reduce((best, each) =>
+			Math.abs(each.along - at) < Math.abs(best.along - at) ? each : best,
+		);
+		const height = section.centre[2];
+		if (height < PILLAR_MIN) {
+			continue;
+		}
+		// The middle of the deck there: between its far edge and its reach on the slip road's side.
+		const middle = (side * (section.reach - section.half)) / 2;
+		const spot: IPillarSpot = {
+			x: section.centre[0] + section.right[0] * middle,
+			z: section.centre[1] + section.right[1] * middle,
+			height,
+			heading: Math.atan2(-section.right[0], section.right[1]),
+			halfWidth: (section.half + section.reach) / 2,
+		};
+		if (!obstacles || obstacles.isClear(spot, Number.NaN)) {
+			pillars.push({ ...spot, along: at, isForced: false });
+		}
+	}
+	return { kind: beside.pillarKind, pillars };
+};
+
 export const junctionPillars = (
 	network: IRoadNetwork,
 	junction: INetworkJunction,
 	world: IPillarWorld,
 ): { kind: TPillarKind; pillars: IPillar[] } | null => {
+	if (junction.gore) {
+		return gorePillars(network, junction, world);
+	}
 	const height = junction.place[2];
-	if (!junction.standsOnPillars || junction.gore || height < PILLAR_MIN) {
+	if (!junction.standsOnPillars || height < PILLAR_MIN) {
 		return null;
 	}
 	const roads = junction.ends.flatMap((end) => {
@@ -377,7 +428,7 @@ export const placePillars = (
 	} = {},
 ): IPillar[] => {
 	const measuredLine = measured(line, road.loops);
-	const step = Math.max(0.5, road.pillarSpacing ?? PILLAR_SPACING);
+	const step = Math.max(0.5, pillarSpacingOf(road));
 	const halfWidth = road.width / 2;
 	// 1. Every spacing along it, from half a spacing in, where it's high enough (exactly as always).
 	const candidates: { along: number; isForced: boolean; spot: IPillarSpot | null }[] = [];

@@ -309,7 +309,6 @@ const Roads = () => {
 						layer={index}
 						trimStart={trims.start}
 						trimEnd={trims.end}
-						openRailings={network.openRailingsOf(road.id)}
 						bareStart={standsOnOwnPillars(network.junctionAt(road.id, "start"))}
 						bareEnd={standsOnOwnPillars(network.junctionAt(road.id, "end"))}
 					/>

@@ -10,12 +10,21 @@ import {
 	roadNetworkOf,
 } from "#/scene/junctions";
 import { type IPillarWorld, junctionPillars } from "#/scene/pillars";
-import { DECK_THICKNESS, ELEVATED_MIN, railingHeightAt } from "#/scene/roads";
+import { DECK_THICKNESS, dashPolyline, ELEVATED_MIN, railingHeightAt } from "#/scene/roads";
 import type { TDataValue, TJunction, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { pillarGeometry } from "./pillarGeometry";
-import { roadBaseY, roadColor, roadsInUse, USED_ROAD_SNOW } from "./RoadMesh";
+import {
+	MARKING_DASH,
+	MARKING_GAP,
+	MARKING_HALF_WIDTH,
+	ribbonGeometry,
+	roadBaseY,
+	roadColor,
+	roadsInUse,
+	USED_ROAD_SNOW,
+} from "./RoadMesh";
 
 /**
  * Where roads meet (ADR-0136): the junction's own surface, between its roads'
@@ -165,6 +174,23 @@ const JunctionBody = memo(
 			() => (world ? junctionPillars(network, junction, world) : null),
 			[network, junction, world],
 		);
+		// Its lane lines (a gore's, ADR-0148), dashed like the roads' markings.
+		const laneLines = useMemo(() => {
+			const lines = pad?.laneLines ?? [];
+			return lines.length > 0
+				? ribbonGeometry(
+						lines.flatMap((line) =>
+							dashPolyline(line, false, MARKING_DASH, MARKING_GAP).map((dash) => ({
+								center: dash,
+								halfWidth: MARKING_HALF_WIDTH,
+								closed: false,
+							})),
+						),
+						y + 0.002,
+					)
+				: null;
+		}, [shape]);
+		useLayoutEffect(() => () => laneLines?.dispose(), [laneLines]);
 		const pillarMesh = useMemo(
 			() => (standsOn ? pillarGeometry(standsOn.pillars, standsOn.kind, roadBaseY(layer)) : null),
 			[standsOn, layer],
@@ -185,6 +211,12 @@ const JunctionBody = memo(
 						userData={snowShare}
 					/>
 				</mesh>
+
+				{laneLines && (
+					<mesh geometry={laneLines} receiveShadow>
+						<meshStandardMaterial color={palette.roadMark} roughness={0.9} />
+					</mesh>
+				)}
 
 				{pillarMesh && (
 					<mesh geometry={pillarMesh} castShadow receiveShadow>
