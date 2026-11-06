@@ -1230,7 +1230,8 @@ const pickOf = <T>(list: readonly T[], n: number) => list[Math.floor(shareOf(n) 
 // ---------------------------------------------------------------- the gardens
 
 const GRASS = "#6f9a4c";
-const LAWN = "#88a556";
+const LAWN = "#8fa458";
+const MEADOW = "#b9a96a";
 const BED_COLORS = ["#a8393f", "#5d4a86", "#4f8a3c", "#d29a3a", "#b4466f", "#3f7a52"];
 
 /** A disc as an outline. */
@@ -1316,14 +1317,33 @@ const cloverGardens: TAreaInput[] = QUADRANTS.flatMap((quadrant, q) => {
 const STACK_ISLAND_RADIUS = RIGHT_TURN_RADIUS - 1.5;
 const stackIslandCentre = (k: number): TVec2 => stackPlace(...RIGHT_TURN_CENTRE, k);
 
-const stackGardens: TAreaInput[] = [0, 1, 2, 3].map((k) =>
+/** A rounded, uneven outline, as planting is laid: a disc whose edge swells and dips. */
+const blob = (centre: TVec2, radius: number, seed: number): TVec2[] =>
+	Array.from({ length: 36 }, (_, i): TVec2 => {
+		const angle = (i / 36) * 2 * Math.PI;
+		const r =
+			radius * (1 + 0.07 * Math.sin(3 * angle + seed) + 0.045 * Math.sin(5 * angle + seed * 2.3));
+		return [round2(centre[0] + r * Math.cos(angle)), round2(centre[1] + r * Math.sin(angle))];
+	});
+
+const stackGardens: TAreaInput[] = [0, 1, 2, 3].flatMap((k) => [
 	lawn(
 		`stack_island_${k + 1}`,
 		`Stack island ${k + 1}`,
-		disc(stackIslandCentre(k), STACK_ISLAND_RADIUS),
+		blob(stackIslandCentre(k), STACK_ISLAND_RADIUS - 1.6, k * 1.7),
 		LAWN,
 	),
-);
+	// A bed of dry meadow in its middle, round the grove's clearing.
+	{
+		...lawn(
+			`stack_meadow_${k + 1}`,
+			`Stack meadow ${k + 1}`,
+			blob(stackIslandCentre(k), STACK_ISLAND_RADIUS * 0.42, k * 2.9 + 1),
+			MEADOW,
+		),
+		height: 0.02,
+	},
+]);
 
 const GARDENS = [...stackGardens, ...cloverGardens];
 
