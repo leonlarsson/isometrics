@@ -158,19 +158,26 @@ export const goreOf = (
 		return null;
 	}
 	const dot = (a: TVec2, b: TVec2) => a[0] * b[0] + a[1] * b[1];
-	for (let slip = 0; slip < 3; slip++) {
-		const [i, j] = [0, 1, 2].filter((k) => k !== slip);
-		const [a, b] = [ends[i], ends[j]];
-		if (dot(a.direction, b.direction) > IN_LINE || a.end === b.end) {
-			continue;
-		}
-		for (const beside of [i, j]) {
-			if (
-				ends[beside].end === ends[slip].end &&
-				dot(ends[beside].direction, ends[slip].direction) > BESIDE
-			) {
-				return { slip, beside };
-			}
+	// The carriageway is the pair most nearly in line (a slip road can be nearly in line with one of
+	// its ends too); the third end is the slip road.
+	const pairs = [0, 1, 2]
+		.map((slip) => {
+			const [i, j] = [0, 1, 2].filter((k) => k !== slip);
+			return { slip, i, j, straightness: dot(ends[i].direction, ends[j].direction) };
+		})
+		.filter(({ i, j, straightness }) => straightness <= IN_LINE && ends[i].end !== ends[j].end)
+		.sort((a, b) => a.straightness - b.straightness);
+	const best = pairs[0];
+	if (!best) {
+		return null;
+	}
+	const { slip, i, j } = best;
+	for (const beside of [i, j]) {
+		if (
+			ends[beside].end === ends[slip].end &&
+			dot(ends[beside].direction, ends[slip].direction) > BESIDE
+		) {
+			return { slip, beside };
 		}
 	}
 	return null;
@@ -319,6 +326,8 @@ const goreDeckOf = (
 		}
 		return null;
 	};
+	// How far from the junction the deck takes to widen to the slip road's full width.
+	const taper = Math.max(4, length * 0.6);
 	const stations = new Set<number>([0, length]);
 	for (let s = 0.5; s < length; s += 0.5) {
 		stations.add(s);
@@ -337,7 +346,10 @@ const goreDeckOf = (
 			const right = rightOf(normalize([ahead[0] - behind[0], ahead[1] - behind[1]]));
 			const half = (centre[3] ?? beside.width) / 2;
 			const out = outerAt(s);
-			const reach = out && out.reach > half ? out.reach : half;
+			// Widening from the junction in a smooth taper (its edge leaves the carriageway's without a
+			// kink), to the slip road's own outer edge where that's further out.
+			const tapered = half + Math.min(1, s / taper) ** 2 * slip.width;
+			const reach = out && out.reach > half ? Math.min(out.reach, tapered) : half;
 			return {
 				along: s,
 				centre,
@@ -347,6 +359,13 @@ const goreDeckOf = (
 				reachHeight: out && out.reach > half ? out.height : centre[2],
 			};
 		});
+	// A little over the roads' own surfaces past the nose, as wide as at it, so no crack shows there.
+	const last = sections[sections.length - 1];
+	if (last) {
+		const over = PAD_OVERLAP * 1.5;
+		const centre = pointAlongLine(line, last.along + over);
+		sections.push({ ...last, along: last.along + over, centre });
+	}
 	return { length, side, sections, slipHalf: slip.width / 2 };
 };
 
