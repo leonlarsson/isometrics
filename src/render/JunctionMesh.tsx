@@ -89,8 +89,17 @@ const padGeometry = (pad: IJunctionPad, y: number) => {
 	sides.setAttribute("position", new THREE.Float32BufferAttribute(sidePositions, 3));
 	sides.computeVertexNormals();
 	// A gore's outer edge has a railing, growing in with the deck's height as a road's (ADR-0148).
+	// Its normals are smooth round the kerb's curve (each point's across its edge, on the side the
+	// faces show), so the rail reads as one bent rail, not facets, and matches the roads' straight one.
 	const railingPositions: number[] = [];
+	const railingNormals: number[] = [];
 	for (const edge of pad.railingEdges ?? []) {
+		const across = edge.map((_, i) => {
+			const [a, b] = [edge[Math.max(0, i - 1)], edge[Math.min(edge.length - 1, i + 1)]];
+			const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+			const len = Math.hypot(dx, dz) || 1;
+			return [-dz / len, 0, dx / len] as const;
+		});
 		for (let i = 0; i < edge.length - 1; i++) {
 			const [a, b] = [edge[i], edge[i + 1]];
 			const [ta, tb] = [a[2] + railingHeightAt(a[2]), b[2] + railingHeightAt(b[2])];
@@ -101,12 +110,18 @@ const padGeometry = (pad: IJunctionPad, y: number) => {
 				...[a[0], y + ta, a[1], b[0], y + tb, b[1], a[0], y + a[2], a[1]],
 				...[a[0], y + a[2], a[1], b[0], y + tb, b[1], b[0], y + b[2], b[1]],
 			);
+			// The faces' own side, (b - a) × (down): the normals point the way the faces do.
+			const [fx, fz] = [b[1] - a[1], -(b[0] - a[0])];
+			const sign = fx * across[i][0] + fz * across[i][2] >= 0 ? 1 : -1;
+			for (const k of [i, i + 1, i, i, i + 1, i + 1]) {
+				railingNormals.push(across[k][0] * sign, 0, across[k][2] * sign);
+			}
 		}
 	}
 	const railings = railingPositions.length > 0 ? new THREE.BufferGeometry() : null;
 	if (railings) {
 		railings.setAttribute("position", new THREE.Float32BufferAttribute(railingPositions, 3));
-		railings.computeVertexNormals();
+		railings.setAttribute("normal", new THREE.Float32BufferAttribute(railingNormals, 3));
 	}
 	return { surface, sides, railings };
 };
