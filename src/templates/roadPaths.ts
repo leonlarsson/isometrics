@@ -95,12 +95,15 @@ export const distanceAlong = (path: readonly (readonly number[])[], point: TVec2
 /** As a key's distance in `withAltitudes`: the path's very end. */
 export const AT_END = -Number.MIN_VALUE;
 
-const smoothstep = (t: number) => t * t * (3 - 2 * t);
+/** How long the vertical curve is where a road's grade changes, in grid units. */
+const VERTICAL_CURVE = 10;
 
 /**
- * An altitude for each point of a path, eased (smoothstep) between keys given as
- * [distance along the path, altitude]; before the first key and after the last, theirs.
- * A negative distance counts back from the path's end.
+ * An altitude for each point of a path, as a road's would be laid: straight grades between
+ * keys given as [distance along the path, altitude] (before the first key and after the
+ * last, theirs), each change of grade rounded over `VERTICAL_CURVE` (an average over that
+ * length), so the steepest it gets is the steepest straight grade. A negative distance counts
+ * back from the path's end. Its first and last points keep their keys' altitudes exactly.
  */
 export const withAltitudes = (
 	path: readonly TVec2[],
@@ -111,20 +114,38 @@ export const withAltitudes = (
 	const sorted = keys
 		.map(([at, altitude]) => [at < 0 ? total + at : at, altitude] as const)
 		.sort((a, b) => a[0] - b[0]);
-	const altitudeAt = (along: number) => {
+	const straightAt = (along: number) => {
 		if (along <= sorted[0][0]) {
 			return sorted[0][1];
 		}
 		for (let k = 0; k < sorted.length - 1; k++) {
 			const [[from, low], [to, high]] = [sorted[k], sorted[k + 1]];
 			if (along <= to) {
-				return low + (high - low) * smoothstep((along - from) / Math.max(1e-9, to - from));
+				return low + ((high - low) * (along - from)) / Math.max(1e-9, to - from);
 			}
 		}
 		return sorted.at(-1)?.[1] ?? 0;
 	};
+	const samples = 20;
+	const roundedAt = (along: number) => {
+		let sum = 0;
+		for (let i = 0; i <= samples; i++) {
+			sum += straightAt(along + VERTICAL_CURVE * (i / samples - 0.5));
+		}
+		return sum / (samples + 1);
+	};
+	// Rounding moves the ends a little where they slope: put them back, easing it in over a curve.
+	const startFix = straightAt(0) - roundedAt(0);
+	const endFix = straightAt(total) - roundedAt(total);
+	const altitudeAt = (along: number) =>
+		roundedAt(along) +
+		startFix * Math.max(0, 1 - along / VERTICAL_CURVE) +
+		endFix * Math.max(0, 1 - (total - along) / VERTICAL_CURVE);
 	return path.map(([x, z], i) => [round(x, 2), round(z, 2), round(altitudeAt(stations[i]), 2)]);
 };
+
+/** How far a climb of `rise` takes at a grade (a share: 0.07 is 7%). */
+export const climbLength = (rise: number, grade: number) => Math.abs(rise) / grade;
 
 /** The point at a distance along a path, its altitude eased linearly between its points. */
 export const pointAlong = (path: readonly TPathPoint[], along: number): TPathPoint => {

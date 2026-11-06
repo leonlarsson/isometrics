@@ -22,6 +22,7 @@ import { paint } from "./paint";
 import {
 	AT_END,
 	arcPoints,
+	climbLength,
 	cutPathAt,
 	joinPath,
 	linePoints,
@@ -48,11 +49,12 @@ import { turned } from "./turned";
 
 // ---------------------------------------------------------------- the land
 
-const GROUND: TVec2 = [220, 170];
+const GROUND: TVec2 = [330, 224];
+const HALF: TVec2 = [GROUND[0] / 2, GROUND[1] / 2];
 
 /** The stack's middle, and the cloverleaf's, on the east–west freeway. */
-const STACK: TVec2 = [-34, -6];
-const CLOVER: TVec2 = [62, -6];
+const STACK: TVec2 = [-46, 0];
+const CLOVER: TVec2 = [112, 0];
 
 /** Each carriageway's centre line from its freeway's, and how wide it is (three lanes). */
 const CARRIAGEWAY_OFFSET = 2.6;
@@ -60,97 +62,175 @@ const CARRIAGEWAY_WIDTH = 3.6;
 /** A one-lane ramp. */
 const RAMP_WIDTH = 1.8;
 
-/** The levels: the north–south freeway over the east–west one, the flyovers over both. */
-/** Drawn higher than true, as miniatures are, so the levels read from above. */
-const LEVEL_FREEWAY = 2.8;
-const LEVEL_LOW_FLYOVERS = 5.6;
-const LEVEL_HIGH_FLYOVERS = 8.4;
+/**
+ * The levels, a little over a truck's height apart: the Valley Freeway on a viaduct over the
+ * Crosstown Freeway, and the flyovers on two levels over both.
+ */
+const LEVEL_FREEWAY = 1.9;
+const LEVEL_LOW_FLYOVERS = 3.8;
+const LEVEL_HIGH_FLYOVERS = 5.7;
+/** How steeply ramps climb, as real ones do: 7.5 in 100. */
+const GRADE = 0.075;
 
 const ROAD_COLOR = "#8f8a82";
 const DECK_COLOR = "#cfc6b4";
 
+const round2 = (value: number) => Math.round(value * 100) / 100 + 0;
+
 // ---------------------------------------------------------------- the stack, in its frame
 
-/** Where the ramps are laid from the freeway's centre line. */
+/*
+ * In the stack's frame the northbound carriageway runs up u = 2.6 (towards −v). Everything that
+ * leaves it is laid here once: its exit peels off at grade along a long taper, then splits; the
+ * left-turn flyover climbs at 7%, sweeps round over the middle and comes down beside the
+ * westbound; the right turn curves off the other way. Turned a quarter at a time, the same
+ * shapes serve the other three carriageways. The flyovers from the Valley Freeway (on its
+ * viaduct) go on to the higher level and come down to the Crosstown Freeway on the ground, so
+ * they come down far; those from the Crosstown climb to the lower level and come down onto the
+ * viaduct, so they land soon.
+ */
+
+/** Where the ramps run, from the freeway's centre line. */
 const RAMP_OFFSET = 6;
 /** The flyovers' radius. */
-const FLYOVER_RADIUS = 28;
-/** How far from the middle the exit leaves the carriageway, and where it splits left and right. */
-const EXIT_AT = 54;
-const SPLIT_AT = 44;
-/** How far from the middle a flyover and a right turn come together, and join the carriageway. */
-const JOIN_AT = 44;
-const ENTRY_AT = 56;
-
+const FLYOVER_RADIUS = 34;
 const FLYOVER_CENTRE: TVec2 = [RAMP_OFFSET - FLYOVER_RADIUS, FLYOVER_RADIUS - RAMP_OFFSET];
+/** How far from the middle the exit leaves its carriageway, and where it splits left and right. */
+const EXIT_AT = 84;
+const SPLIT_AT = 66;
 
-/** The northbound carriageway's exit: leaves it at a shallow angle, then runs beside it. */
-const EXIT_PATH = joinPath(
-	[[CARRIAGEWAY_OFFSET, EXIT_AT]],
-	[[RAMP_OFFSET - 0.8, EXIT_AT - 5.5]],
-	linePoints([RAMP_OFFSET, SPLIT_AT + 1.5], [RAMP_OFFSET, SPLIT_AT]),
-);
+/** A flyover's way: from the split, up to its arc, round over the middle, down beside the carriageway. */
+const flyoverPath = (joinAt: number) =>
+	joinPath(
+		linePoints([RAMP_OFFSET, SPLIT_AT], [RAMP_OFFSET, FLYOVER_CENTRE[1]]),
+		arcPoints(FLYOVER_CENTRE, FLYOVER_RADIUS, 0, -90),
+		linePoints([FLYOVER_CENTRE[0], -RAMP_OFFSET], [-joinAt, -RAMP_OFFSET]),
+	);
 
-/** The left-turn flyover, northbound to westbound: up, round over the middle, and down beside the westbound. */
-const FLYOVER_PATH = joinPath(
-	linePoints([RAMP_OFFSET, SPLIT_AT], [RAMP_OFFSET, FLYOVER_CENTRE[1]]),
-	arcPoints(FLYOVER_CENTRE, FLYOVER_RADIUS, 0, -90),
-	linePoints([FLYOVER_CENTRE[0], -RAMP_OFFSET], [-JOIN_AT, -RAMP_OFFSET]),
-);
+/** How far along a flyover a point of its arc is, by its angle round the arc in degrees. */
+const alongArc = (degrees: number) =>
+	SPLIT_AT - FLYOVER_CENTRE[1] + (FLYOVER_RADIUS * degrees * Math.PI) / 180;
+/** Where the flyovers cross each other over the middle: each is at its level from before the first. */
+const OVER_THE_MIDDLE = alongArc(34);
 
-/** The right turn, northbound to eastbound: off to the right, round, and alongside the flyover from the south. */
-const RIGHT_TURN_RADIUS = 13;
-const RIGHT_TURN_CENTRE: TVec2 = [9 + RIGHT_TURN_RADIUS, 9.5 + RIGHT_TURN_RADIUS];
-const RIGHT_TURN_PATH = joinPath(
-	[[RAMP_OFFSET, SPLIT_AT]],
-	[[8.2, SPLIT_AT - 6]],
-	linePoints([9, SPLIT_AT - 10], [9, RIGHT_TURN_CENTRE[1]]),
-	arcPoints(RIGHT_TURN_CENTRE, RIGHT_TURN_RADIUS, 180, 270),
-	[[JOIN_AT - 4, RAMP_OFFSET + 1.4]],
-	[[JOIN_AT, RAMP_OFFSET]],
-);
+interface IFlyoverKind {
+	/** Its level, and the altitude it climbs from and comes down to. */
+	level: number;
+	from: number;
+	to: number;
+	/** How far along it stays at its level: past the flyovers below, or past the viaduct it lands on. */
+	holdsUntil: number;
+	/** Where it meets the right turn, and where the two join the carriageway, from the middle. */
+	joinAt: number;
+	entryAt: number;
+}
 
-/** Where a flyover and a right turn meet, then join the carriageway (here the southbound flyover's, joining eastbound). */
-const ENTRY_PATH = joinPath(
-	[[JOIN_AT, RAMP_OFFSET]],
-	[[JOIN_AT + 5, RAMP_OFFSET]],
-	[[ENTRY_AT - 6, CARRIAGEWAY_OFFSET + 1.4]],
-	[[ENTRY_AT, CARRIAGEWAY_OFFSET]],
-);
+const flyoverKind = (level: number, from: number, to: number, holdsUntil: number): IFlyoverKind => {
+	// Down at the ramps' grade, then level to where the right turn meets it.
+	const landsAt = holdsUntil + climbLength(level - to, GRADE);
+	const joinAt = Math.ceil(-FLYOVER_CENTRE[0] + landsAt - alongArc(90) + 2);
+	return { level, from, to, holdsUntil, joinAt, entryAt: joinAt + 16 };
+};
 
-/** How high the split, and the join of a flyover and a right turn, stand. */
-const SPLIT_LEVEL = 1.2;
-const JOIN_LEVEL = 1.8;
+/**
+ * From the Valley Freeway's viaduct to the high level, over the low flyovers, down to the
+ * Crosstown Freeway on the ground; and from the Crosstown to the low level, over the viaduct
+ * and down onto it.
+ */
+const HIGH_FLYOVER = flyoverKind(LEVEL_HIGH_FLYOVERS, LEVEL_FREEWAY, 0, alongArc(58));
+const LOW_FLYOVER = flyoverKind(LEVEL_LOW_FLYOVERS, 0, LEVEL_FREEWAY, alongArc(72));
 
-const flyoverAltitudes = (level: number) => {
-	const length = pathLength(FLYOVER_PATH);
-	// At its level over the middle, from before it crosses its own carriageway to after the
-	// last one, the other flyovers crossing it in between.
-	const straight = SPLIT_AT - FLYOVER_CENTRE[1];
-	const over = straight + (FLYOVER_RADIUS * 24 * Math.PI) / 180;
-	const past = straight + (FLYOVER_RADIUS * 66 * Math.PI) / 180;
-	return withAltitudes(FLYOVER_PATH, [
-		[0, SPLIT_LEVEL],
-		[over, level],
-		[past, level],
-		[length, JOIN_LEVEL],
+/** Flyovers that cross each other stand on different levels: from the Valley Freeway high, from the Crosstown low. */
+const flyoverOf = (quarters: number) => (quarters % 2 === 0 ? HIGH_FLYOVER : LOW_FLYOVER);
+
+const flyoverPoints = (kind: IFlyoverKind) => {
+	const path = flyoverPath(kind.joinAt);
+	return withAltitudes(path, [
+		[0, kind.from],
+		[5, kind.from],
+		[OVER_THE_MIDDLE - 3, kind.level],
+		[kind.holdsUntil, kind.level],
+		[kind.holdsUntil + climbLength(kind.level - kind.to, GRADE), kind.to],
+		[AT_END, kind.to],
 	]);
 };
 
-const EXIT_POINTS = withAltitudes(EXIT_PATH, [
-	[0, 0],
-	[AT_END, SPLIT_LEVEL],
-]);
-const RIGHT_TURN_POINTS = withAltitudes(RIGHT_TURN_PATH, [
-	[0, SPLIT_LEVEL],
-	[10, 0],
-	[-14, 0],
-	[AT_END, JOIN_LEVEL],
-]);
-const ENTRY_POINTS = withAltitudes(ENTRY_PATH, [
-	[0, JOIN_LEVEL],
-	[AT_END, 0],
-]);
+/** The exit: alongside the carriageway, flush, peeling away along a long shallow taper to the split. */
+const EXIT_PATH = joinPath(
+	[[CARRIAGEWAY_OFFSET, EXIT_AT]],
+	[[CARRIAGEWAY_OFFSET + 0.9, EXIT_AT - 7]],
+	[[RAMP_OFFSET - 0.6, EXIT_AT - 14]],
+	linePoints([RAMP_OFFSET, SPLIT_AT + 2], [RAMP_OFFSET, SPLIT_AT]),
+);
+
+/** The right turn: off the split at a shallow angle, round, and along beside the flyover coming down the other way. */
+const RIGHT_TURN_RADIUS = 18;
+const RIGHT_TURN_CENTRE: TVec2 = [9 + RIGHT_TURN_RADIUS, 10 + RIGHT_TURN_RADIUS];
+const rightTurnPath = (joinAt: number) =>
+	joinPath(
+		[[RAMP_OFFSET, SPLIT_AT]],
+		[[7.4, SPLIT_AT - 7]],
+		linePoints([9, SPLIT_AT - 14], [9, RIGHT_TURN_CENTRE[1]], 4),
+		arcPoints(RIGHT_TURN_CENTRE, RIGHT_TURN_RADIUS, 180, 270),
+		RIGHT_TURN_CENTRE[0] < joinAt - 12
+			? linePoints([RIGHT_TURN_CENTRE[0] + 4, 10], [joinAt - 9, 10], 4)
+			: [],
+		[[joinAt - 4.5, RAMP_OFFSET + 1.3]],
+		[[joinAt, RAMP_OFFSET]],
+	);
+
+/** Where a flyover and a right turn have come together, then join the carriageway along a taper. */
+const entryPath = (kind: IFlyoverKind) =>
+	joinPath(
+		[[kind.joinAt, RAMP_OFFSET]],
+		[[kind.joinAt + 4, RAMP_OFFSET]],
+		[[kind.entryAt - 7, CARRIAGEWAY_OFFSET + 0.9]],
+		[[kind.entryAt, CARRIAGEWAY_OFFSET]],
+	);
+
+/** The exit's altitude is its carriageway's: on the viaduct for the Valley Freeway, else on the ground. */
+const baseOf = (quarters: number) => (quarters % 2 === 0 ? LEVEL_FREEWAY : 0);
+
+const exitPoints = (quarters: number) =>
+	withAltitudes(EXIT_PATH, [
+		[0, baseOf(quarters)],
+		[AT_END, baseOf(quarters)],
+	]);
+
+/**
+ * The right turn laid in a quarter's frame goes from its carriageway's altitude to where it meets
+ * the flyover from two quarters on, which has come down to the next carriageway's altitude.
+ */
+const rightTurnPoints = (quarters: number) => {
+	const kind = flyoverOf(quarters + 2);
+	const path = rightTurnPath(kind.joinAt);
+	const from = baseOf(quarters);
+	const to = kind.to;
+	const length = pathLength(path);
+	return withAltitudes(
+		path,
+		from > to
+			? [
+					[0, from],
+					[5, from],
+					[climbLength(from - to, GRADE) + 9, to],
+					[AT_END, to],
+				]
+			: [
+					[0, from],
+					[length - climbLength(to - from, GRADE) - 4, from],
+					[AT_END, to],
+				],
+	);
+};
+
+const entryPoints = (quarters: number) => {
+	const kind = flyoverOf(quarters + 2);
+	return withAltitudes(entryPath(kind), [
+		[0, kind.to],
+		[AT_END, kind.to],
+	]);
+};
 
 /** A path in the stack's frame, turned a quarter `quarters` times and placed in the world. */
 const placed = (points: readonly TPathPoint[], quarters: number): [number, number, number][] =>
@@ -159,13 +239,11 @@ const placed = (points: readonly TPathPoint[], quarters: number): [number, numbe
 		return [round2(STACK[0] + x), round2(STACK[1] + z), altitude];
 	});
 
-const round2 = (value: number) => Math.round(value * 100) / 100 + 0;
-
 /** The carriageways as the stack's frame turns them: 0 northbound, 1 westbound, 2 southbound, 3 eastbound. */
 const CARRIAGEWAYS = ["nb", "wb", "sb", "eb"] as const;
 const CARRIAGEWAY_NAMES = ["northbound", "westbound", "southbound", "eastbound"];
 
-/** One-way ramps on pillars that keep clear. */
+/** One-way ramps on pillars, a smooth curve through their points. */
 const ramp = (
 	id: string,
 	name: string,
@@ -177,7 +255,8 @@ const ramp = (
 	kind: "road_01",
 	points,
 	width: RAMP_WIDTH,
-	cornerRadius: 1.5,
+	isOneWay: true,
+	curveShape: "throughPoints",
 	showsCentreLine: false,
 	heldUpBy: "pillars",
 	pillarSpacing: 5,
@@ -189,55 +268,42 @@ const stackRamps: TRoadInput[] = [0, 1, 2, 3].flatMap((k) => {
 	const from = CARRIAGEWAYS[k];
 	const left = CARRIAGEWAYS[(k + 1) % 4];
 	const right = CARRIAGEWAYS[(k + 3) % 4];
-	// Flyovers that cross each other stand on different levels.
-	const level = k % 2 === 0 ? LEVEL_LOW_FLYOVERS : LEVEL_HIGH_FLYOVERS;
 	return [
-		ramp(`${from}_exit`, `Exit from the ${CARRIAGEWAY_NAMES[k]}`, placed(EXIT_POINTS, k)),
+		ramp(`${from}_exit`, `Exit from the ${CARRIAGEWAY_NAMES[k]}`, placed(exitPoints(k), k)),
 		ramp(
 			`${from}_to_${left}`,
 			`Flyover, ${CARRIAGEWAY_NAMES[k]} to ${CARRIAGEWAY_NAMES[(k + 1) % 4]}`,
-			placed(flyoverAltitudes(level), k),
+			placed(flyoverPoints(flyoverOf(k)), k),
 			{ pillarSpacing: 6 },
 		),
 		ramp(
 			`${from}_to_${right}`,
 			`Right turn, ${CARRIAGEWAY_NAMES[k]} to ${CARRIAGEWAY_NAMES[(k + 3) % 4]}`,
-			placed(RIGHT_TURN_POINTS, k),
+			placed(rightTurnPoints(k), k),
 		),
 		// The entry laid in this frame is the one onto the carriageway this one turns right into,
 		// where its right turn and the flyover from two quarters on come together.
 		ramp(
 			`${right}_entry`,
 			`Entry to the ${CARRIAGEWAY_NAMES[(k + 3) % 4]}`,
-			placed(ENTRY_POINTS, k),
+			placed(entryPoints(k), k),
 		),
 	];
 });
 
 // ---------------------------------------------------------------- the freeways
 
-/** The north–south freeway's altitude by z: over the east–west one in the stack, over the river to the south. */
-const RIVER_Z: [number, number] = [56, 70];
-const nsAltitude = (z: number) => {
-	const v = z - STACK[1];
-	const smooth = (t: number) => {
-		const c = Math.max(0, Math.min(1, t));
-		return c * c * (3 - 2 * c);
-	};
-	const overStack = LEVEL_FREEWAY * smooth((34 - Math.abs(v)) / 23);
-	const overRiver = 2.6 * smooth((z - 52) / 5);
-	// Into the south hills at the bridge's height.
-	return round2(Math.max(overStack, overRiver));
-};
+const RIVER_Z: [number, number] = [86, 99];
 
 /** Where the hills' tunnels take the freeways: the ridge to the north, the hills west, east and south. */
-const NORTH_TUNNEL_Z = -66;
-const SOUTH_TUNNEL_Z = 76;
-const WEST_TUNNEL_X = -98;
-const EAST_TUNNEL_X = 100;
+const NORTH_TUNNEL_Z = -90;
+const SOUTH_TUNNEL_Z = 103;
+const WEST_TUNNEL_X = -156;
+const EAST_TUNNEL_X = 158;
 
+/** Points along straight lines between corners, every few units, each at an altitude. */
 const linePath = (points: TVec2[], altitude: (point: TVec2) => number) => {
-	const dense = joinPath(...points.slice(1).map((point, i) => linePoints(points[i], point, 2.5)));
+	const dense = joinPath(...points.slice(1).map((point, i) => linePoints(points[i], point, 3)));
 	return dense.map(([x, z]): TPathPoint => [round2(x), round2(z), altitude([x, z])]);
 };
 
@@ -245,17 +311,19 @@ const NB_X = STACK[0] + CARRIAGEWAY_OFFSET;
 const SB_X = STACK[0] - CARRIAGEWAY_OFFSET;
 const EB_Z = STACK[1] + CARRIAGEWAY_OFFSET;
 const WB_Z = STACK[1] - CARRIAGEWAY_OFFSET;
-const HALF: TVec2 = [GROUND[0] / 2, GROUND[1] / 2];
 
 /**
  * How far inside the hills each freeway turns round, out of sight: one carriageway turns into
  * the other there, so no one-way road leads nowhere.
  */
-const TURN_DEPTH = 7;
+const TURN_DEPTH = 6;
 const NORTH_TURN = NORTH_TUNNEL_Z - TURN_DEPTH;
 const SOUTH_TURN = SOUTH_TUNNEL_Z + TURN_DEPTH - 2;
-const WEST_TURN = WEST_TUNNEL_X - TURN_DEPTH;
-const EAST_TURN = EAST_TUNNEL_X + TURN_DEPTH;
+const WEST_TURN = WEST_TUNNEL_X - 3;
+const EAST_TURN = EAST_TUNNEL_X + 2.5;
+
+/** The Valley Freeway runs on its viaduct the whole way: over the stack, the river, into the hills. */
+const nsAltitude = () => LEVEL_FREEWAY;
 
 /** The Valley Freeway northbound: from the south hills over the river, through the stack, into the ridge. */
 const NB_PATH = linePath(
@@ -265,7 +333,7 @@ const NB_PATH = linePath(
 		[NB_X, NORTH_TURN],
 		[STACK[0], NORTH_TURN - CARRIAGEWAY_OFFSET],
 	],
-	([, z]) => nsAltitude(z),
+	nsAltitude,
 );
 const SB_PATH = linePath(
 	[
@@ -274,7 +342,7 @@ const SB_PATH = linePath(
 		[SB_X, SOUTH_TURN],
 		[STACK[0], SOUTH_TURN + CARRIAGEWAY_OFFSET],
 	],
-	([, z]) => nsAltitude(z),
+	nsAltitude,
 );
 
 /** The Crosstown Freeway: from the west hills through the stack and the cloverleaf into the east hill. */
@@ -304,23 +372,28 @@ const stackPlace = (u: number, v: number, quarters: number): TVec2 => {
 const cloverPlace = (u: number, v: number): TVec2 => [CLOVER[0] + u, CLOVER[1] + v];
 
 /** The cloverleaf's ramps leave and join the freeway this far from the boulevard. */
-const LOOP_GORE = 6;
-const OUTER_GORE = 34;
+const LOOP_GORE = 7;
+const OUTER_GORE = 40;
+
+/** Where the exit leaves a carriageway, and where the entry from the quarter before joins it. */
+const stackExit = (quarters: number) => stackPlace(CARRIAGEWAY_OFFSET, EXIT_AT, quarters);
+const stackEntry = (quarters: number) =>
+	stackPlace(CARRIAGEWAY_OFFSET, -flyoverOf(quarters + 3).entryAt, quarters);
 
 const CARRIAGEWAY_CUTS: Record<(typeof CARRIAGEWAYS)[number], TVec2[]> = {
-	nb: [stackPlace(CARRIAGEWAY_OFFSET, EXIT_AT, 0), stackPlace(CARRIAGEWAY_OFFSET, -ENTRY_AT, 0)],
+	nb: [stackExit(0), stackEntry(0)],
 	wb: [
 		cloverPlace(OUTER_GORE, -CARRIAGEWAY_OFFSET),
 		cloverPlace(LOOP_GORE, -CARRIAGEWAY_OFFSET),
 		cloverPlace(-LOOP_GORE, -CARRIAGEWAY_OFFSET),
 		cloverPlace(-OUTER_GORE, -CARRIAGEWAY_OFFSET),
-		stackPlace(CARRIAGEWAY_OFFSET, EXIT_AT, 1),
-		stackPlace(CARRIAGEWAY_OFFSET, -ENTRY_AT, 1),
+		stackExit(1),
+		stackEntry(1),
 	],
-	sb: [stackPlace(CARRIAGEWAY_OFFSET, EXIT_AT, 2), stackPlace(CARRIAGEWAY_OFFSET, -ENTRY_AT, 2)],
+	sb: [stackExit(2), stackEntry(2)],
 	eb: [
-		stackPlace(CARRIAGEWAY_OFFSET, EXIT_AT, 3),
-		stackPlace(CARRIAGEWAY_OFFSET, -ENTRY_AT, 3),
+		stackExit(3),
+		stackEntry(3),
 		cloverPlace(-OUTER_GORE, CARRIAGEWAY_OFFSET),
 		cloverPlace(-LOOP_GORE, CARRIAGEWAY_OFFSET),
 		cloverPlace(LOOP_GORE, CARRIAGEWAY_OFFSET),
@@ -349,7 +422,8 @@ const carriageways: TRoadInput[] = CARRIAGEWAYS.flatMap((id) =>
 			kind: "road_01",
 			points,
 			width: CARRIAGEWAY_WIDTH,
-			cornerRadius: 3,
+			isOneWay: true,
+			curveShape: "throughPoints",
 			showsCentreLine: false,
 			heldUpBy: "pillars",
 			pillarSpacing: 6,
@@ -362,23 +436,25 @@ const carriageways: TRoadInput[] = CARRIAGEWAYS.flatMap((id) =>
 
 /** The boulevard: two lanes each way, over the freeway on a bridge, from the hills to the river. */
 const BOULEVARD_WIDTH = 4.8;
-const BOULEVARD_LEVEL = 2.4;
-const LOOP_JOIN = 14;
-const OUTER_JOIN = 30;
-const RIVERSIDE_Z = 50;
+const BOULEVARD_LEVEL = LEVEL_FREEWAY;
+/** Level over the freeway this far either side of it, then down at the ramps' grade. */
+const BOULEVARD_DECK = 6;
+const BOULEVARD_GRADE = 0.065;
+const LOOP_JOIN = 17;
+const OUTER_JOIN = 42;
+const RIVERSIDE_Z = 80;
 const BOULEVARD_NORTH = -HALF[1];
 
-const boulevardAltitude = (v: number) => {
-	const t = Math.max(0, Math.min(1, (13 - Math.abs(v)) / 7));
-	return round2(BOULEVARD_LEVEL * t * t * (3 - 2 * t));
-};
-
-const BOULEVARD_PATH = linePath(
+const BOULEVARD_PATH = withAltitudes(
+	linePoints([CLOVER[0], RIVERSIDE_Z], [CLOVER[0], BOULEVARD_NORTH]),
 	[
-		[CLOVER[0], RIVERSIDE_Z],
-		[CLOVER[0], BOULEVARD_NORTH],
+		[0, 0],
+		[RIVERSIDE_Z - CLOVER[1] - BOULEVARD_DECK - climbLength(BOULEVARD_LEVEL, BOULEVARD_GRADE), 0],
+		[RIVERSIDE_Z - CLOVER[1] - BOULEVARD_DECK, BOULEVARD_LEVEL],
+		[RIVERSIDE_Z - CLOVER[1] + BOULEVARD_DECK, BOULEVARD_LEVEL],
+		[RIVERSIDE_Z - CLOVER[1] + BOULEVARD_DECK + climbLength(BOULEVARD_LEVEL, BOULEVARD_GRADE), 0],
+		[AT_END, 0],
 	],
-	([, z]) => boulevardAltitude(z - CLOVER[1]),
 );
 const BOULEVARD_PIECES = cutPathAt(BOULEVARD_PATH, [
 	cloverPlace(0, OUTER_JOIN),
@@ -386,30 +462,47 @@ const BOULEVARD_PIECES = cutPathAt(BOULEVARD_PATH, [
 	cloverPlace(0, -LOOP_JOIN),
 	cloverPlace(0, -OUTER_JOIN),
 ]);
+/** How high the boulevard is where the loops meet it: they climb to it along the loop. */
+const loopJoinLevel = (v: number) =>
+	BOULEVARD_PIECES.flat().find(
+		([x, z]) => x === CLOVER[0] && Math.abs(z - (CLOVER[1] + v)) < 1e-6,
+	)?.[2] ?? 0;
 
 /** The south-east loop, eastbound to the boulevard northbound, in the cloverleaf's frame (u east, v south). */
-const LOOP_RADIUS = 8;
-const LOOP_CENTRE: TVec2 = [13, 15.5];
-const LOOP_PATH = joinPath(
-	[[LOOP_GORE, CARRIAGEWAY_OFFSET]],
-	[[LOOP_GORE + 3.5, CARRIAGEWAY_OFFSET + 0.7]],
-	arcPoints(LOOP_CENTRE, LOOP_RADIUS, -105, 165, 2.5),
-	[[0, LOOP_JOIN]],
-);
+const LOOP_RADIUS = 8.5;
+const LOOP_CENTRE: TVec2 = [14.5, 19];
+const loopPath = (joinLevel: number) =>
+	withAltitudes(
+		joinPath(
+			[[LOOP_GORE, CARRIAGEWAY_OFFSET]],
+			[[LOOP_GORE + 5, CARRIAGEWAY_OFFSET + 0.9]],
+			arcPoints(LOOP_CENTRE, LOOP_RADIUS, -112, 168, 2.5),
+			[[2.6, LOOP_JOIN + 1.6]],
+			[[0, LOOP_JOIN]],
+		),
+		[
+			[0, 0],
+			[10, 0],
+			[AT_END, joinLevel],
+		],
+	);
 /** The south-east outer ramp, boulevard northbound to eastbound, round outside the loop. */
-const OUTER_PATH = joinPath(
-	[[0, OUTER_JOIN]],
-	[[5, OUTER_JOIN + 1.5]],
-	arcPoints([14, 17], 14.5, 100, 0, 2.5).slice(1),
-	linePoints([28.5, 14], [28.5, 9]),
-	[[30.5, CARRIAGEWAY_OFFSET + 2.2]],
-	[[OUTER_GORE, CARRIAGEWAY_OFFSET]],
+const OUTER_PATH = withAltitudes(
+	joinPath(
+		[[0, OUTER_JOIN]],
+		[[5, OUTER_JOIN + 1.2]],
+		arcPoints([15, 21], 17.5, 95, 0, 2.5).slice(1),
+		linePoints([32.5, 17], [32.5, 11], 3),
+		[[35, CARRIAGEWAY_OFFSET + 3]],
+		[[OUTER_GORE, CARRIAGEWAY_OFFSET]],
+	),
+	[[0, 0]],
 );
 
 type TQuadrant = "se" | "sw" | "nw" | "ne";
 
 /** A path of the south-east quadrant as another quadrant has it: mirrored, and driven the other way where it's mirrored once. */
-const inQuadrant = (path: TVec2[], quadrant: TQuadrant): TVec2[] => {
+const inQuadrant = <P extends readonly number[]>(path: readonly P[], quadrant: TQuadrant) => {
 	const flip: Record<TQuadrant, [number, number]> = {
 		se: [1, 1],
 		sw: [-1, 1],
@@ -417,11 +510,13 @@ const inQuadrant = (path: TVec2[], quadrant: TQuadrant): TVec2[] => {
 		ne: [1, -1],
 	};
 	const [fu, fv] = flip[quadrant];
-	const moved = path.map(([u, v]): TVec2 => cloverPlace(u * fu, v * fv));
+	const moved = path.map(([u, v, ...rest]) => [
+		round2(CLOVER[0] + u * fu),
+		round2(CLOVER[1] + v * fv),
+		...rest,
+	]) as unknown as P[];
 	return fu * fv < 0 ? moved.reverse() : moved;
 };
-
-const atGround = (path: TVec2[]) => path.map(([x, z]): TPathPoint => [round2(x), round2(z), 0]);
 
 const QUADRANT_NAMES: Record<TQuadrant, { loop: string; outer: string }> = {
 	se: { loop: "Loop, eastbound to the boulevard north", outer: "Boulevard north to eastbound" },
@@ -436,17 +531,17 @@ const cloverRamps: TRoadInput[] = QUADRANTS.flatMap((quadrant) => [
 	ramp(
 		`loop_${quadrant}`,
 		QUADRANT_NAMES[quadrant].loop,
-		atGround(inQuadrant(LOOP_PATH, quadrant)),
+		inQuadrant(
+			loopPath(loopJoinLevel(quadrant.startsWith("s") ? LOOP_JOIN : -LOOP_JOIN)),
+			quadrant,
+		),
 		{
 			width: 1.6,
 		},
 	),
-	ramp(
-		`outer_${quadrant}`,
-		QUADRANT_NAMES[quadrant].outer,
-		atGround(inQuadrant(OUTER_PATH, quadrant)),
-		{ width: 1.6 },
-	),
+	ramp(`outer_${quadrant}`, QUADRANT_NAMES[quadrant].outer, inQuadrant(OUTER_PATH, quadrant), {
+		width: 1.6,
+	}),
 ]);
 
 const boulevard: TRoadInput[] = BOULEVARD_PIECES.map((points, i) => ({
@@ -463,10 +558,15 @@ const boulevard: TRoadInput[] = BOULEVARD_PIECES.map((points, i) => ({
 
 // ---------------------------------------------------------------- junctions
 
-type TEndRef = readonly [string, "start" | "end"];
+/** A road end at a junction, and the ends vehicles arriving by it may leave by (all the rules allow, if none). */
+type TEndRef = readonly [string, "start" | "end", (readonly [string, "start" | "end"])[]?];
 const junction = (id: string, ends: TEndRef[]) => ({
 	id,
-	ends: ends.map(([roadId, end]) => ({ roadId, end })),
+	ends: ends.map(([roadId, end, leadsTo]) => ({
+		roadId,
+		end,
+		leadsTo: leadsTo ? leadsTo.map(([to, toEnd]) => ({ roadId: to, end: toEnd })) : null,
+	})),
 });
 
 /** Where the carriageway's pieces meet at a slip road, by the piece before it. */
@@ -516,29 +616,31 @@ const cloverJunctions = [
 	junction("wb_loop_ne", [...piecesAt("wb", 2), ["loop_ne", "end"]]),
 	junction("wb_loop_nw", [...piecesAt("wb", 3), ["loop_nw", "start"]]),
 	junction("wb_outer_nw", [...piecesAt("wb", 4), ["outer_nw", "end"]]),
+	// On the boulevard, each ramp is for one turn: traffic going the other way carries on past it,
+	// and what comes off the freeway turns the way its ramp is for.
 	junction("boulevard_outer_south", [
 		["boulevard_1", "end"],
-		["boulevard_2", "start"],
+		["boulevard_2", "start", [["boulevard_1", "end"]]],
 		["outer_se", "start"],
-		["outer_sw", "end"],
+		["outer_sw", "end", [["boulevard_1", "end"]]],
 	]),
 	junction("boulevard_loop_south", [
-		["boulevard_2", "end"],
+		["boulevard_2", "end", [["boulevard_3", "start"]]],
 		["boulevard_3", "start"],
-		["loop_se", "end"],
+		["loop_se", "end", [["boulevard_3", "start"]]],
 		["loop_sw", "start"],
 	]),
 	junction("boulevard_loop_north", [
 		["boulevard_3", "end"],
-		["boulevard_4", "start"],
-		["loop_nw", "end"],
+		["boulevard_4", "start", [["boulevard_3", "end"]]],
+		["loop_nw", "end", [["boulevard_3", "end"]]],
 		["loop_ne", "start"],
 	]),
 	junction("boulevard_outer_north", [
-		["boulevard_4", "end"],
+		["boulevard_4", "end", [["boulevard_5", "start"]]],
 		["boulevard_5", "start"],
 		["outer_nw", "start"],
-		["outer_ne", "end"],
+		["outer_ne", "end", [["boulevard_5", "start"]]],
 	]),
 ];
 
@@ -564,9 +666,9 @@ const turnJunctions = [
 
 // ---------------------------------------------------------------- the riverside drive
 
-/** Along the river's north bank, from near the Valley Freeway to the east hill, meeting the boulevard. */
-const RIVERSIDE_WEST = -14;
-const RIVERSIDE_EAST = 98;
+/** Along the river's north bank, from the Valley Freeway's viaduct to the east hill, meeting the boulevard. */
+const RIVERSIDE_WEST = -32;
+const RIVERSIDE_EAST = 150;
 
 const street = (
 	id: string,
@@ -590,8 +692,8 @@ const riversideDrive: TRoadInput[] = [
 		"Riverside Drive (west)",
 		linePath(
 			[
-				[RIVERSIDE_WEST, RIVERSIDE_Z - 1],
-				[20, RIVERSIDE_Z - 0.5],
+				[RIVERSIDE_WEST, RIVERSIDE_Z - 1.5],
+				[40, RIVERSIDE_Z - 0.5],
 				[CLOVER[0], RIVERSIDE_Z],
 			],
 			() => 0,
@@ -603,7 +705,7 @@ const riversideDrive: TRoadInput[] = [
 		linePath(
 			[
 				[CLOVER[0], RIVERSIDE_Z],
-				[84, RIVERSIDE_Z - 1],
+				[136, RIVERSIDE_Z - 1],
 				[RIVERSIDE_EAST, RIVERSIDE_Z - 3],
 			],
 			() => 0,
@@ -622,13 +724,23 @@ const riversideJunctions = [
 // ---------------------------------------------------------------- the land round it
 
 /** The hills: as high as this, sloping down to the valley, with cliffs where the tunnels go in. */
-const HILL_HEIGHT = 6;
+const HILL_HEIGHT = 10;
 const DOWN = -HILL_HEIGHT;
+const HILL_COLOR = "#a39a68";
 
-/** The rail line's way across: from the ridge's north-west corner to the south hills, over the stack. */
-const railX = (z: number) => z - 28;
-const RAIL_NORTH_Z = -58;
-const RAIL_SOUTH_Z = 74;
+/**
+ * The rail line's way across, high over everything: from a tunnel in the ridge's north-west
+ * corner, straight over the middle of the stack, across the river into the south hills.
+ */
+const railX = (z: number) => STACK[0] + z - STACK[1];
+const RAIL_NORTH_Z = -94;
+const RAIL_SOUTH_Z = 104;
+
+/** A cliff for a tunnel: two corners at full height either side of where the road goes in. */
+const portal = (at: TVec2, along: TVec2, half: number): [[number, number], [number, number]] => [
+	[round2(at[0] - along[0] * half), round2(at[1] - along[1] * half)],
+	[round2(at[0] + along[0] * half), round2(at[1] + along[1] * half)],
+];
 
 const AREAS: TAreaInput[] = [
 	{
@@ -636,32 +748,31 @@ const AREAS: TAreaInput[] = [
 		kind: "raised_land_01",
 		name: "The ridge",
 		height: HILL_HEIGHT,
-		colors: { surface: { color: "#a69a6b" } },
+		colors: { surface: { color: HILL_COLOR } },
 		points: [
 			[-HALF[0], -HALF[1]],
-			[36, -HALF[1]],
-			[30, -77, DOWN],
-			[14, -71, DOWN],
-			[-18, -69, -3],
-			[STACK[0] + 9, NORTH_TUNNEL_Z],
-			[STACK[0] - 9, NORTH_TUNNEL_Z],
-			[-50, -68, -3],
-			[-70, -66, DOWN],
-			[-80, -63, -2],
-			[railX(RAIL_NORTH_Z) + 3, RAIL_NORTH_Z],
-			[railX(RAIL_NORTH_Z) - 5, RAIL_NORTH_Z - 4],
-			[-95, -48, DOWN],
-			[WEST_TUNNEL_X, STACK[1] - 9],
-			[WEST_TUNNEL_X, STACK[1] + 9],
-			[-96, 16, DOWN],
-			[-98, 34, DOWN],
-			[-HALF[0], 42],
+			[48, -HALF[1]],
+			[40, -100, DOWN],
+			[10, -96, DOWN],
+			[-20, -94, -6],
+			...portal([STACK[0], NORTH_TUNNEL_Z], [-1, 0], 9),
+			[-70, -93, -6],
+			[-100, -96, DOWN],
+			[-118, -97, -4],
+			...portal([railX(RAIL_NORTH_Z), RAIL_NORTH_Z], [-Math.SQRT1_2, Math.SQRT1_2], 5),
+			[-148, -84, DOWN],
+			[-152, -40, DOWN],
+			...portal([WEST_TUNNEL_X, STACK[1]], [0, 1], 9),
+			[-153, 30, DOWN],
+			[-151, 74, DOWN],
+			[-HALF[0], 80],
 		],
 		peaks: [
-			[-62, -79, 3],
-			[-8, -80, 2],
-			[-104, -32, 3],
-			[-105, 22, 1],
+			[-120, -106, 4],
+			[-60, -105, 3],
+			[-10, -106, 2],
+			[-160, -50, 3],
+			[-161, 40, 2],
 		],
 	},
 	{
@@ -669,40 +780,41 @@ const AREAS: TAreaInput[] = [
 		kind: "raised_land_01",
 		name: "The east hill",
 		height: HILL_HEIGHT,
-		colors: { surface: { color: "#a69a6b" } },
+		colors: { surface: { color: HILL_COLOR } },
 		points: [
-			[HALF[0], -58],
-			[105, -54, DOWN],
-			[EAST_TUNNEL_X, STACK[1] - 9],
-			[EAST_TUNNEL_X, STACK[1] + 9],
-			[105, 20, DOWN],
-			[104, 46, DOWN],
-			[HALF[0], 50],
+			[HALF[0], -70],
+			[160, -66, DOWN],
+			[156, -30, DOWN],
+			...portal([EAST_TUNNEL_X, STACK[1]], [0, 1], 9),
+			[156, 30, DOWN],
+			[159, 72, DOWN],
+			[HALF[0], 76],
 		],
+		peaks: [[163, -20, 2]],
 	},
 	{
 		id: "south_hills",
 		kind: "raised_land_01",
 		name: "The south hills",
 		height: HILL_HEIGHT,
-		colors: { surface: { color: "#a69a6b" } },
+		colors: { surface: { color: HILL_COLOR } },
 		points: [
-			[-HALF[0], 73, DOWN],
-			[-54, 73, DOWN],
-			[STACK[0] - 9, SOUTH_TUNNEL_Z],
-			[STACK[0] + 9, SOUTH_TUNNEL_Z],
-			[-10, 73, DOWN],
-			[railX(RAIL_SOUTH_Z) - 5, RAIL_SOUTH_Z],
-			[railX(RAIL_SOUTH_Z) + 5, RAIL_SOUTH_Z],
-			[70, 73, DOWN],
-			[HALF[0], 72, DOWN],
+			[-HALF[0], 101, DOWN],
+			[-80, 101, DOWN],
+			[-62, 102, -5],
+			...portal([STACK[0], SOUTH_TUNNEL_Z], [1, 0], 9),
+			[-20, 102, -6],
+			[20, 101, DOWN],
+			...portal([railX(RAIL_SOUTH_Z), RAIL_SOUTH_Z], [Math.SQRT1_2, -Math.SQRT1_2], 5),
+			[100, 101, DOWN],
+			[HALF[0], 100, DOWN],
 			[HALF[0], HALF[1]],
 			[-HALF[0], HALF[1]],
 		],
 		peaks: [
-			[-80, 81, 2],
-			[10, 82, 3],
-			[85, 81, 1],
+			[-120, 109, 2],
+			[0, 110, 3],
+			[110, 109, 2],
 		],
 	},
 	{
@@ -711,16 +823,16 @@ const AREAS: TAreaInput[] = [
 		name: "The river",
 		points: [
 			[-HALF[0], RIVER_Z[0] + 2],
-			[-60, RIVER_Z[0] + 1],
-			[-20, RIVER_Z[0]],
+			[-100, RIVER_Z[0] + 1],
+			[-40, RIVER_Z[0]],
 			[20, RIVER_Z[0] + 1],
-			[60, RIVER_Z[0]],
+			[90, RIVER_Z[0]],
 			[HALF[0], RIVER_Z[0] - 1],
 			[HALF[0], RIVER_Z[1] - 1],
-			[60, RIVER_Z[1]],
+			[90, RIVER_Z[1]],
 			[20, RIVER_Z[1] + 1],
-			[-20, RIVER_Z[1]],
-			[-60, RIVER_Z[1] + 1],
+			[-40, RIVER_Z[1]],
+			[-100, RIVER_Z[1] + 1],
 			[-HALF[0], RIVER_Z[1] + 1],
 		],
 	},
@@ -864,8 +976,8 @@ const fullnessAt = (hour: number, peak: TPeak) => {
 	return (
 		0.05 +
 		0.42 * bell(hour, 12.8, 3.6) +
-		0.62 * morning * bell(hour, 8, 1.15) +
-		0.62 * evening * bell(hour, 17.4, 1.3)
+		0.88 * morning * bell(hour, 8, 1.15) +
+		0.88 * evening * bell(hour, 17.4, 1.3)
 	);
 };
 
@@ -1256,8 +1368,8 @@ const square = (centre: TVec2, halfU: number, halfV: number): TVec2[] => [
 	[centre[0] - halfU, centre[1] + halfV],
 ];
 KEPT.push(
-	square(CLOVER, 36, 40),
-	square(STACK, 22, 22),
+	square(CLOVER, 44, 46),
+	square(STACK, 28, 28),
 	...[0, 1, 2, 3].map((k) => disc(stackIslandCentre(k), STACK_ISLAND_RADIUS + 1.5, 3)),
 );
 
@@ -1278,24 +1390,16 @@ const GLASS = ["#5f7a8c", "#6d8796", "#7c8f95", "#4f6a7a", "#8aa0a8", "#9aa7a0"]
 
 /** The valley's districts, round the freeways; downtown north-east of the cloverleaf. */
 const DISTRICTS: IDistrict[] = [
-	{ id: "northgate", name: "Northgate", from: [-96, -64], to: [-40, -10], lot: 6.5, street: 1.4 },
-	{ id: "ridgeview", name: "Ridgeview", from: [-28, -68], to: [26, -10], lot: 6.5, street: 1.4 },
-	{ id: "westside", name: "Westside", from: [-96, -2], to: [-40, 54], lot: 6.5, street: 1.4 },
-	{ id: "riverbend", name: "Riverbend", from: [-28, -2], to: [26, 48], lot: 6.5, street: 1.4 },
-	{ id: "harbor", name: "Downtown", from: [26, -84], to: [104, -48], lot: 7, street: 2.6 },
-	{ id: "eastside", name: "Eastside", from: [26, 34], to: [104, 48], lot: 7, street: 2.4 },
-	{
-		id: "boulevard_east",
-		name: "Boulevard East",
-		from: [98, -48],
-		to: [104, 34],
-		lot: 6,
-		street: 2.4,
-	},
+	{ id: "northgate", name: "Northgate", from: [-150, -90], to: [-58, -8], lot: 6.5, street: 1.4 },
+	{ id: "ridgeview", name: "Ridgeview", from: [-32, -92], to: [66, -8], lot: 6.5, street: 1.4 },
+	{ id: "westside", name: "Westside", from: [-150, 8], to: [-58, 82], lot: 6.5, street: 1.4 },
+	{ id: "riverbend", name: "Riverbend", from: [-32, 8], to: [66, 76], lot: 6.5, street: 1.4 },
+	{ id: "harbor", name: "Downtown", from: [68, -110], to: [158, -50], lot: 7, street: 2.6 },
+	{ id: "eastside", name: "Eastside", from: [68, 50], to: [156, 76], lot: 7, street: 2.4 },
 ];
 
 const isDowntown = (district: IDistrict) => district.id === "harbor";
-const DOWNTOWN_MIDDLE: TVec2 = [82, -70];
+const DOWNTOWN_MIDDLE: TVec2 = [118, -86];
 
 /** Every lot that's clear, in each district, on its grid. */
 const cityLots = DISTRICTS.flatMap((district) => {
@@ -1509,10 +1613,6 @@ const medianLamps = (id: string, from: TVec2, to: TVec2): TEntityInput[] =>
 
 const lamps: TEntityInput[] = [
 	...medianLamps("crosstown_lamp", [WEST_TUNNEL_X + 4, STACK[1]], [EAST_TUNNEL_X - 4, STACK[1]]),
-	// Not where the Valley Freeway is raised, over the stack: nothing to stand on between its decks.
-	...medianLamps("valley_lamp", [STACK[0], NORTH_TUNNEL_Z + 4], [STACK[0], 50]).filter(
-		(lamp) => nsAltitude(lamp.position?.[1] ?? 0) < 0.2,
-	),
 ];
 
 /** A card over a freeway's median, following its row: vehicles an hour, speed, delay. */
@@ -1535,10 +1635,10 @@ const freewayCard = (id: string, rowId: string, at: TVec2): TEntityInput => ({
 });
 
 const freewayCards: TEntityInput[] = [
-	freewayCard("card_nb", "nb", [STACK[0], STACK[1] + 36.5]),
-	freewayCard("card_sb", "sb", [STACK[0], STACK[1] - 36.5]),
-	freewayCard("card_eb", "eb", [STACK[0] - 36.5, STACK[1]]),
-	freewayCard("card_wb", "wb", [STACK[0] + 36.5, STACK[1]]),
+	freewayCard("card_nb", "nb", [STACK[0], STACK[1] + 44]),
+	freewayCard("card_sb", "sb", [STACK[0], STACK[1] - 46]),
+	freewayCard("card_eb", "eb", [STACK[0] - 46, STACK[1]]),
+	freewayCard("card_wb", "wb", [STACK[0] + 40, STACK[1]]),
 ];
 
 /** A few vehicles of their own, to select, follow and ride along with, driving on through the network. */
@@ -1623,7 +1723,7 @@ const MOODS = [
 	mood("mood_night", "Night", { time: 22.5, timeSource: "fixed" }),
 ];
 
-const OVERVIEW = { target: [-6, -2] as TVec2, azimuth: 302, elevation: 36, span: 170 };
+const OVERVIEW = { target: [-6, -4] as TVec2, azimuth: 302, elevation: 36, span: 250 };
 
 const VIEWPOINTS: TSceneInput["viewpoints"] = [
 	{
@@ -1671,7 +1771,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_merge",
 		name: "A merge",
 		description: "The flyover and the right turn come together, then join the eastbound freeway.",
-		target: stackPlace(JOIN_AT + 4, RAMP_OFFSET - 1, 0),
+		target: stackPlace(HIGH_FLYOVER.joinAt + 6, RAMP_OFFSET - 1.5, 0),
 		targetAltitude: 1,
 		azimuth: 250,
 		elevation: 24,
@@ -1682,7 +1782,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_bridge",
 		name: "The river bridge",
 		description: "The Valley Freeway crossing the river into the south hills.",
-		target: [STACK[0], 62],
+		target: [STACK[0], 92],
 		targetAltitude: 2,
 		azimuth: 195,
 		elevation: 12,
@@ -1693,7 +1793,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_tunnel",
 		name: "The tunnel portal",
 		description: "The Valley Freeway runs into the ridge.",
-		target: [STACK[0], NORTH_TUNNEL_Z + 2],
+		target: [STACK[0], NORTH_TUNNEL_Z + 4],
 		targetAltitude: 2,
 		azimuth: 285,
 		elevation: 14,
@@ -1704,7 +1804,7 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		id: "view_rail",
 		name: "The rail viaduct",
 		description: "The rail line crossing the valley on its own viaduct, over the freeways.",
-		target: [railX(14), 14],
+		target: [railX(30), 30],
 		targetAltitude: 5,
 		azimuth: 20,
 		elevation: 14,
