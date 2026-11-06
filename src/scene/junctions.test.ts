@@ -450,3 +450,77 @@ describe("settleJunctions", () => {
 		expect(after.junctions[0].ends.map((e) => e.roadId)).toEqual(["a", "c"]);
 	});
 });
+
+describe("gores, where a slip road joins or leaves a carriageway (ADR-0148)", () => {
+	const oneWay = (id: string, points: TRoadInput["points"], width = 2.4) =>
+		RoadSchema.parse({ id, points, width, isOneWay: true, curveShape: "throughPoints" });
+	/** A carriageway east along z = -8, a slip road joining it from the south, nearly in line. */
+	const merge = (slipIsOneWay = true) =>
+		roadNetworkOf(
+			[
+				oneWay(
+					"in",
+					[
+						[-32, -8],
+						[6, -8],
+					],
+					3,
+				),
+				oneWay(
+					"on",
+					[
+						[6, -8],
+						[32, -8],
+					],
+					3,
+				),
+				{
+					...oneWay("slip", [
+						[-28, 32],
+						[-24, 5],
+						[-16, -2.5],
+						[-6, -6.2],
+						[6, -8],
+					]),
+					isOneWay: slipIsOneWay,
+				},
+			],
+			[
+				JunctionSchema.parse({
+					id: "j",
+					ends: [
+						{ roadId: "in", end: "end" },
+						{ roadId: "on", end: "start" },
+						{ roadId: "slip", end: "end" },
+					],
+				}),
+			],
+		);
+
+	it("finds the carriageway, the pair most in line, and the slip road beside it", () => {
+		const junction = merge().junctions[0];
+		expect(junction.gore).toMatchObject({ slip: 2, beside: 0 });
+		// Junctions of two-way roads stay pads, as every junction was.
+		expect(merge(false).junctions[0].gore).toBeNull();
+	});
+
+	it("is one deck: the carriageway's width at the junction, widening beside the slip road", () => {
+		const network = merge();
+		const junction = network.junctions[0];
+		const pad = junctionPad(network, junction);
+		const vertices = pad?.vertices ?? [];
+		// Its far edge starts at the carriageway's far edge, its other edge at its near one.
+		expect(vertices[1][0]).toBeCloseTo(6);
+		expect(Math.abs(vertices[1][1] - -8)).toBeCloseTo(1.5);
+		expect(Math.abs((vertices.at(-1) as number[])[1] - -8)).toBeCloseTo(1.5);
+		// Both roads are cut back to the nose, the carriageway too: no surfaces overlap.
+		const trims = junction.ends.map((end) => end.drawTrim);
+		expect(trims[0]).toBeGreaterThan(5);
+		expect(trims[1]).toBe(0);
+		expect(trims[2]).toBeGreaterThan(5);
+		// It reaches out over the slip road's width beside the carriageway, near the nose.
+		const widest = Math.max(...vertices.map((v) => Math.abs(v[1] - -8)));
+		expect(widest).toBeGreaterThan(1.5 + 2.4 - 0.2);
+		expect(pad?.laneLines?.[0]?.length ?? 0).toBeGreaterThan(1);
+	});
+});
