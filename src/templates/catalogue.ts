@@ -44,6 +44,13 @@ export const TEMPLATE_CATALOGUE = [
 		category: "places",
 	},
 	{
+		id: "traffic-town",
+		name: "Traffic town",
+		description:
+			"A small town that shows all its traffic: junctions and lights, background traffic, a data flow, a bus to ride, overtaking, a bridge, a flyover, a tunnel and a ferry, as the evening comes on",
+		category: "places",
+	},
+	{
 		id: "monaco",
 		name: "Monaco street circuit",
 		description: "F1 street circuit around a harbour: Casino hill, hairpin, tunnel, race data",

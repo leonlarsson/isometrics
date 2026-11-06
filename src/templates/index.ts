@@ -8,6 +8,7 @@ import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
 import { createShapeCastleScene } from "./shapeCastle";
 import { createStockholmScene } from "./stockholm";
+import { createTrafficTownScene } from "./trafficTown";
 
 export {
 	TEMPLATE_CATEGORIES,
@@ -24,6 +25,7 @@ const CREATE: Record<TTemplateId, () => TScene> = {
 	brightwater: createBrightwaterScene,
 	"lantern-bay": createLanternBayScene,
 	stockholm: createStockholmScene,
+	"traffic-town": createTrafficTownScene,
 	monaco: createMonacoScene,
 	"shape-castle": createShapeCastleScene,
 	"battlefield-territory": createBattlefieldTerritoryScene,
