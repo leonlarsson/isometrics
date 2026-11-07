@@ -7,6 +7,7 @@ import { useEditor } from "#/editor/store";
 import { cloudAltitudeOf, useSkyWeather } from "#/editor/weather";
 import { skyLookAt } from "#/scene/sky";
 
+import { SEE_THROUGH_ORDER } from "./AreaWeather";
 import { ignoreRaycast } from "./SkyDome";
 
 /** The most clouds, at a cloudiness of 1. */
@@ -92,9 +93,24 @@ export const Clouds = () => {
 				// biome-ignore lint/suspicious/noArrayIndexKey: clouds are positional and never reordered
 				<group key={i} position={cloud.position}>
 					{cloud.puffs.map((puff, p) => (
-						// biome-ignore lint/suspicious/noArrayIndexKey: puffs are positional and never reordered
-						<mesh key={p} position={puff.at} scale={puff.size} raycast={ignoreRaycast}>
+						<mesh
+							// biome-ignore lint/suspicious/noArrayIndexKey: puffs are positional and never reordered
+							key={p}
+							position={puff.at}
+							scale={puff.size}
+							renderOrder={transparency > 0 ? SEE_THROUGH_ORDER.paint : 0}
+							raycast={ignoreRaycast}
+						>
 							<icosahedronGeometry args={[1, 1]} />
+
+							{/* See-through: drawn unseen into depth first, after everything else, so only the nearest surface is painted. */}
+							{transparency > 0 && (
+								<mesh renderOrder={SEE_THROUGH_ORDER.depth} raycast={ignoreRaycast}>
+									<icosahedronGeometry args={[1, 1]} />
+
+									<meshStandardMaterial colorWrite={false} transparent depthWrite />
+								</mesh>
+							)}
 
 							{/* A glow of their own colour, so they never go black at night (as if moonlit). */}
 							<meshStandardMaterial

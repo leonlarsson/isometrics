@@ -2,21 +2,26 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { useEditor } from "#/editor/store";
 import {
 	areaWeathersInWorld,
+	cloudAltitudeOf,
+	type IAreaWeatherNow,
+	type IWeatherNow,
 	MOST_CLOUD_ALTITUDE,
 	mostAnywhere,
 	weatherNowInWorld,
 } from "#/editor/weather";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
+import { EDGE } from "#/scene/weatherMap";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weatherShading";
 
 /**
- * Weather in the view (ADR-0102): rain and snow falling in a box round what
- * the camera looks at, splashes where drops land, lightning now and then, and
+ * Weather in the view (ADR-0102): rain and snow falling over all of where it
+ * falls (the whole ground, or the areas with their own), splashes where drops land, lightning now and then, and
  * snow and wetness on the ground (weatherShading). What falls is moved on the
  * GPU from the motion clock, so pausing holds it and big amounts stay cheap;
  * the amounts only change how many are drawn. Mounted only while there's
@@ -27,26 +32,136 @@ import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weather
  * any place needs.
  */
 
-/** At most this many raindrops, flakes and splashes; an amount of 1 draws them all. */
-const MOST_DROPS = 6000;
-const MOST_FLAKES = 4000;
-const MOST_SPLASHES = 260;
+/**
+ * How many raindrops, flakes and splashes fall at an amount of 1 over what a
+ * view shows (a box about as wide as the screen at the camera's target): the
+ * density on screen, the same at any zoom.
+ */
+const DROPS_PER_VIEW = 6000;
+const FLAKES_PER_VIEW = 4000;
+const SPLASHES_PER_VIEW = 860;
+/** At most this many of each: over a big region seen close up, they thin out rather than grow. */
+const MOST_DROPS = 60000;
+const MOST_FLAKES = 40000;
+const MOST_SPLASHES = 8000;
 
 /** Deterministic pseudo-random in [0, 1), so the field is the same every time. */
 
 const target = new THREE.Vector3();
 
+/** What each kind of falling follows: an amount of a weather (the world's or an area's). */
+const FALL_AMOUNTS = {
+	rain: (now: IWeatherNow) => now.rain,
+	snow: (now: IWeatherNow) => now.snow,
+	splashes: (now: IWeatherNow) => (now.showsSplashes ? now.rain : 0),
+} as const;
+
+type TFall = keyof typeof FALL_AMOUNTS;
+
+interface IFallRegion {
+	minX: number;
+	minZ: number;
+	maxX: number;
+	maxZ: number;
+	/** How high the highest clouds of its areas hang: what falls there starts under them. */
+	cloudTop: number;
+}
+
+const NO_AREAS: readonly IAreaWeatherNow[] = [];
+
+/** The areas' region per kind of falling, kept per list of areas' weathers (which changes with them). */
+const regionsKept = new WeakMap<readonly IAreaWeatherNow[], Map<TFall, IFallRegion | null>>();
+
+/** Where the areas with some of it lie: round their outlines, with room for their fading edge. */
+const areasRegionOf = (areas: readonly IAreaWeatherNow[], fall: TFall): IFallRegion | null => {
+	let kept = regionsKept.get(areas);
+	if (!kept) {
+		kept = new Map();
+		regionsKept.set(areas, kept);
+	}
+	if (kept.has(fall)) {
+		return kept.get(fall) ?? null;
+	}
+	let minX = Number.POSITIVE_INFINITY;
+	let minZ = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxZ = Number.NEGATIVE_INFINITY;
+	let cloudTop = 0;
+	for (const { area, now } of areas) {
+		if (FALL_AMOUNTS[fall](now) <= 0) {
+			continue;
+		}
+		cloudTop = Math.max(cloudTop, cloudAltitudeOf(now, { area }));
+		for (const [x, z] of area.points) {
+			minX = Math.min(minX, x - EDGE);
+			minZ = Math.min(minZ, z - EDGE);
+			maxX = Math.max(maxX, x + EDGE);
+			maxZ = Math.max(maxZ, z + EDGE);
+		}
+	}
+	const region: IFallRegion | null = Number.isFinite(minX)
+		? { minX, minZ, maxX, maxZ, cloudTop }
+		: null;
+	kept.set(fall, region);
+	return region;
+};
+
 /**
- * The box what falls fills: centred on the camera's target, wide enough to
- * cover what's in view (from how big a ground unit shows), and as tall.
+ * The field what falls fills (ADR-0102): all of where it falls, the whole
+ * ground while the world's weather has it, else every area with its own (so
+ * 100% of a rainy area rains and splashes, wherever the camera is). As many
+ * as `perView` over what's in view would be, for the same density on screen
+ * at any zoom, up to `most`; each one's rank is scaled to that number
+ * (`rankScale`), so the amounts still pick which show.
  */
-const useFallBox = () => {
+const useFallField = (fall: TFall, perView: number, most: number, local: boolean) => {
 	const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
-	return (camera: THREE.Camera, height: number) => {
+	const center = useMemo(() => new THREE.Vector3(), []);
+	const halfSize = useMemo(() => new THREE.Vector2(), []);
+	return (camera: THREE.Camera, screenHeight: number) => {
+		const { ground } = useEditor.getState().scene;
+		const world = weatherNowInWorld();
+		const areas = local ? areaWeathersInWorld() : NO_AREAS;
+		const amount = FALL_AMOUNTS[fall];
+		const ofAreas = areasRegionOf(areas, fall);
+		const region =
+			amount(world) > 0
+				? {
+						minX: -ground.width / 2,
+						minZ: -ground.depth / 2,
+						maxX: ground.width / 2,
+						maxZ: ground.depth / 2,
+					}
+				: ofAreas;
 		target.copy(controls?.target ?? target.set(0, 0, 0));
-		const across = height / Math.max(1, pixelsPerUnitAt(camera, target, height));
-		const radius = THREE.MathUtils.clamp(across * 0.75, 8, 90);
-		return { center: target, radius, height: radius * 0.9 };
+		if (!region) {
+			return null;
+		}
+		// How many fall per square unit: `perView` over a box about as wide as the screen at the target.
+		const across = screenHeight / Math.max(1, pixelsPerUnitAt(camera, target, screenHeight));
+		const viewRadius = THREE.MathUtils.clamp(across * 0.75, 8, 90);
+		const density = perView / (4 * viewRadius * viewRadius);
+		halfSize.set((region.maxX - region.minX) / 2, (region.maxZ - region.minZ) / 2);
+		center.set((region.minX + region.maxX) / 2, 0, (region.minZ + region.maxZ) / 2);
+		// As tall as the field is wide (within reason), and up to the areas' highest clouds, however
+		// high they're set (Cloud height), with more of them in a taller field so they don't thin out.
+		const usualHeight = THREE.MathUtils.clamp(Math.max(halfSize.x, halfSize.y) * 0.9, 15, 40);
+		const height = Math.max(usualHeight, (ofAreas?.cloudTop ?? 0) + 1);
+		const atFull = THREE.MathUtils.clamp(
+			density * 4 * halfSize.x * halfSize.y * (height / usualHeight),
+			1,
+			most,
+		);
+		return {
+			center,
+			halfSize,
+			height,
+			/** How many are drawn at an amount of 1, and the rank that makes the first of them show. */
+			atFull,
+			rankScale: most / atFull,
+			world: amount(world),
+			mostAnywhere: local ? mostAnywhere(world, areas, amount) : amount(world),
+		};
 	};
 };
 
@@ -92,7 +207,8 @@ const FALL_VERTEX = /* glsl */ `
 	${MAP_AMOUNT}
 	uniform float time;
 	uniform vec3 center;
-	uniform float radius;
+	uniform vec2 halfSize;
+	uniform float rankScale;
 	uniform float height;
 	uniform float speed;
 	uniform float streak;
@@ -101,24 +217,25 @@ const FALL_VERTEX = /* glsl */ `
 	varying float fade;
 	varying float strength;
 	void main() {
-		// Its place in the box, falling and wrapping round. Across the ground it keeps its place in
-		// the world as the box moves with the view, wrapping round at the box's sides.
+		// Its place in the field (where it falls), falling and wrapping round.
 		float y = fract(seed.y - time * speed / height) * height;
-		vec2 low = center.xz - radius;
-		vec2 xz = low + mod(seed.xz * 2.0 * radius - low, 2.0 * radius);
+		vec2 low = center.xz - halfSize;
+		vec2 xz = low + mod(seed.xz * 2.0 * halfSize - low, 2.0 * halfSize);
 		vec3 position = vec3(
 			xz.x + sin(time * 0.8 + seed.z * 40.0) * sway,
 			center.y + y - streak * tip,
 			xz.y + cos(time * 0.7 + seed.x * 40.0) * sway
 		);
-		// Thinner towards the box's edges and ends, so it has no hard sides.
-		vec2 across = (position.xz - center.xz) / radius;
-		fade = (1.0 - smoothstep(0.75, 1.0, length(across))) * smoothstep(0.0, 0.1, y / height);
+		// Fading in at the top, so it doesn't appear from nowhere; an area's edge fades it by its amount.
+		fade = smoothstep(0.0, 0.1, y / height);
 		vec2 amounts = amountAt(vec3(xz.x, 0.0, xz.y));
 		strength = amounts.y;
-		// The world's falls from the top of the box; an area's own from under its clouds.
+		// The world's falls from the top of the field; an area's own from under its clouds.
+		float order = rank * rankScale;
+		// Decided by the drop's height, not each end's, so a streak's two ends always agree (one shown and
+		// one not would stretch a line across the view).
 		bool shown =
-			rank < amounts.x || (rank < amounts.y && position.y < cloudBaseAt(vec3(xz.x, 0.0, xz.y)) + 0.5);
+			order < amounts.x || (order < amounts.y && center.y + y < cloudBaseAt(vec3(xz.x, 0.0, xz.y)) + 0.5);
 		vec4 view = modelViewMatrix * vec4(position, 1.0);
 		gl_Position = shown ? projectionMatrix * view : ${NOWHERE_GLSL};
 		// Flakes: as big on screen as their size at the target, smaller farther away in perspective.
@@ -187,7 +304,8 @@ const fallMaterial = (
 		uniforms: {
 			time: { value: 0 },
 			center: { value: new THREE.Vector3() },
-			radius: { value: 20 },
+			halfSize: { value: new THREE.Vector2(20, 20) },
+			rankScale: { value: 1 },
 			height: { value: 18 },
 			speed: { value: 1 },
 			streak: { value: 0 },
@@ -237,22 +355,25 @@ const Rain = ({ local }: { local: boolean }) => {
 	const material = useMemo(() => fallMaterial(RAIN_FRAGMENT, "#cdd8e4", local, "rain"), [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
-	const box = useFallBox();
+	const field = useFallField("rain", DROPS_PER_VIEW, MOST_DROPS, local);
 	useFrame(({ camera, size }) => {
-		const world = weatherNowInWorld();
-		const most = local ? mostAnywhere(world, areaWeathersInWorld(), (now) => now.rain) : world.rain;
-		const { center, radius, height } = box(camera, size.height);
+		const now = field(camera, size.height);
+		if (!now) {
+			geometry.setDrawRange(0, 0);
+			return;
+		}
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
-		u.center.value.copy(center);
-		u.radius.value = radius;
-		u.height.value = height;
+		u.center.value.copy(now.center);
+		u.halfSize.value.copy(now.halfSize);
+		u.rankScale.value = now.rankScale;
+		u.height.value = now.height;
 		u.speed.value = 22;
 		u.streak.value = 0.7;
-		u.amount.value = world.rain;
+		u.amount.value = now.world;
 		u.opacity.value = 0.25;
 		u.opacityPerAmount.value = 0.3;
-		geometry.setDrawRange(0, Math.round(most * MOST_DROPS) * 2);
+		geometry.setDrawRange(0, Math.ceil(now.mostAnywhere * now.atFull) * 2);
 	});
 	return <lineSegments geometry={geometry} material={material} frustumCulled={false} />;
 };
@@ -263,26 +384,30 @@ const Snow = ({ local }: { local: boolean }) => {
 	const material = useMemo(() => fallMaterial(SNOW_FRAGMENT, "#ffffff", local, "snow"), [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
-	const box = useFallBox();
+	const field = useFallField("snow", FLAKES_PER_VIEW, MOST_FLAKES, local);
 	useFrame(({ camera, size }) => {
-		const world = weatherNowInWorld();
-		const most = local ? mostAnywhere(world, areaWeathersInWorld(), (now) => now.snow) : world.snow;
-		const { center, radius, height } = box(camera, size.height);
+		const now = field(camera, size.height);
+		if (!now) {
+			geometry.setDrawRange(0, 0);
+			return;
+		}
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
-		u.center.value.copy(center);
-		u.radius.value = radius;
-		u.height.value = height;
+		u.center.value.copy(now.center);
+		u.halfSize.value.copy(now.halfSize);
+		u.rankScale.value = now.rankScale;
+		u.height.value = now.height;
 		u.speed.value = 1.6;
 		u.sway.value = 0.5;
+		// As big on screen as a flake at the camera's target.
 		u.pointSize.value = THREE.MathUtils.clamp(
-			0.14 * pixelsPerUnitAt(camera, center, size.height),
+			0.14 * pixelsPerUnitAt(camera, target, size.height),
 			2,
 			9,
 		);
 		u.opacity.value = 0.95;
-		u.amount.value = world.snow;
-		geometry.setDrawRange(0, Math.round(most * MOST_FLAKES));
+		u.amount.value = now.world;
+		geometry.setDrawRange(0, Math.ceil(now.mostAnywhere * now.atFull));
 	});
 	return <points geometry={geometry} material={material} frustumCulled={false} />;
 };
@@ -293,7 +418,8 @@ const SPLASH_VERTEX = /* glsl */ `
 	${MAP_AMOUNT}
 	uniform float time;
 	uniform vec3 center;
-	uniform float radius;
+	uniform vec2 halfSize;
+	uniform float rankScale;
 	varying float life;
 	void main() {
 		// Each splash opens and fades, then opens again somewhere else.
@@ -302,11 +428,11 @@ const SPLASH_VERTEX = /* glsl */ `
 		float round = floor(cycle);
 		// Somewhere else each time, keeping its place in the world as the view moves (not following it).
 		vec2 spot = vec2(fract(seed.x + round * 0.618), fract(seed.y + round * 0.414));
-		vec2 low = center.xz - radius;
-		vec2 at = low + mod(spot * 2.0 * radius - low, 2.0 * radius);
+		vec2 low = center.xz - halfSize;
+		vec2 at = low + mod(spot * 2.0 * halfSize - low, 2.0 * halfSize);
 		vec3 world = vec3(at.x, 0.03, at.y);
 		vec3 ring = position * (0.08 + 0.32 * life);
-		gl_Position = rank < amountAt(world).y
+		gl_Position = rank * rankScale < amountAt(world).y
 			? projectionMatrix * viewMatrix * vec4(world + ring, 1.0)
 			: ${NOWHERE_GLSL};
 	}
@@ -352,7 +478,8 @@ const Splashes = ({ local }: { local: boolean }) => {
 			uniforms: {
 				time: { value: 0 },
 				center: { value: new THREE.Vector3() },
-				radius: { value: 10 },
+				halfSize: { value: new THREE.Vector2(10, 10) },
+				rankScale: { value: 1 },
 				color: { value: new THREE.Color("#dfe7ef") },
 				opacity: { value: 0.6 },
 				...reading.uniforms,
@@ -361,19 +488,21 @@ const Splashes = ({ local }: { local: boolean }) => {
 	}, [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
-	const box = useFallBox();
+	// Wherever the rain falls: the same field, all of it.
+	const field = useFallField("splashes", SPLASHES_PER_VIEW, MOST_SPLASHES, local);
 	useFrame(({ camera, size }) => {
-		const world = weatherNowInWorld();
-		const splashes = (now: typeof world) => (now.showsSplashes ? now.rain : 0);
-		const most = local ? mostAnywhere(world, areaWeathersInWorld(), splashes) : splashes(world);
-		const { center, radius } = box(camera, size.height);
+		const now = field(camera, size.height);
+		if (!now) {
+			geometry.instanceCount = 0;
+			return;
+		}
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
-		u.center.value.copy(center);
-		// Close round the middle of the view, where they can be seen.
-		u.radius.value = radius * 0.55;
-		u.amount.value = splashes(world);
-		geometry.instanceCount = Math.round(most * MOST_SPLASHES);
+		u.center.value.copy(now.center);
+		u.halfSize.value.copy(now.halfSize);
+		u.rankScale.value = now.rankScale;
+		u.amount.value = now.world;
+		geometry.instanceCount = Math.ceil(now.mostAnywhere * now.atFull);
 	});
 	return <mesh geometry={geometry} material={material} frustumCulled={false} />;
 };
