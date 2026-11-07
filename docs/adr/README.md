@@ -155,3 +155,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0149](0149-no-hitches-what-changes-at-once.md) | No hitches: what changes everything at once reaches only what it concerns, spread over frames | proposed |
 | [0150](0150-part-pictures-made-ahead-of-time.md) | Add to scene's part pictures are made ahead of time, with a test that catches a part changed since | proposed |
 | [0151](0151-weather-per-area.md) | Weather per area: an area can have its own weather (rain, snow, fog, clouds, lightning), following data | proposed |
+| [0152](0152-areas-follow-a-table-row.md) | Areas follow a table row: one table of districts drives every area's weather and colour | proposed |

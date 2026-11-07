@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { worldBindingMapsOf } from "#/scene/dataBindings";
-import { AreaSchema, DataBindingSchema, SceneSchema, WeatherSchema } from "#/scene/schema";
+import {
+	AreaSchema,
+	DataBindingSchema,
+	SceneSchema,
+	WeatherSchema,
+	WorldDataSchema,
+} from "#/scene/schema";
 import { overcastLight, skyLightAt } from "#/scene/sun";
 
 import {
@@ -65,7 +71,7 @@ describe("weather per area (ADR-0151)", () => {
 	});
 
 	it("lists the areas with their own weather, as set or from data, but not hidden ones", () => {
-		const data = [{ key: "mood", name: "Mood", value: 3 }];
+		const data = WorldDataSchema.parse({ values: [{ key: "mood", name: "Mood", value: 3 }] });
 		const areas = [
 			area("calm"),
 			area("storm", {
@@ -106,5 +112,29 @@ describe("weather per area (ADR-0151)", () => {
 		expect(cloudAltitudeOf(now, { area: raised })).toBe(2 + AREA_CLOUDS_ABOVE);
 		expect(cloudAltitudeOf({ cloudAltitude: 20 }, { area: raised })).toBe(20);
 		expect(cloudAltitudeOf({ cloudAltitude: null }, { reach: 100 })).toBe(45);
+	});
+
+	it("follows its table row's columns (ADR-0152), each area its own row with the same bindings", () => {
+		const data = WorldDataSchema.parse({
+			tables: [
+				{
+					key: "districts",
+					keyColumn: "district",
+					columns: [{ key: "district" }, { key: "complaints" }],
+					rows: [
+						{ district: "North", complaints: 10 },
+						{ district: "Harbour", complaints: 90 },
+					],
+				},
+			],
+		});
+		const stormsByComplaints = {
+			rainAmount: 0,
+			data: { rainAmount: DataBindingSchema.parse({ key: "row.complaints", valueAtFull: 100 }) },
+		};
+		const areas = ["North", "Harbour"].map((rowKey) =>
+			area(rowKey, { weather: stormsByComplaints, dataRow: { tableKey: "districts", rowKey } }),
+		);
+		expect(areaWeathersNow(areas, data).map(({ now }) => now.rain)).toEqual([0.1, 0.9]);
 	});
 });

@@ -185,32 +185,60 @@ const puffAt = new THREE.Vector3();
 const puffColor = new THREE.Color();
 
 /**
- * Clouds over areas (both views, unlike the world's ring of them): flat-shaded
- * puffs over each area with cloud cover, greyer as it rains, snows or storms,
- * tinted by the time of day as the world's are, drifting a little in place
- * while motion plays. One instanced draw for every area; the pointer passes
- * through them.
+ * The clouds' material: flat-shaded, glowing a little so they never go black
+ * at night (as if moonlit), out of snow and areas' fog. See-through ones
+ * blend (each puff's opacity from `cloudOpacity`) without hiding each other;
+ * solid ones write depth, so their puffs hide what's behind them.
  */
-const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
+const cloudMaterial = (seeThrough: boolean) => {
+	const made = new THREE.MeshStandardMaterial({
+		flatShading: true,
+		roughness: 1,
+		emissive: new THREE.Color("#1d2230"),
+		transparent: seeThrough,
+		depthWrite: !seeThrough,
+	});
+	made.userData.noWeather = true;
+	made.userData.noAreaWeather = true;
+	made.onBeforeCompile = (shader) => {
+		shader.vertexShader = shader.vertexShader
+			.replace(
+				"#include <common>",
+				"#include <common>\nattribute float cloudOpacity;\nvarying float vCloudOpacity;",
+			)
+			.replace("#include <begin_vertex>", "#include <begin_vertex>\nvCloudOpacity = cloudOpacity;");
+		shader.fragmentShader = shader.fragmentShader
+			.replace("#include <common>", "#include <common>\nvarying float vCloudOpacity;")
+			.replace(
+				"#include <opaque_fragment>",
+				"#include <opaque_fragment>\ngl_FragColor.a *= vCloudOpacity;",
+			);
+	};
+	return made;
+};
+
+interface IPuffBatchProps {
+	puffs: readonly IPuff[];
+	weathers: readonly IAreaWeatherNow[];
+	/** Each area's cloud colour, by its place in `weathers`. */
+	colors: readonly string[];
+	seeThrough: boolean;
+	playing: boolean;
+}
+
+/** One instanced draw of puffs: the solid clouds, or the see-through ones. */
+const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchProps) => {
 	const mesh = useRef<THREE.InstancedMesh>(null);
-	const lighting = useEditor((s) => s.scene.lighting);
-	const sky = useEditor((s) => s.scene.sky);
-	const playing = useEditor((s) => s.playing);
-	const hour = useSceneHours();
-	const puffs = useMemo(() => puffsOf(weathers), [weathers]);
-	const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 1), []);
-	const material = useMemo(() => {
-		const made = new THREE.MeshStandardMaterial({
-			flatShading: true,
-			roughness: 1,
-			// A glow of their own, so they never go black at night (as if moonlit).
-			emissive: new THREE.Color("#1d2230"),
-		});
-		// Snow doesn't settle on clouds, and an area's fog and storm don't lie on them.
-		made.userData.noWeather = true;
-		made.userData.noAreaWeather = true;
+	const geometry = useMemo(() => {
+		const made = new THREE.IcosahedronGeometry(1, 1);
+		// Each puff's opacity, from its area's cloud transparency.
+		made.setAttribute(
+			"cloudOpacity",
+			new THREE.InstancedBufferAttribute(new Float32Array(MOST_PUFFS).fill(1), 1),
+		);
 		return made;
 	}, []);
+	const material = useMemo(() => cloudMaterial(seeThrough), [seeThrough]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
 
@@ -236,23 +264,16 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 		}
 		instanced.count = puffs.length;
 		place(motionClock.seconds);
-		const colors = weathers.map(({ area, now }) => {
-			const look = skyLookAt(lighting, sky, hour, {
-				cloudCover: now.cloudCover,
-				cloudColor: area.weather?.cloudColor ?? null,
-				cloudSpeed: now.cloudSpeed,
-				overcast: now.overcast,
-			});
-			const storm = Math.min(1, now.rain * 0.55 + now.lightning * 0.45 + now.snow * 0.15);
-			return mixColor(look.cloudColor, STORM_GREY, storm);
-		});
+		const opacity = geometry.getAttribute("cloudOpacity") as THREE.InstancedBufferAttribute;
 		puffs.forEach((puff, i) => {
 			instanced.setColorAt(i, puffColor.set(colors[puff.area]));
+			opacity.setX(i, 1 - weathers[puff.area].now.cloudTransparency);
 		});
 		if (instanced.instanceColor) {
 			instanced.instanceColor.needsUpdate = true;
 		}
-	}, [puffs, weathers, lighting, sky, hour]);
+		opacity.needsUpdate = true;
+	}, [puffs, weathers, colors, material]);
 
 	useFrame(() => {
 		if (playing && puffs.length > 0) {
@@ -267,6 +288,70 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 			raycast={ignoreRaycast}
 			frustumCulled={false}
 		/>
+	);
+};
+
+/**
+ * Clouds over areas (both views, unlike the world's ring of them): flat-shaded
+ * puffs over each area with cloud cover, as see-through as its weather says
+ * (`cloudTransparency`), greyer as it rains, snows or storms, tinted by the
+ * time of day as the world's are, drifting a little in place while motion
+ * plays. Two instanced draws for every area, the solid clouds and the
+ * see-through ones (so solid ones keep hiding their own back puffs); the
+ * pointer passes through them.
+ */
+const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
+	const lighting = useEditor((s) => s.scene.lighting);
+	const sky = useEditor((s) => s.scene.sky);
+	const playing = useEditor((s) => s.playing);
+	const hour = useSceneHours();
+	const puffs = useMemo(() => puffsOf(weathers), [weathers]);
+	const colors = useMemo(
+		() =>
+			weathers.map(({ area, now }) => {
+				const look = skyLookAt(lighting, sky, hour, {
+					cloudCover: now.cloudCover,
+					cloudColor: area.weather?.cloudColor ?? null,
+					cloudSpeed: now.cloudSpeed,
+					overcast: now.overcast,
+				});
+				const storm = Math.min(1, now.rain * 0.55 + now.lightning * 0.45 + now.snow * 0.15);
+				return mixColor(look.cloudColor, STORM_GREY, storm);
+			}),
+		[weathers, lighting, sky, hour],
+	);
+	const solid = useMemo(
+		() => puffs.filter((puff) => weathers[puff.area].now.cloudTransparency === 0),
+		[puffs, weathers],
+	);
+	const seeThrough = useMemo(
+		// Clear ones (100%) aren't drawn at all.
+		() =>
+			puffs.filter((puff) => {
+				const transparency = weathers[puff.area].now.cloudTransparency;
+				return transparency > 0 && transparency < 1;
+			}),
+		[puffs, weathers],
+	);
+
+	return (
+		<>
+			<PuffBatch
+				puffs={solid}
+				weathers={weathers}
+				colors={colors}
+				seeThrough={false}
+				playing={playing}
+			/>
+
+			<PuffBatch
+				puffs={seeThrough}
+				weathers={weathers}
+				colors={colors}
+				seeThrough
+				playing={playing}
+			/>
+		</>
 	);
 };
 
@@ -453,7 +538,7 @@ const useFogColors = () => {
  */
 export const AreaWeather = () => {
 	const areas = useEditor((s) => s.scene.areas);
-	const data = useWorldData().values;
+	const data = useWorldData();
 	const weathers = areaWeathersNow(areas, data);
 	useWeatherMap(weathers);
 	useFogColors();

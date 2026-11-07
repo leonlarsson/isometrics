@@ -1,5 +1,6 @@
 import { readScale } from "#/parts/dataBinding";
-import type { TArea, TReadableValues, TWeather } from "#/scene/schema";
+import { valuesOfArea } from "#/scene/areas";
+import type { TArea, TReadableValues, TWeather, TWorldData } from "#/scene/schema";
 import type { ISkyWeather } from "#/scene/sky";
 import type { TWeatherMapAmount } from "#/scene/weatherMap";
 
@@ -29,6 +30,8 @@ export interface IWeatherNow {
 	cloudSpeed: number;
 	/** How high the clouds float, as set (null: where they float by default, `cloudAltitudeOf`). */
 	cloudAltitude: number | null;
+	/** How see-through the clouds are: 0 solid. */
+	cloudTransparency: number;
 }
 
 /** The weather's settings that can follow a data value. */
@@ -64,6 +67,7 @@ export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherN
 		cloudColor: weather.cloudColor,
 		cloudSpeed: weather.cloudSpeed,
 		cloudAltitude: weather.cloudAltitude,
+		cloudTransparency: weather.cloudTransparency,
 	};
 };
 
@@ -117,16 +121,17 @@ const NO_AREA_WEATHERS: readonly IAreaWeatherNow[] = [];
 /** Kept per list of areas and data, so selectors and frames reuse it until either changes. */
 const areaWeathersKept = new WeakMap<
 	readonly TArea[],
-	{ data: TReadableValues | undefined; weathers: readonly IAreaWeatherNow[] }
+	{ data: TWorldData | undefined; weathers: readonly IAreaWeatherNow[] }
 >();
 
 /**
  * The areas shown with weather of their own (ADR-0151), in order (later on
- * top), each with its weather in effect: as set or from its data.
+ * top), each with its weather in effect: as set or from its data, the world's
+ * values and the columns of the row it follows (ADR-0152).
  */
 export const areaWeathersNow = (
 	areas: readonly TArea[],
-	data?: TReadableValues,
+	data?: TWorldData,
 ): readonly IAreaWeatherNow[] => {
 	const kept = areaWeathersKept.get(areas);
 	if (kept && kept.data === data) {
@@ -135,7 +140,10 @@ export const areaWeathersNow = (
 	const weathers: IAreaWeatherNow[] = [];
 	for (const area of areas) {
 		if (area.weather && !area.isHidden) {
-			weathers.push({ area, now: weatherNow(area.weather, data) });
+			weathers.push({
+				area,
+				now: weatherNow(area.weather, data ? valuesOfArea(area, data) : undefined),
+			});
 		}
 	}
 	const list = weathers.length > 0 ? weathers : NO_AREA_WEATHERS;
@@ -145,7 +153,7 @@ export const areaWeathersNow = (
 
 /** The areas' own weathers now, from the store, for code that runs each frame. */
 export const areaWeathersInWorld = () =>
-	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow().values);
+	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow());
 
 /** What an area's weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
 export const weatherMapAmountsOf = (

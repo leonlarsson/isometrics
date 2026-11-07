@@ -1,7 +1,8 @@
 import { clamp, round } from "#/lib/math";
 
 import type { IColorSpec } from "./colors";
-import type { TArea, TAreaKind, TAreaPoint, TSurfaceKind, TVec2 } from "./schema";
+import { valuesWithRow } from "./rowData";
+import type { TArea, TAreaKind, TAreaPoint, TSurfaceKind, TVec2, TWorldData } from "./schema";
 import type { IScenePalette } from "./theme";
 import { variantName } from "./variants";
 
@@ -115,6 +116,13 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 
 /** An invisible area (ADR-0151): it carries weather of its own, but nothing is drawn outside the editor. */
 export const isHiddenArea = (area: Pick<TArea, "kind">) => !AREA_KINDS[area.kind].isDrawn;
+
+/**
+ * What an area reads (ADR-0152): the world's values, then the columns of the
+ * table row it follows as `row.<column>`, for its weather and colour.
+ */
+export const valuesOfArea = (area: Pick<TArea, "dataRow">, data: TWorldData) =>
+	valuesWithRow(data, area.dataRow);
 
 /** Whether an area is water, by its kind's record (never its id, so variants count). */
 export const isWaterArea = (area: Pick<TArea, "kind">) => AREA_KINDS[area.kind].isWater;

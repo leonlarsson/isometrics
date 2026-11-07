@@ -91,6 +91,49 @@ describe("checking a world", () => {
 		expect(issuesForAi(check)).toContain("send the whole world again");
 	});
 
+	it("warns of an area following a row that isn't there, or weather following nothing (ADR-0152)", () => {
+		const said = warningsOf({
+			data: {
+				enabled: true,
+				tables: [
+					{
+						key: "districts",
+						keyColumn: "district",
+						columns: [{ key: "district" }, { key: "complaints" }],
+						rows: [{ district: "North", complaints: 3 }],
+					},
+				],
+			},
+			areas: [
+				{
+					id: "north",
+					kind: "hidden_area_01",
+					points: [
+						[0, 0],
+						[4, 0],
+						[4, 4],
+					],
+					dataRow: { tableKey: "districts", rowKey: "North" },
+					weather: { data: { rainAmount: { key: "row.complaints" } } },
+				},
+				{
+					id: "south",
+					kind: "hidden_area_01",
+					points: [
+						[0, 5],
+						[4, 5],
+						[4, 9],
+					],
+					dataRow: { tableKey: "districts", rowKey: "South" },
+					weather: { data: { rainAmount: { key: "row.mood" } } },
+				},
+			],
+		});
+		expect(said).not.toContain('"north"');
+		expect(said).toContain('areas[1] "south".dataRow: follows row "South"');
+		expect(said).toContain('areas[1] "south".weather.data.rainAmount: follows "row.mood"');
+	});
+
 	it("warns of junction ends that aren't road ends meeting at one place (ADR-0136)", () => {
 		const world = {
 			...createEmptyScene(),

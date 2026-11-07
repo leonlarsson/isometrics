@@ -114,7 +114,7 @@ export const DataBindingSchema = z
 			),
 	})
 	.describe(
-		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object or road that follows a table row (dataRow), a column of its row as "row.<column>".',
+		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object, road or area that follows a table row (dataRow), a column of its row as "row.<column>".',
 	);
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
@@ -1138,6 +1138,14 @@ export const WeatherSchema = z
 			.describe(
 				"How high above the base ground the clouds float, in grid units (an area's own weather's: where its rain and lightning start too). null = the world's on their ring round it, about 30 up (higher for big worlds); an area's 9 above its top, over houses and trees.",
 			),
+		cloudTransparency: z
+			.number()
+			.min(0)
+			.max(1)
+			.default(0)
+			.describe(
+				"How see-through the clouds are: 0 = solid, 1 = clear (not drawn, while cloudCover can still follow data); in between, what's under and behind them shows through (handy for an area's clouds in the diorama, which float over what's behind it).",
+			),
 		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
 		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
 		fogDensity: amount(
@@ -1217,6 +1225,12 @@ export const AreaSchema = z
 			.default(null)
 			.describe(
 				"Its own weather, shaped as the world's (`weather`), replacing it inside the area (its edge fades over about two grid units) for a storm, fog or snowfall in one place: rain, snow, splashes, wet ground and snow on it, fog and haze lying over it, clouds gathered over it, lightning striking in it and the light darkening under it. Its `data` follows values as the world's does, so each area's weather can show a value (a sentiment map: stormy where it's bad). The sky and the sun stay the world's. null = the world's weather.",
+			),
+		// See docs/adr/0152-areas-follow-a-table-row.md.
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows (ADR-0108), e.g. a district\'s row of a "district, sentiment, complaints" table: its weather and colour can read the row\'s columns as "row.<column>", so every area shares the same bindings and differs only in its row. null = none.',
 			),
 		isLocked: isLocked("its corners"),
 		isHidden: isHidden(),

@@ -329,6 +329,15 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);
 	});
 
+	// Areas: the row they follow, and what their weather follows (ADR-0151, ADR-0152).
+	scene.areas.forEach((area, index) => {
+		const where = `areas[${index}] "${area.id}"`;
+		rowRead(where, area.dataRow);
+		if (area.weather) {
+			bindingsRead(`${where}.weather`, area.weather.data, readableKeys(scene, area.dataRow).keys);
+		}
+	});
+
 	// Junctions (ADR-0136): their ends must be roads' open ends, at one place.
 	const roadsById = new Map(scene.roads.map((road) => [road.id, road]));
 	scene.junctions.forEach((junction, index) => {

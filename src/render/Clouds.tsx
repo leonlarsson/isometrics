@@ -57,7 +57,8 @@ const cloudsFor = (count: number, reach: number, height: number): ICloud[] => {
  * Low-poly clouds in the sky in perspective (ADR-0070): flat-shaded puffs,
  * lit like the world, drifting slowly round it while motion plays. Like the
  * sky, the pointer passes through them. How many, their colour, speed and
- * height come from the world's weather (scene/sky, `cloudAltitude`).
+ * height and how see-through they are come from the world's weather
+ * (scene/sky, `cloudAltitude`, `cloudTransparency`).
  */
 export const Clouds = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
@@ -70,6 +71,7 @@ export const Clouds = () => {
 	const look = skyLookAt(lighting, sky, hour, useSkyWeather());
 	const count = Math.round(look.cloudCover * MAX_CLOUDS);
 	const cloudAltitude = useEditor((s) => s.scene.weather.cloudAltitude);
+	const transparency = useEditor((s) => s.scene.weather.cloudTransparency);
 	const clouds = useMemo(() => {
 		const reach = Math.max(ground.width, ground.depth);
 		return cloudsFor(count, reach, cloudAltitudeOf({ cloudAltitude }, { reach }));
@@ -81,7 +83,7 @@ export const Clouds = () => {
 		}
 	});
 
-	if (!perspective || !sky.showsInPerspective || count === 0) {
+	if (!perspective || !sky.showsInPerspective || count === 0 || transparency >= 1) {
 		return null;
 	}
 	return (
@@ -101,6 +103,10 @@ export const Clouds = () => {
 								emissiveIntensity={0.35}
 								flatShading
 								roughness={1}
+								// See-through clouds (cloudTransparency) blend over each other rather than hide.
+								transparent={transparency > 0}
+								opacity={1 - transparency}
+								depthWrite={transparency === 0}
 							/>
 						</mesh>
 					))}

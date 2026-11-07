@@ -18,6 +18,7 @@ import {
 	type TAreaShape,
 	topSurface,
 	triangulateOutline,
+	valuesOfArea,
 	waterSeams,
 } from "#/scene/areas";
 import type { TArea, TDataValue, TSurface, TWater } from "#/scene/schema";
@@ -308,7 +309,8 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	);
 	// The theme's colours: an area doesn't change as it gets dark.
 	const palette = useThemePalette();
-	const data = useWorldData().values;
+	// The world's values and its row's columns (ADR-0152), for a colour that follows data.
+	const data = valuesOfArea(area, useWorldData());
 	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(

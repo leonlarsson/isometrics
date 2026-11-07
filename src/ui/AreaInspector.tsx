@@ -15,12 +15,14 @@ import {
 	MAX_CORNER_LIFT,
 	polygonArea,
 	takesCornerHeights,
+	valuesOfArea,
 } from "#/scene/areas";
 import { percent } from "#/scene/format";
 import { changeColorSetting } from "#/scene/objectSettings";
 import type { TArea, TAreaKind } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton, IconButtonGroup } from "./Button";
+import { TableRowSection } from "./EntityDataTab";
 import { FollowDataNote } from "./FollowDataNote";
 import {
 	Hint,
@@ -393,7 +395,7 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 /** The Look tab: the area's colour (by hand or from data), and for water how rippled and mirroring it is. */
 const AreaLookTab = ({ area }: { area: TArea }) => {
 	const palette = usePalette();
-	const data = useWorldData().values;
+	const data = valuesOfArea(area, useWorldData());
 	const edit = useAreaEdit(area);
 	const worldWater = useEditor((s) => s.scene.water);
 	const [surface] = AREA_KINDS[area.kind].colors;
@@ -485,6 +487,28 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 	);
 };
 
+/**
+ * An area's Data tab (ADR-0152): the table row it follows, whose columns its
+ * weather and colour can read as `row.<column>`, so one table of districts
+ * drives every area. Gone while the world's data is off (ADR-0115).
+ */
+const AreaDataTab = ({ area }: { area: TArea }) => {
+	const updateArea = useEditor((s) => s.updateArea);
+
+	return (
+		<TableRowSection
+			dataRow={area.dataRow}
+			name={area.name}
+			what="Its weather and colour"
+			setRow={(next) =>
+				updateArea(area.id, (draft) => {
+					draft.dataRow = next;
+				})
+			}
+		/>
+	);
+};
+
 /** The properties tabs for a selected area (ADR-0054). A hidden area has no look. */
 export const areaTabs = (area: TArea): IInspectorTab[] => [
 	{ value: "object", label: "Area", icon: "area", content: <AreaTab key={area.id} area={area} /> },
@@ -510,5 +534,11 @@ export const areaTabs = (area: TArea): IInspectorTab[] => [
 		label: "Area weather",
 		icon: "rain",
 		content: <AreaWeatherTab key={area.id} area={area} />,
+	},
+	{
+		value: "objectData",
+		label: "Data",
+		icon: "chart",
+		content: <AreaDataTab key={area.id} area={area} />,
 	},
 ];
