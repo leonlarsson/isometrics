@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 
 import {
 	act,
+	choose,
 	clickWith,
 	dragBy,
 	expect,
@@ -11,6 +12,7 @@ import {
 	loadWorld,
 	menuItem,
 	openEditor,
+	openPanel,
 	paletteTile,
 	read,
 	showView,
@@ -779,5 +781,66 @@ test.describe("roads for interchanges (ADR-0148)", () => {
 		await expect(
 			page.getByRole("switch", { name: "Drive the other way (one-way road)" }),
 		).toBeDisabled();
+	});
+
+	test("a flyover's pillars: their look and keeping clear, and a raised junction's own pillars", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 3],
+						[0, 0, 3],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "east",
+					name: "East",
+					points: [
+						[0, 0, 3],
+						[20, 0, 3],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "mid-air",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "east", end: "start" },
+					],
+					standsOnPillars: true,
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+		await act(page, (s) => s.selectRoad("west"));
+		await page.getByRole("tab", { name: "Shape", exact: true }).click();
+		await openPanel(page, "Elevated sections");
+		await choose(page, "Pillar look", "Round columns");
+		expect(await read(page, (s) => s.scene.roads[0].pillarKind)).toBe("column_01");
+		// Its spacing follows its look until set: about four times its width for columns.
+		await expect(page.getByRole("slider", { name: "Pillar spacing" })).toHaveAttribute(
+			"aria-valuenow",
+			"9.6",
+		);
+		await page.getByRole("switch", { name: "Keep pillars clear of roads and water below" }).click();
+		expect(await read(page, (s) => s.scene.roads[0].pillarsKeepClear)).toBe(true);
+		// Held up some other way, the pillar settings are greyed out, saying why.
+		await choose(page, "Held up by", /Embankment/);
+		await expect(
+			page.getByRole("combobox", { name: "Pillar look (held up by pillars only)" }),
+		).toBeDisabled();
+		// The junction in mid-air stands on pillars of its own; its point panel turns them off.
+		await act(page, (s) => s.selectRoadPoint("east", 0));
+		const own = page.getByRole("switch", { name: "Stands on pillars of its own" });
+		await expect(own).toBeChecked();
+		await own.click();
+		expect(await read(page, (s) => s.scene.junctions[0].standsOnPillars)).toBe(false);
 	});
 });
