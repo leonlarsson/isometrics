@@ -229,6 +229,9 @@ interface IPuffBatchProps {
 /** One instanced draw of puffs: the solid clouds, or the see-through ones. */
 const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchProps) => {
 	const mesh = useRef<THREE.InstancedMesh>(null);
+	// See-through clouds are drawn into depth first, unseen (in the opaque pass), then painted where
+	// they're nearest: each cloud one see-through body, puffs never painted over the wrong way round.
+	const depthMesh = useRef<THREE.InstancedMesh>(null);
 	const geometry = useMemo(() => {
 		const made = new THREE.IcosahedronGeometry(1, 1);
 		// Each puff's opacity, from its area's cloud transparency.
@@ -239,8 +242,15 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 		return made;
 	}, []);
 	const material = useMemo(() => cloudMaterial(seeThrough), [seeThrough]);
+	const depthMaterial = useMemo(() => {
+		// The solid clouds' material, so its depth is exactly what the painted pass compares against.
+		const made = cloudMaterial(false);
+		made.colorWrite = false;
+		return made;
+	}, []);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
+	useEffect(() => () => depthMaterial.dispose(), [depthMaterial]);
 
 	const place = (seconds: number) => {
 		const instanced = mesh.current;
@@ -264,6 +274,11 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 		}
 		instanced.count = puffs.length;
 		place(motionClock.seconds);
+		// The unseen depth pass shares the puffs' places.
+		if (depthMesh.current) {
+			depthMesh.current.instanceMatrix = instanced.instanceMatrix;
+			depthMesh.current.count = puffs.length;
+		}
 		const opacity = geometry.getAttribute("cloudOpacity") as THREE.InstancedBufferAttribute;
 		puffs.forEach((puff, i) => {
 			instanced.setColorAt(i, puffColor.set(colors[puff.area]));
@@ -282,12 +297,23 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 	});
 
 	return (
-		<instancedMesh
-			ref={mesh}
-			args={[geometry, material, Math.max(1, puffs.length)]}
-			raycast={ignoreRaycast}
-			frustumCulled={false}
-		/>
+		<>
+			{seeThrough && (
+				<instancedMesh
+					ref={depthMesh}
+					args={[geometry, depthMaterial, Math.max(1, puffs.length)]}
+					raycast={ignoreRaycast}
+					frustumCulled={false}
+				/>
+			)}
+
+			<instancedMesh
+				ref={mesh}
+				args={[geometry, material, Math.max(1, puffs.length)]}
+				raycast={ignoreRaycast}
+				frustumCulled={false}
+			/>
+		</>
 	);
 };
 
@@ -297,7 +323,9 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
  * (`cloudTransparency`), greyer as it rains, snows or storms, tinted by the
  * time of day as the world's are, drifting a little in place while motion
  * plays. Two instanced draws for every area, the solid clouds and the
- * see-through ones (so solid ones keep hiding their own back puffs); the
+ * see-through ones (so solid ones keep hiding their own back puffs; the
+ * see-through ones drawn unseen into depth first, so each shows as one
+ * see-through body, in front of what's behind it); the
  * pointer passes through them.
  */
 const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {

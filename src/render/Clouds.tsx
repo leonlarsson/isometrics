@@ -96,6 +96,15 @@ export const Clouds = () => {
 						<mesh key={p} position={puff.at} scale={puff.size} raycast={ignoreRaycast}>
 							<icosahedronGeometry args={[1, 1]} />
 
+							{/* See-through: drawn unseen into depth first, so only the nearest surface is painted. */}
+							{transparency > 0 && (
+								<mesh raycast={ignoreRaycast}>
+									<icosahedronGeometry args={[1, 1]} />
+
+									<meshStandardMaterial colorWrite={false} />
+								</mesh>
+							)}
+
 							{/* A glow of their own colour, so they never go black at night (as if moonlit). */}
 							<meshStandardMaterial
 								color={look.cloudColor}
