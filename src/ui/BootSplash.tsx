@@ -8,17 +8,20 @@ import { APP_NAME } from "#/lib/app";
  */
 export const BootSplash = () => (
 	<div className="boot-splash">
+		{/*
+		 * The rounded diamond, orange over blue, drawn as shapes rather than clipped to it: a clip
+		 * found by its id now and then didn't apply while the page loaded (the server's splash and
+		 * the app's for a moment, with one id), and the mark showed as a plain square.
+		 */}
 		<svg className="boot-splash-mark" viewBox="0 0 32 32" aria-hidden="true">
-			<defs>
-				<clipPath id="boot-splash-diamond">
-					<rect x="6" y="6" width="20" height="20" rx="6" transform="rotate(45 16 16)" />
-				</clipPath>
-			</defs>
+			<g transform="rotate(45 16 16)">
+				<rect x="6" y="6" width="20" height="20" rx="6" fill="#3d4fd6" />
 
-			<g clipPath="url(#boot-splash-diamond)">
-				<rect width="32" height="32" fill="#3d4fd6" />
-
-				<rect width="32" height="16" fill="#d9643a" />
+				{/* Its top half: the side of the diagonal through its left and right corners. */}
+				<path
+					d="M7.757 24.243A6 6 0 0 1 6 20V12A6 6 0 0 1 12 6H20A6 6 0 0 1 24.243 7.757Z"
+					fill="#d9643a"
+				/>
 			</g>
 		</svg>
 
