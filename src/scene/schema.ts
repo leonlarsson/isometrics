@@ -114,7 +114,7 @@ export const DataBindingSchema = z
 			),
 	})
 	.describe(
-		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object or road that follows a table row (dataRow), a column of its row as "row.<column>".',
+		'A setting driven by a data value. Its key names one of the world\'s values, or, for an object, road or area that follows a table row (dataRow), a column of its row as "row.<column>".',
 	);
 
 export type TDataBinding = z.output<typeof DataBindingSchema>;
@@ -1217,6 +1217,12 @@ export const AreaSchema = z
 			.default(null)
 			.describe(
 				"Its own weather, shaped as the world's (`weather`), replacing it inside the area (its edge fades over about two grid units) for a storm, fog or snowfall in one place: rain, snow, splashes, wet ground and snow on it, fog and haze lying over it, clouds gathered over it, lightning striking in it and the light darkening under it. Its `data` follows values as the world's does, so each area's weather can show a value (a sentiment map: stormy where it's bad). The sky and the sun stay the world's. null = the world's weather.",
+			),
+		// See docs/adr/0152-areas-follow-a-table-row.md.
+		dataRow: DataRowRefSchema.nullable()
+			.default(null)
+			.describe(
+				'The table row it follows (ADR-0108), e.g. a district\'s row of a "district, sentiment, complaints" table: its weather and colour can read the row\'s columns as "row.<column>", so every area shares the same bindings and differs only in its row. null = none.',
 			),
 		isLocked: isLocked("its corners"),
 		isHidden: isHidden(),

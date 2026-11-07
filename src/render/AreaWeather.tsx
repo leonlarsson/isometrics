@@ -453,7 +453,7 @@ const useFogColors = () => {
  */
 export const AreaWeather = () => {
 	const areas = useEditor((s) => s.scene.areas);
-	const data = useWorldData().values;
+	const data = useWorldData();
 	const weathers = areaWeathersNow(areas, data);
 	useWeatherMap(weathers);
 	useFogColors();

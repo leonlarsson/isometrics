@@ -464,11 +464,12 @@ export const Viewport = () => {
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
 	// What the weather draws (ADR-0102): each piece only while its amount is above nothing, the
 	// world's or an area's own (ADR-0151).
-	const data = useWorldData().values;
+	const worldData = useWorldData();
+	const data = worldData.values;
 	const weather = useEditor(
 		useShallow((s) => {
 			const now = weatherNow(s.scene.weather, data);
-			const areas = areaWeathersNow(s.scene.areas, data);
+			const areas = areaWeathersNow(s.scene.areas, worldData);
 			const somewhere = (amount: (weather: typeof now) => number) =>
 				mostAnywhere(now, areas, amount) > 0;
 			return {

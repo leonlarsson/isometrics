@@ -8,7 +8,7 @@ import type {
 } from "./schema";
 
 /**
- * Things that follow a table row (ADR-0108): an object or a road names a row
+ * Things that follow a table row (ADR-0108): an object, a road or an area (ADR-0152) names a row
  * of one of the world's tables (`dataRow`), and everything it shows or follows
  * can read that row's columns as if they were values, under the key
  * `row.<column>`. Bindings, cards and tiles stay by key, so a hundred towers

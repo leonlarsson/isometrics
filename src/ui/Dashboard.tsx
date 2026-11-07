@@ -3,6 +3,7 @@ import { useEditor } from "#/editor/store";
 import { setViewShowsData, useViewShowsData } from "#/editor/viewData";
 import { useUsesData, useWorldData } from "#/editor/worldData";
 import { partNameOf } from "#/parts/registry";
+import { AREA_KIND_LABELS } from "#/scene/areas";
 import { formatEntry } from "#/scene/format";
 import { flagOf } from "#/scene/trends";
 
@@ -81,6 +82,7 @@ export const WorldDataView = () => {
 	const data = useWorldData();
 	const entities = useEditor((s) => s.scene.entities);
 	const roads = useEditor((s) => s.scene.roads);
+	const areas = useEditor((s) => s.scene.areas);
 	const usesData = useUsesData();
 	const open = showsData && inView && usesData;
 	if (!open) {
@@ -110,6 +112,13 @@ export const WorldDataView = () => {
 					if (road.dataRow?.tableKey === table.key) {
 						const list = followers.get(road.dataRow.rowKey) ?? [];
 						followers.set(road.dataRow.rowKey, [...list, road.name || "Road"]);
+					}
+				}
+				// Areas follow rows too (ADR-0152).
+				for (const area of areas) {
+					if (area.dataRow?.tableKey === table.key) {
+						const list = followers.get(area.dataRow.rowKey) ?? [];
+						followers.set(area.dataRow.rowKey, [...list, area.name || AREA_KIND_LABELS[area.kind]]);
 					}
 				}
 				return (

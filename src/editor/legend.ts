@@ -16,6 +16,16 @@ const nameOfKey = (scene: TScene, key: string, dataRow: TScene["entities"][numbe
 
 const scaleWords = (binding: TDataBinding) => (binding.usesLogScale ? ", log scale" : "");
 
+/** What a weather setting that follows data brings more of, for its legend chip. */
+const WEATHER_WORDS: Readonly<Record<string, string>> = {
+	cloudCover: "cloud",
+	rainAmount: "rain",
+	snowAmount: "snow",
+	fogDensity: "fog",
+	hazeAmount: "haze",
+	lightningRate: "lightning",
+};
+
 /** The legend chips the world's bindings suggest, each once. */
 export const suggestLegend = (scene: TScene): TLegendEntry[] => {
 	const entries = new Map<string, TLegendEntry>();
@@ -49,6 +59,18 @@ export const suggestLegend = (scene: TScene): TLegendEntry[] => {
 					? `${what}: wider, more${scaleWords(binding)}`
 					: `${what}: more vehicles, more${scaleWords(binding)}`,
 			);
+		}
+	}
+	// Areas' weather and colours (ADR-0151, ADR-0152).
+	for (const area of scene.areas) {
+		for (const [setting, binding] of Object.entries(area.weather?.data ?? {})) {
+			const what = nameOfKey(scene, binding.key, area.dataRow);
+			add("Weather", `${what}: more ${WEATHER_WORDS[setting] ?? setting}`);
+		}
+		for (const color of Object.values(area.colors)) {
+			if (color.data.color) {
+				add("Colour", nameOfKey(scene, color.data.color.key, area.dataRow));
+			}
 		}
 	}
 	return [...entries.values()];

@@ -10,10 +10,12 @@ import {
 } from "#/editor/weather";
 import { useWorldData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
+import { valuesOfArea } from "#/scene/areas";
 import { percent } from "#/scene/format";
 import {
 	type TArea,
 	type TDataBinding,
+	type TDataValue,
 	type TScene,
 	type TWeather,
 	WeatherSchema,
@@ -60,6 +62,8 @@ interface IWeatherFieldsProps {
 	panelIds: string;
 	/** How high its clouds float while their height isn't set: the world's ring's, or over the area. */
 	cloudAltitudeByDefault: number;
+	/** What its amounts can follow: the world's values, and an area's row's columns (ADR-0152). */
+	values: readonly TDataValue[];
 }
 
 /**
@@ -74,10 +78,10 @@ export const WeatherFields = ({
 	owner,
 	panelIds,
 	cloudAltitudeByDefault,
+	values: data,
 }: IWeatherFieldsProps) => {
 	const sky = useEditor((s) => s.scene.sky);
 	const lighting = useEditor((s) => s.scene.lighting);
-	const data = useWorldData().values;
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const hours = useSceneHours();
 	const now = weatherNow(weather, data);
@@ -359,6 +363,7 @@ export const WeatherFields = ({
 /** The world's Weather tab (ADR-0102). */
 export const WeatherTab = () => {
 	const weather = useEditor((s) => s.scene.weather);
+	const values = useWorldData().values;
 	const reach = useEditor((s) => Math.max(s.scene.ground.width, s.scene.ground.depth));
 	const commit = useEditor((s) => s.commit);
 
@@ -372,6 +377,7 @@ export const WeatherTab = () => {
 			<WeatherFields
 				weather={weather}
 				owner="world"
+				values={values}
 				cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { reach })}
 				panelIds="weather"
 				change={(recipe, coalesce) =>
@@ -394,6 +400,7 @@ export const WeatherTab = () => {
  */
 export const AreaWeatherTab = ({ area }: { area: TArea }) => {
 	const updateArea = useEditor((s) => s.updateArea);
+	const values = valuesOfArea(area, useWorldData());
 	const edit = (recipe: (a: Draft<TArea>) => void, coalesce?: string) =>
 		updateArea(
 			area.id,
@@ -440,6 +447,7 @@ export const AreaWeatherTab = ({ area }: { area: TArea }) => {
 				<WeatherFields
 					weather={area.weather}
 					owner="area"
+					values={values}
 					cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { area })}
 					panelIds="area.weather"
 					change={(recipe, coalesce) =>
