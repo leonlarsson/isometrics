@@ -14,6 +14,7 @@ const CLAY_ROUGHNESS = 0.95;
 interface IOriginal {
 	color: THREE.Color;
 	roughness: number;
+	vertexColors: boolean;
 }
 
 /**
@@ -21,7 +22,9 @@ interface IOriginal {
  * matte clay colour, so only its shapes, light and shadow show. Standard
  * materials only, like the wireframe: the editor's gizmo, handles and lines
  * and the painted lights stay as they are, and see-through things stay
- * see-through. Looked for each frame, so things added (or recoloured) while
+ * see-through. Solid things coloured per vertex (a merged row of houses,
+ * ADR-0143, its material white) lose their vertex colours while it's on, or
+ * they'd keep their colours under the clay. Looked for each frame, so things added (or recoloured) while
  * it's on are clay too; each gets its own colour back when it's off.
  */
 export const Clay = () => {
@@ -39,9 +42,19 @@ export const Clay = () => {
 					continue;
 				}
 				// Not clay (new, or given its colour again while it's on): remember that colour.
-				originals.current.set(each, { color: each.color.clone(), roughness: each.roughness });
+				originals.current.set(each, {
+					color: each.color.clone(),
+					roughness: each.roughness,
+					vertexColors: each.vertexColors,
+				});
 				each.color.copy(CLAY);
 				each.roughness = CLAY_ROUGHNESS;
+				// Vertex colours multiply the clay: off on solid things (compiled again, once). See-through
+				// ones (a boat's wake, whose colours fade it out) keep them.
+				if (each.vertexColors && !each.transparent) {
+					each.vertexColors = false;
+					each.needsUpdate = true;
+				}
 			}
 		});
 	});
@@ -49,9 +62,13 @@ export const Clay = () => {
 	useEffect(() => {
 		const changed = originals.current;
 		return () => {
-			for (const [material, { color, roughness }] of changed) {
+			for (const [material, { color, roughness, vertexColors }] of changed) {
 				material.color.copy(color);
 				material.roughness = roughness;
+				if (material.vertexColors !== vertexColors) {
+					material.vertexColors = vertexColors;
+					material.needsUpdate = true;
+				}
 			}
 			changed.clear();
 		};
