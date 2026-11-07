@@ -305,7 +305,7 @@ export const PartsPalette = () => {
 				tooltip: `${style.description}. Click points on the ground; Enter to finish.`,
 				searchText: `${style.description} ${(style.keywords ?? []).join(" ")} fence wall`,
 				swatch: `repeating-linear-gradient(90deg, ${first} 0 6px, ${second ?? first} 6px 9px)`,
-				thumbnail: thumbnails[fencePictureKey(style.id)],
+				thumbnail: thumbnails.pictures[fencePictureKey(style.id)],
 				pressed: drawingFence === style.id,
 				onSelect: () => startFenceDrawing(style.id),
 			};
@@ -323,7 +323,7 @@ export const PartsPalette = () => {
 					tooltip: `${part.description}. Click to add, or drag onto the scene.`,
 					searchText: `${part.description} ${(part.keywords ?? []).join(" ")}`,
 					swatch: `linear-gradient(135deg, ${first} 55%, ${second} 55%)`,
-					thumbnail: thumbnails[part.kind],
+					thumbnail: thumbnails.pictures[part.kind],
 					kind: part.kind,
 					onSelect: () => {
 						const scene = useEditor.getState().scene;
@@ -505,7 +505,18 @@ export const PartsPalette = () => {
 					>
 						<span className={styles.preview} aria-hidden="true">
 							{item.thumbnail ? (
-								<img className={styles.thumbnail} src={item.thumbnail} alt="" draggable={false} />
+								<img
+									className={styles.thumbnail}
+									src={item.thumbnail}
+									alt=""
+									draggable={false}
+									// A picture made ahead of time that doesn't load is drawn live instead (ADR-0150).
+									onError={() => {
+										if (item.thumbnail) {
+											thumbnails.fileFailed(item.thumbnail);
+										}
+									}}
+								/>
 							) : (
 								<span className={styles.swatch} style={{ background: item.swatch }} />
 							)}

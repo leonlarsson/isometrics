@@ -33,6 +33,17 @@ test.describe("Add to scene (ADR-0051, ADR-0088)", () => {
 		await expect(palette(page).getByText("Recently used")).toBeVisible();
 	});
 
+	test("tiles show the parts' pictures made ahead of time, in the theme (ADR-0150)", async ({
+		page,
+	}) => {
+		const picture = tile(page, "House").locator("img");
+		await expect(picture).toHaveAttribute("src", "/part-pictures/house_01-light.webp");
+		// Loaded, not a broken file (which would be drawn live instead).
+		await expect
+			.poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth))
+			.toBe(224);
+	});
+
 	test("the search narrows the parts, and says when nothing matches", async ({ page }) => {
 		await palette(page).getByRole("searchbox", { name: "Search parts" }).fill("tree");
 		// A tree with one look: a family with several lists each in a search ("Pine tree 1", ADR-0050).

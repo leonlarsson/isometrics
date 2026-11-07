@@ -5,3 +5,7 @@
 # Starter pictures (scripts/starter-pictures.mjs) keep their names when retaken: a day, then check again.
 /starters/*
   Cache-Control: public, max-age=86400
+
+# Add to scene's pictures (scripts/part-pictures.mjs) keep their names when retaken: a day, then check again.
+/part-pictures/*
+  Cache-Control: public, max-age=86400

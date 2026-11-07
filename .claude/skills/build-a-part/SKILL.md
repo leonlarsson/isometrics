@@ -61,10 +61,11 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
 
 ## 6. Check it before showing it
 
-1. `pnpm check:fix && pnpm check && pnpm typecheck && pnpm test`: the part guards (defaults, colours, lights, the `useFrame` mark) and `/api/worlds/schema` run on every part.
-2. **The catalogue, both looks:** a temporary `e2e/debug.spec.ts` that opens `/parts`, picks its category chip, and shoots the page light by day and dark at night (`page.emulateMedia({ colorScheme })`, the "By day"/"At night" chips, wait ~10–20 s for the pictures). Look at every new card.
-3. **World scale:** `loadWorld` with the new parts next to `house_01`, `car_01` and `street_lamp_01`, `showView`, by day and at 22:00 (`s.commit((scene) => { scene.lighting.timeSource = "fixed"; scene.lighting.time = 22; })`).
-4. **Close-ups from where people will look,** including below, behind and the side, with a perspective camera:
+1. **Its Add to scene pictures:** `node.exe scripts/part-pictures.mjs --only <kind>` (the dev server running; `node` off WSL), for each part you added or changed (ADR-0150). They're files in `public/part-pictures/`, and `pnpm test` fails for a part whose file changed since they were made.
+2. `pnpm check:fix && pnpm check && pnpm typecheck && pnpm test`: the part guards (defaults, colours, lights, the `useFrame` mark), `/api/worlds/schema` and the pictures' check run on every part.
+3. **The catalogue, both looks:** a temporary `e2e/debug.spec.ts` that opens `/parts`, picks its category chip, and shoots the page light by day and dark at night (`page.emulateMedia({ colorScheme })`, the "By day"/"At night" chips, wait ~10–20 s for the pictures). Look at every new card.
+4. **World scale:** `loadWorld` with the new parts next to `house_01`, `car_01` and `street_lamp_01`, `showView`, by day and at 22:00 (`s.commit((scene) => { scene.lighting.timeSource = "fixed"; scene.lighting.time = 22; })`).
+5. **Close-ups from where people will look,** including below, behind and the side, with a perspective camera:
    ```ts
    await page.evaluate((v) => globalThis.__editorStore.getState().showOpeningView({
    	target: v.target, targetAltitude: v.height, azimuth: v.azimuth, elevation: v.elevation,
@@ -72,8 +73,8 @@ A part is a procedural low-poly 3D object made with `definePart` in `src/parts/<
    }), { target: [0, 0], height: 1, azimuth: 200, elevation: 10, span: 3 });
    ```
    Azimuth 0/180 look from the sides (±X), 90/270 from the ends (±Z), ~200 from the front-left. Try the extremes of its settings too (smallest and largest, tilted fully, 1 house).
-5. **Night on Ultra** for parts with `realLight`: click the toolbar's `/^Ultra:/` button, then shoot at night; check nothing lights its own back.
-6. Run the end-to-end specs it touches (`catalogue`, `add-to-scene`, `vehicles`, `properties`) and delete `e2e/debug.spec.ts`.
-7. Update `TODO.md` (the part count and what's done in its category) and, for a new category or kit convention, AGENTS.md.
+6. **Night on Ultra** for parts with `realLight`: click the toolbar's `/^Ultra:/` button, then shoot at night; check nothing lights its own back.
+7. Run the end-to-end specs it touches (`catalogue`, `add-to-scene`, `vehicles`, `properties`) and delete `e2e/debug.spec.ts`.
+8. Update `TODO.md` (the part count and what's done in its category) and, for a new category or kit convention, AGENTS.md.
 
 Then show the owner the pictures and the list of parts with their settings, colours and lights, and wait for the go-ahead to commit. They're colourblind: name colours in words, not only show them.

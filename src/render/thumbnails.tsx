@@ -17,6 +17,7 @@ import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/
 
 import { VIEW_DIRECTION } from "./CameraRig";
 import { FenceBody } from "./FenceMesh";
+import PART_PICTURES from "./partPictures.json";
 // Prefabs' pictures draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
 
@@ -26,7 +27,9 @@ import "./PrefabPieces";
  * angle, on a transparent background. Small ones for the Add to scene panel,
  * bigger ones for the parts catalogue, by day or at night with its lights on.
  * One offscreen canvas renders a set (a look at a size) once, then goes away;
- * the images live in memory only. See docs/adr/0036-part-thumbnails.md.
+ * the images live in memory only. See docs/adr/0036-part-thumbnails.md. Add to
+ * scene's are made ahead of time as files (ADR-0150, scripts/part-pictures.mjs):
+ * only a part with none yet is drawn for it here.
  */
 
 export type TThumbnails = Readonly<Record<string, string>>;
@@ -52,10 +55,12 @@ const FILL = 0.84;
 interface IPictureSet {
 	look: IPictureLook;
 	size: IPictureSize;
+	/** Only these pictures (parts' kinds, fences' `fencePictureKey`); every one when left out. */
+	only?: readonly string[];
 }
 
-const keyOf = ({ look, size }: IPictureSet) =>
-	`${look.theme}/${look.night ? "night" : "day"}/${size.width}x${size.height}`;
+const keyOf = ({ look, size, only }: IPictureSet) =>
+	`${look.theme}/${look.night ? "night" : "day"}/${size.width}x${size.height}${only ? `/${only.join(",")}` : ""}`;
 
 const EMPTY: TThumbnails = {};
 const cache = new Map<string, TThumbnails>();
@@ -401,23 +406,42 @@ const renderSet = (set: IPictureSet) => {
 			notify();
 		}
 	};
-	return withPictureCanvas(set.size, async (take, takeFence) => {
-		try {
-			for (const part of PARTS) {
+	return takeSet(set, (key, url) => {
+		pictures[key] = url;
+		publish();
+	}).finally(() => publish(true));
+};
+
+/** Takes a set's pictures one by one in quiet moments, handing each over as it's done. */
+const takeSet = (set: IPictureSet, onPicture: (key: string, url: string) => void) =>
+	withPictureCanvas(set.size, async (take, takeFence) => {
+		const wanted = (key: string) => !set.only || set.only.includes(key);
+		for (const part of PARTS) {
+			if (wanted(part.kind)) {
 				await idle();
-				pictures[part.kind] = await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look });
-				publish();
+				onPicture(part.kind, await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look }));
 			}
-			// The fence styles too (ADR-0103), under keys of their own.
-			for (const style of FENCE_STYLE_LIST) {
+		}
+		// The fence styles too (ADR-0103), under keys of their own.
+		for (const style of FENCE_STYLE_LIST) {
+			if (wanted(fencePictureKey(style.id))) {
 				await idle();
-				pictures[fencePictureKey(style.id)] = await takeFence(style.id, set.look);
-				publish();
+				onPicture(fencePictureKey(style.id), await takeFence(style.id, set.look));
 			}
-		} finally {
-			publish(true);
 		}
 	});
+
+/**
+ * Add to scene's pictures in a theme, by key (a part's kind, a fence's `fencePictureKey`), as PNG
+ * data URLs: what scripts/part-pictures.mjs saves as files (ADR-0150), drawn by the code that draws
+ * them live. Every one, or only these.
+ */
+export const renderAddToScenePictures = async (theme: TResolvedTheme, only?: readonly string[]) => {
+	const pictures: Record<string, string> = {};
+	await takeSet({ look: { theme, night: false }, size: THUMBNAIL_SIZE, only }, (key, url) => {
+		pictures[key] = url;
+	});
+	return pictures;
 };
 
 /** Work through the requested sets one at a time (each run uses its own WebGL context). */
@@ -447,27 +471,72 @@ const subscribe = (listener: () => void) => {
 /**
  * Pictures of the parts in a look at a size, by part kind; empty at first,
  * filling in as they're rendered. The first call for a set starts rendering it.
+ * `only` renders just those (none: nothing is rendered).
  */
-export const usePartPictures = (look: IPictureLook, size: IPictureSize): TThumbnails => {
-	const key = keyOf({ look, size });
+export const usePartPictures = (
+	look: IPictureLook,
+	size: IPictureSize,
+	only?: readonly string[],
+): TThumbnails => {
+	const key = keyOf({ look, size, only });
 	const pictures = useSyncExternalStore(
 		subscribe,
 		() => cache.get(key) ?? EMPTY,
 		() => EMPTY,
 	);
 	useEffect(() => {
-		if (!requested.has(key)) {
+		if (!requested.has(key) && only?.length !== 0) {
 			requested.add(key);
-			queued.set(key, { look, size });
+			queued.set(key, { look, size, only });
 			void work();
 		}
 	}, [key]);
 	return pictures;
 };
 
-/** The Add to scene panel's small pictures of the parts for a theme, by day. */
-export const usePartThumbnails = (theme: TResolvedTheme): TThumbnails =>
-	usePartPictures({ theme, night: false }, THUMBNAIL_SIZE);
+/** Every picture Add to scene shows: each part's, then each fence style's (`fencePictureKey`). */
+export const ADD_TO_SCENE_PICTURES: readonly string[] = [
+	...PARTS.map((part) => part.kind),
+	...FENCE_STYLE_LIST.map((style) => fencePictureKey(style.id)),
+];
+
+/**
+ * Where an Add to scene picture's file is (ADR-0150), made ahead of time by
+ * scripts/part-pictures.mjs, for a theme; null for one that has none yet (a new part).
+ */
+export const addToScenePictureOf = (key: string, theme: TResolvedTheme) =>
+	Object.hasOwn(PART_PICTURES, key)
+		? `/part-pictures/${key.replace(":", "-")}-${theme}.webp`
+		: null;
+
+/**
+ * The Add to scene panel's small pictures of the parts for a theme, by day, by key: each from
+ * its file, made ahead of time (ADR-0150), and drawn live only for what has none or a file that
+ * doesn't load (`fileFailed`, given the picture's address).
+ */
+export const usePartThumbnails = (theme: TResolvedTheme) => {
+	const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
+	const fileOf = (key: string) => (failed.has(key) ? null : addToScenePictureOf(key, theme));
+	const drawn = usePartPictures(
+		{ theme, night: false },
+		THUMBNAIL_SIZE,
+		ADD_TO_SCENE_PICTURES.filter((key) => fileOf(key) === null),
+	);
+	const pictures: Record<string, string> = {};
+	for (const key of ADD_TO_SCENE_PICTURES) {
+		const url = fileOf(key) ?? drawn[key];
+		if (url) {
+			pictures[key] = url;
+		}
+	}
+	const fileFailed = (url: string) => {
+		const key = ADD_TO_SCENE_PICTURES.find((each) => addToScenePictureOf(each, theme) === url);
+		if (key) {
+			setFailed((before) => new Set(before).add(key));
+		}
+	};
+	return { pictures, fileFailed };
+};
 
 /** Pictures of one part with an object's settings, taken one batch at a time. */
 let settingsShots = Promise.resolve();
