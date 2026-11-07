@@ -16,6 +16,7 @@ import {
 	ROAD_KIND_WIDTH,
 	ROAD_KINDS,
 	roadCenterlineOf,
+	showsEdgeLinesOf,
 	TURN_STYLE_LABELS,
 	TURN_STYLE_OPTIONS,
 	widthForStyle,
@@ -578,11 +579,34 @@ const RoadLookTab = ({ road }: { road: TRoad }) => {
 				{ROAD_KINDS[road.kind].centreLine && (
 					<SwitchField
 						inherit={reset("showsCentreLine")}
-						label="Centre line"
-						checked={road.showsCentreLine}
+						disabled={road.isOneWay}
+						label={road.isOneWay ? "Centre line (two-way roads only)" : "Centre line"}
+						checked={road.showsCentreLine && !road.isOneWay}
 						onChange={(v) =>
 							edit("markings", (r) => {
 								r.showsCentreLine = v;
+							})
+						}
+					/>
+				)}
+
+				{/* Edge lines (ADR-0148): like its way until set, on for a one-way road. */}
+				{ROAD_KINDS[road.kind].centreLine && (
+					<SwitchField
+						inherit={{
+							from: "default",
+							inherited: road.showsEdgeLines === null,
+							onReset: () =>
+								edit("edgeLines", (r) => {
+									r.showsEdgeLines = null;
+								}),
+							value: road.isOneWay ? "on, as a one-way road" : "off, as a two-way road",
+						}}
+						label="Edge lines"
+						checked={showsEdgeLinesOf(road)}
+						onChange={(v) =>
+							edit("edgeLines", (r) => {
+								r.showsEdgeLines = v;
 							})
 						}
 					/>

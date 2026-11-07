@@ -16,10 +16,12 @@ import {
 	buildElevatedSides,
 	buildRibbon,
 	dashPolyline,
+	edgeLinesOf,
 	type IWall,
 	isHiddenRoute,
 	ROAD_KINDS,
 	roadCenterlineOf,
+	showsEdgeLinesOf,
 } from "#/scene/roads";
 import type { TDataValue, TEntity, TRoad, TRoadPoint } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
@@ -84,8 +86,8 @@ const wallGeometry = (wall: IWall, y: number, isSmooth = false) => {
 	return geometry;
 };
 
-const useDisposable = (geometry: THREE.BufferGeometry) => {
-	useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+const useDisposable = <T extends THREE.BufferGeometry | null>(geometry: T) => {
+	useLayoutEffect(() => () => geometry?.dispose(), [geometry]);
 	return geometry;
 };
 
@@ -181,18 +183,23 @@ export const RoadBody = ({
 			[center, road.width, road.loops, y],
 		),
 	);
+	// Its markings: a dashed centre line (a two-way road has one; a one-way road, with nothing
+	// coming the other way, doesn't), and a solid line along each edge (ADR-0148).
+	const showsCentre = ROAD_KINDS[road.kind].centreLine && road.showsCentreLine && !road.isOneWay;
+	const showsEdges = showsEdgeLinesOf(road);
 	const markings = useDisposable(
 		useMemo(
 			() =>
-				ribbonGeometry(
-					dashPolyline(center, road.loops, MARKING_DASH, MARKING_GAP).map((dash) => ({
-						center: dash,
-						halfWidth: MARKING_HALF_WIDTH,
-						closed: false,
-					})),
-					y + 0.002,
-				),
-			[center, road.loops, y],
+				showsCentre || showsEdges
+					? ribbonGeometry(
+							[
+								...(showsCentre ? dashPolyline(center, road.loops, MARKING_DASH, MARKING_GAP) : []),
+								...(showsEdges ? edgeLinesOf(center, road.loops, road.width / 2) : []),
+							].map((line) => ({ center: line, halfWidth: MARKING_HALF_WIDTH, closed: false })),
+							y + 0.002,
+						)
+					: null,
+			[center, road.loops, road.width, y, showsCentre, showsEdges],
 		),
 	);
 	const sides = useMemo(
@@ -269,8 +276,8 @@ export const RoadBody = ({
 				)}
 			</mesh>
 
-			{/* A one-way road has no centre line: nothing comes the other way (ADR-0148). */}
-			{ROAD_KINDS[road.kind].centreLine && road.showsCentreLine && !road.isOneWay && (
+			{/* Its markings: none where it has none to show (ADR-0148). */}
+			{markings && (
 				<mesh geometry={markings} receiveShadow>
 					<meshStandardMaterial color={palette.roadMark} roughness={0.9} userData={snowShare} />
 				</mesh>

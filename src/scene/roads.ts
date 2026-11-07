@@ -144,6 +144,7 @@ export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
 export const NEW_ROAD_SETTINGS = {
 	curveShape: "throughPoints",
 	pillarsKeepClear: true,
+	showsEdgeLines: true,
 } as const satisfies Partial<TRoad>;
 
 /**
@@ -868,6 +869,39 @@ const vertexEdges = (center: TRoadPoint[], closed: boolean, offset: number, widt
 		const off = scale(side, halfWidthAt(p, offset) * widthScale);
 		return { point: p, side, left: sub(xz(p), off), right: add(xz(p), off) };
 	});
+};
+
+/** How far in from the kerb a road's edge lines are painted (ADR-0148). */
+export const EDGE_LINE_INSET = 0.2;
+
+/**
+ * Whether a road shows its edge lines (ADR-0148): as set, or while its `showsEdgeLines` is null,
+ * like its way: a one-way road (a carriageway or ramp) does, a two-way road doesn't, as roads
+ * never had them. Kinds with markings only.
+ */
+export const showsEdgeLinesOf = (road: Pick<TRoad, "kind" | "isOneWay" | "showsEdgeLines">) =>
+	ROAD_KINDS[road.kind].centreLine && (road.showsEdgeLines ?? road.isOneWay);
+
+/**
+ * A road's edge lines (ADR-0148): its centre line moved out to each side, `EDGE_LINE_INSET` in
+ * from the kerb (each point's own width counted), at the road's height.
+ */
+export const edgeLinesOf = (
+	center: TRoadPoint[],
+	closed: boolean,
+	halfWidth: number,
+): TRoadPoint[][] => {
+	if (center.length < 2) {
+		return [];
+	}
+	const edges = vertexEdges(center, closed, halfWidth);
+	const along = (sign: 1 | -1) =>
+		edges.map(({ point, side }): TRoadPoint => {
+			const out = Math.max(0, halfWidthAt(point, halfWidth) - EDGE_LINE_INSET) * sign;
+			return [point[0] + side[0] * out, point[1] + side[1] * out, point[2]];
+		});
+	const close = (line: TRoadPoint[]) => (closed && center.length > 2 ? [...line, line[0]] : line);
+	return [close(along(-1)), close(along(1))];
 };
 
 /**

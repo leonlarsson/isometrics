@@ -877,7 +877,16 @@ export const RoadSchema = z
 		showsCentreLine: z
 			.boolean()
 			.default(true)
-			.describe("Whether it shows a centre line (kinds with markings only)."),
+			.describe(
+				"Whether it shows a centre line (kinds with markings only; never on a one-way road, which has nothing coming the other way).",
+			),
+		showsEdgeLines: z
+			.boolean()
+			.nullable()
+			.default(null)
+			.describe(
+				"Whether it shows a solid line along each edge, a little in from the kerb (kinds with markings only), as carriageways have. null = like its way: on for a one-way road (isOneWay), off for a two-way road, as roads always were. Roads drawn in the editor have it on (ADR-0148).",
+			),
 		heldUpBy: RoadHeldUpBySchema.default("pillars"),
 		pillarSpacing: z
 			.number()

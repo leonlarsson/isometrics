@@ -6,6 +6,8 @@ import {
 	buildRibbon,
 	DECK_THICKNESS,
 	dashPolyline,
+	EDGE_LINE_INSET,
+	edgeLinesOf,
 	joinedPoints,
 	laneOffset,
 	PILLAR_MIN,
@@ -17,6 +19,7 @@ import {
 	resolveTurnStyle,
 	roadCenterline,
 	segmentMidpoints,
+	showsEdgeLinesOf,
 	turnSmoothing,
 	widthForStyle,
 } from "./roads";
@@ -691,5 +694,32 @@ describe("turns", () => {
 		expect(turnSmoothing("smooth", 0.2)).toBe(0.3);
 		expect(turnSmoothing("smooth", 20)).toBe(3);
 		expect(turnSmoothing("sharp", 2)).toBe(0);
+	});
+});
+
+describe("edge lines (ADR-0148)", () => {
+	it("run along each side a little in from the kerb, at the road's height", () => {
+		const [left, right] = edgeLinesOf(
+			[
+				[0, 0, 2],
+				[10, 0, 2],
+			],
+			false,
+			1.5,
+		);
+		const off = 1.5 - EDGE_LINE_INSET;
+		expect(Math.abs(left[0][1])).toBeCloseTo(off);
+		expect(Math.abs(right[1][1])).toBeCloseTo(off);
+		expect(Math.sign(left[0][1])).toBe(-Math.sign(right[0][1]));
+		expect(left.every((p) => p[2] === 2)).toBe(true);
+	});
+
+	it("show on one-way roads and not on two-way ones until set, and only on kinds with markings", () => {
+		const road = { kind: "road_01" as const, isOneWay: false, showsEdgeLines: null };
+		expect(showsEdgeLinesOf(road)).toBe(false);
+		expect(showsEdgeLinesOf({ ...road, isOneWay: true })).toBe(true);
+		expect(showsEdgeLinesOf({ ...road, showsEdgeLines: true })).toBe(true);
+		expect(showsEdgeLinesOf({ ...road, isOneWay: true, showsEdgeLines: false })).toBe(false);
+		expect(showsEdgeLinesOf({ ...road, kind: "dirt_path_01", showsEdgeLines: true })).toBe(false);
 	});
 });
