@@ -732,7 +732,7 @@ const riversideJunctions = [
 // ---------------------------------------------------------------- the land round it
 
 /** The hills: as high as this, sloping down to the valley, with cliffs where the tunnels go in. */
-const HILL_HEIGHT = 10;
+const HILL_HEIGHT = 6;
 const DOWN = -HILL_HEIGHT;
 const HILL_COLOR = "#999263";
 
@@ -871,12 +871,23 @@ const AREAS: TAreaInput[] = [
 
 const EXAMPLE = "Example numbers shaped like real counts, not live data";
 
-/** The day the story plays: 05:00 to 23:00, an hour a step. */
-const STORY_DAY = "2026-06-10";
-const STORY_HOURS = Array.from({ length: 19 }, (_, i) => 5 + i);
-/** The hour the world opens at, as the story's "now": the evening rush building. */
+/**
+ * The day the story plays, an hour a step: from yesterday evening at 18:00, through the night's
+ * last hours and today's morning rush and midday lull, up to now, 17:00, the evening rush. Now
+ * is its last step, so a tile's change is against the hour before, never against a later one.
+ */
 const NOW_HOUR = 17;
-const hourAt = (hour: number) => `${STORY_DAY}T${String(hour).padStart(2, "0")}:00`;
+const STORY_HOURS = [
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+	...Array.from({ length: NOW_HOUR - 4 }, (_, i) => 5 + i),
+];
+const hourAt = (hour: number) =>
+	`${hour > NOW_HOUR ? "2026-06-09" : "2026-06-10"}T${String(hour).padStart(2, "0")}:00`;
 
 /** Which way a road's traffic peaks: towards downtown in the morning, home in the evening, or both. */
 type TPeak = "in" | "out" | "both";
@@ -1102,7 +1113,7 @@ const FLOW_VEHICLES: Record<string, string> = {
 	sb_2: "car_01",
 	eb_2: "car_01",
 	wb_6: "car_01",
-	nb_to_wb: "truck_01",
+	nb_to_wb: "car_01",
 	wb_to_sb: "car_01",
 	sb_to_eb: "delivery_van_01",
 	eb_to_nb: "car_01",
@@ -1253,7 +1264,8 @@ const pickOf = <T>(list: readonly T[], n: number) => list[Math.floor(shareOf(n) 
 const GRASS = "#6f9a4c";
 const LAWN = "#8fa458";
 const MEADOW = "#b9a96a";
-const BED_COLORS = ["#a8393f", "#5d4a86", "#4f8a3c", "#d29a3a", "#b4466f", "#3f7a52"];
+/** Muted beds: dusty rose, olive, ochre and lavender, each beside the lawn's green. */
+const BED_COLORS = ["#a07a70", "#7e8a58", "#b39a62", "#8c8098"];
 
 /** A disc as an outline. */
 const disc = (centre: TVec2, radius: number, step = 1.6): TVec2[] =>
@@ -1323,14 +1335,12 @@ const cloverGardens: TAreaInput[] = QUADRANTS.flatMap((quadrant, q) => {
 			`Loop island (${quadrant.toUpperCase()})`,
 			disc(centre, ISLAND_RADIUS),
 		),
-		...pinwheel(
-			`island_${quadrant}_bed`,
-			centre,
-			ISLAND_RADIUS - 1.4,
-			4,
-			q % 2 === 0 ? 110 : -110,
-			BED_COLORS.slice(q % 2, (q % 2) + 4).concat(BED_COLORS.slice(0, 2)),
-		),
+		...pinwheel(`island_${quadrant}_bed`, centre, ISLAND_RADIUS - 2.8, 4, q % 2 === 0 ? 80 : -80, [
+			BED_COLORS[q % 4],
+			GRASS,
+			BED_COLORS[(q + 2) % 4],
+			GRASS,
+		]),
 	];
 });
 
@@ -1455,7 +1465,8 @@ const square = (centre: TVec2, halfU: number, halfV: number): TVec2[] => [
 ];
 KEPT.push(
 	square(CLOVER, 44, 46),
-	square(STACK, 28, 28),
+	// The stack and the land round it stay open, so the interchange is what the eye finds.
+	square(STACK, 64, 64),
 	...[0, 1, 2, 3].map((k) => disc(stackIslandCentre(k), STACK_ISLAND_RADIUS + 1.5, 3)),
 );
 
@@ -1797,6 +1808,24 @@ const vergeTrees: TEntityInput[] = jitteredGrid(3.2, 500)
 		return tree(`verge_${i + 1}`, kind, point, n);
 	});
 
+/** Round the stack, where the city stands back: open dry land with groves here and there. */
+const STACK_GROUNDS = square(STACK, 64, 64);
+const groveTrees: TEntityInput[] = jitteredGrid(3.6, 1300)
+	.filter(
+		(point, i) =>
+			isInsidePolygon(point, STACK_GROUNDS) &&
+			// In clumps: where a slow wave across the ground is high.
+			Math.sin(point[0] * 0.21) + Math.sin(point[1] * 0.17 + 1.3) > 0.6 &&
+			shareOf(i * 3) < 0.55 &&
+			isFreeForTree(point),
+	)
+	.map((point, i) => {
+		const n = i * 17 + 5;
+		const kind =
+			shareOf(n) < 0.3 ? "palm_tree_01" : shareOf(n + 1) < 0.6 ? "round_tree_02" : "round_tree_01";
+		return tree(`grove_${i + 1}`, kind, point, n);
+	});
+
 /** On the hills: pines and scrub, standing on the slopes. */
 const hillTrees: TEntityInput[] = jitteredGrid(4.2, 900)
 	.filter((point, i) => hillAt(point) > 0.6 && shareOf(i * 5) < 0.42 && isFreeForTree(point))
@@ -2077,7 +2106,7 @@ const MOODS = [
 	mood("mood_night", "Night", { time: 22.5, timeSource: "fixed" }),
 ];
 
-const OVERVIEW = { target: [-20, -4] as TVec2, azimuth: 302, elevation: 34, span: 200 };
+const OVERVIEW = { target: [-24, -2] as TVec2, azimuth: 302, elevation: 30, span: 170 };
 
 const VIEWPOINTS: TSceneInput["viewpoints"] = [
 	{
@@ -2085,7 +2114,12 @@ const VIEWPOINTS: TSceneInput["viewpoints"] = [
 		name: "The Interchange",
 		description:
 			"Two freeways, a four-level stack and a cloverleaf. Play the story to watch a day of example traffic.",
-		...OVERVIEW,
+		// Low over the stack from the south-east, the flyovers filling the view, as in an aerial photograph.
+		target: [STACK[0] + 6, STACK[1] + 6],
+		targetAltitude: 2,
+		azimuth: 305,
+		elevation: 24,
+		span: 120,
 		projection: "perspective",
 		moodId: "mood_day",
 	},
@@ -2239,6 +2273,7 @@ const ENTITIES = placedClear([
 	...streetTrees,
 	...railPalms,
 	...vergeTrees,
+	...groveTrees,
 	...hillTrees,
 ]);
 
