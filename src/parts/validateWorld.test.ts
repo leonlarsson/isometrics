@@ -447,3 +447,32 @@ describe("very big worlds", () => {
 		expect(check.warnings.some((issue) => issue.what.includes("20,001 objects"))).toBe(true);
 	});
 });
+
+describe("warning of a junction's ends at different altitudes (ADR-0148)", () => {
+	it("says which end is left out, how far above it is, and how to fix it", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("low", -20, 0),
+				{
+					id: "high",
+					points: [
+						[0, 0, 3],
+						[20, 0, 3],
+					],
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "low", end: "end" },
+						{ roadId: "high", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toContain(
+			'junctions[0] "j".ends[1]: the start of road "high" is at altitude 3.0, 3.0 above the junction\'s first end: it\'s left out (put it at the same altitude, or ramp the road to it)',
+		);
+	});
+});

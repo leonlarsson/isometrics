@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	createTrafficState,
+	giveWayStops,
 	type ITrafficCar,
 	type ITrafficState,
 	MIN_GAP,
@@ -246,5 +247,31 @@ describe("traffic through a junction (ADR-0136)", () => {
 		const states = new Map([["car", createTrafficState(3)]]);
 		const moves = stepRoadTraffic(road, [car({ distance: 40, length: 1.6, speed: 3 })], states, DT);
 		expect(moves.get("car")).toBeCloseTo(3 * DT);
+	});
+});
+
+describe("giving way at a junction where a road is one-way (ADR-0148)", () => {
+	const at = (
+		id: string,
+		from: string,
+		more: { entersIn?: number; leavesIn?: number; leftBy?: number },
+	) => ({ id, junctionId: "j", from, length: 1.2, ...more });
+
+	it("lets the nearest of those coming from different ends go first, the others wait at the line", () => {
+		const stops = giveWayStops([
+			at("near", "a", { entersIn: 2, leavesIn: 10 }),
+			at("far", "b", { entersIn: 4, leavesIn: 12 }),
+		]);
+		expect(stops.has("near")).toBe(false);
+		expect(stops.get("far")).toBe(4);
+	});
+
+	it("stops the one further in short of where it leaves when two from different ends are inside at once", () => {
+		const stops = giveWayStops([
+			at("ahead", "a", { entersIn: -6, leavesIn: 2 }),
+			at("behind", "b", { entersIn: -3, leavesIn: 5 }),
+		]);
+		expect(stops.has("ahead")).toBe(false);
+		expect(stops.get("behind")).toBeCloseTo(5 - 1.2 - MIN_GAP);
 	});
 });

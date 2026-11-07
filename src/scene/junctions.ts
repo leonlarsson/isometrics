@@ -1,4 +1,11 @@
-import { isHiddenRoute, polylineLength, ROAD_KINDS, type TRoadEnd, throughPointsAt } from "./roads";
+import {
+	isHiddenRoute,
+	PILLAR_MIN,
+	polylineLength,
+	ROAD_KINDS,
+	type TRoadEnd,
+	throughPointsAt,
+} from "./roads";
 import { centerlineOf, projectOntoRoad } from "./routes";
 import type { TJunction, TJunctionEnd, TRoad, TRoadPoint, TVec2 } from "./schema";
 
@@ -41,6 +48,8 @@ export interface INetworkJunction {
 	 * through it and mostly carry straight on (ADR-0148). Otherwise they pick any way, as before.
 	 */
 	hasOneWayRoad: boolean;
+	/** Whether, raised, it stands on pillars of its own (ADR-0148). */
+	standsOnPillars: boolean;
 }
 
 export interface IRoadNetwork {
@@ -56,6 +65,8 @@ export interface IRoadNetwork {
 	roadById: (roadId: string) => TRoad | undefined;
 }
 
+/** An end more than this above or below the junction's first end isn't joined to it (ADR-0148). */
+export const ALTITUDE_GAP = 0.05;
 /** Extra room past where roads stop overlapping, for the kerb's curve, as a share of the widest. */
 const KERB = 0.45;
 /** No end is cut back further than this many times the widest road's half width. */
@@ -74,6 +85,10 @@ const normalize = (a: TVec2): TVec2 => {
 };
 /** Right-hand side, as `roads.ts` turns it: a quarter turn towards increasing angle. */
 const rightOf = (f: TVec2): TVec2 => [-f[1], f[0]];
+
+/** Whether a junction stands on pillars of its own (ADR-0148): raised, and set to. */
+export const standsOnOwnPillars = (junction: INetworkJunction | null) =>
+	Boolean(junction?.standsOnPillars && junction.place[2] >= PILLAR_MIN);
 
 /** The point of a road at one of its ends. */
 export const endPointOf = (road: Pick<TRoad, "points">, end: TRoadEnd) =>
@@ -158,7 +173,11 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 			const point = endPointOf(road, end);
 			if (place === null) {
 				place = [point[0], point[1], point[2]];
-			} else if (hypot2(point, place) > Math.max(road.width, 0.5)) {
+			} else if (
+				hypot2(point, place) > Math.max(road.width, 0.5) ||
+				// Ends at another altitude are left out too (ADR-0148): a pad can't join them, it drew a wall.
+				Math.abs(point[2] - place[2]) > ALTITUDE_GAP
+			) {
 				continue;
 			}
 			used.add(keyOf(roadId, end));
@@ -190,6 +209,7 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 			id: junction.id,
 			place,
 			hasOneWayRoad: shaped.some((end) => end.isOneWay),
+			standsOnPillars: junction.standsOnPillars ?? false,
 			ends: shaped.map((end, i) => ({
 				...end,
 				routeTrim: routeTrims[i],
@@ -296,6 +316,8 @@ export interface IJunctionPad {
 	indices: number[];
 	/** The curves between neighbouring roads, each from one road's edge to the next's. */
 	edges: TRoadPoint[][];
+	/** Edges a raised one has railings along: round its kerbs where its roads have railings (ADR-0148). */
+	railingEdges?: TRoadPoint[][];
 	/** The road it takes its colour from: its first paved road, else its first drawn road. */
 	colorRoadId: string;
 }
@@ -397,7 +419,15 @@ export const junctionPad = (
 		indices.push(...(facesUp ? [0, b, c] : [0, c, b]));
 	}
 	const paved = cuts.find((cut) => ROAD_KINDS[cut.road.kind].centreLine) ?? cuts[0];
-	return { vertices, indices, edges, colorRoadId: paved.road.id };
+	// Raised, its kerbs between the roads carry on their railings (ADR-0148).
+	const railed = cuts.some((cut) => cut.road.showsRailings);
+	return {
+		vertices,
+		indices,
+		edges,
+		railingEdges: railed ? edges : [],
+		colorRoadId: paved.road.id,
+	};
 };
 
 /** The nearest point on a road's straight lines between its control points, and which line. */
@@ -568,6 +598,8 @@ export const connectEnds = (
 	}
 	world.junctions.push({
 		id: newId,
+		// New in the editor: a raised junction stands on pillars of its own (ADR-0148).
+		standsOnPillars: true,
 		ends: [newEnd(to.roadId, to.end), newEnd(from.roadId, from.end)],
 	});
 	return newId;
@@ -671,6 +703,8 @@ export const connectToMiddle = (
 	placeEnd(road, from.end, at);
 	world.junctions.push({
 		id: ids.junction,
+		// New in the editor: a raised junction stands on pillars of its own (ADR-0148).
+		standsOnPillars: true,
 		ends: [...ends, newEnd(from.roadId, from.end)],
 	});
 	return secondId;

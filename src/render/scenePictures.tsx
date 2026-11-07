@@ -279,7 +279,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 					roads={scene.roads}
 					junctions={scene.junctions}
 					palette={palette}
-					data={scene.data.values}
+					data={scene.data}
 				/>
 
 				{scene.fences.map((fence) =>

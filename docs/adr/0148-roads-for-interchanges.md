@@ -130,11 +130,16 @@ Pillars of a road are built as **one geometry** per road (they were a mesh each)
 
 ### Merges and diverges
 
-**Recognised**, not set: a junction is a **gore** (`junctionShapeOf`, `scene/junctions.ts`) when it has exactly three drawn ends whose roads are all one-way, two of them in line (directions within 20° of opposite: the carriageway, one arriving and one leaving), and the third at less than 35° to the leaving one (a diverge: a slip road leaving) or to the arriving one (a merge: a slip road joining). Every other junction is a **pad**, as before.
+**Recognised**, not set: a junction is a **gore** (`goreOf`, `scene/junctions.ts`) when it has exactly three drawn ends whose roads are all one-way, two of them in line (directions within 20° of opposite: the carriageway, one arriving and one leaving; of several such pairs, the one most in line, since a slip road can be nearly in line with one end too), and the third at less than 35° to the carriageway end going its way (a diverge: both leaving; a merge: both arriving). Every other junction is a **pad**, as before.
 
-- **Drawing.** The carriageway's two ends aren't cut, so its surface and lane lines run through. The slip road is cut back to where its surface leaves the carriageway's (where their centre lines are half their widths apart, worked along the slip road), and the gore between them is one long tapered surface from the junction to that cut: the carriageway's edge on one side, the slip road's on the other, under the slip road's own lift. A raised gore has a deck edge and underside like a pad.
-- **Driving.** Through vehicles drive straight on. A slip road's vehicles drive its own line to the junction and ease across into the carriageway's outside lane over the gore's length (a merge), or out of it (a diverge), instead of a curve through a point.
-- **Keeping their distance.** At a junction where any road is one-way, vehicles arriving by different ends that go on by the same way out are queued as one (`mergeLeaderOf`, `render/traffic`): whichever is nearer the junction leads, the other keeps its distance behind as it would behind a vehicle on its own road (`beyond`). Ties go to the carriageway (the end in line with the way out). So merging traffic zips in rather than overlapping. Elsewhere, as before (no giving way inside a junction, ADR-0136).
+As built (after the owner's reviews of the first tries, which drew two decks pushed into each other):
+
+- **One deck.** A gore is one road surface, not two: the carriageway is cut back from the junction to the **nose**, and the gore's own deck runs over that stretch, as wide as the carriageway and the slip road's lane together. Its far edge is the carriageway's. Its near edge is built, not taken from the slip road's line (a line through points can overshoot round its curves, which showed as a hip): from the nose back to where the slip road's inner edge meets the carriageway's, the slip road's outer edge; from there in, the added lane at that width; and from where the slip road's lane first reaches that width, a smoothstep taper into the carriageway's edge at the junction, so the edge narrows steadily and never pushes outward. Both roads reach a little under the deck, and the deck a little over the road on past the junction, so no seam shows. The deck takes the carriageway's colour as data sets it (row and all), as the road does.
+- **The nose.** The slip road is cut back to where its inner edge is 0.8 of its half width from the carriageway's (`peelDistance`). The gore ends there in a rounded nose: a half circle between the two roads, so a raised deck's wall and railing go round it as the roads' own do, joining the two roads' inner railings round the V. The slip road's cut end (square across it) is where the deck goes on as the slip road, so it has no wall or railing.
+- **Paint.** From the nose, a solid line along each road's edge back to where they meet, joined round the nose; chevrons between them pointing the way traffic goes (arms at about 45°, spaced 1.4 apart, twice as bold as the lines so the gore reads from afar); then the dashed lane line on along the carriageway's edge for as long as the slip road's full lane lies beside it.
+- **Raised.** Walls, underside and railings along its outer edges and the nose, as a road's (railings growing in with height); it stands on one row of its carriageway's pillars, under the middle of the widened deck and as wide as it there (`gorePillars`), so the one deck has one row of supports.
+- **Driving.** Through vehicles drive straight on along the carriageway. A slip road's vehicles drive its own line over the stretch it shares with the carriageway, to or from the junction (a merge eases into the carriageway, a diverge out of it), instead of a curve through a point.
+- **Taking turns.** At a junction where any road is one-way, vehicles arriving by different ends never cross it at once (`giveWayStops`, `scene/traffic.ts`): one waits at its line while another from a different end is in it (or its rear still is), and of those coming from different ends the nearest goes first. At a gore, a carriageway vehicle counts as in the junction from the nose on, beside the slip road (`zone`). Should two from different ends be inside at once (put there when a world opens, or one couldn't stop in time), the one nearer where it leaves goes on and the other stops a vehicle's length short of there until it's clear. The pure traffic step is `stepAllTraffic` (`scene/trafficFrame.ts`), tested for overlaps at a merge and a crossroads. Junctions with no one-way road are as before (no giving way inside a junction, ADR-0136).
 
 ### Lanes
 
@@ -175,10 +180,10 @@ Commits on the `roads-for-interchanges` branch (PR "feat: roads for interchanges
 |---|---|
 | This design | 047268e |
 | One-way roads and the way through a junction | 74477e3 |
-| Smooth curves (`curveShape`) | the commit after 74477e3 ("feat: smooth curves through the points") |
-| Pillars | to come |
-| Raised junctions | to come |
-| Merges and diverges | to come |
+| Smooth curves (`curveShape`) | 1e25654 |
+| Pillars (kinds, keeping clear, one geometry per road, spans by kind) | 3c18ba0, 671b7a8, b07f5cb, 7935846 (work in progress: the point choices' editor and their warnings to come) |
+| Raised junctions (`standsOnPillars`, railings round the kerbs, ends at another altitude left out) | b8af8af, 38d2ca0 |
+| Merges and diverges (one deck, the nose, the painted gore, taking turns) | 194d9d2, 96198ff, 7935846, 7f677ba, 201a001, b9e1846 |
 | Lanes | to come |
 | Flow speed from data and colours | to come |
 | Rail and the train | to come |

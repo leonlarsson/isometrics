@@ -8,6 +8,8 @@ import { changeColorSetting, type TColorSettingChange } from "#/scene/objectSett
 import {
 	isHiddenRoute,
 	NEW_ROAD_SETTINGS,
+	PILLAR_KIND_LABELS,
+	pillarSpacingOf,
 	pointWidth,
 	polylineLength,
 	ROAD_KIND_LABELS,
@@ -21,6 +23,7 @@ import {
 import {
 	RoadSchema,
 	type TDrivingLane,
+	type TPillarKind,
 	type TRoad,
 	type TRoadCurveShape,
 	type TRoadHeldUpBy,
@@ -44,6 +47,12 @@ import type { IInspectorTab } from "./inspectorTabs";
 import { ColorSettingFields } from "./PartSettings";
 import { RoadDataTab, RoadFlowSection } from "./RoadDataTab";
 import { RoadPointPanel, RoadPointsPanel } from "./RoadPointPanel";
+
+/** The pillar kinds, in the order they're offered (ADR-0148). */
+const PILLAR_KIND_OPTIONS = (Object.keys(PILLAR_KIND_LABELS) as TPillarKind[]).map((value) => ({
+	value,
+	label: PILLAR_KIND_LABELS[value],
+}));
 
 const STYLE_OPTIONS = (Object.keys(ROAD_KIND_LABELS) as TRoadKind[]).map((value) => ({
 	value,
@@ -309,6 +318,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 	const edit = useRoadEdit(road);
 	const reset = useRoadReset(road);
 	const elevated = road.points.some((p) => p[2] > 0);
+	const onPillars = road.heldUpBy === "pillars";
 	const ownWidths = road.points.filter((p) => pointWidth(p) !== undefined).length;
 
 	return (
@@ -426,21 +436,63 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 								}
 							/>
 
-							{road.heldUpBy === "pillars" && (
-								<SliderField
-									inherit={reset("pillarSpacing")}
-									label="Pillar spacing"
-									value={road.pillarSpacing}
-									min={1}
-									max={20}
-									step={0.5}
-									onChange={(v) =>
+							{/* Its pillars (ADR-0148): shown greyed out while it's held up some other way. */}
+							<SelectField<TPillarKind>
+								inherit={reset("pillarKind")}
+								disabled={!onPillars}
+								label={onPillars ? "Pillar look" : "Pillar look (held up by pillars only)"}
+								value={road.pillarKind}
+								options={PILLAR_KIND_OPTIONS}
+								onChange={(v) =>
+									edit("pillarKind", (r) => {
+										r.pillarKind = v;
+									})
+								}
+							/>
+
+							<SliderField
+								inherit={{
+									from: "default",
+									inherited: road.pillarSpacing === null,
+									onReset: () =>
 										edit("pillarSpacing", (r) => {
-											r.pillarSpacing = v;
-										})
-									}
-								/>
-							)}
+											r.pillarSpacing = null;
+										}),
+									value: `${pillarSpacingOf({ ...road, pillarSpacing: null })}, by its pillar look`,
+								}}
+								disabled={!onPillars}
+								label={onPillars ? "Pillar spacing" : "Pillar spacing (held up by pillars only)"}
+								value={pillarSpacingOf(road)}
+								min={1}
+								max={20}
+								step={0.5}
+								onChange={(v) =>
+									edit("pillarSpacing", (r) => {
+										r.pillarSpacing = v;
+									})
+								}
+							/>
+
+							<SwitchField
+								inherit={reset(
+									"pillarsKeepClear",
+									NEW_ROAD_SETTINGS.pillarsKeepClear ? "on" : "off",
+									NEW_ROAD_SETTINGS.pillarsKeepClear,
+								)}
+								disabled={!onPillars}
+								label={
+									onPillars
+										? "Keep pillars clear of roads and water below"
+										: "Keep pillars clear of roads and water below (held up by pillars only)"
+								}
+								checked={road.pillarsKeepClear}
+								hint="A pillar that would stand in a road, a junction, water or the road's own lower turn moves along a little, or isn't built. Choose pillars at a point in its point's panel."
+								onChange={(v) =>
+									edit("pillarsKeepClear", (r) => {
+										r.pillarsKeepClear = v;
+									})
+								}
+							/>
 
 							{road.heldUpBy === "embankment" && (
 								<>
