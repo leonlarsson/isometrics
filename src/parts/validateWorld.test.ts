@@ -345,6 +345,69 @@ describe("warning of flows that can't work", () => {
 	});
 });
 
+describe("warning of one-way roads and turns that can't work (ADR-0148)", () => {
+	it("warns of a one-way road into a junction with no way out, and of turns that aren't there", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("in", -20, 0, { isOneWay: true }),
+				// One-way towards the junction too: no way out of it for "in".
+				{
+					id: "other",
+					points: [
+						[0, 20],
+						[0, 0],
+					],
+					isOneWay: true,
+				},
+				straightRoad("out", 0, 20),
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{
+							roadId: "in",
+							end: "end",
+							leadsTo: [
+								{ roadId: "other", end: "end" },
+								{ roadId: "nowhere", end: "start" },
+							],
+						},
+						{ roadId: "other", end: "end" },
+						{ roadId: "out", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toContain(
+			'junctions[0] "j".ends[0].leadsTo: names the end of one-way road "other"',
+		);
+		expect(said).toContain('names the start of road "nowhere", which isn\'t another end');
+		expect(said).toContain(
+			'junctions[0] "j".ends[0]: one-way road "in" leads into this junction, but no way out of it is allowed (its leadsTo)',
+		);
+	});
+
+	it("says nothing of one-way roads that lead on", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("in", -20, 0, { isOneWay: true }),
+				straightRoad("out", 0, 20, { isOneWay: true }),
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "in", end: "end" },
+						{ roadId: "out", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toBe("");
+	});
+});
+
 describe("checking a patch", () => {
 	it("checks the world it makes, says what it changes, and its own problems by place", () => {
 		const world = createEmptyScene({ title: "Harbour" });
@@ -382,5 +445,117 @@ describe("very big worlds", () => {
 		const check = validateWorld(JSON.parse(JSON.stringify(world)));
 		expect(check.isUnreadable).toBe(false);
 		expect(check.warnings.some((issue) => issue.what.includes("20,001 objects"))).toBe(true);
+	});
+});
+
+describe("warning of a junction's ends at different altitudes (ADR-0148)", () => {
+	it("says which end is left out, how far above it is, and how to fix it", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("low", -20, 0),
+				{
+					id: "high",
+					points: [
+						[0, 0, 3],
+						[20, 0, 3],
+					],
+				},
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "low", end: "end" },
+						{ roadId: "high", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toContain(
+			'junctions[0] "j".ends[1]: the start of road "high" is at altitude 3.0, 3.0 above the junction\'s first end: it\'s left out (put it at the same altitude, or ramp the road to it)',
+		);
+	});
+});
+
+describe("warning of vehicles that would appear from nowhere (ADR-0148)", () => {
+	const ring = (withEntry: boolean) => ({
+		roads: [
+			{
+				id: "a",
+				isOneWay: true,
+				points: [
+					[0, 0],
+					[20, 0],
+				],
+			},
+			{
+				id: "b",
+				isOneWay: true,
+				points: [
+					[20, 0],
+					[20, 20],
+				],
+			},
+			{
+				id: "c",
+				isOneWay: true,
+				points: [
+					[20, 20],
+					[0, 0],
+				],
+			},
+			{
+				id: "d",
+				isOneWay: true,
+				points: [
+					[20, 20],
+					[40, 20],
+				],
+			},
+			...(withEntry
+				? [
+						{
+							id: "in",
+							isOneWay: true,
+							points: [
+								[-20, 0],
+								[0, 0],
+							],
+						},
+					]
+				: []),
+		],
+		junctions: [
+			{
+				id: "j0",
+				ends: [
+					{ roadId: "c", end: "end" },
+					{ roadId: "a", end: "start" },
+					...(withEntry ? [{ roadId: "in", end: "end" }] : []),
+				],
+			},
+			{
+				id: "j1",
+				ends: [
+					{ roadId: "a", end: "end" },
+					{ roadId: "b", end: "start" },
+				],
+			},
+			{
+				id: "j2",
+				ends: [
+					{ roadId: "b", end: "end" },
+					{ roadId: "c", end: "start" },
+					{ roadId: "d", end: "start" },
+				],
+			},
+		],
+	});
+
+	it("warns of a one-way dead end in a network nothing drives into, not once one road does", () => {
+		expect(warningsOf(ring(false))).toContain(
+			'one-way road "d" leads to a dead end, but no road drives into its network from an open end',
+		);
+		expect(warningsOf(ring(true))).not.toContain("drives into its network");
 	});
 });

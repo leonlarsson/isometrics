@@ -68,6 +68,8 @@ export interface IFlowTripOptions {
 	length: number;
 	/** Its place in its stream. */
 	index: number;
+	/** The ground, so it starts over by preference where traffic drives in from off the map. */
+	ground?: { width: number; depth: number };
 }
 
 /**
@@ -77,7 +79,7 @@ export interface IFlowTripOptions {
 export const createFlowTrip = (
 	network: IRoadNetwork,
 	roadId: string,
-	{ driving, smoothing, reverse, offset, length, index }: IFlowTripOptions,
+	{ driving, smoothing, reverse, offset, length, index, ground }: IFlowTripOptions,
 ) =>
 	createNetworkTrip(network, roadId, {
 		driving,
@@ -86,4 +88,7 @@ export const createFlowTrip = (
 		// A trip's start is from the road's first point, whichever way it drives.
 		startDistance: reverse ? length - offset : offset,
 		seed: flowVehicleSeed(roadId, reverse, index),
+		// Spread along the road, they start over at its start, not in the traffic behind them.
+		startsOverAtRoadStart: true,
+		ground,
 	});

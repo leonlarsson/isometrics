@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 
 import {
 	act,
+	choose,
 	clickWith,
 	dragBy,
 	expect,
@@ -11,6 +12,7 @@ import {
 	loadWorld,
 	menuItem,
 	openEditor,
+	openPanel,
 	paletteTile,
 	read,
 	showView,
@@ -719,5 +721,124 @@ test.describe("junctions (ADR-0136)", () => {
 		await page.getByRole("tab", { name: "Road", exact: true }).click();
 		await expect(drivesOn).toHaveCount(2);
 		await expect(drivesOn.last()).toBeChecked();
+	});
+});
+
+test.describe("roads for interchanges (ADR-0148)", () => {
+	test("a road made one-way: its vehicles drive its way only, and Reverse direction turns it", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "ramp",
+					name: "Ramp",
+					points: [
+						[-12, 0, 0],
+						[12, 0, 0],
+					],
+					cornerRadius: 0,
+				},
+			],
+			entities: [
+				{
+					id: "car",
+					kind: "car_01",
+					follow: {
+						roadId: "ramp",
+						startDistance: 12,
+						speed: 4,
+						drivesTheOtherWay: true,
+						turnStyle: null,
+						leansInTurns: null,
+						drivesThroughJunctions: null,
+					},
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+		await act(page, (s) => s.selectRoad("ramp"));
+		await page.getByRole("tab", { name: "Road", exact: true }).click();
+		await page.getByRole("switch", { name: "One-way (in the order of its points)" }).click();
+		expect(await read(page, (s) => s.scene.roads[0].isOneWay)).toBe(true);
+		// Its vehicle's own way doesn't apply: it drives east, along the road's points.
+		await act(page, (s) => {
+			if (!s.playing) {
+				s.togglePlaying();
+			}
+		});
+		const xAt = async () =>
+			(await page.evaluate(() => globalThis.__editorView.poseOf("car")))?.position[0] ?? 0;
+		const before = await xAt();
+		await page.waitForTimeout(600);
+		const after = await xAt();
+		expect(after > before || after < before - 15).toBe(true);
+		await act(page, (s) => s.selectRoad("ramp"));
+		await page.getByRole("button", { name: "Reverse direction" }).click();
+		expect(await read(page, (s) => s.scene.roads[0].points[0][0])).toBe(12);
+		await act(page, (s) => s.select("car"));
+		await page.getByRole("tab", { name: "Motion" }).click();
+		await expect(
+			page.getByRole("switch", { name: "Drive the other way (one-way road)" }),
+		).toBeDisabled();
+	});
+
+	test("a flyover's pillars: their look and keeping clear, and a raised junction's own pillars", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			roads: [
+				{
+					id: "west",
+					name: "West",
+					points: [
+						[-20, 0, 3],
+						[0, 0, 3],
+					],
+					cornerRadius: 0,
+				},
+				{
+					id: "east",
+					name: "East",
+					points: [
+						[0, 0, 3],
+						[20, 0, 3],
+					],
+					cornerRadius: 0,
+				},
+			],
+			junctions: [
+				{
+					id: "mid-air",
+					ends: [
+						{ roadId: "west", end: "end" },
+						{ roadId: "east", end: "start" },
+					],
+					standsOnPillars: true,
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+		await act(page, (s) => s.selectRoad("west"));
+		await page.getByRole("tab", { name: "Shape", exact: true }).click();
+		await openPanel(page, "Elevated sections");
+		await choose(page, "Pillar look", "Round columns");
+		expect(await read(page, (s) => s.scene.roads[0].pillarKind)).toBe("column_01");
+		// Its spacing follows its look until set: about four times its width for columns.
+		await expect(page.getByRole("slider", { name: "Pillar spacing" })).toHaveAttribute(
+			"aria-valuenow",
+			"9.6",
+		);
+		// Held up some other way, the pillar settings are greyed out, saying why.
+		await choose(page, "Held up by", /Embankment/);
+		await expect(
+			page.getByRole("combobox", { name: "Pillar look (held up by pillars only)" }),
+		).toBeDisabled();
+		// The junction in mid-air stands on pillars of its own; its point panel turns them off.
+		await act(page, (s) => s.selectRoadPoint("east", 0));
+		const own = page.getByRole("switch", { name: "Stands on pillars of its own" });
+		await expect(own).toBeChecked();
+		await own.click();
+		expect(await read(page, (s) => s.scene.junctions[0].standsOnPillars)).toBe(false);
 	});
 });
