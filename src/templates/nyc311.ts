@@ -227,23 +227,6 @@ const LAND_AND_WATER: TAreaInput[] = [
 	{ id: "central_park", kind: "grass_01", name: "Central Park", points: CENTRAL_PARK },
 	{ id: "reservoir", kind: "water_01", name: "The Reservoir", points: rect(-12, -28, -9, -25) },
 	{ id: "prospect_park", kind: "grass_01", name: "Prospect Park", points: PROSPECT_PARK },
-	{
-		id: "governors_island",
-		kind: "grass_01",
-		name: "Governors Island",
-		points: [
-			[-5, 13],
-			[-2, 13],
-			[-1, 16],
-			[-4, 17],
-		],
-	},
-	{
-		id: "liberty_island",
-		kind: "grass_01",
-		name: "Liberty Island",
-		points: rect(-21, 15, -19, 17),
-	},
 ];
 
 const AREAS: TAreaInput[] = [
@@ -427,8 +410,6 @@ const ENTITIES: TEntityInput[] = [
 	landmark("staten_island_school", "school_01", [-26, 48], "Staten Island"),
 	cluster("si_homes_1", "house_cluster_01", [-46, 46], 10, 43),
 	cluster("si_homes_2", "house_cluster_01", [-36, 45], 8, 47),
-	// Liberty Island's flag, for the statue.
-	thing("liberty_flag", "flagpole_01", [-20, 16]),
 	// On the water: the Staten Island Ferry, a container ship through the Narrows, sailing boats.
 	{
 		id: "staten_island_ferry",
@@ -438,11 +419,11 @@ const ENTITIES: TEntityInput[] = [
 	{
 		id: "container_ship",
 		kind: "cargo_ship_01",
-		props: { length: 9 },
+		props: { length: 5.5 },
 		follow: { roadId: "shipping_lane", speed: 1, startDistance: 0 },
 	},
 	thing("sailing_boat_1", "sailing_boat_01", [-23, 22], {}, 30),
-	thing("sailing_boat_2", "sailing_boat_01", [-12, 30], {}, 200),
+	thing("sailing_boat_2", "sailing_boat_01", [-10.5, 32.5], {}, 200),
 ];
 
 /** A raised road across water, with its traffic: a flow of cars driving it both ways. */
@@ -463,20 +444,20 @@ const ROADS: TRoadInput[] = [
 	]),
 	bridge("queensboro_bridge", "Queensboro Bridge", [
 		[-6.5, -16, 0],
-		[-4, -16, 1.1],
-		[0, -16, 1.1],
+		[-3.011, -16, 1.1],
+		[-0.98, -16, 1.1],
 		[3, -16, 0],
 	]),
 	bridge("george_washington_bridge", "George Washington Bridge", [
 		[-15.5, -34, 0],
-		[-17.5, -34, 1.1],
+		[-20, -34, 1.1],
 		[-23, -34, 1.1],
 		[-27, -34, 0],
 	]),
 	bridge("verrazzano_bridge", "Verrazzano-Narrows Bridge", [
-		[6, 46, 0],
-		[3, 46, 1.1],
-		[-13, 46, 1.1],
+		[6.5, 46, 0],
+		[-2, 46, 2.038],
+		[-8, 46, 2.038],
 		[-17, 46, 0],
 	]),
 	{
@@ -495,7 +476,7 @@ const ROADS: TRoadInput[] = [
 		name: "Staten Island Ferry",
 		points: [
 			[-17, 36],
-			[-10, 24],
+			[-12.166, 23.522],
 			[-9, 13],
 		],
 	},
@@ -503,11 +484,20 @@ const ROADS: TRoadInput[] = [
 		id: "shipping_lane",
 		kind: "hidden_route_01",
 		name: "Shipping lane",
+		// A loop in through the Narrows, round the upper bay and back out.
+		loops: true,
 		points: [
-			[-6, 54],
-			[-2, 40],
-			[-6, 26],
-			[-14, 14],
+			[-5.451, 52.312],
+			[-4.5, 49],
+			[-4.448, 41.959],
+			[-1, 23],
+			[-2, 18],
+			[-5.5, 17],
+			[-6.5, 19],
+			[-6.222, 47.574],
+			[-10, 49.5],
+			[-11, 52.5],
+			[-7.5, 53.5],
 		],
 	},
 ];
