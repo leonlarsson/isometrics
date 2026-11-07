@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import {
 	areaWeathersInWorld,
+	cloudAltitudeOf,
 	type IAreaWeatherNow,
 	type IWeatherNow,
 	MOST_CLOUD_ALTITUDE,
@@ -62,6 +63,8 @@ interface IFallRegion {
 	minZ: number;
 	maxX: number;
 	maxZ: number;
+	/** How high the highest clouds of its areas hang: what falls there starts under them. */
+	cloudTop: number;
 }
 
 const NO_AREAS: readonly IAreaWeatherNow[] = [];
@@ -83,10 +86,12 @@ const areasRegionOf = (areas: readonly IAreaWeatherNow[], fall: TFall): IFallReg
 	let minZ = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxZ = Number.NEGATIVE_INFINITY;
+	let cloudTop = 0;
 	for (const { area, now } of areas) {
 		if (FALL_AMOUNTS[fall](now) <= 0) {
 			continue;
 		}
+		cloudTop = Math.max(cloudTop, cloudAltitudeOf(now, { area }));
 		for (const [x, z] of area.points) {
 			minX = Math.min(minX, x - EDGE);
 			minZ = Math.min(minZ, z - EDGE);
@@ -94,7 +99,9 @@ const areasRegionOf = (areas: readonly IAreaWeatherNow[], fall: TFall): IFallReg
 			maxZ = Math.max(maxZ, z + EDGE);
 		}
 	}
-	const region: IFallRegion | null = Number.isFinite(minX) ? { minX, minZ, maxX, maxZ } : null;
+	const region: IFallRegion | null = Number.isFinite(minX)
+		? { minX, minZ, maxX, maxZ, cloudTop }
+		: null;
 	kept.set(fall, region);
 	return region;
 };
@@ -116,6 +123,7 @@ const useFallField = (fall: TFall, perView: number, most: number, local: boolean
 		const world = weatherNowInWorld();
 		const areas = local ? areaWeathersInWorld() : NO_AREAS;
 		const amount = FALL_AMOUNTS[fall];
+		const ofAreas = areasRegionOf(areas, fall);
 		const region =
 			amount(world) > 0
 				? {
@@ -124,7 +132,7 @@ const useFallField = (fall: TFall, perView: number, most: number, local: boolean
 						maxX: ground.width / 2,
 						maxZ: ground.depth / 2,
 					}
-				: areasRegionOf(areas, fall);
+				: ofAreas;
 		target.copy(controls?.target ?? target.set(0, 0, 0));
 		if (!region) {
 			return null;
@@ -135,11 +143,19 @@ const useFallField = (fall: TFall, perView: number, most: number, local: boolean
 		const density = perView / (4 * viewRadius * viewRadius);
 		halfSize.set((region.maxX - region.minX) / 2, (region.maxZ - region.minZ) / 2);
 		center.set((region.minX + region.maxX) / 2, 0, (region.minZ + region.maxZ) / 2);
-		const atFull = THREE.MathUtils.clamp(density * 4 * halfSize.x * halfSize.y, 1, most);
+		// As tall as the field is wide (within reason), and up to the areas' highest clouds, however
+		// high they're set (Cloud height), with more of them in a taller field so they don't thin out.
+		const usualHeight = THREE.MathUtils.clamp(Math.max(halfSize.x, halfSize.y) * 0.9, 15, 40);
+		const height = Math.max(usualHeight, (ofAreas?.cloudTop ?? 0) + 1);
+		const atFull = THREE.MathUtils.clamp(
+			density * 4 * halfSize.x * halfSize.y * (height / usualHeight),
+			1,
+			most,
+		);
 		return {
 			center,
 			halfSize,
-			height: THREE.MathUtils.clamp(Math.max(halfSize.x, halfSize.y) * 0.9, 15, 40),
+			height,
 			/** How many are drawn at an amount of 1, and the rank that makes the first of them show. */
 			atFull,
 			rankScale: most / atFull,
@@ -216,8 +232,10 @@ const FALL_VERTEX = /* glsl */ `
 		strength = amounts.y;
 		// The world's falls from the top of the field; an area's own from under its clouds.
 		float order = rank * rankScale;
+		// Decided by the drop's height, not each end's, so a streak's two ends always agree (one shown and
+		// one not would stretch a line across the view).
 		bool shown =
-			order < amounts.x || (order < amounts.y && position.y < cloudBaseAt(vec3(xz.x, 0.0, xz.y)) + 0.5);
+			order < amounts.x || (order < amounts.y && center.y + y < cloudBaseAt(vec3(xz.x, 0.0, xz.y)) + 0.5);
 		vec4 view = modelViewMatrix * vec4(position, 1.0);
 		gl_Position = shown ? projectionMatrix * view : ${NOWHERE_GLSL};
 		// Flakes: as big on screen as their size at the target, smaller farther away in perspective.
