@@ -16,6 +16,8 @@ interface IAreaKind {
 	keywords: string;
 	/** Its colours (ADR-0060): what an area's `colors` keeps settings for, by id. */
 	colors: readonly IColorSpec[];
+	/** Whether it's drawn at all: a hidden area only carries weather (ADR-0151), as a hidden route carries vehicles. */
+	isDrawn: boolean;
 	startHeight: number;
 	roughness: number;
 	staysLevel: boolean;
@@ -42,6 +44,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		description: "Sea, lake, harbour or pond",
 		keywords: "river ocean bay",
 		colors: surface("water"),
+		isDrawn: true,
 		startHeight: 0,
 		roughness: 0.4,
 		staysLevel: true,
@@ -53,6 +56,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		description: "Lawn, park or field",
 		keywords: "garden meadow green",
 		colors: surface("grass"),
+		isDrawn: true,
 		startHeight: 0,
 		roughness: 0.95,
 		staysLevel: false,
@@ -64,6 +68,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		description: "Beach or sand",
 		keywords: "desert dune",
 		colors: surface("sand"),
+		isDrawn: true,
 		startHeight: 0,
 		roughness: 0.95,
 		staysLevel: false,
@@ -75,6 +80,7 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		description: "Paved square, quay or car park",
 		keywords: "parking pavement",
 		colors: surface("plaza"),
+		isDrawn: true,
 		startHeight: 0,
 		roughness: 0.95,
 		staysLevel: false,
@@ -86,13 +92,29 @@ export const AREA_KINDS: Record<TAreaKind, IAreaKind> = {
 		description: "Raised ground with cliff sides, e.g. a rock or plateau",
 		keywords: "hill mountain cliff terrain",
 		colors: surface("land"),
+		isDrawn: true,
 		startHeight: 1.5,
 		roughness: 0.95,
 		staysLevel: false,
 		isWater: false,
 		surface: "dirt_01",
 	},
+	hidden_area_01: {
+		name: "Hidden area",
+		description: "Invisible area for weather of its own, e.g. a storm over a district",
+		keywords: "zone district region weather invisible sentiment storm",
+		colors: [],
+		isDrawn: false,
+		startHeight: 0,
+		roughness: 1,
+		staysLevel: true,
+		isWater: false,
+		surface: "plain",
+	},
 };
+
+/** An invisible area (ADR-0151): it carries weather of its own, but nothing is drawn outside the editor. */
+export const isHiddenArea = (area: Pick<TArea, "kind">) => !AREA_KINDS[area.kind].isDrawn;
 
 /** Whether an area is water, by its kind's record (never its id, so variants count). */
 export const isWaterArea = (area: Pick<TArea, "kind">) => AREA_KINDS[area.kind].isWater;
@@ -103,6 +125,12 @@ export const AREA_KIND_IDS = Object.keys(AREA_KINDS) as TAreaKind[];
 export const AREA_KIND_LABELS = Object.fromEntries(
 	AREA_KIND_IDS.map((type) => [type, variantName(type, AREA_KINDS[type].name, AREA_KIND_IDS)]),
 ) as Record<TAreaKind, string>;
+
+/** An area of a kind in words, lower case: "grass area", but "hidden area", not "hidden area area". */
+export const areaKindInWords = (kind: TAreaKind) => {
+	const label = AREA_KIND_LABELS[kind].toLowerCase();
+	return /\barea\b/.test(label) ? label : `${label} area`;
+};
 
 /** An outline's corners: [x, z], maybe followed by more (an area corner's lift). */
 type TOutline = readonly (readonly number[])[];
@@ -162,10 +190,14 @@ export const takesCornerHeights = (area: Pick<TArea, "kind">) => !AREA_KINDS[are
 export const liftForTop = (area: Pick<TArea, "height">, top: number) =>
 	round(clamp(top, 0, area.height + MAX_CORNER_LIFT) - area.height);
 
-/** Whether its top stands above the ground anywhere: drawn solid, with sides, rather than flat. */
+/**
+ * Whether its top stands above the ground anywhere: drawn solid, with sides,
+ * rather than flat. Never a hidden area, which leaves the ground as it is.
+ */
 export const isRaised = (area: TAreaShape) =>
-	area.points.some((point) => cornerTop(area, point) > 0) ||
-	(area.peaks ?? []).some((peak) => cornerTop(area, peak) > 0);
+	AREA_KINDS[area.kind].isDrawn &&
+	(area.points.some((point) => cornerTop(area, point) > 0) ||
+		(area.peaks ?? []).some((peak) => cornerTop(area, peak) > 0));
 
 /** Twice the signed area of a triangle in [x, z]: above 0 when a, b, c turn counter-clockwise. */
 const turn = (a: readonly number[], b: readonly number[], c: readonly number[]) =>

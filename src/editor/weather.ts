@@ -1,6 +1,7 @@
 import { readScale } from "#/parts/dataBinding";
-import type { TReadableValues, TWeather } from "#/scene/schema";
+import type { TArea, TReadableValues, TWeather } from "#/scene/schema";
 import type { ISkyWeather } from "#/scene/sky";
+import type { TWeatherMapAmount } from "#/scene/weatherMap";
 
 import { useEditor } from "./store";
 import { useWorldData, worldDataNow } from "./worldData";
@@ -26,6 +27,8 @@ export interface IWeatherNow {
 	cloudCover: number;
 	cloudColor: string | null;
 	cloudSpeed: number;
+	/** How high the clouds float, as set (null: where they float by default, `cloudAltitudeOf`). */
+	cloudAltitude: number | null;
 }
 
 /** The weather's settings that can follow a data value. */
@@ -60,8 +63,26 @@ export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherN
 		cloudCover: amount("cloudCover"),
 		cloudColor: weather.cloudColor,
 		cloudSpeed: weather.cloudSpeed,
+		cloudAltitude: weather.cloudAltitude,
 	};
 };
+
+/** How far over an area's top its clouds float unless set: over houses and trees, low enough to read as over it. */
+export const AREA_CLOUDS_ABOVE = 9;
+
+/** The highest clouds can float (`cloudAltitude`'s limit). */
+export const MOST_CLOUD_ALTITUDE = 80;
+
+/**
+ * How high clouds float: as set, else the world's on their ring round it
+ * (higher for a big world, `reach` its longer side) or an area's over its top.
+ */
+export const cloudAltitudeOf = (
+	now: Pick<IWeatherNow, "cloudAltitude">,
+	over: { reach: number } | { area: Pick<TArea, "height"> },
+) =>
+	now.cloudAltitude ??
+	("area" in over ? over.area.height + AREA_CLOUDS_ABOVE : 30 + over.reach * 0.15);
 
 /** The world's weather in effect now, from the store, for code that runs each frame. */
 export const weatherNowInWorld = () => {
@@ -84,3 +105,67 @@ export const useSkyWeather = (): ISkyWeather => {
 	const cloudSpeed = useEditor((s) => s.scene.weather.cloudSpeed);
 	return { cloudCover, cloudColor, cloudSpeed, overcast };
 };
+
+/** An area with weather of its own (ADR-0151), and that weather in effect now. */
+export interface IAreaWeatherNow {
+	area: TArea;
+	now: IWeatherNow;
+}
+
+const NO_AREA_WEATHERS: readonly IAreaWeatherNow[] = [];
+
+/** Kept per list of areas and data, so selectors and frames reuse it until either changes. */
+const areaWeathersKept = new WeakMap<
+	readonly TArea[],
+	{ data: TReadableValues | undefined; weathers: readonly IAreaWeatherNow[] }
+>();
+
+/**
+ * The areas shown with weather of their own (ADR-0151), in order (later on
+ * top), each with its weather in effect: as set or from its data.
+ */
+export const areaWeathersNow = (
+	areas: readonly TArea[],
+	data?: TReadableValues,
+): readonly IAreaWeatherNow[] => {
+	const kept = areaWeathersKept.get(areas);
+	if (kept && kept.data === data) {
+		return kept.weathers;
+	}
+	const weathers: IAreaWeatherNow[] = [];
+	for (const area of areas) {
+		if (area.weather && !area.isHidden) {
+			weathers.push({ area, now: weatherNow(area.weather, data) });
+		}
+	}
+	const list = weathers.length > 0 ? weathers : NO_AREA_WEATHERS;
+	areaWeathersKept.set(areas, { data, weathers: list });
+	return list;
+};
+
+/** The areas' own weathers now, from the store, for code that runs each frame. */
+export const areaWeathersInWorld = () =>
+	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow().values);
+
+/** What an area's weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
+export const weatherMapAmountsOf = (
+	area: Pick<TArea, "height">,
+	now: IWeatherNow,
+): Record<TWeatherMapAmount, number> => ({
+	rain: now.rain,
+	snow: now.snow,
+	wetness: now.wetness,
+	snowCover: now.snowCover,
+	fog: now.fog,
+	haze: now.haze,
+	overcast: now.overcast,
+	splashes: now.showsSplashes ? now.rain : 0,
+	cloudAltitude: cloudAltitudeOf(now, { area }) / MOST_CLOUD_ALTITUDE,
+});
+
+/** The most of an amount anywhere: the world's, or an area's own if more. */
+export const mostAnywhere = (
+	world: IWeatherNow,
+	areas: readonly IAreaWeatherNow[],
+	amount: (now: IWeatherNow) => number,
+) => areas.reduce((most, { now }) => Math.max(most, amount(now)), amount(world));

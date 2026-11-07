@@ -1,12 +1,12 @@
 import { resolveFenceColors } from "#/fences/fenceModel";
 import { colorOf } from "#/parts/colorModel";
 import { roadColor } from "#/render/RoadMesh";
-import { AREA_KINDS } from "#/scene/areas";
+import { AREA_KINDS, isHiddenArea } from "#/scene/areas";
 import { isHiddenRoute } from "#/scene/roads";
 import type { TArea, TDataValue, TFence, TRoad } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
-/** Dashed chip for hidden routes, which have no colour of their own (lists and Add to scene). */
+/** Dashed chip for hidden routes and areas, which have no colour of their own (lists and Add to scene). */
 export const HIDDEN_ROUTE_SWATCH =
 	"repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px)";
 
@@ -14,9 +14,11 @@ export const HIDDEN_ROUTE_SWATCH =
 export const roadSwatch = (road: TRoad, palette: IScenePalette) =>
 	isHiddenRoute(road.kind) ? HIDDEN_ROUTE_SWATCH : roadColor(road, palette);
 
-/** The colour chip for an area in lists. */
+/** The colour chip for an area in lists: dashed for a hidden area, as for a hidden route. */
 export const areaSwatch = (area: TArea, palette: IScenePalette, data?: readonly TDataValue[]) =>
-	colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
+	isHiddenArea(area)
+		? HIDDEN_ROUTE_SWATCH
+		: colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
 
 /** The colour chip for a fence in lists: its first two colours (ADR-0103). */
 export const fenceSwatch = (

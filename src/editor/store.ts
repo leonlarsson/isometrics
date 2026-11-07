@@ -141,7 +141,9 @@ export type TSelectionTab =
 	| "lights"
 	| "label"
 	| "objectData"
-	| "motion";
+	| "motion"
+	/** An area's own weather (ADR-0151); the world's is "weather". */
+	| "areaWeather";
 /**
  * Properties tabs. "add" (the Add to scene panel) and "outliner" only exist in the narrow
  * layout; the wide layout has them in the left column and above the properties.
@@ -167,6 +169,7 @@ const SELECTION_TABS: readonly TInspectorTab[] = [
 	"label",
 	"objectData",
 	"motion",
+	"areaWeather",
 ];
 
 /** Selecting something shows its settings: the selection tab you were on, else Object. */

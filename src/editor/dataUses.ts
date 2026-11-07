@@ -159,6 +159,13 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 			{ kind: "area", id: area.id },
 			"look",
 		);
+		// Its own weather (ADR-0151).
+		add(
+			area.name || AREA_KIND_LABELS[area.kind],
+			area.weather ? following(area.weather.data, key).map((setting) => `weather: ${setting}`) : [],
+			{ kind: "area", id: area.id },
+			"areaWeather",
+		);
 	}
 
 	add(

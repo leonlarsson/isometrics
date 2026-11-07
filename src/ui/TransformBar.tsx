@@ -12,7 +12,7 @@ import {
 } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { partNameOf } from "#/parts/registry";
-import { AREA_KIND_LABELS } from "#/scene/areas";
+import { areaKindInWords } from "#/scene/areas";
 import { roadNameOf } from "#/scene/roads";
 
 import { Button } from "./Button";
@@ -129,7 +129,7 @@ const TransformControls = () => {
 	const shapeName = road
 		? roadNameOf(road)
 		: area
-			? area.name || `${AREA_KIND_LABELS[area.kind].toLowerCase()} area`
+			? area.name || areaKindInWords(area.kind)
 			: fence
 				? fence.name || FENCE_STYLE_LABELS[fence.kind].toLowerCase()
 				: "";

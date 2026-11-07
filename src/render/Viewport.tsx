@@ -10,7 +10,7 @@ import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { useEntity } from "#/editor/useEntity";
 import { ALONE, BOXED, LIST_HOVERED, SELECTED, useEntityFlags } from "#/editor/useEntityFlags";
 import { usePalette, useThemePalette } from "#/editor/useTheme";
-import { weatherNow } from "#/editor/weather";
+import { areaWeathersNow, mostAnywhere, weatherNow } from "#/editor/weather";
 import { useWorldData } from "#/editor/worldData";
 import { darknessSeenBy, hourSeenBy } from "#/parts/lightModel";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
@@ -23,6 +23,7 @@ import { sunAt } from "#/scene/sun";
 
 import { AreaHandles } from "./AreaHandles";
 import { AreaMesh } from "./AreaMesh";
+import { AreaWeather } from "./AreaWeather";
 import { BoxSelect } from "./BoxSelect";
 import { CameraControls } from "./CameraControls";
 import { CameraFlight } from "./CameraFlight";
@@ -461,18 +462,23 @@ export const Viewport = () => {
 	const tiltShiftShown = useTiltShiftShown();
 	// Wireframe draws as plainly as it can: no effects, tilt-shift included.
 	const composed = !wireframe && (drawsEffects(graphics) || tiltShiftShown);
-	// What the weather draws (ADR-0102): each piece only while its amount is above nothing.
+	// What the weather draws (ADR-0102): each piece only while its amount is above nothing, the
+	// world's or an area's own (ADR-0151).
 	const data = useWorldData().values;
 	const weather = useEditor(
 		useShallow((s) => {
 			const now = weatherNow(s.scene.weather, data);
+			const areas = areaWeathersNow(s.scene.areas, data);
+			const somewhere = (amount: (weather: typeof now) => number) =>
+				mostAnywhere(now, areas, amount) > 0;
 			return {
-				rain: now.rain > 0,
-				snow: now.snow > 0,
-				splashes: now.rain > 0 && now.showsSplashes,
+				rain: somewhere((w) => w.rain),
+				snow: somewhere((w) => w.snow),
+				splashes: somewhere((w) => (w.showsSplashes ? w.rain : 0)),
 				lightning: now.lightning > 0,
-				shading: now.wetness > 0 || now.snowCover > 0,
+				shading: now.wetness > 0 || now.snowCover > 0 || areas.length > 0,
 				fog: now.fog > 0 || now.haze > 0,
+				local: areas.length > 0,
 			};
 		}),
 	);
@@ -589,9 +595,12 @@ export const Viewport = () => {
 				snow={weather.snow}
 				splashes={weather.splashes}
 				lightning={weather.lightning}
+				local={weather.local}
 			/>
 
-			<WeatherShading on={weather.shading && !wireframe && !clay} />
+			<WeatherShading on={weather.shading && !wireframe && !clay} local={weather.local} />
+
+			{weather.local && <AreaWeather />}
 
 			{/* The boats' waves, which only reflective water shows (ADR-0081). */}
 			{graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections && <WakeFieldStep />}

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	areaKindInWords,
 	areaTopAt,
 	cornerTop,
 	cornerWithLift,
+	groundHeightAt,
+	isHiddenArea,
 	isInsidePolygon,
 	isRaised,
 	liftForTop,
@@ -138,5 +141,27 @@ describe("peaks inside an area (ADR-0101)", () => {
 		const pond = field([[2, 2, 3]], "water_01");
 		expect(isRaised(pond)).toBe(false);
 		expect(areaTopAt(pond, [2, 2])).toBe(0);
+	});
+});
+
+describe("hidden areas (ADR-0151)", () => {
+	const square = [
+		[0, 0],
+		[10, 0],
+		[10, 10],
+		[0, 10],
+	] as [number, number][];
+
+	it("are drawn by nothing and leave the ground as it is, even with a height", () => {
+		const hidden = { kind: "hidden_area_01" as const, points: square, height: 3, isHidden: false };
+		expect(isHiddenArea(hidden)).toBe(true);
+		expect(isRaised(hidden)).toBe(false);
+		expect(groundHeightAt([hidden], [5, 5])).toBe(0);
+		expect(groundHeightAt([{ ...hidden, kind: "raised_land_01" }], [5, 5])).toBe(3);
+	});
+
+	it("are named without saying area twice", () => {
+		expect(areaKindInWords("hidden_area_01")).toBe("hidden area");
+		expect(areaKindInWords("grass_01")).toBe("grass area");
 	});
 });

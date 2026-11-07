@@ -2,7 +2,7 @@ import { HotkeysProvider, useHotkeys } from "@tanstack/react-hotkeys";
 
 import { useEditor } from "#/editor/store";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
-import { AREA_KIND_LABELS } from "#/scene/areas";
+import { areaKindInWords } from "#/scene/areas";
 import { ROAD_KIND_LABELS } from "#/scene/roads";
 
 import { Button } from "./Button";
@@ -50,7 +50,7 @@ const DrawingControls = () => {
 					? "Keep clicking to add corners. Click the first corner or press Enter to finish."
 					: "Keep clicking to add points. Click the first point to make a loop.";
 	const what = isArea
-		? `${AREA_KIND_LABELS[drawing.areaType].toLowerCase()} area`
+		? areaKindInWords(drawing.areaType)
 		: drawing.target === "fence"
 			? FENCE_STYLE_LABELS[drawing.fenceStyle].toLowerCase()
 			: ROAD_KIND_LABELS[drawing.style].toLowerCase();

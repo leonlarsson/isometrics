@@ -430,3 +430,48 @@ test.describe("weather (ADR-0102)", () => {
 		});
 	});
 });
+
+test.describe("weather per area (ADR-0151)", () => {
+	test("a hidden area gets its own weather, a copy of the world's to change, and gives it back", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			areas: [
+				{
+					id: "park",
+					kind: "hidden_area_01",
+					points: [
+						[-6, -6],
+						[6, -6],
+						[6, 6],
+						[-6, 6],
+					],
+				},
+			],
+		});
+		await act(page, (s) => s.selectArea("park"));
+		// A hidden area has no look of its own, as a hidden route has none.
+		await expect(page.getByRole("tab", { name: "Look", exact: true })).toHaveCount(0);
+		await page.getByRole("tab", { name: "Area weather", exact: true }).click();
+		const ownWeather = page.getByRole("switch", { name: "Has its own weather" });
+		await expect(ownWeather).not.toBeChecked();
+		await ownWeather.click();
+		expect(await read(page, (s) => s.scene.areas[0].weather?.rainAmount)).toBe(0);
+
+		// Its quick picks and amounts are the world's, for the area alone.
+		await page.getByRole("button", { name: "Storm", exact: true }).click();
+		expect(await read(page, (s) => s.scene.areas[0].weather)).toMatchObject({
+			rainAmount: 0.95,
+			lightningRate: 0.6,
+			cloudCover: 1,
+		});
+		expect(await read(page, (s) => s.scene.weather.rainAmount)).toBe(0);
+		await openPanel(page, "Fog and haze");
+		await box(page, "Fog").fill("60");
+		await box(page, "Fog").press("Enter");
+		expect(await read(page, (s) => s.scene.areas[0].weather?.fogDensity)).toBe(0.6);
+
+		await ownWeather.click();
+		expect(await read(page, (s) => s.scene.areas[0].weather)).toBeNull();
+	});
+});

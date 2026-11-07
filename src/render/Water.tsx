@@ -10,6 +10,7 @@ import { MAX_WATER_SEAMS } from "#/scene/areas";
 import type { TWater } from "#/scene/schema";
 
 import { wakeField } from "./WakeField";
+import { addAreaWeatherOver, areaWeatherOverKey } from "./weatherShading";
 
 /**
  * Reflective water (Graphics: Water reflections, ADR-0075): the world
@@ -249,8 +250,10 @@ const asReflectedLight = (material: THREE.Material, uniforms: IWaterUniforms) =>
 				`coord.z * (my_normal.xz * mix(worldRippleShift, rippleShift, waterOwnness) * wakeCalm + vec2(wakeTilt.x, -wakeTilt.y) * ${WAKE_SHIFT})`,
 			)
 			.replace(DREI_BLEND, REFLECTED_LIGHT);
+		// An area's own fog and storm over the water (ADR-0151).
+		addAreaWeatherOver(material, shader, renderer);
 	};
-	material.customProgramCacheKey = () => "isometrics-water";
+	material.customProgramCacheKey = () => `isometrics-water:${areaWeatherOverKey(material)}`;
 };
 
 interface IReflectiveWaterProps {

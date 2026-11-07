@@ -7,8 +7,10 @@ import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
 import {
 	AREA_KIND_LABELS,
 	AREA_KINDS,
+	areaKindInWords,
 	cornerLift,
 	cornerTop,
+	isHiddenArea,
 	isWaterArea,
 	MAX_CORNER_LIFT,
 	polygonArea,
@@ -36,6 +38,7 @@ import { Menu } from "./Menu";
 import { ColorSettingFields } from "./PartSettings";
 import { AreaSurfaceFields } from "./SurfaceSettings";
 import { RipplesNote } from "./WaterSettings";
+import { AreaWeatherTab } from "./WeatherTab";
 
 const TYPE_OPTIONS = (Object.keys(AREA_KIND_LABELS) as TAreaKind[]).map((value) => ({
 	value,
@@ -226,7 +229,7 @@ const AreaTab = ({ area }: { area: TArea }) => {
 	return (
 		<Section
 			icon="area"
-			title={`${AREA_KIND_LABELS[area.kind]} area`}
+			title={areaKindInWords(area.kind).replace(/^./, (first) => first.toUpperCase())}
 			actions={
 				<IconButtonGroup>
 					<IconButton
@@ -318,55 +321,71 @@ const AreaShapeTab = ({ area }: { area: TArea }) => {
 				selectedPoint !== null && <CornerPanel area={area} index={selectedPoint} />
 			)}
 
-			<Section
-				id="area.shape"
-				icon="spline"
-				title="Whole area"
-				keywords="shape corners raised height cliff slope ramp hill lift peak hollow"
-			>
-				<SliderField
-					inherit={resetToDefault(area.height, AREA_KINDS[area.kind].startHeight, () =>
-						edit("height", (a) => {
-							a.height = AREA_KINDS[a.kind].startHeight;
-						}),
-					)}
-					label="Height"
-					value={area.height}
-					min={0}
-					max={10}
-					step={0.25}
-					onChange={(v) =>
-						edit("height", (a) => {
-							a.height = v;
-						})
-					}
-				/>
+			{isHiddenArea(area) ? (
+				<Section
+					id="area.shape"
+					icon="spline"
+					title="Whole area"
+					keywords="shape corners hidden invisible"
+				>
+					<Hint>
+						A hidden area draws nothing and stays flat: it carries weather of its own (the Area
+						weather tab). With no corner selected, the arrows at its middle (or G, R, S and the
+						arrow keys) move, turn and resize all of it. Drag corners to reshape, drag a small dot
+						between two corners to add one, double-click a corner to remove it.
+					</Hint>
+				</Section>
+			) : (
+				<Section
+					id="area.shape"
+					icon="spline"
+					title="Whole area"
+					keywords="shape corners raised height cliff slope ramp hill lift peak hollow"
+				>
+					<SliderField
+						inherit={resetToDefault(area.height, AREA_KINDS[area.kind].startHeight, () =>
+							edit("height", (a) => {
+								a.height = AREA_KINDS[a.kind].startHeight;
+							}),
+						)}
+						label="Height"
+						value={area.height}
+						min={0}
+						max={10}
+						step={0.25}
+						onChange={(v) =>
+							edit("height", (a) => {
+								a.height = v;
+							})
+						}
+					/>
 
-				<Hint>
-					With no corner selected, the arrows at its middle (or G, R, S and the arrow keys) move,
-					lift, turn and resize all of it. Drag corners to reshape, Shift- or Ctrl-click to select
-					several, drag a small dot between two corners to add one, double-click a corner to remove
-					it. Above 0, the area becomes raised ground with cliff sides; select a corner to give it a
-					height of its own, for slopes and ramps.
-				</Hint>
+					<Hint>
+						With no corner selected, the arrows at its middle (or G, R, S and the arrow keys) move,
+						lift, turn and resize all of it. Drag corners to reshape, Shift- or Ctrl-click to select
+						several, drag a small dot between two corners to add one, double-click a corner to
+						remove it. Above 0, the area becomes raised ground with cliff sides; select a corner to
+						give it a height of its own, for slopes and ramps.
+					</Hint>
 
-				<ButtonGroup>
-					<Button
-						size="sm"
-						icon="plus"
-						disabled={!liftable}
-						onClick={() => useEditor.getState().addAreaPeak(area.id)}
-					>
-						Add a peak
-					</Button>
-				</ButtonGroup>
+					<ButtonGroup>
+						<Button
+							size="sm"
+							icon="plus"
+							disabled={!liftable}
+							onClick={() => useEditor.getState().addAreaPeak(area.id)}
+						>
+							Add a peak
+						</Button>
+					</ButtonGroup>
 
-				<Hint>
-					{liftable
-						? "A peak is a point inside it with a height of its own: the top rises to it from the corners, for round hills (or dips, for hollows). Also: right-click the area, Add a peak here, or double-click it once it's selected."
-						: "Water stays level, so it has no peaks: raise all of it with Raised by."}
-				</Hint>
-			</Section>
+					<Hint>
+						{liftable
+							? "A peak is a point inside it with a height of its own: the top rises to it from the corners, for round hills (or dips, for hollows). Also: right-click the area, Add a peak here, or double-click it once it's selected."
+							: "Water stays level, so it has no peaks: raise all of it with Raised by."}
+					</Hint>
+				</Section>
+			)}
 		</>
 	);
 };
@@ -466,7 +485,7 @@ const AreaLookTab = ({ area }: { area: TArea }) => {
 	);
 };
 
-/** The properties tabs for a selected area (ADR-0054). */
+/** The properties tabs for a selected area (ADR-0054). A hidden area has no look. */
 export const areaTabs = (area: TArea): IInspectorTab[] => [
 	{ value: "object", label: "Area", icon: "area", content: <AreaTab key={area.id} area={area} /> },
 	{
@@ -475,10 +494,21 @@ export const areaTabs = (area: TArea): IInspectorTab[] => [
 		icon: "spline",
 		content: <AreaShapeTab key={area.id} area={area} />,
 	},
+	// A hidden area has no look: no colour, no surface (ADR-0151), as a hidden route has none.
+	...(isHiddenArea(area)
+		? []
+		: [
+				{
+					value: "look",
+					label: "Look",
+					icon: "palette",
+					content: <AreaLookTab key={area.id} area={area} />,
+				} as const,
+			]),
 	{
-		value: "look",
-		label: "Look",
-		icon: "palette",
-		content: <AreaLookTab key={area.id} area={area} />,
+		value: "areaWeather",
+		label: "Area weather",
+		icon: "rain",
+		content: <AreaWeatherTab key={area.id} area={area} />,
 	},
 ];
