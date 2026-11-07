@@ -86,4 +86,6 @@ export const createFlowTrip = (
 		// A trip's start is from the road's first point, whichever way it drives.
 		startDistance: reverse ? length - offset : offset,
 		seed: flowVehicleSeed(roadId, reverse, index),
+		// Spread along the road, they start over at its start, not in the traffic behind them.
+		startsOverAtRoadStart: true,
 	});

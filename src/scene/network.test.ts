@@ -395,6 +395,18 @@ describe("one-way roads and the way through a junction (ADR-0148)", () => {
 		// Its dead end leads back to where it started, again and again.
 		expect(roadsDriven(onNetwork, 80)).toEqual(["a", "b", "a", "b", "a"]);
 		expect(onNetwork.sizeAt?.(0, 50)).toBe(1);
+		// 15 along a, 20 along b, then 2 into the next round: back where it started, 7 along a ...
+		const again = onNetwork.at(0, 37).position[0];
+		expect(again).toBeGreaterThan(6);
+		expect(again).toBeLessThan(9);
+		// ... or, a flow's vehicle (spread along the road), from the road's start, 2 along it.
+		const fromStart = createNetworkTrip(network, "a", {
+			driving: "right",
+			startDistance: 5,
+			seed: "car",
+			startsOverAtRoadStart: true,
+		});
+		expect(again - fromStart.at(0, 37).position[0]).toBeCloseTo(5, 1);
 	});
 
 	it("never turns onto a one-way road against its way, nor back through the junction", () => {

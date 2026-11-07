@@ -183,6 +183,12 @@ export interface INetworkTripOptions {
 	reverse?: boolean;
 	/** Seeds its choices: the vehicle's id. */
 	seed: string;
+	/**
+	 * Where it starts over at a one-way road's dead end (ADR-0148): where it started (a vehicle
+	 * object), or with this its road's start (a flow's vehicles, spread along it, so one doesn't
+	 * appear in the middle of the traffic behind it).
+	 */
+	startsOverAtRoadStart?: boolean;
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -194,7 +200,14 @@ const same = (a: readonly number[], b: readonly number[]) =>
 export const createNetworkTrip = (
 	network: IRoadNetwork,
 	roadId: string,
-	{ driving, smoothing = 0, startDistance, reverse = false, seed }: INetworkTripOptions,
+	{
+		driving,
+		smoothing = 0,
+		startDistance,
+		reverse = false,
+		seed,
+		startsOverAtRoadStart = false,
+	}: INetworkTripOptions,
 ): IRouteSampler => {
 	const roadInfo = (id: string) => {
 		const road = network.roadById(id);
@@ -325,7 +338,7 @@ export const createNetworkTrip = (
 			return makeLeg(leg.roadId, leg.direction > 0 ? -1 : 1, 0, 0, null, leg.index + 1, startsAt);
 		}
 		if (leg.exit.kind === "startOver") {
-			return makeLeg(roadId, startDirection, startAlong, 0, null, leg.index + 1, startsAt, true);
+			return makeLeg(roadId, startDirection, restartAlong, 0, null, leg.index + 1, startsAt, true);
 		}
 		const { way } = leg.exit;
 		const trim = network.endAt(way.roadId, way.end)?.routeTrim ?? 0;
@@ -344,6 +357,10 @@ export const createNetworkTrip = (
 			)
 		: 0;
 	const firstLeg = () => makeLeg(roadId, startDirection, startAlong, 0, null, 0, 0);
+	/** Where it starts over (ADR-0148). */
+	const restartAlong = startsOverAtRoadStart
+		? (network.endAt(roadId, "start")?.routeTrim ?? 0)
+		: startAlong;
 
 	/** The path a leg is sampled on: the end of the road before and its curve, the road, the next curve and road's start. */
 	const pieceOf = (leg: ILeg) => {
@@ -528,7 +545,7 @@ export const createNetworkTrip = (
 						{
 							roadId,
 							direction: startDirection,
-							along: startAlong,
+							along: restartAlong,
 							distance: end - travelled,
 						}
 					: {

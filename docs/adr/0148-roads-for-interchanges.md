@@ -64,7 +64,7 @@ No new list of things with ids, so `PATCH_LISTS` is unchanged; `leadsTo` changes
 A trip (`createNetworkTrip`, ADR-0136) and a route on a single road follow these rules. Who drives: vehicle objects that follow a road, and flows.
 
 - **Never against a one-way road.** A way out of a junction onto a one-way road is only its `start` (driving away from its first point). A vehicle on a one-way road drives forward whatever its `drivesTheOtherWay` says.
-- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it **starts over** where it started, shrinking out over its last 1.5 units and growing in again (the size flows already use, `FLOW_EASE_LENGTH`), as a flow's own stream does. A dead end at the edge of the world is meant (traffic leaving the map), so validate only warns of a one-way road into a junction with no way out of it allowed.
+- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it **starts over** where it started (a flow's vehicles, which start spread along their road, at its start, so one never appears in the traffic behind it), shrinking out over its last 1.5 units and growing in again (the size flows already use, `FLOW_EASE_LENGTH`), as a flow's own stream does. A dead end at the edge of the world is meant (traffic leaving the map), so validate only warns of a one-way road into a junction with no way out of it allowed.
 - **The way chosen** (`pickWayOut`, now given the arrival direction and each way's departure direction):
   - the end it came in by is never a way out (as before);
   - with `leadsTo` on the end it arrives by, only those (still never against a one-way road);
