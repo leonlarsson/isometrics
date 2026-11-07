@@ -325,7 +325,12 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 		[puffs, weathers],
 	);
 	const seeThrough = useMemo(
-		() => puffs.filter((puff) => weathers[puff.area].now.cloudTransparency > 0),
+		// Clear ones (100%) aren't drawn at all.
+		() =>
+			puffs.filter((puff) => {
+				const transparency = weathers[puff.area].now.cloudTransparency;
+				return transparency > 0 && transparency < 1;
+			}),
 		[puffs, weathers],
 	);
 

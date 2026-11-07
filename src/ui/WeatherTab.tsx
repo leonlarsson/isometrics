@@ -328,15 +328,15 @@ export const WeatherFields = ({
 							label="Cloud transparency"
 							value={Math.round(weather.cloudTransparency * 100)}
 							min={0}
-							max={90}
+							max={100}
 							step={5}
 							suffix="%"
 							onChange={(value) => set("cloudTransparency", value / 100, true)}
 							inherit={byDefault("cloudTransparency", percent(DEFAULTS.cloudTransparency))}
 							hint={
 								isArea
-									? "0% is solid; more lets what's under and behind its clouds show through."
-									: "0% is solid; more lets the sky show through the clouds."
+									? "0% is solid, 100% clear; in between, what's under and behind its clouds shows through."
+									: "0% is solid, 100% clear; in between, the sky shows through the clouds."
 							}
 						/>
 					</>

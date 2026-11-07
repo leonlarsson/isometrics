@@ -83,7 +83,7 @@ export const Clouds = () => {
 		}
 	});
 
-	if (!perspective || !sky.showsInPerspective || count === 0) {
+	if (!perspective || !sky.showsInPerspective || count === 0 || transparency >= 1) {
 		return null;
 	}
 	return (

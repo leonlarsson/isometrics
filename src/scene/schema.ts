@@ -1141,10 +1141,10 @@ export const WeatherSchema = z
 		cloudTransparency: z
 			.number()
 			.min(0)
-			.max(0.9)
+			.max(1)
 			.default(0)
 			.describe(
-				"How see-through the clouds are: 0 = solid, 0.9 = a faint veil that what's under shows through (handy for an area's clouds in the diorama, which float over what's behind it).",
+				"How see-through the clouds are: 0 = solid, 1 = clear (not drawn, while cloudCover can still follow data); in between, what's under and behind them shows through (handy for an area's clouds in the diorama, which float over what's behind it).",
 			),
 		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
 		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
