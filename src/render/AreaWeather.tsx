@@ -38,6 +38,12 @@ const FOG_NIGHT = "#252a33";
 const HAZE = "#f4ecdc";
 /** What storm clouds turn towards. */
 const STORM_GREY = "#525965";
+/**
+ * When see-through clouds are drawn: after everything else (solid and see-through, drawn at 0),
+ * their unseen depth first, then their paint (render/Clouds too).
+ */
+export const SEE_THROUGH_ORDER = { depth: 10, paint: 11 } as const;
+
 /** At most this many puffs, all areas together. */
 const MOST_PUFFS = 1600;
 
@@ -229,8 +235,9 @@ interface IPuffBatchProps {
 /** One instanced draw of puffs: the solid clouds, or the see-through ones. */
 const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchProps) => {
 	const mesh = useRef<THREE.InstancedMesh>(null);
-	// See-through clouds are drawn into depth first, unseen (in the opaque pass), then painted where
-	// they're nearest: each cloud one see-through body, puffs never painted over the wrong way round.
+	// See-through clouds are drawn into depth first, unseen, then painted where they're nearest: each
+	// cloud one see-through body, puffs never painted over the wrong way round. Both after everything
+	// else (SEE_THROUGH_ORDER), so what's under and behind them is drawn before their depth hides it.
 	const depthMesh = useRef<THREE.InstancedMesh>(null);
 	const geometry = useMemo(() => {
 		const made = new THREE.IcosahedronGeometry(1, 1);
@@ -243,9 +250,12 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 	}, []);
 	const material = useMemo(() => cloudMaterial(seeThrough), [seeThrough]);
 	const depthMaterial = useMemo(() => {
-		// The solid clouds' material, so its depth is exactly what the painted pass compares against.
+		// The solid clouds' material, so its depth is exactly what the painted pass compares against;
+		// among the see-through things, so it's drawn after all that's solid.
 		const made = cloudMaterial(false);
 		made.colorWrite = false;
+		made.transparent = true;
+		made.depthWrite = true;
 		return made;
 	}, []);
 	useEffect(() => () => geometry.dispose(), [geometry]);
@@ -302,6 +312,7 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 				<instancedMesh
 					ref={depthMesh}
 					args={[geometry, depthMaterial, Math.max(1, puffs.length)]}
+					renderOrder={SEE_THROUGH_ORDER.depth}
 					raycast={ignoreRaycast}
 					frustumCulled={false}
 				/>
@@ -310,6 +321,7 @@ const PuffBatch = ({ puffs, weathers, colors, seeThrough, playing }: IPuffBatchP
 			<instancedMesh
 				ref={mesh}
 				args={[geometry, material, Math.max(1, puffs.length)]}
+				renderOrder={seeThrough ? SEE_THROUGH_ORDER.paint : 0}
 				raycast={ignoreRaycast}
 				frustumCulled={false}
 			/>
