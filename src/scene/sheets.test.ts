@@ -206,3 +206,64 @@ describe("names made from headers", () => {
 		]);
 	});
 });
+
+describe("a table over time (ADR-0153)", () => {
+	const LONG = `month,borough,complaints,noise
+2026-08,Bronx,64310,9000
+2026-08,Brooklyn,103941,15000
+2026-09,Bronx,59213,8500
+2026-09,Brooklyn,105707,15500
+2026-10,Brooklyn,113754,16000
+2026-10,Bronx,65318,9100
+`;
+
+	it("is what a sheet of a date, a name and numbers per line is guessed to be", () => {
+		expect(guessReading(csv(LONG))).toEqual({
+			readsAs: "tableOverTime",
+			dateColumn: "month",
+			keyColumn: "borough",
+		});
+	});
+
+	it("reads the latest date's lines as the rows now, and every date's as the past, oldest first", () => {
+		const sheet = csv(LONG);
+		const { tables, values } = dataFromSheet(sheet, guessReading(sheet), {
+			sourceId: "nyc",
+			tableName: "Boroughs",
+		});
+		expect(values).toEqual([]);
+		const [table] = tables;
+		expect(table.keyColumn).toBe("borough");
+		expect(table.columns.map((column) => column.key)).toEqual(["borough", "complaints", "noise"]);
+		expect(table.rows).toEqual([
+			{ borough: "Brooklyn", complaints: 113754, noise: 16000 },
+			{ borough: "Bronx", complaints: 65318, noise: 9100 },
+		]);
+		expect(table.history.map((moment) => moment.at)).toEqual(["2026-08", "2026-09", "2026-10"]);
+		expect(table.history[0].rows).toEqual([
+			{ borough: "Bronx", complaints: 64310, noise: 9000 },
+			{ borough: "Brooklyn", complaints: 103941, noise: 15000 },
+		]);
+		expect(table.history.at(-1)?.rows).toEqual(table.rows);
+	});
+
+	it("says why a sheet can't be read so, for the greyed-out option", () => {
+		expect(whyNotReadAs(csv("borough,complaints\nBronx,1\nBrooklyn,2"), "tableOverTime")).toBe(
+			"no column of dates",
+		);
+		expect(
+			whyNotReadAs(
+				csv("month,borough,complaints\n2026-08,Bronx,1\n2026-08,Brooklyn,2"),
+				"tableOverTime",
+			),
+		).toBe("only one date");
+		expect(
+			whyNotReadAs(
+				csv("month,borough,complaints\n2026-08,Bronx,1\n2026-08,Bronx,2\n2026-09,Bronx,3"),
+				"tableOverTime",
+			),
+		).toBe("no column names the same things on each date");
+		// A plain series of dates and numbers stays values over time.
+		expect(guessReading(csv("month,complaints\n2026-08,1\n2026-09,2")).readsAs).toBe("history");
+	});
+});

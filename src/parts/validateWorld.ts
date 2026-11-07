@@ -127,6 +127,10 @@ const propsOf = (part: TAnyPart) => {
 	return props;
 };
 
+/** A date as data keeps it: a year, a month or a day, maybe with a time (2026, 2026-09, 2026-09-30T12:00Z). */
+const ISO_DATE_LIKE =
+	/^\d{4}(-\d{2}(-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
+
 /** What opens but won't look as meant. */
 const worldWarnings = (scene: TScene): IWorldIssue[] => {
 	const warnings: IWorldIssue[] = [];
@@ -335,6 +339,47 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		rowRead(where, area.dataRow);
 		if (area.weather) {
 			bindingsRead(`${where}.weather`, area.weather.data, readableKeys(scene, area.dataRow).keys);
+		}
+	});
+
+	// The data's past (ADR-0153): oldest first, on dates the time slider can read, each row named.
+	const pastRead = (where: string, ats: readonly string[]) => {
+		if (ats.some((at, i) => i > 0 && at < ats[i - 1])) {
+			warn(where, "isn't oldest first: the time slider and trends read it in order");
+		}
+		const notADate = ats.find((at) => !ISO_DATE_LIKE.test(at));
+		if (notADate !== undefined) {
+			warn(
+				where,
+				`has "${notADate}", which isn't a date like 2026-09 or 2026-09-30: it's out of order`,
+			);
+		}
+	};
+	scene.data.values.forEach((value, index) => {
+		pastRead(
+			`data.values[${index}] "${value.key}".history`,
+			value.history.map((point) => point.at),
+		);
+	});
+	scene.data.tables.forEach((table, index) => {
+		const where = `data.tables[${index}] "${table.key}".history`;
+		pastRead(
+			where,
+			table.history.map((moment) => moment.at),
+		);
+		const unnamed = table.keyColumn
+			? table.history.find((moment) =>
+					moment.rows.some((row) => {
+						const name = cellOf(row, table.keyColumn);
+						return name === null || name === undefined || name === "";
+					}),
+				)
+			: undefined;
+		if (unnamed) {
+			warn(
+				where,
+				`on ${unnamed.at} has a row without a ${table.keyColumn}: nothing follows that row then`,
+			);
 		}
 	});
 

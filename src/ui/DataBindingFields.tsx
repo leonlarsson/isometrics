@@ -38,6 +38,8 @@ interface IDataBindingFieldsProps {
 	max?: number;
 	/** Sizes and amounts (`range`): the setting's own range and step, and how a setting shows. */
 	range?: { min: number; max: number; step: number; format?: (setting: number) => string };
+	/** What the setting is called ("Lightning"), so the hint says what the data sets, not "it". */
+	settingName?: string;
 }
 
 /** A data value as the hints show it: numbers with their unit, text in quotes, so "null" reads as text. */
@@ -69,7 +71,11 @@ export const DataBindingFields = ({
 	formatScale = (reading) => String(Math.round(reading * 100) / 100),
 	max,
 	range = { min: 0, max: 1, step: 0.01 },
+	settingName,
 }: IDataBindingFieldsProps) => {
+	// The setting the data sets, by name where there is one: "so Lightning is at 52% now".
+	const it = settingName ?? "it";
+	const itIs = settingName ? `${settingName} is` : "it's";
 	const entry = boundEntry(binding, data);
 	const name = entry ? entry.name || entry.key : binding.key;
 	const above = binding.switchesOnAbove ?? 0;
@@ -87,26 +93,26 @@ export const DataBindingFields = ({
 	const column = columnOfKey(binding.key);
 	const now = !entry
 		? column !== null
-			? `Its row has no value in ${column} (no data), so it stays as set by hand.`
+			? `Its row has no value in ${column} (no data), so ${it} stays as set by hand.`
 			: `There's no data value called “${binding.key}” any more.`
 		: kind === "switch"
-			? `${name} is ${shownValue(entry)}, so it's ${switchesOn(entry.value, above) ? "on" : "off"} now. It's on while the value is a number above ${above}, or the text on, yes or true, day and night.`
+			? `${name} is ${shownValue(entry)}, so ${itIs} ${switchesOn(entry.value, above) ? "on" : "off"} now. It's on while the value is a number above ${above}, or the text on, yes or true, day and night.`
 			: kind === "periods"
 				? periods
-					? `${name} is ${shownValue(entry)}, so it's on ${periods.map(({ from, until }) => `${formatClock(from)}–${formatClock(until)}`).join(" and ")}.`
+					? `${name} is ${shownValue(entry)}, so ${itIs} on ${periods.map(({ from, until }) => `${formatClock(from)}–${formatClock(until)}`).join(" and ")}.`
 					: `${name} is ${shownValue(entry)}, which isn't times of day like 09:00-17:30, so it keeps the periods set by hand.`
 				: kind === "range"
 					? setting === undefined
-						? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
-						: `${name} is ${shownValue(entry)}, so it's ${showSetting(setting)} now.`
+						? `${name} is ${shownValue(entry)}, which isn't a number, so ${it} stays as set by hand.`
+						: `${name} is ${shownValue(entry)}, so ${itIs} ${showSetting(setting)} now.`
 					: kind === "scale"
 						? reading === undefined
-							? `${name} is ${shownValue(entry)}, which isn't a number, so it stays as set by hand.`
-							: `${name} is ${shownValue(entry)}, so it's at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
+							? `${name} is ${shownValue(entry)}, which isn't a number, so ${it} stays as set by hand.`
+							: `${name} is ${shownValue(entry)}, so ${itIs} at ${formatScale(reading)} now${max !== undefined && reading >= max ? ` (${formatScale(max)} is the most)` : ""}.`
 						: color
-							? `${name} is ${shownValue(entry)}, a colour, so it's ${color} now.`
+							? `${name} is ${shownValue(entry)}, a colour, so ${itIs} ${color} now.`
 							: Number.isFinite(number)
-								? `${name} is ${shownValue(entry)}, so it's ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
+								? `${name} is ${shownValue(entry)}, so ${itIs} ${colorOnScale(binding, number)} now, ${Math.round(colorScalePosition(binding, number) * 100)}% of the way from the low colour to the high colour.`
 								: `${name} is ${shownValue(entry)}, which is neither a colour nor a number, so it keeps its own colour.`;
 
 	return (

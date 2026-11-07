@@ -620,7 +620,7 @@ export const DataTableSchema = z
 			)
 			.default([])
 			.describe(
-				"Its rows at past moments, oldest first, for trends and stories (only as its source gives them: a dated file, an API with dates); [] = none.",
+				'Its rows at past dates, oldest first, the last usually its rows now: [{ "at": "2026-09", "rows": [ … ] }, …], each moment\'s rows with the same columns and named by the same keyColumn as `rows`. Read from a spreadsheet with a date on each line (A table over time) or written here; View mode\'s time slider steps through them, and things following a row (dataRow) show it as it was then. [] = none.',
 			),
 	})
 	.describe("A table of rows: objects can each take one, and follow its columns.");
