@@ -17,6 +17,7 @@ import { mixColor } from "#/lib/color";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
 import { isHiddenArea, isInsidePolygon, polygonArea } from "#/scene/areas";
+import type { TScene } from "#/scene/schema";
 import { skyLookAt } from "#/scene/sky";
 import { skyLightAt } from "#/scene/sun";
 import { type IWeatherMap, WEATHER_MAP_STRIDE, weatherMapOf } from "#/scene/weatherMap";
@@ -389,6 +390,40 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 	const sky = useEditor((s) => s.scene.sky);
 	const playing = useEditor((s) => s.playing);
 	const hour = useSceneHours();
+	return (
+		<CloudsOverAreas
+			weathers={weathers}
+			lighting={lighting}
+			sky={sky}
+			hour={hour}
+			playing={playing}
+		/>
+	);
+};
+
+interface ICloudsOverAreasProps {
+	weathers: readonly IAreaWeatherNow[];
+	/** What tints them: the world's light and sky at an hour. */
+	lighting: TScene["lighting"];
+	sky: TScene["sky"];
+	/** The hour shown (null: as the lighting says, `skyLookAt`). */
+	hour: number | null;
+	/** Whether they drift (motion playing); still, they stand where the motion clock left them. */
+	playing: boolean;
+}
+
+/**
+ * The clouds over areas, from what's passed in rather than the editor: the
+ * view's (`AreaClouds`), and a world's picture's (render/scenePictures), so a
+ * data map's card shows its weather.
+ */
+export const CloudsOverAreas = ({
+	weathers,
+	lighting,
+	sky,
+	hour,
+	playing,
+}: ICloudsOverAreasProps) => {
 	const puffs = useMemo(() => puffsOf(weathers), [weathers]);
 	const colors = useMemo(
 		() =>

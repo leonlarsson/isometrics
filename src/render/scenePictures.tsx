@@ -3,6 +3,7 @@ import { createRoot, extend, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { areaWeathersNow } from "#/editor/weather";
 import { toRadians } from "#/lib/math";
 import { colorOf, resolveColors, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
@@ -17,6 +18,7 @@ import { groundSurfaceOf } from "#/scene/surfaces";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
 import { AreaBody } from "./AreaMesh";
+import { CloudsOverAreas } from "./AreaWeather";
 import { FenceBody } from "./FenceMesh";
 import { JunctionBodies } from "./JunctionMesh";
 // Prefabs' copies draw their pieces with it (ADR-0134).
@@ -29,7 +31,8 @@ import { useSurfaceShading } from "./useSurfaceShading";
 /**
  * Pictures of whole worlds, rendered in the browser from the worlds
  * themselves, like the part thumbnails (ADR-0036): the ground, areas, roads
- * and objects as they stand when the world opens, seen from the default angle
+ * and objects as they stand when the world opens, and the clouds of areas'
+ * own weather, seen from the default angle
  * on a transparent background. One offscreen canvas renders what's asked for,
  * then goes away; the images live in memory only. See
  * docs/adr/0047-new-world-dialog.md. The built-in worlds' pictures are made
@@ -188,6 +191,9 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 		entities.filter((entity) => partIn(entity.kind, scene.prefabs)?.rendersAsync).length,
 	);
 	const network = roadNetworkOf(scene.roads, scene.junctions);
+	// Areas' own weather shows as its clouds, greyer where it rains or storms (ADR-0151): what reads
+	// in a card. What falls, and the ground's snow and wetness, are left to the live view.
+	const weathers = areaWeathersNow(scene.areas, scene.data);
 	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface), false);
 
 	const shoot = () => {
@@ -303,6 +309,16 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 						onReady={onReady}
 					/>
 				))}
+
+				{weathers.length > 0 && (
+					<CloudsOverAreas
+						weathers={weathers}
+						lighting={scene.lighting}
+						sky={scene.sky}
+						hour={scene.lighting.time}
+						playing={false}
+					/>
+				)}
 			</group>
 		</>
 	);
