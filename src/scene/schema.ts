@@ -1129,6 +1129,15 @@ export const WeatherSchema = z
 			.max(5)
 			.default(1)
 			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
+		cloudAltitude: z
+			.number()
+			.min(1)
+			.max(80)
+			.nullable()
+			.default(null)
+			.describe(
+				"How high above the base ground the clouds float, in grid units (an area's own weather's: where its rain and lightning start too). null = the world's on their ring round it, about 30 up (higher for big worlds); an area's 9 above its top, over houses and trees.",
+			),
 		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
 		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
 		fogDensity: amount(

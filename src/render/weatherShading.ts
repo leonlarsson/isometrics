@@ -8,7 +8,8 @@ import { addSurfaceShading, surfaceProgramKey } from "./surfaceShading";
  * Snow settles on what faces up (more of it as the cover grows), whitening it;
  * wet ground darkens and turns glossy, more on what faces up. Compiled in only
  * while there's snow or wetness (`enabled`): switching recompiles the
- * shaders once. A material can stay out (`userData.noWeather`: water), or
+ * shaders once. A material can stay out (`userData.noWeather`: water, which
+ * still takes areas' own fog and storm, unless `userData.noAreaWeather`), or
  * take less snow (`userData.snowFactor`, a uniform: roads in use, kept clearer
  * by their traffic). The same hook adds a ground's or area's surface
  * (render/surfaceShading, ADR-0137), for any renderer: the snow and wetness
@@ -175,6 +176,75 @@ export const WEATHER_AT_VERTEX = /* glsl */ `
 	}
 `;
 
+/**
+ * An area's own weather over a material that takes no snow or wetness
+ * (water, ADR-0151): its fog and haze, the light darker under its storm and
+ * its lightning's flash, worked on the lit colour at the end. GLSL in place of
+ * three's fog_fragment.
+ */
+const OVER_FOG = /* glsl */ `
+	{
+		vec4 weatherB = texture2D(weatherMapB, weatherMapUv(vWeatherAt));
+		gl_FragColor.rgb *= clamp(1.0 - 0.5 * (weatherB.b - weatherOvercast * weatherB.a), 0.45, 1.35);
+		float flash = 0.0;
+		for (int i = 0; i < ${MOST_FLASHES}; i++) {
+			vec4 strike = weatherFlashes[i];
+			float reach = 1.0 - smoothstep(0.0, max(strike.z, 0.001), distance(vWeatherAt.xz, strike.xy));
+			flash += strike.w * reach * reach;
+		}
+		gl_FragColor.rgb += weatherFlashColor * flash * 0.3;
+		float low = 1.0 - smoothstep(0.0, 16.0, vWeatherAt.y);
+		weatherFogHere = clamp(weatherB.r * (0.35 + 0.65 * low) * 0.95, 0.0, 0.92);
+		weatherHazeHere = clamp(weatherB.g * (0.5 + 0.5 * low) * 0.6, 0.0, 0.6);
+	}
+	${LOCAL_FOG}
+`;
+
+/** Whether a material takes areas' own weather now: while there is some, unless it stays out (clouds). */
+const takesAreaWeather = (material: THREE.Material, renderer: unknown) =>
+	weatherShading.enabled &&
+	weatherShading.local &&
+	!material.userData.noAreaWeather &&
+	renderer === weatherShading.renderer;
+
+/**
+ * Adds an area's own weather over a material that takes no snow or wetness
+ * (ADR-0151): the plain water through the shared hook, the reflective water
+ * (render/Water) from its own. Nothing while no area has weather of its own.
+ */
+export const addAreaWeatherOver = (
+	material: THREE.Material,
+	shader: THREE.WebGLProgramParametersWithUniforms,
+	renderer: unknown,
+) => {
+	if (!takesAreaWeather(material, renderer)) {
+		return;
+	}
+	const u = weatherShading.uniforms;
+	Object.assign(shader.uniforms, {
+		weatherMapA: u.mapA,
+		weatherMapB: u.mapB,
+		weatherMapBounds: u.mapBounds,
+		weatherOvercast: u.overcast,
+		weatherFogColor: u.fogColor,
+		weatherHazeColor: u.hazeColor,
+		weatherFlashes: u.flashes,
+		weatherFlashColor: u.flashColor,
+	});
+	shader.vertexShader = shader.vertexShader
+		.replace("void main() {", "varying vec3 vWeatherAt;\nvoid main() {")
+		.replace("#include <project_vertex>", WEATHER_AT_VERTEX);
+	shader.fragmentShader = shader.fragmentShader
+		.replace("void main() {", `${LOCAL_FRAGMENT_HEAD}void main() {`)
+		.replace("#include <fog_fragment>", OVER_FOG);
+};
+
+/** What tells apart a program with an area's own weather over it, for a material's cache key. */
+export const areaWeatherOverKey = (material: THREE.Material) =>
+	weatherShading.enabled && weatherShading.local && !material.userData.noAreaWeather
+		? "weather:over:"
+		: "";
+
 /** What standard materials compile with: the weather's shading, while it's enabled. */
 const weatherOnBeforeCompile: THREE.Material["onBeforeCompile"] = function (
 	this: THREE.Material,
@@ -182,6 +252,10 @@ const weatherOnBeforeCompile: THREE.Material["onBeforeCompile"] = function (
 	renderer,
 ) {
 	if (!weatherShading.enabled || this.userData.noWeather || renderer !== weatherShading.renderer) {
+		// No snow or wetness (water), but an area's own fog and storm over it.
+		if (this.userData.noWeather) {
+			addAreaWeatherOver(this, shader, renderer);
+		}
 		addSurfaceShading(this, shader);
 		return;
 	}
@@ -220,12 +294,13 @@ const weatherOnBeforeCompile: THREE.Material["onBeforeCompile"] = function (
 // Three tells materials' programs apart by their own onBeforeCompile (the reflective water has
 // its own): kept, with whether the weather's shading is in.
 const weatherProgramKey: THREE.Material["customProgramCacheKey"] = function (this: THREE.Material) {
-	const weather =
-		weatherShading.enabled && !this.userData.noWeather
-			? weatherShading.local
+	const weather = !weatherShading.enabled
+		? ""
+		: this.userData.noWeather
+			? areaWeatherOverKey(this)
+			: weatherShading.local
 				? "weather:local:"
-				: "weather:"
-			: "";
+				: "weather:";
 	return surfaceProgramKey(this) + weather + this.onBeforeCompile.toString();
 };
 

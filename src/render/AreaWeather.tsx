@@ -7,6 +7,7 @@ import { useEditor } from "#/editor/store";
 import {
 	areaWeathersInWorld,
 	areaWeathersNow,
+	cloudAltitudeOf,
 	type IAreaWeatherNow,
 	weatherMapAmountsOf,
 	weatherNowInWorld,
@@ -15,7 +16,7 @@ import { useWorldData } from "#/editor/worldData";
 import { mixColor } from "#/lib/color";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
-import { isInsidePolygon, polygonArea } from "#/scene/areas";
+import { isHiddenArea, isInsidePolygon, polygonArea } from "#/scene/areas";
 import { skyLookAt } from "#/scene/sky";
 import { skyLightAt } from "#/scene/sun";
 import { type IWeatherMap, WEATHER_MAP_STRIDE, weatherMapOf } from "#/scene/weatherMap";
@@ -37,10 +38,6 @@ const FOG_NIGHT = "#252a33";
 const HAZE = "#f4ecdc";
 /** What storm clouds turn towards. */
 const STORM_GREY = "#525965";
-/** How high clouds float over an area's top: over houses and trees, low enough to read as over the area. */
-const CLOUD_HEIGHT = 9;
-/** Where an area's own rain and snow start falling (render/Weather): just under its clouds. */
-export const AREA_CLOUD_BASE = CLOUD_HEIGHT + 0.5;
 /** At most this many puffs, all areas together. */
 const MOST_PUFFS = 1600;
 
@@ -94,7 +91,7 @@ const COVERAGE = WEATHER_MAP_STRIDE - 1;
 const TEXTURE_CHANNELS = {
 	mapA: [0, 1, 2, 3],
 	mapB: [4, 5, 6, COVERAGE],
-	mapC: [7, -1, -1, COVERAGE],
+	mapC: [7, 8, -1, COVERAGE],
 } as const;
 
 const mapTexture = (map: IWeatherMap, channels: readonly number[]) => {
@@ -115,7 +112,10 @@ const mapTexture = (map: IWeatherMap, channels: readonly number[]) => {
 const useWeatherMap = (weathers: readonly IAreaWeatherNow[]) => {
 	useLayoutEffect(() => {
 		const map = weatherMapOf(
-			weathers.map(({ area, now }) => ({ points: area.points, amounts: weatherMapAmountsOf(now) })),
+			weathers.map(({ area, now }) => ({
+				points: area.points,
+				amounts: weatherMapAmountsOf(area, now),
+			})),
 		);
 		if (!map) {
 			return;
@@ -158,7 +158,7 @@ const puffsOf = (weathers: readonly IAreaWeatherNow[]) => {
 		const count = Math.max(1, Math.min(30, Math.round(now.cloudCover * size * 0.55)));
 		const scale = Math.min(2.2, 0.8 + size / 40);
 		for (const [c, [x, z]] of placesInside(area.points, count, seed).entries()) {
-			const height = area.height + CLOUD_HEIGHT + jitter(seed + c * 3.1) * 3;
+			const height = cloudAltitudeOf(now, { area }) + jitter(seed + c * 3.1) * 3;
 			const pieces = 3 + Math.floor(jitter(seed + c * 5.3) * 3);
 			for (let p = 0; p < pieces && puffs.length < MOST_PUFFS; p++) {
 				const r = jitter(seed + c * 7.7 + p);
@@ -206,8 +206,9 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 			// A glow of their own, so they never go black at night (as if moonlit).
 			emissive: new THREE.Color("#1d2230"),
 		});
-		// Snow doesn't settle on clouds.
+		// Snow doesn't settle on clouds, and an area's fog and storm don't lie on them.
 		made.userData.noWeather = true;
+		made.userData.noAreaWeather = true;
 		return made;
 	}, []);
 	useEffect(() => () => geometry.dispose(), [geometry]);
@@ -288,7 +289,9 @@ interface IStorm {
 	places: [number, number][];
 	/** How far its flash lights round where it strikes. */
 	reach: number;
+	/** Where its bolts start (its clouds) and end (its ground). */
 	top: number;
+	ground: number;
 }
 
 const boltFrom = new THREE.Vector3();
@@ -330,7 +333,8 @@ const AreaLightning = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) =
 						seed,
 						places: placesInside(area.points, STRIKE_PLACES, seed + 0.77),
 						reach: Math.min(24, Math.max(8, size * 0.6)),
-						top: area.height,
+						top: cloudAltitudeOf(now, { area }),
+						ground: isHiddenArea(area) ? 0 : area.height,
 					},
 				];
 			}),
@@ -394,8 +398,8 @@ const AreaLightning = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) =
 			if (flash.brightness < 0.25) {
 				continue;
 			}
-			const top = flash.storm.top + CLOUD_HEIGHT;
-			const bottom = flash.storm.top;
+			const top = flash.storm.top;
+			const bottom = flash.storm.ground;
 			boltFrom.set(flash.x, top, flash.z);
 			for (let piece = 1; piece <= BOLT_PIECES; piece++) {
 				const along = piece / BOLT_PIECES;

@@ -22,7 +22,7 @@ const square = (x: number, z: number, size: number) => [
 ];
 const storm = (points: number[][], rain = 1): IWeatherMapArea => ({
 	points,
-	amounts: { ...none, rain, wetness: rain, overcast: 0.8 },
+	amounts: { ...none, rain, wetness: rain, overcast: 0.8, cloudAltitude: 0.1 },
 });
 
 describe("the weather map", () => {

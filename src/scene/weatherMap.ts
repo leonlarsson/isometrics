@@ -21,6 +21,8 @@ export const WEATHER_MAP_AMOUNTS = [
 	"haze",
 	"overcast",
 	"splashes",
+	/** How high its clouds float, as a share of the highest (editor/weather: MOST_CLOUD_ALTITUDE). */
+	"cloudAltitude",
 ] as const;
 
 export type TWeatherMapAmount = (typeof WEATHER_MAP_AMOUNTS)[number];

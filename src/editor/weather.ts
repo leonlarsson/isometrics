@@ -27,6 +27,8 @@ export interface IWeatherNow {
 	cloudCover: number;
 	cloudColor: string | null;
 	cloudSpeed: number;
+	/** How high the clouds float, as set (null: where they float by default, `cloudAltitudeOf`). */
+	cloudAltitude: number | null;
 }
 
 /** The weather's settings that can follow a data value. */
@@ -61,8 +63,26 @@ export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherN
 		cloudCover: amount("cloudCover"),
 		cloudColor: weather.cloudColor,
 		cloudSpeed: weather.cloudSpeed,
+		cloudAltitude: weather.cloudAltitude,
 	};
 };
+
+/** How far over an area's top its clouds float unless set: over houses and trees, low enough to read as over it. */
+export const AREA_CLOUDS_ABOVE = 9;
+
+/** The highest clouds can float (`cloudAltitude`'s limit). */
+export const MOST_CLOUD_ALTITUDE = 80;
+
+/**
+ * How high clouds float: as set, else the world's on their ring round it
+ * (higher for a big world, `reach` its longer side) or an area's over its top.
+ */
+export const cloudAltitudeOf = (
+	now: Pick<IWeatherNow, "cloudAltitude">,
+	over: { reach: number } | { area: Pick<TArea, "height"> },
+) =>
+	now.cloudAltitude ??
+	("area" in over ? over.area.height + AREA_CLOUDS_ABOVE : 30 + over.reach * 0.15);
 
 /** The world's weather in effect now, from the store, for code that runs each frame. */
 export const weatherNowInWorld = () => {
@@ -127,8 +147,11 @@ export const areaWeathersNow = (
 export const areaWeathersInWorld = () =>
 	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow().values);
 
-/** What a weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
-export const weatherMapAmountsOf = (now: IWeatherNow): Record<TWeatherMapAmount, number> => ({
+/** What an area's weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
+export const weatherMapAmountsOf = (
+	area: Pick<TArea, "height">,
+	now: IWeatherNow,
+): Record<TWeatherMapAmount, number> => ({
 	rain: now.rain,
 	snow: now.snow,
 	wetness: now.wetness,
@@ -137,6 +160,7 @@ export const weatherMapAmountsOf = (now: IWeatherNow): Record<TWeatherMapAmount,
 	haze: now.haze,
 	overcast: now.overcast,
 	splashes: now.showsSplashes ? now.rain : 0,
+	cloudAltitude: cloudAltitudeOf(now, { area }) / MOST_CLOUD_ALTITUDE,
 });
 
 /** The most of an amount anywhere: the world's, or an area's own if more. */

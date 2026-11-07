@@ -2,11 +2,15 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { areaWeathersInWorld, mostAnywhere, weatherNowInWorld } from "#/editor/weather";
+import {
+	areaWeathersInWorld,
+	MOST_CLOUD_ALTITUDE,
+	mostAnywhere,
+	weatherNowInWorld,
+} from "#/editor/weather";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
 
-import { AREA_CLOUD_BASE } from "./AreaWeather";
 import { pixelsPerUnitAt } from "./cameraMath";
 import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weatherShading";
 
@@ -61,7 +65,17 @@ const MAP_AMOUNT = /* glsl */ `
 			float world = amount * (1.0 - here.a);
 			return vec2(world, world + here[WEATHER_CHANNEL]);
 		}
+		/** How high an area's own clouds float here (its rain and snow fall from under them). */
+		uniform sampler2D weatherCloudMap;
+		uniform float mostCloudAltitude;
+		float cloudBaseAt(vec3 at) {
+			vec4 here = texture2D(weatherCloudMap, weatherMapUv(at));
+			return here.a > 0.001 ? here.g / here.a * mostCloudAltitude : 0.0;
+		}
 	#else
+		float cloudBaseAt(vec3 at) {
+			return 0.0;
+		}
 		vec2 amountAt(vec3 at) {
 			return vec2(amount);
 		}
@@ -84,8 +98,6 @@ const FALL_VERTEX = /* glsl */ `
 	uniform float streak;
 	uniform float sway;
 	uniform float pointSize;
-	/** How high an area's clouds hang (render/AreaWeather): its own rain and snow fall from there. */
-	uniform float cloudBase;
 	varying float fade;
 	varying float strength;
 	void main() {
@@ -105,7 +117,8 @@ const FALL_VERTEX = /* glsl */ `
 		vec2 amounts = amountAt(vec3(xz.x, 0.0, xz.y));
 		strength = amounts.y;
 		// The world's falls from the top of the box; an area's own from under its clouds.
-		bool shown = rank < amounts.x || (rank < amounts.y && position.y < cloudBase);
+		bool shown =
+			rank < amounts.x || (rank < amounts.y && position.y < cloudBaseAt(vec3(xz.x, 0.0, xz.y)) + 0.5);
 		vec4 view = modelViewMatrix * vec4(position, 1.0);
 		gl_Position = shown ? projectionMatrix * view : ${NOWHERE_GLSL};
 		// Flakes: as big on screen as their size at the target, smaller farther away in perspective.
@@ -183,7 +196,8 @@ const fallMaterial = (
 			color: { value: new THREE.Color(color) },
 			opacity: { value: 1 },
 			opacityPerAmount: { value: 0 },
-			cloudBase: { value: AREA_CLOUD_BASE },
+			weatherCloudMap: weatherShading.uniforms.mapC,
+			mostCloudAltitude: { value: MOST_CLOUD_ALTITUDE },
 			...reading.uniforms,
 		},
 	});

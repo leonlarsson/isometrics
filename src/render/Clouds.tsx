@@ -4,7 +4,7 @@ import type * as THREE from "three";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { useSkyWeather } from "#/editor/weather";
+import { cloudAltitudeOf, useSkyWeather } from "#/editor/weather";
 import { skyLookAt } from "#/scene/sky";
 
 import { ignoreRaycast } from "./SkyDome";
@@ -32,10 +32,9 @@ interface ICloud {
 }
 
 /** Clouds on a wide ring around and above the world, far enough out to stay clear of it. */
-const cloudsFor = (count: number, reach: number): ICloud[] => {
+const cloudsFor = (count: number, reach: number, height: number): ICloud[] => {
 	const random = seeded(7);
 	const radius = reach * 0.9 + 40;
-	const height = 30 + reach * 0.15;
 	return Array.from({ length: count }, (_, i) => {
 		const angle = ((i + random() * 0.6) / count) * Math.PI * 2;
 		const distance = radius * (0.75 + random() * 0.5);
@@ -57,8 +56,8 @@ const cloudsFor = (count: number, reach: number): ICloud[] => {
 /**
  * Low-poly clouds in the sky in perspective (ADR-0070): flat-shaded puffs,
  * lit like the world, drifting slowly round it while motion plays. Like the
- * sky, the pointer passes through them. How many,
- * their colour and speed come from the world's sky (scene/sky).
+ * sky, the pointer passes through them. How many, their colour, speed and
+ * height come from the world's weather (scene/sky, `cloudAltitude`).
  */
 export const Clouds = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
@@ -70,10 +69,11 @@ export const Clouds = () => {
 	const ring = useRef<THREE.Group>(null);
 	const look = skyLookAt(lighting, sky, hour, useSkyWeather());
 	const count = Math.round(look.cloudCover * MAX_CLOUDS);
-	const clouds = useMemo(
-		() => cloudsFor(count, Math.max(ground.width, ground.depth)),
-		[count, ground.width, ground.depth],
-	);
+	const cloudAltitude = useEditor((s) => s.scene.weather.cloudAltitude);
+	const clouds = useMemo(() => {
+		const reach = Math.max(ground.width, ground.depth);
+		return cloudsFor(count, reach, cloudAltitudeOf({ cloudAltitude }, { reach }));
+	}, [count, ground.width, ground.depth, cloudAltitude]);
 
 	useFrame((_, delta) => {
 		if (ring.current && playing) {

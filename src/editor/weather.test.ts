@@ -4,7 +4,13 @@ import { worldBindingMapsOf } from "#/scene/dataBindings";
 import { AreaSchema, DataBindingSchema, SceneSchema, WeatherSchema } from "#/scene/schema";
 import { overcastLight, skyLightAt } from "#/scene/sun";
 
-import { areaWeathersNow, mostAnywhere, weatherNow } from "./weather";
+import {
+	AREA_CLOUDS_ABOVE,
+	areaWeathersNow,
+	cloudAltitudeOf,
+	mostAnywhere,
+	weatherNow,
+} from "./weather";
 
 const weather = (fields = {}) => WeatherSchema.parse(fields);
 const lighting = SceneSchema.parse({ version: 1 }).lighting;
@@ -92,5 +98,13 @@ describe("weather per area (ADR-0151)", () => {
 		expect(
 			worldBindingMapsOf(scene).some((bindings) => bindings.lightningRate?.key === "anger"),
 		).toBe(true);
+	});
+
+	it("floats its clouds over its top unless their height is set, and the world's on their ring", () => {
+		const raised = area("hill", { height: 2, weather: {} });
+		const now = areaWeathersNow([raised])[0].now;
+		expect(cloudAltitudeOf(now, { area: raised })).toBe(2 + AREA_CLOUDS_ABOVE);
+		expect(cloudAltitudeOf({ cloudAltitude: 20 }, { area: raised })).toBe(20);
+		expect(cloudAltitudeOf({ cloudAltitude: null }, { reach: 100 })).toBe(45);
 	});
 });

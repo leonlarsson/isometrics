@@ -2,7 +2,12 @@ import type { Draft } from "immer";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
-import { type TWeatherDataTarget, weatherNow } from "#/editor/weather";
+import {
+	cloudAltitudeOf,
+	MOST_CLOUD_ALTITUDE,
+	type TWeatherDataTarget,
+	weatherNow,
+} from "#/editor/weather";
 import { useWorldData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
 import { percent } from "#/scene/format";
@@ -53,6 +58,8 @@ interface IWeatherFieldsProps {
 	owner: "world" | "area";
 	/** What its panels' ids start with, so the world's and an area's fold on their own. */
 	panelIds: string;
+	/** How high its clouds float while their height isn't set: the world's ring's, or over the area. */
+	cloudAltitudeByDefault: number;
 }
 
 /**
@@ -61,7 +68,13 @@ interface IWeatherFieldsProps {
  * softens the light, every amount by hand or from a data value. The world's
  * Weather tab, and an area's when it has its own (ADR-0151).
  */
-export const WeatherFields = ({ weather, change, owner, panelIds }: IWeatherFieldsProps) => {
+export const WeatherFields = ({
+	weather,
+	change,
+	owner,
+	panelIds,
+	cloudAltitudeByDefault,
+}: IWeatherFieldsProps) => {
 	const sky = useEditor((s) => s.scene.sky);
 	const lighting = useEditor((s) => s.scene.lighting);
 	const data = useWorldData().values;
@@ -286,6 +299,26 @@ export const WeatherFields = ({ weather, change, owner, panelIds }: IWeatherFiel
 							onChange={(value) => set("cloudSpeed", value, true)}
 							inherit={byDefault("cloudSpeed", `${DEFAULTS.cloudSpeed}×`)}
 						/>
+
+						<SliderField
+							label="Cloud height"
+							value={weather.cloudAltitude ?? cloudAltitudeByDefault}
+							min={1}
+							max={MOST_CLOUD_ALTITUDE}
+							step={0.5}
+							onChange={(value) => set("cloudAltitude", value, true)}
+							inherit={{
+								from: "default",
+								inherited: weather.cloudAltitude === null,
+								onReset: () => set("cloudAltitude", null),
+								value: `${Math.round(cloudAltitudeByDefault * 10) / 10}`,
+							}}
+							hint={
+								isArea
+									? "How high above the ground its clouds float; its rain and lightning start there."
+									: "How high above the ground the clouds float round the world."
+							}
+						/>
 					</>
 				)}
 
@@ -326,6 +359,7 @@ export const WeatherFields = ({ weather, change, owner, panelIds }: IWeatherFiel
 /** The world's Weather tab (ADR-0102). */
 export const WeatherTab = () => {
 	const weather = useEditor((s) => s.scene.weather);
+	const reach = useEditor((s) => Math.max(s.scene.ground.width, s.scene.ground.depth));
 	const commit = useEditor((s) => s.commit);
 
 	return (
@@ -338,6 +372,7 @@ export const WeatherTab = () => {
 			<WeatherFields
 				weather={weather}
 				owner="world"
+				cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { reach })}
 				panelIds="weather"
 				change={(recipe, coalesce) =>
 					commit(
@@ -405,6 +440,7 @@ export const AreaWeatherTab = ({ area }: { area: TArea }) => {
 				<WeatherFields
 					weather={area.weather}
 					owner="area"
+					cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { area })}
 					panelIds="area.weather"
 					change={(recipe, coalesce) =>
 						edit((a) => {
