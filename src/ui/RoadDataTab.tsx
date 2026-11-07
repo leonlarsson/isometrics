@@ -63,7 +63,11 @@ export const RoadFlowSection = ({ road }: { road: TRoad }) => {
 	const reset = resetsAgainst(road.flow, FLOW_DEFAULTS, (key, value) =>
 		editFlow(key, { [key]: value }),
 	);
-	const count = (setting: "vehicleCountAlong" | "vehicleCountAgainst", label: string) => (
+	const count = (
+		setting: "vehicleCountAlong" | "vehicleCountAgainst",
+		label: string,
+		disabled = false,
+	) => (
 		<DataDrivenField
 			kind="range"
 			binding={road.data[setting]}
@@ -77,6 +81,7 @@ export const RoadFlowSection = ({ road }: { road: TRoad }) => {
 				min={0}
 				max={40}
 				step={1}
+				disabled={disabled}
 				onChange={(value) => editFlow(setting, { [setting]: value })}
 				inherit={reset(setting)}
 			/>
@@ -142,7 +147,12 @@ export const RoadFlowSection = ({ road }: { road: TRoad }) => {
 
 					{count("vehicleCountAlong", "Along its points")}
 
-					{count("vehicleCountAgainst", "The other way")}
+					{/* A one-way road has no other way (ADR-0148). */}
+					{count(
+						"vehicleCountAgainst",
+						road.isOneWay ? "The other way (one-way road)" : "The other way",
+						road.isOneWay,
+					)}
 
 					<SliderField
 						label="Vehicle size"

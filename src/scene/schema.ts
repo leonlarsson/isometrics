@@ -725,11 +725,37 @@ export const RoadKindSchema = z
 		"Numbered so each can get variants. road_01 = paved road with markings, dirt_path_01 = path, hidden_route_01 = invisible route that only vehicles use (ferry lines, forklift paths).",
 	);
 
+// See docs/adr/0148-roads-for-interchanges.md.
+export const PillarKindSchema = z
+	.enum(["post_01", "column_01", "hammerhead_01", "pair_01", "wall_01"])
+	.describe(
+		"What a raised road's pillars look like (numbered so each can get variants): post_01 = a square post (as pillars always were), column_01 = a round column, hammerhead_01 = a column with a crosshead under the deck (motorway viaducts, rail), pair_01 = two posts under the deck's edges joined by a beam, wall_01 = a thin wall across under the deck.",
+	);
+
+/** A choice about pillars at one of a road's points (ADR-0148). */
+export const PillarAtPointSchema = z
+	.object({
+		pointIndex: z.number().int().min(0).describe("Which point: 0 = its first."),
+		placement: z
+			.enum(["here", "noneHere", "noneToNextPoint"])
+			.default("here")
+			.describe(
+				"here = a pillar stands at the point (and no other within half the spacing; it stands even where pillarsKeepClear would move it); noneHere = no pillar within half the spacing of the point; noneToNextPoint = no pillars from the point to the next one.",
+			),
+	})
+	.describe("A choice about pillars at one of a road's points.");
+
+export const RoadCurveShapeSchema = z
+	.enum(["roundedCorners", "throughPoints"])
+	.describe(
+		"How a road's line bends between its points: roundedCorners = straight from point to point, each corner rounded by cornerRadius (put points at the corners); throughPoints = one smooth curve through every point, with no corners (put points along the way the road should go; a spiral or a loop ramp needs 4 or more a turn). Roads drawn in the editor are throughPoints.",
+	);
+
 // See docs/adr/0022-centre-lane-roads.md.
 export const DrivingLaneSchema = z
 	.enum(["side", "centre"])
 	.describe(
-		"Where vehicles drive: in a lane on the world's driving side, or down the centre (one-way roads, race tracks).",
+		"Where vehicles drive: in a lane on the world's driving side, or all down the centre (race tracks, a single file; a road driven one way only is isOneWay).",
 	);
 
 /** How vehicles behave on one road: its own settings, and the world's `traffic` ones it overrides. */
@@ -846,12 +872,21 @@ export const RoadSchema = z
 			.default(false)
 			.describe("Whether it loops back from the last point to the first."),
 		width: z.number().min(0.4).max(20).default(2.4).describe("Width in grid units."),
+		isOneWay: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether vehicles drive it only one way, in the order of its points (from its first point to its last): a motorway's carriageway, a ramp, a one-way street. Its vehicles' follow.drivesTheOtherWay and its flow's vehicleCountAgainst don't apply; at a junction vehicles never turn onto it against its way, and at a junction where any road is one-way they don't turn back through it and mostly carry straight on (ADR-0148). A vehicle reaching its last point with no way on starts over where it started. false = driven both ways.",
+			),
+		curveShape: RoadCurveShapeSchema.default("roundedCorners"),
 		cornerRadius: z
 			.number()
 			.min(0)
 			.max(50)
 			.default(3)
-			.describe("Radius of the curve at each corner, in grid units; 0 = sharp corners."),
+			.describe(
+				"Radius of the curve at each corner, in grid units; 0 = sharp corners. Only with curveShape roundedCorners.",
+			),
 		showsCentreLine: z
 			.boolean()
 			.default(true)
@@ -861,8 +896,24 @@ export const RoadSchema = z
 			.number()
 			.min(1)
 			.max(40)
-			.default(4)
-			.describe("With heldUpBy pillars: the distance between pillars, in grid units."),
+			.nullable()
+			.default(null)
+			.describe(
+				"With heldUpBy pillars: the distance between pillars, in grid units. null = its pillar kind's: 4 for post_01 (as roads always had), and about four times the road's width (8 to 20) for the others, as real viaducts span (ADR-0148).",
+			),
+		pillarKind: PillarKindSchema.default("post_01"),
+		pillarsKeepClear: z
+			.boolean()
+			.default(false)
+			.describe(
+				"With heldUpBy pillars: whether its pillars keep clear of what's below the deck: other roads and junctions, water areas, and its own lower turns (a spiral). A pillar that would stand in one moves along the road, up to half the spacing, else isn't built. Roads drawn in the editor have it on; worlds written by hand should set it true (ADR-0148).",
+			),
+		pillarsAtPoints: z
+			.array(PillarAtPointSchema)
+			.default([])
+			.describe(
+				'With heldUpBy pillars: choices made at its points, one per point, e.g. [{ "pointIndex": 3, "placement": "noneToNextPoint" }]. Points not listed get pillars as spaced.',
+			),
 		embankmentAngle: z
 			.number()
 			.min(10)
@@ -909,6 +960,14 @@ export const RoadEndSchema = z
 	.enum(["start", "end"])
 	.describe("Which end of a road: start = its first point, end = its last.");
 
+/** A road end named from elsewhere: a junction end's leadsTo (ADR-0148). */
+export const JunctionEndRefSchema = z
+	.object({
+		roadId: z.string().describe("Id of the road whose end it is."),
+		end: RoadEndSchema,
+	})
+	.describe("A road end at the same junction.");
+
 // See docs/adr/0136-road-junctions.md.
 export const JunctionSchema = z
 	.object({
@@ -919,16 +978,29 @@ export const JunctionSchema = z
 					.object({
 						roadId: z.string().describe("Id of the road whose end it is."),
 						end: RoadEndSchema,
+						leadsTo: z
+							.array(JunctionEndRefSchema)
+							.nullable()
+							.default(null)
+							.describe(
+								'The ends at this junction that vehicles arriving by this end may leave by (the turns allowed from it), e.g. [{ "roadId": "ramp", "end": "start" }]. null = any way the rules allow: never back the way it came, never against a one-way road, and at a junction where a road is one-way no turning back through it (ADR-0148).',
+							),
 					})
 					.describe("One road end at the junction."),
 			)
 			.min(2)
 			.describe(
-				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width.",
+				"The road ends that meet here, two or more, all at the same point (x, z and altitude). A T or a crossroads joins the ends of the roads that meet there: the road going through is cut in two at it. Ends of roads that are missing or loop are left out, and so is an end further from the first end than its road's width, or at another altitude (more than 0.05 above or below it).",
+			),
+		standsOnPillars: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether a raised junction stands on pillars of its own under its surface, in its first pillared road's pillarKind (ADR-0148); false = only its roads' pillars hold it up, beside it. Junctions made in the editor have it on; worlds written by hand should set it true.",
 			),
 	})
 	.describe(
-		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random. A junction is where its ends are.",
+		"Where roads meet: their ends are drawn as one surface, without overlapping markings, and vehicles drive on from one road to another, choosing their way at random (where a road is one-way: never against it, not turning back, mostly straight on; ADR-0148). A junction is where its ends are.",
 	);
 
 export const DrivingSideSchema = z
@@ -1992,7 +2064,11 @@ export type TRoadKind = z.output<typeof RoadKindSchema>;
 export type TRoadPoint = z.output<typeof RoadPointSchema>;
 export type TJunction = z.output<typeof JunctionSchema>;
 export type TJunctionEnd = TJunction["ends"][number];
+export type TJunctionInput = z.input<typeof JunctionSchema>;
 export type TRoadHeldUpBy = z.output<typeof RoadHeldUpBySchema>;
+export type TRoadCurveShape = z.output<typeof RoadCurveShapeSchema>;
+export type TPillarKind = z.output<typeof PillarKindSchema>;
+export type TPillarAtPoint = z.output<typeof PillarAtPointSchema>;
 export type TRoadTraffic = z.output<typeof RoadTrafficSchema>;
 export type TDrivingLane = z.output<typeof DrivingLaneSchema>;
 export type TArea = z.output<typeof AreaSchema>;

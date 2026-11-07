@@ -345,6 +345,69 @@ describe("warning of flows that can't work", () => {
 	});
 });
 
+describe("warning of one-way roads and turns that can't work (ADR-0148)", () => {
+	it("warns of a one-way road into a junction with no way out, and of turns that aren't there", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("in", -20, 0, { isOneWay: true }),
+				// One-way towards the junction too: no way out of it for "in".
+				{
+					id: "other",
+					points: [
+						[0, 20],
+						[0, 0],
+					],
+					isOneWay: true,
+				},
+				straightRoad("out", 0, 20),
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{
+							roadId: "in",
+							end: "end",
+							leadsTo: [
+								{ roadId: "other", end: "end" },
+								{ roadId: "nowhere", end: "start" },
+							],
+						},
+						{ roadId: "other", end: "end" },
+						{ roadId: "out", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toContain(
+			'junctions[0] "j".ends[0].leadsTo: names the end of one-way road "other"',
+		);
+		expect(said).toContain('names the start of road "nowhere", which isn\'t another end');
+		expect(said).toContain(
+			'junctions[0] "j".ends[0]: one-way road "in" leads into this junction, but no way out of it is allowed (its leadsTo)',
+		);
+	});
+
+	it("says nothing of one-way roads that lead on", () => {
+		const said = warningsOf({
+			roads: [
+				straightRoad("in", -20, 0, { isOneWay: true }),
+				straightRoad("out", 0, 20, { isOneWay: true }),
+			],
+			junctions: [
+				{
+					id: "j",
+					ends: [
+						{ roadId: "in", end: "end" },
+						{ roadId: "out", end: "start" },
+					],
+				},
+			],
+		});
+		expect(said).toBe("");
+	});
+});
+
 describe("checking a patch", () => {
 	it("checks the world it makes, says what it changes, and its own problems by place", () => {
 		const world = createEmptyScene({ title: "Harbour" });

@@ -11,6 +11,7 @@ import {
 	resetToDefault,
 	Section,
 	SliderField,
+	SwitchField,
 	VectorField,
 	valuesDiffer,
 } from "./fields";
@@ -24,6 +25,78 @@ const endPoint = (road: TRoad, end: TRoadEnd): [number, number, number] => {
 /** Other road ends within this distance are offered as join targets. */
 const JOIN_NEARBY = 8;
 const MAX_JOIN_OPTIONS = 3;
+
+/**
+ * Where vehicles arriving at a junction by this road's end may go on to (ADR-0148): a switch per
+ * other end, all on while the end's `leadsTo` is null (any way the rules allow). A way onto a
+ * one-way road against its way is greyed out. Turning one off writes the list; Reset clears it.
+ */
+const JunctionTurns = ({ road, end }: { road: TRoad; end: TRoadEnd }) => {
+	const roads = useEditor((s) => s.scene.roads);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const junction = junctions[junctionIndexOf(junctions, road.id, end)];
+	const arriving = junction?.ends.find((e) => e.roadId === road.id && e.end === end);
+	if (!junction || !arriving) {
+		return null;
+	}
+	const isArriving = !(road.isOneWay && end === "start");
+	const ways = junction.ends.flatMap((e) => {
+		const other = roads.find((r) => r.id === e.roadId);
+		if (!other || (e.roadId === road.id && e.end === end)) {
+			return [];
+		}
+		return [
+			{ roadId: e.roadId, end: e.end, road: other, against: other.isOneWay && e.end === "end" },
+		];
+	});
+	const allows = (to: { roadId: string; end: TRoadEnd }) =>
+		arriving.leadsTo === null ||
+		arriving.leadsTo.some((way) => way.roadId === to.roadId && way.end === to.end);
+	const write = (leadsTo: { roadId: string; end: TRoadEnd }[] | null) =>
+		useEditor.getState().commit((scene) => {
+			const target = scene.junctions
+				.find((j) => j.id === junction.id)
+				?.ends.find((e) => e.roadId === road.id && e.end === end);
+			if (target) {
+				target.leadsTo = leadsTo;
+			}
+		});
+	const reset = {
+		from: "default",
+		inherited: arriving.leadsTo === null,
+		onReset: () => write(null),
+		value: "any way",
+	};
+	if (!isArriving) {
+		return (
+			<Hint>
+				Vehicles only leave the junction by this road: it's one-way, from its first point.
+			</Hint>
+		);
+	}
+	return (
+		<>
+			<GroupLabel>Vehicles arriving here go on to</GroupLabel>
+
+			{ways.map((way) => (
+				<SwitchField
+					key={`${way.roadId}:${way.end}`}
+					label={`${roadNameOf(way.road)} (${way.end === "start" ? "from its start" : "from its end"})${way.against ? " (one-way, the other way)" : ""}`}
+					checked={!way.against && allows(way)}
+					disabled={way.against}
+					inherit={reset}
+					onChange={(on) => {
+						const now = ways.filter((each) => !each.against && allows(each));
+						const next = on
+							? [...now, way]
+							: now.filter((each) => !(each.roadId === way.roadId && each.end === way.end));
+						write(next.map((each) => ({ roadId: each.roadId, end: each.end })));
+					}}
+				/>
+			))}
+		</>
+	);
+};
 
 /** Controls for the selected control point: position, height, and point actions. */
 export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) => {
@@ -152,6 +225,8 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 					<Hint>
 						{`Connected to ${names.join(" and ")}: vehicles drive on from one road to another. Moving this point moves the junction, and the other roads' ends follow.`}
 					</Hint>
+
+					<JunctionTurns road={road} end={end} />
 
 					<Button size="sm" icon="road" block onClick={() => store().drawRoadFrom(road.id, end)}>
 						Draw a road from here

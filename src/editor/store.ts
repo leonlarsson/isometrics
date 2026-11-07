@@ -34,6 +34,7 @@ import {
 	disconnectEnd,
 	endPointOf,
 	junctionsAfterJoin,
+	junctionsAfterReverse,
 	junctionsAfterSplit,
 	roadAnchorAt,
 	settleJunctions,
@@ -48,10 +49,20 @@ import {
 	type TEntityLightChange,
 } from "#/scene/objectSettings";
 import {
+	choicesAfterInsert,
+	choicesAfterRemove,
+	choicesAfterReverse,
+	choicesAfterSplit,
+	choicesMovedInto,
+} from "#/scene/pillarChoices";
+import {
 	joinedPoints,
+	NEW_ROAD_SETTINGS,
 	pointWidth,
+	polylineLength,
 	ROAD_KIND_LABELS,
 	ROAD_KIND_WIDTH,
+	roadCenterlineOf,
 	roadNameOf,
 	type TRoadEnd,
 } from "#/scene/roads";
@@ -761,6 +772,12 @@ export interface IEditorState {
 	 * point (returns the new road's id); a loop opens there (returns its own id).
 	 */
 	splitRoad: (id: string, index: number) => string | null;
+	/**
+	 * Turn a road round (ADR-0148): its points in the other order, so a one-way road goes the other
+	 * way. Its junction ends swap, its flow's counts swap, and vehicles that start on it start where
+	 * they were, driving the same way on the ground.
+	 */
+	reverseRoad: (id: string) => void;
 	/** Join two road ends into one road; joining a road's own two ends makes a loop. */
 	joinRoads: (aId: string, aEnd: TRoadEnd, bId: string, bEnd: TRoadEnd) => void;
 	/**
@@ -1551,6 +1568,10 @@ export const createEditorStore = (openScene?: TScene) => {
 						shape.points = shape.points.filter(
 							(_, index) => !doomed.has(index),
 						) as typeof shape.points;
+						// Pillar choices stay with their points (ADR-0148).
+						if ("pillarsAtPoints" in shape && shape.pillarsAtPoints.length > 0) {
+							shape.pillarsAtPoints = choicesAfterRemove(shape.pillarsAtPoints, doomed);
+						}
 						if ("gates" in shape && "gates" in before) {
 							keepGatesInPlace(shape, before);
 						}
@@ -2480,6 +2501,7 @@ export const createEditorStore = (openScene?: TScene) => {
 							? widths.reduce<number>((sum, w) => sum + (w ?? road.width), 0) / widths.length
 							: null;
 						road.points.splice(index, 0, withPoint([point[0], point[1], point[2]], { width }));
+						road.pillarsAtPoints = choicesAfterInsert(road.pillarsAtPoints, index);
 					},
 					options,
 				),
@@ -2495,6 +2517,7 @@ export const createEditorStore = (openScene?: TScene) => {
 						disconnectEnd(scene, id, index === 0 ? "start" : "end");
 					}
 					road.points.splice(index, 1);
+					road.pillarsAtPoints = choicesAfterRemove(road.pillarsAtPoints, [index]);
 				});
 				set((state) =>
 					state.selectedRoadId === id && state.selectedPointIndex !== null
@@ -2511,8 +2534,14 @@ export const createEditorStore = (openScene?: TScene) => {
 				if (road.loops) {
 					// Open the loop at this point: it becomes both the start and the end.
 					get().updateRoad(id, (r) => {
+						const count = r.points.length;
 						r.points = [...r.points.slice(index), ...r.points.slice(0, index + 1)];
 						r.loops = false;
+						// Pillar choices stay with their points (ADR-0148): point i is now i - index.
+						r.pillarsAtPoints = r.pillarsAtPoints.map((choice) => ({
+							...choice,
+							pointIndex: (choice.pointIndex - index + count) % count,
+						}));
 					});
 					set({ selectedPointIndex: 0, joinOffer: null });
 					return id;
@@ -2520,22 +2549,70 @@ export const createEditorStore = (openScene?: TScene) => {
 				if (index === 0 || index === road.points.length - 1) {
 					return null; // nothing to cut at an end
 				}
+				const [firstChoices, secondChoices] = choicesAfterSplit(road.pillarsAtPoints, index);
 				const second = RoadSchema.parse({
 					...structuredClone(road),
 					id: newId("road"),
 					name: road.name ? `${road.name} (2)` : "",
 					points: road.points.slice(index),
+					pillarsAtPoints: secondChoices,
 				});
 				get().commit((scene) => {
 					const first = scene.roads.find((r) => r.id === id);
 					if (first) {
 						first.points = first.points.slice(0, index + 1);
+						first.pillarsAtPoints = firstChoices;
 						scene.roads.splice(scene.roads.indexOf(first) + 1, 0, second);
 						junctionsAfterSplit(scene, id, second.id);
 					}
 				});
 				set({ selectedRoadId: second.id, selectedPointIndex: 0, joinOffer: null });
 				return second.id;
+			},
+
+			reverseRoad: (id) => {
+				const road = get().scene.roads.find((r) => r.id === id);
+				if (!road) {
+					return;
+				}
+				const length = polylineLength(roadCenterlineOf(road), road.loops);
+				const count = road.points.length;
+				get().commit((scene) => {
+					const r = scene.roads.find((each) => each.id === id);
+					if (!r) {
+						return;
+					}
+					// A loop keeps its first point, so it goes round the other way from the same place.
+					r.points = r.loops ? [r.points[0], ...r.points.slice(1).reverse()] : r.points.reverse();
+					r.pillarsAtPoints = choicesAfterReverse(r.pillarsAtPoints, count, r.loops);
+					const flow = r.flow;
+					[flow.vehicleCountAlong, flow.vehicleCountAgainst] = [
+						flow.vehicleCountAgainst,
+						flow.vehicleCountAlong,
+					];
+					const along = r.data.vehicleCountAlong;
+					const against = r.data.vehicleCountAgainst;
+					delete r.data.vehicleCountAlong;
+					delete r.data.vehicleCountAgainst;
+					if (against) {
+						r.data.vehicleCountAlong = against;
+					}
+					if (along) {
+						r.data.vehicleCountAgainst = along;
+					}
+					junctionsAfterReverse(scene, id);
+					for (const entity of scene.entities) {
+						if (entity.follow?.roadId === id) {
+							const from = length - entity.follow.startDistance;
+							entity.follow.startDistance = round(r.loops && from >= length ? 0 : from);
+							entity.follow.drivesTheOtherWay = !entity.follow.drivesTheOtherWay;
+						}
+					}
+				});
+				const point = get().selectedPointIndex;
+				if (get().selectedRoadId === id && point !== null) {
+					set({ selectedPointIndex: road.loops ? (count - point) % count : count - 1 - point });
+				}
 			},
 
 			joinRoads: (aId, aEnd, bId, bEnd) => {
@@ -2576,6 +2653,19 @@ export const createEditorStore = (openScene?: TScene) => {
 							: p,
 					);
 					target.points = joinedPoints(a.points, aEnd, bPoints, bEnd);
+					// Pillar choices stay with their points (ADR-0148): a's first (turned so its joined end
+					// is last), then b's from its joined end, after a's, less the point they share.
+					const touching = target.points.length < a.points.length + b.points.length;
+					target.pillarsAtPoints = [
+						...choicesMovedInto(a.pillarsAtPoints, a.points.length, {
+							reversed: aEnd === "start",
+							offset: 0,
+						}),
+						...choicesMovedInto(b.pillarsAtPoints, b.points.length, {
+							reversed: bEnd === "end",
+							offset: a.points.length - (touching ? 1 : 0),
+						}),
+					];
 					scene.roads = scene.roads.filter((r) => r.id !== bId);
 					junctionsAfterJoin(scene, aId, aEnd, bId, bEnd);
 					// Vehicles on the absorbed road now drive the joined one.
@@ -3208,6 +3298,7 @@ export const createEditorStore = (openScene?: TScene) => {
 					points: drawing.points,
 					width: ROAD_KIND_WIDTH[drawing.style],
 					loops,
+					...NEW_ROAD_SETTINGS,
 				});
 				// Its first and last points put on another road's end or line connect there (ADR-0136).
 				const connected: string[] = [];
