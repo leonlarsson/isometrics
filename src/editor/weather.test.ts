@@ -15,6 +15,8 @@ import {
 	areaWeathersNow,
 	cloudAltitudeOf,
 	mostAnywhere,
+	namesFollowingData,
+	putOnQuickPick,
 	weatherNow,
 } from "./weather";
 
@@ -136,5 +138,35 @@ describe("weather per area (ADR-0151)", () => {
 			area(rowKey, { weather: stormsByComplaints, dataRow: { tableKey: "districts", rowKey } }),
 		);
 		expect(areaWeathersNow(areas, data).map(({ now }) => now.rain)).toEqual([0.1, 0.9]);
+	});
+});
+
+describe("quick picks (ADR-0102)", () => {
+	const binding = DataBindingSchema.parse({ kind: "scale", key: "complaints" });
+
+	it("sets every amount By hand, so an amount from data doesn't mix with the pick", () => {
+		const w = weather({
+			rainAmount: 0.9,
+			groundWetness: 0.4,
+			data: { rainAmount: binding, cloudCover: binding },
+		});
+		putOnQuickPick(w, { snowAmount: 0.6, cloudCover: 0.8 });
+		expect(w.data).toEqual({});
+		expect(weatherNow(w, [{ key: "complaints", value: 100 }])).toMatchObject({
+			rain: 0,
+			snow: 0.6,
+			cloudCover: 0.8,
+		});
+		expect(w.groundWetness).toBeNull();
+	});
+
+	it("names what follows data, in the tab's order", () => {
+		expect(namesFollowingData(weather())).toBe("");
+		expect(namesFollowingData(weather({ data: { lightningRate: binding } }))).toBe("Lightning");
+		expect(
+			namesFollowingData(
+				weather({ data: { lightningRate: binding, cloudCover: binding, rainAmount: binding } }),
+			),
+		).toBe("Cloud cover, Rain and Lightning");
 	});
 });

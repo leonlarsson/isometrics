@@ -2,9 +2,12 @@ import type { Draft } from "immer";
 
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
+import { notify } from "#/editor/toasts";
 import {
 	cloudAltitudeOf,
 	MOST_CLOUD_ALTITUDE,
+	namesFollowingData,
+	putOnQuickPick,
 	type TWeatherDataTarget,
 	weatherNow,
 } from "#/editor/weather";
@@ -30,17 +33,8 @@ import { ColorField, Hint, Section, SliderField, SwitchField } from "./fields";
 const DEFAULTS = WeatherSchema.parse({});
 const AMOUNT: TBindingKind = "scale";
 
-/** The amounts a quick pick sets: nothing falling, no fog or haze, no lightning, unless it says. */
-const CALM = {
-	rainAmount: 0,
-	snowAmount: 0,
-	fogDensity: 0,
-	hazeAmount: 0,
-	lightningRate: 0,
-} as const;
-
-/** One click to a kind of weather: its amounts, and the clouds that go with it. */
-const QUICK_PICKS: { label: string; weather: Partial<TWeather> }[] = [
+/** One click to a kind of weather: its amounts (the rest calm), and the clouds that go with it. */
+const QUICK_PICKS: { label: string; weather: Partial<Pick<TWeather, TWeatherDataTarget>> }[] = [
 	{ label: "Clear", weather: { cloudCover: 0.15 } },
 	{ label: "Cloudy", weather: { cloudCover: 0.85 } },
 	{ label: "Rain", weather: { rainAmount: 0.6, cloudCover: 0.9 } },
@@ -138,10 +132,20 @@ export const WeatherFields = ({
 			/>
 		</DataDrivenField>
 	);
-	const pick = (choice: (typeof QUICK_PICKS)[number]) =>
+	// A pick sets every amount By hand (`putOnQuickPick`); these follow data until then.
+	const fromData = namesFollowingData(weather);
+	const areMany = fromData.includes(" and ");
+	const pick = (choice: (typeof QUICK_PICKS)[number]) => {
 		change((w) => {
-			Object.assign(w, CALM, choice.weather, { groundWetness: null, snowCover: null });
+			putOnQuickPick(w, choice.weather);
 		});
+		if (fromData) {
+			notify(
+				`${choice.label}, set By hand`,
+				`${fromData} followed data and ${areMany ? "are" : "is"} set By hand now. Undo (Ctrl+Z) brings the data back.`,
+			);
+		}
+	};
 
 	return (
 		<>
@@ -164,6 +168,12 @@ export const WeatherFields = ({
 						? "One click sets the amounts below and the clouds; fine-tune them after. Moods keep the world's weather, not an area's."
 						: "One click sets the amounts below and the clouds; fine-tune them after. Moods keep the weather too."}
 				</Hint>
+
+				{fromData && (
+					<Hint tone="warning">
+						{`${fromData} ${areMany ? "are" : "is"} From data: a pick sets ${areMany ? "them" : "it"} By hand.`}
+					</Hint>
+				)}
 			</Section>
 
 			<Section

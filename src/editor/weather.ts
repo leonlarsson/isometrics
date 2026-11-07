@@ -46,6 +46,47 @@ export const WEATHER_DATA = [
 
 export type TWeatherDataTarget = (typeof WEATHER_DATA)[number];
 
+/** What each of them is called on the Weather tab, for messages that name them. */
+export const WEATHER_DATA_LABELS: Record<TWeatherDataTarget, string> = {
+	cloudCover: "Cloud cover",
+	rainAmount: "Rain",
+	snowAmount: "Snow",
+	fogDensity: "Fog",
+	hazeAmount: "Haze",
+	lightningRate: "Lightning",
+};
+
+/** The amounts that follow data now, in the Weather tab's order, by name: "Rain and Lightning". */
+export const namesFollowingData = (weather: Pick<TWeather, "data">): string => {
+	const names = WEATHER_DATA.filter((key) => weather.data[key]).map(
+		(key) => WEATHER_DATA_LABELS[key],
+	);
+	return names.length > 1
+		? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+		: (names[0] ?? "");
+};
+
+/**
+ * A quick pick put on (ADR-0102): its amounts, nothing else falling, the
+ * ground following the weather, and every amount By hand, since a pick sets
+ * them all. An amount left From data would ignore the pick and mix with it
+ * (a pick of Snow with rain still from data). Undo brings the data back.
+ */
+export const putOnQuickPick = (
+	weather: Pick<TWeather, TWeatherDataTarget | "groundWetness" | "snowCover" | "data">,
+	pick: Partial<Pick<TWeather, TWeatherDataTarget>>,
+) => {
+	Object.assign(
+		weather,
+		{ rainAmount: 0, snowAmount: 0, fogDensity: 0, hazeAmount: 0, lightningRate: 0 },
+		pick,
+		{ groundWetness: null, snowCover: null },
+	);
+	for (const key of WEATHER_DATA) {
+		delete weather.data[key];
+	}
+};
+
 /** What it's like now, from the world's weather and its data. */
 export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherNow => {
 	const amount = (key: TWeatherDataTarget) =>

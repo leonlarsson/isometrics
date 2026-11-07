@@ -496,6 +496,10 @@ export const KitPage = () => {
 										<Hint>
 											Keys: <Kbd>Enter</Kbd> <Kbd>Esc</Kbd> <Kbd>Ctrl</Kbd>
 										</Hint>
+
+										<Hint tone="warning">
+											Rain and Lightning are From data: a pick sets them By hand.
+										</Hint>
 									</Section>
 								</TabPanel>
 

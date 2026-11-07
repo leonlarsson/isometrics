@@ -25,6 +25,9 @@
 	--accent-contrast: #ffffff;
 	--accent-soft: rgb(217 100 58 / 0.12);
 	--danger: #c84646;
+	/* Something to know before acting, e.g. a click that switches settings off From data. */
+	--warning: #9a6a00;
+	--warning-soft: rgb(214 158 20 / 0.14);
 	/* Something just worked, e.g. a button that copied. */
 	--success: #2f9a58;
 	/* Behind pictures of parts at night (the parts catalogue), in both themes: a night sky. */
@@ -73,6 +76,8 @@
 	--accent-contrast: #1b1c19;
 	--accent-soft: rgb(232 113 76 / 0.16);
 	--danger: #e06a6a;
+	--warning: #e3b341;
+	--warning-soft: rgb(227 179 65 / 0.12);
 	--success: #52c47e;
 	--shadow-card: 0 6px 20px rgb(0 0 0 / 0.35);
 	--shadow-panel: 0 12px 40px rgb(0 0 0 / 0.45);
