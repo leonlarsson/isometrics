@@ -26,6 +26,7 @@ import { areaSurfaceOf } from "#/scene/surfaces";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openAreaMenuOnClick } from "./contextMenu";
+import { PICK_ORDER, pickOrderData } from "./pickOrder";
 import { useSurfaceShading } from "./useSurfaceShading";
 import { ReflectiveWaterMaterial } from "./Water";
 
@@ -38,6 +39,8 @@ const NO_WEATHER = { noWeather: true };
 /** Flat areas sit just above the ground and below roads (roads start at 0.012). */
 const BASE_Y = 0.004;
 const LAYER_STEP = 0.0008;
+/** A hidden area comes after everything that shows among the things under the pointer (`pickOrder`). */
+const HIDDEN_AREA_PICK = pickOrderData(PICK_ORDER.hiddenArea);
 
 export const areaBaseY = (layer: number) => BASE_Y + layer * LAYER_STEP;
 
@@ -194,7 +197,13 @@ export const AreaBody = ({
 	if (isHiddenArea(area)) {
 		return editing ? (
 			<group>
-				<mesh geometry={geometry} position={[0, y, 0]} {...handlers}>
+				<mesh
+					geometry={geometry}
+					position={[0, y, 0]}
+					// Whatever shows is picked before it: a park inside a hidden district (pickOrder).
+					userData={HIDDEN_AREA_PICK}
+					{...handlers}
+				>
 					<meshBasicMaterial
 						color={palette.selection}
 						transparent

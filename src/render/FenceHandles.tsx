@@ -25,6 +25,7 @@ import { fenceStretches, gateDraggedTo, gateSpot } from "#/scene/fences";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TArea, TFence, TFenceGate, TFencePoint } from "#/scene/schema";
 
+import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPointsDrag } from "./transforms";
 import { surfacePointFrom, useGroundDrag } from "./useGroundDrag";
@@ -227,16 +228,16 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 				setViewCursor("");
 			}}
 		>
-			<mesh>
+			<mesh renderOrder={HANDLE_ORDER}>
 				<cylinderGeometry args={[0.4, 0.4, 0.06, 24]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 
-			<mesh position={[0, 0.02, 0]}>
+			<mesh position={[0, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
 				<cylinderGeometry args={[0.26, 0.26, 0.06, 24]} />
 
-				<meshBasicMaterial color={selected ? palette.selection : "#ffffff"} />
+				<HandleMaterial color={selected ? palette.selection : "#ffffff"} />
 			</mesh>
 		</group>
 	);
@@ -270,6 +271,7 @@ const FenceInsertHandle = ({ fenceId, index, point, y, visible }: IFenceInsertHa
 
 	return (
 		<mesh
+			renderOrder={HANDLE_ORDER}
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			visible={visible}
@@ -287,7 +289,7 @@ const FenceInsertHandle = ({ fenceId, index, point, y, visible }: IFenceInsertHa
 		>
 			<cylinderGeometry args={[0.2, 0.2, 0.05, 20]} />
 
-			<meshBasicMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
+			<HandleMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
 		</mesh>
 	);
 };
@@ -378,18 +380,18 @@ const FenceGateHandle = ({ fence, index, at, direction }: IFenceGateHandleProps)
 				setViewCursor("");
 			}}
 		>
-			<mesh>
+			<mesh renderOrder={HANDLE_ORDER}>
 				<boxGeometry args={[1, 0.06, 0.46]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 
 			{/* Two bars across it, like a gate's: what tells it from a point's round handle. */}
 			{[-0.2, 0.2].map((x) => (
-				<mesh key={x} position={[x, 0.02, 0]}>
+				<mesh key={x} position={[x, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
 					<boxGeometry args={[0.12, 0.06, 0.3]} />
 
-					<meshBasicMaterial color="#ffffff" />
+					<HandleMaterial color="#ffffff" />
 				</mesh>
 			))}
 		</group>
@@ -458,7 +460,7 @@ export const FenceHandles = () => {
 		gates.some((gate) => Math.hypot(gate.at[0] - point[0], gate.at[2] - point[1]) < gate.reach);
 
 	return (
-		<group>
+		<group userData={HANDLE_PICK}>
 			{gates.map((gate) => (
 				<FenceGateHandle
 					key={`gate-${gate.index}`}

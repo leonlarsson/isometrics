@@ -417,7 +417,17 @@ export interface IEditorState {
 	hovered: ISceneItem | null;
 	/** The item whose context menu is open, and where (screen px). Runtime UI state. */
 	/** An item's right-click menu: where it opened, and the ground point clicked, for an area's "Add a peak here". */
-	contextMenu: { item: ISceneItem; x: number; y: number; point?: TVec2 } | null;
+	/**
+	 * The item menu: whose, where, the point clicked on it (an area's "Add a peak here") and, from
+	 * the view, every item that was under the pointer, nearest first (its Select list).
+	 */
+	contextMenu: {
+		item: ISceneItem;
+		x: number;
+		y: number;
+		point?: TVec2;
+		under?: readonly ISceneItem[];
+	} | null;
 	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
 	groundMenu: { point: TVec2; x: number; y: number } | null;
 	/** A viewpoint's menu, opened on its camera in the world: which one, and where (screen px). */
@@ -615,7 +625,12 @@ export interface IEditorState {
 	frameSelection: () => void;
 	setHovered: (item: ISceneItem | null) => void;
 	/** Select an item and open its context menu at a screen point, or close the menu (null). */
-	openContextMenu: (item: ISceneItem | null, at?: { x: number; y: number }, point?: TVec2) => void;
+	openContextMenu: (
+		item: ISceneItem | null,
+		at?: { x: number; y: number },
+		point?: TVec2,
+		under?: readonly ISceneItem[],
+	) => void;
 	/** Open the ground's context menu for a ground point at a screen point (deselecting), or close it (null). */
 	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }) => void;
 	/** Open a viewpoint's menu at a screen point, or close it (null). */
@@ -1965,7 +1980,7 @@ export const createEditorStore = (openScene?: TScene) => {
 
 			setHovered: (item) => set({ hovered: item }),
 
-			openContextMenu: (item, at, point) => {
+			openContextMenu: (item, at, point, under) => {
 				if (!item || !at) {
 					set({ contextMenu: null });
 					return;
@@ -1975,7 +1990,11 @@ export const createEditorStore = (openScene?: TScene) => {
 				if (state.selectedItems.length < 2 || !state.selectedItems.some(sameItem(item))) {
 					state.selectItems([item]);
 				}
-				set({ contextMenu: { item, ...at, point }, groundMenu: null, viewpointMenu: null });
+				set({
+					contextMenu: { item, ...at, point, under },
+					groundMenu: null,
+					viewpointMenu: null,
+				});
 			},
 
 			openGroundMenu: (point, at) => {

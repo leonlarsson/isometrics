@@ -23,6 +23,7 @@ import { junctionIndexOf, roadAnchorAt } from "#/scene/junctions";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
 import type { TRoad, TRoadPoint, TVec2 } from "#/scene/schema";
 
+import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { roadBaseY } from "./RoadMesh";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPointsDrag, applyRoadPointDrag, roadPointStart } from "./transforms";
@@ -245,16 +246,16 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 				setViewCursor("");
 			}}
 		>
-			<mesh>
+			<mesh renderOrder={HANDLE_ORDER}>
 				<cylinderGeometry args={[0.4, 0.4, 0.06, 24]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 
-			<mesh position={[0, 0.02, 0]}>
+			<mesh position={[0, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
 				<cylinderGeometry args={[0.26, 0.26, 0.06, 24]} />
 
-				<meshBasicMaterial color={selected ? palette.selection : "#ffffff"} />
+				<HandleMaterial color={selected ? palette.selection : "#ffffff"} />
 			</mesh>
 		</group>
 	);
@@ -288,6 +289,7 @@ const InsertHandle = ({ roadId, index, point, baseY, visible }: IInsertHandlePro
 
 	return (
 		<mesh
+			renderOrder={HANDLE_ORDER}
 			position={[point[0], baseY + point[2] + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			visible={visible}
@@ -305,7 +307,7 @@ const InsertHandle = ({ roadId, index, point, baseY, visible }: IInsertHandlePro
 		>
 			<cylinderGeometry args={[0.2, 0.2, 0.05, 20]} />
 
-			<meshBasicMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
+			<HandleMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
 		</mesh>
 	);
 };
@@ -395,7 +397,7 @@ export const RoadHandles = () => {
 	const baseY = roadBaseY(Math.max(0, layer));
 
 	return (
-		<group>
+		<group userData={HANDLE_PICK}>
 			{segmentMidpoints(road.points, road.loops, road.curveShape).map(({ index, point }) => (
 				<InsertHandle
 					key={`insert-${index}`}

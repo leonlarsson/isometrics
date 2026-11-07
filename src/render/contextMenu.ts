@@ -55,33 +55,84 @@ export const openContextMenuUnlessDragged = (
 	dragged: boolean,
 ) => onRightClick(native, dragged, (x, y) => useEditor.getState().openContextMenu(item, { x, y }));
 
+/**
+ * What one right-click found under the pointer so far, in pick order (render/pickOrder): every
+ * object, road, fence and area there hears of it in the same go, so the menu can offer to select
+ * any of them (its Select list), a park under a hidden district or an area under a building.
+ */
+let gathering: { native: MouseEvent; items: ISceneItem[] } | null = null;
+
+const isGathering = (native: MouseEvent) => gathering?.native === native;
+
+/**
+ * An item under a right-click: the first to hear of it owns the menu, which opens once everything
+ * under the pointer has added itself (all of them hear of it before this event is over).
+ */
+const gatherForMenu = (
+	event: ThreeEvent<MouseEvent>,
+	item: ISceneItem,
+	open: (under: readonly ISceneItem[]) => void,
+) => {
+	const native = event.nativeEvent;
+	if (gathering && isGathering(native)) {
+		if (!gathering.items.some((known) => known.kind === item.kind && known.id === item.id)) {
+			gathering.items.push(item);
+		}
+		return;
+	}
+	// The browser's own menu never shows, so this can't wait.
+	native.preventDefault();
+	const found = { native, items: [item] };
+	gathering = found;
+	queueMicrotask(() => {
+		if (gathering === found) {
+			gathering = null;
+		}
+		open(found.items);
+	});
+};
+
 /** `onContextMenu` for a viewpoint's camera in the world: its menu (ui/ViewpointContextMenu). */
 export const openViewpointMenuOnClick = (id: string) => (event: ThreeEvent<MouseEvent>) => {
 	event.stopPropagation();
+	// Behind something whose menu is opening: that one's.
+	if (isGathering(event.nativeEvent)) {
+		return;
+	}
 	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
 		useEditor.getState().openViewpointMenu(id, { x, y }),
 	);
 };
 
-/** `onContextMenu` for an object, road or area in the scene: its menu (ui/ItemContextMenu). */
+/** `onContextMenu` for an object, road or fence in the scene: its menu (ui/ItemContextMenu). */
 export const openContextMenuOnClick = (item: ISceneItem) => (event: ThreeEvent<MouseEvent>) => {
-	// The nearest thing under the pointer gets the menu, not what's behind it.
-	event.stopPropagation();
-	openContextMenuUnlessDragged(item, event.nativeEvent, !isClick(event));
+	// The nearest thing under the pointer gets the menu; what's behind it is listed in it.
+	const dragged = !isClick(event);
+	gatherForMenu(event, item, (under) =>
+		onRightClick(event.nativeEvent, dragged, (x, y) =>
+			useEditor.getState().openContextMenu(item, { x, y }, undefined, under),
+		),
+	);
 };
 
 /** `onContextMenu` for an area: its menu, knowing the point clicked on it (for "Add a peak here"). */
 export const openAreaMenuOnClick = (id: string) => (event: ThreeEvent<MouseEvent>) => {
-	event.stopPropagation();
 	const point: TVec2 = [event.point.x, event.point.z];
-	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
-		useEditor.getState().openContextMenu({ kind: "area", id }, { x, y }, point),
+	const dragged = !isClick(event);
+	gatherForMenu(event, { kind: "area", id }, (under) =>
+		onRightClick(event.nativeEvent, dragged, (x, y) =>
+			useEditor.getState().openContextMenu({ kind: "area", id }, { x, y }, point, under),
+		),
 	);
 };
 
 /** `onContextMenu` for the ground: its menu (ui/GroundContextMenu) for the point clicked. */
 export const openGroundMenuOnClick = (event: ThreeEvent<MouseEvent>) => {
 	event.stopPropagation();
+	// Under something whose menu is opening: that one's.
+	if (isGathering(event.nativeEvent)) {
+		return;
+	}
 	const point: TVec2 = [event.point.x, event.point.z];
 	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
 		useEditor.getState().openGroundMenu(point, { x, y }),
