@@ -4,6 +4,7 @@ import {
 	SceneSchema,
 	type TAreaInput,
 	type TEntityInput,
+	type TFenceInput,
 	type TRoadInput,
 	type TScene,
 } from "#/scene/schema";
@@ -89,23 +90,25 @@ type TOutline = [number, number][];
 
 /** The land of each borough on the sketch (x east, z south): its hidden area's outline. */
 const MANHATTAN: TOutline = [
-	[-14, -44],
-	[-9, -44],
-	[-6, -32],
-	[-5, -14],
-	[-6, 4],
-	[-10, 10],
-	[-14, 6],
-	[-16, -14],
-	[-16, -32],
+	[-16.249, -44.853],
+	[-9.013, -44.832],
+	[-8.108, -42.571],
+	[-5.161, -31.195],
+	[-4.197, -13.744],
+	[-5.246, 3.938],
+	[-9.175, 10.831],
+	[-10.961, 10.795],
+	[-14.91, 5.825],
+	[-16.866, -14.633],
+	[-16.838, -31.877],
 ];
 const BRONX: TOutline = [
-	[-14, -55],
+	[-15.48, -54.847],
 	[55, -55],
 	[55, -42],
 	[20, -41],
 	[-4, -45],
-	[-10, -47],
+	[-15.941, -45.268],
 ];
 const QUEENS: TOutline = [
 	[1, -33],
@@ -225,7 +228,6 @@ const LAND_AND_WATER: TAreaInput[] = [
 		],
 	},
 	{ id: "central_park", kind: "grass_01", name: "Central Park", points: CENTRAL_PARK },
-	{ id: "reservoir", kind: "water_01", name: "The Reservoir", points: rect(-12, -28, -9, -25) },
 	{ id: "prospect_park", kind: "grass_01", name: "Prospect Park", points: PROSPECT_PARK },
 ];
 
@@ -465,7 +467,7 @@ const ROADS: TRoadInput[] = [
 		kind: "road_01",
 		name: "Broadway",
 		points: [
-			[-11, -33],
+			[-11, -19.64],
 			[-11, -2],
 		],
 		flow: { enabled: true, vehicleKind: "car_01", vehicleDensity: 1, speed: 2 },
@@ -499,6 +501,32 @@ const ROADS: TRoadInput[] = [
 			[-11, 52.5],
 			[-7.5, 53.5],
 		],
+	},
+];
+
+/** A hedge round Central Park, a gate at its south and north ends. */
+const FENCES: TFenceInput[] = [
+	{
+		id: "central_park_hedge",
+		kind: "hedge_01",
+		name: "Central Park hedge",
+		points: [
+			[-12.78, -29.78],
+			[-8.209, -29.78],
+			[-7.731, -20.22],
+			[-12.78, -20.22],
+		],
+		loops: true,
+		height: 0.64,
+		gates: [0, 2].map((spanIndex) => ({
+			kind: "swinging" as const,
+			spanIndex,
+			alongShare: spanIndex === 0 ? 0.5 : 0.4951,
+			width: 1.4,
+			isOpen: true,
+			opensToTheLeft: true,
+			hasTwoLeaves: true,
+		})),
 	},
 ];
 
@@ -620,4 +648,5 @@ export const createNyc311Scene = (): TScene =>
 		entities: ENTITIES,
 		roads: ROADS,
 		areas: AREAS,
+		fences: FENCES,
 	});
