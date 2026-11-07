@@ -486,7 +486,7 @@ const RoadShapeTab = ({ road }: { road: TRoad }) => {
 										: "Keep pillars clear of roads and water below (held up by pillars only)"
 								}
 								checked={road.pillarsKeepClear}
-								hint="A pillar that would stand in a road, a junction, water or the road's own lower turn moves along a little, or isn't built. Choose pillars at a point in its point's panel."
+								hint="A pillar that would stand in a road, a junction, water or the road's own lower turn moves along a little, or isn't built."
 								onChange={(v) =>
 									edit("pillarsKeepClear", (r) => {
 										r.pillarsKeepClear = v;

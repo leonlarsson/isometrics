@@ -1,6 +1,6 @@
 import { useEditor } from "#/editor/store";
 import { junctionIndexOf } from "#/scene/junctions";
-import { pointWidth, roadEnds, roadNameOf, type TRoadEnd } from "#/scene/roads";
+import { PILLAR_MIN, pointWidth, roadEnds, roadNameOf, type TRoadEnd } from "#/scene/roads";
 import type { TRoad } from "#/scene/schema";
 
 import { Button, ButtonGroup, IconButton } from "./Button";
@@ -95,6 +95,44 @@ const JunctionTurns = ({ road, end }: { road: TRoad; end: TRoadEnd }) => {
 				/>
 			))}
 		</>
+	);
+};
+
+/**
+ * Whether a raised junction stands on pillars of its own (ADR-0148): on for junctions made in the
+ * editor. Greyed out, saying why, on the ground or where none of its roads stands on pillars.
+ */
+const JunctionPillars = ({ road, end }: { road: TRoad; end: TRoadEnd }) => {
+	const roads = useEditor((s) => s.scene.roads);
+	const junctions = useEditor((s) => s.scene.junctions);
+	const junction = junctions[junctionIndexOf(junctions, road.id, end)];
+	if (!junction) {
+		return null;
+	}
+	const isRaised = endPoint(road, end)[2] >= PILLAR_MIN;
+	const onPillars = junction.ends.some(
+		(each) => roads.find((r) => r.id === each.roadId)?.heldUpBy === "pillars",
+	);
+	const write = (on: boolean) =>
+		useEditor.getState().commit((scene) => {
+			const target = scene.junctions.find((j) => j.id === junction.id);
+			if (target) {
+				target.standsOnPillars = on;
+			}
+		});
+	const reason = !isRaised
+		? " (on the ground)"
+		: !onPillars
+			? " (none of its roads stands on pillars)"
+			: "";
+	return (
+		<SwitchField
+			label={`Stands on pillars of its own${reason}`}
+			checked={junction.standsOnPillars}
+			disabled={!isRaised || !onPillars}
+			inherit={resetToDefault(junction.standsOnPillars, true, () => write(true))}
+			onChange={write}
+		/>
 	);
 };
 
@@ -225,6 +263,8 @@ export const RoadPointPanel = ({ road, index }: { road: TRoad; index: number }) 
 					<Hint>
 						{`Connected to ${names.join(" and ")}: vehicles drive on from one road to another. Moving this point moves the junction, and the other roads' ends follow.`}
 					</Hint>
+
+					<JunctionPillars road={road} end={end} />
 
 					<JunctionTurns road={road} end={end} />
 
