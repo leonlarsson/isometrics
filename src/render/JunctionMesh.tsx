@@ -221,8 +221,7 @@ interface IJunctionBodiesProps {
 export const JunctionBodies = ({ roads, junctions, palette, data }: IJunctionBodiesProps) => {
 	const network = roadNetworkOf(roads, junctions);
 	const used = useEditor((s) => roadsInUse(s.scene.entities));
-	const areas = useEditor((s) => s.scene.areas);
-	const world = useMemo(() => ({ roads, junctions, areas }), [roads, junctions, areas]);
+	const world = useMemo(() => ({ roads, junctions }), [roads, junctions]);
 	if (network.junctions.length === 0) {
 		return null;
 	}

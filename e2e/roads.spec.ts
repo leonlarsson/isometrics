@@ -829,8 +829,6 @@ test.describe("roads for interchanges (ADR-0148)", () => {
 			"aria-valuenow",
 			"9.6",
 		);
-		await page.getByRole("switch", { name: "Keep pillars clear of roads and water below" }).click();
-		expect(await read(page, (s) => s.scene.roads[0].pillarsKeepClear)).toBe(true);
 		// Held up some other way, the pillar settings are greyed out, saying why.
 		await choose(page, "Held up by", /Embankment/);
 		await expect(

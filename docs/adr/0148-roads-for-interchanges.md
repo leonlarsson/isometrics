@@ -22,7 +22,7 @@ The first design covered more (slip roads that merge along a gore, lanes, flows 
 
 - **Every saved world draws and drives as before** (ADR-0026, ADR-0056, ADR-0106): every new field has a default that is the old behaviour, and what could change an old world's traffic is keyed on something no old world has. The few visible changes are fixes, listed under **Old worlds**.
 - One road model: one-way, curve shape and pillars are settings of a road, drawn by the same ribbon, pillar and junction code, followed by the same trips and traffic.
-- The world's vocabulary and naming rules (AGENTS.md, ADR-0104): switches state something (`isOneWay`, `pillarsKeepClear`, `standsOnPillars`), a thing's kind is `kind`.
+- The world's vocabulary and naming rules (AGENTS.md, ADR-0104): switches state something (`isOneWay`, `standsOnPillars`), a thing's kind is `kind`.
 - Simple to write by hand or by an AI (ADR-0034, ADR-0116), checked by validate (ADR-0117), patchable (ADR-0118).
 - Cheap: nothing per frame per object beyond what traffic already costs; Standard graphics' look and cost unchanged (ADR-0072, PERFORMANCE.md).
 
@@ -32,7 +32,7 @@ The first design covered more (slip roads that merge along a gore, lanes, flows 
 
 **What keys the new junction behaviour** (turn rules, taking turns). (a) A world switch, off for old worlds; (b) on everywhere; (c) **on at junctions where a one-way road meets.** (b) would change the routes vehicles take in every saved world with junctions (Stockholm). (a) leaves interchanges wrong until someone finds a switch. One-way roads are new, so (c) provably changes no old world's traffic, and it is where the rules belong: a junction of one-way carriageways and ramps is a road system people drive through to get somewhere; a junction of two-way streets keeps ADR-0136's sightseeing traffic. Chosen: **(c)**, with a per-junction override of the turns allowed.
 
-**Pillars keeping clear.** (a) On for every road; (b) a road switch, off by default (old worlds), on for every road drawn in the editor and recommended to AIs. Pillars of old bridges stand in water and on roads below today, and moving them would change those worlds. Chosen: **(b)**.
+**Pillars keeping clear.** (a) Every road's pillars keep clear of the roads and junctions below, with no switch; (b) a road switch, off by default (old worlds), on for every road drawn in the editor and recommended to AIs. (b) was tried first: editing a saved world's flyover (Brightwater's) left its pillars standing on the road below, which is never wanted, and a switch nobody would turn off only hides the fix from old worlds and from AIs that leave it out. On every template, (a) moves one pillar (Brightwater's hill road, off the street under it) and changes nothing else. Keeping clear of water too was weighed and dropped: bridge piers stand in water, and it would take 29 of Stockholm's Centralbron's 32 pillars away. Chosen: **(a)**, clear of roads and junctions only.
 
 ## Decision outcome
 
@@ -49,7 +49,6 @@ Every field has a `.describe()` for `/api/worlds/schema`. Defaults are the old b
 | `showsEdgeLines` | boolean or `null`, `null`; **new in the editor: `true`** | Whether it shows a solid line along each edge, a little in from the kerb (kinds with markings), as real carriageways have. null = like its way: on for a one-way road, off for a two-way road, so every saved road looks as it did. A one-way road has no centre line (nothing comes the other way), so these are its markings; lines between lanes come with lanes (not yet). |
 | `pillarKind` | `"post_01" \| "column_01" \| "hammerhead_01" \| "pair_01" \| "wall_01"`, `"post_01"` | What its pillars look like (numbered so each can get variants): post = the square post pillars always were; column = a round column; hammerhead = a column with a crosshead under the deck; pair = two posts under the deck's edges joined by a beam; wall = a thin pier wall across under the deck. |
 | `pillarSpacing` | number or `null`, `null` (was `4`) | The distance between pillars. null = its pillar kind's: 4 for posts (as roads always had), about four times the road's width (8 to 20) for the others, as real viaducts span. A saved `4` with no `pillarKind` is read as null (the same 4). |
-| `pillarsKeepClear` | boolean, `false`; **new in the editor: `true`** | Whether its pillars keep clear of what's below: other roads' surfaces and junctions, water areas, and the road's own lower turns (a spiral). A pillar that would stand in one moves along the road, up to half the spacing, to the nearest clear place, else isn't built. |
 
 **Junction**:
 
@@ -93,15 +92,15 @@ A one-way road has no centre line: nothing comes the other way. It shows a solid
 
 ### Pillars
 
-`placePillars` (`scene/pillars.ts`, pure and tested) replaces `pillarPositions` where roads are drawn; with the defaults (`post_01`, `pillarsKeepClear` off) it returns exactly `pillarPositions`' places, and the post is drawn as before (a test compares them for every template road with the defaults).
+`placePillars` (`scene/pillars.ts`, pure and tested) replaces `pillarPositions` where roads are drawn; for posts (`post_01`) it starts from exactly `pillarPositions`' places, keeps every one that stands clear, and draws the post as before (a test checks it for every template road with posts).
 
 1. **Candidates** every `pillarSpacing` (or its kind's span) along the cut centre line, from half a spacing in, where the deck is at least `PILLAR_MIN` high (as before).
-2. **Keeping clear** (when on): a pillar's footprint (its kind's, by the deck's width there: a post or column a small square, a hammerhead's column, a pair's two posts under the deck's edges, a wall's slab across) must not overlap another road's surface or a junction's pad below the deck, a water area, or the road's own surface lower down (a spiral's lower turn). A blocked pillar tries places along the road in steps of a quarter unit, nearer first, up to half the spacing either way; the first clear one wins, else it's dropped.
+2. **Keeping clear**, for every road: a pillar's footprint (its kind's, by the deck's width there: a post or column a small square, a hammerhead's column, a pair's two posts under the deck's edges, a wall's slab across) must not overlap another road's surface or a junction's pad below the deck, or the road's own surface lower down (a spiral's lower turn). Water doesn't count: piers stand in it. A blocked pillar tries places along the road in steps of a quarter unit, nearer first, up to half the spacing either way; the first clear one wins, else it's dropped.
 3. **Height**: every pillar reaches from the ground to the deck's underside at its place, and a hammerhead's crosshead and a pair's cap sit inside the deck's width, under it.
 
 A road's pillars are built as **one geometry** (they were a mesh each), in the deck's colour: the same faces, far fewer draws.
 
-**Editing.** Shape tab, **Elevated sections** panel: **Pillar look** (the five kinds), **Pillar spacing** (Default: its pillar look's span; Reset back to it) and **Keep pillars clear of roads and water below** (Reset to on, a new road's value), all greyed out while the road isn't held up by pillars, saying so.
+**Editing.** Shape tab, **Elevated sections** panel: **Pillar look** (the five kinds), and **Pillar spacing** (Default: its pillar look's span; Reset back to it), both greyed out while the road isn't held up by pillars, saying so.
 
 ### Raised junctions
 
@@ -121,11 +120,11 @@ New warnings: a one-way road into a junction with no way out of it allowed (its 
 
 ### The guide
 
-The guide's **Motorways and interchanges** section walks through smooth curves, one-way roads and Reverse direction, choosing turns, flyovers with a pillar look that keeps clear, gentle ramps, and roads meeting in mid-air on pillars of their own; the format section for AIs says how to write each.
+The guide's **Motorways and interchanges** section walks through smooth curves, one-way roads and Reverse direction, choosing turns, flyovers with a pillar look (its pillars keep clear by themselves), gentle ramps, and roads meeting in mid-air on pillars of their own; the format section for AIs says how to write each.
 
 ### Old worlds
 
-Every field's default is the old behaviour: two-way, rounded corners, posts at the spacing they had, pillars where they were, junctions without pillars of their own. Everything that changes how vehicles choose ways or take turns applies only where a road is one-way, which no saved world has. Old-world fixtures (an extraction-shooters world and an every-field world, both at bee221c) open with no repairs.
+Every field's default is the old behaviour: two-way, rounded corners, posts at the spacing they had, junctions without pillars of their own. Everything that changes how vehicles choose ways or take turns applies only where a road is one-way, which no saved world has. Old-world fixtures (an extraction-shooters world and an every-field world, both at bee221c) open with no repairs.
 
 Visible changes to existing worlds, each a fix:
 
@@ -133,7 +132,8 @@ Visible changes to existing worlds, each a fix:
 - **Deck sides face outward on both sides**: a raised road's right-hand side was drawn facing inward, so the shadow pass striped it (shadow acne) when seen from outside; now both sides face out and shade cleanly.
 - **Railings and deck edges shade smoothly round bends**, as one bent rail rather than a facet a segment.
 - **A raised junction's pad gets railings round its kerbs** where its roads have railings (it had none, leaving gaps in the railing at every raised junction).
-- **Pillars are one mesh per road**: the same posts in the same places, drawn in fewer calls.
+- **Pillars are one mesh per road**: the same posts, drawn in fewer calls.
+- **Pillars keep clear of the roads and junctions below**: a pillar that stood on a road moves along its bridge, up to half the spacing, else isn't built (on the templates, one of Brightwater's hill road's).
 - **A junction end at another altitude** (only a hand-written world can have one) is left out instead of drawing a wall.
 
 ### Not yet
@@ -146,7 +146,7 @@ Built on `roads-for-interchanges` (PR #56, shelved) and not shipped: slip roads 
 - Good: saved worlds keep their traffic and shape; their few visible changes are fixes.
 - Good: one model: one-way, curve shape and pillars are settings of a road, so trips, traffic, flows, junctions and the editor all work with each without special cases.
 - Bad: the junction rules differ between a junction with a one-way road and one without; the ADR and the guide say so, and per-junction `leadsTo` covers anything else.
-- Bad: two opt-ins whose schema default differs from what the editor writes (`pillarsKeepClear`, `standsOnPillars`), so an AI must be told to set them; the descriptions and the guide do.
+- Bad: an opt-in whose schema default differs from what the editor writes (`standsOnPillars`), so an AI must be told to set it; the description and the guide do.
 - Bad: traffic does a little more work per vehicle at junctions with a one-way road (taking turns).
 
 ## More information

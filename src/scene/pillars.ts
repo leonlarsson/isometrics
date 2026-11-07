@@ -2,14 +2,13 @@ import { isInsidePolygon } from "./areas";
 import { type INetworkJunction, type IRoadNetwork, junctionPad, roadNetworkOf } from "./junctions";
 import { DECK_THICKNESS, isHiddenRoute, PILLAR_MIN, pillarSpacingOf } from "./roads";
 import { centerlineOf } from "./routes";
-import type { TArea, TJunction, TPillarKind, TRoad, TRoadPoint } from "./schema";
+import type { TJunction, TPillarKind, TRoad, TRoadPoint } from "./schema";
 
 /**
  * Where a raised road's pillars stand (ADR-0148): every `pillarSpacing` along its line where it's
- * high enough, as always; then, with
- * `pillarsKeepClear`, each moved along the road to stay out of the roads, junctions and water
- * below it and out of its own lower turns. Framework-free and tested. With the defaults it places
- * exactly what `pillarPositions` did.
+ * high enough, as always; then each moved along the road to stay out of the roads and junctions
+ * below it and out of its own lower turns (pillars may stand in water, as bridge piers do).
+ * Framework-free and tested. Where nothing is below, it places exactly what `pillarPositions` did.
  */
 
 /** Where along a road a pillar is: its place, the deck's height there, the road's way and width. */
@@ -30,11 +29,10 @@ export interface IPillar extends IPillarSpot {
 	along: number;
 }
 
-/** What a road's pillars keep clear of: the world's roads, junctions and areas. */
+/** What a road's pillars keep clear of: the world's roads and junctions. */
 export interface IPillarWorld {
 	roads: readonly TRoad[];
 	junctions: readonly TJunction[];
-	areas: readonly TArea[];
 }
 
 /**
@@ -230,10 +228,11 @@ const padsOf = (network: IRoadNetwork) => {
 
 /** What a road's pillars keep clear of, worked out once per road and world. */
 export interface IPillarObstacles {
-	/** Whether a pillar of the road at a spot, `along` its drawn line, stands clear. */
+	/**
+	 * Whether a pillar of the road at a spot, `along` its drawn line, stands clear of other roads,
+	 * junctions and its own road below.
+	 */
 	isClear: (spot: IPillarSpot, along: number) => boolean;
-	/** Whether it stands in another road, a junction or its own road below (not water). */
-	isInARoad: (spot: IPillarSpot, along: number) => boolean;
 }
 
 /** What's below a road's deck in a world, for its pillars to keep clear of (ADR-0148). */
@@ -247,7 +246,6 @@ export const pillarObstacles = (
 		.map(roadBand);
 	const own = bandOf(line, road.loops, road.width / 2);
 	const pads = padsOf(roadNetworkOf(world.roads, world.junctions));
-	const water = world.areas.filter((area) => area.kind === "water_01" && !area.isHidden);
 	const discsOf = (spot: IPillarSpot) => {
 		const cos = Math.cos(spot.heading);
 		const sin = Math.sin(spot.heading);
@@ -257,21 +255,17 @@ export const pillarObstacles = (
 			r,
 		}));
 	};
-	const isInARoad = (spot: IPillarSpot, along: number) => {
-		const below = spot.height - DECK_THICKNESS - CLEARANCE;
-		const skip = { along, window: spot.halfWidth * 2 + 2 };
-		return discsOf(spot).some(
-			({ x, z, r }) =>
-				others.some((band) => hitsBand(band, x, z, r, below)) ||
-				hitsBand(own, x, z, r, below, skip) ||
-				pads.some((pad) => pad.height < below && discInPolygon({ x, z, r }, pad.outline)),
-		);
-	};
 	return {
-		isInARoad,
-		isClear: (spot, along) =>
-			!isInARoad(spot, along) &&
-			!discsOf(spot).some((disc) => water.some((area) => discInPolygon(disc, area.points))),
+		isClear: (spot, along) => {
+			const below = spot.height - DECK_THICKNESS - CLEARANCE;
+			const skip = { along, window: spot.halfWidth * 2 + 2 };
+			return !discsOf(spot).some(
+				({ x, z, r }) =>
+					others.some((band) => hitsBand(band, x, z, r, below)) ||
+					hitsBand(own, x, z, r, below, skip) ||
+					pads.some((pad) => pad.height < below && discInPolygon({ x, z, r }, pad.outline)),
+			);
+		},
 	};
 };
 
@@ -303,10 +297,6 @@ export const junctionPillars = (
 	const heading = Math.atan2(first.end.direction[1], first.end.direction[0]);
 	const spot: IPillarSpot = { x, z, height, heading, halfWidth };
 	const road = { ...first.road, pillarKind: first.road.pillarKind ?? "post_01" };
-	const keepsClear = roads.some((each) => each.road.pillarsKeepClear);
-	if (!keepsClear) {
-		return { kind: road.pillarKind, pillars: [{ ...spot, along: 0 }] };
-	}
 	const obstacles = pillarObstacles(road, [], world);
 	for (let move = 0; move <= Math.max(...junction.ends.map((end) => end.drawTrim)); move += 0.25) {
 		for (const end of junction.ends) {
@@ -329,8 +319,7 @@ export const junctionPillars = (
 
 /**
  * Where a raised road's pillars stand, along `line` (its centre line as drawn, cut back at
- * junctions), for a road held up by pillars. `world` is what
- * they keep clear of, when the road's `pillarsKeepClear` is on.
+ * junctions), for a road held up by pillars. `world` is what they keep clear of (none without it).
  */
 export const placePillars = (
 	road: TRoad,
@@ -390,7 +379,7 @@ export const placePillars = (
 		);
 	}
 	// 2. Clear of what's below, moved along the road where it isn't.
-	const obstacles = road.pillarsKeepClear && world ? pillarObstacles(road, line, world) : null;
+	const obstacles = world ? pillarObstacles(road, line, world) : null;
 	const pillars: IPillar[] = [];
 	for (const { along, spot } of placed) {
 		if (!spot || spot.height - DECK_THICKNESS <= CLEARANCE) {

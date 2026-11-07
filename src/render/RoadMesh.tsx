@@ -122,7 +122,7 @@ interface IRoadBodyProps {
 	 */
 	trimStart?: number;
 	trimEnd?: number;
-	/** What its pillars keep clear of, when it keeps them clear (ADR-0148). Default: nothing. */
+	/** What its pillars keep clear of (ADR-0148). Default: nothing. */
 	pillarWorld?: IPillarWorld | null;
 	/** No pillars of its own beside a junction at its first or last point that has its own (ADR-0148). */
 	bareStart?: boolean;
@@ -383,18 +383,15 @@ export const RoadMesh = memo(
 		const drawing = useEditor((s) => s.drawing !== null);
 		const selectRoad = useEditor((s) => s.selectRoad);
 		const ground = useEditor((s) => s.scene.ground);
-		// What its pillars keep clear of (ADR-0148): only a raised road on pillars that keeps them clear
-		// follows the other roads, junctions and areas, so other roads don't draw again for every change.
-		const keepsClear =
-			stored.pillarsKeepClear &&
-			stored.heldUpBy === "pillars" &&
-			stored.points.some((point) => point[2] > 0);
-		const roads = useEditor((s) => (keepsClear ? s.scene.roads : null));
-		const junctions = useEditor((s) => (keepsClear ? s.scene.junctions : null));
-		const areas = useEditor((s) => (keepsClear ? s.scene.areas : null));
+		// What its pillars keep clear of (ADR-0148): only a raised road on pillars follows the other
+		// roads and junctions, so roads on the ground don't draw again for every change.
+		const standsOnPillars =
+			stored.heldUpBy === "pillars" && stored.points.some((point) => point[2] > 0);
+		const roads = useEditor((s) => (standsOnPillars ? s.scene.roads : null));
+		const junctions = useEditor((s) => (standsOnPillars ? s.scene.junctions : null));
 		const pillarWorld = useMemo(
-			() => (roads && junctions && areas ? { roads, junctions, areas } : null),
-			[roads, junctions, areas],
+			() => (roads && junctions ? { roads, junctions } : null),
+			[roads, junctions],
 		);
 
 		const editable = mode === "edit" && !drawing;

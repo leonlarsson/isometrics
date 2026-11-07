@@ -898,12 +898,6 @@ export const RoadSchema = z
 				"With heldUpBy pillars: the distance between pillars, in grid units. null = its pillar kind's: 4 for post_01 (as roads always had), and about four times the road's width (8 to 20) for the others, as real viaducts span (ADR-0148).",
 			),
 		pillarKind: PillarKindSchema.default("post_01"),
-		pillarsKeepClear: z
-			.boolean()
-			.default(false)
-			.describe(
-				"With heldUpBy pillars: whether its pillars keep clear of what's below the deck: other roads and junctions, water areas, and its own lower turns (a spiral). A pillar that would stand in one moves along the road, up to half the spacing, else isn't built. Roads drawn in the editor have it on; worlds written by hand should set it true (ADR-0148).",
-			),
 		embankmentAngle: z
 			.number()
 			.min(10)

@@ -143,7 +143,6 @@ export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
  */
 export const NEW_ROAD_SETTINGS = {
 	curveShape: "throughPoints",
-	pillarsKeepClear: true,
 	showsEdgeLines: true,
 } as const satisfies Partial<TRoad>;
 
