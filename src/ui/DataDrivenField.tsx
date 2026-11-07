@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 
 import { useUsesData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
 import { DataBindingSchema, type TDataBinding, type TDataValue } from "#/scene/schema";
 
 import { DataBindingFields } from "./DataBindingFields";
-import { resetToDefault, SelectField } from "./fields";
+import { Hint, resetToDefault, SelectField } from "./fields";
 
 interface IDataDrivenFieldProps {
 	/** How the setting reads a data value: switched on and off, a number, or a colour. */
@@ -54,6 +54,25 @@ const ownRangeOf = (entry: TDataValue | undefined) => {
 
 type TSource = "hand" | "data";
 
+/** A sentence after a colon: its first letter small, unless it starts a name or a short form ("How" → "how", "SI" stays). */
+const afterColon = (text: string) =>
+	/^[A-Z][a-z]/.test(text) ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
+
+/**
+ * The setting's own name and what it does, from the field that sets it by hand
+ * (its `label` and `hint`), so they still show while it follows data.
+ */
+const settingOf = (field: ReactNode) => {
+	if (!isValidElement<{ label?: unknown; hint?: unknown }>(field)) {
+		return {};
+	}
+	const { label, hint } = field.props;
+	return {
+		name: typeof label === "string" && label !== "" ? label : undefined,
+		hint: typeof hint === "string" && hint !== "" ? hint : undefined,
+	};
+};
+
 /**
  * A setting that can be set by hand or follow a data value (ADR-0058,
  * ADR-0060): a Source select (By hand / From data), then the hand field or the
@@ -75,6 +94,7 @@ export const DataDrivenField = ({
 	startsAt,
 }: IDataDrivenFieldProps) => {
 	const hasData = data.length > 0;
+	const setting = settingOf(children);
 	/**
 	 * A size or amount following `key` starts from the data's lowest to its highest, so it moves
 	 * at once (a fixed 0 to 100 left numbers like 1,410 always at the top); others are as they are.
@@ -143,9 +163,15 @@ export const DataDrivenField = ({
 					formatScale={formatScale}
 					max={max}
 					range={range}
+					settingName={setting.name}
 				/>
 			) : (
 				children
+			)}
+
+			{/* What the data sets, as the field set by hand says it: which lever, not only how far. */}
+			{binding && setting.name && setting.hint && (
+				<Hint>{`${setting.name}: ${afterColon(setting.hint)}`}</Hint>
 			)}
 		</>
 	);
