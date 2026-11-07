@@ -119,6 +119,27 @@ button.sectionTrigger:hover .sectionIcon {
 	font-variant-numeric: tabular-nums;
 }
 
+/* A hint to read before acting: tinted, with the alert icon in the warning colour (not colour alone, ADR-0089). */
+.warningHint {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin: 0;
+	padding: 8px 10px;
+	border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+	border-radius: var(--radius-sm);
+	background: var(--warning-soft);
+	font-size: 12px;
+	line-height: 1.45;
+	color: var(--text);
+}
+
+.warningHint > svg {
+	flex: none;
+	margin-top: 1px;
+	color: var(--warning);
+}
+
 /* A titled inset box of related fields inside a panel (FieldGroup). */
 .fieldGroup {
 	min-width: 0;

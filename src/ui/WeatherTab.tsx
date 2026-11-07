@@ -170,7 +170,7 @@ export const WeatherFields = ({
 				</Hint>
 
 				{fromData && (
-					<Hint>
+					<Hint tone="warning">
 						{`${fromData} ${areMany ? "are" : "is"} From data: a pick sets ${areMany ? "them" : "it"} By hand.`}
 					</Hint>
 				)}
