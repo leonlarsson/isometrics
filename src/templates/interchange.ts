@@ -1449,6 +1449,19 @@ const gardenTrees: TEntityInput[] = [
 	...QUADRANTS.flatMap((quadrant) =>
 		palmRing(`island_${quadrant}_palm`, cloverIslandCentre(quadrant), ISLAND_RADIUS - 0.7, 7, 10),
 	),
+	// A few shade trees on each loop's lawn, off its middle.
+	...QUADRANTS.flatMap((quadrant, q) =>
+		[0, 1, 2].map((i) => {
+			const angle = ((q * 70 + i * 120) * Math.PI) / 180;
+			const [x, z] = cloverIslandCentre(quadrant);
+			return tree(
+				`island_${quadrant}_tree_${i + 1}`,
+				i === 1 ? "round_tree_02" : "round_tree_01",
+				[x + 3.4 * Math.cos(angle), z + 3.4 * Math.sin(angle)],
+				q * 3 + i,
+			);
+		}),
+	),
 	...[0, 1, 2, 3].flatMap((k) =>
 		grove(`stack_island_${k + 1}_tree`, stackIslandCentre(k), STACK_ISLAND_RADIUS),
 	),
