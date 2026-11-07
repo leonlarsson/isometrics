@@ -717,7 +717,6 @@ const ROADS: TRoadInput[] = [
 		{
 			cornerRadius: 6,
 			showsCentreLine: true,
-			pillarSpacing: 4,
 			colors: { surface: { color: "#55524f" }, embankment: { color: "#8c8a86" } },
 			// Its buses and lorry keep to it, back and forth, rather than turning off into town.
 			traffic: { drivesThroughJunctions: false },

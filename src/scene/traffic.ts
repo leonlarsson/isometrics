@@ -344,3 +344,85 @@ export const stepRoadTraffic = (
 	}
 	return moves;
 };
+
+/** A vehicle near a junction where vehicles give way to each other (ADR-0148). */
+export interface IJunctionVehicle {
+	id: string;
+	junctionId: string;
+	/** The end it comes in by: vehicles from the same end follow each other through. */
+	from: string;
+	length: number;
+	/** How far it is to the junction's cut-back line (0 or less once inside), coming to it. */
+	entersIn?: number;
+	/** How far it is to where it leaves the junction, coming to it. */
+	leavesIn?: number;
+	/** How far past the junction it is, leaving it. */
+	leftBy?: number;
+}
+
+/** How far ahead of a junction a vehicle starts to give way. */
+const GIVES_WAY_FROM = 10;
+
+/**
+ * Where vehicles must stop before a junction to give way (ADR-0148), by id: the distance to the
+ * junction's line. At a junction where a road is one-way, vehicles from different ends never cross
+ * it at once: one waits while another from a different end is in it (or its rear still is), and of
+ * those coming to it from different ends, the nearest goes first, the others wait at the line. So
+ * merging traffic takes turns, zipping in, and vehicles never drive through each other there.
+ */
+export const giveWayStops = (vehicles: readonly IJunctionVehicle[]) => {
+	const stops = new Map<string, number>();
+	const byJunction = new Map<string, IJunctionVehicle[]>();
+	for (const vehicle of vehicles) {
+		const list = byJunction.get(vehicle.junctionId);
+		if (list) {
+			list.push(vehicle);
+		} else {
+			byJunction.set(vehicle.junctionId, [vehicle]);
+		}
+	}
+	for (const list of byJunction.values()) {
+		const inside = list.filter(
+			(v) =>
+				(v.entersIn !== undefined && v.entersIn <= 0) ||
+				(v.leftBy !== undefined && v.leftBy < v.length / 2 + MIN_GAP / 2),
+		);
+		const coming = list.filter(
+			(v) => v.entersIn !== undefined && v.entersIn > 0 && v.entersIn < GIVES_WAY_FROM + v.length,
+		);
+		for (const v of coming) {
+			const at = v.entersIn as number;
+			const waits =
+				inside.some((other) => other.from !== v.from) ||
+				coming.some(
+					(other) =>
+						other.from !== v.from &&
+						((other.entersIn as number) < at ||
+							((other.entersIn as number) === at && other.id < v.id)),
+				);
+			if (waits) {
+				stops.set(v.id, at);
+			}
+		}
+		// Two from different ends inside at once (put there, or it couldn't stop in time): the one
+		// nearer where it leaves goes on, the other stops a vehicle's length short of there until it's
+		// clear, so they never drive through each other where their ways meet.
+		for (const v of inside) {
+			if (v.leavesIn === undefined) {
+				continue;
+			}
+			const to = v.leavesIn;
+			const yields = inside.some(
+				(other) =>
+					other.from !== v.from &&
+					(other.leavesIn === undefined ||
+						other.leavesIn < to ||
+						(other.leavesIn === to && other.id < v.id)),
+			);
+			if (yields) {
+				stops.set(v.id, Math.max(0, to - v.length - MIN_GAP));
+			}
+		}
+	}
+	return stops;
+};

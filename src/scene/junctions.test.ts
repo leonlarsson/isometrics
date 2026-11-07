@@ -320,9 +320,9 @@ describe("editing junctions", () => {
 		expect(world.roads[1].points[0]).toEqual([0.2, 0, 0]);
 		expect(world.roads[2].points.at(-1)).toEqual([0.2, 0, 0]);
 		expect(world.junctions[0].ends).toEqual([
-			{ roadId: "main", end: "end" },
-			{ roadId: "main-2", end: "start" },
-			{ roadId: "side", end: "end" },
+			{ roadId: "main", end: "end", leadsTo: null },
+			{ roadId: "main-2", end: "start", leadsTo: null },
+			{ roadId: "side", end: "end", leadsTo: null },
 		]);
 		expect(world.entities[0].follow.roadId).toBe("main");
 		expect(world.entities[1].follow).toEqual({ roadId: "main-2", startDistance: 15 - 10.2 });
@@ -368,7 +368,7 @@ describe("editing junctions", () => {
 		world.roads[1].points.push([20, 0, 0]);
 		world.junctions.push(junction("k", ["east", "end"], ["north", "end"]));
 		junctionsAfterSplit(world, "east", "east-2");
-		expect(world.junctions[1].ends[0]).toEqual({ roadId: "east-2", end: "end" });
+		expect(world.junctions[1].ends[0]).toEqual({ roadId: "east-2", end: "end", leadsTo: null });
 	});
 
 	it("keeps a joined road's other ends at their junctions", () => {
@@ -382,8 +382,8 @@ describe("editing junctions", () => {
 		// a's end joins b's end: a as it is, then b reversed, so b's start is the joined road's end.
 		expect(joinedPoints([[0], [1]], "end", [[3], [2]], "end")).toEqual([[0], [1], [2], [3]]);
 		junctionsAfterJoin(world, "a", "end", "b", "end");
-		expect(world.junctions[0].ends[0]).toEqual({ roadId: "a", end: "start" });
-		expect(world.junctions[1].ends[0]).toEqual({ roadId: "a", end: "end" });
+		expect(world.junctions[0].ends[0]).toEqual({ roadId: "a", end: "start", leadsTo: null });
+		expect(world.junctions[1].ends[0]).toEqual({ roadId: "a", end: "end", leadsTo: null });
 	});
 
 	it("takes a deleted road's ends out, and removes a junction left with one end", () => {
@@ -448,5 +448,104 @@ describe("settleJunctions", () => {
 		expect(after.roads[1].points[0]).toEqual([20, 0, 0]);
 		expect(after.roads[2].points[0]).toEqual([0.5, 0, 0]);
 		expect(after.junctions[0].ends.map((e) => e.roadId)).toEqual(["a", "c"]);
+	});
+});
+
+describe("gores, where a slip road joins or leaves a carriageway (ADR-0148)", () => {
+	const oneWay = (id: string, points: TRoadInput["points"], width = 2.4) =>
+		RoadSchema.parse({ id, points, width, isOneWay: true, curveShape: "throughPoints" });
+	/** A carriageway east along z = -8, a slip road joining it from the south, nearly in line. */
+	const merge = (slipIsOneWay = true) =>
+		roadNetworkOf(
+			[
+				oneWay(
+					"in",
+					[
+						[-32, -8],
+						[6, -8],
+					],
+					3,
+				),
+				oneWay(
+					"on",
+					[
+						[6, -8],
+						[32, -8],
+					],
+					3,
+				),
+				{
+					...oneWay("slip", [
+						[-28, 32],
+						[-24, 5],
+						[-16, -2.5],
+						[-6, -6.2],
+						[6, -8],
+					]),
+					isOneWay: slipIsOneWay,
+				},
+			],
+			[
+				JunctionSchema.parse({
+					id: "j",
+					ends: [
+						{ roadId: "in", end: "end" },
+						{ roadId: "on", end: "start" },
+						{ roadId: "slip", end: "end" },
+					],
+				}),
+			],
+		);
+
+	it("finds the carriageway, the pair most in line, and the slip road beside it", () => {
+		const junction = merge().junctions[0];
+		expect(junction.gore).toMatchObject({ slip: 2, beside: 0 });
+		// Junctions of two-way roads stay pads, as every junction was.
+		expect(merge(false).junctions[0].gore).toBeNull();
+	});
+
+	it("is one deck: the carriageway's width at the junction, widening beside the slip road", () => {
+		const network = merge();
+		const junction = network.junctions[0];
+		const pad = junctionPad(network, junction);
+		const vertices = pad?.vertices ?? [];
+		// Its far edge starts at the carriageway's far edge, its other edge at its near one.
+		expect(vertices[1][0]).toBeCloseTo(6, 1);
+		expect(Math.abs(vertices[1][1] - -8)).toBeCloseTo(1.5);
+		expect(Math.abs((vertices.at(-1) as number[])[1] - -8)).toBeCloseTo(1.5);
+		// Both roads are cut back to the nose, the carriageway too: no surfaces overlap.
+		const trims = junction.ends.map((end) => end.drawTrim);
+		expect(trims[0]).toBeGreaterThan(5);
+		expect(trims[1]).toBe(0);
+		expect(trims[2]).toBeGreaterThan(5);
+		// It reaches out over the slip road's width beside the carriageway, near the nose.
+		const widest = Math.max(...vertices.map((v) => Math.abs(v[1] - -8)));
+		expect(widest).toBeGreaterThan(1.5 + 2.4 - 0.2);
+		expect(pad?.laneLines?.[0]?.length ?? 0).toBeGreaterThan(1);
+	});
+
+	it("ends bluntly between the two roads at the nose, with its gore painted back from there", () => {
+		const network = merge();
+		const junction = network.junctions[0];
+		const pad = junctionPad(network, junction);
+		// The nose: across from the carriageway's edge to the slip road's, room left between them.
+		const nose = pad?.edges.find((edge) => edge.length === 2);
+		expect(nose).toBeDefined();
+		const [a, b] = nose as number[][];
+		const across = Math.hypot(a[0] - b[0], a[1] - b[1]);
+		expect(across).toBeGreaterThan(0.8);
+		expect(across).toBeLessThan(1.2);
+		// The slip road reaches a little under the deck, so no crack shows.
+		const cut = junction.ends[2].routeTrim;
+		expect(junction.ends[2].drawTrim).toBeLessThan(cut);
+		// Two solid lines from the nose to where they meet, and chevrons between them.
+		const painted = pad?.paintedLines ?? [];
+		expect(painted.length).toBeGreaterThan(2);
+		expect(painted.slice(2).every((stroke) => stroke.length === 2)).toBe(true);
+		// The lane line goes on from where the two lines meet, towards the junction.
+		const lane = pad?.laneLines?.[0] ?? [];
+		const meet = painted[0][0];
+		const last = lane[lane.length - 1];
+		expect(Math.hypot(last[0] - meet[0], last[1] - meet[1])).toBeLessThan(0.1);
 	});
 });

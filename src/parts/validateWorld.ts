@@ -9,8 +9,9 @@ import {
 } from "#/scene/flows";
 import { plural } from "#/scene/format";
 import { roadNetworkOf } from "#/scene/junctions";
+import { waysOut } from "#/scene/network";
 import { describeRepairs } from "#/scene/repair";
-import { polylineLength, roadCenterlineOf } from "#/scene/roads";
+import { isHiddenRoute, polylineLength, roadCenterlineOf, steepestGrade } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TEntity, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
@@ -56,6 +57,9 @@ export interface IWorldValidation {
 /** More objects or table rows than these make a world slow and big to keep: said as a warning. */
 const MOST_OBJECTS = 20_000;
 const MOST_ROWS = 100_000;
+
+/** The steepest a one-way road (a carriageway or ramp) may climb before validate says so (ADR-0148). */
+const STEEPEST_RAMP = 0.12;
 
 /** A road's settings in `road.data` that set how many vehicles its flow has (ADR-0112). */
 const FLOW_DATA_SETTINGS = ["vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst"];
@@ -296,6 +300,16 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 				);
 			}
 		}
+		// A carriageway or ramp (one-way, ADR-0148) steeper than any real one reads as a wall.
+		if (road.isOneWay && !isHiddenRoute(road.kind)) {
+			const steepest = steepestGrade(road);
+			if (steepest.grade > STEEPEST_RAMP) {
+				warn(
+					`${where}.points`,
+					`climbs ${Math.round(steepest.grade * 100)}% about ${roughly(steepest.along)} along it, steeper than a ramp should be (motorway ramps climb about 6%, ${Math.round(STEEPEST_RAMP * 100)}% at most). Lengthen the ramp: spread its rise over more distance`,
+				);
+			}
+		}
 		rowRead(where, road.dataRow);
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);
 	});
@@ -347,6 +361,47 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		if (joined < 2) {
 			warn(where, "joins fewer than two road ends: it does nothing");
 		}
+		// The turns allowed from each end (ADR-0148), and one-way roads that lead into nothing.
+		const built = network.junctions.find((each) => each.id === junction.id);
+		junction.ends.forEach((end, endIndex) => {
+			const at = `${where}.ends[${endIndex}]`;
+			for (const to of end.leadsTo ?? []) {
+				const there = junction.ends.some((e) => e.roadId === to.roadId && e.end === to.end);
+				if (!there || (to.roadId === end.roadId && to.end === end.end)) {
+					warn(
+						`${at}.leadsTo`,
+						`names the ${to.end} of road "${to.roadId}", which isn't another end of this junction: it's left out`,
+					);
+				} else if (roadsById.get(to.roadId)?.isOneWay && to.end === "end") {
+					warn(
+						`${at}.leadsTo`,
+						`names the end of one-way road "${to.roadId}": vehicles never drive it against its way, so that turn is left out`,
+					);
+				}
+			}
+			const road = roadsById.get(end.roadId);
+			const arrives = !(road?.isOneWay && end.end === "start");
+			const own = built?.ends.find((e) => e.roadId === end.roadId && e.end === end.end);
+			if (!built || !own || !arrives) {
+				return;
+			}
+			const { ways } = waysOut(
+				built,
+				own,
+				built.ends.filter((e) => e !== own),
+			);
+			if (ways.length === 0 && road?.isOneWay) {
+				warn(
+					at,
+					`one-way road "${end.roadId}" leads into this junction, but no way out of it is allowed${end.leadsTo ? " (its leadsTo)" : " (every other road here is one-way towards it)"}: its vehicles vanish here and start again where they began. Connect a road leading on, or allow a turn`,
+				);
+			} else if (ways.length === 0 && end.leadsTo) {
+				warn(
+					`${at}.leadsTo`,
+					`allows no way on, so vehicles arriving by road "${end.roadId}" turn round here`,
+				);
+			}
+		});
 	});
 
 	scene.data.tables.forEach((table, index) => {

@@ -1,5 +1,14 @@
 import type { IColorSpec } from "./colors";
-import type { TDrivingSide, TRoad, TRoadKind, TRoadPoint, TTurnStyle, TVec2 } from "./schema";
+import type {
+	TDrivingSide,
+	TPillarKind,
+	TRoad,
+	TRoadCurveShape,
+	TRoadKind,
+	TRoadPoint,
+	TTurnStyle,
+	TVec2,
+} from "./schema";
 import { variantName } from "./variants";
 
 /**
@@ -127,6 +136,42 @@ export const resolveDrivesThroughJunctions = (
 export const turnSmoothing = (turns: TTurnStyle, vehicleLength: number) =>
 	turns === "sharp" ? 0 : Math.min(Math.max(vehicleLength / 2, 0.3), 3);
 
+/**
+ * What a road drawn in the editor has that a road left unsaid doesn't (ADR-0148): the schema's
+ * defaults keep saved worlds as they were, and new roads get the better behaviour. Reset goes back
+ * to these.
+ */
+export const NEW_ROAD_SETTINGS = {
+	curveShape: "throughPoints",
+	pillarsKeepClear: true,
+} as const satisfies Partial<TRoad>;
+
+/**
+ * How far apart a road's pillars stand (ADR-0148): its own spacing, else its pillar kind's: the
+ * square posts' 4 as always, and for columns, hammerheads, pairs and walls about four times the
+ * deck's width, as real viaducts span between supports.
+ */
+export const pillarSpacingOf = (
+	road: Pick<TRoad, "pillarSpacing" | "pillarKind" | "width"> | { pillarSpacing?: number | null },
+) => {
+	if (typeof road.pillarSpacing === "number") {
+		return road.pillarSpacing;
+	}
+	if (!("pillarKind" in road) || road.pillarKind === "post_01") {
+		return PILLAR_SPACING;
+	}
+	return Math.min(20, Math.max(8, road.width * 4));
+};
+
+/** What each pillar kind is called in the editor (ADR-0148). */
+export const PILLAR_KIND_LABELS: Record<TPillarKind, string> = {
+	post_01: "Square posts",
+	column_01: "Round columns",
+	hammerhead_01: "Hammerheads (a column and a crosshead)",
+	pair_01: "Pairs of posts under its edges",
+	wall_01: "Walls across",
+};
+
 /** Default width per style when drawing a new road. */
 export const ROAD_KIND_WIDTH = Object.fromEntries(
 	ROAD_KIND_IDS.map((style) => [style, ROAD_KINDS[style].defaultWidth]),
@@ -146,6 +191,11 @@ export const DECK_THICKNESS = 0.3;
 /** Railings appear where the road is at least this high. */
 export const RAILING_MIN = 0.5;
 export const RAILING_HEIGHT = 0.3;
+/** How tall a railing is where the deck is `height` up: none low down, growing in to whole at RAILING_MIN. */
+export const railingHeightAt = (height: number) => {
+	const share = Math.min(1, Math.max(0, (height - RAILING_MIN / 3) / ((RAILING_MIN * 2) / 3)));
+	return RAILING_HEIGHT * share * share * (3 - 2 * share);
+};
 /** Default distance between pillars along the road, and the minimum height that gets one. */
 export const PILLAR_SPACING = 4;
 export const PILLAR_MIN = 0.8;
@@ -206,6 +256,217 @@ const dedupe = (points: TRoadPoint[], closed: boolean) => {
 	return out;
 };
 
+/** Most samples in one stretch of a curve through the points. */
+const MOST_CURVE_STEPS = 256;
+/** A curve through the points turns at most this much between two samples. */
+const CURVE_STEP_ANGLE = Math.PI / 48;
+
+/**
+ * A point on a centripetal Catmull-Rom spline (alpha 0.5) between `p1` and `p2`, `t` from 0 to 1
+ * of the way: no cusps or loops within a stretch, and no overshoot past sharp turns.
+ */
+const catmullRom = (p0: TVec2, p1: TVec2, p2: TVec2, p3: TVec2, f: number): TVec2 => {
+	const knot = (a: TVec2, b: TVec2) => Math.max(1e-6, Math.sqrt(length(sub(b, a))));
+	const t0 = 0;
+	const t1 = t0 + knot(p0, p1);
+	const t2 = t1 + knot(p1, p2);
+	const t3 = t2 + knot(p2, p3);
+	const t = t1 + (t2 - t1) * f;
+	const mix = (a: TVec2, b: TVec2, from: number, to: number): TVec2 => {
+		const u = (t - from) / (to - from);
+		return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+	};
+	const a1 = mix(p0, p1, t0, t1);
+	const a2 = mix(p1, p2, t1, t2);
+	const a3 = mix(p2, p3, t2, t3);
+	const b1 = mix(a1, a2, t0, t2);
+	const b2 = mix(a2, a3, t1, t3);
+	return mix(b1, b2, t1, t2);
+};
+
+/**
+ * The four points of the spline's stretch from point `i` to the next: an open road's ends get a
+ * point mirrored past them, so the curve starts and ends heading at its neighbour.
+ */
+const stretchPoints = (pts: readonly TRoadPoint[], isClosed: boolean, i: number) => {
+	const n = pts.length;
+	const at = (k: number): TVec2 => {
+		if (isClosed) {
+			return xz(pts[((k % n) + n) % n]);
+		}
+		if (k < 0) {
+			return sub(scale(xz(pts[0]), 2), xz(pts[1]));
+		}
+		if (k > n - 1) {
+			return sub(scale(xz(pts[n - 1]), 2), xz(pts[n - 2]));
+		}
+		return xz(pts[k]);
+	};
+	return [at(i - 1), at(i), at(i + 1), at(i + 2)] as const;
+};
+
+/** Point `f` (0 to 1) of the way along the curve through the points, from point `i` to the next. */
+export const throughPointsAt = (
+	pts: readonly TRoadPoint[],
+	isClosed: boolean,
+	i: number,
+	f: number,
+): TVec2 => {
+	const [p0, p1, p2, p3] = stretchPoints(pts, isClosed, i);
+	return catmullRom(p0, p1, p2, p3, f);
+};
+
+/**
+ * Values at stations along a line (a road's altitudes or widths at its points), eased between them
+ * by a monotone cubic (Fritsch–Carlson): through every value with no overshoot, a steady grade kept
+ * steady through the points between (a spiral ramp climbs evenly), levelling only at a peak, a dip
+ * and an open road's ends.
+ */
+const monotoneEase = (
+	stations: readonly number[],
+	values: readonly number[],
+	isClosed: boolean,
+	total: number,
+) => {
+	const n = values.length;
+	const count = isClosed ? n : n - 1;
+	const span = (k: number) => {
+		const from = stations[k];
+		let to = stations[(k + 1) % n];
+		if (isClosed && to <= from) {
+			to += total;
+		}
+		return Math.max(1e-9, to - from);
+	};
+	const secant = Array.from(
+		{ length: count },
+		(_, k) => (values[(k + 1) % n] - values[k]) / span(k),
+	);
+	const tangent = values.map((_, k) => {
+		const before = isClosed || k > 0 ? secant[(k - 1 + count) % count] : null;
+		const after = isClosed || k < n - 1 ? secant[k % count] : null;
+		if (before === null || after === null) {
+			return 0; // an open road's ends: level
+		}
+		return before * after <= 0 ? 0 : (before + after) / 2;
+	});
+	for (let k = 0; k < count; k++) {
+		const d = secant[k];
+		const next = (k + 1) % n;
+		if (d === 0) {
+			tangent[k] = 0;
+			tangent[next] = 0;
+			continue;
+		}
+		const a = tangent[k] / d;
+		const b = tangent[next] / d;
+		const size = a * a + b * b;
+		if (size > 9) {
+			const s = 3 / Math.sqrt(size);
+			tangent[k] = s * a * d;
+			tangent[next] = s * b * d;
+		}
+	}
+	return (distance: number) => {
+		for (let k = 0; k < count; k++) {
+			const from = stations[k];
+			const h = span(k);
+			let d = distance;
+			if (isClosed && d < from) {
+				d += total;
+			}
+			if (d >= from - 1e-9 && d <= from + h + 1e-9) {
+				const t = Math.min(1, Math.max(0, (d - from) / h));
+				const t2 = t * t;
+				const t3 = t2 * t;
+				const v0 = values[k];
+				const v1 = values[(k + 1) % n];
+				return (
+					(2 * t3 - 3 * t2 + 1) * v0 +
+					(t3 - 2 * t2 + t) * h * tangent[k] +
+					(-2 * t3 + 3 * t2) * v1 +
+					(t3 - t2) * h * tangent[(k + 1) % n]
+				);
+			}
+		}
+		return distance <= stations[0] ? values[0] : values[n - 1];
+	};
+};
+
+/**
+ * The centre line of a road whose `curveShape` is `throughPoints` (ADR-0148): a centripetal
+ * Catmull-Rom spline through every point, sampled more where it bends (every few degrees of turn)
+ * and along ramps, its altitudes and widths eased through each point's (`monotoneEase`).
+ */
+const throughPointsCenterline = (
+	pts: TRoadPoint[],
+	isClosed: boolean,
+	width: number | undefined,
+): TRoadPoint[] => {
+	const n = pts.length;
+	const count = isClosed ? n : n - 1;
+	const fallbackWidth = width ?? pts.map(pointWidth).find((w) => w !== undefined);
+	const widthOf = (p: TRoadPoint) => pointWidth(p) ?? fallbackWidth ?? 0;
+	const positions: TVec2[] = [];
+	const stationIndex: number[] = [];
+	for (let i = 0; i < count; i++) {
+		const [p0, p1, p2, p3] = stretchPoints(pts, isClosed, i);
+		const a = pts[i];
+		const b = pts[(i + 1) % n];
+		const ramps = Math.abs(a[2] - b[2]) > 1e-9 || widthOf(a) !== widthOf(b);
+		const at = (f: number) => catmullRom(p0, p1, p2, p3, f);
+		stationIndex.push(positions.length);
+		positions.push(p1);
+		// Halved where it bends more than a few degrees, or is longer than a ramp's step on a ramp,
+		// so it's sampled most where it curves most, and a straight stretch is one segment.
+		let budget = MOST_CURVE_STEPS;
+		const split = (from: number, start: TVec2, to: number, end: TVec2, depth: number) => {
+			const half = (from + to) / 2;
+			const middle = at(half);
+			const first = sub(middle, start);
+			const second = sub(end, middle);
+			const bend = Math.abs(
+				Math.atan2(
+					first[0] * second[1] - first[1] * second[0],
+					first[0] * second[0] + first[1] * second[1],
+				),
+			);
+			const long = ramps && length(sub(end, start)) > RAMP_STEP;
+			if (depth < 12 && budget > 0 && (bend > CURVE_STEP_ANGLE / 2 || long || depth < 2)) {
+				budget -= 1;
+				split(from, start, half, middle, depth + 1);
+				positions.push(middle);
+				split(half, middle, to, end, depth + 1);
+			}
+		};
+		split(0, p1, 1, p2, 0);
+	}
+	if (!isClosed) {
+		stationIndex.push(positions.length);
+		positions.push(xz(pts[n - 1]));
+	}
+	const along = [0];
+	for (let j = 1; j < positions.length; j++) {
+		along.push(along[j - 1] + length(sub(positions[j], positions[j - 1])));
+	}
+	const total = isClosed
+		? along[along.length - 1] + length(sub(positions[0], positions[positions.length - 1]))
+		: along[along.length - 1];
+	const stations = stationIndex.map((index) => along[index]);
+	const heightAt = monotoneEase(
+		stations,
+		pts.map((p) => p[2]),
+		isClosed,
+		total,
+	);
+	const widthAt =
+		fallbackWidth === undefined ? null : monotoneEase(stations, pts.map(widthOf), isClosed, total);
+	return positions.map((p, j): TRoadPoint => {
+		const height = Math.max(0, heightAt(along[j]));
+		return widthAt === null ? [p[0], p[1], height] : [p[0], p[1], height, widthAt(along[j])];
+	});
+};
+
 /**
  * The road's centre line as a dense polyline of [x, z, height].
  *
@@ -231,12 +492,16 @@ export const roadCenterline = (
 	closed: boolean,
 	cornerRadius: number,
 	width?: number,
+	curveShape: TRoadCurveShape = "roundedCorners",
 ): TRoadPoint[] => {
 	const pts = dedupe(input.map(withHeight), closed);
 	const n = pts.length;
 	const isClosed = closed && n > 2;
 	if (n < 2) {
 		return pts;
+	}
+	if (curveShape === "throughPoints") {
+		return throughPointsCenterline(pts, isClosed, width);
 	}
 	const segCount = isClosed ? n : n - 1;
 	const at = (i: number) => pts[((i % n) + n) % n];
@@ -368,9 +633,50 @@ export const roadCenterline = (
 	});
 };
 
+/** A road's centre line, the one every reader of its shape goes through (in either curve shape). */
 export const roadCenterlineOf = (
-	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width">,
-) => roadCenterline(road.points, road.loops, road.cornerRadius, road.width);
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width"> &
+		Partial<Pick<TRoad, "curveShape">>,
+) => roadCenterline(road.points, road.loops, road.cornerRadius, road.width, road.curveShape);
+
+/** How far along a road its grade is measured over, so a short wobble isn't taken for a slope. */
+const GRADE_RUN = 2;
+
+/**
+ * A road's steepest grade (ADR-0148): the most it rises or falls per unit along the ground over
+ * any `GRADE_RUN` of its centre line, and how far along that is.
+ */
+export const steepestGrade = (
+	road: Pick<TRoad, "points" | "loops" | "cornerRadius" | "width"> &
+		Partial<Pick<TRoad, "curveShape">>,
+	/** Only within this far of its start or end (along it), when given. */
+	near?: { end: TRoadEnd; within: number },
+) => {
+	const line = roadCenterlineOf(road);
+	const pts = road.loops && line.length > 2 ? [...line, line[0]] : line;
+	const along = [0];
+	for (let i = 1; i < pts.length; i++) {
+		along.push(along[i - 1] + length(sub(xz(pts[i]), xz(pts[i - 1]))));
+	}
+	let best = { grade: 0, along: 0 };
+	let j = 0;
+	for (let i = 0; i < pts.length; i++) {
+		while (j < pts.length - 1 && along[j] - along[i] < GRADE_RUN) {
+			j++;
+		}
+		const run = along[j] - along[i];
+		const total = along[along.length - 1];
+		const counts =
+			!near || (near.end === "start" ? along[i] <= near.within : along[j] >= total - near.within);
+		if (counts && run >= GRADE_RUN * 0.5) {
+			const grade = Math.abs(pts[j][2] - pts[i][2]) / run;
+			if (grade > best.grade) {
+				best = { grade, along: along[i] };
+			}
+		}
+	}
+	return best;
+};
 
 /** Total ground length of a polyline (heights ignored), including the closing segment for loops. */
 export const polylineLength = (points: readonly (readonly number[])[], closed: boolean) => {
@@ -585,6 +891,11 @@ export const buildElevatedSides = (
 		embankmentWidth?: number;
 		/** Keep embankment feet on the ground slab: half its width (x) and depth (z). */
 		bounds?: TVec2;
+		/**
+		 * Stretches with no railing on one side (ADR-0148), by distance along the line and side (1 =
+		 * right of its way, -1 = left): where a slip road joins it at a gore, so their decks are one.
+		 */
+		openRailings?: readonly { from: number; to: number; side: -1 | 1 }[];
 	},
 ) => {
 	const keepOnGround = (p: TVec2): TVec2 =>
@@ -607,10 +918,14 @@ export const buildElevatedSides = (
 	const bankEdges = bankScale < 1 ? vertexEdges(center, closed, halfWidth, bankScale) : edges;
 	const n = edges.length;
 	const segments = closed && n > 2 ? n : n - 1;
+	const open = options.openRailings ?? [];
+	let travelled = 0;
 	for (let i = 0; i < segments; i++) {
 		const a = edges[i];
 		const b = edges[(i + 1) % n];
 		const [ha, hb] = [a.point[2], b.point[2]];
+		const middle = travelled + length(sub(xz(b.point), xz(a.point))) / 2;
+		travelled += length(sub(xz(b.point), xz(a.point)));
 		if (ha <= ELEVATED_MIN && hb <= ELEVATED_MIN) {
 			continue;
 		}
@@ -629,21 +944,55 @@ export const buildElevatedSides = (
 		for (const sign of [-1, 1] as const) {
 			const pa = sign < 0 ? a.left : a.right;
 			const pb = sign < 0 ? b.left : b.right;
-			if (!fullBank) {
-				deck.quads.push([
-					[pa[0], ha, pa[1]],
-					[pb[0], hb, pb[1]],
-					[pa[0], Math.max(0, ha - DECK_THICKNESS), pa[1]],
-					[pb[0], Math.max(0, hb - DECK_THICKNESS), pb[1]],
-				]);
+			// Where a slip road's deck joins this one at a gore (ADR-0148), the gore's edge is the deck's:
+			// the segment is cut where such a stretch starts or ends, and its pieces in it are left out.
+			const from = 2 * middle - travelled;
+			const to = travelled;
+			const cuts = [0, 1];
+			for (const stretch of open) {
+				if (stretch.side === sign) {
+					for (const at of [stretch.from, stretch.to]) {
+						if (at > from && at < to) {
+							cuts.push((at - from) / (to - from));
+						}
+					}
+				}
 			}
-			if (options.railings && ha >= RAILING_MIN && hb >= RAILING_MIN) {
-				railings.quads.push([
-					[pa[0], ha + RAILING_HEIGHT, pa[1]],
-					[pb[0], hb + RAILING_HEIGHT, pb[1]],
-					[pa[0], ha, pa[1]],
-					[pb[0], hb, pb[1]],
-				]);
+			cuts.sort((x, y) => x - y);
+			for (let c = 0; c < cuts.length - 1; c++) {
+				const [t0, t1] = [cuts[c], cuts[c + 1]];
+				const at = from + ((t0 + t1) / 2) * (to - from);
+				if (
+					open.some((stretch) => stretch.side === sign && at >= stretch.from && at <= stretch.to)
+				) {
+					continue;
+				}
+				// Exactly its ends where it isn't cut, so an uncut road draws as it always did.
+				const lerp2 = (t: number): TVec2 =>
+					t === 0 ? pa : t === 1 ? pb : [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
+				const [qa, qb] = [lerp2(t0), lerp2(t1)];
+				const [h0, h1] = [t0 === 0 ? ha : ha + (hb - ha) * t0, t1 === 1 ? hb : ha + (hb - ha) * t1];
+				// Both sides face outwards (the right side's quads run the other way), so each side's faces and
+				// normals point away from the road, and shadows don't stripe a side seen from its back.
+				const [qs, qe, hs, he] = sign > 0 ? [qb, qa, h1, h0] : [qa, qb, h0, h1];
+				if (!fullBank) {
+					deck.quads.push([
+						[qs[0], hs, qs[1]],
+						[qe[0], he, qe[1]],
+						[qs[0], Math.max(0, hs - DECK_THICKNESS), qs[1]],
+						[qe[0], Math.max(0, he - DECK_THICKNESS), qe[1]],
+					]);
+				}
+				// Railings grow up out of the deck as it rises (ADR-0148), rather than standing up all at
+				// once where it reaches their height: from nothing a third of the way there to whole at it.
+				if (options.railings && (h0 >= RAILING_MIN / 3 || h1 >= RAILING_MIN / 3)) {
+					railings.quads.push([
+						[qs[0], hs + railingHeightAt(hs), qs[1]],
+						[qe[0], he + railingHeightAt(he), qe[1]],
+						[qs[0], hs, qs[1]],
+						[qe[0], he, qe[1]],
+					]);
+				}
 			}
 			if (options.embankment) {
 				// Slope outward and down to the ground, from the bank's top edge.
@@ -745,26 +1094,34 @@ export const dashPolyline = (
  * Hidden routes have no lanes, so vehicles drive on the line itself.
  */
 export const laneOffset = (
-	road: Pick<TRoad, "width" | "kind" | "traffic">,
+	road: Pick<TRoad, "width" | "kind" | "traffic"> & Partial<Pick<TRoad, "isOneWay">>,
 	driving: TDrivingSide,
 ) => {
-	if (isHiddenRoute(road.kind) || road.traffic.drivingLane === "centre") {
+	// A one-way road's one lane is all of it: vehicles drive down its middle (ADR-0148).
+	if (isHiddenRoute(road.kind) || road.traffic.drivingLane === "centre" || road.isOneWay) {
 		return 0;
 	}
 	return road.width * LANE_FRACTION * (driving === "right" ? 1 : -1);
 };
 
 /** Midpoint of segment i → i+1 (wrapping for closed roads), for "insert point" handles. */
-export const segmentMidpoints = (points: TPointInput[], closed: boolean) => {
+export const segmentMidpoints = (
+	points: TPointInput[],
+	closed: boolean,
+	curveShape: TRoadCurveShape = "roundedCorners",
+) => {
 	const pts = points.map(withHeight);
-	const count = closed && pts.length > 2 ? pts.length : pts.length - 1;
+	const isClosed = closed && pts.length > 2;
+	const count = isClosed ? pts.length : pts.length - 1;
 	return Array.from({ length: count }, (_, i) => {
 		const a = pts[i];
 		const b = pts[(i + 1) % pts.length];
-		return {
-			index: i,
-			point: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] as TRoadPoint,
-		};
+		// On a smooth road, halfway along its curve, where a new point keeps its shape (ADR-0148).
+		const [x, z] =
+			curveShape === "throughPoints"
+				? throughPointsAt(pts, isClosed, i, 0.5)
+				: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+		return { index: i, point: [x, z, (a[2] + b[2]) / 2] as TRoadPoint };
 	});
 };
 
