@@ -31,7 +31,7 @@ Sharing by link (ADR-0120, ADR-0134) was built for people sharing their own worl
 Chosen option: **2**. The schema is what saved worlds and files are read with: tightening it would break worlds people have (ADR-0026, ADR-0106). Share time is where a stranger's world arrives; there it can be refused in our words. With low use expected, 3 and 4 are more than needed: gzip saves pennies on honest shares and nothing on junk (which doesn't compress), and the owner deletes from KV if something must go. KV stays (ADR-0120's reasons hold); 5 is more machinery than limits need.
 
 - **Who's counted** (`server/rateLimitKey.ts`): the share and check rate limits count an IPv4 address on its own and an IPv6 address by its /64 (`2001:db8:1:2::/64`); an IPv4-mapped IPv6 address is its IPv4 one; anything unreadable shares one key.
-- **How big a share can be** (`server/shareLimits.ts`): as kept, a world is at most **1.5 MB** (defaults left out; Stockholm, the biggest template, is about 519 kB) and a prefab **300 kB**, refused in our words. What's sent is still read up to 5 MB (worlds) and 1 MB (prefabs), as a world sent with its defaults written out can be a few times its kept size. Every template and old-world fixture is well inside it, a test checks.
+- **How big a share can be** (`server/shareLimits.ts`): as kept, a world is at most **2 MB** (defaults left out; 1.5 MB until 2026-11-07; Stockholm, the biggest template, is about 519 kB) and a prefab **300 kB**, refused in our words. What's sent is still read up to 5 MB (worlds) and 1 MB (prefabs), as a world sent with its defaults written out can be a few times its kept size. Every template and old-world fixture is well inside it, a test checks.
 - **Metadata** (`fitMetadata`, `server/sharingControls.ts`): the title (or a prefab's name) without control characters or line separators, cut by whole characters until the metadata is at most 900 bytes as JSON (KV's limit is 1,024), so no title can make a share fail.
 - **The kill switch:** the `SHARING_DISABLED` var (`wrangler.jsonc`, `"false"`): `"true"` (or `1`, `yes`, `on`) and every POST to `/api/user-worlds` and `/api/user-prefabs` answers 503 "Sharing is paused for now. Try again later."; links already shared keep opening. The share dialogs say it in place and grey out Create a public link ("(sharing is paused)").
 - **Someone else's:** a shared world's and a shared prefab's preview bar says "Made by someone else and shared by link, not by Isometrics". A data source's link names its host after its name: "Name (example.com)", so a name can't pass a link off as another site's.
@@ -60,10 +60,10 @@ To stop all new shares: Cloudflare dashboard → Workers & Pages → `isometrics
 
 ### Consequences
 
-- Good: a share costs at most 1.5 MB of input and about a thirteenth of it to keep; abuse from an IPv6 block counts as one sender; the owner can pause sharing in a minute, without a deploy.
+- Good: a share costs at most 2 MB of input and about a thirteenth of it to keep; abuse from an IPv6 block counts as one sender; the owner can pause sharing in a minute, without a deploy.
 - Good: strangers in odd browsers get a screen or a notice that says what's going on.
 - Good: nothing already saved, opened from a file or kept in KV changes how it opens.
-- Bad: a world bigger than 1.5 MB as kept can't be shared by link, only saved to a file.
+- Bad: a world bigger than 2 MB as kept can't be shared by link, only saved to a file.
 - Bad: no Report link or admin delete: a takedown is a `wrangler` command run by the owner.
 - Bad: a browser page on another site can no longer read a shared world's JSON; tools and AIs reading it server-side aren't affected.
 - Bad: someone else's link that's moments old and hasn't reached their part of the world yet now fails after about 12 seconds instead of a minute; opening it again works.

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
 import { storageAvailable } from "#/lib/storage";
+import { compactWorld } from "#/parts/compactWorld";
 import { repairWorld } from "#/parts/repairWorld";
 import { describeRepairs } from "#/scene/repair";
 import type { TScene } from "#/scene/schema";
@@ -124,7 +125,10 @@ export const shareWorld = async (
 		response = await fetch(`/api/user-worlds?expiresIn=${seconds}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(asRead),
+			// As the API keeps it, its defaults left out: what its size limit is about (ADR-0145). With
+			// them written out a world is a few times bigger, and one under the limit as kept could be
+			// more than the API reads at all.
+			body: JSON.stringify(compactWorld(asRead)),
 		});
 	} catch {
 		throw new ShareError("The site couldn't be reached: are you offline?");

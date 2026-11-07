@@ -7,7 +7,7 @@
  */
 
 /** A world is kept at most this big, as kept (defaults left out): Stockholm is about 519 kB. */
-export const MOST_SHARED_WORLD_BYTES = 1_500_000;
+export const MOST_SHARED_WORLD_BYTES = 2_000_000;
 
 /** A prefab is kept at most this big: a few pieces, a fifth of a world, as before. */
 export const MOST_SHARED_PREFAB_BYTES = 300_000;

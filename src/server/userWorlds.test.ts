@@ -180,7 +180,7 @@ describe("how a shared world is kept (ADR-0145)", () => {
 		}
 	});
 
-	it("refuse a world bigger than 1.5 MB as kept, in words", async () => {
+	it("refuse a world bigger than 2 MB as kept, in words", async () => {
 		const scene = createEmptyScene({ title: "Heavy" });
 		const entities = Array.from({ length: 9000 }, (_, i) => ({
 			id: `object_${i}`,
@@ -193,7 +193,7 @@ describe("how a shared world is kept (ADR-0145)", () => {
 		expect(JSON.stringify(compactWorld(heavy as never)).length).toBeGreaterThan(
 			MOST_SHARED_WORLD_BYTES,
 		);
-		expect(await refusal(heavy)).toMatch(/as kept \(its defaults left out\): at most 1\.5 MB/);
+		expect(await refusal(heavy)).toMatch(/as kept \(its defaults left out\): at most 2 MB/);
 	});
 
 	it("keep any title in metadata KV takes, without control characters", async () => {

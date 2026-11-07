@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { compactWorld } from "#/parts/compactWorld";
+import { repairWorld } from "#/parts/repairWorld";
 import { validateWorld } from "#/parts/validateWorld";
 import type { TScene } from "#/scene/schema";
 import { createEmptyScene } from "#/templates";
@@ -51,6 +53,8 @@ describe("sharing from the app (ADR-0120)", () => {
 		const sent = JSON.parse(posted[0]);
 		// What the API checks (it keeps only worlds that open as written): this passes.
 		expect(validateWorld(sent).isValid).toBe(true);
+		// Sent as the API keeps it, its defaults left out (ADR-0145): its limit is about that size.
+		expect(sent).toEqual(compactWorld(repairWorld(structuredClone(sent)).scene));
 		expect(sent.entities).toHaveLength(1);
 		expect(warn).toHaveBeenCalled();
 		// The world in the editor isn't touched.
