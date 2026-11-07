@@ -54,9 +54,16 @@ export interface INetworkJunction {
 	/**
 	 * A gore (ADR-0148): a slip road joining or leaving a carriageway at a shallow angle, by the
 	 * indices of its ends: the slip road's, the carriageway's end it runs beside, and how far along
-	 * the slip road it has peeled away from it (where it's cut back). Null for every other junction.
+	 * the slip road it has peeled away from it (where it's cut back); and how far from the junction
+	 * its lane tapers into the carriageway's (where vehicles merge). Null for every other junction.
 	 */
-	gore: { slip: number; beside: number; cut: number; deckLength: number } | null;
+	gore: {
+		slip: number;
+		beside: number;
+		cut: number;
+		deckLength: number;
+		taperLength: number;
+	} | null;
 }
 
 export interface IRoadNetwork {
@@ -453,6 +460,8 @@ const goreDeckOf = (
 		outerAlong: outerCorner.along,
 		// Which way traffic goes along it: towards the junction at a merge, away at a diverge.
 		travel: (besideEnd === "end" ? -1 : 1) as -1 | 1,
+		/** How far from the junction the slip road's lane tapers into the carriageway's. */
+		taperLength: taperEnd,
 	};
 };
 
@@ -553,7 +562,13 @@ const buildNetwork = (roads: readonly TRoad[], junctions: readonly TJunction[]):
 				place,
 				hasOneWayRoad: true,
 				standsOnPillars: junction.standsOnPillars ?? false,
-				gore: { slip: gore.slip, beside: gore.beside, cut, deckLength: deck.length },
+				gore: {
+					slip: gore.slip,
+					beside: gore.beside,
+					cut,
+					deckLength: deck.length,
+					taperLength: deck.taperLength,
+				},
 				ends: shaped.map((end, i) => ({
 					...end,
 					routeTrim: i === gore.slip ? cut : 0,
