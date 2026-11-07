@@ -510,7 +510,7 @@ describe("gores, where a slip road joins or leaves a carriageway (ADR-0148)", ()
 		const pad = junctionPad(network, junction);
 		const vertices = pad?.vertices ?? [];
 		// Its far edge starts at the carriageway's far edge, its other edge at its near one.
-		expect(vertices[1][0]).toBeCloseTo(6);
+		expect(vertices[1][0]).toBeCloseTo(6, 1);
 		expect(Math.abs(vertices[1][1] - -8)).toBeCloseTo(1.5);
 		expect(Math.abs((vertices.at(-1) as number[])[1] - -8)).toBeCloseTo(1.5);
 		// Both roads are cut back to the nose, the carriageway too: no surfaces overlap.

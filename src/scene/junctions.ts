@@ -86,7 +86,7 @@ const PAD_OVERLAP = 0.04;
 const NOSE_GAP = 0.8;
 /** How far a gore's painted lines keep in from its edges, and its chevrons' spacing and depth. */
 const GORE_LINE_INSET = 0.08;
-const CHEVRON_SPACING = 1.1;
+const CHEVRON_SPACING = 1.4;
 const CHEVRON_DEPTH = 0.6;
 /** Steps in each curve between two roads at a junction. */
 const KERB_STEPS = 8;
@@ -421,6 +421,15 @@ const goreDeckOf = (
 							: null,
 			};
 		});
+	// A little over the road on past the junction, so no crack shows where the deck meets it.
+	const first = sections[0];
+	if (first) {
+		const ahead: TVec2 = [first.right[1], -first.right[0]];
+		const centre = [...first.centre] as TRoadPoint;
+		centre[0] -= ahead[0] * PAD_OVERLAP;
+		centre[1] -= ahead[1] * PAD_OVERLAP;
+		sections.unshift({ ...first, along: -PAD_OVERLAP, centre });
+	}
 	return {
 		length,
 		side,
@@ -815,7 +824,9 @@ const gorePad = (
 		// to the lines.
 		const first = end - 0.3 - (deck.travel < 0 ? CHEVRON_DEPTH : 0);
 		for (let tip = first; tip > meet; tip -= CHEVRON_SPACING) {
-			const arms = tip - deck.travel * CHEVRON_DEPTH;
+			// Arms at about 45°: as deep as about half the gore is wide.
+			const depth = Math.max(0.2, Math.min(CHEVRON_DEPTH, widthAt(tip) * 0.6));
+			const arms = tip - deck.travel * depth;
 			if (arms < meet || arms > end || Math.min(widthAt(arms), widthAt(tip)) < 0.2) {
 				continue;
 			}
