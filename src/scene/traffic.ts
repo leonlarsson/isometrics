@@ -354,6 +354,8 @@ export interface IJunctionVehicle {
 	length: number;
 	/** How far it is to the junction's cut-back line (0 or less once inside), coming to it. */
 	entersIn?: number;
+	/** How far it is to where it leaves the junction, coming to it. */
+	leavesIn?: number;
 	/** How far past the junction it is, leaving it. */
 	leftBy?: number;
 }
@@ -400,6 +402,25 @@ export const giveWayStops = (vehicles: readonly IJunctionVehicle[]) => {
 				);
 			if (waits) {
 				stops.set(v.id, at);
+			}
+		}
+		// Two from different ends inside at once (put there, or it couldn't stop in time): the one
+		// nearer where it leaves goes on, the other stops a vehicle's length short of there until it's
+		// clear, so they never drive through each other where their ways meet.
+		for (const v of inside) {
+			if (v.leavesIn === undefined) {
+				continue;
+			}
+			const to = v.leavesIn;
+			const yields = inside.some(
+				(other) =>
+					other.from !== v.from &&
+					(other.leavesIn === undefined ||
+						other.leavesIn < to ||
+						(other.leavesIn === to && other.id < v.id)),
+			);
+			if (yields) {
+				stops.set(v.id, Math.max(0, to - v.length - MIN_GAP));
 			}
 		}
 	}

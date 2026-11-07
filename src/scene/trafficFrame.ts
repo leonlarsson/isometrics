@@ -112,8 +112,8 @@ export const stepAllTraffic = (
 		}
 		// At junctions where a road is one-way, vehicles from different ends take turns (ADR-0148).
 		if (network?.junctionAhead) {
-			const { id: junctionId, from, entersIn } = network.junctionAhead;
-			atJunctions.push({ id, junctionId, from, entersIn, length: vehicle.length });
+			const { id: junctionId, from, entersIn, leavesIn } = network.junctionAhead;
+			atJunctions.push({ id, junctionId, from, entersIn, leavesIn, length: vehicle.length });
 		}
 		if (network?.junctionBehind) {
 			const { id: junctionId, from, leftBy } = network.junctionBehind;

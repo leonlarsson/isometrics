@@ -523,4 +523,29 @@ describe("gores, where a slip road joins or leaves a carriageway (ADR-0148)", ()
 		expect(widest).toBeGreaterThan(1.5 + 2.4 - 0.2);
 		expect(pad?.laneLines?.[0]?.length ?? 0).toBeGreaterThan(1);
 	});
+
+	it("ends bluntly between the two roads at the nose, with its gore painted back from there", () => {
+		const network = merge();
+		const junction = network.junctions[0];
+		const pad = junctionPad(network, junction);
+		// The nose: across from the carriageway's edge to the slip road's, room left between them.
+		const nose = pad?.edges.find((edge) => edge.length === 2);
+		expect(nose).toBeDefined();
+		const [a, b] = nose as number[][];
+		const across = Math.hypot(a[0] - b[0], a[1] - b[1]);
+		expect(across).toBeGreaterThan(0.8);
+		expect(across).toBeLessThan(1.2);
+		// The slip road reaches a little under the deck, so no crack shows.
+		const cut = junction.ends[2].routeTrim;
+		expect(junction.ends[2].drawTrim).toBeLessThan(cut);
+		// Two solid lines from the nose to where they meet, and chevrons between them.
+		const painted = pad?.paintedLines ?? [];
+		expect(painted.length).toBeGreaterThan(2);
+		expect(painted.slice(2).every((stroke) => stroke.length === 2)).toBe(true);
+		// The lane line goes on from where the two lines meet, towards the junction.
+		const lane = pad?.laneLines?.[0] ?? [];
+		const meet = painted[0][0];
+		const last = lane[lane.length - 1];
+		expect(Math.hypot(last[0] - meet[0], last[1] - meet[1])).toBeLessThan(0.1);
+	});
 });

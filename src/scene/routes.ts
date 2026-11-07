@@ -74,9 +74,9 @@ export interface ITrafficPlace {
 		/**
 		 * The junction it drives into next, where a road is one-way so vehicles give way to each other
 		 * there (ADR-0148): which end it comes in by, and how far it is to its cut-back line (0 or less
-		 * once inside it).
+		 * once inside it), and how far to where it leaves it.
 		 */
-		junctionAhead?: { id: string; from: string; entersIn: number };
+		junctionAhead?: { id: string; from: string; entersIn: number; leavesIn: number };
 		/** Such a junction it has just left, by how far it is past it, and which end it came in by. */
 		junctionBehind?: { id: string; from: string; leftBy: number };
 	};

@@ -510,6 +510,7 @@ export const createNetworkTrip = (
 							id: leg.exit.junctionId,
 							from: `${leg.roadId}:${exitEnd}`,
 							entersIn: leg.bodyTo - leg.exit.zone - along,
+							leavesIn: leg.bodyTo + leg.exit.curveLength - along,
 						},
 					}
 				: {};
