@@ -50,9 +50,13 @@ export const roadBindingMapsOf = (
 	road: Pick<TRoad, "data" | "colors">,
 ): Record<string, TDataBinding>[] => [road.data, ...colorBindingMapsOf(road.colors)];
 
-/** An area's data bindings: its colours'. */
-export const areaBindingMapsOf = (area: Pick<TArea, "colors">): Record<string, TDataBinding>[] =>
-	colorBindingMapsOf(area.colors);
+/** An area's data bindings: its colours' and its own weather's (ADR-0151). */
+export const areaBindingMapsOf = (
+	area: Pick<TArea, "colors" | "weather">,
+): Record<string, TDataBinding>[] => [
+	...colorBindingMapsOf(area.colors),
+	...(area.weather ? [area.weather.data] : []),
+];
 
 /**
  * Every place the world keeps data bindings besides its objects and fences:

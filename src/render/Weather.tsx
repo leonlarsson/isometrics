@@ -2,12 +2,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { weatherNowInWorld } from "#/editor/weather";
+import { areaWeathersInWorld, mostAnywhere, weatherNowInWorld } from "#/editor/weather";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
 
+import { AREA_CLOUD_BASE } from "./AreaWeather";
 import { pixelsPerUnitAt } from "./cameraMath";
-import { installWeatherShading, weatherShading } from "./weatherShading";
+import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weatherShading";
 
 /**
  * Weather in the view (ADR-0102): rain and snow falling in a box round what
@@ -15,7 +16,11 @@ import { installWeatherShading, weatherShading } from "./weatherShading";
  * snow and wetness on the ground (weatherShading). What falls is moved on the
  * GPU from the motion clock, so pausing holds it and big amounts stay cheap;
  * the amounts only change how many are drawn. Mounted only while there's
- * weather, so a clear world draws nothing more.
+ * weather, so a clear world draws nothing more. With areas' own weather
+ * (ADR-0151, `local`), each drop, flake and splash has a rank and shows only
+ * where the amount at its place (the weather map) is above it, so a storm
+ * pours on one district next to dry ground; as many are drawn as the most
+ * any place needs.
  */
 
 /** At most this many raindrops, flakes and splashes; an amount of 1 draws them all. */
@@ -41,9 +46,36 @@ const useFallBox = () => {
 	};
 };
 
+/**
+ * What a drop reads of the weather map: at its place, how much is the world's
+ * (where no area covers it) and how much in all, an area's own on top.
+ */
+const MAP_AMOUNT = /* glsl */ `
+	uniform float amount;
+	#ifdef WEATHER_LOCAL
+		uniform sampler2D weatherMap;
+		uniform vec4 weatherMapBounds;
+		${WEATHER_MAP_UV}
+		vec2 amountAt(vec3 at) {
+			vec4 here = texture2D(weatherMap, weatherMapUv(at));
+			float world = amount * (1.0 - here.a);
+			return vec2(world, world + here[WEATHER_CHANNEL]);
+		}
+	#else
+		vec2 amountAt(vec3 at) {
+			return vec2(amount);
+		}
+	#endif
+`;
+
+/** Off the screen: what isn't shown here (clipped away, both ends of a streak alike). */
+const NOWHERE_GLSL = "vec4(0.0, 0.0, 2.0, 1.0)";
+
 const FALL_VERTEX = /* glsl */ `
 	attribute vec3 seed;
 	attribute float tip;
+	attribute float rank;
+	${MAP_AMOUNT}
 	uniform float time;
 	uniform vec3 center;
 	uniform float radius;
@@ -52,7 +84,10 @@ const FALL_VERTEX = /* glsl */ `
 	uniform float streak;
 	uniform float sway;
 	uniform float pointSize;
+	/** How high an area's clouds hang (render/AreaWeather): its own rain and snow fall from there. */
+	uniform float cloudBase;
 	varying float fade;
+	varying float strength;
 	void main() {
 		// Its place in the box, falling and wrapping round. Across the ground it keeps its place in
 		// the world as the box moves with the view, wrapping round at the box's sides.
@@ -67,8 +102,12 @@ const FALL_VERTEX = /* glsl */ `
 		// Thinner towards the box's edges and ends, so it has no hard sides.
 		vec2 across = (position.xz - center.xz) / radius;
 		fade = (1.0 - smoothstep(0.75, 1.0, length(across))) * smoothstep(0.0, 0.1, y / height);
+		vec2 amounts = amountAt(vec3(xz.x, 0.0, xz.y));
+		strength = amounts.y;
+		// The world's falls from the top of the box; an area's own from under its clouds.
+		bool shown = rank < amounts.x || (rank < amounts.y && position.y < cloudBase);
 		vec4 view = modelViewMatrix * vec4(position, 1.0);
-		gl_Position = projectionMatrix * view;
+		gl_Position = shown ? projectionMatrix * view : ${NOWHERE_GLSL};
 		// Flakes: as big on screen as their size at the target, smaller farther away in perspective.
 		gl_PointSize = pointSize * (projectionMatrix[3][3] > 0.5 ? 1.0 : clamp(30.0 / -view.z, 0.3, 3.0));
 	}
@@ -77,9 +116,11 @@ const FALL_VERTEX = /* glsl */ `
 const RAIN_FRAGMENT = /* glsl */ `
 	uniform vec3 color;
 	uniform float opacity;
+	uniform float opacityPerAmount;
 	varying float fade;
+	varying float strength;
 	void main() {
-		gl_FragColor = vec4(color, opacity * fade);
+		gl_FragColor = vec4(color, (opacity + opacityPerAmount * strength) * fade);
 	}
 `;
 
@@ -95,10 +136,38 @@ const SNOW_FRAGMENT = /* glsl */ `
 	}
 `;
 
-const fallMaterial = (fragmentShader: string, color: string) =>
-	new THREE.ShaderMaterial({
+/** The weather map's channel an amount is in, and its texture (`weatherShading.uniforms`). */
+const MAP_CHANNELS = {
+	rain: { texture: "mapA", channel: 0 },
+	snow: { texture: "mapA", channel: 1 },
+	splashes: { texture: "mapC", channel: 0 },
+} as const;
+
+/** The uniforms and defines that read the weather map for an amount, while areas have their own. */
+const mapReading = (local: boolean, amount: keyof typeof MAP_CHANNELS) => {
+	const { texture, channel } = MAP_CHANNELS[amount];
+	const u = weatherShading.uniforms;
+	return {
+		defines: local ? { WEATHER_LOCAL: "", WEATHER_CHANNEL: String(channel) } : {},
+		uniforms: {
+			amount: { value: 0 },
+			weatherMap: u[texture],
+			weatherMapBounds: u.mapBounds,
+		},
+	};
+};
+
+const fallMaterial = (
+	fragmentShader: string,
+	color: string,
+	local: boolean,
+	amount: "rain" | "snow",
+) => {
+	const reading = mapReading(local, amount);
+	return new THREE.ShaderMaterial({
 		vertexShader: FALL_VERTEX,
 		fragmentShader,
+		defines: reading.defines,
 		transparent: true,
 		depthWrite: false,
 		fog: false,
@@ -113,19 +182,26 @@ const fallMaterial = (fragmentShader: string, color: string) =>
 			pointSize: { value: 2 },
 			color: { value: new THREE.Color(color) },
 			opacity: { value: 1 },
+			opacityPerAmount: { value: 0 },
+			cloudBase: { value: AREA_CLOUD_BASE },
+			...reading.uniforms,
 		},
 	});
+};
 
 /** A geometry of `count` things to fall: one vertex each (flakes), or two for a streak (rain). */
 const fallGeometry = (count: number, streaks: boolean) => {
 	const perOne = streaks ? 2 : 1;
 	const seeds = new Float32Array(count * perOne * 3);
 	const tips = new Float32Array(count * perOne);
+	const ranks = new Float32Array(count * perOne);
 	for (let i = 0; i < count; i++) {
 		for (let end = 0; end < perOne; end++) {
 			const at = i * perOne + end;
 			seeds.set([jitter(i), jitter(i + 0.37), jitter(i + 0.71)], at * 3);
 			tips[at] = end;
+			// In drawing order, so the first n drawn are those an amount of n / count shows.
+			ranks[at] = i / count;
 		}
 	}
 	const geometry = new THREE.BufferGeometry();
@@ -135,20 +211,22 @@ const fallGeometry = (count: number, streaks: boolean) => {
 	);
 	geometry.setAttribute("seed", new THREE.BufferAttribute(seeds, 3));
 	geometry.setAttribute("tip", new THREE.BufferAttribute(tips, 1));
+	geometry.setAttribute("rank", new THREE.BufferAttribute(ranks, 1));
 	// It moves on the GPU: never left out for being "off screen".
 	geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Number.POSITIVE_INFINITY);
 	return geometry;
 };
 
-/** Rain: thin streaks falling fast, as many as it rains. */
-const Rain = () => {
+/** Rain: thin streaks falling fast, as many as it rains (the most anywhere, with areas' own). */
+const Rain = ({ local }: { local: boolean }) => {
 	const geometry = useMemo(() => fallGeometry(MOST_DROPS, true), []);
-	const material = useMemo(() => fallMaterial(RAIN_FRAGMENT, "#cdd8e4"), []);
+	const material = useMemo(() => fallMaterial(RAIN_FRAGMENT, "#cdd8e4", local, "rain"), [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
 	const box = useFallBox();
 	useFrame(({ camera, size }) => {
-		const { rain } = weatherNowInWorld();
+		const world = weatherNowInWorld();
+		const most = local ? mostAnywhere(world, areaWeathersInWorld(), (now) => now.rain) : world.rain;
 		const { center, radius, height } = box(camera, size.height);
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
@@ -157,21 +235,24 @@ const Rain = () => {
 		u.height.value = height;
 		u.speed.value = 22;
 		u.streak.value = 0.7;
-		u.opacity.value = 0.25 + 0.3 * rain;
-		geometry.setDrawRange(0, Math.round(rain * MOST_DROPS) * 2);
+		u.amount.value = world.rain;
+		u.opacity.value = 0.25;
+		u.opacityPerAmount.value = 0.3;
+		geometry.setDrawRange(0, Math.round(most * MOST_DROPS) * 2);
 	});
 	return <lineSegments geometry={geometry} material={material} frustumCulled={false} />;
 };
 
-/** Snow: soft flakes drifting down, as many as it snows. */
-const Snow = () => {
+/** Snow: soft flakes drifting down, as many as it snows (the most anywhere, with areas' own). */
+const Snow = ({ local }: { local: boolean }) => {
 	const geometry = useMemo(() => fallGeometry(MOST_FLAKES, false), []);
-	const material = useMemo(() => fallMaterial(SNOW_FRAGMENT, "#ffffff"), []);
+	const material = useMemo(() => fallMaterial(SNOW_FRAGMENT, "#ffffff", local, "snow"), [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
 	const box = useFallBox();
 	useFrame(({ camera, size }) => {
-		const { snow } = weatherNowInWorld();
+		const world = weatherNowInWorld();
+		const most = local ? mostAnywhere(world, areaWeathersInWorld(), (now) => now.snow) : world.snow;
 		const { center, radius, height } = box(camera, size.height);
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
@@ -186,13 +267,16 @@ const Snow = () => {
 			9,
 		);
 		u.opacity.value = 0.95;
-		geometry.setDrawRange(0, Math.round(snow * MOST_FLAKES));
+		u.amount.value = world.snow;
+		geometry.setDrawRange(0, Math.round(most * MOST_FLAKES));
 	});
 	return <points geometry={geometry} material={material} frustumCulled={false} />;
 };
 
 const SPLASH_VERTEX = /* glsl */ `
 	attribute vec3 seed;
+	attribute float rank;
+	${MAP_AMOUNT}
 	uniform float time;
 	uniform vec3 center;
 	uniform float radius;
@@ -208,7 +292,9 @@ const SPLASH_VERTEX = /* glsl */ `
 		vec2 at = low + mod(spot * 2.0 * radius - low, 2.0 * radius);
 		vec3 world = vec3(at.x, 0.03, at.y);
 		vec3 ring = position * (0.08 + 0.32 * life);
-		gl_Position = projectionMatrix * viewMatrix * vec4(world + ring, 1.0);
+		gl_Position = rank < amountAt(world).y
+			? projectionMatrix * viewMatrix * vec4(world + ring, 1.0)
+			: ${NOWHERE_GLSL};
 	}
 `;
 
@@ -222,51 +308,58 @@ const SPLASH_FRAGMENT = /* glsl */ `
 `;
 
 /** Splashes: small rings opening on the ground where raindrops land, as many as it rains. */
-const Splashes = () => {
+const Splashes = ({ local }: { local: boolean }) => {
 	const geometry = useMemo(() => {
 		const ring = new THREE.RingGeometry(0.75, 1, 14).rotateX(-Math.PI / 2);
 		const instanced = new THREE.InstancedBufferGeometry().copy(
 			ring as unknown as THREE.InstancedBufferGeometry,
 		);
 		const seeds = new Float32Array(MOST_SPLASHES * 3);
+		const ranks = new Float32Array(MOST_SPLASHES);
 		for (let i = 0; i < MOST_SPLASHES; i++) {
 			seeds.set([jitter(i + 0.13), jitter(i + 0.53), jitter(i + 0.91)], i * 3);
+			ranks[i] = i / MOST_SPLASHES;
 		}
 		instanced.setAttribute("seed", new THREE.InstancedBufferAttribute(seeds, 3));
+		instanced.setAttribute("rank", new THREE.InstancedBufferAttribute(ranks, 1));
 		instanced.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Number.POSITIVE_INFINITY);
 		ring.dispose();
 		return instanced;
 	}, []);
-	const material = useMemo(
-		() =>
-			new THREE.ShaderMaterial({
-				vertexShader: SPLASH_VERTEX,
-				fragmentShader: SPLASH_FRAGMENT,
-				transparent: true,
-				depthWrite: false,
-				fog: false,
-				uniforms: {
-					time: { value: 0 },
-					center: { value: new THREE.Vector3() },
-					radius: { value: 10 },
-					color: { value: new THREE.Color("#dfe7ef") },
-					opacity: { value: 0.6 },
-				},
-			}),
-		[],
-	);
+	const material = useMemo(() => {
+		const reading = mapReading(local, "splashes");
+		return new THREE.ShaderMaterial({
+			vertexShader: SPLASH_VERTEX,
+			fragmentShader: SPLASH_FRAGMENT,
+			defines: reading.defines,
+			transparent: true,
+			depthWrite: false,
+			fog: false,
+			uniforms: {
+				time: { value: 0 },
+				center: { value: new THREE.Vector3() },
+				radius: { value: 10 },
+				color: { value: new THREE.Color("#dfe7ef") },
+				opacity: { value: 0.6 },
+				...reading.uniforms,
+			},
+		});
+	}, [local]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useEffect(() => () => material.dispose(), [material]);
 	const box = useFallBox();
 	useFrame(({ camera, size }) => {
-		const { rain } = weatherNowInWorld();
+		const world = weatherNowInWorld();
+		const splashes = (now: typeof world) => (now.showsSplashes ? now.rain : 0);
+		const most = local ? mostAnywhere(world, areaWeathersInWorld(), splashes) : splashes(world);
 		const { center, radius } = box(camera, size.height);
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
 		u.center.value.copy(center);
 		// Close round the middle of the view, where they can be seen.
 		u.radius.value = radius * 0.55;
-		geometry.instanceCount = Math.round(rain * MOST_SPLASHES);
+		u.amount.value = splashes(world);
+		geometry.instanceCount = Math.round(most * MOST_SPLASHES);
 	});
 	return <mesh geometry={geometry} material={material} frustumCulled={false} />;
 };
@@ -308,37 +401,44 @@ export const Weather = ({
 	snow,
 	splashes,
 	lightning,
+	local,
 }: {
 	rain: boolean;
 	snow: boolean;
 	splashes: boolean;
 	lightning: boolean;
+	/** Whether areas have weather of their own (ADR-0151), so what falls reads the weather map. */
+	local: boolean;
 }) => (
 	<>
-		{rain && <Rain />}
+		{rain && <Rain local={local} />}
 
-		{snow && <Snow />}
+		{snow && <Snow local={local} />}
 
-		{splashes && <Splashes />}
+		{splashes && <Splashes local={local} />}
 
 		{lightning && <Lightning />}
 	</>
 );
 
 /**
- * Keeps the weather's shading in step: on while there's snow or wetness (the
- * scene's materials recompiled when that changes), its values each frame.
+ * Keeps the weather's shading in step: on while there's snow or wetness, or
+ * areas have weather of their own (`local`, ADR-0151; the scene's materials
+ * recompiled when either changes), its values each frame.
  */
-export const WeatherShading = ({ on }: { on: boolean }) => {
+export const WeatherShading = ({ on, local }: { on: boolean; local: boolean }) => {
 	const scene = useThree((s) => s.scene);
 	const gl = useThree((s) => s.gl);
 	useLayoutEffect(() => {
 		installWeatherShading();
 		weatherShading.renderer = gl;
-		if (weatherShading.enabled === on) {
+		// Areas' own weather is read only while the shading is in at all (not in clay, say).
+		const isLocal = on && local;
+		if (weatherShading.enabled === on && weatherShading.local === isLocal) {
 			return;
 		}
 		weatherShading.enabled = on;
+		weatherShading.local = isLocal;
 		scene.traverse((object) => {
 			const materials = (object as THREE.Mesh).material;
 			for (const material of Array.isArray(materials) ? materials : materials ? [materials] : []) {
@@ -351,11 +451,12 @@ export const WeatherShading = ({ on }: { on: boolean }) => {
 				}
 			}
 		});
-	}, [on, scene, gl]);
+	}, [on, local, scene, gl]);
 	useFrame(() => {
-		const { snowCover, wetness } = weatherNowInWorld();
+		const { snowCover, wetness, overcast } = weatherNowInWorld();
 		weatherShading.uniforms.snowCover.value = snowCover;
 		weatherShading.uniforms.wetness.value = wetness;
+		weatherShading.uniforms.overcast.value = overcast;
 	});
 	return null;
 };

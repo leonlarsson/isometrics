@@ -1,6 +1,7 @@
 import { readScale } from "#/parts/dataBinding";
-import type { TReadableValues, TWeather } from "#/scene/schema";
+import type { TArea, TReadableValues, TWeather } from "#/scene/schema";
 import type { ISkyWeather } from "#/scene/sky";
+import type { TWeatherMapAmount } from "#/scene/weatherMap";
 
 import { useEditor } from "./store";
 import { useWorldData, worldDataNow } from "./worldData";
@@ -84,3 +85,63 @@ export const useSkyWeather = (): ISkyWeather => {
 	const cloudSpeed = useEditor((s) => s.scene.weather.cloudSpeed);
 	return { cloudCover, cloudColor, cloudSpeed, overcast };
 };
+
+/** An area with weather of its own (ADR-0151), and that weather in effect now. */
+export interface IAreaWeatherNow {
+	area: TArea;
+	now: IWeatherNow;
+}
+
+const NO_AREA_WEATHERS: readonly IAreaWeatherNow[] = [];
+
+/** Kept per list of areas and data, so selectors and frames reuse it until either changes. */
+const areaWeathersKept = new WeakMap<
+	readonly TArea[],
+	{ data: TReadableValues | undefined; weathers: readonly IAreaWeatherNow[] }
+>();
+
+/**
+ * The areas shown with weather of their own (ADR-0151), in order (later on
+ * top), each with its weather in effect: as set or from its data.
+ */
+export const areaWeathersNow = (
+	areas: readonly TArea[],
+	data?: TReadableValues,
+): readonly IAreaWeatherNow[] => {
+	const kept = areaWeathersKept.get(areas);
+	if (kept && kept.data === data) {
+		return kept.weathers;
+	}
+	const weathers: IAreaWeatherNow[] = [];
+	for (const area of areas) {
+		if (area.weather && !area.isHidden) {
+			weathers.push({ area, now: weatherNow(area.weather, data) });
+		}
+	}
+	const list = weathers.length > 0 ? weathers : NO_AREA_WEATHERS;
+	areaWeathersKept.set(areas, { data, weathers: list });
+	return list;
+};
+
+/** The areas' own weathers now, from the store, for code that runs each frame. */
+export const areaWeathersInWorld = () =>
+	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow().values);
+
+/** What a weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
+export const weatherMapAmountsOf = (now: IWeatherNow): Record<TWeatherMapAmount, number> => ({
+	rain: now.rain,
+	snow: now.snow,
+	wetness: now.wetness,
+	snowCover: now.snowCover,
+	fog: now.fog,
+	haze: now.haze,
+	overcast: now.overcast,
+	splashes: now.showsSplashes ? now.rain : 0,
+});
+
+/** The most of an amount anywhere: the world's, or an area's own if more. */
+export const mostAnywhere = (
+	world: IWeatherNow,
+	areas: readonly IAreaWeatherNow[],
+	amount: (now: IWeatherNow) => number,
+) => areas.reduce((most, { now }) => Math.max(most, amount(now)), amount(world));

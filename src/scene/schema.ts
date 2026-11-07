@@ -1028,9 +1028,9 @@ export const TrafficSchema = z
 	);
 
 export const AreaKindSchema = z
-	.enum(["water_01", "grass_01", "sand_01", "plaza_01", "raised_land_01"])
+	.enum(["water_01", "grass_01", "sand_01", "plaza_01", "raised_land_01", "hidden_area_01"])
 	.describe(
-		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus).",
+		"What the area is (numbered so each can get variants); sets its colour. raised_land_01 is meant for raised ground (rocks, plateaus). hidden_area_01 = an invisible area that draws nothing and leaves the ground as it is, to carry weather of its own over a district (`weather`), like a hidden route for vehicles; it stays flat.",
 	);
 
 // See docs/adr/0137-ground-and-area-surfaces.md.
@@ -1110,6 +1110,72 @@ export const AreaWaterSchema = z
 	})
 	.describe("With kind water_01: its own water, where it differs from the world's.");
 
+const amount = (meaning: string, fallback = 0) =>
+	z.number().min(0).max(1).default(fallback).describe(meaning);
+
+// See docs/adr/0102-weather.md.
+export const WeatherSchema = z
+	.object({
+		cloudCover: amount(
+			"How cloudy it is: 0 = clear, 1 = many low-poly clouds around the world.",
+			0.3,
+		),
+		cloudColor: HexColorSchema.nullable()
+			.default(null)
+			.describe("The clouds' colour, as #rrggbb. null = white, tinted by the time of day."),
+		cloudSpeed: z
+			.number()
+			.min(0)
+			.max(5)
+			.default(1)
+			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
+		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
+		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
+		fogDensity: amount(
+			"How thick the fog is: 0 = none, 1 = only what's near can be seen. In the diorama, it fogs from the far side.",
+		),
+		hazeAmount: amount(
+			"How hazy the distance is: 0 = clear, 1 = the far side fades into a pale haze (dust, smog, a hot day).",
+		),
+		lightningRate: amount(
+			"How often lightning flashes: 0 = never, 1 = every few seconds (with rain, a storm).",
+		),
+		groundWetness: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How wet the ground and everything on it look (darker, a little glossy): 0 = dry, 1 = soaked. null = following the rain.",
+			),
+		snowCover: z
+			.number()
+			.min(0)
+			.max(1)
+			.nullable()
+			.default(null)
+			.describe(
+				"How much snow has settled on what faces up (roofs, grass, roads, treetops): 0 = none, 1 = all white. null = following the snowfall.",
+			),
+		showsSplashes: z
+			.boolean()
+			.default(true)
+			.describe("Whether small splashes open on the ground where raindrops land."),
+		softensLight: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether rain, snow and fog make it overcast: the sun dims, shadows soften and the sky greys, more as they grow. false = the light stays as set.",
+			),
+		data: dataBindings(
+			'Data values that drive weather settings, by setting: "cloudCover", "rainAmount", "snowAmount", "fogDensity", "hazeAmount" or "lightningRate", each as value ÷ valueAtFull (up to 1). Only the settings that follow data.',
+		),
+	})
+	.describe(
+		"The world's weather: clouds, what falls, fog and haze, lightning, and how it leaves the ground.",
+	);
+
 // See docs/adr/0021-free-form-areas.md.
 export const AreaSchema = z
 	.object({
@@ -1137,6 +1203,12 @@ export const AreaSchema = z
 		colors: colorSettings('{ "surface": { "color": "#4f9a55" } }; its colour is surface'),
 		water: AreaWaterSchema.default(() => AreaWaterSchema.parse({})),
 		surface: AreaSurfaceSchema.default(() => AreaSurfaceSchema.parse({})),
+		// See docs/adr/0151-weather-per-area.md.
+		weather: WeatherSchema.nullable()
+			.default(null)
+			.describe(
+				"Its own weather, shaped as the world's (`weather`), replacing it inside the area (its edge fades over about two grid units) for a storm, fog or snowfall in one place: rain, snow, splashes, wet ground and snow on it, fog and haze lying over it, clouds gathered over it, lightning striking in it and the light darkening under it. Its `data` follows values as the world's does, so each area's weather can show a value (a sentiment map: stormy where it's bad). The sky and the sun stay the world's. null = the world's weather.",
+			),
 		isLocked: isLocked("its corners"),
 		isHidden: isHidden(),
 	})
@@ -1790,72 +1862,6 @@ export const WaterSchema = z
 			),
 	})
 	.describe("The world's water.");
-
-const amount = (meaning: string, fallback = 0) =>
-	z.number().min(0).max(1).default(fallback).describe(meaning);
-
-// See docs/adr/0102-weather.md.
-export const WeatherSchema = z
-	.object({
-		cloudCover: amount(
-			"How cloudy it is: 0 = clear, 1 = many low-poly clouds around the world.",
-			0.3,
-		),
-		cloudColor: HexColorSchema.nullable()
-			.default(null)
-			.describe("The clouds' colour, as #rrggbb. null = white, tinted by the time of day."),
-		cloudSpeed: z
-			.number()
-			.min(0)
-			.max(5)
-			.default(1)
-			.describe("How fast the clouds drift while motion plays: 0 = still, 1 = a gentle breeze."),
-		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
-		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
-		fogDensity: amount(
-			"How thick the fog is: 0 = none, 1 = only what's near can be seen. In the diorama, it fogs from the far side.",
-		),
-		hazeAmount: amount(
-			"How hazy the distance is: 0 = clear, 1 = the far side fades into a pale haze (dust, smog, a hot day).",
-		),
-		lightningRate: amount(
-			"How often lightning flashes: 0 = never, 1 = every few seconds (with rain, a storm).",
-		),
-		groundWetness: z
-			.number()
-			.min(0)
-			.max(1)
-			.nullable()
-			.default(null)
-			.describe(
-				"How wet the ground and everything on it look (darker, a little glossy): 0 = dry, 1 = soaked. null = following the rain.",
-			),
-		snowCover: z
-			.number()
-			.min(0)
-			.max(1)
-			.nullable()
-			.default(null)
-			.describe(
-				"How much snow has settled on what faces up (roofs, grass, roads, treetops): 0 = none, 1 = all white. null = following the snowfall.",
-			),
-		showsSplashes: z
-			.boolean()
-			.default(true)
-			.describe("Whether small splashes open on the ground where raindrops land."),
-		softensLight: z
-			.boolean()
-			.default(true)
-			.describe(
-				"Whether rain, snow and fog make it overcast: the sun dims, shadows soften and the sky greys, more as they grow. false = the light stays as set.",
-			),
-		data: dataBindings(
-			'Data values that drive weather settings, by setting: "cloudCover", "rainAmount", "snowAmount", "fogDensity", "hazeAmount" or "lightningRate", each as value ÷ valueAtFull (up to 1). Only the settings that follow data.',
-		),
-	})
-	.describe(
-		"The world's weather: clouds, what falls, fog and haze, lightning, and how it leaves the ground.",
-	);
 
 // See docs/adr/0078-moods.md.
 export const MoodSchema = z

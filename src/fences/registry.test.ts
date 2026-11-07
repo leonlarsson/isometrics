@@ -134,6 +134,7 @@ describe("fence styles", () => {
 			colors: {},
 			water: { rippleStrength: null, reflectionStrength: null },
 			surface: { kind: null, patternStrength: null, patternScale: null },
+			weather: null,
 			isLocked: false,
 			isHidden: false,
 		};

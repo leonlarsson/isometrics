@@ -12,6 +12,7 @@ import { colorOf } from "#/parts/colorModel";
 import {
 	AREA_KINDS,
 	cornerTop,
+	isHiddenArea,
 	isRaised,
 	isWaterArea,
 	type TAreaShape,
@@ -130,6 +131,8 @@ interface IAreaBodyProps {
 	waterSeams?: [number, number, number, number][];
 	/** The world's surfaces (ADR-0137): whether they're textured, and how strong and big. */
 	worldSurface?: TSurface;
+	/** Hidden areas show as a dashed outline while editing; otherwise they draw nothing (ADR-0151). */
+	editing?: boolean;
 }
 
 /**
@@ -148,6 +151,7 @@ export const AreaBody = ({
 	worldWater = { rippleStrength: 0.5, reflectionStrength: 0.5 },
 	waterSeams = NO_SEAMS,
 	worldSurface = PLAIN_SURFACES,
+	editing = false,
 }: IAreaBodyProps) => {
 	const y = areaBaseY(layer);
 	const raised = isRaised(area);
@@ -183,6 +187,34 @@ export const AreaBody = ({
 	const color = colorOf(AREA_KINDS[area.kind], area, "surface", palette, data);
 	// Its texture on its top (ADR-0137); water and plain surfaces draw as they always did.
 	const surface = useSurfaceShading(areaSurfaceOf(area, worldSurface), true);
+
+	// A hidden area (ADR-0151): nothing outside the editor; while editing, a faint clickable fill and a
+	// dashed outline, as a hidden route shows.
+	if (isHiddenArea(area)) {
+		return editing ? (
+			<group>
+				<mesh geometry={geometry} position={[0, y, 0]} {...handlers}>
+					<meshBasicMaterial
+						color={palette.selection}
+						transparent
+						opacity={0.07}
+						depthWrite={false}
+					/>
+				</mesh>
+
+				<Line
+					points={outline}
+					color={palette.selection}
+					lineWidth={2}
+					dashed
+					dashSize={0.35}
+					gapSize={0.25}
+				/>
+
+				{selected && <Line points={outline} color={palette.selection} lineWidth={3} />}
+			</group>
+		) : null;
+	}
 
 	return (
 		<group>
@@ -333,6 +365,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			worldWater={worldWater}
 			waterSeams={seams}
 			worldSurface={worldSurface}
+			editing={mode === "edit"}
 		/>
 	);
 });

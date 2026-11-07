@@ -30,7 +30,7 @@ import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS, type TPartCategory } from "#/parts/types";
 import { fencePictureKey, usePartThumbnails, usePrefabThumbnails } from "#/render/thumbnails";
 import { currentView } from "#/render/viewpoints";
-import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS } from "#/scene/areas";
+import { AREA_KIND_IDS, AREA_KIND_LABELS, AREA_KINDS, isHiddenArea } from "#/scene/areas";
 import { ROAD_KIND_IDS, ROAD_KIND_LABELS, ROAD_KINDS } from "#/scene/roads";
 import type { TPrefab, TRoadKind } from "#/scene/schema";
 import { groupByFamily } from "#/scene/variants";
@@ -287,7 +287,9 @@ export const PartsPalette = () => {
 			description,
 			tooltip: `${description}. Click its corners on the ground; Enter to finish.`,
 			searchText: `${description} ${keywords} area`,
-			swatch: colorOf(AREA_KINDS[type], { colors: {} }, "surface", palette),
+			swatch: isHiddenArea({ kind: type })
+				? HIDDEN_ROUTE_SWATCH
+				: colorOf(AREA_KINDS[type], { colors: {} }, "surface", palette),
 			pressed: drawingArea === type,
 			onSelect: () => startAreaDrawing(type),
 		})),
