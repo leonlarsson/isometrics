@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { followersByRow } from "#/editor/dataRows";
 import { useEditor } from "#/editor/store";
+import { formatWhen } from "#/lib/when";
 import { partNameOf } from "#/parts/registry";
 import type { TDataSource, TDataTable } from "#/scene/schema";
 
@@ -54,6 +55,13 @@ export const DataTablePage = ({
 			coalesce ? { coalesce: `table-${coalesce}:${table.key}` } : undefined,
 		);
 	const [confirmsRemove, setConfirmsRemove] = useState(false);
+	// Which past date's rows the Past panel shows (ADR-0153): the latest until another is picked.
+	const [pastAt, setPastAt] = useState<string | null>(null);
+	const latestAt = table.history.at(-1)?.at ?? "";
+	const shownAt = table.history.some((moment) => moment.at === pastAt)
+		? (pastAt ?? latestAt)
+		: latestAt;
+	const shownMoment = table.history.find((moment) => moment.at === shownAt);
 	const followers = new Map(
 		[...followersByRow(entities, table.key)].map(([rowKey, list]) => [
 			rowKey,
@@ -98,6 +106,50 @@ export const DataTablePage = ({
 					mostRows={MOST_ROWS}
 					followers={followers}
 				/>
+			</Section>
+
+			<Section icon="clock" title="Past">
+				{table.history.length > 0 ? (
+					<>
+						<Hint>
+							{`Its rows on ${table.history.length.toLocaleString()} ${table.history.length === 1 ? "date" : "dates"}, from ${formatWhen(table.history[0].at)} to ${formatWhen(latestAt)}. The story's time slider in View mode steps through them, and what follows a row follows its past too: cards show its trend, settings from data follow the date shown.`}
+						</Hint>
+
+						<SelectField<string>
+							label="Rows on"
+							value={shownAt}
+							options={[...table.history].reverse().map((moment) => ({
+								value: moment.at,
+								label:
+									moment.at === latestAt
+										? `${formatWhen(moment.at)} (latest)`
+										: formatWhen(moment.at),
+							}))}
+							onChange={setPastAt}
+							inherit={{
+								from: "default",
+								inherited: shownAt === latestAt,
+								onReset: () => setPastAt(null),
+								value: formatWhen(latestAt),
+							}}
+						/>
+
+						{shownMoment && (
+							<DataTableView
+								columns={table.columns}
+								rows={shownMoment.rows}
+								keyColumn={table.keyColumn}
+								mostRows={MOST_ROWS}
+							/>
+						)}
+					</>
+				) : (
+					<Hint>
+						No past yet: only its rows now. A table gets a past when it's read from a spreadsheet
+						with a date on each line (Read it as: A table over time), each date's lines its rows
+						then.
+					</Hint>
+				)}
 			</Section>
 
 			<Section icon="edit" title="Settings">

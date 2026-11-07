@@ -55,7 +55,7 @@ Lights: each kind lists its lights by id (windows, headlights, lamp…). An enti
 "lights": { "lamp": { "color": "#ff3b3b", "data": { "on": { "key": "alert" }, "strength": { "key": "queue", "valueAtFull": 50 } } } }
 "lights": { "headlights": { "color": "#ffffff", "reach": 5 } }
 
-Data: data holds named values (key, name, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it, shown while label.isShown) or details.dataKeys (tiles when it's opened in view mode).
+Data: data holds named values (key, name, value, unit). Show them on an entity by listing keys in label.dataKeys (a floating card above it, shown while label.isShown) or details.dataKeys (tiles when it's opened in view mode). data.tables hold rows, each named by the keyColumn's cell; an entity, road or area follows one with dataRow: { tableKey, rowKey } and reads its columns as "row.<column>". Data can have a past, oldest first, its last entry the value or rows now: a value's history [{ "at": "2026-09", "value": 12 }, …], a table's history [{ "at": "2026-09", "rows": [ … ] }, …] with the same columns as its rows. View mode's time slider steps through the dates, and everything following a value or a row shows it as it was then (cards show the trend).
 
 Viewpoints: prepared camera views (target, targetAltitude, azimuth, elevation, span), stepped through in View mode like slides; give each a name and a description of what the data there shows.
 

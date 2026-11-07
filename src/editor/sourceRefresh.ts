@@ -75,7 +75,8 @@ export const arriveFrom = (kept: TWorldData, source: TDataSource, content: TLink
 	}
 	for (const table of next.tables) {
 		if (table.source?.sourceId === source.id) {
-			tableArrived(table.key, table.rows);
+			// A table over time brings its past with it (ADR-0153).
+			tableArrived(table.key, table.rows, table.history.length > 0 ? table.history : undefined);
 		}
 	}
 };

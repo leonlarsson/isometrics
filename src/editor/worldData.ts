@@ -23,7 +23,8 @@ interface IArrivedData {
 	forOpening: number | null;
 	/** The latest value, and its whole past when the source gives one (an API with dates). */
 	values: ReadonlyMap<string, { point: TDataPoint; history?: readonly TDataPoint[] }>;
-	tables: ReadonlyMap<string, TDataTable["rows"]>;
+	/** A table's latest rows, and its whole past when the source gives one (a dated sheet, ADR-0153). */
+	tables: ReadonlyMap<string, { rows: TDataTable["rows"]; history?: TDataTable["history"] }>;
 }
 
 const NOTHING_ARRIVED: IArrivedData = { forOpening: null, values: new Map(), tables: new Map() };
@@ -67,8 +68,10 @@ export const mergeArrived = (
 			};
 		}),
 		tables: kept.tables.map((table) => {
-			const rows = since.tables.get(table.key);
-			return rows ? { ...table, rows } : table;
+			const arrived = since.tables.get(table.key);
+			return arrived
+				? { ...table, rows: arrived.rows, history: arrived.history ?? table.history }
+				: table;
 		}),
 	};
 };
@@ -183,7 +186,11 @@ export const arrivedDiffers = (kept: TWorldData, since: Omit<IArrivedData, "forO
 		}) ||
 		now.tables.some((table, index) => {
 			const was = kept.tables[index];
-			return table !== was && JSON.stringify(table.rows) !== JSON.stringify(was?.rows);
+			return (
+				table !== was &&
+				(JSON.stringify(table.rows) !== JSON.stringify(was?.rows) ||
+					JSON.stringify(table.history) !== JSON.stringify(was?.history))
+			);
 		})
 	);
 };
@@ -200,9 +207,13 @@ export const useHasArrived = () => {
 };
 
 /** A table's rows that arrived from a source. */
-export const tableArrived = (key: string, rows: TDataTable["rows"]) => {
+export const tableArrived = (
+	key: string,
+	rows: TDataTable["rows"],
+	history?: TDataTable["history"],
+) => {
 	const since = arrivedForThisWorld();
-	useArrived.setState({ ...since, tables: new Map(since.tables).set(key, rows) });
+	useArrived.setState({ ...since, tables: new Map(since.tables).set(key, { rows, history }) });
 };
 
 /** Forget what arrived: another world opened, or it was kept in the world. */
