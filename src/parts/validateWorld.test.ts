@@ -134,6 +134,53 @@ describe("checking a world", () => {
 		expect(said).toContain('areas[1] "south".weather.data.rainAmount: follows "row.mood"');
 	});
 
+	it("warns of data's past out of order, on a date that isn't one, or with a row unnamed (ADR-0153)", () => {
+		const said = warningsOf({
+			data: {
+				enabled: true,
+				values: [
+					{
+						key: "calls",
+						name: "Calls",
+						value: 3,
+						history: [
+							{ at: "2026-10", value: 2 },
+							{ at: "2026-09", value: 1 },
+						],
+					},
+				],
+				tables: [
+					{
+						key: "boroughs",
+						keyColumn: "borough",
+						columns: [{ key: "borough" }, { key: "complaints" }],
+						rows: [{ borough: "Bronx", complaints: 3 }],
+						history: [
+							{ at: "last month", rows: [{ borough: "Bronx", complaints: 1 }] },
+							{ at: "2026-10", rows: [{ borough: "", complaints: 2 }] },
+						],
+					},
+					{
+						key: "fine",
+						keyColumn: "borough",
+						columns: [{ key: "borough" }],
+						rows: [{ borough: "Bronx" }],
+						history: [
+							{ at: "2026-09", rows: [{ borough: "Bronx" }] },
+							{ at: "2026-10-01T00:00:00Z", rows: [{ borough: "Bronx" }] },
+						],
+					},
+				],
+			},
+		});
+		expect(said).toContain('data.values[0] "calls".history: isn\'t oldest first');
+		expect(said).toContain(
+			'data.tables[0] "boroughs".history: has "last month", which isn\'t a date',
+		);
+		expect(said).toContain("on 2026-10 has a row without a borough");
+		expect(said).not.toContain('"fine"');
+	});
+
 	it("warns of junction ends that aren't road ends meeting at one place (ADR-0136)", () => {
 		const world = {
 			...createEmptyScene(),

@@ -307,6 +307,12 @@ export type TSheetReading =
 	| { readsAs: "table"; keyColumn: string }
 	/** Values over time: each column of numbers a value, its rows past values at the dates in a column. */
 	| { readsAs: "history"; dateColumn: string }
+	/**
+	 * A table over time (ADR-0153): each line a thing on a date (a borough in a
+	 * month), the things named by one column. The latest date's lines are the
+	 * table's rows now, every date's its past.
+	 */
+	| { readsAs: "tableOverTime"; dateColumn: string; keyColumn: string }
 	/** A value for each column, from the last row. */
 	| { readsAs: "valuePerColumn" }
 	/** A value for each row, named by one column, its value in another. */
@@ -314,10 +320,68 @@ export type TSheetReading =
 
 export type TReadsAs = TSheetReading["readsAs"];
 
+/**
+ * Whether a column names the same things on each date of `dates`: every line
+ * has a name, names come back on other dates, and none twice on one date.
+ */
+const namesOverTime = (column: ISheetColumn, dates: ISheetColumn) => {
+	const seen = new Set<string>();
+	let repeats = false;
+	for (let index = 0; index < column.cells.length; index++) {
+		const name = column.cells[index];
+		const at = dates.cells[index];
+		if (name === null || name === "" || at === null) {
+			return false;
+		}
+		const pair = `${at}\u0000${name}`;
+		if (seen.has(pair)) {
+			return false;
+		}
+		seen.add(pair);
+		repeats ||= !column.namesRows;
+	}
+	return repeats;
+};
+
+/** Whether a column can name the things of a table over time with these dates (ADR-0153). */
+export const namesThingsOverTime = (sheet: ISheet, dateColumn: string, nameColumn: string) => {
+	const dates = sheet.columns.find((column) => column.key === dateColumn);
+	const names = sheet.columns.find((column) => column.key === nameColumn);
+	return Boolean(dates && names && names !== dates && namesOverTime(names, dates));
+};
+
+/** The column of dates and the column that names things on each, for a table over time; null without. */
+const overTimeColumns = (sheet: ISheet, dateColumn?: string) => {
+	const dates =
+		sheet.columns.find((column) => column.key === dateColumn && column.kind === "date") ??
+		sheet.columns.find((column) => column.kind === "date");
+	if (!dates) {
+		return null;
+	}
+	const names =
+		sheet.columns.find(
+			(column) => column !== dates && column.kind === "text" && namesOverTime(column, dates),
+		) ?? sheet.columns.find((column) => column !== dates && namesOverTime(column, dates));
+	return { dates, names: names ?? null };
+};
+
 /** Why a sheet can't be read a way, in words for a greyed-out option; null if it can. */
 export const whyNotReadAs = (sheet: ISheet, readsAs: TReadsAs): string | null => {
 	if (sheet.rowCount === 0) {
 		return "no rows";
+	}
+	if (readsAs === "tableOverTime") {
+		const found = overTimeColumns(sheet);
+		if (!found) {
+			return "no column of dates";
+		}
+		if (new Set(found.dates.cells.filter((at) => at !== null)).size < 2) {
+			return "only one date";
+		}
+		if (!found.names) {
+			return "no column names the same things on each date";
+		}
+		return sheet.columns.length > 2 ? null : "nothing but a date and a name";
 	}
 	if (readsAs === "history") {
 		if (!sheet.columns.some((column) => column.kind === "date")) {
@@ -343,6 +407,14 @@ export const rowNamingColumn = (sheet: ISheet): string =>
 
 /** The reading a sheet's shape suggests, and a valid reading of each kind it can be read as. */
 export const readingAs = (sheet: ISheet, readsAs: TReadsAs): TSheetReading => {
+	if (readsAs === "tableOverTime") {
+		const found = overTimeColumns(sheet);
+		return {
+			readsAs,
+			dateColumn: found?.dates.key ?? "",
+			keyColumn: found?.names?.key ?? "",
+		};
+	}
 	if (readsAs === "history") {
 		return {
 			readsAs,
@@ -365,11 +437,15 @@ export const readingAs = (sheet: ISheet, readsAs: TReadsAs): TSheetReading => {
 };
 
 /**
- * What a sheet most likely holds: values over time if it has dates and
- * numbers, values if it has one row, a value per row if it's a column of
- * names and one of values, else a table.
+ * What a sheet most likely holds: a table over time if it has dates and the
+ * same things named on each (a borough per month), values over time if it
+ * has dates and numbers, values if it has one row, a value per row if it's a
+ * column of names and one of values, else a table.
  */
 export const guessReading = (sheet: ISheet): TSheetReading => {
+	if (sheet.rowCount >= 2 && whyNotReadAs(sheet, "tableOverTime") === null) {
+		return readingAs(sheet, "tableOverTime");
+	}
 	if (sheet.rowCount >= 2 && whyNotReadAs(sheet, "history") === null) {
 		return readingAs(sheet, "history");
 	}
@@ -445,6 +521,42 @@ export const dataFromSheet = (
 						Object.fromEntries(sheet.columns.map((each) => [each.key, each.cells[index]])),
 					),
 					history: [],
+				},
+			],
+		};
+	}
+	if (reading.readsAs === "tableOverTime") {
+		const dates = column(reading.dateColumn);
+		if (!dates) {
+			return { values: [], tables: [] };
+		}
+		const kept = sheet.columns.filter((each) => each !== dates);
+		// Each date's lines, oldest date first, the lines in the sheet's order.
+		const byDate = new Map<string, TDataTable["rows"]>();
+		for (let index = 0; index < sheet.rowCount; index++) {
+			const at = dates.cells[index];
+			if (typeof at !== "string") {
+				continue;
+			}
+			const rows = byDate.get(at) ?? [];
+			rows.push(Object.fromEntries(kept.map((each) => [each.key, each.cells[index]])));
+			byDate.set(at, rows);
+		}
+		const history = [...byDate.entries()]
+			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+			.map(([at, rows]) => ({ at, rows }));
+		return {
+			values: [],
+			tables: [
+				{
+					key: toDataKey(tableName),
+					name: tableName,
+					source: DataSourceRefSchema.parse({ sourceId, path: sheetName ?? "" }),
+					keyColumn: kept.some((each) => each.key === reading.keyColumn) ? reading.keyColumn : "",
+					columns: kept.map(({ key, name, unit }) => DataColumnSchema.parse({ key, name, unit })),
+					// Now: the latest date's lines; the past: every date's, the latest too (as values keep theirs).
+					rows: history.at(-1)?.rows ?? [],
+					history,
 				},
 			],
 		};

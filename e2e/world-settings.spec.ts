@@ -338,6 +338,49 @@ test.describe("Data (ADR-0010, ADR-0058)", () => {
 		expect(lamp.lamp.data.on.key).toBe(await read(page, (s) => s.scene.data.values[0].key));
 	});
 
+	test("a spreadsheet of a date and a name on each line is read as a table over time, its past in its Past panel (ADR-0153)", async ({
+		page,
+	}) => {
+		// A file read through its dialog, then its page: slow in the tests' software-drawn browser.
+		test.setTimeout(120_000);
+		await openEditor(page);
+		await worldTab(page, "Data");
+		const dialog = page.getByRole("dialog", { name: /^Read a spreadsheet/ });
+		const chooser = page.waitForEvent("filechooser");
+		await addData(page, "A spreadsheet file…");
+		await (await chooser).setFiles({
+			name: "boroughs.csv",
+			mimeType: "text/csv",
+			buffer: Buffer.from(
+				"month,borough,complaints\n2026-08,Bronx,64310\n2026-08,Brooklyn,103941\n2026-09,Bronx,59213\n2026-09,Brooklyn,105707\n2026-10,Bronx,65318\n2026-10,Brooklyn,113754\n",
+			),
+		});
+		// Guessed from its shape, and said in the dialog.
+		await expect(dialog.getByRole("combobox", { name: "Read it as" })).toContainText(
+			"A table over time",
+		);
+		await expect(dialog).toContainText(
+			/Adds a table of 2 rows and 2 columns, with its past on 3 dates from Aug 2026 to Oct 2026\./,
+		);
+		await dialog.getByRole("button", { name: /^Add \d/ }).click();
+		expect(
+			await read(page, (s) => {
+				const table = s.scene.data.tables.find((t) => t.key === "boroughs");
+				return { rows: table?.rows, dates: table?.history.map((moment) => moment.at) };
+			}),
+		).toEqual({
+			rows: [
+				{ borough: "Bronx", complaints: 65318 },
+				{ borough: "Brooklyn", complaints: 113754 },
+			],
+			dates: ["2026-08", "2026-09", "2026-10"],
+		});
+		// Its page shows its past, a date's rows at a time.
+		await expect(dataWindow(page)).toContainText("Its rows on 3 dates");
+		await choose(page, "Rows on", /Aug/);
+		await expect(dataWindow(page)).toContainText("64,310");
+	});
+
 	test("a spreadsheet is read as values over time or as a table, and read again into the same values (data study)", async ({
 		page,
 	}) => {

@@ -4,12 +4,14 @@ import { addInWords } from "#/editor/dataList";
 import type { ISpreadsheetSheet } from "#/editor/readSpreadsheet";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
+import { formatWhen } from "#/lib/when";
 import { formatEntry } from "#/scene/format";
 import type { TDataSource, TWorldData } from "#/scene/schema";
 import {
 	dataFromSheet,
 	guessReading,
 	type ISheet,
+	namesThingsOverTime,
 	readingAs,
 	readSheet,
 	rowNamingColumn,
@@ -35,6 +37,11 @@ export interface ISpreadsheetReading {
 
 const READS_AS: { value: TReadsAs; label: string; hint: string }[] = [
 	{ value: "table", label: "A table", hint: "Each line becomes a row of a table." },
+	{
+		value: "tableOverTime",
+		label: "A table over time",
+		hint: "Each line is a thing on a date, like a borough in a month: the latest date's lines become the table's rows, and every date's its past, for trends and the story's time slider.",
+	},
 	{
 		value: "history",
 		label: "Values over time",
@@ -70,6 +77,14 @@ const startingReading = (
 	);
 	if (!before) {
 		return guessReading(sheet);
+	}
+	// A table with a past was read over time: read it so again, its rows named as before.
+	if (before.history.length > 0 && whyNotReadAs(sheet, "tableOverTime") === null) {
+		const overTime = readingAs(sheet, "tableOverTime");
+		return overTime.readsAs === "tableOverTime" &&
+			namesThingsOverTime(sheet, overTime.dateColumn, before.keyColumn)
+			? { ...overTime, keyColumn: before.keyColumn }
+			: overTime;
 	}
 	return {
 		readsAs: "table",
@@ -136,8 +151,12 @@ export const ReadSpreadsheetDialog = ({
 	);
 	const table = read.tables[0];
 	const pastValues = read.values.reduce((sum, value) => sum + value.history.length, 0);
+	const past =
+		table && table.history.length > 0
+			? `, with its past on ${count(table.history.length, "date", "dates")} from ${formatWhen(table.history[0].at)} to ${formatWhen(table.history.at(-1)?.at ?? "")}`
+			: "";
 	const summary = table
-		? `${isAgain ? "Updates" : "Adds"} a table of ${count(table.rows.length, "row", "rows")} and ${count(table.columns.length, "column", "columns")}.`
+		? `${isAgain ? "Updates" : "Adds"} a table of ${count(table.rows.length, "row", "rows")} and ${count(table.columns.length, "column", "columns")}${past}.`
 		: read.values.length > 0
 			? `${isAgain ? "Updates" : "Adds"} ${count(read.values.length, "value", "values")}${pastValues > 0 ? ` with ${count(pastValues, "past value", "past values")}` : ""}.`
 			: "Nothing to add: this sheet has no rows to read this way.";
@@ -150,6 +169,11 @@ export const ReadSpreadsheetDialog = ({
 	const columnName = (key: string) =>
 		sheet.columns.find((column) => column.key === key)?.name ?? key;
 	const firstDates = sheet.columns.find((column) => column.kind === "date")?.key ?? "";
+	const overTime = readingAs(sheet, "tableOverTime");
+	const guessedOverTime =
+		overTime.readsAs === "tableOverTime"
+			? overTime
+			: { readsAs: "tableOverTime" as const, dateColumn: "", keyColumn: "" };
 
 	const confirm = () => {
 		putReadData({ ...source, lastReadAt: new Date().toISOString() }, read);
@@ -226,6 +250,67 @@ export const ReadSpreadsheetDialog = ({
 									columnName(rowNamingColumn(sheet)),
 								)}
 								hint="Each row's name, like a warehouse's or a shop's: what an object will pick its row by."
+							/>
+
+							<TextField
+								label="Table name"
+								value={tableName}
+								onChange={setTableName}
+								inherit={resetToDefault(tableName, defaultTableName, () =>
+									setTableName(defaultTableName),
+								)}
+							/>
+						</>
+					)}
+
+					{reading.readsAs === "tableOverTime" && (
+						<>
+							<SelectField<string>
+								label="Dates in"
+								value={reading.dateColumn}
+								options={sheet.columns
+									.filter((column) => column.kind === "date")
+									.map((column) => ({ value: column.key, label: column.name }))}
+								onChange={(dateColumn) =>
+									setReading({
+										...reading,
+										dateColumn,
+										keyColumn: namesThingsOverTime(sheet, dateColumn, reading.keyColumn)
+											? reading.keyColumn
+											: "",
+									})
+								}
+								inherit={resetToDefault(
+									reading.dateColumn,
+									guessedOverTime.dateColumn,
+									() => setReading(guessedOverTime),
+									columnName(guessedOverTime.dateColumn),
+								)}
+							/>
+
+							<SelectField<string>
+								label="Rows are named by"
+								value={reading.keyColumn}
+								options={sheet.columns
+									.filter((column) => column.key !== reading.dateColumn)
+									.map((column) => {
+										const names = namesThingsOverTime(sheet, reading.dateColumn, column.key);
+										return {
+											value: column.key,
+											label: names
+												? column.name
+												: `${column.name} (not the same things on each date)`,
+											disabled: !names,
+										};
+									})}
+								onChange={(keyColumn) => setReading({ ...reading, keyColumn })}
+								inherit={resetToDefault(
+									reading.keyColumn,
+									guessedOverTime.keyColumn,
+									() => setReading({ ...reading, keyColumn: guessedOverTime.keyColumn }),
+									columnName(guessedOverTime.keyColumn),
+								)}
+								hint="Each thing's name, like a borough's or a shop's: on every date, and what an object or area picks its row by."
 							/>
 
 							<TextField
