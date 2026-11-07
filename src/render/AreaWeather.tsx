@@ -186,7 +186,8 @@ const puffColor = new THREE.Color();
 
 /**
  * Clouds over areas (both views, unlike the world's ring of them): flat-shaded
- * puffs over each area with cloud cover, greyer as it rains, snows or storms,
+ * puffs over each area with cloud cover, as see-through as its weather says
+ * (`cloudTransparency`), greyer as it rains, snows or storms,
  * tinted by the time of day as the world's are, drifting a little in place
  * while motion plays. One instanced draw for every area; the pointer passes
  * through them.
@@ -198,7 +199,15 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 	const playing = useEditor((s) => s.playing);
 	const hour = useSceneHours();
 	const puffs = useMemo(() => puffsOf(weathers), [weathers]);
-	const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 1), []);
+	const geometry = useMemo(() => {
+		const made = new THREE.IcosahedronGeometry(1, 1);
+		// Each puff's opacity, from its area's cloud transparency.
+		made.setAttribute(
+			"cloudOpacity",
+			new THREE.InstancedBufferAttribute(new Float32Array(MOST_PUFFS).fill(1), 1),
+		);
+		return made;
+	}, []);
 	const material = useMemo(() => {
 		const made = new THREE.MeshStandardMaterial({
 			flatShading: true,
@@ -209,6 +218,23 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 		// Snow doesn't settle on clouds, and an area's fog and storm don't lie on them.
 		made.userData.noWeather = true;
 		made.userData.noAreaWeather = true;
+		made.onBeforeCompile = (shader) => {
+			shader.vertexShader = shader.vertexShader
+				.replace(
+					"#include <common>",
+					"#include <common>\nattribute float cloudOpacity;\nvarying float vCloudOpacity;",
+				)
+				.replace(
+					"#include <begin_vertex>",
+					"#include <begin_vertex>\nvCloudOpacity = cloudOpacity;",
+				);
+			shader.fragmentShader = shader.fragmentShader
+				.replace("#include <common>", "#include <common>\nvarying float vCloudOpacity;")
+				.replace(
+					"#include <opaque_fragment>",
+					"#include <opaque_fragment>\ngl_FragColor.a *= vCloudOpacity;",
+				);
+		};
 		return made;
 	}, []);
 	useEffect(() => () => geometry.dispose(), [geometry]);
@@ -251,6 +277,18 @@ const AreaClouds = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) => {
 		});
 		if (instanced.instanceColor) {
 			instanced.instanceColor.needsUpdate = true;
+		}
+		// How see-through each puff is (cloudTransparency): blended, without hiding each other, while any is.
+		const opacity = geometry.getAttribute("cloudOpacity") as THREE.InstancedBufferAttribute;
+		puffs.forEach((puff, i) => {
+			opacity.setX(i, 1 - weathers[puff.area].now.cloudTransparency);
+		});
+		opacity.needsUpdate = true;
+		const seeThrough = weathers.some(({ now }) => now.cloudTransparency > 0);
+		if (material.transparent !== seeThrough) {
+			material.transparent = seeThrough;
+			material.depthWrite = !seeThrough;
+			material.needsUpdate = true;
 		}
 	}, [puffs, weathers, lighting, sky, hour]);
 

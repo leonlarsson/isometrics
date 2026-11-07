@@ -1138,6 +1138,14 @@ export const WeatherSchema = z
 			.describe(
 				"How high above the base ground the clouds float, in grid units (an area's own weather's: where its rain and lightning start too). null = the world's on their ring round it, about 30 up (higher for big worlds); an area's 9 above its top, over houses and trees.",
 			),
+		cloudTransparency: z
+			.number()
+			.min(0)
+			.max(0.9)
+			.default(0)
+			.describe(
+				"How see-through the clouds are: 0 = solid, 0.9 = a faint veil that what's under shows through (handy for an area's clouds in the diorama, which float over what's behind it).",
+			),
 		rainAmount: amount("How hard it rains: 0 = dry, 1 = a downpour."),
 		snowAmount: amount("How hard it snows: 0 = none, 1 = a blizzard."),
 		fogDensity: amount(

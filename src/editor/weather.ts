@@ -30,6 +30,8 @@ export interface IWeatherNow {
 	cloudSpeed: number;
 	/** How high the clouds float, as set (null: where they float by default, `cloudAltitudeOf`). */
 	cloudAltitude: number | null;
+	/** How see-through the clouds are: 0 solid. */
+	cloudTransparency: number;
 }
 
 /** The weather's settings that can follow a data value. */
@@ -65,6 +67,7 @@ export const weatherNow = (weather: TWeather, data?: TReadableValues): IWeatherN
 		cloudColor: weather.cloudColor,
 		cloudSpeed: weather.cloudSpeed,
 		cloudAltitude: weather.cloudAltitude,
+		cloudTransparency: weather.cloudTransparency,
 	};
 };
 
