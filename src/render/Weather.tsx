@@ -30,7 +30,8 @@ import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weather
 /** At most this many raindrops, flakes and splashes; an amount of 1 draws them all. */
 const MOST_DROPS = 6000;
 const MOST_FLAKES = 4000;
-const MOST_SPLASHES = 260;
+// Splashes cover the rain's whole box at the density they had over the middle of it.
+const MOST_SPLASHES = 860;
 
 /** Deterministic pseudo-random in [0, 1), so the field is the same every time. */
 
@@ -295,6 +296,7 @@ const SPLASH_VERTEX = /* glsl */ `
 	uniform vec3 center;
 	uniform float radius;
 	varying float life;
+	varying float fade;
 	void main() {
 		// Each splash opens and fades, then opens again somewhere else.
 		float cycle = time * 1.6 + seed.z * 10.0;
@@ -305,6 +307,8 @@ const SPLASH_VERTEX = /* glsl */ `
 		vec2 low = center.xz - radius;
 		vec2 at = low + mod(spot * 2.0 * radius - low, 2.0 * radius);
 		vec3 world = vec3(at.x, 0.03, at.y);
+		// Thinner towards the box's edges, as the rain is, so they end where it does.
+		fade = 1.0 - smoothstep(0.75, 1.0, length((at - center.xz) / radius));
 		vec3 ring = position * (0.08 + 0.32 * life);
 		gl_Position = rank < amountAt(world).y
 			? projectionMatrix * viewMatrix * vec4(world + ring, 1.0)
@@ -316,8 +320,9 @@ const SPLASH_FRAGMENT = /* glsl */ `
 	uniform vec3 color;
 	uniform float opacity;
 	varying float life;
+	varying float fade;
 	void main() {
-		gl_FragColor = vec4(color, opacity * (1.0 - life));
+		gl_FragColor = vec4(color, opacity * (1.0 - life) * fade);
 	}
 `;
 
@@ -370,8 +375,8 @@ const Splashes = ({ local }: { local: boolean }) => {
 		const u = material.uniforms;
 		u.time.value = motionClock.seconds;
 		u.center.value.copy(center);
-		// Close round the middle of the view, where they can be seen.
-		u.radius.value = radius * 0.55;
+		// Wherever the rain falls: its whole box.
+		u.radius.value = radius;
 		u.amount.value = splashes(world);
 		geometry.instanceCount = Math.round(most * MOST_SPLASHES);
 	});
