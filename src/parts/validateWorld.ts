@@ -9,7 +9,7 @@ import {
 } from "#/scene/flows";
 import { plural } from "#/scene/format";
 import { ALTITUDE_GAP, roadNetworkOf } from "#/scene/junctions";
-import { waysOut } from "#/scene/network";
+import { networkEntries, waysOut } from "#/scene/network";
 import { describeRepairs } from "#/scene/repair";
 import { isHiddenRoute, polylineLength, roadCenterlineOf, steepestGrade } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
@@ -309,6 +309,21 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 					`climbs ${Math.round(steepest.grade * 100)}% about ${roughly(steepest.along)} along it, steeper than a ramp should be (motorway ramps climb about 6%, ${Math.round(STEEPEST_RAMP * 100)}% at most). Lengthen the ramp: spread its rise over more distance`,
 				);
 			}
+		}
+		// Vehicles reach a one-way road's dead end and start over at an entry to the network, an open
+		// road end traffic drives in by (ADR-0148); where none leads to this road, they start over
+		// where they began, appearing from nowhere.
+		if (
+			road.isOneWay &&
+			!road.loops &&
+			network.connects(road.id) &&
+			!network.junctionAt(road.id, "end") &&
+			networkEntries(network, road.id).length === 0
+		) {
+			warn(
+				`${where}.points`,
+				`one-way road "${road.id}" leads to a dead end, but no road drives into its network from an open end: vehicles reaching its end start over where they began, appearing from nowhere (at a junction or mid-road). Give the network an entry: a road whose first point (or, for a two-way road, either end) is at no junction, best at the ground's edge`,
+			);
 		}
 		rowRead(where, road.dataRow);
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);

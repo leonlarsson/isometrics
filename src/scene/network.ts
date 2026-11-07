@@ -6,7 +6,13 @@ import {
 	pointAlongLine,
 } from "./junctions";
 import { createPathSampler, type IPathSample, type IPathSampler, uTurnLength } from "./paths";
-import { laneOffset, polylineLength, resolveDrivesThroughJunctions, type TRoadEnd } from "./roads";
+import {
+	isHiddenRoute,
+	laneOffset,
+	polylineLength,
+	resolveDrivesThroughJunctions,
+	type TRoadEnd,
+} from "./roads";
 import { centerlineOf, GROWS_OVER, type IRouteSampler, type ITrafficPlace } from "./routes";
 import type { TDrivingSide, TFollow, TRoad, TRoadPoint, TScene, TVec2 } from "./schema";
 
@@ -189,12 +195,173 @@ export interface INetworkTripOptions {
 	 * appear in the middle of the traffic behind it).
 	 */
 	startsOverAtRoadStart?: boolean;
+	/**
+	 * The ground, so it starts over by preference at an entry by its edge (ADR-0148): traffic
+	 * driving in from off the map.
+	 */
+	ground?: { width: number; depth: number };
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => t * t * (3 - 2 * t);
 const same = (a: readonly number[], b: readonly number[]) =>
 	Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+
+/** A road end that traffic drives into the network by (ADR-0148): one at no junction. */
+export interface INetworkEntry {
+	roadId: string;
+	/** The way in along the road: 1 from its first point, -1 from its last. */
+	direction: 1 | -1;
+	/** Where it is: [x, z, altitude]. */
+	point: TRoadPoint;
+	/** How far it is to drive from there to the road asked about, its way. */
+	distance: number;
+}
+
+const entriesOf = new WeakMap<IRoadNetwork, Map<string, INetworkEntry[]>>();
+
+/**
+ * Where traffic can drive into the network and on to a road, driven its way (ADR-0148): every open
+ * road end (at no junction) of a drawn road that vehicles may drive in at, the first point of a
+ * one-way road or either open end of a two-way one, from which the road can be reached, driving
+ * as vehicles may (never against a one-way road, turning round only at a two-way dead end, within
+ * a junction end's `leadsTo`), with how far that drive is. Worked out once per network and road.
+ */
+export const networkEntries = (
+	network: IRoadNetwork,
+	roadId: string,
+	direction: 1 | -1 = 1,
+): INetworkEntry[] => {
+	let byRoad = entriesOf.get(network);
+	if (!byRoad) {
+		byRoad = new Map();
+		entriesOf.set(network, byRoad);
+	}
+	const key = `${roadId}:${direction}`;
+	const known = byRoad.get(key);
+	if (known) {
+		return known;
+	}
+	const roads = new Map<string, TRoad>();
+	for (const junction of network.junctions) {
+		for (const end of junction.ends) {
+			const road = network.roadById(end.roadId);
+			if (road) {
+				roads.set(road.id, road);
+			}
+		}
+	}
+	const own = network.roadById(roadId);
+	if (own) {
+		roads.set(own.id, own);
+	}
+	const lengthOf = new Map(
+		[...roads.values()].map((road) => [road.id, polylineLength(centerlineOf(road), false)]),
+	);
+	/** Where a vehicle driving a road one way can go on to, and how far it drives to get there. */
+	const nextOf = (id: string, way: 1 | -1): { id: string; way: 1 | -1; cost: number }[] => {
+		const road = roads.get(id);
+		if (!road) {
+			return [];
+		}
+		const cost = lengthOf.get(id) ?? 0;
+		const exitEnd: TRoadEnd = way > 0 ? "end" : "start";
+		const junction = network.junctionAt(id, exitEnd);
+		if (!junction) {
+			return road.isOneWay ? [] : [{ id, way: way > 0 ? -1 : 1, cost }];
+		}
+		const leadsTo = network.endAt(id, exitEnd)?.leadsTo ?? null;
+		return junction.ends
+			.filter(
+				(end) =>
+					!(end.roadId === id && end.end === exitEnd) &&
+					!(roads.get(end.roadId)?.isOneWay && end.end === "end") &&
+					(leadsTo === null ||
+						leadsTo.some((to) => to.roadId === end.roadId && to.end === end.end)),
+			)
+			.map((end) => ({ id: end.roadId, way: end.end === "start" ? 1 : -1, cost }));
+	};
+	/** How far it is to drive from a road driven one way to the road asked about, if it can. */
+	const distanceTo = (fromId: string, fromWay: 1 | -1) => {
+		const best = new Map<string, number>([[`${fromId}:${fromWay}`, 0]]);
+		const queue: { id: string; way: 1 | -1; at: number }[] = [{ id: fromId, way: fromWay, at: 0 }];
+		while (queue.length > 0) {
+			queue.sort((a, b) => a.at - b.at);
+			const here = queue.shift() as { id: string; way: 1 | -1; at: number };
+			if (here.id === roadId && here.way === direction) {
+				return here.at;
+			}
+			for (const next of nextOf(here.id, here.way)) {
+				const at = here.at + next.cost;
+				const nextKey = `${next.id}:${next.way}`;
+				if (at < (best.get(nextKey) ?? Number.POSITIVE_INFINITY)) {
+					best.set(nextKey, at);
+					queue.push({ id: next.id, way: next.way, at });
+				}
+			}
+		}
+		return null;
+	};
+	const entries: INetworkEntry[] = [];
+	for (const road of roads.values()) {
+		if (isHiddenRoute(road.kind) || road.points.length < 2 || road.loops) {
+			continue;
+		}
+		const ways: (1 | -1)[] = road.isOneWay ? [1] : [1, -1];
+		for (const way of ways) {
+			if (network.junctionAt(road.id, way > 0 ? "start" : "end")) {
+				continue;
+			}
+			const distance = distanceTo(road.id, way);
+			if (distance !== null) {
+				const point = way > 0 ? road.points[0] : road.points[road.points.length - 1];
+				entries.push({
+					roadId: road.id,
+					direction: way,
+					point: [point[0], point[1], point[2]],
+					distance,
+				});
+			}
+		}
+	}
+	entries.sort((a, b) => a.distance - b.distance || a.roadId.localeCompare(b.roadId));
+	byRoad.set(key, entries);
+	return entries;
+};
+
+/** An entry this near the ground's edge is where traffic drives in from off the map. */
+const AT_THE_EDGE = 2;
+
+/**
+ * The entry a vehicle starts over at (ADR-0148), the `round`th time: one by the ground's edge if
+ * the network has any (traffic coming in from off the map), else any; of those, the nearer drives
+ * to its road (within half as far again as the nearest, and 20), picked by its seed. Null where
+ * nothing drives into the network: it starts over where it began.
+ */
+export const entryToStartOverAt = (
+	network: IRoadNetwork,
+	roadId: string,
+	direction: 1 | -1,
+	seed: string,
+	round: number,
+	ground?: { width: number; depth: number },
+): INetworkEntry | null => {
+	const entries = networkEntries(network, roadId, direction);
+	if (entries.length === 0) {
+		return null;
+	}
+	const atEdge = ground
+		? entries.filter(
+				({ point }) =>
+					Math.abs(point[0]) >= ground.width / 2 - AT_THE_EDGE ||
+					Math.abs(point[1]) >= ground.depth / 2 - AT_THE_EDGE,
+			)
+		: [];
+	const pool = atEdge.length > 0 ? atEdge : entries;
+	const nearest = pool[0].distance;
+	const near = pool.filter((entry) => entry.distance <= Math.max(nearest * 1.5, nearest + 20));
+	return near[Math.min(near.length - 1, Math.floor(chanceOf(seed, -100 - round) * near.length))];
+};
 
 /** A trip across the network as a route sampler, from a road that has a junction at an end. */
 export const createNetworkTrip = (
@@ -207,6 +374,7 @@ export const createNetworkTrip = (
 		reverse = false,
 		seed,
 		startsOverAtRoadStart = false,
+		ground,
 	}: INetworkTripOptions,
 ): IRouteSampler => {
 	const roadInfo = (id: string) => {
@@ -338,7 +506,10 @@ export const createNetworkTrip = (
 			return makeLeg(leg.roadId, leg.direction > 0 ? -1 : 1, 0, 0, null, leg.index + 1, startsAt);
 		}
 		if (leg.exit.kind === "startOver") {
-			return makeLeg(roadId, startDirection, restartAlong, 0, null, leg.index + 1, startsAt, true);
+			const entry = entryAfter(leg.index);
+			return entry
+				? makeLeg(entry.roadId, entry.direction, 0, 0, null, leg.index + 1, startsAt, true)
+				: makeLeg(roadId, startDirection, restartAlong, 0, null, leg.index + 1, startsAt, true);
 		}
 		const { way } = leg.exit;
 		const trim = network.endAt(way.roadId, way.end)?.routeTrim ?? 0;
@@ -357,7 +528,13 @@ export const createNetworkTrip = (
 			)
 		: 0;
 	const firstLeg = () => makeLeg(roadId, startDirection, startAlong, 0, null, 0, 0);
-	/** Where it starts over (ADR-0148). */
+	/**
+	 * Where it starts over after a one-way dead end (ADR-0148): at an entry to the network, an open
+	 * road end traffic drives in by, so it comes into view as traffic does; only where nothing drives
+	 * into the network, where it began (a flow's vehicles at their road's start).
+	 */
+	const entryAfter = (index: number) =>
+		entryToStartOverAt(network, roadId, startDirection, seed, index, ground);
 	const restartAlong = startsOverAtRoadStart
 		? (network.endAt(roadId, "start")?.routeTrim ?? 0)
 		: startAlong;
@@ -541,13 +718,23 @@ export const createNetworkTrip = (
 						distance: end - travelled,
 					}
 				: leg.exit.kind === "startOver"
-					? // It comes back where it started: it keeps its distance to what's there.
-						{
-							roadId,
-							direction: startDirection,
-							along: restartAlong,
-							distance: end - travelled,
-						}
+					? // It comes back where it starts over: it keeps its distance to what's there.
+						(() => {
+							const entry = entryAfter(leg.index);
+							return entry
+								? {
+										roadId: entry.roadId,
+										direction: entry.direction,
+										along: 0,
+										distance: end - travelled,
+									}
+								: {
+										roadId,
+										direction: startDirection,
+										along: restartAlong,
+										distance: end - travelled,
+									};
+						})()
 					: {
 							roadId: leg.roadId,
 							direction: (leg.direction > 0 ? -1 : 1) as 1 | -1,

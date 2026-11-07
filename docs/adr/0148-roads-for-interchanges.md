@@ -65,7 +65,7 @@ No new list of things with ids, so `PATCH_LISTS` is unchanged; `leadsTo` changes
 A trip (`createNetworkTrip`, ADR-0136) and a route on a single road follow these rules. Who drives: vehicle objects that follow a road, and flows.
 
 - **Never against a one-way road.** A way out of a junction onto a one-way road is only its `start` (driving away from its first point). A vehicle on a one-way road drives forward whatever its `drivesTheOtherWay` says.
-- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it **starts over** where it started (a flow's vehicles, which start spread along their road, at its start, so one never appears in the traffic behind it), shrinking out over its last 1.5 units and growing in again (the size flows already use, `FLOW_EASE_LENGTH`), as a flow's own stream does. A dead end at the edge of the world is meant (traffic leaving the map), so validate only warns of a one-way road into a junction with no way out of it allowed.
+- **At a one-way road's end with no way on** (a dead end, or a junction with no allowed way out), the vehicle doesn't turn round: it shrinks out over its last 1.5 units (the size flows already use, `FLOW_EASE_LENGTH`) and **starts over at an entry to the network** (`entryToStartOverAt`, `scene/network.ts`): an open road end, at no junction, where traffic drives in (the first point of a one-way road, or an open end of a two-way road), from which its own start road can be reached, driving as vehicles may. Of those, ones by the ground's edge first (traffic coming in from off the map), then the nearer drives to its road, picked by its seed, so the same vehicle comes in the same way each time; it grows in there. So vehicles never pop in at a junction or mid-road when the network has an entry. Only where nothing drives into the network does it start over where it began (a flow's vehicles at their road's start), and validate says so. A dead end at the edge of the world is meant (traffic leaving the map).
 - **The way chosen** (`pickWayOut`, now given the arrival direction and each way's departure direction):
   - the end it came in by is never a way out (as before);
   - with `leadsTo` on the end it arrives by, only those (still never against a one-way road);
@@ -117,7 +117,7 @@ The traffic step is now a pure frame, `stepAllTraffic` (`scene/trafficFrame.ts`)
 
 ### Checking a world (ADR-0117)
 
-New warnings: a one-way road into a junction with no way out of it allowed (its vehicles start over); a junction end's `leadsTo` naming an end not at the junction, or onto a one-way road against its way, or leaving no way on; a junction whose ends are at different altitudes (which end is left out, how far above or below, and how to fix it); a one-way road steeper than 12 in 100 (where, and that ramps climb about 6). Every template passes with no warnings.
+New warnings: a one-way road into a junction with no way out of it allowed (its vehicles start over); a one-way road leading to a dead end in a network nothing drives into from an open end (its vehicles would start over where they began, appearing from nowhere); a junction end's `leadsTo` naming an end not at the junction, or onto a one-way road against its way, or leaving no way on; a junction whose ends are at different altitudes (which end is left out, how far above or below, and how to fix it); a one-way road steeper than 12 in 100 (where, and that ramps climb about 6). Every template passes with no warnings.
 
 ### The guide
 

@@ -274,6 +274,8 @@ export const EntityNode = memo(
 						startDistance,
 						reverse,
 						seed: entity.id,
+						// Read once: it only prefers where to start over (ADR-0148).
+						ground: useEditor.getState().scene.ground,
 					})
 				: createRouteSampler(road, driving, { reverse, smoothing });
 		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);

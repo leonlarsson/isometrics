@@ -252,6 +252,8 @@ const DrivingOnStream = ({
 						offset,
 						length: roadLength,
 						index,
+						// Read once: it only prefers where to start over (ADR-0148).
+						ground: useEditor.getState().scene.ground,
 					}),
 					offset: 0,
 					speed: road.flow.speed,

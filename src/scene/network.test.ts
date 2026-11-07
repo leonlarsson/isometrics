@@ -5,6 +5,7 @@ import {
 	chanceOf,
 	createNetworkTrip,
 	drivesAcrossNetwork,
+	networkEntries,
 	pathAhead,
 	pickWayOut,
 	roadsDriven,
@@ -395,18 +396,77 @@ describe("one-way roads and the way through a junction (ADR-0148)", () => {
 		// Its dead end leads back to where it started, again and again.
 		expect(roadsDriven(onNetwork, 80)).toEqual(["a", "b", "a", "b", "a"]);
 		expect(onNetwork.sizeAt?.(0, 50)).toBe(1);
-		// 15 along a, 20 along b, then 2 into the next round: back where it started, 7 along a ...
+		// 15 along a, 20 along b, then 2 into the next round: it comes in again where traffic drives
+		// into the network, a's open first point, growing in there.
 		const again = onNetwork.at(0, 37).position[0];
-		expect(again).toBeGreaterThan(6);
-		expect(again).toBeLessThan(9);
-		// ... or, a flow's vehicle (spread along the road), from the road's start, 2 along it.
-		const fromStart = createNetworkTrip(network, "a", {
+		expect(again).toBeGreaterThan(1.5);
+		expect(again).toBeLessThan(4);
+		expect(onNetwork.sizeAt?.(0, 35.5)).toBeLessThan(1);
+		expect(onNetwork.sizeAt?.(0, 40)).toBe(1);
+	});
+
+	it("starts over at an entry by the ground's edge, or where it began where nothing drives in", () => {
+		const oneWay = (id: string, points: TRoadInput["points"]) =>
+			road(id, points, { isOneWay: true });
+		// Two ways into a, one from the ground's edge (f), one from nearer the middle (g).
+		const roads = [
+			oneWay("f", [
+				[-40, 0],
+				[0, 0],
+			]),
+			oneWay("g", [
+				[0, -10],
+				[0, 0],
+			]),
+			oneWay("a", [
+				[0, 0],
+				[20, 0],
+			]),
+			oneWay("b", [
+				[20, 0],
+				[20, 20],
+			]),
+		];
+		const network = roadNetworkOf(roads, [
+			junction("j0", ["f", "end"], ["g", "end"], ["a", "start"]),
+			junction("j1", ["a", "end"], ["b", "start"]),
+		]);
+		expect(networkEntries(network, "a").map((entry) => entry.roadId)).toEqual(["g", "f"]);
+		const trip = createNetworkTrip(network, "a", {
 			driving: "right",
 			startDistance: 5,
 			seed: "car",
-			startsOverAtRoadStart: true,
+			ground: { width: 80, depth: 80 },
 		});
-		expect(again - fromStart.at(0, 37).position[0]).toBeCloseTo(5, 1);
+		// 15 along a, 20 along b, then it drives in from the edge, along f.
+		expect(roadsDriven(trip, 80)).toEqual(["a", "b", "f", "a"]);
+		// A network nothing drives into (every open end a one-way road's last): where it began.
+		const closed = roadNetworkOf(
+			[
+				oneWay("a", [
+					[0, 0],
+					[20, 0],
+				]),
+				oneWay("b", [
+					[20, 0],
+					[20, 20],
+				]),
+				oneWay("c", [
+					[20, 20],
+					[0, 0],
+				]),
+				oneWay("d", [
+					[20, 20],
+					[40, 20],
+				]),
+			],
+			[
+				junction("j0", ["c", "end"], ["a", "start"]),
+				junction("j1", ["a", "end"], ["b", "start"]),
+				junction("j2", ["b", "end"], ["c", "start"], ["d", "start"]),
+			],
+		);
+		expect(networkEntries(closed, "a")).toEqual([]);
 	});
 
 	it("never turns onto a one-way road against its way, nor back through the junction", () => {

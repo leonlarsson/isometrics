@@ -476,3 +476,86 @@ describe("warning of a junction's ends at different altitudes (ADR-0148)", () =>
 		);
 	});
 });
+
+describe("warning of vehicles that would appear from nowhere (ADR-0148)", () => {
+	const ring = (withEntry: boolean) => ({
+		roads: [
+			{
+				id: "a",
+				isOneWay: true,
+				points: [
+					[0, 0],
+					[20, 0],
+				],
+			},
+			{
+				id: "b",
+				isOneWay: true,
+				points: [
+					[20, 0],
+					[20, 20],
+				],
+			},
+			{
+				id: "c",
+				isOneWay: true,
+				points: [
+					[20, 20],
+					[0, 0],
+				],
+			},
+			{
+				id: "d",
+				isOneWay: true,
+				points: [
+					[20, 20],
+					[40, 20],
+				],
+			},
+			...(withEntry
+				? [
+						{
+							id: "in",
+							isOneWay: true,
+							points: [
+								[-20, 0],
+								[0, 0],
+							],
+						},
+					]
+				: []),
+		],
+		junctions: [
+			{
+				id: "j0",
+				ends: [
+					{ roadId: "c", end: "end" },
+					{ roadId: "a", end: "start" },
+					...(withEntry ? [{ roadId: "in", end: "end" }] : []),
+				],
+			},
+			{
+				id: "j1",
+				ends: [
+					{ roadId: "a", end: "end" },
+					{ roadId: "b", end: "start" },
+				],
+			},
+			{
+				id: "j2",
+				ends: [
+					{ roadId: "b", end: "end" },
+					{ roadId: "c", end: "start" },
+					{ roadId: "d", end: "start" },
+				],
+			},
+		],
+	});
+
+	it("warns of a one-way dead end in a network nothing drives into, not once one road does", () => {
+		expect(warningsOf(ring(false))).toContain(
+			'one-way road "d" leads to a dead end, but no road drives into its network from an open end',
+		);
+		expect(warningsOf(ring(true))).not.toContain("drives into its network");
+	});
+});
