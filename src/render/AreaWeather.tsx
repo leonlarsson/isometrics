@@ -45,7 +45,7 @@ const STORM_GREY = "#525965";
 export const SEE_THROUGH_ORDER = { depth: 10, paint: 11 } as const;
 
 /** At most this many puffs, all areas together. */
-const MOST_PUFFS = 1600;
+const MOST_PUFFS = 6000;
 
 /** A number from an id, the same every time, to vary areas from each other. */
 const seedOf = (id: string) => {
@@ -152,7 +152,18 @@ interface IPuff {
 	phase: number;
 }
 
-/** The puffs of the clouds gathered over each area with cloud cover: more for more cover and bigger areas. */
+/** How far apart clouds stand on an area's grid, in grid units, unless the area is too big for it. */
+const CLOUD_SPACING = 4.5;
+/** At most this many clouds over one area: a bigger one gets bigger clouds rather than more. */
+const MOST_CLOUDS_PER_AREA = 300;
+
+/**
+ * The puffs of the clouds over each area with cloud cover, on a grid laid over
+ * its outline (jittered, so it doesn't read as one): at 100% a cloud at every
+ * spot of it, close enough to overlap, so the whole area is under cloud; less
+ * cover leaves out spots in a scattered order (the same every time), so 50% is
+ * about half the area. Each cloud is a few puffs filling its spot.
+ */
 const puffsOf = (weathers: readonly IAreaWeatherNow[]) => {
 	const puffs: IPuff[] = [];
 	weathers.forEach(({ area, now }, index) => {
@@ -160,24 +171,57 @@ const puffsOf = (weathers: readonly IAreaWeatherNow[]) => {
 			return;
 		}
 		const seed = seedOf(area.id);
-		const size = Math.sqrt(Math.abs(polygonArea(area.points)));
-		const count = Math.max(1, Math.min(30, Math.round(now.cloudCover * size * 0.55)));
-		const scale = Math.min(2.2, 0.8 + size / 40);
-		for (const [c, [x, z]] of placesInside(area.points, count, seed).entries()) {
-			const height = cloudAltitudeOf(now, { area }) + jitter(seed + c * 3.1) * 3;
-			const pieces = 3 + Math.floor(jitter(seed + c * 5.3) * 3);
-			for (let p = 0; p < pieces && puffs.length < MOST_PUFFS; p++) {
-				const r = jitter(seed + c * 7.7 + p);
-				puffs.push({
-					at: new THREE.Vector3(
-						x + (p - (pieces - 1) / 2) * 1.6 * scale,
-						height + r * 0.8 * scale,
-						z + (jitter(seed + c * 9.1 + p) - 0.5) * 2 * scale,
-					),
-					size: (1.4 + r * 1.2) * scale,
-					area: index,
-					phase: jitter(seed + c * 11.3) * Math.PI * 2,
-				});
+		let minX = Number.POSITIVE_INFINITY;
+		let minZ = Number.POSITIVE_INFINITY;
+		let maxX = Number.NEGATIVE_INFINITY;
+		let maxZ = Number.NEGATIVE_INFINITY;
+		for (const [x, z] of area.points) {
+			minX = Math.min(minX, x);
+			minZ = Math.min(minZ, z);
+			maxX = Math.max(maxX, x);
+			maxZ = Math.max(maxZ, z);
+		}
+		const spacing = Math.max(
+			CLOUD_SPACING,
+			Math.sqrt(Math.abs(polygonArea(area.points)) / MOST_CLOUDS_PER_AREA),
+		);
+		const altitude = cloudAltitudeOf(now, { area });
+		// Spots on the grid that are over the area: its middle inside, or enough of it near the edge.
+		const reach = spacing * 0.35;
+		for (let gx = minX + spacing / 2; gx < maxX + spacing / 2; gx += spacing) {
+			for (let gz = minZ + spacing / 2; gz < maxZ + spacing / 2; gz += spacing) {
+				const over = [
+					[gx, gz],
+					[gx - reach, gz],
+					[gx + reach, gz],
+					[gx, gz - reach],
+					[gx, gz + reach],
+				].some((spot) => isInsidePolygon(spot, area.points));
+				const key = seed + gx * 12.9898 + gz * 78.233;
+				// Which spots a cover has: each its own place in a scattered order.
+				if (!over || jitter(key) >= now.cloudCover) {
+					continue;
+				}
+				const x = gx + (jitter(key + 1.1) - 0.5) * spacing * 0.3;
+				const z = gz + (jitter(key + 2.3) - 0.5) * spacing * 0.3;
+				const height = altitude + jitter(key + 3.1) * 2;
+				const pieces = 3 + Math.floor(jitter(key + 5.3) * 3);
+				for (let p = 0; p < pieces && puffs.length < MOST_PUFFS; p++) {
+					const r = jitter(key + 7.7 + p);
+					const turn = (p / pieces) * Math.PI * 2 + jitter(key + 9.1) * Math.PI;
+					// Round the spot's middle, each puff about half a spot across, so neighbours overlap.
+					const out = p === 0 ? 0 : spacing * 0.3;
+					puffs.push({
+						at: new THREE.Vector3(
+							x + Math.cos(turn) * out,
+							height + r * 0.15 * spacing,
+							z + Math.sin(turn) * out,
+						),
+						size: spacing * (0.42 + r * 0.18),
+						area: index,
+						phase: jitter(key + 11.3) * Math.PI * 2,
+					});
+				}
 			}
 		}
 	});
