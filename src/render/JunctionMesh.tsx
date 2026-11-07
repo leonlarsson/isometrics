@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { valuesOfRoad } from "#/editor/roadFlows";
 import { useEditor } from "#/editor/store";
 import {
 	type IJunctionPad,
@@ -11,7 +12,7 @@ import {
 } from "#/scene/junctions";
 import { type IPillarWorld, junctionPillars } from "#/scene/pillars";
 import { DECK_THICKNESS, dashPolyline, ELEVATED_MIN, railingHeightAt } from "#/scene/roads";
-import type { TDataValue, TJunction, TRoad } from "#/scene/schema";
+import type { TJunction, TRoad, TWorldData } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { pillarGeometry } from "./pillarGeometry";
@@ -141,7 +142,8 @@ interface IJunctionBodyProps {
 	/** The highest draw layer among its roads. */
 	layer: number;
 	palette: IScenePalette;
-	data: readonly TDataValue[];
+	/** The world's data: the colour follows its road's, row and all (ADR-0108). */
+	data: TWorldData;
 	/** What its pillars keep clear of (ADR-0148); none drawn without it. */
 	world: IPillarWorld | null;
 	/** Whether vehicles drive any of its roads: then it keeps clear of snow as they do. */
@@ -175,18 +177,24 @@ const JunctionBody = memo(
 			[network, junction, world],
 		);
 		// Its markings (a gore's, ADR-0148): lane lines dashed like the roads' markings, and the
-		// gore's edges and chevrons solid.
+		// gore's edges solid and its chevrons solid and bolder, so they read from afar.
 		const laneLines = useMemo(() => {
 			const dashed = (pad?.laneLines ?? []).flatMap((line) =>
 				dashPolyline(line, false, MARKING_DASH, MARKING_GAP),
 			);
-			const lines = [...dashed, ...(pad?.paintedLines ?? [])].filter((line) => line.length > 1);
-			return lines.length > 0
-				? ribbonGeometry(
-						lines.map((center) => ({ center, halfWidth: MARKING_HALF_WIDTH, closed: false })),
-						y + 0.002,
-					)
-				: null;
+			const lines = [
+				...[...dashed, ...(pad?.paintedLines ?? [])].map((center) => ({
+					center,
+					halfWidth: MARKING_HALF_WIDTH,
+					closed: false,
+				})),
+				...(pad?.chevrons ?? []).map((center) => ({
+					center,
+					halfWidth: MARKING_HALF_WIDTH * 2,
+					closed: false,
+				})),
+			].filter((line) => line.center.length > 1);
+			return lines.length > 0 ? ribbonGeometry(lines, y + 0.002) : null;
 		}, [shape]);
 		useLayoutEffect(() => () => laneLines?.dispose(), [laneLines]);
 		const pillarMesh = useMemo(
@@ -204,7 +212,7 @@ const JunctionBody = memo(
 			<group>
 				<mesh geometry={geometry.surface} receiveShadow castShadow>
 					<meshStandardMaterial
-						color={roadColor(colorRoad, palette, data)}
+						color={roadColor(colorRoad, palette, valuesOfRoad(colorRoad, data))}
 						roughness={0.95}
 						userData={snowShare}
 					/>
@@ -242,7 +250,7 @@ interface IJunctionBodiesProps {
 	roads: readonly TRoad[];
 	junctions: readonly TJunction[];
 	palette: IScenePalette;
-	data: readonly TDataValue[];
+	data: TWorldData;
 }
 
 /** Every junction's surface, from the world's roads and junctions. */

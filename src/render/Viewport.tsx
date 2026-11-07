@@ -291,7 +291,7 @@ const Roads = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const junctions = useEditor((s) => s.scene.junctions);
 	const palette = usePalette();
-	const data = useWorldData().values;
+	const data = useWorldData();
 	const network = roadNetworkOf(roads, junctions);
 
 	return (
