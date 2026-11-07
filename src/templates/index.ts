@@ -6,6 +6,7 @@ import { type ITemplateEntry, TEMPLATE_CATALOGUE, type TTemplateId } from "./cat
 import { createExtractionShootersScene } from "./extractionShooters";
 import { createLanternBayScene } from "./lanternBay";
 import { createMonacoScene } from "./monaco";
+import { createNyc311Scene } from "./nyc311";
 import { createShapeCastleScene } from "./shapeCastle";
 import { createStockholmScene } from "./stockholm";
 
@@ -28,6 +29,7 @@ const CREATE: Record<TTemplateId, () => TScene> = {
 	"shape-castle": createShapeCastleScene,
 	"battlefield-territory": createBattlefieldTerritoryScene,
 	"extraction-shooters": createExtractionShootersScene,
+	"nyc-311": createNyc311Scene,
 };
 
 /** The starter worlds, in the catalogue's order (./catalogue: their names and what they're about). */

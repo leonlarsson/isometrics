@@ -70,6 +70,13 @@ export const TEMPLATE_CATALOGUE = [
 			"A data map of Steam players: a cluster per game, roads for shared audiences, stat tiles and no data where there's none",
 		category: "dataMaps",
 	},
+	{
+		id: "nyc-311",
+		name: "NYC 311: complaint weather",
+		description:
+			"A data map of real 311 requests per New York borough: complaints per resident bring rain and clouds, noise lightning, and twelve real months on the time slider",
+		category: "dataMaps",
+	},
 ] as const satisfies readonly ITemplateEntry[];
 
 export type TTemplateId = (typeof TEMPLATE_CATALOGUE)[number]["id"];

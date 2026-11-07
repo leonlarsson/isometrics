@@ -285,7 +285,7 @@ export const GUIDE: IGuideSection[] = [
 				kind: "points",
 				points: [
 					"A world is one JSON document. Its format, with every part kind and its settings, is the JSON Schema at `/api/worlds/schema`.",
-					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield-territory` and `extraction-shooters` are data maps.",
+					"Complete example worlds are listed at `/api/worlds/templates`, each at `/api/worlds/templates/<id>`; `battlefield-territory`, `extraction-shooters` and `nyc-311` are data maps (`nyc-311`: real data read as a table over time, hidden areas with weather following its rows).",
 					"Distances are grid units; the ground is centred on 0, 0; x runs east, z south; an object's `rotation` is `[x, y, z]` in degrees.",
 					'A table with a past: `history` holds its rows on past dates, oldest first, the last its rows now: `"history": [{ "at": "2026-09", "rows": [{ "borough": "Bronx", "complaints": 59213 }] }, { "at": "2026-10", "rows": [{ "borough": "Bronx", "complaints": 65318 }] }]`, each with the same columns and keyColumn as `rows`. A value\'s is `[{ "at": "2026-09", "value": 12 }]`. View mode\'s time slider then plays them.',
 					"Objects follow a table row with `dataRow: { tableKey, rowKey }` and read its columns as `row.<column>` in label `dataKeys` and in `data` bindings (sizes: `scale` or a prop such as `builtShare`, with `valueAtLowSetting`, `valueAtHighSetting`, `lowSetting`, `highSetting`, `usesLogScale`).",

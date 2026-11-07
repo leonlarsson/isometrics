@@ -38,6 +38,13 @@ describe("the templates' example files (kept on this site, /examples/)", () => {
 			const shown = (row: Record<string, unknown>) =>
 				Object.fromEntries(keys.map((key) => [key, row[key] ?? null]));
 			expect(rows.map(shown), table.key).toEqual(table.rows.map(shown));
+			// A table over time (ADR-0153): its past is the file's, date by date.
+			if ((read.tables[0]?.history.length ?? 0) > 0) {
+				expect(
+					read.tables[0].history.map((moment) => ({ at: moment.at, rows: moment.rows.map(shown) })),
+					`${table.key}'s past`,
+				).toEqual(table.history.map((moment) => ({ at: moment.at, rows: moment.rows.map(shown) })));
+			}
 		}
 	});
 

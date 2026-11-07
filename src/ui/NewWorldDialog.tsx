@@ -91,6 +91,10 @@ const contentsOf = (scene: TScene) => {
  * keeps its choices while the page is open; nothing is stored. The new world
  * opens next to the others (ADR-0044).
  */
+/** Whether a starter is a map made to show data. */
+const isDataMap = (id: string) =>
+	TEMPLATES.find((template) => template.id === id)?.category === "dataMaps";
+
 /** A starter's own address (/templates/<id>), which opens a copy of it for anyone (ADR-0120). */
 const templateLink = (id: string) => `${window.location.origin}/templates/${id}`;
 
@@ -209,7 +213,14 @@ export const NewWorldDialog = () => {
 					<ChoiceCards
 						label="Start from"
 						value={choices.startFrom}
-						onChange={(startFrom) => update({ startFrom })}
+						onChange={(startFrom) =>
+							update({
+								startFrom,
+								// A data map without its data shows nothing: picking one goes back to its own Uses data,
+								// whatever was asked for before (the welcome's city asks for none).
+								...(isDataMap(startFrom) ? { usesData: null } : {}),
+							})
+						}
 						onPick={(startFrom) => {
 							create(startFrom);
 							onOpenChange(false);
