@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import * as THREE from "three";
 
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { createFenceBuilder } from "#/fences/builder";
 import {
@@ -392,7 +392,8 @@ export const FenceBody = ({
 
 /** A fence in the editor: selectable while editing, its gates swinging open and shut. */
 export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
-	const palette = usePalette();
+	// The theme's colours: a fence doesn't change as it gets dark.
+	const palette = useThemePalette();
 	const mode = useEditor(drawnModeOf);
 	const areas = useEditor((s) => s.scene.areas);
 	const data = useWorldData().values;

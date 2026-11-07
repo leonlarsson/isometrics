@@ -5,7 +5,7 @@ import * as THREE from "three";
 
 import { useGraphics } from "#/editor/graphics";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
@@ -274,7 +274,8 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 		() => (reflective && isWaterArea(area) ? waterSeams(area, areas) : NO_SEAMS),
 		[reflective, area, areas],
 	);
-	const palette = usePalette();
+	// The theme's colours: an area doesn't change as it gets dark.
+	const palette = useThemePalette();
 	const data = useWorldData().values;
 	const mode = useEditor(drawnModeOf);
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).

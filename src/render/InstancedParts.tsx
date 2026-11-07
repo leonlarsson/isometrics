@@ -6,9 +6,11 @@ import {
 	canDrawInstanced,
 	cullBatch,
 	disposeBatchCulling,
+	drawnCountOf,
 	type IBatchCulling,
 	makeBatchCulling,
 	placeBounds,
+	setDrawnCount,
 	startPlacing,
 } from "./batchCulling";
 import {
@@ -32,8 +34,11 @@ import {
  */
 interface IBatch {
 	mesh: THREE.BatchedMesh;
-	/** Each shape it holds, by geometryKey: its id in the batch and how much room it takes. */
-	shapes: Map<string, { id: number; vertices: number; indices: number }>;
+	/**
+	 * Each shape it holds, by geometryKey: its id in the batch, how much room it takes, and how much
+	 * of it is drawn (its geometry's draw range, see drawnCountOf).
+	 */
+	shapes: Map<string, { id: number; vertices: number; indices: number; drawn: number }>;
 	originals: THREE.Mesh[];
 	/** Each original's object, in the same order. */
 	roots: IInstancedRoot[];
@@ -45,6 +50,8 @@ interface IBatch {
 	moving: number[];
 	/** Every instance has been placed since the batch last changed; then only the moving ones are. */
 	settled: boolean;
+	/** A shape's drawn part changed since it was last placed: every camera's draw list is made again. */
+	recounted: boolean;
 	/** Originals of objects that rendered since (their indices): placed and coloured once more. */
 	stale: number[];
 	/** The frame its instances were last placed in, so each frame places them once. */
@@ -73,6 +80,21 @@ const sizeOf = (geometry: THREE.BufferGeometry) => ({
 	vertices: geometry.getAttribute("position").count,
 	indices: geometry.getIndex()?.count ?? 0,
 });
+
+/**
+ * A shape drawn as much as its geometry's draw range says (render/batchCulling's drawnCountOf);
+ * whether that changed, when every camera's draw list must be made again.
+ */
+const syncDrawnCount = (batch: IBatch, key: string, geometry: THREE.BufferGeometry) => {
+	const shape = batch.shapes.get(key);
+	const drawn = drawnCountOf(geometry);
+	if (!shape || shape.drawn === drawn) {
+		return false;
+	}
+	shape.drawn = drawn;
+	setDrawnCount(batch.mesh, shape.id, drawn);
+	return true;
+};
 
 /** A part's group drawn by the renderer again (batches no longer draw all of it). */
 const showOwnGroup = (root: IInstancedRoot) => {
@@ -182,10 +204,11 @@ export const InstancedParts = () => {
 			placeAt(i);
 			mesh.setColorAt(batch.instances[i], (batch.originals[i].material as TColoredMaterial).color);
 		};
-		const changed = !batch.settled || batch.stale.length > 0;
+		const changed = !batch.settled || batch.stale.length > 0 || batch.recounted;
 		if (changed || batch.moving.length > 0) {
-			startPlacing(culling, !batch.settled);
+			startPlacing(culling, !batch.settled || batch.recounted);
 		}
+		batch.recounted = false;
 		if (!batch.settled) {
 			batch.settled = true;
 			for (let i = 0; i < batch.originals.length; i++) {
@@ -240,6 +263,7 @@ export const InstancedParts = () => {
 			shapeOf: [],
 			moving: [],
 			settled: false,
+			recounted: false,
 			stale: [],
 			placedIn: -1,
 			culling: makeBatchCulling(),
@@ -331,8 +355,16 @@ export const InstancedParts = () => {
 				added.map(([, geometry]) => geometry),
 			);
 			for (const [key, geometry] of added) {
-				batch.shapes.set(key, { id: mesh.addGeometry(geometry), ...sizeOf(geometry) });
+				const size = sizeOf(geometry);
+				batch.shapes.set(key, {
+					id: mesh.addGeometry(geometry),
+					...size,
+					drawn: size.indices || size.vertices,
+				});
 			}
+		}
+		for (const [key, geometry] of wanted) {
+			syncDrawnCount(batch, key, geometry);
 		}
 		if (originals.length > mesh.maxInstanceCount) {
 			mesh.setInstanceCount(capacityFor(originals.length));
@@ -376,13 +408,16 @@ export const InstancedParts = () => {
 		batch.roots.forEach((root, i) => {
 			if (rendered.has(root)) {
 				batch.stale.push(i);
+				if (syncDrawnCount(batch, batch.shapeOf[i], batch.originals[i].geometry)) {
+					batch.recounted = true;
+				}
 			}
 			if (root.moving) {
 				moving.push(i);
 			}
 		});
 		batch.moving = moving;
-		if (batch.stale.length > 0 || moving.length > 0) {
+		if (batch.stale.length > 0 || moving.length > 0 || batch.recounted) {
 			batch.mesh.frustumCulled = false;
 		}
 	};

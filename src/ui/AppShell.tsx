@@ -254,14 +254,15 @@ export const AppShell = () => {
 	// (the selection's own tabs show in its tab bar), not by selecting, which would cover half the
 	// scene at each tap (ADR-0125); it folds down to its tab bar when the selection is cleared.
 	const [sheetOpen, setSheetOpen] = useState(false);
-	const selection = useEditor(
-		(s) => s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId ?? s.selectedFenceId,
+	// Whether anything is selected, not what: the whole shell would render again at every click.
+	const hasSelection = useEditor(
+		(s) => (s.selectedId ?? s.selectedRoadId ?? s.selectedAreaId ?? s.selectedFenceId) !== null,
 	);
 	useEffect(() => {
-		if (selection === null) {
+		if (!hasSelection) {
 			setSheetOpen(false);
 		}
-	}, [selection]);
+	}, [hasSelection]);
 	// Tell the camera how much of the scene the sheet covers, so it can keep the selection in view.
 	const sheet = useRef<HTMLDivElement>(null);
 	useEffect(() => {

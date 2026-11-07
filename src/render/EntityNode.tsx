@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type FC, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { TDrawnGraphics } from "#/editor/graphics";
@@ -13,7 +13,7 @@ import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts
 import { resolveLights } from "#/parts/lightModel";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
-import { LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
+import { type IPartRenderProps, LIGHT_SHAPES_WITH_REACH } from "#/parts/types";
 import type { IRoadNetwork } from "#/scene/junctions";
 import { createNetworkTrip } from "#/scene/network";
 import { laneOffset, resolveLeansInTurns, resolveTurnStyle, turnSmoothing } from "#/scene/roads";
@@ -30,10 +30,12 @@ import { useInstancedPart } from "./InstancedParts";
 import { markInstancedRoot } from "./instancing";
 // Prefabs' copies draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
+
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
 import { createVehicleRouteDrag, type IVehicleRouteDrag, livePoses } from "./routeDrop";
 import { SizeHandles } from "./SizeHandles";
+import { forgetDrawnWith, sameAsBefore } from "./sameAsBefore";
 import { drivingVehicles, type IDrivingVehicle } from "./traffic";
 import { applyGroupDrag } from "./transforms";
 import { surfaceHitOnRay } from "./useGroundDrag";
@@ -153,6 +155,21 @@ const UnknownPart = () => {
 	);
 };
 
+/**
+ * An object's part, drawn again only when what it's drawn with changes: EntityNode renders as the
+ * object moves, is selected or hovered, and it drew its whole part again each time (a drag of a
+ * palace drew its facades and window rows every frame, PERFORMANCE.md). What it's drawn with stays
+ * the same objects while equal (`sameAsBefore`).
+ */
+const PartDrawing = memo(
+	({
+		Component,
+		...drawn
+	}: IPartRenderProps<object, string> & { Component: FC<IPartRenderProps<object, string>> }) => (
+		<Component {...drawn} />
+	),
+);
+
 /** What every object draws with that's the same for all of them, read once (render/Viewport). */
 export interface IEntityWorld {
 	mode: TEditorMode;
@@ -230,9 +247,10 @@ export const EntityNode = memo(
 		const drawsRealLights = graphics.realLightCount > 0;
 		const drawsWakes = graphics.boatWakes !== "off";
 		const makesWaves = graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections;
-		const controls = useThree((s) => s.controls) as unknown as {
-			enabled: boolean;
-		} | null;
+		// The camera's controls, read when a drag needs them: subscribing would draw every object
+		// again whenever they're made afresh (a switch between the diorama and perspective).
+		const getThree = useThree((s) => s.get);
+		const cameraControls = () => getThree().controls as unknown as { enabled: boolean } | null;
 
 		const outer = useRef<THREE.Group>(null);
 		const inner = useRef<THREE.Group>(null);
@@ -406,6 +424,8 @@ export const EntityNode = memo(
 			}
 		};
 
+		useEffect(() => () => forgetDrawnWith(entity.id), [entity.id]);
+
 		// Standing still, its matrices are worked out once per render, not every frame (ADR-0092), and
 		// its bounds for the pointer when it first comes by (raycastWithinBounds).
 		useLayoutEffect(() => {
@@ -454,6 +474,7 @@ export const EntityNode = memo(
 			const { route, token } = drag.current;
 			drag.current = null;
 			(e.target as unknown as Element).releasePointerCapture?.(e.pointerId);
+			const controls = cameraControls();
 			if (controls) {
 				controls.enabled = true;
 			}
@@ -493,6 +514,7 @@ export const EntityNode = memo(
 					copying: ctrlKey || metaKey,
 				};
 				(e.target as unknown as Element).setPointerCapture(e.pointerId);
+				const controls = cameraControls();
 				if (controls) {
 					controls.enabled = false;
 				}
@@ -616,10 +638,14 @@ export const EntityNode = memo(
 			);
 		}
 
-		// Each of its colours as it is now: from data, as set, or the part's (ADR-0060).
-		const colors = resolveColors(part, entity, palette, data);
-		// Each of its lights as it is now: its settings, the dark, whether it drives, the data (ADR-0058).
-		const lights = resolveLights(part, entity, { palette, driving: following, data, hour });
+		// Each of its colours as it is now: from data, as set, or the part's (ADR-0060); each of its
+		// lights: its settings, the dark, whether it drives, the data (ADR-0058). The same objects as
+		// last time while they're equal, so its part isn't drawn again when only its place changed.
+		const { colors, transparency, lights } = sameAsBefore(entity.id, {
+			colors: resolveColors(part, entity, palette, data),
+			transparency: resolveTransparencies(part, entity),
+			lights: resolveLights(part, entity, { palette, driving: following, data, hour }),
+		});
 		const footprint = part.footprint(props);
 		const anchorY = part.height(props) * entity.scale;
 		const Component = part.Component;
@@ -653,10 +679,11 @@ export const EntityNode = memo(
 						{...handlers}
 					>
 						<group ref={partGroup}>
-							<Component
+							<PartDrawing
+								Component={Component}
 								props={props}
 								colors={colors}
-								transparency={resolveTransparencies(part, entity)}
+								transparency={transparency}
 								palette={palette}
 								playing={playing}
 								lights={lights}

@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import {
 	canDrawInstanced,
 	cullBatch,
+	drawnCountOf,
 	makeBatchCulling,
 	placeBounds,
+	setDrawnCount,
 	startPlacing,
 } from "./batchCulling";
 
@@ -181,5 +183,34 @@ describe("culling a batch's instances (ADR-0092)", () => {
 		mesh.setGeometryIdAt(ids[1], mesh.addGeometry(new THREE.PlaneGeometry(1, 1)));
 		place();
 		expect(drawn(cameraOver(0), true)).toEqual([ids[0], ids[1]]);
+	});
+});
+
+describe("shapes drawn in part (a row of houses' lit panes)", () => {
+	it("draws as much of a shape as its geometry's draw range says, from its start", () => {
+		const panes = new THREE.PlaneGeometry(1, 1).toNonIndexed();
+		expect(drawnCountOf(panes)).toBe(6);
+		panes.setDrawRange(0, 3);
+		expect(drawnCountOf(panes)).toBe(3);
+		// A range that doesn't start at the beginning is drawn whole, as batches can't start part way.
+		panes.setDrawRange(3, 3);
+		expect(drawnCountOf(panes)).toBe(6);
+		const box = new THREE.BoxGeometry(1, 1, 1);
+		box.setDrawRange(0, 12);
+		expect(drawnCountOf(box)).toBe(12);
+	});
+
+	it("draws the counts it's told once the instances are placed again", () => {
+		const { mesh, place, drawn, list } = batchOfBoxes([0, 1]);
+		const view = cameraOver(0);
+		const counts = () => [...list()._multiDrawCounts.slice(0, list()._multiDrawCount)];
+		place();
+		drawn(view);
+		// A box: 36 indices.
+		expect(counts()).toEqual([36, 36]);
+		setDrawnCount(mesh, 0, 12);
+		place();
+		drawn(view);
+		expect(counts()).toEqual([12, 12]);
 	});
 });

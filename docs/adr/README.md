@@ -152,3 +152,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0146](0146-starter-pictures-made-ahead-of-time.md) | The built-in worlds' pictures are made ahead of time, and each starter's link previews with its own | proposed |
 | [0147](0147-flows-that-drive-on.md) | A road's flow can drive on through junctions: background traffic without placing vehicles | proposed |
 | [0148](0148-roads-for-interchanges.md) | Roads for interchanges: smooth curves, one-way roads, pillars that keep clear, raised junctions on pillars | proposed |
+| [0149](0149-no-hitches-what-changes-at-once.md) | No hitches: what changes everything at once reaches only what it concerns, spread over frames | proposed |

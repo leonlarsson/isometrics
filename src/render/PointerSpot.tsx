@@ -9,6 +9,7 @@ import { isOverWorld } from "#/lib/pointer";
 import type { TViewPose } from "#/scene/schema";
 
 import { drawCallsPerFrame } from "./drawCalls";
+import { FREE_TILT, orbitAround } from "./orbit";
 import { routesShown } from "./RouteHighlight";
 import { livePoses } from "./routeDrop";
 import { currentView } from "./viewpoints";
@@ -18,6 +19,7 @@ const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const hit = new THREE.Vector3();
 const projected = new THREE.Vector3();
+const pivot = new THREE.Vector3();
 
 /**
  * Keeps track of the mouse pointer over the view, so editor/pointerSpot can
@@ -27,6 +29,7 @@ const projected = new THREE.Vector3();
 export const PointerSpot = () => {
 	const camera = useThree((s) => s.camera);
 	const gl = useThree((s) => s.gl);
+	const getThree = useThree((s) => s.get);
 	const element = useThree(
 		(s) => (s.events.connected as HTMLElement | undefined) ?? s.gl.domElement,
 	);
@@ -64,9 +67,11 @@ export const PointerSpot = () => {
 				roadOfVehicle: (entityId: string) => { roadId: string; drivesTheOtherWay: boolean } | null;
 				routesShown: () => Record<string, string[]>;
 				poseOf: (entityId: string) => { position: [number, number] } | null;
+				orbitStep: (degrees: number) => void;
 			};
 		};
-		if (import.meta.env.DEV) {
+		// Also in a build for measuring (VITE_BENCH=1, editor/store).
+		if (import.meta.env.DEV || import.meta.env.VITE_BENCH === "1") {
 			holder.__editorView = {
 				screenOf: ([x, y, z]) => {
 					const rect = element.getBoundingClientRect();
@@ -89,6 +94,27 @@ export const PointerSpot = () => {
 				routesShown: () => Object.fromEntries(routesShown),
 				// Where a driving vehicle is drawn now.
 				poseOf: (entityId) => livePoses.get(entityId)?.() ?? null,
+				// Turn the camera round the view's centre, as the turntable does (scripts/bench.mjs).
+				orbitStep: (degrees) => {
+					const orbit = getThree().controls as unknown as {
+						target: THREE.Vector3;
+						update: () => void;
+					} | null;
+					if (!orbit) {
+						return;
+					}
+					pivot.copy(orbit.target);
+					orbitAround(
+						camera.position,
+						orbit.target,
+						pivot,
+						-THREE.MathUtils.degToRad(degrees),
+						0,
+						FREE_TILT,
+					);
+					camera.updateMatrixWorld();
+					orbit.update();
+				},
 			};
 		}
 		return () => {
@@ -96,7 +122,7 @@ export const PointerSpot = () => {
 			pointerSpot.read = null;
 			delete holder.__editorView;
 		};
-	}, [camera, element, gl]);
+	}, [camera, element, gl, getThree]);
 
 	return null;
 };

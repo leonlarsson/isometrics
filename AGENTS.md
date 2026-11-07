@@ -21,7 +21,7 @@ Guide for AI agents (and humans) working in this repo.
 | `pnpm e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`) against the dev server; `pnpm e2e e2e/camera.spec.ts` for one file (see *Verifying visually*) |
 | `pnpm typecheck` | Generate routes + `tsc --noEmit` |
 | `pnpm check` / `pnpm check:fix` | Biome lint + format + JSX spacing check (`scripts/jsx-spacing.mjs`); `:fix` repairs what it can |
-| `node scripts/bench.mjs <world> [runs]` | Frame times, draws and where the time goes for a world (`PERFORMANCE.md`; on WSL with `node.exe`) |
+| `node scripts/bench.mjs <world> [runs]` | Frame times, hitches, draws and where the time goes for a world (`PERFORMANCE.md`; on WSL with `node.exe`; hitches on a `VITE_BENCH=1 pnpm build` with `--vsync`) |
 | `pnpm build` / `pnpm run deploy` | Production build / deploy to Cloudflare Workers (`pnpm deploy` without `run` is pnpm's own built-in command) |
 
 Before finishing a change, run `pnpm check && pnpm typecheck && pnpm test`, and for UI changes the end-to-end specs for the area you touched (`pnpm e2e e2e/<area>.spec.ts`), adding or updating tests for what changed. CI (`.github/workflows/ci.yml`) runs lint, types and unit tests on every push to `main` and on pull requests; the end-to-end tests only run when started by hand from GitHub's Actions tab (Run workflow), split over three machines, so run the specs for what you changed locally.

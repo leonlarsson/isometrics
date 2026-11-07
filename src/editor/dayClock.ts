@@ -165,6 +165,13 @@ export const useSceneHours = (enabled = true): number | null =>
 	);
 
 /**
+ * The world's hour as something sees it (`see`, from useSceneHours' steps: an object's timers'
+ * edges, render/Viewport), re-rendering only when that changes, not at every step of a running day.
+ */
+export const useSceneHoursSeen = (see: (hours: number | null) => number | null): number | null =>
+	useFromSceneHours((hours, lighting) => see(hours === null ? null : shownHours(hours, lighting)));
+
+/**
  * How dark it is in the world (0 by day to 1 at night, in tenths), re-rendering
  * only when that changes: about twenty times a day, at dusk and dawn.
  */

@@ -102,9 +102,10 @@ test.describe("Build with AI (ADR-0116)", () => {
 	test("copies a prompt with the description, and opens the world pasted back", async ({
 		page,
 		context,
+		baseURL,
 	}) => {
 		await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-			origin: "http://localhost:3000",
+			origin: new URL(baseURL ?? "http://localhost:3000").origin,
 		});
 		await openEditor(page);
 		await buildWithAiMenu(page, /A new world/);
@@ -267,10 +268,13 @@ test.describe("the guide (ADR-0116)", () => {
 	test("is a page for people and Markdown for AIs, with the walkthrough", async ({
 		page,
 		request,
+		baseURL,
 	}) => {
 		const text = await (await request.get("/guide.md")).text();
 		expect(text).toContain("## Walkthrough: a world from the Battlefield Stats API");
-		expect(text).toContain("http://localhost:3000/api/worlds/schema");
+		expect(text).toContain(
+			`${new URL(baseURL ?? "http://localhost:3000").origin}/api/worlds/schema`,
+		);
 
 		await page.goto("/guide");
 		await expect(page.getByRole("heading", { name: "1. Read the API as a table" })).toBeVisible();

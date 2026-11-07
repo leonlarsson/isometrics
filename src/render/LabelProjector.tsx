@@ -1,4 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect } from "react";
 import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
@@ -32,6 +33,34 @@ const OFF_CANVAS = 10_000;
 
 /** Elements floating over the scene that cards step aside for: the title, bars and sheets. */
 const OBSTACLES = "[data-label-obstacle]";
+
+/**
+ * The obstacles, found again only after the page's elements changed (`watchObstacles`): a search
+ * of the whole page every frame cost a big world's frames in Edit mode, where the outliner has
+ * thousands of elements (PERFORMANCE.md). Their boxes are still read every frame.
+ */
+const obstacles = { found: null as Element[] | null };
+const obstacleElements = () => {
+	obstacles.found ??= [...document.querySelectorAll(OBSTACLES)];
+	return obstacles.found;
+};
+
+/** Forgets the obstacles found whenever elements come, go or become one. */
+const watchObstacles = () => {
+	const observer = new MutationObserver(() => {
+		obstacles.found = null;
+	});
+	observer.observe(document.body, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: ["data-label-obstacle"],
+	});
+	return () => {
+		observer.disconnect();
+		obstacles.found = null;
+	};
+};
 
 /** Whether a card's on-screen box overlaps the gizmo's area. */
 const overGizmo = (element: HTMLElement, canvas: DOMRect, x: number, y: number) => {
@@ -69,7 +98,7 @@ const readObstacles = (canvas: DOMRect): IRect[] => {
 		{ left: -OFF_CANVAS, top: -OFF_CANVAS, right: OFF_CANVAS, bottom: 0 },
 		{ left: -OFF_CANVAS, top: height, right: OFF_CANVAS, bottom: OFF_CANVAS },
 	];
-	for (const element of document.querySelectorAll(OBSTACLES)) {
+	for (const element of obstacleElements()) {
 		const box = element.getBoundingClientRect();
 		if (box.width > 0 && box.height > 0) {
 			boxes.push({
@@ -112,6 +141,8 @@ const drivingIn = (entities: readonly TEntity[]) => {
 export const LabelProjector = () => {
 	const camera = useThree((s) => s.camera);
 	const gl = useThree((s) => s.gl);
+
+	useEffect(() => watchObstacles(), []);
 
 	// The frame's own size, not one from the last render: a frame can be drawn right after a resize
 	// (InstantResize), before React has re-rendered.

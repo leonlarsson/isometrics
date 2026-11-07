@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { DataBindingSchema, EntityLightSchema, type TEntityLight } from "#/scene/schema";
 import { scenePalettes } from "#/scene/theme";
 
-import { DAYLIGHT_LEVEL, type IPartLights, resolveLights } from "./lightModel";
+import {
+	DAYLIGHT_LEVEL,
+	darknessSeenBy,
+	hourSeenBy,
+	type IPartLights,
+	resolveLights,
+} from "./lightModel";
 
 const night = { ...scenePalettes.light, night: 1 };
 const day = { ...scenePalettes.light, night: 0 };
@@ -348,5 +354,112 @@ describe("when lights come on", () => {
 		expect(windows(21).litPaneShare).toBeCloseTo(0.4);
 		expect(windows(22.5).litPaneShare).toBeCloseTo(0.2);
 		expect(windows(23).on).toBe(false);
+	});
+});
+
+describe("the darkness an object's lights see", () => {
+	const at = (night: number) => ({ ...scenePalettes.light, night });
+	const building: IPartLights = {
+		lights: [
+			{ id: "windows", name: "Windows", shape: "windows", litPaneShare: 0.6, comesOn: "oneByOne" },
+			{ id: "shops", name: "Shops", shape: "glow" },
+			{ id: "beacon", name: "Beacon", shape: "lens" },
+			{ id: "signal", name: "Signal", shape: "lens", when: "always" },
+			{ id: "cabin", name: "Cabin", shape: "glow", when: "driving" },
+		],
+	};
+	const looks = [
+		entity({ beacon: setting({ whenOn: "off" }), signal: setting({ whenOn: "off" }) }),
+		entity({ signal: setting({ whenOn: "on" }), windows: setting({ comesOn: "atOnce" }) }),
+		entity({ signal: setting({ whenOn: "off" }), shops: setting({ comesOn: "gradually" }) }),
+		entity({ signal: setting({ whenOn: "schedule" }), windows: setting({ whenOn: "off" }) }),
+		entity({
+			signal: setting({ data: { on: bind("open") } }),
+			windows: setting({ litPaneShare: 0.3 }),
+		}),
+		entity(),
+	];
+
+	it("lights every light just as the world's darkness does, at every step of a dusk", () => {
+		for (const look of looks) {
+			for (let step = 0; step <= 100; step++) {
+				const night = step / 100;
+				const seen = darknessSeenBy(building, look, night);
+				expect(seen).toBeLessThanOrEqual(night);
+				for (const driving of [false, true]) {
+					expect(resolveLights(building, look, { palette: at(seen), driving, hour: 12 })).toEqual(
+						resolveLights(building, look, { palette: at(night), driving, hour: 12 }),
+					);
+				}
+			}
+		}
+	});
+
+	it("stays the same while none of its lights change, so the object isn't drawn again", () => {
+		const lamps = entity({
+			signal: setting({ whenOn: "off" }),
+			windows: setting({ whenOn: "off" }),
+		});
+		const steps = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
+		// Only the beacon, shops and cabin, which come on at once: one change over the whole dusk.
+		expect(new Set(steps.map((night) => darknessSeenBy(building, lamps, night))).size).toBe(2);
+		// Without lights that follow the dark at all: none.
+		expect(darknessSeenBy({ lights: [] }, entity(), 0.8)).toBe(0);
+		expect(darknessSeenBy(lamp, entity({ lamp: setting({ whenOn: "on" }) }), 0.8)).toBe(0);
+	});
+});
+
+describe("the hour an object's lights on a schedule see", () => {
+	const shop: IPartLights = {
+		lights: [
+			{ id: "windows", name: "Windows", shape: "windows", litPaneShare: 0.8 },
+			{ id: "sign", name: "Sign", shape: "glow" },
+			{ id: "porch", name: "Porch", shape: "lens" },
+		],
+	};
+	const looks = [
+		entity({
+			sign: setting({ whenOn: "schedule", schedule: [{ from: 9, until: 17.5 }] }),
+			porch: setting({ whenOn: "schedule", schedule: [{ from: 22, until: 2 }] }),
+		}),
+		entity({
+			windows: setting({
+				whenOn: "schedule",
+				comesOn: "oneByOne",
+				schedule: [
+					{ from: 6, until: 8.25 },
+					{ from: 18, until: 23 },
+				],
+			}),
+			sign: setting({
+				whenOn: "schedule",
+				comesOn: "gradually",
+				schedule: [{ from: 20, until: 1 }],
+			}),
+		}),
+		entity({ porch: setting({ whenOn: "schedule", schedule: [] }) }),
+		entity(),
+	];
+
+	it("lights every light just as the world's hour does, round the clock", () => {
+		for (const look of looks) {
+			for (let step = 0; step < 24 * 20; step++) {
+				const hour = step / 20;
+				const seen = hourSeenBy(shop, look, hour);
+				expect(seen).not.toBeNull();
+				expect(resolveLights(shop, look, { palette: day, driving: false, hour: seen })).toEqual(
+					resolveLights(shop, look, { palette: day, driving: false, hour }),
+				);
+			}
+		}
+		expect(hourSeenBy(shop, looks[0], null)).toBeNull();
+	});
+
+	it("changes only at a timer's edges, so the object isn't drawn again in between", () => {
+		const hours = Array.from({ length: 24 * 4 }, (_, i) => i / 4);
+		const seen = new Set(hours.map((hour) => hourSeenBy(shop, looks[0], hour)));
+		// The sign's 9 and 17.5, the porch's 22 and 2.
+		expect([...seen].sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([2, 9, 17.5, 22]);
+		expect(hourSeenBy(shop, looks[3], 13)).toBe(0);
 	});
 });

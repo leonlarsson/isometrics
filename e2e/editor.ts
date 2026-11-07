@@ -38,6 +38,8 @@ declare global {
 		routesShown: () => Record<string, string[]>;
 		/** Where a driving vehicle is drawn now, on the ground. */
 		poseOf: (entityId: string) => { position: [number, number] } | null;
+		/** Turn the camera round the view's centre by this many degrees, as the turntable does. */
+		orbitStep: (degrees: number) => void;
 	};
 }
 

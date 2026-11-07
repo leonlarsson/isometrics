@@ -195,6 +195,27 @@ export const PartLights = ({ palette }: { palette: IScenePalette }) => {
 	);
 };
 
+/**
+ * Renders the picture once its shaders are compiled, and hands it back. They're compiled alongside
+ * (KHR_parallel_shader_compile, through three's compileAsync) rather than on the first render,
+ * which waits for them: a part with materials this canvas hadn't drawn yet froze the editor for up
+ * to a couple of hundred milliseconds while Add to scene's pictures were taken (PERFORMANCE.md).
+ */
+export const takeWhenCompiled = (
+	gl: THREE.WebGLRenderer,
+	scene: THREE.Scene,
+	camera: THREE.Camera,
+	onShot: (url: string) => void,
+	format: { type: string; quality?: number } = { type: "image/png" },
+) => {
+	// Checked in development only (render/Viewport's ShaderChecks): each check waits on the GPU.
+	gl.debug.checkShaderErrors = import.meta.env.DEV;
+	void gl.compileAsync(scene, camera).then(() => {
+		gl.render(scene, camera);
+		onShot(gl.domElement.toDataURL(format.type, format.quality));
+	});
+};
+
 /** One picture to take: a part, with an object's settings, in a look. */
 interface IShot {
 	part: TAnyPart;
@@ -237,8 +258,7 @@ const FenceShot = ({
 			return;
 		}
 		frameBoxIn(camera, partBounds(group.current, box), size, FILL);
-		gl.render(scene, camera);
-		onShot(gl.domElement.toDataURL("image/png"));
+		takeWhenCompiled(gl, scene, camera, onShot);
 	}, []);
 
 	return (
@@ -284,8 +304,7 @@ const Shot = ({ part, settings, look, size, onShot }: IShotProps) => {
 		}
 		shot.current = true;
 		frameBoxIn(camera, partBounds(group.current, box), size, FILL);
-		gl.render(scene, camera);
-		onShot(gl.domElement.toDataURL("image/png"));
+		takeWhenCompiled(gl, scene, camera, onShot);
 	};
 
 	// Runs after the part's own layout effects, so everything it builds is there. Parts that build
@@ -365,23 +384,38 @@ const withPictureCanvas = async (
 	}
 };
 
-/** Render every part for one set, publishing each picture as soon as it's ready. */
+/** How often pictures being taken are published, at most (ms). */
+const PUBLISH_EVERY_MS = 500;
+
+/** Render every part for one set, publishing the pictures as they're ready, a few at a time. */
 const renderSet = (set: IPictureSet) => {
 	const key = keyOf(set);
 	const pictures: Record<string, string> = {};
-	return withPictureCanvas(set.size, async (take, takeFence) => {
-		for (const part of PARTS) {
-			await idle();
-			pictures[part.kind] = await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look });
+	// Published a few at a time: each publish draws every tile showing them again (Add to scene's
+	// hundreds), and one per picture kept a big world's editor busy for a minute (PERFORMANCE.md).
+	let publishedAt = Number.NEGATIVE_INFINITY;
+	const publish = (now = false) => {
+		if (now || performance.now() - publishedAt >= PUBLISH_EVERY_MS) {
+			publishedAt = performance.now();
 			cache.set(key, { ...pictures });
 			notify();
 		}
-		// The fence styles too (ADR-0103), under keys of their own.
-		for (const style of FENCE_STYLE_LIST) {
-			await idle();
-			pictures[fencePictureKey(style.id)] = await takeFence(style.id, set.look);
-			cache.set(key, { ...pictures });
-			notify();
+	};
+	return withPictureCanvas(set.size, async (take, takeFence) => {
+		try {
+			for (const part of PARTS) {
+				await idle();
+				pictures[part.kind] = await take({ part, settings: NO_OBJECT_SETTINGS, look: set.look });
+				publish();
+			}
+			// The fence styles too (ADR-0103), under keys of their own.
+			for (const style of FENCE_STYLE_LIST) {
+				await idle();
+				pictures[fencePictureKey(style.id)] = await takeFence(style.id, set.look);
+				publish();
+			}
+		} finally {
+			publish(true);
 		}
 	});
 };

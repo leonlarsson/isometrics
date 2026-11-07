@@ -366,19 +366,37 @@ export const triangulateWithPoints = (
 	return clockwise ? triangles.map(([a, b, c]) => [a, c, b]) : triangles;
 };
 
+interface ITopSurface {
+	points: readonly (readonly number[])[];
+	tops: readonly number[];
+	triangles: readonly (readonly [number, number, number])[];
+}
+
+/**
+ * Each area's top, worked out once per area (areas are replaced, never changed): what something
+ * stands on was cut into triangles again for every object it was asked about, every frame of a drag
+ * (PERFORMANCE.md).
+ */
+const topSurfaces = new WeakMap<TAreaShape, ITopSurface>();
+
 /**
  * An area's top as triangles (ADR-0096, ADR-0101): its corners, then its
  * peaks inside it, each at its height, and triangles over them. What it's
  * drawn with, and what objects stand on.
  */
-export const topSurface = (area: TAreaShape) => {
-	const peaks = takesCornerHeights(area) ? (area.peaks ?? []) : [];
-	const points: readonly (readonly number[])[] = [...area.points, ...peaks];
-	return {
-		points,
-		tops: points.map((point) => cornerTop(area, point)),
-		triangles: triangulateWithPoints(area.points, peaks),
-	};
+export const topSurface = (area: TAreaShape): ITopSurface => {
+	let surface = topSurfaces.get(area);
+	if (!surface) {
+		const peaks = takesCornerHeights(area) ? (area.peaks ?? []) : [];
+		const points: readonly (readonly number[])[] = [...area.points, ...peaks];
+		surface = {
+			points,
+			tops: points.map((point) => cornerTop(area, point)),
+			triangles: triangulateWithPoints(area.points, peaks),
+		};
+		topSurfaces.set(area, surface);
+	}
+	return surface;
 };
 
 /**

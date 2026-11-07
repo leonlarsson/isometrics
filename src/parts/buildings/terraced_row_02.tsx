@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo } from "react";
 import type * as THREE from "three";
 import { z } from "zod";
 
-import { lightEmission } from "../lights";
+import { glowWhileShown } from "../lights";
 import { jitter, Mat, spread, type TV3 } from "../primitives";
 import type { IPartRenderProps } from "../types";
 import { definePart } from "../types";
@@ -254,13 +254,22 @@ const bodyOf = (p: TTerrace, colors: TRowColors, glass: string) => {
 	return pieces.geometry();
 };
 
-/** The windows lit now, as one geometry just in front of their glass; null when none is. */
-const litWindowsOf = (p: TTerrace, litPaneShare: number) => {
+/** Where each window's lit panes end in the lit glass, earliest lit first, and when each lights. */
+interface ILitOrder {
+	scores: number[];
+	ends: number[];
+}
+
+/**
+ * Every window's lit glass just in front of its glass, as one geometry, in the order the windows
+ * light up (`isWindowLit`: lower scores first), so lighting more of them draws more of it
+ * (`litVerticesOf`) rather than building it again: a dusk falling over an old town of hundreds of
+ * rows changed every row's geometry at every step (PERFORMANCE.md). Null when there are no windows.
+ */
+const litWindowsOf = (p: TTerrace) => {
 	const pieces = createPieces();
-	for (const window of windowsOf(p)) {
-		if (!isWindowLit(window.score, litPaneShare)) {
-			continue;
-		}
+	const order: ILitOrder = { scores: [], ends: [] };
+	for (const window of [...windowsOf(p)].sort((a, b) => a.score - b.score)) {
 		for (const [px, py, pz] of window.panes) {
 			pieces.pane({
 				at: [px, py, pz + window.side * (window.out + 0.003)],
@@ -269,8 +278,25 @@ const litWindowsOf = (p: TTerrace, litPaneShare: number) => {
 				turn: window.turn,
 			});
 		}
+		order.scores.push(window.score);
+		order.ends.push(pieces.vertexCount());
 	}
-	return pieces.isEmpty() ? null : pieces.geometry();
+	if (pieces.isEmpty()) {
+		return null;
+	}
+	const geometry = pieces.geometry();
+	geometry.userData.litOrder = order;
+	return geometry;
+};
+
+/** How many of the lit glass's vertices are drawn with this share of its windows lit. */
+const litVerticesOf = (geometry: THREE.BufferGeometry, litPaneShare: number) => {
+	const { scores, ends } = geometry.userData.litOrder as ILitOrder;
+	let drawn = 0;
+	for (let i = 0; i < scores.length && isWindowLit(scores[i], litPaneShare); i++) {
+		drawn = ends[i];
+	}
+	return drawn;
 };
 
 /** The shop windows downstairs, as one geometry; null when there are none. */
@@ -307,8 +333,12 @@ const Row = ({
 }: IPartRenderProps<TTerrace, keyof TRowColors>) => {
 	const look = JSON.stringify([p, colors, palette.glass]);
 	const body = useGeometry(() => bodyOf(p, colors, palette.glass), look);
-	const litPaneShare = lights.windows.litPaneShare;
-	const lit = useGeometry(() => litWindowsOf(p, litPaneShare), `${look}|${litPaneShare}`);
+	const lit = useGeometry(() => litWindowsOf(p), look);
+	const litVertices = lit ? litVerticesOf(lit, lights.windows.litPaneShare) : 0;
+	// As many of them drawn as are lit (batches draw it so too, render/InstancedParts).
+	useLayoutEffect(() => {
+		lit?.setDrawRange(0, litVertices);
+	}, [lit, litVertices]);
 	const shops = useGeometry(() => shopWindowsOf(p), look);
 	return (
 		<group>
@@ -318,13 +348,20 @@ const Row = ({
 
 			{lit && (
 				<mesh geometry={lit} visible={lights.windows.on}>
-					<Mat color={palette.glass} {...lightEmission(lights.windows, 1.3)} />
+					<Mat color={palette.glass} {...glowWhileShown(lights.windows, 1.3)} />
+				</mesh>
+			)}
+
+			{/* The shop windows dark and lit, one shown at a time (each stays in its batch, glowWhileShown). */}
+			{shops && (
+				<mesh geometry={shops} receiveShadow visible={!lights.shops.on}>
+					<Mat color={palette.glass} />
 				</mesh>
 			)}
 
 			{shops && (
-				<mesh geometry={shops} receiveShadow>
-					<Mat color={palette.glass} {...lightEmission(lights.shops, 1.2)} />
+				<mesh geometry={shops} receiveShadow visible={lights.shops.on}>
+					<Mat color={palette.glass} {...glowWhileShown(lights.shops, 1.2)} />
 				</mesh>
 			)}
 		</group>

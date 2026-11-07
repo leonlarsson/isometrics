@@ -59,11 +59,16 @@ const periodRamp = (hour: number, period: TTimePeriod) => {
 	return Math.min(1, since / SCHEDULE_RAMP_HOURS, left / SCHEDULE_RAMP_HOURS);
 };
 
-/**
- * Window lights that come on one by one after dark: none lit until `night`
- * passes 0.1, all of their lit panes by 0.6.
- */
-const panesLitByDark = (night: number) => Math.min(1, Math.max(0, (night - 0.1) / 0.5));
+/** Window lights that come on one by one after dark: none lit until `night` passes this… */
+const PANES_FROM_DARKNESS = 0.1;
+/** …and all of their lit panes by this. */
+const PANES_ALL_BY_DARKNESS = 0.6;
+
+const panesLitByDark = (night: number) =>
+	Math.min(
+		1,
+		Math.max(0, (night - PANES_FROM_DARKNESS) / (PANES_ALL_BY_DARKNESS - PANES_FROM_DARKNESS)),
+	);
 
 /** How a light comes on after dark, as set or as its part has it; one by one only for window lights. */
 /** How a light is switched on an object: as the object says, else as its part starts it. */
@@ -186,6 +191,88 @@ export const resolveLight = (
 		litPaneShare,
 		paneWeight: setting?.paneWeight ?? defaults.paneWeight,
 	};
+};
+
+/**
+ * The darkness an object's lights see: the lowest `night` at which every one of them reads just as
+ * it does at the world's `night`, so an object is drawn again as dusk falls only when one of its
+ * lights changes (PERFORMANCE.md). Lights that come on at once see only whether it's dark enough,
+ * window lights one by one only the dark between their first and last pane, and lights that fade
+ * in or glow with the dark see it all; lights switched by hand, by a schedule or by data, none of
+ * it (0). Lights that only shine while driving are counted as if driving.
+ */
+export const darknessSeenBy = (
+	part: IPartLights,
+	entity: Pick<TEntity, "lights">,
+	night: number,
+): number => {
+	let seen = 0;
+	for (const spec of part.lights ?? []) {
+		const setting = entity.lights[spec.id];
+		const mode = whenOnOf(spec, setting);
+		if (setting?.data?.on || mode === "off" || mode === "on" || mode === "schedule") {
+			continue;
+		}
+		const comesOn = comesOnOf(spec, setting);
+		if (spec.when === "always" || comesOn === "gradually") {
+			return night;
+		}
+		if (comesOn === "oneByOne") {
+			if (night > PANES_FROM_DARKNESS && night < PANES_ALL_BY_DARKNESS) {
+				return night;
+			}
+			seen = Math.max(seen, night >= PANES_ALL_BY_DARKNESS ? PANES_ALL_BY_DARKNESS : 0);
+		} else {
+			seen = Math.max(seen, night >= SWITCH_ON_DARKNESS ? SWITCH_ON_DARKNESS : 0);
+		}
+	}
+	return seen;
+};
+
+/**
+ * The hour an object's lights on a schedule see: the latest hour, at or before the world's, at
+ * which every one of them reads just as it does at the world's, so an object on a timer is drawn
+ * again only when one of its lights switches or ramps, not at every step of a running day
+ * (PERFORMANCE.md). A schedule's lights change only at its periods' edges, and while they come on
+ * or go off over an hour (one by one, gradually), when they see every hour. null: no time of day.
+ */
+export const hourSeenBy = (
+	part: IPartLights,
+	entity: Pick<TEntity, "lights">,
+	hour: number | null,
+	data?: TReadableValues,
+): number | null => {
+	if (hour === null) {
+		return null;
+	}
+	// How far back round the clock the latest edge is.
+	let back = Number.POSITIVE_INFINITY;
+	for (const spec of part.lights ?? []) {
+		const setting = entity.lights[spec.id];
+		if (setting?.data?.on || whenOnOf(spec, setting) !== "schedule") {
+			continue;
+		}
+		const periods = readPeriods(setting?.data?.schedule, data) ?? setting?.schedule ?? [];
+		const ramps = comesOnOf(spec, setting) !== "atOnce";
+		for (const period of periods) {
+			if (ramps && inPeriod(hour, period) && periodRamp(hour, period) < 1) {
+				return hour;
+			}
+			const edges = ramps
+				? [
+						period.from,
+						period.from + SCHEDULE_RAMP_HOURS,
+						period.until - SCHEDULE_RAMP_HOURS,
+						period.until,
+					]
+				: [period.from, period.until];
+			for (const edge of edges) {
+				back = Math.min(back, (((hour - edge) % 24) + 24) % 24);
+			}
+		}
+	}
+	// No schedule that switches anything: every hour reads the same.
+	return Number.isFinite(back) ? (((hour - back) % 24) + 24) % 24 : 0;
 };
 
 /** Every light of a part on an object, by id, as it is right now. */

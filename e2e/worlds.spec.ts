@@ -75,10 +75,10 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 	test("New world: a starter comes as made (Shape Castle without data), and its link copies", async ({
 		page,
 		context,
+		baseURL,
 	}) => {
-		await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-			origin: "http://localhost:3000",
-		});
+		const origin = new URL(baseURL ?? "http://localhost:3000").origin;
+		await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
 		await openEditor(page);
 		await fileMenu(page, /New world/);
 		const dialog = page.getByRole("dialog", { name: "New world" });
@@ -88,7 +88,7 @@ test.describe("worlds in this browser (ADR-0044, ADR-0047)", () => {
 		await dialog.getByRole("button", { name: "Copy the link" }).click();
 		await expect
 			.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-			.toBe("http://localhost:3000/templates/shape-castle");
+			.toBe(`${origin}/templates/shape-castle`);
 		await dialog.getByRole("button", { name: "Create" }).click();
 		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Shape Castle");
 		expect(await read(page, (s) => s.scene.data.enabled)).toBe(false);

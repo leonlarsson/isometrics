@@ -1,17 +1,18 @@
 import { SoftShadows } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
+import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useSceneHours } from "#/editor/dayClock";
-import type { ISceneItem } from "#/editor/framing";
+import { useSceneHours, useSceneHoursSeen, useSceneNight } from "#/editor/dayClock";
 import { drawsEffects, useGraphics } from "#/editor/graphics";
 import { usePreferences } from "#/editor/preferences";
-import { drawnModeOf, includesItem, isToggleClick, useEditor } from "#/editor/store";
+import { drawnModeOf, isToggleClick, useEditor } from "#/editor/store";
 import { useEntity } from "#/editor/useEntity";
-import { usePalette } from "#/editor/useTheme";
+import { ALONE, BOXED, LIST_HOVERED, SELECTED, useEntityFlags } from "#/editor/useEntityFlags";
+import { usePalette, useThemePalette } from "#/editor/useTheme";
 import { weatherNow } from "#/editor/weather";
 import { useWorldData } from "#/editor/worldData";
+import { darknessSeenBy, hourSeenBy } from "#/parts/lightModel";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
@@ -74,6 +75,19 @@ import { watchForLostDrawing } from "./webgl";
 // The effects composer and its libraries load only once a graphics setting needs them (ADR-0072).
 const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
 
+/**
+ * Shader errors checked in development only: three asks the GPU process for each new shader's
+ * compile and link logs and waits for the answers, behind whatever the GPU has queued
+ * (PERFORMANCE.md). A shader that fails draws nothing either way; only the console's report is lost.
+ */
+const ShaderChecks = () => {
+	const gl = useThree((s) => s.gl);
+	useLayoutEffect(() => {
+		gl.debug.checkShaderErrors = import.meta.env.DEV;
+	}, [gl]);
+	return null;
+};
+
 /** Says when the view's WebGL context is lost, for the bar that offers to reload (ADR-0145). */
 const LostDrawingWatch = () => {
 	const canvas = useThree((s) => s.gl.domElement);
@@ -101,21 +115,18 @@ const Lights = () => {
 	);
 };
 
-const NO_ITEMS: ISceneItem[] = [];
-
 /** What objects share, read once in Entities, plus what EntityById picks out of it for its own. */
 interface IEntitiesShared {
-	world: IEntityWorld;
+	/** How dark it is in the world (`palette.night`). */
+	night: number;
+	/** What every object draws with, at the darkness its lights see (`darknessSeenBy`). */
+	worldAt: (night: number) => IEntityWorld;
 	roads: TScene["roads"];
 	/** The roads and junctions as a network (ADR-0136): vehicles on a road with a junction drive on. */
 	network: IRoadNetwork;
 	/** The world's traffic settings: whether vehicles drive through junctions, unless overridden. */
 	traffic: TScene["traffic"];
 	data: TScene["data"];
-	selectedItems: readonly ISceneItem[];
-	selectedId: string | null;
-	boxedItems: readonly ISceneItem[];
-	hovered: ISceneItem | null;
 }
 
 /** Whether an object has a light on a schedule (or a prefab, a piece's): only those follow the world's hour. */
@@ -142,10 +153,18 @@ const followsTheSun = (entity: TEntity) => {
 
 type TEntityNodeProps = Parameters<typeof EntityNode>[0];
 
-/** An object with a light on a schedule: it alone follows the world's hour, which steps often. */
-const EntityWithHour = (props: Omit<TEntityNodeProps, "hour">) => (
-	<EntityNode {...props} hour={useSceneHours()} />
-);
+/**
+ * An object with a light on a schedule: it alone follows the world's hour, which steps often, and
+ * is drawn again only when one of its lights switches or ramps (a prefab's pieces' lights: at every
+ * step, as the pieces see it).
+ */
+const EntityWithHour = (props: Omit<TEntityNodeProps, "hour">) => {
+	const part = props.design ? undefined : getPart(props.entity.kind);
+	const hour = useSceneHoursSeen((hours) =>
+		part ? hourSeenBy(part, props.entity, hours, props.data) : hours,
+	);
+	return <EntityNode {...props} hour={hour} />;
+};
 
 /** An object that turns with the sun: the hour, and where the sun is at it. */
 const EntityWithSun = (props: Omit<TEntityNodeProps, "hour" | "sun">) => {
@@ -162,6 +181,8 @@ const EntityWithSun = (props: Omit<TEntityNodeProps, "hour" | "sun">) => {
  */
 const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => {
 	const entity = useEntity(id);
+	// Selected, boxed, hovered in the outliner: told only when its own change (a click concerns two).
+	const flags = useEntityFlags(id);
 	// A prefab's copy draws again when its design changes (ADR-0134), though the copy itself didn't.
 	const design = useEditor((s) =>
 		entity && isPrefabKind(entity.kind)
@@ -181,10 +202,15 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 	// What it reads: the world's values and its row's columns (ADR-0108); drawn with its sizes and
 	// props as data sets them (ADR-0109).
 	const data = followsData(entity) ? valuesOfEntity(entity, shared.data) : undefined;
+	const drawn = entityAsDrawn(entity, data);
+	// As dusk falls, only objects whose lights change are drawn again: the others see the darkness
+	// they saw before (PERFORMANCE.md). A prefab's pieces have lights of their own: it sees it all.
+	const part = getPart(entity.kind);
+	const night = design ? shared.night : part ? darknessSeenBy(part, drawn, shared.night) : 0;
 	return (
 		<Node
-			entity={entityAsDrawn(entity, data)}
-			world={shared.world}
+			entity={drawn}
+			world={shared.worldAt(night)}
 			road={road}
 			network={
 				road && drivesAcrossNetwork(shared.network, road, shared.traffic, entity.follow)
@@ -194,12 +220,25 @@ const EntityById = ({ id, shared }: { id: string; shared: IEntitiesShared }) => 
 			data={data}
 			hour={null}
 			design={design}
-			selected={includesItem(shared.selectedItems, "entity", id)}
-			alone={shared.selectedId === id && shared.selectedItems.length === 1}
-			boxed={includesItem(shared.boxedItems, "entity", id)}
-			listHovered={shared.hovered?.kind === "entity" && shared.hovered.id === id}
+			selected={(flags & SELECTED) !== 0}
+			alone={(flags & ALONE) !== 0}
+			boxed={(flags & BOXED) !== 0}
+			listHovered={(flags & LIST_HOVERED) !== 0}
 		/>
 	);
+};
+
+/** The objects' world at each darkness they see, each made once (so objects that see the same skip). */
+const worldsAt = (byDay: IEntityWorld) => {
+	const made = new Map<number, IEntityWorld>([[0, byDay]]);
+	return (night: number) => {
+		let world = made.get(night);
+		if (!world) {
+			world = { ...byDay, palette: { ...byDay.palette, night } };
+			made.set(night, world);
+		}
+		return world;
+	};
 };
 
 /** Objects' ids, once per objects list (lists are replaced, never changed), not on every change. */
@@ -214,6 +253,80 @@ const idsOf = (entities: readonly TEntity[]) => {
 };
 
 /**
+ * Objects are drawn in groups, each object always in the same one (by its id), so a change of
+ * darkness reaches them a group a frame (useDarknessWave): a dusk or a mood relighting a whole town
+ * was one commit of every lit object, a hitch of tens of milliseconds (PERFORMANCE.md). An object
+ * never moves to another group as others come and go, which would mount it afresh.
+ */
+const ENTITY_GROUPS = 16;
+
+const groupOf = (id: string) => {
+	let hash = 0;
+	for (let i = 0; i < id.length; i++) {
+		hash = (hash * 31 + id.charCodeAt(i)) | 0;
+	}
+	return Math.abs(hash) % ENTITY_GROUPS;
+};
+
+const sameIds = (a: readonly string[], b: readonly string[]) =>
+	a.length === b.length && a.every((id, i) => id === b[i]);
+
+/** The groups last made, so a group whose objects stay the same keeps its list (and isn't drawn again). */
+let lastGroups: readonly (readonly string[])[] = [];
+const groupsByIds = new WeakMap<readonly string[], readonly (readonly string[])[]>();
+
+/** Each group's ids, in the world's order: once per ids list, the lists of unchanged groups kept. */
+const groupIds = (ids: readonly string[]) => {
+	let groups = groupsByIds.get(ids);
+	if (!groups) {
+		const made: string[][] = Array.from({ length: ENTITY_GROUPS }, () => []);
+		for (const id of ids) {
+			made[groupOf(id)].push(id);
+		}
+		const before = lastGroups;
+		groups = made.map((group, i) => (before[i] && sameIds(before[i], group) ? before[i] : group));
+		groupsByIds.set(ids, groups);
+		lastGroups = groups;
+	}
+	return groups;
+};
+
+/**
+ * The darkness each group of objects sees: when it changes, it reaches the groups one a frame, so
+ * relighting a whole town is drawn over a few frames rather than in one.
+ */
+const useDarknessWave = (night: number, groups: readonly (readonly string[])[]) => {
+	const [seen, setSeen] = useState<readonly number[]>(() => groups.map(() => night));
+	useEffect(() => {
+		let next = 0;
+		let frame = 0;
+		// As they were when the darkness changed (a change while a wave runs starts it again).
+		const before = seen;
+		const step = () => {
+			// Groups with no objects, or already there, take no frame of their own.
+			while (next < groups.length && (groups[next].length === 0 || before[next] === night)) {
+				next += 1;
+			}
+			if (next >= groups.length) {
+				return;
+			}
+			const at = next;
+			setSeen((now) => (now[at] === night ? now : now.map((each, i) => (i === at ? night : each))));
+			next += 1;
+			frame = requestAnimationFrame(step);
+		};
+		frame = requestAnimationFrame(step);
+		return () => cancelAnimationFrame(frame);
+	}, [night]);
+	return seen;
+};
+
+/** One group of objects (ENTITY_GROUPS), drawn again only when its ids or what it shares change. */
+const EntityGroup = memo(({ ids, shared }: { ids: readonly string[]; shared: IEntitiesShared }) =>
+	ids.map((id) => <EntityById key={id} id={id} shared={shared} />),
+);
+
+/**
  * Every object, with what they all read from the editor read once here (ADR-0092): thousands of
  * objects each subscribing to a dozen things ran tens of thousands of selectors on every change. A
  * change to one object (a drag, every frame) renders only that one; a change to the selection or
@@ -221,7 +334,11 @@ const idsOf = (entities: readonly TEntity[]) => {
  */
 const Entities = memo(() => {
 	const ids = useEditor(useShallow((s) => idsOf(s.scene.entities)));
-	const palette = usePalette();
+	const groups = groupIds(ids);
+	// The theme's colours, and how dark it is apart: each object sees the darkness its lights do,
+	// reaching the groups one a frame.
+	const palette = useThemePalette();
+	const nights = useDarknessWave(useSceneNight(), groups);
 	const graphics = useGraphics();
 	const settings = useEditor(
 		useShallow((s) => ({
@@ -242,18 +359,28 @@ const Entities = memo(() => {
 			network: roadNetworkOf(s.scene.roads, s.scene.junctions),
 			traffic: s.scene.traffic,
 			data,
-			selectedItems: s.selectedItems,
-			selectedId: s.selectedId,
-			boxedItems: s.boxDrag?.items ?? NO_ITEMS,
-			hovered: s.hovered,
 		})),
 	);
-	const world = useMemo(
-		(): IEntityWorld => ({ ...settings, palette, graphics }),
+	const worldAt = useMemo(
+		() => worldsAt({ ...settings, palette, graphics }),
 		[settings, palette, graphics],
 	);
-	const shared = useMemo((): IEntitiesShared => ({ ...picked, world }), [picked, world]);
-	return ids.map((id) => <EntityById key={id} id={id} shared={shared} />);
+	// What's shared at each darkness, made once each, so a group whose darkness stays isn't drawn again.
+	const sharedAt = useMemo(() => {
+		const made = new Map<number, IEntitiesShared>();
+		return (night: number) => {
+			let shared = made.get(night);
+			if (!shared) {
+				shared = { ...picked, night, worldAt };
+				made.set(night, shared);
+			}
+			return shared;
+		};
+	}, [picked, worldAt]);
+	return groups.map((group, i) => (
+		// biome-ignore lint/suspicious/noArrayIndexKey: the groups are fixed, each object always in its own
+		<EntityGroup key={i} ids={group} shared={sharedAt(nights[i] ?? 0)} />
+	));
 });
 
 /**
@@ -290,7 +417,8 @@ const StillScene = () => {
 const Roads = () => {
 	const roads = useEditor((s) => s.scene.roads);
 	const junctions = useEditor((s) => s.scene.junctions);
-	const palette = usePalette();
+	// The theme's colours: junctions don't change as it gets dark.
+	const palette = useThemePalette();
 	const data = useWorldData();
 	const network = roadNetworkOf(roads, junctions);
 
@@ -364,6 +492,8 @@ export const Viewport = () => {
 			}}
 		>
 			<LostDrawingWatch />
+
+			<ShaderChecks />
 
 			<StillScene />
 

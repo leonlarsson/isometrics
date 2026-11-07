@@ -105,6 +105,8 @@ export const createPieces = () => {
 		prism: (piece: IPiece) => add(UNIT_PRISM, piece),
 		pane: (piece: IPiece) => add(UNIT_PANE, piece),
 		isEmpty: () => positions.length === 0,
+		/** How many vertices the pieces so far take: where the next one starts. */
+		vertexCount: () => positions.length / 3,
 		/** The pieces as one geometry, with a colour per vertex. */
 		geometry: () => {
 			const geometry = new THREE.BufferGeometry();

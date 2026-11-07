@@ -6,7 +6,7 @@ import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import { roadAsDrawn, valuesOfRoad } from "#/editor/roadFlows";
 import { drawnModeOf, isItemBoxed, isItemSelected, isToggleClick, useEditor } from "#/editor/store";
-import { usePalette } from "#/editor/useTheme";
+import { usePalette, useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
@@ -371,7 +371,9 @@ export const RoadMesh = memo(
 		// flow as data sets them (ADR-0112).
 		const data = valuesOfRoad(stored, useWorldData());
 		const road = roadAsDrawn(stored, data);
-		const palette = usePalette();
+		// The theme's colours: the road itself doesn't change as it gets dark, its flow's lights do.
+		const palette = useThemePalette();
+		const flowPalette = usePalette();
 		const mode = useEditor(drawnModeOf);
 		const usesData = useEditor((s) => s.scene.data.enabled);
 		// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
@@ -457,7 +459,7 @@ export const RoadMesh = memo(
 
 				<RoadFlow
 					road={road}
-					palette={palette}
+					palette={flowPalette}
 					data={data}
 					surfaceY={roadBaseY(layer)}
 					surfaceColor={roadColor(road, palette, data)}

@@ -120,7 +120,9 @@ const useEntityEdit = (entity: TEntity) => {
  */
 const PrefabPanel = ({ kind }: { kind: string }) => {
 	const prefab = useEditor((s) => s.scene.prefabs.find((each) => each.id === kind));
-	const copies = useEditor((s) => s.scene.entities.filter((entity) => entity.kind === kind).length);
+	// From the list, not counted in a selector, which would count on every change to the store.
+	const entities = useEditor((s) => s.scene.entities);
+	const copies = entities.filter((entity) => entity.kind === kind).length;
 	const why = useEditor((s) => whyNoWorkshop(s.whatIsOpen));
 	if (!prefab) {
 		return null;
@@ -150,9 +152,13 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	const edit = useEntityEdit(entity);
 	const following = entity.follow !== null;
 	// What it stands on where it is: the ground, or the top of a shape under it (ADR-0098, ADR-0138).
-	const standsOn = useEditor((s) =>
-		standingAltitudeAt(s.scene, entity.position, { except: entity.id, base: entity.altitude }),
-	);
+	// Worked out from the lists it depends on, not in a selector, which runs on every change.
+	const entities = useEditor((s) => s.scene.entities);
+	const areas = useEditor((s) => s.scene.areas);
+	const standsOn = standingAltitudeAt({ entities, areas }, entity.position, {
+		except: entity.id,
+		base: entity.altitude,
+	});
 	const setTab = useEditor((s) => s.setTab);
 	const values = valuesOfEntity(entity, useWorldData());
 	const usesData = useUsesData();

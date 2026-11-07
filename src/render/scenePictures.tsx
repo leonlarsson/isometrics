@@ -23,7 +23,7 @@ import { JunctionBodies } from "./JunctionMesh";
 import "./PrefabPieces";
 import { RoadBody } from "./RoadMesh";
 import { SceneLights } from "./SceneLights";
-import { frameBoxIn } from "./thumbnails";
+import { frameBoxIn, takeWhenCompiled } from "./thumbnails";
 import { useSurfaceShading } from "./useSurfaceShading";
 
 /**
@@ -196,8 +196,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 		}
 		shot.current = true;
 		frameBoxIn(camera, box.setFromObject(group.current), format.size, FILL);
-		gl.render(three, camera);
-		onShot(gl.domElement.toDataURL(format.type, format.quality));
+		takeWhenCompiled(gl, three, camera, onShot, format);
 	};
 
 	const onReady = () => {

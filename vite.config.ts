@@ -6,6 +6,9 @@ import { defineConfig } from "vite";
 
 const config = defineConfig({
 	resolve: { tsconfigPaths: true },
+	// A build for measuring (VITE_BENCH=1, PERFORMANCE.md) keeps its source maps, so a profile of it
+	// names the app's own functions.
+	build: { sourcemap: process.env.VITE_BENCH === "1" },
 	plugins: [
 		cloudflare({ viteEnvironment: { name: "ssr" } }),
 

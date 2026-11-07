@@ -75,6 +75,25 @@ export const makeBatchCulling = (): IBatchCulling => ({
 	cameras: new Map(),
 });
 
+/**
+ * How much of a geometry is drawn: all of it, or the first part its draw range says (a row of
+ * houses' lit panes, built once in the order they light up, PERFORMANCE.md). three draws a mesh's
+ * draw range by itself; a batch draws each shape whole unless told (setDrawnCount).
+ */
+export const drawnCountOf = (geometry: THREE.BufferGeometry) => {
+	const all = geometry.getIndex()?.count ?? geometry.getAttribute("position").count;
+	const { start, count } = geometry.drawRange;
+	return start === 0 ? Math.min(all, count) : all;
+};
+
+/**
+ * A batch's shape drawn up to `count` vertices (indices, when indexed), from its start. Draw lists
+ * are made with it when all the instances are placed next (`startPlacing(culling, true)`).
+ */
+export const setDrawnCount = (mesh: THREE.BatchedMesh, shape: number, count: number) => {
+	(mesh as unknown as IBatchedInternals)._geometryInfo[shape].count = count;
+};
+
 /** Instances are about to be placed: all of them (after the batch changed), or some. */
 export const startPlacing = (culling: IBatchCulling, all: boolean) => {
 	culling.placing += 1;

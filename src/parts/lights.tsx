@@ -110,6 +110,18 @@ export const lightEmission = (light: IResolvedLight, intensity = 1) =>
 		? { emissive: light.color, emissiveIntensity: intensity * light.level }
 		: { emissive: undefined, emissiveIntensity: 0 };
 
+/**
+ * For a glowing surface shown only while its light is on (`visible={light.on}`): Mat props that
+ * glow the same whether it's on or off. Objects that look alike are drawn together, by their look
+ * (ADR-0086), so a surface whose glow went out as it hid moved to another batch, and back as it
+ * showed again, with every other like it: at each dusk, a whole old town's lit panes were copied
+ * from one batch to another (PERFORMANCE.md). Shown or hidden, it stays where it is.
+ */
+export const glowWhileShown = (light: IResolvedLight, intensity = 1) => ({
+	emissive: light.color,
+	emissiveIntensity: intensity * (light.on ? light.level : 1),
+});
+
 const floodTint = new THREE.Color();
 const floodColor = new THREE.Color();
 

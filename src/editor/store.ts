@@ -3361,17 +3361,50 @@ if (import.meta.hot) {
 	holder.__editorStore = useEditor;
 }
 
+// A production build for measuring (VITE_BENCH=1 pnpm build, scripts/bench.mjs, PERFORMANCE.md):
+// the store on globalThis as in development, with the templates and the repair to load worlds by,
+// since the dev server's modules aren't there to import. Never set for a build that's deployed.
+if (import.meta.env.VITE_BENCH === "1") {
+	Object.assign(globalThis, { __editorStore: useEditor });
+	void Promise.all([import("#/templates"), import("#/parts/repairWorld")]).then(
+		([templates, repair]) =>
+			Object.assign(globalThis, {
+				__benchTemplates: templates.TEMPLATES,
+				__benchRepair: repair.repairWorld,
+			}),
+	);
+}
+
+/** Each list's items by id, made once per list (lists are replaced, never changed). */
+const listsById = new WeakMap<readonly { id: string }[], Map<string, { id: string }>>();
+
+/**
+ * An item of a list by its id, through a map made once per list: selectors run on every change to
+ * the store, and a search of a big world's objects in each added up (PERFORMANCE.md).
+ */
+export const byIdIn = <T extends { id: string }>(list: readonly T[], id: string | null) => {
+	if (id === null) {
+		return null;
+	}
+	let byId = listsById.get(list);
+	if (!byId) {
+		byId = new Map(list.map((item) => [item.id, item]));
+		listsById.set(list, byId);
+	}
+	return (byId.get(id) as T | undefined) ?? null;
+};
+
 export const selectSelectedEntity = (state: IEditorState) =>
-	state.scene.entities.find((e) => e.id === state.selectedId) ?? null;
+	byIdIn(state.scene.entities, state.selectedId);
 
 export const selectSelectedRoad = (state: IEditorState) =>
-	state.scene.roads.find((r) => r.id === state.selectedRoadId) ?? null;
+	byIdIn(state.scene.roads, state.selectedRoadId);
 
 export const selectSelectedArea = (state: IEditorState) =>
-	state.scene.areas.find((a) => a.id === state.selectedAreaId) ?? null;
+	byIdIn(state.scene.areas, state.selectedAreaId);
 
 export const selectSelectedFence = (state: IEditorState) =>
-	state.scene.fences.find((f) => f.id === state.selectedFenceId) ?? null;
+	byIdIn(state.scene.fences, state.selectedFenceId);
 
 /** Whether an item is among the selected ones (ADR-0064), active or not. */
 /**
