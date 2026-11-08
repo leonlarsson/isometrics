@@ -20,6 +20,7 @@ import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/
 import { AreaBody } from "./AreaMesh";
 import { CloudsOverAreas } from "./AreaWeather";
 import { FenceBody } from "./FenceMesh";
+import { useGroundSlab } from "./groundGeometry";
 import { JunctionBodies } from "./JunctionMesh";
 // Prefabs' copies draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
@@ -196,6 +197,17 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 	const weathers = areaWeathersNow(scene.areas, scene.data);
 	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface), false);
 
+	// A shaped ground (ADR-0155) is its outline's slab; the plain rectangle, its rounded box as always.
+	const slab = useGroundSlab(scene.ground);
+	const groundMaterial = (
+		<meshStandardMaterial
+			key={groundSurface.key}
+			userData={groundSurface.userData}
+			color={colorOf(GROUND, scene.ground, "surface", palette, scene.data.values, palette.ground)}
+			roughness={0.95}
+		/>
+	);
+
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {
 			return;
@@ -227,27 +239,21 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 			<SceneLights ground={scene.ground} palette={palette} lighting={scene.lighting} />
 
 			<group ref={group}>
-				<RoundedBox
-					args={[scene.ground.width, 1, scene.ground.depth]}
-					radius={0.45}
-					smoothness={4}
-					position={[0, -0.5, 0]}
-					receiveShadow
-				>
-					<meshStandardMaterial
-						key={groundSurface.key}
-						userData={groundSurface.userData}
-						color={colorOf(
-							GROUND,
-							scene.ground,
-							"surface",
-							palette,
-							scene.data.values,
-							palette.ground,
-						)}
-						roughness={0.95}
-					/>
-				</RoundedBox>
+				{slab ? (
+					<mesh geometry={slab} receiveShadow>
+						{groundMaterial}
+					</mesh>
+				) : (
+					<RoundedBox
+						args={[scene.ground.width, 1, scene.ground.depth]}
+						radius={0.45}
+						smoothness={4}
+						position={[0, -0.5, 0]}
+						receiveShadow
+					>
+						{groundMaterial}
+					</RoundedBox>
+				)}
 
 				{scene.areas.map((area, index) =>
 					area.isHidden ? null : (

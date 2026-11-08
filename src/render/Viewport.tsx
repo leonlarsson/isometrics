@@ -38,6 +38,7 @@ import { EntityNode, type IEntityWorld } from "./EntityNode";
 import { FenceHandles } from "./FenceHandles";
 import { FenceMesh } from "./FenceMesh";
 import { Ground } from "./Ground";
+import { GroundHandles } from "./GroundHandles";
 import { GroundMenuMarker } from "./GroundMenuMarker";
 import { GroupGizmo } from "./GroupGizmo";
 import { HoverHighlight } from "./HoverHighlight";
@@ -518,6 +519,8 @@ export const Viewport = () => {
 			)}
 
 			<AreaHandles />
+
+			<GroundHandles />
 
 			<Entities />
 

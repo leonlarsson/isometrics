@@ -9,6 +9,7 @@ import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
+import { selectGroundCorner, shapeGround, useGroundShaping } from "./groundShaping";
 import { transformSelected, transformSelectedPoints } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
@@ -290,7 +291,7 @@ export const useShortcuts = () => {
 			hotkey: "Escape",
 			// Cancel dragging a new part in, close View mode's data over the map (Back to the map), or
 			// dismiss the offer to drive along a road; otherwise step out one level: a selected point
-			// first, then the road or object. One Escape for all of them, so each press does one thing.
+			// first, then the road or object (or, shaping the ground, its corners, then done). One Escape for all of them, so each press does one thing.
 			callback: () => {
 				const state = useEditor.getState();
 				if (state.cancelGesture) {
@@ -309,6 +310,13 @@ export const useShortcuts = () => {
 					state.stopPlacing();
 				} else if (state.followOffer) {
 					state.setFollowOffer(null);
+				} else if (useGroundShaping.getState().isOn) {
+					// Shaping the ground (ADR-0155): its selected corners first, then done.
+					if (useGroundShaping.getState().selected.length > 0) {
+						selectGroundCorner(null);
+					} else {
+						shapeGround(false);
+					}
 				} else if (state.selectedPointIndex !== null && state.selectedRoadId) {
 					state.selectRoadPoint(state.selectedRoadId, null);
 				} else if (state.selectedPointIndex !== null && state.selectedAreaId) {
