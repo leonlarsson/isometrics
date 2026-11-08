@@ -12,6 +12,7 @@ import {
 import { readPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
+import { worldExtentOf } from "#/scene/grounds";
 
 import { pixelsPerUnitAt, zoomLimits } from "./cameraMath";
 import { keepsIsometricAngle, turnIsometricView } from "./isometricLock";
@@ -116,7 +117,7 @@ export const KeyboardCamera = () => {
 		 */
 		const moveBy = (by: THREE.Vector3) => {
 			if (simple) {
-				const { width, depth } = scene.ground;
+				const { width, depth } = worldExtentOf(scene.grounds);
 				// The isometric diorama's camera always stands far outside the world (its view is the same
 				// from any distance), so there the point it looks at is what stays over the world.
 				const at = camera instanceof THREE.OrthographicCamera ? target : camera.position;
@@ -193,7 +194,7 @@ export const KeyboardCamera = () => {
 				);
 				const limits = zoomLimits(
 					scene.camera,
-					scene.ground,
+					worldExtentOf(scene.grounds),
 					size.height,
 					preferences.cameraControl === "free",
 				);

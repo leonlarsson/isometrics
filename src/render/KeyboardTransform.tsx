@@ -12,6 +12,7 @@ import { type ITransformSession, selectMovesAsGroup, useEditor } from "#/editor/
 import { wrapDegrees } from "#/lib/math";
 import { isOverWorld } from "#/lib/pointer";
 import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
+import { areaBaseOf } from "#/scene/grounds";
 import type { TRoadPoint, TScene, TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -81,6 +82,13 @@ const up = new THREE.Vector3();
  * the keys (axis lock, typed numbers, Enter, Esc). A left click confirms, a
  * right click cancels. The whole transform is one undo step.
  */
+/** Where the selected area stands: the top of the ground under it (ADR-0155). */
+const baseOfSelectedArea = () => {
+	const { scene, selectedAreaId } = useEditor.getState();
+	const area = scene.areas.find((a) => a.id === selectedAreaId);
+	return area ? areaBaseOf(area, scene.grounds) : 0;
+};
+
 export const KeyboardTransform = () => {
 	const mode = useEditor((s) => s.transform?.mode ?? null);
 	const axis = useEditor((s) => s.transform?.axis ?? null);
@@ -294,7 +302,7 @@ export const KeyboardTransform = () => {
 				};
 				center = new THREE.Vector3(
 					from.point[0],
-					areaBaseY(Math.max(0, layer)) + from.top,
+					areaBaseY(Math.max(0, layer)) + from.top + baseOfSelectedArea(),
 					from.point[1],
 				);
 			}
@@ -311,7 +319,7 @@ export const KeyboardTransform = () => {
 				// A fence's points are measured from the ground they stand on (ADR-0103).
 				const baseY =
 					areaLayer >= 0
-						? areaBaseY(areaLayer)
+						? areaBaseY(areaLayer) + areaBaseOf(areas[areaLayer], state.scene.grounds)
 						: state.selectedFenceId
 							? 0
 							: roadBaseY(

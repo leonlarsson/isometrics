@@ -7,6 +7,7 @@ import { changeFlyingSpeed, flightPointerLock, rightButtonPress } from "#/editor
 import { dampingFactorOf, readPreferences, usePreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
+import { worldExtentOf } from "#/scene/grounds";
 
 import { orthographicDistance, pixelsPerUnitAt, zoomLimits } from "./cameraMath";
 import { keepsIsometricAngle, QUARTER_TURN_DRAG, turnIsometricView } from "./isometricLock";
@@ -189,7 +190,7 @@ const useOrbitAroundCursor = () => {
 					// Not the gizmo's invisible grab areas.
 					(item.object.material as THREE.Material).visible !== false,
 			);
-			const { width, depth } = useEditor.getState().scene.ground;
+			const { width, depth } = worldExtentOf(useEditor.getState().scene.grounds);
 			if (found) {
 				pivot.copy(found.point);
 			} else if (
@@ -265,7 +266,11 @@ const useOrbitAroundCursor = () => {
 			// Orbiting, the target slides back over the ground (the picture stays the same). Looking,
 			// it stays put in front of the camera, at the same distance, so nothing else moves.
 			if (!looking) {
-				settleTarget(camera.position, controls.target, useEditor.getState().scene.ground);
+				settleTarget(
+					camera.position,
+					controls.target,
+					worldExtentOf(useEditor.getState().scene.grounds),
+				);
 			}
 			controls.update();
 		};
@@ -296,7 +301,7 @@ const useOrbitAroundCursor = () => {
 const useKeepTargetOnGround = () => {
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 
 	useEffect(() => {
 		if (!controls) {
@@ -556,7 +561,7 @@ const useCardEventHandover = () => {
 const useOrthographicDepth = () => {
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as IOrbitControls | null;
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 
 	useFrame(() => {
 		if (!(camera instanceof THREE.OrthographicCamera) || !controls) {
@@ -645,7 +650,7 @@ const useRightButtonHold = () => {
 			// After flying, the point the camera looks at slides back along the line of sight onto
 			// the ground (the picture stays the same), so orbiting and zooming work from there.
 			if (holdingRightButton && rightButtonPress.movedByKeys && controls) {
-				settleTarget(camera.position, controls.target, scene.ground);
+				settleTarget(camera.position, controls.target, worldExtentOf(scene.grounds));
 				controls.update();
 			}
 		};
@@ -762,7 +767,7 @@ const CameraBehaviours = () => {
  */
 export const CameraControls = () => {
 	const settings = useEditor((s) => s.scene.camera);
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const height = useThree((s) => s.size.height);
 	const preferences = usePreferences();
 	const free = preferences.cameraControl === "free";

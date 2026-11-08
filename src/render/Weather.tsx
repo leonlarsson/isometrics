@@ -14,6 +14,7 @@ import {
 } from "#/editor/weather";
 import { motionClock } from "#/lib/motionClock";
 import { jitter } from "#/parts/primitives";
+import { worldExtentOf } from "#/scene/grounds";
 import { EDGE } from "#/scene/weatherMap";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -87,11 +88,11 @@ const areasRegionOf = (areas: readonly IAreaWeatherNow[], fall: TFall): IFallReg
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxZ = Number.NEGATIVE_INFINITY;
 	let cloudTop = 0;
-	for (const { area, now } of areas) {
+	for (const { area, now, base } of areas) {
 		if (FALL_AMOUNTS[fall](now) <= 0) {
 			continue;
 		}
-		cloudTop = Math.max(cloudTop, cloudAltitudeOf(now, { area }));
+		cloudTop = Math.max(cloudTop, cloudAltitudeOf(now, { area, base }));
 		for (const [x, z] of area.points) {
 			minX = Math.min(minX, x - EDGE);
 			minZ = Math.min(minZ, z - EDGE);
@@ -119,7 +120,7 @@ const useFallField = (fall: TFall, perView: number, most: number, local: boolean
 	const center = useMemo(() => new THREE.Vector3(), []);
 	const halfSize = useMemo(() => new THREE.Vector2(), []);
 	return (camera: THREE.Camera, screenHeight: number) => {
-		const { ground } = useEditor.getState().scene;
+		const ground = worldExtentOf(useEditor.getState().scene.grounds);
 		const world = weatherNowInWorld();
 		const areas = local ? areaWeathersInWorld() : NO_AREAS;
 		const amount = FALL_AMOUNTS[fall];

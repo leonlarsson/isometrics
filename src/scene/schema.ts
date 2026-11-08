@@ -1450,8 +1450,26 @@ export const GroundSurfaceSchema = z
 	})
 	.describe("The ground's surface.");
 
+/**
+ * One of a world's grounds (ADR-0155): a slab things stand on, anywhere in
+ * the world and at any height, any shape. A world has one or more; worlds
+ * saved with a single `ground` have it as their first.
+ */
 export const GroundSchema = z
 	.object({
+		id: z.string().min(1).default("ground").describe("Unique id among the grounds."),
+		name: z.string().default("").describe('Shown in the editor ("" = Ground, Ground 2…).'),
+		position: Vec2Schema.default([0, 0]).describe(
+			"Where its middle is [x, z]: its rectangle, or its points, are round it. Things standing on it keep their own positions in the world.",
+		),
+		altitude: z
+			.number()
+			.min(0)
+			.max(200)
+			.default(0)
+			.describe(
+				"How high its top is above the world's base level (0), in grid units: a floating island above another ground. What stands on it stands at this altitude (objects' altitudes are from the base level).",
+			),
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
 		points: z
@@ -1460,7 +1478,7 @@ export const GroundSchema = z
 			.nullable()
 			.default(null)
 			.describe(
-				"The ground's shape: its corners [x, z] in order round it, like an area's points, inside width × depth (centred on the origin; width and depth are kept as the size round them). null = the rectangle width × depth, as worlds always were. A circle or a coastline is many corners.",
+				"Its shape: its corners [x, z] in order round it, like an area's points, from its position (its middle), inside width × depth (width and depth are kept as the size round them). null = the rectangle width × depth. A circle or a coastline is many corners.",
 			),
 		cornerRadius: z
 			.number()
@@ -1468,13 +1486,31 @@ export const GroundSchema = z
 			.max(250)
 			.default(0)
 			.describe(
-				"How round the ground's corners are, in grid units (each corner rounded by this much, less where its sides are short). 0 = as drawn: the rectangle's softly rounded edge, or points' sharp corners.",
+				"How round its corners are, in grid units (each corner rounded by this much, less where its sides are short). 0 = as drawn: the rectangle's softly rounded edge, or points' sharp corners.",
+			),
+		thickness: z
+			.number()
+			.min(0.2)
+			.max(50)
+			.default(1)
+			.describe(
+				"How deep its slab is under its top, in grid units: a thin plate, or a deep block for a floating island.",
 			),
 		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
 		surface: GroundSurfaceSchema.default(() => GroundSurfaceSchema.parse({})),
+		isHidden: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether it isn't drawn (a world of floating islands, without the ground under them): things can't stand on it, but it still counts for the world's size.",
+			),
+		isLocked: z
+			.boolean()
+			.default(false)
+			.describe("Whether it can't be moved or reshaped in the editor."),
 	})
 	.describe(
-		"The slab everything stands on, centred on the origin: a rectangle, or any shape (points), its corners rounded or not.",
+		"A ground: a slab things stand on, at its position and altitude, a rectangle or any shape (points), its corners rounded or not.",
 	);
 
 /**
@@ -1970,7 +2006,19 @@ export const SceneSchema = z
 			.default({ title: "Untitled world", subtitle: "" })
 			.describe("The world's title and subtitle."),
 		theme: ThemeSchema.default("system"),
-		ground: GroundSchema.default(() => GroundSchema.parse({})),
+		grounds: z
+			.array(GroundSchema)
+			.min(1)
+			.default(() => [GroundSchema.parse({})])
+			.describe(
+				"The grounds things stand on (ADR-0155): one for most worlds (centred on 0, 0), or several (floating islands, separate towns), each with its own position, altitude and shape. The world's size is the rectangle round them all, centred on 0, 0.",
+			),
+		keepsThingsOnGround: z
+			.boolean()
+			.default(true)
+			.describe(
+				"Whether the editor keeps objects, roads and fences on a ground (true: dropped or dragged past one's edge, they come back onto it; roads still cross the gaps between grounds, as bridges). false = they can go anywhere in the world, over empty space too.",
+			),
 		surface: SurfaceSchema.default(() => SurfaceSchema.parse({})),
 		traffic: TrafficSchema.default(() => TrafficSchema.parse({})),
 		lighting: LightingSchema.default(() => LightingSchema.parse({})),
@@ -2115,6 +2163,7 @@ export type TFencePoint = z.output<typeof FencePointSchema>;
 export type TFenceGate = z.output<typeof FenceGateSchema>;
 export type TFenceGateKind = z.output<typeof FenceGateKindSchema>;
 export type TGround = z.output<typeof GroundSchema>;
+export type TGroundInput = z.input<typeof GroundSchema>;
 export type TSurfaceKind = z.output<typeof SurfaceKindSchema>;
 export type TSurface = z.output<typeof SurfaceSchema>;
 export type TAreaSurface = z.output<typeof AreaSurfaceSchema>;

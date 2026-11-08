@@ -6,7 +6,8 @@ import { advanceDayCycle, sceneHoursNow } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { weatherNowInWorld } from "#/editor/weather";
 import { tintColor } from "#/lib/color";
-import type { TLighting, TScene } from "#/scene/schema";
+import { type TWorldExtent } from "#/scene/grounds";
+import type { TLighting } from "#/scene/schema";
 import { type ISkyLight, skyLightAt, sunAndFillFactors } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -123,7 +124,7 @@ interface ISunProps {
 	shadowMapSize: number;
 	/** Whether the sun casts shadows (not in wireframe). */
 	castsShadows: boolean;
-	ground: TScene["ground"];
+	ground: TWorldExtent;
 	palette: IScenePalette;
 	lighting: TLighting;
 	lights: ILights;
@@ -236,7 +237,7 @@ const SunOverTheGround = ({
 };
 
 interface ISceneLightsProps {
-	ground: TScene["ground"];
+	ground: TWorldExtent;
 	palette: IScenePalette;
 	lighting: TLighting;
 	/**

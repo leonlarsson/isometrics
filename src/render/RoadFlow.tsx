@@ -15,6 +15,7 @@ import {
 	flowVehicleSeed,
 	flowVehicleSize,
 } from "#/scene/flows";
+import { worldExtentOf } from "#/scene/grounds";
 import { type IRoadNetwork, roadNetworkOf } from "#/scene/junctions";
 import { isHiddenRoute, laneOffset, polylineLength } from "#/scene/roads";
 import { centerlineOf, createOneWaySampler } from "#/scene/routes";
@@ -253,7 +254,7 @@ const DrivingOnStream = ({
 						length: roadLength,
 						index,
 						// Read once: it only prefers where to start over (ADR-0148).
-						ground: useEditor.getState().scene.ground,
+						ground: worldExtentOf(useEditor.getState().scene.grounds),
 					}),
 					offset: 0,
 					speed: road.flow.speed,

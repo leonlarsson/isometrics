@@ -8,12 +8,19 @@ import {
 	shortestRoadForFlow,
 } from "#/scene/flows";
 import { plural } from "#/scene/format";
+import { isOnLand } from "#/scene/grounds";
 import { ALTITUDE_GAP, roadNetworkOf } from "#/scene/junctions";
 import { networkEntries, waysOut } from "#/scene/network";
 import { describeRepairs } from "#/scene/repair";
 import { isHiddenRoute, polylineLength, roadCenterlineOf, steepestGrade } from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
-import { SceneSchema, type TDataBinding, type TEntity, type TScene } from "#/scene/schema";
+import {
+	SceneSchema,
+	type TDataBinding,
+	type TEntity,
+	type TScene,
+	type TVec2,
+} from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
 
 import { bodiesOf, objectsInEachOther, objectsOnRoads, reachAlongXAndZ } from "./bodies";
@@ -135,8 +142,6 @@ const ISO_DATE_LIKE =
 const worldWarnings = (scene: TScene): IWorldIssue[] => {
 	const warnings: IWorldIssue[] = [];
 	const warn = (where: string, what: string) => warnings.push({ where, what });
-	const halfWidth = scene.ground.width / 2;
-	const halfDepth = scene.ground.depth / 2;
 	const bindingsRead = (
 		where: string,
 		bindings: Readonly<Record<string, TDataBinding | null | undefined>>,
@@ -204,10 +209,20 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 			const reachX = Math.max(0, ...reaches.map((reach) => reach[0]));
 			const reachZ = Math.max(0, ...reaches.map((reach) => reach[1]));
 			const [x, z] = entity.position;
-			if (Math.abs(x) + reachX > halfWidth + 0.05 || Math.abs(z) + reachZ > halfDepth + 0.05) {
+			// Every corner of its footprint on a ground (ADR-0155), unless the world lets things go anywhere.
+			const corners: TVec2[] = [
+				[x - reachX + 0.05, z - reachZ + 0.05],
+				[x + reachX - 0.05, z - reachZ + 0.05],
+				[x + reachX - 0.05, z + reachZ - 0.05],
+				[x - reachX + 0.05, z + reachZ - 0.05],
+			];
+			if (scene.keepsThingsOnGround && !corners.every((corner) => isOnLand(scene, corner))) {
+				const only = scene.grounds.length === 1 ? scene.grounds[0] : null;
 				warn(
 					`${where}.position`,
-					`[${x}, ${z}] is over the ground's edge (it's ${scene.ground.width} × ${scene.ground.depth}, centred on 0, 0): it floats on nothing`,
+					only
+						? `[${x}, ${z}] is over the ground's edge (it's ${only.width} × ${only.depth}, round [${only.position.join(", ")}]): it floats on nothing`
+						: `[${x}, ${z}] is over the edge of the grounds: it floats on nothing`,
 				);
 			}
 		}

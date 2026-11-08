@@ -22,7 +22,11 @@ const plateau = (height: number): TArea =>
 
 describe("what things stand on (ADR-0138)", () => {
 	it("stands on a shape's top within its footprint, the ground beside it", () => {
-		const world = { areas: [], entities: [box("a", { props: { width: 2, height: 1.5 } })] };
+		const world = {
+			areas: [],
+			grounds: [],
+			entities: [box("a", { props: { width: 2, height: 1.5 } })],
+		};
 		expect(standingAltitudeAt(world, [0, 0])).toBe(1.5);
 		expect(standingAltitudeAt(world, [0.9, 0.4])).toBe(1.5);
 		expect(standingAltitudeAt(world, [1.2, 0])).toBe(0);
@@ -34,6 +38,7 @@ describe("what things stand on (ADR-0138)", () => {
 	it("follows where a shape stands, how it's turned and its size", () => {
 		const world = {
 			areas: [plateau(2)],
+			grounds: [],
 			entities: [
 				box("a", {
 					position: [5, 5],
@@ -53,6 +58,7 @@ describe("what things stand on (ADR-0138)", () => {
 	it("stands on the highest of shapes stacked, and on what's at or below it where it is", () => {
 		const world = {
 			areas: [],
+			grounds: [],
 			entities: [box("bottom"), box("top", { altitude: 1 }), box("other", { position: [3, 0] })],
 		};
 		expect(standingAltitudeAt(world, [0, 0])).toBe(2);
@@ -64,7 +70,7 @@ describe("what things stand on (ADR-0138)", () => {
 	it("stands on the top of a tipped shape's box as it's turned", () => {
 		// Tipped a quarter about X on its foot, a box 3 tall lies along Z, half in the ground.
 		const lying = box("a", { rotation: [90, 0, 0], props: { height: 3 } });
-		const world = { areas: [], entities: [lying] };
+		const world = { areas: [], grounds: [], entities: [lying] };
 		expect(standingAltitudeAt(world, [0, 2])).toBeCloseTo(0.5);
 		const [top] = topsToStandOn(world);
 		expect(top.maxZ - top.minZ).toBeCloseTo(3);
@@ -74,6 +80,7 @@ describe("what things stand on (ADR-0138)", () => {
 	it("keeps out what nothing stands on: other parts, flat ones, hidden and driving ones", () => {
 		const world = {
 			areas: [],
+			grounds: [],
 			entities: [
 				EntitySchema.parse({ id: "house", kind: "house_01" }),
 				EntitySchema.parse({ id: "zone", kind: "zone_01" }),
@@ -87,6 +94,7 @@ describe("what things stand on (ADR-0138)", () => {
 	it("moves things onto a shape's top and off it, as high above it as they were", () => {
 		const world = {
 			areas: [],
+			grounds: [],
 			entities: [box("pedestal", { position: [4, 0] }), box("a"), box("sign", { altitude: 0.5 })],
 		};
 		const a = world.entities[1];

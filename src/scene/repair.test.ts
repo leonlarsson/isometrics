@@ -124,9 +124,13 @@ describe("parseOrRepairScene", () => {
 	});
 
 	it("resets invalid scene settings", () => {
-		const { scene, report } = repairScene({ version: 1, theme: "neon", ground: { width: -5 } });
+		const { scene, report } = repairScene({
+			version: 1,
+			theme: "neon",
+			grounds: [{ id: "ground", width: -5 }],
+		});
 		expect(scene.theme).toBe("system");
-		expect(scene.ground.width).toBe(40);
+		expect(scene.grounds[0].width).toBe(40);
 		expect(report.fixed).toBe(2);
 	});
 

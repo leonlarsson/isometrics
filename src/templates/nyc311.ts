@@ -540,7 +540,7 @@ export const createNyc311Scene = (): TScene =>
 			title: "NYC 311: complaint weather",
 			subtitle: "Real 311 requests per borough, Nov 2025 to Oct 2026",
 		},
-		ground: { width: 110, depth: 110 },
+		grounds: [{ id: "ground", width: 110, depth: 110 }],
 		weather: { cloudCover: 0.1 },
 		moods: [
 			{

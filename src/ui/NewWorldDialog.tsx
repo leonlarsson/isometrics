@@ -81,7 +81,9 @@ const contentsOf = (scene: TScene) => {
 				.join(" and ")} on ${plural(cards, "label card")}`,
 		listed.length > 0 && listed.join(", ").replace(/, ([^,]*)$/, " and $1"),
 		scene.viewpoints.length > 0 && plural(scene.viewpoints.length, "saved viewpoint"),
-		`${scene.ground.width} × ${scene.ground.depth} ground`,
+		scene.grounds.length === 1
+			? `${scene.grounds[0].width} × ${scene.grounds[0].depth} ground`
+			: plural(scene.grounds.length, "ground"),
 	].filter((line) => line !== false);
 };
 

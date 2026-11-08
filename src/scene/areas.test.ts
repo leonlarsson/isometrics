@@ -5,7 +5,6 @@ import {
 	areaTopAt,
 	cornerTop,
 	cornerWithLift,
-	groundHeightAt,
 	isHiddenArea,
 	isInsidePolygon,
 	isRaised,
@@ -16,6 +15,7 @@ import {
 	triangulateWithPoints,
 	waterSeams,
 } from "./areas";
+import { groundHeightAt } from "./grounds";
 import { AreaSchema } from "./schema";
 
 const area = (id: string, points: [number, number][], extra = {}) =>
@@ -156,8 +156,10 @@ describe("hidden areas (ADR-0151)", () => {
 		const hidden = { kind: "hidden_area_01" as const, points: square, height: 3, isHidden: false };
 		expect(isHiddenArea(hidden)).toBe(true);
 		expect(isRaised(hidden)).toBe(false);
-		expect(groundHeightAt([hidden], [5, 5])).toBe(0);
-		expect(groundHeightAt([{ ...hidden, kind: "raised_land_01" }], [5, 5])).toBe(3);
+		expect(groundHeightAt({ areas: [hidden], grounds: [] }, [5, 5])).toBe(0);
+		expect(
+			groundHeightAt({ areas: [{ ...hidden, kind: "raised_land_01" }], grounds: [] }, [5, 5]),
+		).toBe(3);
 	});
 
 	it("are named without saying area twice", () => {

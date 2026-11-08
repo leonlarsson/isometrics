@@ -10,7 +10,7 @@ const load = () => {
 	useEditor.getState().loadScene(
 		SceneSchema.parse({
 			version: 1,
-			ground: { width: 40, depth: 40 },
+			grounds: [{ id: "ground", width: 40, depth: 40 }],
 			data: { values: [{ key: "alert", value: 1 }] },
 			entities: [
 				{

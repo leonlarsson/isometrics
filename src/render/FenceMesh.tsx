@@ -20,7 +20,7 @@ import { FENCE_STYLES } from "#/fences/registry";
 import { prefersLessMotion } from "#/lib/lessMotion";
 import { isClick } from "#/lib/pointer";
 import type { IFenceGatePlace } from "#/scene/fences";
-import type { TArea, TDataValue, TFence, TFenceGate } from "#/scene/schema";
+import type { TArea, TDataValue, TFence, TFenceGate, TGround } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { openContextMenuOnClick } from "./contextMenu";
@@ -43,8 +43,9 @@ const OUTLINE_LIFT = 0.04;
 interface IFenceBodyProps {
 	fence: TFence;
 	palette: IScenePalette;
-	/** The ground it stands on. */
+	/** The ground it stands on: the areas, and the grounds under them (ADR-0155). */
 	areas: readonly TArea[];
+	grounds: readonly TGround[];
 	data: readonly TDataValue[];
 	/** Outlined as the selection. */
 	selected: boolean;
@@ -261,6 +262,7 @@ export const FenceBody = ({
 	fence,
 	palette,
 	areas,
+	grounds,
 	data,
 	selected,
 	handlers,
@@ -279,7 +281,7 @@ export const FenceBody = ({
 		}),
 		[fence, built],
 	);
-	const layout = useMemo(() => layoutOfFence(line, areas, []), [line, areas]);
+	const layout = useMemo(() => layoutOfFence(line, { areas, grounds }, []), [line, areas, grounds]);
 	// A gate swinging is drawn on its own (GateSwing), and the fence has a gap there meanwhile.
 	const placed = swinging.flatMap((swing) => {
 		const place = layout.gates.find((each) => each.index === swing.index);
@@ -297,7 +299,10 @@ export const FenceBody = ({
 			})),
 		};
 	}, [line, gateStates, apartNow]);
-	const geometries = useMemo(() => buildFence(shape, areas, []), [shape, areas]);
+	const geometries = useMemo(
+		() => buildFence(shape, { areas, grounds }, []),
+		[shape, areas, grounds],
+	);
 	useLayoutEffect(
 		() => () => {
 			for (const geometry of geometries.values()) {
@@ -396,6 +401,7 @@ export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
 	const palette = useThemePalette();
 	const mode = useEditor(drawnModeOf);
 	const areas = useEditor((s) => s.scene.areas);
+	const grounds = useEditor((s) => s.scene.grounds);
 	const data = useWorldData().values;
 	// A box being drawn that would take it out of the selection shows it dashed instead (HoverHighlight).
 	const selected = useEditor(
@@ -440,6 +446,7 @@ export const FenceMesh = memo(({ fence }: { fence: TFence }) => {
 			fence={fence}
 			palette={palette}
 			areas={areas}
+			grounds={grounds}
 			data={data}
 			selected={selected && mode === "edit"}
 			handlers={handlers}

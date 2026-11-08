@@ -28,6 +28,7 @@ import {
 	gatesMovedOnto,
 	insetOutline,
 } from "#/scene/fences";
+import { groundAltitudeAt, groundAt } from "#/scene/grounds";
 import {
 	connectEnds,
 	connectToMiddle,
@@ -429,7 +430,8 @@ export interface IEditorState {
 		under?: readonly ISceneItem[];
 	} | null;
 	/** The ground's context menu: the ground point that was right-clicked, and where (screen px). */
-	groundMenu: { point: TVec2; x: number; y: number } | null;
+	/** The ground's menu: the point clicked, where it opens, and which ground it was (ADR-0155). */
+	groundMenu: { point: TVec2; x: number; y: number; groundId?: string } | null;
 	/** A viewpoint's menu, opened on its camera in the world: which one, and where (screen px). */
 	viewpointMenu: { id: string; x: number; y: number } | null;
 	/**
@@ -632,7 +634,7 @@ export interface IEditorState {
 		under?: readonly ISceneItem[],
 	) => void;
 	/** Open the ground's context menu for a ground point at a screen point (deselecting), or close it (null). */
-	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }) => void;
+	openGroundMenu: (point: TVec2 | null, at?: { x: number; y: number }, groundId?: string) => void;
 	/** Open a viewpoint's menu at a screen point, or close it (null). */
 	openViewpointMenu: (id: string | null, at?: { x: number; y: number }) => void;
 	/** Move the camera to a ground point, framing a few cells around it. */
@@ -1060,7 +1062,7 @@ const sameItem = (a: ISceneItem) => (b: ISceneItem) => a.kind === b.kind && a.id
  * what else goes with a thing is written once. Lists that lose nothing are left as they are (the
  * same list, so what's worked out once per list stays).
  */
-const removeFromScene = (scene: Draft<TScene>, items: readonly ISceneItem[]) => {
+export const removeFromScene = (scene: Draft<TScene>, items: readonly ISceneItem[]) => {
 	const idsOf = (kind: ISceneItem["kind"]) =>
 		new Set(items.filter((item) => item.kind === kind).map((item) => item.id));
 	const [entities, roads, areas, fences] = [
@@ -1199,7 +1201,7 @@ const renameDataReferences = (scene: Draft<TScene>, from: string, to: string | n
 		renameBindings(bindings, from, to);
 	}
 	for (const colors of [
-		scene.ground.colors,
+		...scene.grounds.map((ground) => ground.colors),
 		...scene.roads.map((road) => road.colors),
 		...scene.areas.map((area) => area.colors),
 	]) {
@@ -1997,13 +1999,13 @@ export const createEditorStore = (openScene?: TScene) => {
 				});
 			},
 
-			openGroundMenu: (point, at) => {
+			openGroundMenu: (point, at, groundId) => {
 				if (!point || !at) {
 					set({ groundMenu: null });
 					return;
 				}
 				get().clearSelection();
-				set({ groundMenu: { point, ...at }, contextMenu: null, viewpointMenu: null });
+				set({ groundMenu: { point, ...at, groundId }, contextMenu: null, viewpointMenu: null });
 			},
 
 			openViewpointMenu: (id, at) =>
@@ -3197,8 +3199,27 @@ export const createEditorStore = (openScene?: TScene) => {
 					if (last && last[0] === point[0] && last[1] === point[1]) {
 						return state;
 					}
-					// New points continue at the previous point's height (ground level for a new road).
-					const next: TRoadPoint = [point[0], point[1], last?.[2] ?? 0];
+					// New points continue as high above the ground as the previous one (on the ground for a
+					// new road), on whichever ground they're on: a road climbs onto an island and keeps a
+					// flyover's lift; over the space between grounds it stays level, a bridge (ADR-0155).
+					const { grounds } = state.scene;
+					const groundUnder = groundAt(grounds, point);
+					const height = (() => {
+						if (!last) {
+							return groundUnder ? groundAltitudeAt(grounds, point) : 0;
+						}
+						if (!groundUnder) {
+							return last[2] ?? 0;
+						}
+						const lastGround = groundAltitudeAt(grounds, [last[0], last[1]], last[2] ?? 0);
+						const above = Math.max(0, (last[2] ?? 0) - lastGround);
+						return round(groundAltitudeAt(grounds, point) + above);
+					})();
+					const next: TRoadPoint = [
+						point[0],
+						point[1],
+						state.drawing.target === "road" ? height : (last?.[2] ?? 0),
+					];
 					return { drawing: { ...state.drawing, points: [...state.drawing.points, next] } };
 				}),
 

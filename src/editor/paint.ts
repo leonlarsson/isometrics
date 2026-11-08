@@ -1,7 +1,6 @@
 import { turnedHalfSize } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
-import { groundHeightAt } from "#/scene/areas";
-import { isOnGround } from "#/scene/groundShape";
+import { groundHeightAt, isOnLand } from "#/scene/grounds";
 import { isHiddenRoute, pointWidth, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity, TEntityInput, TScene, TVec2 } from "#/scene/schema";
 
@@ -209,7 +208,7 @@ export const paintStamp = (
 		const reach = reachOf(candidate);
 		const free =
 			// On the ground as it's shaped, wholly (ADR-0155).
-			isOnGround(scene.ground, point, reach) &&
+			isOnLand(scene, point, reach) &&
 			boxes.every(
 				(box) =>
 					Math.max(
@@ -230,7 +229,7 @@ export const paintStamp = (
 			kind,
 			name: "",
 			position: point,
-			altitude: groundHeightAt(scene.areas, point),
+			altitude: groundHeightAt(scene, point),
 			rotation: [0, Math.round(random() * 360) - 180, 0],
 			scale,
 		});

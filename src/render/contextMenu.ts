@@ -126,8 +126,8 @@ export const openAreaMenuOnClick = (id: string) => (event: ThreeEvent<MouseEvent
 	);
 };
 
-/** `onContextMenu` for the ground: its menu (ui/GroundContextMenu) for the point clicked. */
-export const openGroundMenuOnClick = (event: ThreeEvent<MouseEvent>) => {
+/** `onContextMenu` for a ground: its menu (ui/GroundContextMenu) for the point clicked, and which ground. */
+export const openGroundMenuOnClick = (groundId?: string) => (event: ThreeEvent<MouseEvent>) => {
 	event.stopPropagation();
 	// Under something whose menu is opening: that one's.
 	if (isGathering(event.nativeEvent)) {
@@ -135,6 +135,6 @@ export const openGroundMenuOnClick = (event: ThreeEvent<MouseEvent>) => {
 	}
 	const point: TVec2 = [event.point.x, event.point.z];
 	onRightClick(event.nativeEvent, !isClick(event), (x, y) =>
-		useEditor.getState().openGroundMenu(point, { x, y }),
+		useEditor.getState().openGroundMenu(point, { x, y }, groundId),
 	);
 };

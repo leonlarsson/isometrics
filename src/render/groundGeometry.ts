@@ -4,24 +4,28 @@ import * as THREE from "three";
 import { groundOutlineOf } from "#/scene/groundShape";
 import type { TGround } from "#/scene/schema";
 
-/** The slab's thickness under the ground's top, and how soft its top edge is (the rectangle's rounding). */
-const THICKNESS = 1;
+/** How soft a slab's top edge is (the rectangle's rounding), at most. */
 const SOFT_EDGE = 0.3;
 
 /**
- * The slab of a shaped ground (ADR-0155): its outline extruded down from the
- * top at y 0, its top edge softened as the rectangle's is. Plain three.
+ * The slab of a shaped ground (ADR-0155): its outline extruded `thickness`
+ * down from its top at y 0, its top edge softened as the rectangle's is.
+ * Plain three. (Terrain later: its top would be a surface of heights.)
  */
-export const groundSlabGeometry = (outline: readonly (readonly [number, number])[]) => {
+export const groundSlabGeometry = (
+	outline: readonly (readonly [number, number])[],
+	thickness: number,
+) => {
+	const soft = Math.min(SOFT_EDGE, thickness / 2 - 0.01);
 	// In the shape's plane, x across and −z up, so turning it flat puts each corner back at [x, z].
 	const shape = new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(x, -z)));
 	const made = new THREE.ExtrudeGeometry(shape, {
-		depth: THICKNESS - SOFT_EDGE * 2,
+		depth: thickness - soft * 2,
 		bevelEnabled: true,
-		bevelThickness: SOFT_EDGE,
-		bevelSize: SOFT_EDGE,
+		bevelThickness: soft,
+		bevelSize: soft,
 		// The sides on the outline itself, the bevel rounding in from it.
-		bevelOffset: -SOFT_EDGE,
+		bevelOffset: -soft,
 		bevelSegments: 3,
 		curveSegments: 1,
 	});
@@ -36,12 +40,17 @@ export const groundSlabGeometry = (outline: readonly (readonly [number, number])
  * which keeps its rounded box exactly as it always was.
  */
 export const useGroundSlab = (
-	ground: Pick<TGround, "width" | "depth" | "points" | "cornerRadius">,
+	ground: Pick<TGround, "width" | "depth" | "points" | "cornerRadius" | "thickness">,
 ) => {
 	const outline = groundOutlineOf(ground);
-	// The outline as a key: a new geometry only when the shape changes.
-	const key = outline ? outline.map(([x, z]) => `${x},${z}`).join(";") : "";
-	const geometry = useMemo(() => (outline ? groundSlabGeometry(outline) : null), [key]);
+	// The outline as a key: a new geometry only when the shape or thickness changes.
+	const key = outline
+		? `${ground.thickness}|${outline.map(([x, z]) => `${x},${z}`).join(";")}`
+		: "";
+	const geometry = useMemo(
+		() => (outline ? groundSlabGeometry(outline, ground.thickness) : null),
+		[key],
+	);
 	useEffect(() => () => geometry?.dispose(), [geometry]);
 	return geometry;
 };

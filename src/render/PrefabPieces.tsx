@@ -7,7 +7,7 @@ import { resolveLights } from "#/parts/lightModel";
 import { drawPrefabPiecesWith, type IPrefabPiecesProps } from "#/parts/prefabParts";
 import { entityAsDrawn } from "#/parts/propData";
 import { getBasePart, resolveProps } from "#/parts/registry";
-import type { TArea, TDataValue, TEntity } from "#/scene/schema";
+import type { TArea, TDataValue, TEntity, TGround } from "#/scene/schema";
 import type { ISunPosition } from "#/scene/sun";
 import type { IScenePalette } from "#/scene/theme";
 
@@ -23,6 +23,8 @@ import { FenceBody } from "./FenceMesh";
  */
 
 const NO_AREAS: TArea[] = [];
+/** Pieces and pictures stand on no ground of their own: the base level (ADR-0155). */
+const NO_GROUNDS: readonly TGround[] = [];
 const NO_DATA: TDataValue[] = [];
 
 interface IPieceProps {
@@ -116,6 +118,7 @@ export const PrefabPieces = ({
 						fence={fence}
 						palette={palette}
 						areas={NO_AREAS}
+						grounds={NO_GROUNDS}
 						data={data ?? NO_DATA}
 						selected={false}
 					/>

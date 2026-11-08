@@ -4,7 +4,7 @@ import { APP_NAME } from "#/lib/app";
 import { keepOnHotReload } from "#/lib/hot";
 import { prefabPartOf } from "#/parts/prefabParts";
 import { repairWorld } from "#/parts/repairWorld";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/grounds";
 import { EntitySchema, SCENE_VERSION, type TPrefab, type TVec2 } from "#/scene/schema";
 
 import { findFreeSpot } from "./placement";
@@ -161,7 +161,7 @@ export const placeFromLibrary = (prefab: TPrefab, near: TVec2, { exactly = false
 		kind: design.id,
 		position,
 		// On the ground where it's put (ADR-0098).
-		altitude: groundHeightAt(scene.areas, position),
+		altitude: groundHeightAt(scene, position),
 	});
 	commit((draft) => {
 		if (!draft.prefabs.some((each) => each.id === design.id)) {

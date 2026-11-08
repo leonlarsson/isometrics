@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
-import { GROUND_SIZE, nearestOnGround } from "#/scene/groundShape";
+import { GROUND_SIZE } from "#/scene/groundShape";
+import { groundTopsOf, keepInWorld, keepOnLand } from "#/scene/grounds";
 import type { TVec2 } from "#/scene/schema";
 import { areaTopsOf, type ITop } from "#/scene/standing";
 
@@ -20,28 +21,44 @@ export const levelHitOnRay = (ray: THREE.Ray, y: number): THREE.Vector3 | null =
 };
 
 /**
+ * What a point under the pointer is kept within (ADR-0155): `land`, a shown
+ * ground (objects, roads, fences; anywhere in the world when the world lets
+ * things go off the ground); `world`, the world's size (areas, which may lie
+ * over empty space); `largest`, the largest a world can be (shaping a ground).
+ */
+export type TKeptWithin = "land" | "world" | "largest";
+
+/** A point under the pointer, kept within what it may be in (`TKeptWithin`). */
+export const keptWithin = (point: TVec2, within: TKeptWithin): TVec2 => {
+	const { scene } = useEditor.getState();
+	if (within === "land") {
+		return keepOnLand(scene, point);
+	}
+	if (within === "world") {
+		return keepInWorld(scene, point);
+	}
+	const half = GROUND_SIZE.most / 2;
+	return [clamp(point[0], -half, half), clamp(point[1], -half, half)];
+};
+
+/**
  * Where the ray meets the ground (or a raised plane at `planeY`), snapped to
- * the grid unless snapping is off or `altKey` is held, and kept on the ground.
+ * the grid unless snapping is off or `altKey` is held, and kept within `within`.
  */
 export const groundPointOnRay = (
 	ray: THREE.Ray,
 	altKey: boolean,
 	planeY = 0,
-	reachesPastGround = false,
+	within: TKeptWithin = "land",
 ): TVec2 | null => {
 	plane.constant = -planeY;
 	if (!ray.intersectPlane(plane, hit)) {
 		return null;
 	}
-	const { snapping, scene } = useEditor.getState();
+	const { snapping } = useEditor.getState();
 	const free = altKey || !snapping;
 	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-	// On the ground as it's shaped, or (shaping the ground itself, ADR-0155) within the largest it can be.
-	if (!reachesPastGround) {
-		return nearestOnGround(scene.ground, [place(hit.x), place(hit.z)]);
-	}
-	const half = GROUND_SIZE.most / 2;
-	return [clamp(place(hit.x), -half, half), clamp(place(hit.z), -half, half)];
+	return keptWithin([place(hit.x), place(hit.z)], within);
 };
 
 const end = new THREE.Vector3();
@@ -159,16 +176,21 @@ export const surfacePointOnRay = (
 	altKey: boolean,
 	above = 0,
 	tops?: readonly ITop[],
+	within: TKeptWithin = "land",
 ): TVec2 | null => {
 	const { snapping, scene } = useEditor.getState();
-	const found = surfaceHitOnRay(ray, tops ?? areaTopsOf(scene.areas), above);
+	const found = surfaceHitOnRay(
+		ray,
+		tops ?? [...groundTopsOf(scene.grounds), ...areaTopsOf(scene.areas, scene.grounds)],
+		above,
+	);
 	if (!found) {
 		return null;
 	}
 	const free = altKey || !snapping;
 	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-	// On the ground as it's shaped (ADR-0155), not over the empty corners of the rectangle round it.
-	return nearestOnGround(scene.ground, [place(found.x), place(found.z)]);
+	// On a ground as it's shaped (ADR-0155), not over empty space beside it.
+	return keptWithin([place(found.x), place(found.z)], within);
 };
 
 /**
@@ -179,7 +201,8 @@ export const surfacePointOnRay = (
 export const groundPointFrom = (
 	event: ThreeEvent<PointerEvent | MouseEvent>,
 	planeY = 0,
-): TVec2 | null => groundPointOnRay(event.ray, event.nativeEvent.altKey, planeY);
+	within: TKeptWithin = "land",
+): TVec2 | null => groundPointOnRay(event.ray, event.nativeEvent.altKey, planeY, within);
 
 /**
  * The ground under the pointer as it stands, or the surface `above` it (a
@@ -203,8 +226,8 @@ interface IGroundDragOptions {
 	onMove: (point: TVec2, token: string, event: ThreeEvent<PointerEvent>) => void;
 	/** Whether the points it reports land on the grid (the default) as the snapping says. */
 	snapsToGrid?: boolean;
-	/** Whether its points may go past the ground's edge (shaping the ground itself, ADR-0155). */
-	reachesPastGround?: boolean;
+	/** What its points are kept within (`TKeptWithin`): a ground by default. */
+	within?: TKeptWithin;
 }
 
 /**
@@ -218,7 +241,7 @@ export const useGroundDrag = ({
 	onStart,
 	onMove,
 	snapsToGrid = true,
-	reachesPastGround = false,
+	within = "land",
 }: IGroundDragOptions) => {
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const token = useRef<string | null>(null);
@@ -275,7 +298,7 @@ export const useGroundDrag = ({
 				event.ray,
 				!snapsToGrid || event.nativeEvent.altKey,
 				planeY,
-				reachesPastGround,
+				within,
 			);
 			if (
 				!point ||

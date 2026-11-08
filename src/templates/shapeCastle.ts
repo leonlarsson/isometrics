@@ -284,7 +284,7 @@ export const createShapeCastleScene = (): TScene =>
 			title: "Shape Castle",
 			subtitle: "A castle by a river, built only from shapes",
 		},
-		ground: { width: 40, depth: 40 },
+		grounds: [{ id: "ground", width: 40, depth: 40 }],
 		lighting: { time: 17.6, timeSource: "cycle", dayLength: 240 },
 		camera: { openingViewpointId: "view_gate" },
 		viewpoints: [

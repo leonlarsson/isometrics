@@ -20,6 +20,7 @@ import { FenceBody } from "./FenceMesh";
 import PART_PICTURES from "./partPictures.json";
 // Prefabs' pictures draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
+import type { TGround } from "#/scene/schema";
 
 /**
  * Pictures of every part, rendered in the browser from the parts themselves:
@@ -275,6 +276,7 @@ const FenceShot = ({
 					fence={fenceForPicture(style)}
 					palette={palette}
 					areas={NO_AREAS}
+					grounds={NO_GROUNDS}
 					data={NO_DATA}
 					selected={false}
 				/>
@@ -284,6 +286,8 @@ const FenceShot = ({
 };
 
 const NO_AREAS: never[] = [];
+/** Pieces and pictures stand on no ground of their own: the base level (ADR-0155). */
+const NO_GROUNDS: readonly TGround[] = [];
 const NO_DATA: never[] = [];
 
 /** The key a fence style's picture is kept under, next to the parts' kinds. */

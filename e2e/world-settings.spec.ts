@@ -7,6 +7,7 @@ import {
 	dataWindow,
 	entity,
 	expect,
+	gizmoSpot,
 	labelCard,
 	loadWorld,
 	menuItem,
@@ -36,7 +37,7 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 		await worldTab(page, "World");
 		await box(page, "Width").fill("80");
 		await box(page, "Width").press("Enter");
-		expect(await read(page, (s) => s.scene.ground.width)).toBe(80);
+		expect(await read(page, (s) => s.scene.grounds[0].width)).toBe(80);
 		await choose(page, "Theme", "Dark");
 		expect(await read(page, (s) => s.scene.theme)).toBe("dark");
 	});
@@ -51,26 +52,26 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 });
 
 test.describe("the ground's shape (ADR-0155)", () => {
-	test("a shape in one click, and Shape the ground's handles resize and reshape it", async ({
+	test("a shape in one click, and Move and shape it's handles resize and reshape it", async ({
 		page,
 	}) => {
 		await loadWorld(page, { entities: [{ id: "house", kind: "house_01", position: [0, 0] }] });
 		await act(page, (s) =>
 			s.commit((scene) => {
-				scene.ground.width = 40;
-				scene.ground.depth = 30;
+				scene.grounds[0].width = 40;
+				scene.grounds[0].depth = 30;
 			}),
 		);
 		await showView(page, [0, 0], 75);
 		await worldTab(page, "World");
 		await page.getByRole("button", { name: "Circle", exact: true }).click();
-		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(32);
+		expect(await read(page, (s) => s.scene.grounds[0].points?.length)).toBe(32);
 		await page.getByRole("button", { name: "Rectangle", exact: true }).click();
-		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+		expect(await read(page, (s) => s.scene.grounds[0].points)).toBeNull();
 
 		// The rectangle's side handle resizes it, staying centred; the view stays put under the pointer.
-		await page.getByRole("button", { name: "Shape the ground", exact: true }).click();
-		await expect(page.getByText("Shaping the ground")).toBeVisible();
+		await page.getByRole("button", { name: "Move and shape it", exact: true }).click();
+		await expect(page.getByText("Moving and shaping Ground")).toBeVisible();
 		const drag = async (from: [number, number], to: [number, number]) => {
 			const start = await screenOf(page, [from[0], 0.12, from[1]]);
 			const end = await screenOf(page, [to[0], 0.12, to[1]]);
@@ -98,19 +99,19 @@ test.describe("the ground's shape (ADR-0155)", () => {
 		);
 		await page.mouse.up();
 		// Measured from where the drag really started (past the drag threshold), as an object's sides.
-		const resized = await read(page, (s) => s.scene.ground);
+		const resized = await read(page, (s) => s.scene.grounds[0]);
 		expect(resized.width).toBeGreaterThanOrEqual(48);
 		expect(resized.points).toBeNull();
 		// The rest from a known size, so the corner's place is exact.
 		await act(page, (s) =>
 			s.commit((scene) => {
-				scene.ground.width = 52;
+				scene.grounds[0].width = 52;
 			}),
 		);
 
 		// A corner dragged out makes it a shape, its size growing round it.
 		await drag([-26, -15], [-30, -22]);
-		expect(await read(page, (s) => s.scene.ground)).toMatchObject({
+		expect(await read(page, (s) => s.scene.grounds[0])).toMatchObject({
 			points: [
 				[-30, -22],
 				[26, -15],
@@ -123,15 +124,59 @@ test.describe("the ground's shape (ADR-0155)", () => {
 
 		// The dragged corner is selected: Delete takes it out (back to four corners: Ctrl+Z puts it back).
 		await page.keyboard.press("Delete");
-		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(3);
+		expect(await read(page, (s) => s.scene.grounds[0].points?.length)).toBe(3);
 		await page.keyboard.press("Control+z");
-		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(4);
+		expect(await read(page, (s) => s.scene.grounds[0].points?.length)).toBe(4);
 
 		// Undone like any change; with no corner selected, Esc ends shaping.
 		await page.keyboard.press("Control+z");
-		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+		expect(await read(page, (s) => s.scene.grounds[0].points)).toBeNull();
 		await page.keyboard.press("Escape");
-		await expect(page.getByText("Shaping the ground")).toBeHidden();
+		await expect(page.getByText("Moving and shaping Ground")).toBeHidden();
+	});
+});
+
+test.describe("several grounds (ADR-0155)", () => {
+	test("Add a ground puts one beside the others; its move gizmo carries what stands on it", async ({
+		page,
+	}) => {
+		await loadWorld(page, { entities: [] });
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.grounds[0].width = 40;
+				scene.grounds[0].depth = 30;
+			}),
+		);
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Add a ground", exact: true }).click();
+		const added = await read(page, (s) => s.scene.grounds[1]);
+		expect(added.position).toEqual([41, 0]);
+		// Picked, listed, and its handles out in the view.
+		await expect(page.getByText("Moving and shaping Ground 2")).toBeVisible();
+		await expect(page.getByRole("button", { name: "Ground 2", exact: true })).toBeVisible();
+
+		// A house on the new ground, then the ground dragged by its gizmo's square.
+		await act(page, (s) => {
+			s.addEntity({ id: "house", kind: "house_01", name: "", position: [41, 0], altitude: 0 });
+		});
+		// Adding it selected it, which ends editing the ground: back to it, Ground 2 still picked.
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Move and shape it", exact: true }).click();
+		await expect(page.getByText("Moving and shaping Ground 2")).toBeVisible();
+		await showView(page, [41, 0], 40);
+		const from = await gizmoSpot(page, [41, 0, 0], [0.35, 0, 0.35], 40);
+		const to = await screenOf(page, [47, 0, 4]);
+		const start = await screenOf(page, [41, 0, 0]);
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(from.x + (to.x - start.x), from.y + (to.y - start.y), { steps: 10 });
+		await page.mouse.up();
+		const moved = await read(page, (s) => ({
+			ground: s.scene.grounds[1].position,
+			house: s.scene.entities.find((e) => e.id === "house")?.position,
+		}));
+		expect(moved.ground).not.toEqual([41, 0]);
+		expect(moved.house).toEqual(moved.ground);
 	});
 });
 
@@ -140,8 +185,8 @@ test.describe("on a shaped ground (ADR-0155)", () => {
 		await loadWorld(page, { entities: [] });
 		await act(page, (s) =>
 			s.commit((scene) => {
-				scene.ground.width = 40;
-				scene.ground.depth = 40;
+				scene.grounds[0].width = 40;
+				scene.grounds[0].depth = 40;
 			}),
 		);
 		await showView(page, [0, 0], 75);
@@ -354,7 +399,7 @@ test.describe("textured surfaces (ADR-0137)", () => {
 
 		await worldTab(page, "World");
 		await choose(page, "Texture", "Gravel");
-		expect(await read(page, (s) => s.scene.ground.surface.kind)).toBe("gravel_01");
+		expect(await read(page, (s) => s.scene.grounds[0].surface.kind)).toBe("gravel_01");
 
 		await saved(page);
 		await page.reload();
@@ -362,7 +407,7 @@ test.describe("textured surfaces (ADR-0137)", () => {
 		expect(
 			await read(page, (s) => [
 				s.scene.surface.enabled,
-				s.scene.ground.surface.kind,
+				s.scene.grounds[0].surface.kind,
 				s.scene.areas[0].surface.kind,
 			]),
 		).toEqual([true, "gravel_01", "cobbles_01"]);

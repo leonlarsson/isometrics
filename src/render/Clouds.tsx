@@ -5,6 +5,7 @@ import type * as THREE from "three";
 import { useSceneHours } from "#/editor/dayClock";
 import { useEditor } from "#/editor/store";
 import { cloudAltitudeOf, useSkyWeather } from "#/editor/weather";
+import { worldExtentOf } from "#/scene/grounds";
 import { skyLookAt } from "#/scene/sky";
 
 import { SEE_THROUGH_ORDER } from "./AreaWeather";
@@ -65,7 +66,7 @@ export const Clouds = () => {
 	const perspective = useEditor((s) => s.projection === "perspective");
 	const sky = useEditor((s) => s.scene.sky);
 	const lighting = useEditor((s) => s.scene.lighting);
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const playing = useEditor((s) => s.playing);
 	const hour = useSceneHours();
 	const ring = useRef<THREE.Group>(null);

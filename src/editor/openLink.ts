@@ -56,7 +56,7 @@ export const worldShowingPrefab = (prefab: TPrefab): TScene => {
 	return SceneSchema.parse({
 		version: SCENE_VERSION,
 		meta: { title: prefabName(prefab), subtitle: "A prefab shared by link" },
-		ground: { width: side(footprint[0]), depth: side(footprint[1]) },
+		grounds: [{ id: "ground", width: side(footprint[0]), depth: side(footprint[1]) }],
 		prefabs: [prefab],
 		entities: [{ id: "shared_prefab", kind: prefab.id }],
 	});

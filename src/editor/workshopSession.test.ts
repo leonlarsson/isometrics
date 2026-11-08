@@ -7,7 +7,7 @@ import { memoryStorage } from "./testStorage";
 const world = () =>
 	SceneSchema.parse({
 		version: 1,
-		ground: { width: 40, depth: 40 },
+		grounds: [{ id: "ground", width: 40, depth: 40 }],
 		entities: [{ id: "keep", kind: "house_01", position: [8, 8] }],
 	});
 

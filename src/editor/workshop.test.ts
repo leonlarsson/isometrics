@@ -31,7 +31,7 @@ const world = () =>
 	SceneSchema.parse({
 		version: 1,
 		meta: { title: "Farm" },
-		ground: { width: 60, depth: 60 },
+		grounds: [{ id: "ground", width: 60, depth: 60 }],
 		lighting: { time: 19 },
 		data: { values: [{ key: "hay", value: 3 }] },
 		viewpoints: [{ id: "v" }],
@@ -57,7 +57,7 @@ describe("the Workshop's world (ADR-0134)", () => {
 	it("has the theme and data of the world it's for, a studio's light, a ground sized to the pieces, and nothing else", () => {
 		const from = world();
 		const workshop = workshopWorldOf(from, { entities: [], fences: [] });
-		expect(workshop.ground).toMatchObject({ width: 16, depth: 16 });
+		expect(workshop.grounds[0]).toMatchObject({ width: 16, depth: 16 });
 		// A plain daylight of its own, whatever the hour in the world; the world's theme.
 		expect(workshop.lighting.time).toBeNull();
 		expect(workshop.theme).toBe(from.theme);
@@ -73,8 +73,8 @@ describe("the Workshop's world (ADR-0134)", () => {
 			],
 			fences: [],
 		});
-		expect(big.ground.width).toBe(38);
-		expect(big.ground.depth).toBe(16);
+		expect(big.grounds[0].width).toBe(38);
+		expect(big.grounds[0].depth).toBe(16);
 	});
 
 	it("keeps a design round its middle, its lowest piece at altitude 0", () => {

@@ -1,7 +1,8 @@
 import { round } from "#/lib/math";
 
 import { areaTopAt, cornerTop, isRaised, type TAreaShape } from "./areas";
-import type { TArea, TVec2 } from "./schema";
+import { areaBaseOf } from "./grounds";
+import type { TArea, TVec2, TGround as TWorldGround } from "./schema";
 
 /**
  * What things stand on (ADR-0098, ADR-0138): the base ground, raised land and
@@ -30,13 +31,16 @@ export const isOver = (top: ITop, x: number, z: number) =>
 /** What the ground is made of: the areas, as far as their heights go. */
 type TGround = TAreaShape & Pick<TArea, "isHidden">;
 
-const areaTops = new WeakMap<TGround, ITop | null>();
+const areaTops = new WeakMap<TGround, { base: number; top: ITop | null }>();
 
-/** An area's top as something to stand on, or null when it isn't raised (or is hidden). */
-const areaTopOf = (area: TGround): ITop | null => {
+/**
+ * An area's top as something to stand on, or null when it isn't raised (or is
+ * hidden), standing on `base` (the top of the ground under it, ADR-0155).
+ */
+const areaTopOf = (area: TGround, base: number): ITop | null => {
 	const known = areaTops.get(area);
-	if (known !== undefined) {
-		return known;
+	if (known !== undefined && known.base === base) {
+		return known.top;
 	}
 	let top: ITop | null = null;
 	if (!area.isHidden && isRaised(area)) {
@@ -49,17 +53,25 @@ const areaTopOf = (area: TGround): ITop | null => {
 			maxX: Math.max(...xs),
 			minZ: Math.min(...zs),
 			maxZ: Math.max(...zs),
-			highestAltitude: Math.max(0, ...corners.map((point) => cornerTop(area, point))),
-			altitudeAt: (x, z) => areaTopAt(area, [x, z]),
+			highestAltitude: base + Math.max(0, ...corners.map((point) => cornerTop(area, point))),
+			altitudeAt: (x, z) => {
+				const at = areaTopAt(area, [x, z]);
+				return at === null ? null : base + at;
+			},
 		};
 	}
-	areaTops.set(area, top);
+	areaTops.set(area, { base, top });
 	return top;
 };
 
-/** The tops of the raised areas among these (each worked out once per area as it is). */
-export const areaTopsOf = (areas: readonly TGround[]): ITop[] =>
-	areas.flatMap((area) => areaTopOf(area) ?? []);
+/**
+ * The tops of the raised areas among these (each worked out once per area as
+ * it is), each on the ground under its middle among `grounds` (ADR-0155).
+ */
+export const areaTopsOf = (
+	areas: readonly TGround[],
+	grounds: readonly TWorldGround[] = [],
+): ITop[] => areas.flatMap((area) => areaTopOf(area, areaBaseOf(area, grounds)) ?? []);
 
 /**
  * How far an object's top may be above a thing's base and still be what it

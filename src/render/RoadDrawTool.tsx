@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt, worldExtentOf } from "#/scene/grounds";
 import { roadAnchorAt, type TRoadAnchor } from "#/scene/junctions";
 import type { TVec2 } from "#/scene/schema";
 
@@ -31,8 +31,9 @@ const toV3 = (p: readonly number[]): [number, number, number] => [
  */
 export const RoadDrawTool = () => {
 	const drawing = useEditor((s) => s.drawing);
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const areas = useEditor((s) => s.scene.areas);
+	const grounds = useEditor((s) => s.scene.grounds);
 	const roads = useEditor((s) => s.scene.roads);
 	const palette = usePalette();
 	const canvas = useThree((s) => s.gl.domElement);
@@ -58,15 +59,20 @@ export const RoadDrawTool = () => {
 	const isFence = drawing.target === "fence";
 	// A new road (not one being continued) connects where it starts and ends on another road.
 	const connects = drawing.target === "road" && !drawing.roadId;
+	// Roads and fences are kept on a ground; an area, which draws its own ground, within the world.
 	const pointAt = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
-		isFence ? surfacePointFrom(e, drawHeight) : groundPointFrom(e, drawHeight);
+		isFence
+			? surfacePointFrom(e, drawHeight)
+			: groundPointFrom(e, drawHeight, drawing.target === "area" ? "world" : "land");
 	const anchorAt = (e: ThreeEvent<PointerEvent | MouseEvent>, point: TVec2 | null) =>
 		connects && point && !e.nativeEvent.altKey
 			? roadAnchorAt(roads, point, { endReach: CLOSE_DISTANCE, onRoad: true })
 			: null;
 	// A fence's points stand on the ground (ADR-0103): picked and drawn on the ground under them.
 	const at = (p: readonly number[]) =>
-		isFence ? toV3([p[0], p[1], groundHeightAt(areas, [p[0], p[1]]) + (p[2] ?? 0)]) : toV3(p);
+		isFence
+			? toV3([p[0], p[1], groundHeightAt({ areas, grounds }, [p[0], p[1]]) + (p[2] ?? 0)])
+			: toV3(p);
 	const cursorPoint: readonly number[] | null = cursor ? [cursor[0], cursor[1], drawHeight] : null;
 	const nearFirst =
 		cursor !== null &&

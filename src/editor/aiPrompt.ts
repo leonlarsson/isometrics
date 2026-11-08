@@ -41,7 +41,7 @@ export interface IAiPromptInput {
 export const EXAMPLE_WORLD = {
 	version: 1,
 	meta: { title: "Shops", subtitle: "Sales this month" },
-	ground: { width: 48, depth: 36 },
+	grounds: [{ id: "ground", width: 48, depth: 36 }],
 	camera: { openingViewpointId: "view_all" },
 	viewpoints: [{ id: "view_all", name: "All the shops", target: [0, 0], span: 40 }],
 	onScreen: {

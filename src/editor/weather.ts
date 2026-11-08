@@ -1,6 +1,7 @@
 import { readScale } from "#/parts/dataBinding";
 import { valuesOfArea } from "#/scene/areas";
-import type { TArea, TReadableValues, TWeather, TWorldData } from "#/scene/schema";
+import { areaBaseOf } from "#/scene/grounds";
+import type { TArea, TGround, TReadableValues, TWeather, TWorldData } from "#/scene/schema";
 import type { ISkyWeather } from "#/scene/sky";
 import type { TWeatherMapAmount } from "#/scene/weatherMap";
 
@@ -124,10 +125,12 @@ export const MOST_CLOUD_ALTITUDE = 80;
  */
 export const cloudAltitudeOf = (
 	now: Pick<IWeatherNow, "cloudAltitude">,
-	over: { reach: number } | { area: Pick<TArea, "height"> },
+	over: { reach: number } | { area: Pick<TArea, "height">; base?: number },
 ) =>
 	now.cloudAltitude ??
-	("area" in over ? over.area.height + AREA_CLOUDS_ABOVE : 30 + over.reach * 0.15);
+	("area" in over
+		? (over.base ?? 0) + over.area.height + AREA_CLOUDS_ABOVE
+		: 30 + over.reach * 0.15);
 
 /** The world's weather in effect now, from the store, for code that runs each frame. */
 export const weatherNowInWorld = () => {
@@ -155,14 +158,21 @@ export const useSkyWeather = (): ISkyWeather => {
 export interface IAreaWeatherNow {
 	area: TArea;
 	now: IWeatherNow;
+	/** Where it stands: the top of the ground under it (ADR-0155); its clouds float that much higher. */
+	base: number;
 }
 
 const NO_AREA_WEATHERS: readonly IAreaWeatherNow[] = [];
+const NO_GROUNDS: readonly TGround[] = [];
 
 /** Kept per list of areas and data, so selectors and frames reuse it until either changes. */
 const areaWeathersKept = new WeakMap<
 	readonly TArea[],
-	{ data: TWorldData | undefined; weathers: readonly IAreaWeatherNow[] }
+	{
+		data: TWorldData | undefined;
+		grounds: readonly TGround[];
+		weathers: readonly IAreaWeatherNow[];
+	}
 >();
 
 /**
@@ -173,9 +183,10 @@ const areaWeathersKept = new WeakMap<
 export const areaWeathersNow = (
 	areas: readonly TArea[],
 	data?: TWorldData,
+	grounds: readonly TGround[] = NO_GROUNDS,
 ): readonly IAreaWeatherNow[] => {
 	const kept = areaWeathersKept.get(areas);
-	if (kept && kept.data === data) {
+	if (kept && kept.data === data && kept.grounds === grounds) {
 		return kept.weathers;
 	}
 	const weathers: IAreaWeatherNow[] = [];
@@ -184,22 +195,28 @@ export const areaWeathersNow = (
 			weathers.push({
 				area,
 				now: weatherNow(area.weather, data ? valuesOfArea(area, data) : undefined),
+				base: areaBaseOf(area, grounds),
 			});
 		}
 	}
 	const list = weathers.length > 0 ? weathers : NO_AREA_WEATHERS;
-	areaWeathersKept.set(areas, { data, weathers: list });
+	areaWeathersKept.set(areas, { data, grounds, weathers: list });
 	return list;
 };
 
 /** The areas' own weathers now, from the store, for code that runs each frame. */
 export const areaWeathersInWorld = () =>
-	areaWeathersNow(useEditor.getState().scene.areas, worldDataNow());
+	areaWeathersNow(
+		useEditor.getState().scene.areas,
+		worldDataNow(),
+		useEditor.getState().scene.grounds,
+	);
 
 /** What an area's weather puts on the weather map (scene/weatherMap): its amounts, each 0–1. */
 export const weatherMapAmountsOf = (
 	area: Pick<TArea, "height">,
 	now: IWeatherNow,
+	base = 0,
 ): Record<TWeatherMapAmount, number> => ({
 	rain: now.rain,
 	snow: now.snow,
@@ -209,7 +226,7 @@ export const weatherMapAmountsOf = (
 	haze: now.haze,
 	overcast: now.overcast,
 	splashes: now.showsSplashes ? now.rain : 0,
-	cloudAltitude: cloudAltitudeOf(now, { area }) / MOST_CLOUD_ALTITUDE,
+	cloudAltitude: cloudAltitudeOf(now, { area, base }) / MOST_CLOUD_ALTITUDE,
 });
 
 /** The most of an amount anywhere: the world's, or an area's own if more. */

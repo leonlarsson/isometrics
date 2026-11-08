@@ -1,6 +1,7 @@
 import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
+import { useShallow } from "zustand/react/shallow";
 
 import {
 	type IPointsStart,
@@ -20,10 +21,10 @@ import {
 import { usePalette } from "#/editor/useTheme";
 import { fenceHeightOf } from "#/fences/fenceModel";
 import { isClick, pastDragThreshold, setCursorHidden } from "#/lib/pointer";
-import { groundHeightAt } from "#/scene/areas";
 import { fenceStretches, gateDraggedTo, gateSpot } from "#/scene/fences";
+import { groundHeightAt, type TGroundWorld } from "#/scene/grounds";
 import { roadEnds, segmentMidpoints, type TRoadEnd } from "#/scene/roads";
-import type { TArea, TFence, TFenceGate, TFencePoint } from "#/scene/schema";
+import type { TFence, TFenceGate, TFencePoint } from "#/scene/schema";
 
 import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
@@ -63,8 +64,8 @@ const joinTargets = (fences: readonly TFence[], fence: TFence, end: TRoadEnd) =>
 	);
 
 /** Where a fence point stands: the ground there, plus its lift. */
-const standsAt = (areas: readonly TArea[], point: readonly number[]) =>
-	groundHeightAt(areas, [point[0], point[1]]) + (point[2] ?? 0);
+const standsAt = (ground: TGroundWorld, point: readonly number[]) =>
+	groundHeightAt(ground, [point[0], point[1]]) + (point[2] ?? 0);
 
 interface IFencePointHandleProps {
 	fence: TFence;
@@ -298,7 +299,7 @@ const FenceInsertHandle = ({ fenceId, index, point, y, visible }: IFenceInsertHa
 const gateHandleAt = (
 	fence: TFence,
 	gate: Pick<TFenceGate, "spanIndex" | "alongShare">,
-	areas: readonly TArea[],
+	ground: TGroundWorld,
 	top: number,
 ): [number, number, number] | null => {
 	const spot = gateSpot(fence, gate);
@@ -309,7 +310,7 @@ const gateHandleAt = (
 	}
 	const t = Math.min(1, Math.max(0, gate.alongShare));
 	const lift = (stretch[0][2] ?? 0) + ((stretch[1][2] ?? 0) - (stretch[0][2] ?? 0)) * t;
-	return [spot[0], groundHeightAt(areas, spot) + lift + top, spot[1]];
+	return [spot[0], groundHeightAt(ground, spot) + lift + top, spot[1]];
 };
 
 interface IFenceGateHandleProps {
@@ -430,7 +431,8 @@ export const FenceHandles = () => {
 	const fence = useEditor(selectSelectedFence);
 	// Its points are edited on their own, not while it's one of several selected things.
 	const several = useEditor(selectSeveral);
-	const areas = useEditor((s) => s.scene.areas);
+	// What its points stand on: the grounds and the areas on them (ADR-0155).
+	const ground = useEditor(useShallow((s) => ({ areas: s.scene.areas, grounds: s.scene.grounds })));
 	const selectedPoints = useEditor((s) => s.selectedPointIndices);
 	// A selection box being drawn over its points (ADR-0065): what letting go would select.
 	const boxDrag = useEditor((s) => s.boxDrag);
@@ -445,7 +447,7 @@ export const FenceHandles = () => {
 
 	const stretches = fenceStretches(fence);
 	const gates = fence.gates.flatMap((gate, index) => {
-		const at = gateHandleAt(fence, gate, areas, top);
+		const at = gateHandleAt(fence, gate, ground, top);
 		const stretch = stretches[Math.min(Math.max(0, gate.spanIndex), stretches.length - 1)];
 		if (!at || !stretch) {
 			return [];
@@ -479,7 +481,7 @@ export const FenceHandles = () => {
 						fenceId={fence.id}
 						index={index}
 						point={[point[0], point[1], point[2]]}
-						y={standsAt(areas, point) + top}
+						y={standsAt(ground, point) + top}
 						visible={!dragging}
 					/>
 				))}
@@ -491,7 +493,7 @@ export const FenceHandles = () => {
 					fence={fence}
 					index={index}
 					point={point}
-					y={standsAt(areas, point) + top}
+					y={standsAt(ground, point) + top}
 					selected={
 						selectedPoints.includes(index) && !(boxDrag?.removing && boxDrag.points.includes(index))
 					}

@@ -16,6 +16,7 @@ import { darknessSeenBy, hourSeenBy } from "#/parts/lightModel";
 import { entityAsDrawn, valuesOfEntity } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
 import { usesDataBindings } from "#/scene/dataBindings";
+import { worldExtentOf } from "#/scene/grounds";
 import { type IRoadNetwork, roadNetworkOf, standsOnOwnPillars } from "#/scene/junctions";
 import { drivesAcrossNetwork } from "#/scene/network";
 import { isPrefabKind, type TEntity, type TScene } from "#/scene/schema";
@@ -99,7 +100,7 @@ const LostDrawingWatch = () => {
 
 const Lights = () => {
 	const palette = usePalette();
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const lighting = useEditor((s) => s.scene.lighting);
 	const shadowMapSize = useGraphics().shadowMapSize;
 	// No shadows in wireframe, unless a still picture renders (ADR-0084).
@@ -347,7 +348,7 @@ const Entities = memo(() => {
 			mode: drawnModeOf(s),
 			unboxing: s.boxDrag?.removing ?? false,
 			playing: s.playing,
-			ground: s.scene.ground,
+			ground: worldExtentOf(s.scene.grounds),
 			driving: s.scene.traffic.drivingSide,
 			sceneTurns: s.scene.traffic.turnStyle,
 			sceneLeans: s.scene.traffic.leansInTurns,
@@ -470,7 +471,7 @@ export const Viewport = () => {
 	const weather = useEditor(
 		useShallow((s) => {
 			const now = weatherNow(s.scene.weather, data);
-			const areas = areaWeathersNow(s.scene.areas, worldData);
+			const areas = areaWeathersNow(s.scene.areas, worldData, s.scene.grounds);
 			const somewhere = (amount: (weather: typeof now) => number) =>
 				mostAnywhere(now, areas, amount) > 0;
 			return {

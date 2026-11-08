@@ -1,7 +1,8 @@
 import * as THREE from "three";
 
 import { toRadians, turnedHalfSize } from "#/lib/math";
-import type { TArea, TEntity, TVec2 } from "#/scene/schema";
+import { groundTopsOf } from "#/scene/grounds";
+import type { TArea, TEntity, TGround, TVec2 } from "#/scene/schema";
 import { altitudeMovedOn, areaTopsOf, type ITop, standingAltitudeOn } from "#/scene/standing";
 
 import { getPart, resolveProps } from "./registry";
@@ -17,6 +18,8 @@ import { getPart, resolveProps } from "./registry";
 export interface IStandingWorld {
 	areas: readonly TArea[];
 	entities: readonly TEntity[];
+	/** Its grounds (ADR-0155): one above the base level is a top too, and areas stand on them. */
+	grounds: readonly TGround[];
 }
 
 const objectTops = new WeakMap<TEntity, ITop | null>();
@@ -151,8 +154,9 @@ const objectTopsOf = (entities: readonly TEntity[]) => {
 };
 
 /**
- * Everything things stand on in a world: its raised land and the tops of its
- * objects, but those in `except` (what's moving: never what it stands on).
+ * Everything things stand on in a world: its grounds above the base level,
+ * its raised land and the tops of its objects, but those in `except` (what's
+ * moving: never what it stands on).
  */
 export const topsToStandOn = (
 	world: IStandingWorld,
@@ -165,8 +169,10 @@ export const topsToStandOn = (
 			: typeof except === "string"
 				? (top: ITop) => top.entityId === except
 				: (top: ITop) => top.entityId !== null && except.has(top.entityId);
+	const { grounds } = world;
 	return [
-		...areaTopsOf(world.areas),
+		...groundTopsOf(grounds),
+		...areaTopsOf(world.areas, grounds),
 		...(isLeftOut ? objects.filter((top) => !isLeftOut(top)) : objects),
 	];
 };

@@ -2,7 +2,7 @@ import { APP_NAME } from "#/lib/app";
 import { round, turnedHalfSize } from "#/lib/math";
 import { measurePrefab, prefabName, prefabPartOf, UNNAMED_PREFAB } from "#/parts/prefabParts";
 import { getBasePart, resolveProps } from "#/parts/registry";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/grounds";
 import {
 	EntitySchema,
 	isPrefabKind,
@@ -152,7 +152,15 @@ export const workshopWorldOf = (from: TScene, pieces: IPieces): TScene => {
 		// flattering daylight and backdrop of its own, as a studio's (lighting, sky, weather and
 		// backdrop left at their defaults), whatever the hour or weather in the world.
 		theme: from.theme,
-		ground: { width: side(footprint[0]), depth: side(footprint[1]), colors: from.ground.colors },
+		// The world's first ground's colour, at the prefab's size (ADR-0155).
+		grounds: [
+			{
+				id: "ground",
+				width: side(footprint[0]),
+				depth: side(footprint[1]),
+				colors: from.grounds[0]?.colors ?? {},
+			},
+		],
 		traffic: from.traffic,
 		water: from.water,
 		data: from.data,
@@ -368,7 +376,7 @@ export const saveWorkshop = (): TPrefab | null => {
 					kind: design.id,
 					position,
 					// Where the selection stood, else on the ground where it's put (ADR-0098).
-					altitude: replaces?.altitude ?? groundHeightAt(from.scene.areas, position),
+					altitude: replaces?.altitude ?? groundHeightAt(from.scene, position),
 				})
 			: null;
 	const replaced = new Set((replaces?.items ?? []).map((item) => `${item.kind}:${item.id}`));

@@ -168,7 +168,7 @@ test.describe("phones (ADR-0030, ADR-0046)", () => {
 	}) => {
 		await openEditor(page);
 		// The starter, Brightwater, is twice as wide as it's deep: seen from nearer along its width.
-		const { width, depth } = await read(page, (s) => s.scene.ground);
+		const { width, depth } = await read(page, (s) => s.scene.grounds[0]);
 		const corners = await Promise.all(
 			[
 				[-width / 2, -depth / 2],

@@ -1173,7 +1173,7 @@ export const createBrightwaterScene = (): TScene => {
 			subtitle: "City operations at a glance",
 		},
 		theme: "system",
-		ground: { width: 100, depth: 48 },
+		grounds: [{ id: "ground", width: 100, depth: 48 }],
 		traffic: { drivingSide: "right" },
 		// Deeper shade than the theme's own balance (ADR-0072).
 		lighting: { sunShadeContrast: 0.75 },

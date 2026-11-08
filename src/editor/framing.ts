@@ -2,6 +2,7 @@ import { fenceHeightOf, layoutOfFence } from "#/fences/fenceModel";
 import { FENCE_STYLE_LABELS } from "#/fences/registry";
 import { getPart, partNameOf, resolveProps } from "#/parts/registry";
 import { AREA_KIND_LABELS, cornerTop } from "#/scene/areas";
+import { areaBaseOf } from "#/scene/grounds";
 import { ROAD_KIND_LABELS, roadCenterlineOf } from "#/scene/roads";
 import type { TArea, TEntity, TFence, TRoad, TScene, TVec3 } from "#/scene/schema";
 
@@ -62,7 +63,11 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 		const area = scene.areas.find((a) => a.id === item.id);
 		return area
 			? boxAround(
-					area.points.map((point) => [point[0], point[1], cornerTop(area, point)]),
+					area.points.map((point) => [
+						point[0],
+						point[1],
+						areaBaseOf(area, scene.grounds) + cornerTop(area, point),
+					]),
 					0.5,
 				)
 			: null;
@@ -72,7 +77,7 @@ export const boundsOf = (scene: TScene, item: ISceneItem): IFrameBox | null => {
 		if (!fence) {
 			return null;
 		}
-		const posts = layoutOfFence({ ...fence, builtShare: 1, data: {} }, scene.areas, []).posts;
+		const posts = layoutOfFence({ ...fence, builtShare: 1, data: {} }, scene, []).posts;
 		return boxAround(
 			posts.map((post) => [post.x, post.z, Math.max(post.baseBefore, post.baseAfter)]),
 			fenceHeightOf(fence),

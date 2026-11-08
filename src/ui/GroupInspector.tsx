@@ -191,13 +191,14 @@ const GroupObjectTab = ({ members, total }: { members: readonly IMember[]; total
 	const edit = (field: string, recipe: (entity: Draft<TEntity>) => void) =>
 		writeAll((id, options) => useEditor.getState().updateEntity(id, recipe, options), field);
 	const areas = useEditor((s) => s.scene.areas);
+	const grounds = useEditor((s) => s.scene.grounds);
 	const others = useEditor((s) => s.scene.entities);
 	/**
 	 * Where an object stands on what's under it, the ground or a shape, its altitude's default
 	 * (ADR-0098, ADR-0138).
 	 */
 	const onWhatsUnder = (entity: Pick<TEntity, "id" | "position" | "altitude">) =>
-		standingAltitudeAt({ areas, entities: others }, entity.position, {
+		standingAltitudeAt({ areas, entities: others, grounds }, entity.position, {
 			except: entity.id,
 			base: entity.altitude,
 		});

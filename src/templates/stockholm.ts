@@ -1,5 +1,6 @@
 import { round } from "#/lib/math";
-import { groundHeightAt, isInsidePolygon } from "#/scene/areas";
+import { isInsidePolygon } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/grounds";
 import { roadSurfacesOf } from "#/scene/roadSurface";
 import {
 	AreaSchema,
@@ -305,7 +306,8 @@ const SODERMALM_AREA: TAreaInput = {
 
 /** How high Södermalm's ground stands at a point (0 off it), for what stands on its heights. */
 const SODER = AreaSchema.parse(SODERMALM_AREA);
-const onSoder = (x: number, z: number) => round(groundHeightAt([SODER], [x, z]), 2);
+const onSoder = (x: number, z: number) =>
+	round(groundHeightAt({ areas: [SODER], grounds: [] }, [x, z]), 2);
 
 /** Katarinahissen: its tower by Stadsgårdsleden, its footbridge out level to the heights. */
 const KATARINAHISSEN_AT: TVec2 = [21, 47.3];
@@ -2791,12 +2793,15 @@ export const createStockholmScene = (): TScene =>
 		// The city's streets and squares paved, its islands' lanes cobbled (ADR-0137).
 		// At this map's scale (12.5 m to a unit) the patterns are drawn at half their size.
 		surface: { enabled: true, patternScale: 0.5 },
-		ground: {
-			width: GROUND[0],
-			depth: GROUND[1],
-			colors: { surface: { color: "#b3aa98" } },
-			surface: { kind: "paving_01" },
-		},
+		grounds: [
+			{
+				id: "ground",
+				width: GROUND[0],
+				depth: GROUND[1],
+				colors: { surface: { color: "#b3aa98" } },
+				surface: { kind: "paving_01" },
+			},
+		],
 		traffic: { drivingSide: "right" },
 		lighting: EVENING_PASSES,
 		sky: SKY,

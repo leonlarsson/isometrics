@@ -29,7 +29,7 @@ describe("surfaces (ADR-0137)", () => {
 	});
 
 	it("give the ground its own kind, plain by default", () => {
-		expect(groundSurfaceOf(SceneSchema.parse({ version: 1 }).ground, on)).toBeNull();
+		expect(groundSurfaceOf(SceneSchema.parse({ version: 1 }).grounds[0], on)).toBeNull();
 		expect(groundSurfaceOf({ surface: { kind: "snow_01" } }, on)).toEqual({
 			kind: "snow_01",
 			patternStrength: 0.5,

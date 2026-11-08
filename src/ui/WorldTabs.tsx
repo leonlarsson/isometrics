@@ -1,9 +1,4 @@
-import { resizeGround } from "#/editor/groundShaping";
 import { useEditor } from "#/editor/store";
-import { useThemePalette } from "#/editor/useTheme";
-import { useWorldData } from "#/editor/worldData";
-import { GROUND } from "#/scene/ground";
-import { changeColorSetting } from "#/scene/objectSettings";
 import { TURN_STYLE_LABELS, TURN_STYLE_OPTIONS } from "#/scene/roads";
 import {
 	OnScreenSchema,
@@ -15,20 +10,9 @@ import {
 	type TTurnStyle,
 } from "#/scene/schema";
 
-import { Button, ButtonGroup } from "./Button";
-import {
-	Hint,
-	resetToDefault,
-	Section,
-	SelectField,
-	SliderField,
-	SwitchField,
-	TextField,
-} from "./fields";
-import { GroundShapeFields } from "./GroundShapeFields";
+import { Hint, resetToDefault, Section, SelectField, SwitchField, TextField } from "./fields";
+import { GroundsSection } from "./GroundsSection";
 import { LegendSection } from "./LegendSection";
-import { ColorSettingFields } from "./PartSettings";
-import { GroundSurfaceFields } from "./SurfaceSettings";
 import { UsesDataSwitch } from "./UsesDataSwitch";
 
 /** Each On screen switch as a new world has it, for Default / Reset. */
@@ -119,8 +103,6 @@ export const WorldTab = () => {
 	const scene = useEditor((s) => s.scene);
 	const commit = useEditor((s) => s.commit);
 	const resetView = useEditor((s) => s.resetView);
-	const palette = useThemePalette();
-	const data = useWorldData().values;
 	const usesData = useEditor((s) => s.scene.data.enabled);
 
 	return (
@@ -198,64 +180,7 @@ export const WorldTab = () => {
 				<UsesDataSwitch />
 			</Section>
 
-			<Section
-				id="world.ground"
-				icon="layers"
-				title="Ground"
-				keywords="size floor base shape outline circle round rounded corners island surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
-			>
-				<SliderField
-					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
-						resizeGround(WORLD_DEFAULTS.ground.width, scene.ground.depth),
-					)}
-					label="Width"
-					value={scene.ground.width}
-					min={8}
-					max={500}
-					step={1}
-					onChange={(v) => resizeGround(v, scene.ground.depth, { coalesce: "ground.width" })}
-				/>
-
-				<SliderField
-					inherit={resetToDefault(scene.ground.depth, WORLD_DEFAULTS.ground.depth, () =>
-						resizeGround(scene.ground.width, WORLD_DEFAULTS.ground.depth),
-					)}
-					label="Depth"
-					value={scene.ground.depth}
-					min={8}
-					max={500}
-					step={1}
-					onChange={(v) => resizeGround(scene.ground.width, v, { coalesce: "ground.depth" })}
-					hint={
-						scene.ground.points ? "Its shape stretches to fill the width and depth." : undefined
-					}
-				/>
-
-				<GroundShapeFields />
-
-				<ColorSettingFields
-					spec={GROUND.colors[0]}
-					setting={scene.ground.colors.surface}
-					data={data}
-					palette={palette}
-					onChange={(change, field) =>
-						commit(
-							(s) => {
-								changeColorSetting(s.ground.colors, "surface", change);
-							},
-							field ? { coalesce: `ground.color.${field}` } : undefined,
-						)
-					}
-				/>
-
-				<GroundSurfaceFields />
-
-				<ButtonGroup>
-					<Button size="sm" icon="focus" onClick={resetView}>
-						Re-centre camera
-					</Button>
-				</ButtonGroup>
-			</Section>
+			<GroundsSection onRecentre={resetView} />
 
 			<OnScreenSection />
 

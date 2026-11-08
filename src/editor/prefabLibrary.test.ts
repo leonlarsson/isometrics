@@ -80,7 +80,9 @@ describe("My prefabs (ADR-0134)", () => {
 			const { library, store } = await freshModules();
 			store
 				.getState()
-				.loadScene(SceneSchema.parse({ version: 1, ground: { width: 40, depth: 40 } }));
+				.loadScene(
+					SceneSchema.parse({ version: 1, grounds: [{ id: "ground", width: 40, depth: 40 }] }),
+				);
 			const id = library.placeFromLibrary(design("prefab_a"), [0, 0]);
 			const { scene, past, selectedId } = store.getState();
 			expect(scene.prefabs.map((prefab) => prefab.id)).toEqual(["prefab_a"]);

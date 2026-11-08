@@ -3,6 +3,7 @@ import { useState } from "react";
 import { resetPreferences } from "#/editor/preferences";
 import { useEditor } from "#/editor/store";
 import { farthestSpanOf } from "#/render/cameraMath";
+import { worldExtentOf } from "#/scene/grounds";
 import {
 	CameraSettingsSchema,
 	type TCameraSettings,
@@ -39,7 +40,7 @@ const CAMERA_DEFAULTS = CameraSettingsSchema.parse({});
  */
 export const CameraTab = () => {
 	const camera = useEditor((s) => s.scene.camera);
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const viewpoints = useEditor((s) => s.scene.viewpoints);
 	const commit = useEditor((s) => s.commit);
 	const setTab = useEditor((s) => s.setTab);

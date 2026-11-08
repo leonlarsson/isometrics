@@ -388,9 +388,16 @@ const upgradeSettings = (world: TRecord) => {
 	renameFields(world.onScreen, RENAMED_ON_SCREEN_FIELDS);
 	upgradeLook(world);
 	upgradeCamera(world.camera);
+	// One ground became a list of them (ADR-0155): the world's ground is its first, as it was.
 	if (isRecord(world.ground)) {
-		moveColor(world.ground, "color", "surface");
-		upgradeColors(world.ground.colors);
+		if (!Array.isArray(world.grounds)) {
+			world.grounds = [{ id: "ground", ...world.ground }];
+		}
+		delete world.ground;
+	}
+	for (const ground of recordsIn(world.grounds)) {
+		moveColor(ground, "color", "surface");
+		upgradeColors(ground.colors);
 	}
 };
 

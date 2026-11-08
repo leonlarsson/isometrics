@@ -1,8 +1,8 @@
 import { resolveColor, resolveTransparency } from "#/parts/colorModel";
 import { readScale, readSwitch } from "#/parts/dataBinding";
-import { groundHeightAt } from "#/scene/areas";
 import { fenceLayout } from "#/scene/fences";
-import type { TArea, TFence, TFenceGate, TReadableValues } from "#/scene/schema";
+import { groundHeightAt, type TGroundWorld } from "#/scene/grounds";
+import type { TFence, TFenceGate, TReadableValues } from "#/scene/schema";
 import type { IScenePalette } from "#/scene/theme";
 
 import { createFenceBuilder } from "./builder";
@@ -49,28 +49,28 @@ export const gateIsOpen = (
 	data: TReadableValues | undefined,
 ) => gate.kind === "gap" || (readSwitch(gate.data.isOpen, data) ?? gate.isOpen);
 
-/** Where its posts and spans are, on the ground (the areas) under it. */
+/** Where its posts and spans are, on the ground under it (its grounds and areas, ADR-0155). */
 export const layoutOfFence = (
 	fence: TFenceShape,
-	areas: readonly TArea[],
+	ground: TGroundWorld,
 	data: TReadableValues | undefined,
 ) =>
 	fenceLayout(
 		fence,
 		fenceSpacingOf(fence),
-		(point) => groundHeightAt(areas, point),
+		(point) => groundHeightAt(ground, point),
 		builtShareOf(fence, data),
 	);
 
 /** Its pieces, one geometry per colour id. */
 export const buildFence = (
 	fence: TFenceShape,
-	areas: readonly TArea[],
+	ground: TGroundWorld,
 	data: TReadableValues | undefined,
 ) => {
 	const style = FENCE_STYLES[fence.kind];
 	const builder = createFenceBuilder();
-	const layout = layoutOfFence(fence, areas, data);
+	const layout = layoutOfFence(fence, ground, data);
 	const height = fenceHeightOf(fence);
 	style.build({
 		layout,

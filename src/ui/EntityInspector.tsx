@@ -155,7 +155,8 @@ const ObjectTab = ({ entity, part }: { entity: TEntity; part: TAnyPart }) => {
 	// Worked out from the lists it depends on, not in a selector, which runs on every change.
 	const entities = useEditor((s) => s.scene.entities);
 	const areas = useEditor((s) => s.scene.areas);
-	const standsOn = standingAltitudeAt({ entities, areas }, entity.position, {
+	const grounds = useEditor((s) => s.scene.grounds);
+	const standsOn = standingAltitudeAt({ entities, areas, grounds }, entity.position, {
 		except: entity.id,
 		base: entity.altitude,
 	});

@@ -5,6 +5,7 @@ import { drawnModeOf, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { fenceHeightOf, layoutOfFence } from "#/fences/fenceModel";
 import { cornerTop } from "#/scene/areas";
+import { areaBaseOf, type TGroundWorld } from "#/scene/grounds";
 import { roadCenterlineOf } from "#/scene/roads";
 import type { TArea, TFence, TRoad } from "#/scene/schema";
 
@@ -56,8 +57,8 @@ const areaOutline = (area: TArea, baseY: number): TPoint[][] => {
 };
 
 /** A fence's outline: along its posts' tops, the whole of it (ADR-0103). */
-const fenceOutline = (fence: TFence, areas: readonly TArea[]): TPoint[][] => {
-	const { posts, spans } = layoutOfFence({ ...fence, builtShare: 1, data: {} }, areas, []);
+const fenceOutline = (fence: TFence, ground: TGroundWorld): TPoint[][] => {
+	const { posts, spans } = layoutOfFence({ ...fence, builtShare: 1, data: {} }, ground, []);
 	const top = fenceHeightOf(fence) + LIFT;
 	const line = posts.map(
 		(post): TPoint => [post.x, Math.max(post.baseBefore, post.baseAfter) + top, post.z],
@@ -78,6 +79,7 @@ export const HoverHighlight = () => {
 	const boxed = useEditor((s) => s.boxDrag?.items);
 	const roads = useEditor((s) => s.scene.roads);
 	const areas = useEditor((s) => s.scene.areas);
+	const grounds = useEditor((s) => s.scene.grounds);
 	const fences = useEditor((s) => s.scene.fences);
 	const mode = useEditor(drawnModeOf);
 	const palette = usePalette();
@@ -93,15 +95,17 @@ export const HoverHighlight = () => {
 			if (item.kind === "area") {
 				const layer = areas.findIndex((a) => a.id === item.id);
 				const area = areas[layer];
-				return area && !area.isHidden ? areaOutline(area, areaBaseY(layer)) : [];
+				return area && !area.isHidden
+					? areaOutline(area, areaBaseY(layer) + areaBaseOf(area, grounds))
+					: [];
 			}
 			if (item.kind === "fence") {
 				const fence = fences.find((f) => f.id === item.id);
-				return fence && !fence.isHidden ? fenceOutline(fence, areas) : [];
+				return fence && !fence.isHidden ? fenceOutline(fence, { areas, grounds }) : [];
 			}
 			return [];
 		});
-	}, [hovered, boxed, roads, areas, fences]);
+	}, [hovered, boxed, roads, areas, grounds, fences]);
 
 	if (mode !== "edit" || lines.length === 0) {
 		return null;

@@ -7,7 +7,8 @@ import { isItemSelected, useEditor } from "#/editor/store";
 import { fenceHeightOf } from "#/fences/fenceModel";
 import { isOverWorld } from "#/lib/pointer";
 import { getPart, resolveProps } from "#/parts/registry";
-import { cornerTop, groundHeightAt } from "#/scene/areas";
+import { cornerTop } from "#/scene/areas";
+import { areaBaseOf, groundHeightAt } from "#/scene/grounds";
 import type { TScene } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -71,7 +72,9 @@ const itemsInBox = (
 		if (
 			!area.isHidden &&
 			!area.isLocked &&
-			area.points.every((point) => inside(point[0], cornerTop(area, point), point[1]))
+			area.points.every((point) =>
+				inside(point[0], areaBaseOf(area, scene.grounds) + cornerTop(area, point), point[1]),
+			)
 		) {
 			items.push({ kind: "area", id: area.id });
 		}
@@ -80,7 +83,7 @@ const itemsInBox = (
 		if (
 			!fence.isHidden &&
 			!fence.isLocked &&
-			fence.points.every(([x, z, lift]) => inside(x, groundHeightAt(scene.areas, [x, z]) + lift, z))
+			fence.points.every(([x, z, lift]) => inside(x, groundHeightAt(scene, [x, z]) + lift, z))
 		) {
 			items.push({ kind: "fence", id: fence.id });
 		}
@@ -111,10 +114,14 @@ const pointsInBox = (
 			? // Where their handles are drawn: on the fence's top (render/FenceHandles).
 				fence.points.map(([x, z, lift]) => [
 					x,
-					groundHeightAt(scene.areas, [x, z]) + lift + fenceHeightOf(fence),
+					groundHeightAt(scene, [x, z]) + lift + fenceHeightOf(fence),
 					z,
 				])
-			: (area?.points.map((point) => [point[0], cornerTop(area, point), point[1]]) ?? []);
+			: (area?.points.map((point) => [
+					point[0],
+					areaBaseOf(area, scene.grounds) + cornerTop(area, point),
+					point[1],
+				]) ?? []);
 	return spots.flatMap(([x, y, z], index) => {
 		projected.set(x, y, z).project(camera);
 		const left = canvas.left + ((projected.x + 1) / 2) * canvas.width;

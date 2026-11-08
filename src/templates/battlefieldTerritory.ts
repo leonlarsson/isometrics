@@ -303,7 +303,7 @@ export const createBattlefieldTerritoryScene = (): TScene =>
 			subtitle: "Battlefield Stats, read 31 Oct 2026",
 		},
 		theme: "system",
-		ground: { width: 80, depth: 66 },
+		grounds: [{ id: "ground", width: 80, depth: 66 }],
 		lighting: { sunShadeContrast: 0.7 },
 		camera: { openingViewpointId: "view_all" },
 		viewpoints: [

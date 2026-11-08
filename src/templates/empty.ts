@@ -28,7 +28,8 @@ export const createEmptyScene = ({
 	SceneSchema.parse({
 		version: SCENE_VERSION,
 		meta: { title },
-		...(ground && { ground }),
+		// The size picked, for its one ground (ADR-0155).
+		...(ground && { grounds: [{ id: "ground", ...ground }] }),
 		...(theme && { theme }),
 		...(drivingSide && { traffic: { drivingSide } }),
 		...(!usesData && { data: { enabled: false } }),

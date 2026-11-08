@@ -55,7 +55,7 @@ describe("templates", () => {
 	// Nothing that stands may hang over the ground's edge, floating on nothing.
 	it.each(templates)("%s has no objects off the ground", (_, create) => {
 		const scene = create();
-		const half = [scene.ground.width / 2, scene.ground.depth / 2];
+		const half = [scene.grounds[0].width / 2, scene.grounds[0].depth / 2];
 		const off: string[] = [];
 		for (const entity of scene.entities) {
 			const part = getPart(entity.kind);

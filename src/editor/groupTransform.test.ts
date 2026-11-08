@@ -9,7 +9,7 @@ const load = () => {
 	useEditor.getState().loadScene(
 		SceneSchema.parse({
 			version: 1,
-			ground: { width: 20, depth: 20 },
+			grounds: [{ id: "ground", width: 20, depth: 20 }],
 			entities: [
 				{ id: "a", kind: "house_01", position: [-2, 0], rotation: [0, 0, 0], scale: 1 },
 				{ id: "b", kind: "house_01", position: [2, 0], rotation: [0, 90, 0], scale: 2 },
@@ -108,7 +108,7 @@ describe("moving several points (ADR-0065)", () => {
 		useEditor.getState().loadScene(
 			SceneSchema.parse({
 				version: 1,
-				ground: { width: 20, depth: 20 },
+				grounds: [{ id: "ground", width: 20, depth: 20 }],
 				roads: [
 					{
 						id: "r",
@@ -150,7 +150,7 @@ describe("area corners with their own heights (ADR-0096)", () => {
 		useEditor.getState().loadScene(
 			SceneSchema.parse({
 				version: 1,
-				ground: { width: 20, depth: 20 },
+				grounds: [{ id: "ground", width: 20, depth: 20 }],
 				areas: [
 					{
 						id: "hill",
@@ -193,7 +193,7 @@ describe("objects stand on the ground under them (ADR-0098)", () => {
 		useEditor.getState().loadScene(
 			SceneSchema.parse({
 				version: 1,
-				ground: { width: 40, depth: 40 },
+				grounds: [{ id: "ground", width: 40, depth: 40 }],
 				areas: [
 					{
 						id: "plateau",
@@ -264,7 +264,7 @@ describe("standing on shapes (ADR-0138)", () => {
 		useEditor.getState().loadScene(
 			SceneSchema.parse({
 				version: 1,
-				ground: { width: 20, depth: 20 },
+				grounds: [{ id: "ground", width: 20, depth: 20 }],
 				entities: [
 					{ id: "base", kind: "box_01", position: [4, 0], props: { width: 2, depth: 2 } },
 					{ id: "a", kind: "box_01", position: [0, 0] },

@@ -42,7 +42,7 @@ import { DrawingBar } from "./DrawingBar";
 import { FollowOfferBar } from "./FollowOfferBar";
 import { FreshStartOffer } from "./FreshStartOffer";
 import { GroundContextMenu } from "./GroundContextMenu";
-import { GroundShapingBar } from "./GroundShapingBar";
+import { GroundEditingBar } from "./GroundEditingBar";
 import { HomeScreen } from "./HomeScreen";
 import { Icon } from "./Icon";
 import { Inspector, RailShortcuts } from "./Inspector";
@@ -426,7 +426,7 @@ export const AppShell = () => {
 
 										{showsWorld && <WorkshopBar />}
 
-										{showsWorld && <GroundShapingBar />}
+										{showsWorld && <GroundEditingBar />}
 
 										<DrawingBar />
 

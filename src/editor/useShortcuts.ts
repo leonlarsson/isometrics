@@ -6,15 +6,16 @@ import {
 } from "@tanstack/react-hotkeys";
 
 import { clamp } from "#/lib/math";
+import { worldExtentOf } from "#/scene/grounds";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
 import {
+	editGround,
 	removeGroundCorners,
 	selectGroundCorner,
-	shapeGround,
-	useGroundShaping,
-} from "./groundShaping";
+	useGroundEditing,
+} from "./groundEditing";
 import { transformSelected, transformSelectedPoints } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
@@ -77,7 +78,7 @@ export const useShortcuts = () => {
 	const several = useEditor((s) => s.mode === "edit" && selectMovesAsGroup(s));
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
 	// Shaping the ground (ADR-0155): Delete takes out its selected corners.
-	const groundCornerSelected = useGroundShaping((s) => s.isOn && s.selected.length > 0);
+	const groundCornerSelected = useGroundEditing((s) => s.isOn && s.selected.length > 0);
 	const canDelete =
 		mode === "edit" && (objectSelected || roadOrAreaSelected || groundCornerSelected);
 	// Holding the right mouse button, W A S D and Q E move the camera instead (see below).
@@ -183,7 +184,7 @@ export const useShortcuts = () => {
 		const peak =
 			state.selectedPeakIndex === null ? undefined : peakArea?.peaks[state.selectedPeakIndex];
 		if (peakArea && peak && state.selectedPeakIndex !== null) {
-			const { width, depth } = state.scene.ground;
+			const { width, depth } = worldExtentOf(state.scene.grounds);
 			state.moveAreaPeak(
 				peakArea.id,
 				state.selectedPeakIndex,
@@ -204,7 +205,7 @@ export const useShortcuts = () => {
 			return;
 		}
 		// Kept on the ground, like a dragged point.
-		const { width, depth } = state.scene.ground;
+		const { width, depth } = worldExtentOf(state.scene.grounds);
 		const next: TVec2 = [
 			clamp(point[0] + dx * step, -width / 2, width / 2),
 			clamp(point[1] + dz * step, -depth / 2, depth / 2),
@@ -221,7 +222,7 @@ export const useShortcuts = () => {
 
 	/** Delete the selected point or peak if there is one, otherwise the selected object, road or area. */
 	const remove = () => {
-		const shaping = useGroundShaping.getState();
+		const shaping = useGroundEditing.getState();
 		if (shaping.isOn && shaping.selected.length > 0) {
 			removeGroundCorners(shaping.selected);
 			return;
@@ -323,12 +324,12 @@ export const useShortcuts = () => {
 					state.stopPlacing();
 				} else if (state.followOffer) {
 					state.setFollowOffer(null);
-				} else if (useGroundShaping.getState().isOn) {
+				} else if (useGroundEditing.getState().isOn) {
 					// Shaping the ground (ADR-0155): its selected corners first, then done.
-					if (useGroundShaping.getState().selected.length > 0) {
+					if (useGroundEditing.getState().selected.length > 0) {
 						selectGroundCorner(null);
 					} else {
-						shapeGround(false);
+						editGround(false);
 					}
 				} else if (state.selectedPointIndex !== null && state.selectedRoadId) {
 					state.selectRoadPoint(state.selectedRoadId, null);

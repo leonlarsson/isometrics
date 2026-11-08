@@ -7,7 +7,7 @@ const ANSWER = `Here's your world!
 ${JSON.stringify({
 	version: 1,
 	meta: { title: "Two shops" },
-	ground: { width: 40, depth: 30 },
+	grounds: [{ id: "ground", width: 40, depth: 30 }],
 	data: {
 		tables: [
 			{

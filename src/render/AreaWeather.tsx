@@ -119,9 +119,9 @@ const mapTexture = (map: IWeatherMap, channels: readonly number[]) => {
 const useWeatherMap = (weathers: readonly IAreaWeatherNow[]) => {
 	useLayoutEffect(() => {
 		const map = weatherMapOf(
-			weathers.map(({ area, now }) => ({
+			weathers.map(({ area, now, base }) => ({
 				points: area.points,
-				amounts: weatherMapAmountsOf(area, now),
+				amounts: weatherMapAmountsOf(area, now, base),
 			})),
 		);
 		if (!map) {
@@ -167,7 +167,7 @@ const MOST_CLOUDS_PER_AREA = 300;
  */
 const puffsOf = (weathers: readonly IAreaWeatherNow[]) => {
 	const puffs: IPuff[] = [];
-	weathers.forEach(({ area, now }, index) => {
+	weathers.forEach(({ area, now, base }, index) => {
 		if (now.cloudCover <= 0) {
 			return;
 		}
@@ -186,7 +186,7 @@ const puffsOf = (weathers: readonly IAreaWeatherNow[]) => {
 			CLOUD_SPACING,
 			Math.sqrt(Math.abs(polygonArea(area.points)) / MOST_CLOUDS_PER_AREA),
 		);
-		const altitude = cloudAltitudeOf(now, { area });
+		const altitude = cloudAltitudeOf(now, { area, base });
 		// Spots on the grid that are over the area: its middle inside, or enough of it near the edge.
 		const reach = spacing * 0.35;
 		for (let gx = minX + spacing / 2; gx < maxX + spacing / 2; gx += spacing) {
@@ -525,7 +525,7 @@ const AreaLightning = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) =
 	useEffect(() => () => material.dispose(), [material]);
 	const storms = useMemo(
 		() =>
-			weathers.flatMap(({ area, now }, index): IStorm[] => {
+			weathers.flatMap(({ area, now, base }, index): IStorm[] => {
 				if (now.lightning <= 0) {
 					return [];
 				}
@@ -537,8 +537,8 @@ const AreaLightning = ({ weathers }: { weathers: readonly IAreaWeatherNow[] }) =
 						seed,
 						places: placesInside(area.points, STRIKE_PLACES, seed + 0.77),
 						reach: Math.min(24, Math.max(8, size * 0.6)),
-						top: cloudAltitudeOf(now, { area }),
-						ground: isHiddenArea(area) ? 0 : area.height,
+						top: cloudAltitudeOf(now, { area, base }),
+						ground: base + (isHiddenArea(area) ? 0 : area.height),
 					},
 				];
 			}),
@@ -658,7 +658,8 @@ const useFogColors = () => {
 export const AreaWeather = () => {
 	const areas = useEditor((s) => s.scene.areas);
 	const data = useWorldData();
-	const weathers = areaWeathersNow(areas, data);
+	const grounds = useEditor((s) => s.scene.grounds);
+	const weathers = areaWeathersNow(areas, data, grounds);
 	useWeatherMap(weathers);
 	useFogColors();
 	return (

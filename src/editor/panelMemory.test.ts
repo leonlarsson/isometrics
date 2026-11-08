@@ -39,9 +39,9 @@ describe("panelMemory", () => {
 		expect(readPanelMemory()).toEqual({});
 		expect(localStorage.getItem(KEY)).toBeNull();
 
-		setPanelOpen("world.ground", false);
-		expect(JSON.parse(localStorage.getItem(KEY) ?? "")).toEqual({ "world.ground": false });
-		expect(readPanelMemory()).toEqual({ "world.ground": false });
+		setPanelOpen("world.grounds[0]", false);
+		expect(JSON.parse(localStorage.getItem(KEY) ?? "")).toEqual({ "world.grounds[0]": false });
+		expect(readPanelMemory()).toEqual({ "world.grounds[0]": false });
 		expect(localStorage.length).toBe(1);
 	});
 
@@ -51,10 +51,10 @@ describe("panelMemory", () => {
 		// Another tab folds a panel after this one has read the storage.
 		localStorage.setItem(KEY, JSON.stringify({ "sky.sun": false }));
 
-		setPanelOpen("world.ground", false);
+		setPanelOpen("world.grounds[0]", false);
 		expect(JSON.parse(localStorage.getItem(KEY) ?? "")).toEqual({
 			"sky.sun": false,
-			"world.ground": false,
+			"world.grounds[0]": false,
 		});
 	});
 
@@ -82,8 +82,8 @@ describe("panelMemory", () => {
 		vi.stubGlobal("localStorage", blockedStorage());
 		const { readPanelMemory, setPanelOpen } = await freshModule();
 		expect(readPanelMemory()).toEqual({});
-		expect(() => setPanelOpen("world.ground", false)).not.toThrow();
+		expect(() => setPanelOpen("world.grounds[0]", false)).not.toThrow();
 		setPanelOpen("sky.sun", false);
-		expect(readPanelMemory()).toEqual({ "world.ground": false, "sky.sun": false });
+		expect(readPanelMemory()).toEqual({ "world.grounds[0]": false, "sky.sun": false });
 	});
 });

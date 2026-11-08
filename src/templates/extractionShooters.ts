@@ -499,7 +499,7 @@ export const createExtractionShootersScene = (): TScene =>
 			subtitle: "Steam snapshot, read 31 Oct 2026, 12:33 UTC",
 		},
 		theme: "dark",
-		ground: { width: 84, depth: 66 },
+		grounds: [{ id: "ground", width: 84, depth: 66 }],
 		moods: [
 			{
 				id: "mood_evening",

@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { isOverWorld } from "#/lib/pointer";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt, groundTopsOf } from "#/scene/grounds";
 import type { TVec2 } from "#/scene/schema";
 import { areaTopsOf } from "#/scene/standing";
 
@@ -70,12 +70,15 @@ export const PaintTool = () => {
 			raycaster.setFromCamera(pointer, camera);
 			// On the ground as it stands under the pointer: raised land and slopes (ADR-0098). Not on
 			// shapes: painting keeps off objects (ADR-0091).
-			const found = surfaceHitOnRay(raycaster.ray, areaTopsOf(store().scene.areas));
+			const found = surfaceHitOnRay(raycaster.ray, [
+				...groundTopsOf(store().scene.grounds),
+				...areaTopsOf(store().scene.areas, store().scene.grounds),
+			]);
 			if (!found) {
 				return null;
 			}
 			const point: TVec2 = [found.x, found.z];
-			return { point, height: groundHeightAt(store().scene.areas, point) };
+			return { point, height: groundHeightAt(store().scene, point) };
 		};
 		const erasingFor = (event: PointerEvent) =>
 			store().paintBrush.mode === "erase" || event.shiftKey;

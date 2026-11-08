@@ -2,8 +2,9 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { useGroundShaping } from "#/editor/groundShaping";
+import { useGroundEditing } from "#/editor/groundEditing";
 import { useEditor } from "#/editor/store";
+import { worldExtentOf } from "#/scene/grounds";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { projectionSwitch, runningFlight } from "./viewpoints";
@@ -82,8 +83,9 @@ export const CameraRig = () => {
 	} | null;
 	const get = useThree((s) => s.get);
 	const hasSize = useThree((s) => s.size.width > 0 && s.size.height > 0);
-	const groundWidth = useEditor((s) => s.scene.ground.width);
-	const groundDepth = useEditor((s) => s.scene.ground.depth);
+	// The world's size: the rectangle round its grounds (ADR-0155).
+	const groundWidth = useEditor((s) => worldExtentOf(s.scene.grounds).width);
+	const groundDepth = useEditor((s) => worldExtentOf(s.scene.grounds).depth);
 	const nonce = useEditor((s) => s.viewNonce);
 	const box = useEditor((s) => s.frameBox);
 	// What was framed last; a camera switch alone doesn't re-frame.
@@ -96,7 +98,7 @@ export const CameraRig = () => {
 		}
 		// The ground resized by its own handles (ADR-0155): the view stays put under the pointer.
 		const onlyResized = framed.current?.startsWith(`${nonce}:`) ?? false;
-		if (onlyResized && useGroundShaping.getState().isOn) {
+		if (onlyResized && useGroundEditing.getState().isOn) {
 			framed.current = request;
 			return;
 		}

@@ -3,19 +3,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
+	type IGroundMove,
 	insertGroundCorner,
+	moveGround,
 	moveGroundCorner,
 	moveGroundCornersBy,
+	pickedCorners,
 	removeGroundCorner,
 	resizeGround,
 	selectGroundCorner,
-	useGroundShaping,
-} from "#/editor/groundShaping";
+	startGroundMove,
+	useGroundEditing,
+	usePickedGround,
+} from "#/editor/groundEditing";
 import { drawnModeOf, isToggleClick, SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { snap } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
-import { groundCornersOf } from "#/scene/groundShape";
+import { worldCornersOf } from "#/scene/grounds";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -39,8 +44,6 @@ const HANDLE_Y = 0.12;
 /** Handle geometry is in screen units of this many pixels, so handles keep their size at any zoom. */
 const HANDLE_PX = 24;
 
-const corners = () => groundCornersOf(useEditor.getState().scene.ground);
-
 /**
  * One of the ground's corners: click to select, drag to move (all the selected
  * corners when it's one of them), double-click to remove (it keeps three).
@@ -49,10 +52,13 @@ const corners = () => groundCornersOf(useEditor.getState().scene.ground);
 const CornerHandle = ({
 	index,
 	point,
+	altitude,
 	selected,
 }: {
 	index: number;
+	/** Where it is in the world, on its ground's top at `altitude`. */
 	point: TVec2;
+	altitude: number;
 	selected: boolean;
 }) => {
 	const palette = usePalette();
@@ -61,19 +67,19 @@ const CornerHandle = ({
 	// Pressed on one of several selected corners: they move together, from where they all started.
 	const group = useRef<{ from: TVec2[]; indices: readonly number[] } | null>(null);
 	const drag = useGroundDrag({
-		planeY: 0,
-		reachesPastGround: true,
+		planeY: altitude,
+		within: "largest",
 		onStart: (_token, event) => {
 			// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the corner, below).
 			if (isToggleClick(event.nativeEvent)) {
 				return false;
 			}
-			const { selected: indices } = useGroundShaping.getState();
+			const { selected: indices } = useGroundEditing.getState();
 			const several = indices.length > 1 && indices.includes(index);
 			if (!several) {
 				selectGroundCorner(index);
 			}
-			group.current = several ? { from: corners(), indices } : null;
+			group.current = several ? { from: pickedCorners(), indices } : null;
 			return true;
 		},
 		onMove: (next, token) => {
@@ -96,7 +102,7 @@ const CornerHandle = ({
 
 	return (
 		<group
-			position={[point[0], HANDLE_Y, point[1]]}
+			position={[point[0], altitude + HANDLE_Y, point[1]]}
 			ref={handle}
 			{...drag}
 			onDoubleClick={(e: ThreeEvent<MouseEvent>) => {
@@ -138,18 +144,20 @@ const CornerHandle = ({
 const InsertHandle = ({
 	index,
 	point,
+	altitude,
 	visible,
 }: {
 	index: number;
 	point: TVec2;
+	altitude: number;
 	visible: boolean;
 }) => {
 	const palette = usePalette();
 	const [hovered, setHovered] = useState(false);
 	const handle = useScreenScale<THREE.Mesh>(HANDLE_PX, hovered ? 1.3 : 1);
 	const drag = useGroundDrag({
-		planeY: 0,
-		reachesPastGround: true,
+		planeY: altitude,
+		within: "largest",
 		onStart: (token) => {
 			insertGroundCorner(index + 1, point, { coalesce: token, gesture: true });
 			return true;
@@ -160,7 +168,7 @@ const InsertHandle = ({
 	return (
 		<mesh
 			renderOrder={HANDLE_ORDER}
-			position={[point[0], HANDLE_Y, point[1]]}
+			position={[point[0], altitude + HANDLE_Y, point[1]]}
 			ref={handle}
 			visible={visible}
 			{...drag}
@@ -194,7 +202,7 @@ const knobAt = new THREE.Vector3();
  */
 const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 	const colors = usePalette().gizmo;
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = usePickedGround();
 	const camera = useThree((s) => s.camera);
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const root = useRef<THREE.Group>(null);
@@ -251,10 +259,13 @@ const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 	};
 	useEffect(() => () => finish(null), []);
 
-	const at: TVec2 = axis === "x" ? [(sign * ground.width) / 2, 0] : [0, (sign * ground.depth) / 2];
+	// The middle of its side, in the world.
+	const [px, pz] = ground.position;
+	const at: TVec2 =
+		axis === "x" ? [px + (sign * ground.width) / 2, pz] : [px, pz + (sign * ground.depth) / 2];
 
 	return (
-		<group ref={root} position={[at[0], 0, at[1]]}>
+		<group ref={root} position={[at[0], ground.altitude, at[1]]}>
 			<Handle
 				color={colors[axis]}
 				hoverColor={colors.hover}
@@ -270,9 +281,9 @@ const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 						from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
 						started: false,
 						anchor: 0,
-						origin: new THREE.Vector3(at[0], 0, at[1]),
+						origin: new THREE.Vector3(at[0], ground.altitude, at[1]),
 						direction: new THREE.Vector3(axis === "x" ? sign : 0, 0, axis === "z" ? sign : 0),
-						start: { width: store.scene.ground.width, depth: store.scene.ground.depth },
+						start: { width: ground.width, depth: ground.depth },
 						before: store.scene,
 					};
 					setActive(true);
@@ -353,7 +364,15 @@ const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 const CORNER_HANDLES: TGizmoHandle[] = ["x", "z", "xz"];
 
 /** The move gizmo on the selected corners, at their middle: along the ground. */
-const CornersGizmo = ({ points, indices }: { points: TVec2[]; indices: readonly number[] }) => {
+const CornersGizmo = ({
+	points,
+	indices,
+	altitude,
+}: {
+	points: TVec2[];
+	indices: readonly number[];
+	altitude: number;
+}) => {
 	const from = useRef<TVec2[] | null>(null);
 	const center = useMemo(() => {
 		const chosen = indices.map((i) => points[i]).filter(Boolean);
@@ -370,11 +389,11 @@ const CornersGizmo = ({ points, indices }: { points: TVec2[]; indices: readonly 
 	}
 
 	return (
-		<group position={[center[0], 0, center[1]]}>
+		<group position={[center[0], altitude, center[1]]}>
 			<TransformGizmo
 				handles={CORNER_HANDLES}
 				onStart={() => {
-					from.current = corners();
+					from.current = pickedCorners();
 				}}
 				onDrag={(drag) => {
 					if (!from.current) {
@@ -396,18 +415,64 @@ const CornersGizmo = ({ points, indices }: { points: TVec2[]; indices: readonly 
  * handle on each corner, the move gizmo on the selected ones, and on each
  * side a dot that adds a corner, or on the rectangle a handle that resizes it.
  */
+const MOVE_HANDLES: TGizmoHandle[] = ["x", "z", "xz", "y"];
+/** Grounds move a whole unit at a time, so their grid lines up with the world's; their height by a quarter. */
+const MOVE_STEP = 1;
+const LIFT_STEP = 0.25;
+
+/**
+ * The move gizmo in the middle of the ground (ADR-0155): along the ground, and
+ * up or down with the green arrow, carrying what stands on it with it (a road
+ * crossing to another ground stretches, as a bridge). One undo step a drag.
+ */
+const GroundMoveGizmo = ({ center, altitude }: { center: TVec2; altitude: number }) => {
+	const move = useRef<IGroundMove | null>(null);
+	return (
+		<group position={[center[0], altitude, center[1]]}>
+			<TransformGizmo
+				handles={MOVE_HANDLES}
+				onStart={() => {
+					move.current = startGroundMove();
+				}}
+				onDrag={(drag) => {
+					if (!move.current) {
+						return;
+					}
+					const step = (value: number, size: number) => (drag.free ? value : snap(value, size));
+					moveGround(
+						move.current,
+						[step(drag.offset[0], MOVE_STEP), step(drag.offset[1], MOVE_STEP)],
+						drag.handle === "y" ? step(drag.lift, LIFT_STEP) : 0,
+						{ coalesce: drag.token, gesture: true },
+					);
+				}}
+				onEnd={() => {
+					move.current = null;
+				}}
+			/>
+		</group>
+	);
+};
+
+/**
+ * The picked ground's handles while it's being moved and shaped (ADR-0155,
+ * Edit mode): the move gizmo in its middle, a handle on each corner (the move
+ * gizmo goes to the selected ones), a size handle on each side, and on a
+ * shape a dot between corners that adds one. None on a locked ground.
+ */
 export const GroundHandles = () => {
-	const isOn = useGroundShaping((s) => s.isOn);
-	const selected = useGroundShaping((s) => s.selected);
-	const ground = useEditor((s) => s.scene.ground);
+	const isOn = useGroundEditing((s) => s.isOn);
+	const selected = useGroundEditing((s) => s.selected);
+	const ground = usePickedGround();
 	const mode = useEditor(drawnModeOf);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
-	const points = useMemo(() => groundCornersOf(ground), [ground]);
-	if (!isOn || mode !== "edit" || drawing) {
+	const points = useMemo(() => worldCornersOf(ground), [ground]);
+	if (!isOn || mode !== "edit" || drawing || ground.isLocked) {
 		return null;
 	}
 	const chosen = selected.filter((index) => index < points.length);
+	const { altitude } = ground;
 
 	return (
 		<group userData={HANDLE_PICK}>
@@ -432,13 +497,18 @@ export const GroundHandles = () => {
 							key={`insert-${index}`}
 							index={index}
 							point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
+							altitude={altitude}
 							visible={!dragging}
 						/>
 					);
 				})}
 
 			{/* Kept while dragging: the gizmo's own drag sets dragging, and unmounting it ends the drag. */}
-			{chosen.length > 0 && <CornersGizmo points={points} indices={chosen} />}
+			{chosen.length > 0 ? (
+				<CornersGizmo points={points} indices={chosen} altitude={altitude} />
+			) : (
+				<GroundMoveGizmo center={ground.position} altitude={altitude} />
+			)}
 
 			{points.map((point, index) => (
 				<CornerHandle
@@ -446,6 +516,7 @@ export const GroundHandles = () => {
 					key={index}
 					index={index}
 					point={point}
+					altitude={altitude}
 					selected={chosen.includes(index)}
 				/>
 			))}

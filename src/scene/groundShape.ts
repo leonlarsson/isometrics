@@ -1,13 +1,12 @@
-import { isInsidePolygon } from "./areas";
 import { roadCenterline } from "./roads";
 import type { TGround, TVec2 } from "./schema";
 
 /**
- * The ground's shape (ADR-0155): a rectangle (`points` null, as worlds always
- * were) or any outline of corners, with its corners rounded or not. Its width
- * and depth stay the size of the rectangle round it, centred on the origin, so
- * everything that measures the world by them (the camera, the grid, shadows,
- * weather) covers the shape as before. No React, no three.
+ * A ground's shape (ADR-0155): a rectangle (`points` null, as worlds always
+ * were) or any outline of corners, with its corners rounded or not, round its
+ * position (its own frame: x and z from its middle). Its width and depth stay
+ * the size of the rectangle round it, centred on its middle. Where grounds
+ * are in the world, and what's on them, is `scene/grounds`. No React, no three.
  */
 
 /** The smallest and largest a ground can be along each side (GroundSchema's limits). */
@@ -99,81 +98,6 @@ export const groundOutlineOf = (
 		return corners;
 	}
 	return roadCenterline(corners, true, ground.cornerRadius).map(([x, z]): TVec2 => [x, z]);
-};
-
-type TGroundShape = Pick<TGround, "width" | "depth" | "points" | "cornerRadius">;
-
-/** Each ground's outline, worked out once: it's asked for on every pointer move. */
-const outlines = new WeakMap<object, TVec2[] | null>();
-const outlineOf = (ground: TGroundShape) => {
-	if (!outlines.has(ground)) {
-		outlines.set(ground, groundOutlineOf(ground));
-	}
-	return outlines.get(ground) ?? null;
-};
-
-/** The point on a segment nearest to `p`, and how far it is. */
-const nearestOnSegment = (p: TVec2, a: TVec2, b: TVec2) => {
-	const dx = b[0] - a[0];
-	const dz = b[1] - a[1];
-	const length2 = dx * dx + dz * dz;
-	const t =
-		length2 === 0
-			? 0
-			: Math.min(1, Math.max(0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / length2));
-	const point: TVec2 = [a[0] + dx * t, a[1] + dz * t];
-	return { point, distance: Math.hypot(p[0] - point[0], p[1] - point[1]) };
-};
-
-/** The outline's edge nearest to a point. */
-const nearestEdge = (outline: readonly TVec2[], p: TVec2) => {
-	let best = { point: outline[0], distance: Number.POSITIVE_INFINITY };
-	for (let i = 0; i < outline.length; i++) {
-		const found = nearestOnSegment(p, outline[i], outline[(i + 1) % outline.length]);
-		if (found.distance < best.distance) {
-			best = found;
-		}
-	}
-	return best;
-};
-
-/**
- * Whether a point is on the ground (ADR-0155), at least `margin` in from its
- * edge: inside the rectangle, or inside its shape as drawn.
- */
-export const isOnGround = (ground: TGroundShape, p: TVec2, margin = 0) => {
-	const outline = outlineOf(ground);
-	if (!outline) {
-		return (
-			Math.abs(p[0]) + margin <= ground.width / 2 && Math.abs(p[1]) + margin <= ground.depth / 2
-		);
-	}
-	return isInsidePolygon(p, outline) && (margin <= 0 || nearestEdge(outline, p).distance >= margin);
-};
-
-/**
- * The point on the ground nearest to `p`: itself when it's on it, else the
- * nearest spot just inside its edge (the rectangle's, or its shape's). Where
- * things placed, painted, drawn or dragged land, so none ends up over nothing.
- */
-export const nearestOnGround = (ground: TGroundShape, p: TVec2): TVec2 => {
-	const outline = outlineOf(ground);
-	if (!outline) {
-		return [
-			Math.min(ground.width / 2, Math.max(-ground.width / 2, p[0])),
-			Math.min(ground.depth / 2, Math.max(-ground.depth / 2, p[1])),
-		];
-	}
-	if (isInsidePolygon(p, outline)) {
-		return p;
-	}
-	// On the edge, then a hair across it to the inside (whichever side that is), so it's on it.
-	const { point } = nearestEdge(outline, p);
-	const away = [point[0] - p[0], point[1] - p[1]];
-	const length = Math.hypot(away[0], away[1]) || 1;
-	const step = 0.05 / length;
-	const inside: TVec2 = [point[0] + away[0] * step, point[1] + away[1] * step];
-	return isInsidePolygon(inside, outline) ? inside : point;
 };
 
 /** The id of a shape the ground can be given in one click. */

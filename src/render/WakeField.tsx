@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
 import { keepOnHotReload } from "#/lib/hot";
+import { worldExtentOf } from "#/scene/grounds";
 
 /**
  * The boats' waves (Graphics: Boat wakes, Foam and waves; ADR-0081): each
@@ -104,7 +105,7 @@ export const makeWaveMaterial = () =>
 /** Draws the wave field each frame while Foam and waves is on. Mount once in the scene. */
 export const WakeFieldStep = () => {
 	const gl = useThree((s) => s.gl);
-	const ground = useEditor((s) => s.scene.ground);
+	const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 	const { width, depth } = ground;
 
 	const drawn = useMemo(() => {

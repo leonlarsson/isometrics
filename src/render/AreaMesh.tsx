@@ -21,6 +21,7 @@ import {
 	valuesOfArea,
 	waterSeams,
 } from "#/scene/areas";
+import { areaBaseOf } from "#/scene/grounds";
 import type { TArea, TDataValue, TSurface, TWater } from "#/scene/schema";
 import { areaSurfaceOf } from "#/scene/surfaces";
 import type { IScenePalette } from "#/scene/theme";
@@ -137,6 +138,8 @@ interface IAreaBodyProps {
 	worldSurface?: TSurface;
 	/** Hidden areas show as a dashed outline while editing; otherwise they draw nothing (ADR-0151). */
 	editing?: boolean;
+	/** Where it stands: the top of the ground under it (ADR-0155, `areaBaseOf`); 0 by default. */
+	base?: number;
 }
 
 /**
@@ -156,8 +159,9 @@ export const AreaBody = ({
 	waterSeams = NO_SEAMS,
 	worldSurface = PLAIN_SURFACES,
 	editing = false,
+	base = 0,
 }: IAreaBodyProps) => {
-	const y = areaBaseY(layer);
+	const y = areaBaseY(layer) + base;
 	const raised = isRaised(area);
 	// Water stays level (ADR-0096), so it mirrors raised too: its surface on top of cliff sides.
 	const mirrors = reflective && isWaterArea(area);
@@ -329,6 +333,8 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 	);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const selectArea = useEditor((s) => s.selectArea);
+	// On the ground under it (ADR-0155): a raised ground lifts it.
+	const base = useEditor((s) => areaBaseOf(area, s.scene.grounds));
 
 	const editable = mode === "edit" && !drawing;
 	// Whether it was the one selected thing at each of the last two clicks: a double-click adds a peak
@@ -377,6 +383,7 @@ export const AreaMesh = memo(({ area, layer }: IAreaMeshProps) => {
 			waterSeams={seams}
 			worldSurface={worldSurface}
 			editing={mode === "edit"}
+			base={base}
 		/>
 	);
 });

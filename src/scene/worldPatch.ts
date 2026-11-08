@@ -61,6 +61,7 @@ export interface IPatchChanges {
 
 /** The world's lists of things, where they are and what names each thing. */
 export const PATCH_LISTS = [
+	{ path: ["grounds"], id: "id", one: "ground" },
 	{ path: ["entities"], id: "id", one: "object" },
 	{ path: ["roads"], id: "id", one: "road" },
 	{ path: ["junctions"], id: "id", one: "junction" },
@@ -265,6 +266,17 @@ export const applyWorldPatch = (
 
 	for (const [key, value] of Object.entries(patch)) {
 		if (key === "isPatch" || key === "version" || (LIST_TOP_KEYS.has(key) && key !== "data")) {
+			continue;
+		}
+		// One ground was all a world had (ADR-0155): its changes go to the first ground.
+		if (key === "ground" && !Object.hasOwn(result, "ground") && Array.isArray(result.grounds)) {
+			const [first] = result.grounds as unknown[];
+			if (isRecord(value) && isRecord(first)) {
+				(result.grounds as unknown[])[0] = mergePatch(first, value);
+				changes.settings.push({ group: "grounds[0]", fields: Object.keys(value) });
+			} else {
+				issues.push({ where: "ground", what: `the changes to the ground, as { "field": value }` });
+			}
 			continue;
 		}
 		if (!Object.hasOwn(result, key)) {

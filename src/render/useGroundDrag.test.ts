@@ -14,6 +14,7 @@ const rayOnto = (x: number, z: number) => {
 };
 
 const world = {
+	grounds: [],
 	areas: [
 		AreaSchema.parse({
 			id: "land",

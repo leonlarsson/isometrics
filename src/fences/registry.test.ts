@@ -5,6 +5,9 @@ import { DataBindingSchema, FenceKindSchema, FenceSchema } from "#/scene/schema"
 import { buildFence } from "./fenceModel";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST, FENCE_STYLES } from "./registry";
 
+/** Fences standing on the base level: no areas, no grounds of their own (ADR-0155). */
+const NO_GROUND = { areas: [], grounds: [] };
+
 const sources = import.meta.glob("./*_[0-9][0-9].ts", {
 	query: "?raw",
 	import: "default",
@@ -38,7 +41,7 @@ describe("fence styles", () => {
 					[6, 4],
 				],
 			});
-			const geometries = buildFence(fence, [], []);
+			const geometries = buildFence(fence, NO_GROUND, []);
 			expect(geometries.size, style.id).toBeGreaterThan(0);
 			const ids = new Set(style.colors.map((spec) => spec.id));
 			for (const [id, geometry] of geometries) {
@@ -73,8 +76,12 @@ describe("fence styles", () => {
 			const ids = new Set(style.colors.map((spec) => spec.id));
 			expect(ids.has(style.gate.frameColor), style.id).toBe(true);
 			expect(ids.has(style.gate.infillColor), style.id).toBe(true);
-			const shut = buildFence(fence([{ spanIndex: 0, alongShare: 0.5, width: 1.4 }]), [], []);
-			const gap = buildFence(fence([{ kind: "gap", width: 1.4, alongShare: 0.5 }]), [], []);
+			const shut = buildFence(
+				fence([{ spanIndex: 0, alongShare: 0.5, width: 1.4 }]),
+				NO_GROUND,
+				[],
+			);
+			const gap = buildFence(fence([{ kind: "gap", width: 1.4, alongShare: 0.5 }]), NO_GROUND, []);
 			for (const [id] of shut) {
 				expect(ids.has(id), `${style.id}'s gate draws in a colour it doesn't list: ${id}`).toBe(
 					true,
@@ -84,7 +91,7 @@ describe("fence styles", () => {
 			// Open, it swings out of the fence's line (to its right, +z here).
 			const open = buildFence(
 				fence([{ spanIndex: 0, alongShare: 0.5, width: 1.4, isOpen: true }]),
-				[],
+				NO_GROUND,
 				[],
 			);
 			expect(highest(open), style.id).toBeGreaterThan(highest(shut) + 0.5);
@@ -96,7 +103,7 @@ describe("fence styles", () => {
 				},
 			]);
 			const data = [{ key: "open", name: "", value: 1, unit: "" }];
-			expect(highest(buildFence(fromData, [], data)), style.id).toBeCloseTo(highest(open));
+			expect(highest(buildFence(fromData, NO_GROUND, data)), style.id).toBeCloseTo(highest(open));
 		}
 	});
 
@@ -145,7 +152,7 @@ describe("fence styles", () => {
 					[...g.getAttribute("position").array].filter((_, i) => i % 3 === 1),
 				),
 			);
-		expect(lowest(buildFence(fence, [plateau], []))).toBeGreaterThan(1.9);
+		expect(lowest(buildFence(fence, { areas: [plateau], grounds: [] }, []))).toBeGreaterThan(1.9);
 		const count = (geometries: ReturnType<typeof buildFence>) =>
 			[...geometries.values()].reduce((sum, g) => sum + g.getAttribute("position").count, 0);
 		const half = {
@@ -153,6 +160,8 @@ describe("fence styles", () => {
 			data: { builtShare: DataBindingSchema.parse({ key: "progress", valueAtFull: 100 }) },
 		};
 		const data = [{ key: "progress", name: "", value: 50, unit: "%" }];
-		expect(count(buildFence(half, [], data))).toBeLessThan(count(buildFence(fence, [], [])));
+		expect(count(buildFence(half, NO_GROUND, data))).toBeLessThan(
+			count(buildFence(fence, NO_GROUND, [])),
+		);
 	});
 });

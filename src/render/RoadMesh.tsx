@@ -10,6 +10,7 @@ import { usePalette, useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
+import { worldExtentOf } from "#/scene/grounds";
 import { cutLine } from "#/scene/junctions";
 import { type IPillarWorld, placePillars } from "#/scene/pillars";
 import {
@@ -384,7 +385,7 @@ export const RoadMesh = memo(
 		);
 		const drawing = useEditor((s) => s.drawing !== null);
 		const selectRoad = useEditor((s) => s.selectRoad);
-		const ground = useEditor((s) => s.scene.ground);
+		const ground = useEditor((s) => worldExtentOf(s.scene.grounds));
 		// What its pillars keep clear of (ADR-0148): only a raised road on pillars follows the other
 		// roads and junctions, so roads on the ground don't draw again for every change.
 		const standsOnPillars =

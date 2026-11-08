@@ -483,7 +483,7 @@ export const createMonacoScene = (): TScene => {
 		version: 1,
 		meta: { title: "Monaco street circuit", subtitle: "Live race overview" },
 		theme: "system",
-		ground: { width: 70, depth: 34 },
+		grounds: [{ id: "ground", width: 70, depth: 34 }],
 		traffic: { drivingSide: "right" },
 		data: {
 			values: [

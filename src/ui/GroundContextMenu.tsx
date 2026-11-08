@@ -1,7 +1,8 @@
 import { pasteFromClipboard } from "#/editor/clipboard";
-import { shapeGround } from "#/editor/groundShaping";
+import { addGround, editGround, pickGround } from "#/editor/groundEditing";
 import { rememberUsed } from "#/editor/paletteMemory";
 import { placeFromLibrary, usePrefabLibrary } from "#/editor/prefabLibrary";
+import { setSidePaneOpen } from "#/editor/sidePanes";
 import { spotOnGrid, useEditor } from "#/editor/store";
 import { workshopOf } from "#/editor/whatIsOpen";
 import { FENCE_STYLE_LABELS, FENCE_STYLE_LIST } from "#/fences/registry";
@@ -10,6 +11,7 @@ import { prefabName } from "#/parts/prefabParts";
 import { partName, partsByCategory } from "#/parts/registry";
 import { CATEGORY_LABELS } from "#/parts/types";
 import { AREA_KIND_LABELS } from "#/scene/areas";
+import { groundName } from "#/scene/grounds";
 import { ROAD_KIND_LABELS } from "#/scene/roads";
 import type { TAreaKind, TRoadKind, TVec2 } from "#/scene/schema";
 
@@ -50,6 +52,12 @@ export const GroundContextMenu = () => {
 		store().addDrawingPoint(point);
 	};
 
+	// Which ground it opened on (ADR-0155), by its name.
+	const grounds = useEditor((s) => s.scene.grounds);
+	const groundId = menu?.groundId;
+	const groundIndex = grounds.findIndex((ground) => ground.id === groundId);
+	const groundTitle = groundIndex >= 0 ? groundName(grounds[groundIndex], groundIndex) : "Ground";
+
 	return (
 		<ContextMenu
 			open={menuNow !== null}
@@ -60,14 +68,34 @@ export const GroundContextMenu = () => {
 			}}
 			x={menu?.x ?? 0}
 			y={menu?.y ?? 0}
-			title="Ground"
+			title={groundTitle}
 			subtitle={menu ? describePoint(menu.point) : undefined}
 		>
 			<Menu.Item
-				icon="area"
-				label="Shape the ground"
-				description="Handles on its corners and sides, to reshape or resize it"
-				onClick={() => shapeGround(true)}
+				icon="move"
+				label="Move and shape this ground"
+				description="Handles in the view: move it with what's on it, reshape or resize it"
+				onClick={() => editGround(true, groundId)}
+			/>
+
+			<Menu.Item
+				icon="cog"
+				label="Its settings"
+				description="Size, shape, height and look, in the World tab"
+				onClick={() => {
+					if (groundId) {
+						pickGround(groundId);
+					}
+					store().setTab("world");
+					setSidePaneOpen("right", true);
+				}}
+			/>
+
+			<Menu.Item
+				icon="plus"
+				label="Add a ground"
+				description="Beside the others, to move where you like: an island, another town"
+				onClick={() => editGround(true, addGround())}
 			/>
 
 			<Menu.Separator />

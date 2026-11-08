@@ -40,14 +40,21 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 	});
 
 	it("keeps the world's settings, moved and renamed", () => {
-		expect(scene.ground).toEqual({
+		expect(scene.grounds[0]).toEqual({
+			id: "ground",
+			name: "",
+			position: [0, 0],
+			altitude: 0,
 			width: 30,
 			depth: 20,
 			// Saved before the ground had a shape: the rectangle, as it was (ADR-0155).
 			points: null,
 			cornerRadius: 0,
+			thickness: 1,
 			colors: { surface: { color: "#a0b0c0", transparency: null, data: {} } },
 			surface: { kind: "plain" },
+			isHidden: false,
+			isLocked: false,
 		});
 		expect(scene.traffic).toEqual({
 			drivingSide: "left",

@@ -13,6 +13,7 @@ import {
 	fenceBindingMapsOf,
 	roadBindingMapsOf,
 } from "#/scene/dataBindings";
+import { worldExtentOf } from "#/scene/grounds";
 import { copyNamer } from "#/scene/naming";
 import { safeJson } from "#/scene/safeJson";
 import {
@@ -582,7 +583,7 @@ const pasteThings = (
 		: here > 0
 			? [1, 1]
 			: [0, 0];
-	const { width, depth } = current.ground;
+	const { width, depth } = worldExtentOf(current.grounds);
 	const place = (x: number, z: number): TVec2 => [
 		round(clamp(x + dx, -width / 2, width / 2)),
 		round(clamp(z + dz, -depth / 2, depth / 2)),
@@ -643,12 +644,13 @@ const pasteThings = (
 	// they land on here: the ground, pasted areas included, and the shapes here (ADR-0098, ADR-0138).
 	const copied = new Set(entities.map((entity) => entity.id));
 	const topsThen = topsToStandOn(
-		{ areas: [...current.areas, ...areas], entities: current.entities },
+		{ areas: [...current.areas, ...areas], entities: current.entities, grounds: current.grounds },
 		copied,
 	);
 	const topsHere = topsToStandOn({
 		areas: [...current.areas, ...newAreas],
 		entities: current.entities,
+		grounds: current.grounds,
 	});
 	const newEntities = entities.map((entity): TEntity => {
 		const roadId = entity.follow && (roadIds.get(entity.follow.roadId) ?? entity.follow.roadId);

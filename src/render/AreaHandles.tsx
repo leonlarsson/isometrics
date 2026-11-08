@@ -18,6 +18,7 @@ import {
 import { usePalette } from "#/editor/useTheme";
 import { isClick } from "#/lib/pointer";
 import { cornerTop, takesCornerHeights, topSurface } from "#/scene/areas";
+import { areaBaseOf } from "#/scene/grounds";
 import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
@@ -56,6 +57,8 @@ const CornerHandle = ({ areaId, index, point, y, selected, boxed }: ICornerHandl
 	const group = useRef<{ start: IPointsStart | null; keepsOthers: boolean } | null>(null);
 	const drag = useGroundDrag({
 		planeY: y,
+		// Areas may lie over empty space, within the world (ADR-0155).
+		within: "world",
 		onStart: (_token, event) => {
 			// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the corner, below).
 			if (isToggleClick(event.nativeEvent)) {
@@ -156,6 +159,8 @@ const InsertHandle = ({
 	const handle = useScreenScale<THREE.Mesh>(HANDLE_PX, hovered ? 1.3 : 1);
 	const drag = useGroundDrag({
 		planeY: y,
+		// Areas may lie over empty space, within the world (ADR-0155).
+		within: "world",
 		onStart: (token) => {
 			const store = useEditor.getState();
 			store.insertAreaPoint(areaId, index + 1, point, { coalesce: token });
@@ -253,6 +258,8 @@ const FaceHandle = ({
 	const added = useRef<number | null>(null);
 	const drag = useGroundDrag({
 		planeY: y,
+		// Areas may lie over empty space, within the world (ADR-0155).
+		within: "world",
 		onStart: () => {
 			const store = useEditor.getState();
 			store.addAreaPeak(areaId, point);
@@ -315,6 +322,8 @@ const PeakHandle = ({
 	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered || selected ? 1.2 : 1);
 	const drag = useGroundDrag({
 		planeY: y,
+		// Areas may lie over empty space, within the world (ADR-0155).
+		within: "world",
 		onStart: () => {
 			useEditor.getState().selectAreaPeak(areaId, index);
 			return true;
@@ -408,11 +417,13 @@ export const AreaHandles = () => {
 	const mode = useEditor(drawnModeOf);
 	const drawing = useEditor((s) => s.drawing !== null);
 	const dragging = useEditor((s) => s.dragging);
+	// On the ground under it (ADR-0155): its handles stand on its top there.
+	const base = useEditor((s) => (area ? areaBaseOf(area, s.scene.grounds) : 0));
 
 	if (!area || several || mode !== "edit" || drawing || area.isHidden || area.isLocked) {
 		return null;
 	}
-	const baseY = areaBaseY(Math.max(0, layer));
+	const baseY = areaBaseY(Math.max(0, layer)) + base;
 	// Each corner's handle stands on the top there; the dots between them halfway up the side.
 	const tops = area.points.map((point) => cornerTop(area, point));
 	// Water stays level: no peaks (ADR-0101).

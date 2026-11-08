@@ -1,6 +1,7 @@
 import { FENCE_STYLE_LABELS, FENCE_STYLES } from "#/fences/registry";
 import { getPart, partName } from "#/parts/registry";
 import { AREA_KIND_LABELS } from "#/scene/areas";
+import { groundName } from "#/scene/grounds";
 import { roadNameOf } from "#/scene/roads";
 import type { TColorSetting, TDataBinding, TScene } from "#/scene/schema";
 
@@ -168,12 +169,14 @@ export const dataUsesOf = (scene: TScene, key: string): IDataUse[] => {
 		);
 	}
 
-	add(
-		"Ground",
-		followingColors(scene.ground.colors, key, (id) => id),
-		null,
-		"world",
-	);
+	scene.grounds.forEach((ground, index) => {
+		add(
+			groundName(ground, index),
+			followingColors(ground.colors, key, (id) => id),
+			null,
+			"world",
+		);
+	});
 	add("Time & light", following(scene.lighting.data, key), null, "light");
 	add("Weather", following(scene.weather.data, key), null, "weather");
 	for (const mood of scene.moods) {

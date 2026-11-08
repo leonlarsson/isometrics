@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { useEditor } from "#/editor/store";
-import type { TGround } from "#/scene/schema";
+import { type TWorldExtent, worldExtentOf } from "#/scene/grounds";
 
 import { drawnAsOnCanvas } from "./drawnAsOnCanvas";
 import { frameBoxIn } from "./thumbnails";
@@ -33,7 +33,7 @@ const warmUp = (
 	gl: THREE.WebGLRenderer,
 	scene: THREE.Scene,
 	camera: THREE.Camera,
-	ground: TGround,
+	ground: TWorldExtent,
 ) => {
 	const target = new THREE.WebGLRenderTarget(WARM_UP_SIZE, WARM_UP_SIZE, {
 		type: THREE.HalfFloatType,
@@ -104,7 +104,7 @@ export const WorldReady = ({ waitsForEffects }: { waitsForEffects: boolean }) =>
 			}
 			try {
 				performance.mark("world-warm-up-start");
-				warmUp(gl, scene, camera, useEditor.getState().scene.ground);
+				warmUp(gl, scene, camera, worldExtentOf(useEditor.getState().scene.grounds));
 				performance.measure("world warm-up", "world-warm-up-start");
 			} catch (error) {
 				// The world shows anyway: what wasn't warmed up compiles when it's first drawn.

@@ -1,10 +1,11 @@
 import {
+	editGround,
 	groundShapeIdOf,
 	setGroundShape,
-	shapeGround,
-	useGroundShaping,
-} from "#/editor/groundShaping";
-import { useEditor } from "#/editor/store";
+	updateGround,
+	useGroundEditing,
+	usePickedGround,
+} from "#/editor/groundEditing";
 import { GROUND_SHAPES, type TGroundShapeId } from "#/scene/groundShape";
 
 import { Button, ButtonGroup } from "./Button";
@@ -15,14 +16,13 @@ import { GroupLabel, Hint, resetToDefault, SliderField } from "./fields";
 type TShapeChoice = TGroundShapeId | "own";
 
 /**
- * The ground's shape (ADR-0155), in the World tab's Ground panel: a shape in
- * one click, filling its width and depth, how round its corners are, and
- * Shape the ground, which puts handles on its corners and sides in the view.
+ * A ground's shape (ADR-0155), in the World tab's Grounds panel, for the
+ * picked ground: a shape in one click, filling its width and depth, how round
+ * its corners are, and Move and shape it, which puts handles on it in the view.
  */
 export const GroundShapeFields = () => {
-	const ground = useEditor((s) => s.scene.ground);
-	const commit = useEditor((s) => s.commit);
-	const isShaping = useGroundShaping((s) => s.isOn);
+	const ground = usePickedGround();
+	const isShaping = useGroundEditing((s) => s.isOn);
 	const shapeId = groundShapeIdOf(ground);
 	const chips: { value: TShapeChoice; label: string }[] = [
 		...GROUND_SHAPES.map((shape) => ({ value: shape.id, label: shape.name })),
@@ -55,19 +55,19 @@ export const GroundShapeFields = () => {
 				max={mostRound}
 				step={0.5}
 				onChange={(value) =>
-					commit(
-						(s) => {
-							s.ground.cornerRadius = value;
+					updateGround(
+						(picked) => {
+							picked.cornerRadius = value;
 						},
-						{ coalesce: "ground.cornerRadius" },
+						{ coalesce: `ground.${ground.id}.cornerRadius` },
 					)
 				}
 				inherit={resetToDefault(
 					ground.cornerRadius,
 					0,
 					() =>
-						commit((s) => {
-							s.ground.cornerRadius = 0;
+						updateGround((picked) => {
+							picked.cornerRadius = 0;
 						}),
 					"none",
 				)}
@@ -79,15 +79,15 @@ export const GroundShapeFields = () => {
 					size="sm"
 					icon="area"
 					variant={isShaping ? "primary" : "secondary"}
-					onClick={() => shapeGround(!isShaping)}
+					onClick={() => editGround(!isShaping)}
 				>
-					{isShaping ? "Done shaping" : "Shape the ground"}
+					{isShaping ? "Done moving and shaping" : "Move and shape it"}
 				</Button>
 			</ButtonGroup>
 
 			<Hint>
-				Shape the ground puts handles on its corners in the view: drag them or add corners between
-				them, and drag the balls on its sides to resize it.
+				Move and shape it puts handles on it in the view: the arrows in its middle move it with
+				everything on it, its corners reshape it, and the balls on its sides resize it.
 			</Hint>
 		</>
 	);

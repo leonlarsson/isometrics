@@ -10,10 +10,11 @@ import { resolveLights } from "#/parts/lightModel";
 import { partIn } from "#/parts/prefabParts";
 import { resolveProps, vehicleLengthOf } from "#/parts/registry";
 import { GROUND } from "#/scene/ground";
+import { areaBaseOf, worldExtentOf } from "#/scene/grounds";
 import { roadNetworkOf } from "#/scene/junctions";
 import { resolveTurnStyle, turnSmoothing } from "#/scene/roads";
 import { createRouteSampler } from "#/scene/routes";
-import type { TEntity, TScene } from "#/scene/schema";
+import type { TEntity, TGround, TScene } from "#/scene/schema";
 import { groundSurfaceOf } from "#/scene/surfaces";
 import { type IScenePalette, scenePalettes, type TResolvedTheme } from "#/scene/theme";
 
@@ -173,6 +174,51 @@ const PictureEntity = ({ entity, scene, palette, onReady }: IPictureEntityProps)
 	);
 };
 
+/**
+ * One of the world's grounds in a picture (ADR-0155): its slab at its position
+ * and altitude, its colour and texture. A shaped ground is its outline's slab;
+ * the plain rectangle, its rounded box as always.
+ */
+const PictureGround = ({
+	ground,
+	scene,
+	palette,
+}: {
+	ground: TGround;
+	scene: TScene;
+	palette: IScenePalette;
+}) => {
+	const surface = useSurfaceShading(groundSurfaceOf(ground, scene.surface), false);
+	const slab = useGroundSlab(ground);
+	const material = (
+		<meshStandardMaterial
+			key={surface.key}
+			userData={surface.userData}
+			color={colorOf(GROUND, ground, "surface", palette, scene.data.values, palette.ground)}
+			roughness={0.95}
+		/>
+	);
+	return (
+		<group position={[ground.position[0], ground.altitude, ground.position[1]]}>
+			{slab ? (
+				<mesh geometry={slab} receiveShadow>
+					{material}
+				</mesh>
+			) : (
+				<RoundedBox
+					args={[ground.width, ground.thickness, ground.depth]}
+					radius={Math.min(0.45, ground.thickness / 2 - 0.01)}
+					smoothness={4}
+					position={[0, -ground.thickness / 2, 0]}
+					receiveShadow
+				>
+					{material}
+				</RoundedBox>
+			)}
+		</group>
+	);
+};
+
 interface IPictureProps {
 	scene: TScene;
 	palette: IScenePalette;
@@ -194,20 +240,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 	const network = roadNetworkOf(scene.roads, scene.junctions);
 	// Areas' own weather shows as its clouds, greyer where it rains or storms (ADR-0151): what reads
 	// in a card. What falls, and the ground's snow and wetness, are left to the live view.
-	const weathers = areaWeathersNow(scene.areas, scene.data);
-	const groundSurface = useSurfaceShading(groundSurfaceOf(scene.ground, scene.surface), false);
-
-	// A shaped ground (ADR-0155) is its outline's slab; the plain rectangle, its rounded box as always.
-	const slab = useGroundSlab(scene.ground);
-	const groundMaterial = (
-		<meshStandardMaterial
-			key={groundSurface.key}
-			userData={groundSurface.userData}
-			color={colorOf(GROUND, scene.ground, "surface", palette, scene.data.values, palette.ground)}
-			roughness={0.95}
-		/>
-	);
-
+	const weathers = areaWeathersNow(scene.areas, scene.data, scene.grounds);
 	const shoot = () => {
 		if (shot.current || !group.current || !(camera instanceof THREE.OrthographicCamera)) {
 			return;
@@ -236,23 +269,17 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 
 	return (
 		<>
-			<SceneLights ground={scene.ground} palette={palette} lighting={scene.lighting} />
+			<SceneLights
+				ground={worldExtentOf(scene.grounds)}
+				palette={palette}
+				lighting={scene.lighting}
+			/>
 
 			<group ref={group}>
-				{slab ? (
-					<mesh geometry={slab} receiveShadow>
-						{groundMaterial}
-					</mesh>
-				) : (
-					<RoundedBox
-						args={[scene.ground.width, 1, scene.ground.depth]}
-						radius={0.45}
-						smoothness={4}
-						position={[0, -0.5, 0]}
-						receiveShadow
-					>
-						{groundMaterial}
-					</RoundedBox>
+				{scene.grounds.map((ground) =>
+					ground.isHidden ? null : (
+						<PictureGround key={ground.id} ground={ground} scene={scene} palette={palette} />
+					),
 				)}
 
 				{scene.areas.map((area, index) =>
@@ -265,6 +292,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 							data={scene.data.values}
 							selected={false}
 							worldSurface={scene.surface}
+							base={areaBaseOf(area, scene.grounds)}
 						/>
 					),
 				)}
@@ -277,7 +305,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 							layer={index}
 							palette={palette}
 							data={scene.data.values}
-							ground={scene.ground}
+							ground={worldExtentOf(scene.grounds)}
 							editing={false}
 							selected={false}
 							trimStart={network.drawTrimsOf(road.id).start}
@@ -300,6 +328,7 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 							fence={fence}
 							palette={palette}
 							areas={scene.areas}
+							grounds={scene.grounds}
 							data={scene.data.values}
 							selected={false}
 						/>

@@ -61,9 +61,10 @@ const useFenceEdit = (fence: TFence) => {
 const FenceTab = ({ fence }: { fence: TFence }) => {
 	const removeFence = useEditor((s) => s.removeFence);
 	const areas = useEditor((s) => s.scene.areas);
+	const grounds = useEditor((s) => s.scene.grounds);
 	const data = useWorldData().values;
 	const edit = useFenceEdit(fence);
-	const layout = layoutOfFence(fence, areas, data);
+	const layout = layoutOfFence(fence, { areas, grounds }, data);
 	const style = FENCE_STYLES[fence.kind];
 
 	return (

@@ -61,16 +61,16 @@ export const areaBindingMapsOf = (
 /**
  * Every place the world keeps data bindings besides its objects and fences:
  * the time of day and the weather, each mood's too, the colours of the
- * ground, the roads and the areas (ADR-0104), roads' widths and flows
+ * grounds (each, ADR-0155), the roads and the areas (ADR-0104), roads' widths and flows
  * (ADR-0112), and every binding of the prefabs' pieces (ADR-0134).
  */
 export const worldBindingMapsOf = (
-	scene: Pick<TScene, "lighting" | "weather" | "moods" | "ground" | "roads" | "areas" | "prefabs">,
+	scene: Pick<TScene, "lighting" | "weather" | "moods" | "grounds" | "roads" | "areas" | "prefabs">,
 ): Record<string, TDataBinding>[] => [
 	scene.lighting.data,
 	scene.weather.data,
 	...scene.moods.flatMap((mood) => [mood.lighting.data, mood.weather.data]),
-	...colorBindingMapsOf(scene.ground.colors),
+	...scene.grounds.flatMap((ground) => colorBindingMapsOf(ground.colors)),
 	...scene.roads.flatMap(roadBindingMapsOf),
 	...scene.areas.flatMap(areaBindingMapsOf),
 	...scene.prefabs.flatMap(prefabBindingMapsOf),

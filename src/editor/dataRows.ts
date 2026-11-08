@@ -2,7 +2,7 @@ import type { Draft } from "immer";
 
 import { SCALE_SETTING } from "#/parts/propData";
 import { getPart, resolveProps } from "#/parts/registry";
-import { groundHeightAt } from "#/scene/areas";
+import { groundHeightAt } from "#/scene/grounds";
 import { cellOf, looseName, rowKeyFor, rowKeyMatching, rowKeyOf, rowKeysOf } from "#/scene/rowData";
 import {
 	DataBindingSchema,
@@ -173,7 +173,7 @@ export const placeForEachRow = (scene: Draft<TScene>, options: IPlaceForEachRow)
 			kind,
 			name: rowKey,
 			position,
-			altitude: groundHeightAt(scene.areas, position),
+			altitude: groundHeightAt(scene, position),
 			dataRow: { tableKey: table.key, rowKey },
 			data: structuredClone(data),
 			label: {

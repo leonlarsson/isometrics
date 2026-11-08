@@ -31,7 +31,7 @@ import { markInstancedRoot } from "./instancing";
 // Prefabs' copies draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
 
-import { nearestOnGround } from "#/scene/groundShape";
+import { keepOnLand, type TWorldExtent, worldExtentOf } from "#/scene/grounds";
 
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
@@ -178,7 +178,7 @@ export interface IEntityWorld {
 	/** A selection box being drawn takes things out of the selection. */
 	unboxing: boolean;
 	playing: boolean;
-	ground: TScene["ground"];
+	ground: TWorldExtent;
 	driving: TScene["traffic"]["drivingSide"];
 	sceneTurns: TScene["traffic"]["turnStyle"];
 	sceneLeans: TScene["traffic"]["leansInTurns"];
@@ -234,18 +234,8 @@ export const EntityNode = memo(
 		listHovered,
 	}: IEntityNodeProps) => {
 		const part = getPart(entity.kind);
-		const {
-			mode,
-			unboxing,
-			playing,
-			ground,
-			driving,
-			sceneTurns,
-			sceneLeans,
-			drawing,
-			palette,
-			graphics,
-		} = world;
+		const { mode, unboxing, playing, driving, sceneTurns, sceneLeans, drawing, palette, graphics } =
+			world;
 		const drawsRealLights = graphics.realLightCount > 0;
 		const drawsWakes = graphics.boatWakes !== "off";
 		const makesWaves = graphics.boatWakes === "foamAndWaves" && graphics.showWaterReflections;
@@ -295,7 +285,7 @@ export const EntityNode = memo(
 						reverse,
 						seed: entity.id,
 						// Read once: it only prefers where to start over (ADR-0148).
-						ground: useEditor.getState().scene.ground,
+						ground: worldExtentOf(useEditor.getState().scene.grounds),
 					})
 				: createRouteSampler(road, driving, { reverse, smoothing });
 		}, [road, network, driving, turns, vehicleLength, reverse, startDistance, entity.id]);
@@ -589,7 +579,10 @@ export const EntityNode = memo(
 				const free = e.nativeEvent.altKey || !useEditor.getState().snapping;
 				const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
 				// Kept on the ground as it's shaped (ADR-0155).
-				const [x, z] = nearestOnGround(ground, [place(hit.x + state.dx), place(hit.z + state.dz)]);
+				const [x, z] = keepOnLand(useEditor.getState().scene, [
+					place(hit.x + state.dx),
+					place(hit.z + state.dz),
+				]);
 				if (x === entity.position[0] && z === entity.position[1]) {
 					return;
 				}

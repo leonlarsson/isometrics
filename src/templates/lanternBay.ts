@@ -927,7 +927,7 @@ export const createLanternBayScene = (): TScene =>
 			subtitle: "An evening on the waterfront",
 		},
 		theme: "system",
-		ground: { width: 60, depth: 52 },
+		grounds: [{ id: "ground", width: 60, depth: 52 }],
 		traffic: { drivingSide: "right" },
 		// It opens wearing The evening passes.
 		lighting: EVENING_PASSES,

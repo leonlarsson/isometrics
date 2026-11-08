@@ -1,13 +1,8 @@
 import { clamp, normalizeDegrees, round } from "#/lib/math";
 import { getPart } from "#/parts/registry";
 import { standingAltitudeAt } from "#/parts/standing";
-import {
-	cornerLift,
-	cornerWithLift,
-	groundHeightAt,
-	MAX_CORNER_LIFT,
-	takesCornerHeights,
-} from "#/scene/areas";
+import { cornerLift, cornerWithLift, MAX_CORNER_LIFT, takesCornerHeights } from "#/scene/areas";
+import { groundHeightAt, worldExtentOf } from "#/scene/grounds";
 import type {
 	TArea,
 	TAreaPoint,
@@ -140,7 +135,7 @@ export const groupStartOf = (
 		...areas.map((area) => area.height),
 		// Fences by the ground they stand on (ADR-0103).
 		...fences.flatMap((fence) =>
-			fence.points.map((point) => groundHeightAt(scene.areas, [point[0], point[1]]) + point[2]),
+			fence.points.map((point) => groundHeightAt(scene, [point[0], point[1]]) + point[2]),
 		),
 	];
 	const lowest = heights.length ? Math.min(...heights) : 0;
@@ -187,7 +182,7 @@ export const transformGroup = (
 	options?: ICommitOptions,
 ) => {
 	const store = useEditor.getState();
-	const { ground } = store.scene;
+	const ground = worldExtentOf(store.scene.grounds);
 	const [cx, , cz] = from.center;
 	const { minX, maxX, minZ, maxZ } = from.bounds;
 	const dx = keepOn(offset[0], minX, maxX, ground.width / 2);
@@ -230,7 +225,11 @@ export const transformGroup = (
 	});
 
 	// What else they land on: the shapes that stay where they are (ADR-0138).
-	const groundThere = { areas: groundThen, entities: store.scene.entities };
+	const groundThere = {
+		areas: groundThen,
+		entities: store.scene.entities,
+		grounds: store.scene.grounds,
+	};
 	const moving = new Set([
 		...from.entities.map((start) => start.id),
 		...from.drivers.map((start) => start.id),
@@ -357,7 +356,7 @@ export const pointsStartOf = (
 	const height = area
 		? Math.max(0, area.height + lift)
 		: fence
-			? groundHeightAt(useEditor.getState().scene.areas, [
+			? groundHeightAt(useEditor.getState().scene, [
 					(bounds.minX + bounds.maxX) / 2,
 					(bounds.minZ + bounds.maxZ) / 2,
 				]) + lift
@@ -382,7 +381,7 @@ export const transformPoints = (
 	options?: ICommitOptions,
 ) => {
 	const store = useEditor.getState();
-	const { ground } = store.scene;
+	const ground = worldExtentOf(store.scene.grounds);
 	const { minX, maxX, minZ, maxZ } = from.bounds;
 	const dx = keepOn(offset[0], minX, maxX, ground.width / 2);
 	const dz = keepOn(offset[1], minZ, maxZ, ground.depth / 2);

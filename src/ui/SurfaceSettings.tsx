@@ -1,9 +1,11 @@
 import type { Draft } from "immer";
 
+import { updateGround, usePickedGround } from "#/editor/groundEditing";
 import { useEditor } from "#/editor/store";
 import { AREA_KINDS, isWaterArea } from "#/scene/areas";
 import { percent } from "#/scene/format";
 import {
+	GroundSchema,
 	SCENE_VERSION,
 	SceneSchema,
 	type TArea,
@@ -26,6 +28,7 @@ import { Hint, resetToDefault, SelectField, SliderField, SwitchField } from "./f
  */
 
 const DEFAULTS = SceneSchema.parse({ version: SCENE_VERSION });
+const GROUND_DEFAULTS = GroundSchema.parse({});
 
 const KIND_OPTIONS = SURFACE_KIND_IDS.map((value) => ({
 	value,
@@ -35,10 +38,11 @@ const KIND_OPTIONS = SURFACE_KIND_IDS.map((value) => ({
 /** A pattern's size as the field shows it: "1.5×". */
 const times = (scale: number) => `${scale}×`;
 
-/** The world's switch, the ground's surface, and the patterns' strength and size for all. */
+/** The world's switch, the picked ground's surface, and the patterns' strength and size for all. */
 export const GroundSurfaceFields = () => {
 	const surface = useEditor((s) => s.scene.surface);
-	const kind = useEditor((s) => s.scene.ground.surface.kind);
+	// The picked ground's (ADR-0155): each ground has its own texture.
+	const kind = usePickedGround().surface.kind;
 	const commit = useEditor((s) => s.commit);
 	const set = <K extends keyof TSurface>(key: K, value: TSurface[K], coalesce = false) =>
 		commit(
@@ -48,8 +52,8 @@ export const GroundSurfaceFields = () => {
 			coalesce ? { coalesce: `surface.${key}` } : undefined,
 		);
 	const setKind = (next: TSurfaceKind) =>
-		commit((s) => {
-			s.ground.surface.kind = next;
+		updateGround((ground) => {
+			ground.surface.kind = next;
 		});
 	const off = !surface.enabled;
 
@@ -66,8 +70,8 @@ export const GroundSurfaceFields = () => {
 			/>
 
 			<SelectField<TSurfaceKind>
-				inherit={resetToDefault(kind, DEFAULTS.ground.surface.kind, () =>
-					setKind(DEFAULTS.ground.surface.kind),
+				inherit={resetToDefault(kind, GROUND_DEFAULTS.surface.kind, () =>
+					setKind(GROUND_DEFAULTS.surface.kind),
 				)}
 				label="Texture"
 				value={kind}

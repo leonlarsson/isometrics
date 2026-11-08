@@ -1,7 +1,7 @@
 import { turnedHalfSize } from "#/lib/math";
 import type { TAnyPart } from "#/parts/registry";
 import { getPart, resolveProps } from "#/parts/registry";
-import { isOnGround } from "#/scene/groundShape";
+import { isOnLand, worldExtentOf } from "#/scene/grounds";
 import type { TEntity, TScene, TVec2 } from "#/scene/schema";
 
 interface IRect {
@@ -41,8 +41,9 @@ export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]
 		.filter((e) => !getPart(e.kind)?.flat)
 		.map(footprintRect)
 		.filter((r): r is IRect => r !== null);
-	const halfGroundW = scene.ground.width / 2;
-	const halfGroundD = scene.ground.depth / 2;
+	const { width: worldWidth, depth: worldDepth } = worldExtentOf(scene.grounds);
+	const halfGroundW = worldWidth / 2;
+	const halfGroundD = worldDepth / 2;
 	const isFlat = part.flat === true;
 
 	for (let radius = 0; radius < Math.max(halfGroundW, halfGroundD); radius++) {
@@ -67,7 +68,7 @@ export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]
 						[rect.maxX, rect.maxZ],
 						[rect.minX, rect.maxZ],
 					] as const
-				).every((corner) => isOnGround(scene.ground, [corner[0], corner[1]]));
+				).every((corner) => isOnLand(scene, [corner[0], corner[1]]));
 				if (!inside) {
 					continue;
 				}

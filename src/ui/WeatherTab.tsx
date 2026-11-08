@@ -15,6 +15,7 @@ import { useWorldData } from "#/editor/worldData";
 import type { TBindingKind } from "#/parts/dataBinding";
 import { valuesOfArea } from "#/scene/areas";
 import { percent } from "#/scene/format";
+import { areaBaseOf, worldExtentOf } from "#/scene/grounds";
 import {
 	type TArea,
 	type TDataBinding,
@@ -390,7 +391,9 @@ export const WeatherFields = ({
 export const WeatherTab = () => {
 	const weather = useEditor((s) => s.scene.weather);
 	const values = useWorldData().values;
-	const reach = useEditor((s) => Math.max(s.scene.ground.width, s.scene.ground.depth));
+	const reach = useEditor((s) =>
+		Math.max(worldExtentOf(s.scene.grounds).width, worldExtentOf(s.scene.grounds).depth),
+	);
 	const commit = useEditor((s) => s.commit);
 
 	return (
@@ -426,6 +429,8 @@ export const WeatherTab = () => {
  */
 export const AreaWeatherTab = ({ area }: { area: TArea }) => {
 	const updateArea = useEditor((s) => s.updateArea);
+	// Its clouds float over its top, on the ground under it (ADR-0155).
+	const base = useEditor((s) => areaBaseOf(area, s.scene.grounds));
 	const values = valuesOfArea(area, useWorldData());
 	const edit = (recipe: (a: Draft<TArea>) => void, coalesce?: string) =>
 		updateArea(
@@ -474,7 +479,7 @@ export const AreaWeatherTab = ({ area }: { area: TArea }) => {
 					weather={area.weather}
 					owner="area"
 					values={values}
-					cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { area })}
+					cloudAltitudeByDefault={cloudAltitudeOf({ cloudAltitude: null }, { area, base })}
 					panelIds="area.weather"
 					change={(recipe, coalesce) =>
 						edit((a) => {
