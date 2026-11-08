@@ -19,6 +19,7 @@ import { groundCornersOf } from "#/scene/groundShape";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
+import { shiftDragMovesView } from "./dragKeys";
 import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { alongLine, BALL_RADIUS, HIT, STAND_OFF } from "./SizeHandles";
 import {
@@ -64,7 +65,7 @@ const CornerHandle = ({
 		planeY: 0,
 		reachesPastGround: true,
 		onStart: (_token, event) => {
-			// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the corner, below).
+			// With Shift, Ctrl or Cmd the press isn't the corner's: Shift pans (ADR-0156); a click toggles it, below.
 			if (isToggleClick(event.nativeEvent)) {
 				return false;
 			}
@@ -260,7 +261,8 @@ const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 				hoverColor={colors.hover}
 				active={active}
 				onPointerDown={(e) => {
-					if (e.nativeEvent.button !== 0) {
+					// With Shift the press moves the view (pans or orbits), over the handle too (ADR-0156).
+					if (e.nativeEvent.button !== 0 || shiftDragMovesView(e.nativeEvent)) {
 						return;
 					}
 					e.stopPropagation();

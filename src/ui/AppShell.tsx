@@ -35,6 +35,8 @@ import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
+import { ControlsButton } from "./ControlsButton";
+import { ControlsDialog } from "./ControlsDialog";
 import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
 import { DataWindow } from "./DataWindow";
 import { DetailSheet, RoadDetailSheet } from "./DetailSheet";
@@ -411,6 +413,8 @@ export const AppShell = () => {
 
 									{showsWorld && <NavigationGizmo />}
 
+									{showsWorld && <ControlsButton />}
+
 									{showsWorld && <LabelLayer />}
 
 									{/* Until the world is ready to look at (ADR-0100). */}
@@ -578,6 +582,8 @@ export const AppShell = () => {
 
 					{/* App-wide, whatever is open: the home screen uses them too. */}
 					<PreferencesDialog />
+
+					<ControlsDialog />
 
 					<BuildWithAiDialog />
 

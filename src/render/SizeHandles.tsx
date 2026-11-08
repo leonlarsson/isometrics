@@ -10,6 +10,7 @@ import type { TAnyPart } from "#/parts/registry";
 import type { TEntity, TScene } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
+import { shiftDragMovesView } from "./dragKeys";
 import { GizmoMaterial, Handle, HitMaterial, RENDER_ORDER, UNIT_PX } from "./TransformGizmo";
 
 /**
@@ -154,7 +155,13 @@ const SideHandle = ({
 	const range = field?.type === "number" ? field : null;
 
 	const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
-		if (e.nativeEvent.button !== 0 || !root.current || !range) {
+		// With Shift the press moves the view (pans or orbits), over the handle too (ADR-0156).
+		if (
+			e.nativeEvent.button !== 0 ||
+			!root.current ||
+			!range ||
+			shiftDragMovesView(e.nativeEvent)
+		) {
 			return;
 		}
 		e.stopPropagation();

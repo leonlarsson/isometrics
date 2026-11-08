@@ -8,6 +8,7 @@ import {
 import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
+import { KEY_GROUP, openControls, type TKeyGroup, useControlsPanel } from "./controls";
 import { openWorldFile, saveWorldFile } from "./fileActions";
 import {
 	removeGroundCorners,
@@ -135,10 +136,11 @@ export const useShortcuts = () => {
 		move: TCameraMove,
 		name: string,
 		enabled: boolean,
+		group: TKeyGroup = KEY_GROUP.view,
 	): UseHotkeyDefinition => ({
 		hotkey,
 		callback: cameraMove(move),
-		options: { enabled, conflictBehavior: "allow", meta: { name } },
+		options: { enabled, conflictBehavior: "allow", meta: { name, group } },
 	});
 	// Keyboard transforms: G moves objects and road points; R and S turn and resize objects.
 	// G on a vehicle following a road lifts it off to drop on another road or park it.
@@ -263,17 +265,24 @@ export const useShortcuts = () => {
 			callback: () => {
 				openWorldFile();
 			},
-			options: { meta: { name: "Open file" } },
+			options: { meta: { name: "Open file", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Mod+S",
 			callback: () => saveWorldFile(),
-			options: { meta: { name: "Save to file" } },
+			options: { meta: { name: "Save to file", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Mod+,",
 			callback: () => useEditor.getState().setPreferencesOpen(true),
-			options: { meta: { name: "Preferences" } },
+			options: { meta: { name: "Preferences", group: KEY_GROUP.app } },
+		},
+		{
+			// ? by the character it types, so it works on any layout (Shift + / in the US, Shift + + in
+			// Sweden): what every key, click and drag does (ADR-0157).
+			hotkey: "?",
+			callback: () => openControls(!useControlsPanel.getState().isOpen),
+			options: { meta: { name: "Keys and mouse", group: KEY_GROUP.app } },
 		},
 		{
 			// Ctrl on every system: Cmd+Space is the Mac's Spotlight.
@@ -283,22 +292,22 @@ export const useShortcuts = () => {
 					toggleSidePanes();
 				}
 			},
-			options: { meta: { name: "Hide or show the side panels" } },
+			options: { meta: { name: "Hide or show the side panels", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Mod+Z",
 			callback: () => useEditor.getState().undo(),
-			options: { meta: { name: "Undo" } },
+			options: { meta: { name: "Undo", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Mod+Shift+Z",
 			callback: () => useEditor.getState().redo(),
-			options: { meta: { name: "Redo" } },
+			options: { meta: { name: "Redo", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Mod+Y",
 			callback: () => useEditor.getState().redo(),
-			options: { meta: { name: "Redo" } },
+			options: { meta: { name: "Redo", group: KEY_GROUP.app } },
 		},
 		{
 			hotkey: "Escape",
@@ -340,7 +349,7 @@ export const useShortcuts = () => {
 					state.clearSelection();
 				}
 			},
-			options: { meta: { name: "Deselect" } },
+			options: { meta: { name: "Deselect", group: KEY_GROUP.selection } },
 		},
 		{
 			// Handle Space on focused buttons too (otherwise the last-clicked toolbar button
@@ -357,7 +366,7 @@ export const useShortcuts = () => {
 				ignoreInputs: false,
 				preventDefault: false,
 				requireReset: true,
-				meta: { name: "Pause / play motion" },
+				meta: { name: "Pause / play motion", group: KEY_GROUP.app },
 			},
 		},
 		{
@@ -368,12 +377,15 @@ export const useShortcuts = () => {
 					duplicateSelected();
 				}
 			},
-			options: { meta: { name: "Duplicate" } },
+			options: { meta: { name: "Duplicate", group: KEY_GROUP.selected } },
 		},
 		{
 			hotkey: "Shift+D",
 			callback: () => useEditor.getState().duplicateAndGrab(),
-			options: { enabled: canDuplicate, meta: { name: "Duplicate and move" } },
+			options: {
+				enabled: canDuplicate,
+				meta: { name: "Duplicate and move", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "B",
@@ -381,13 +393,13 @@ export const useShortcuts = () => {
 				const { boxSelect, setBoxSelect } = useEditor.getState();
 				setBoxSelect(boxSelect === "add" ? null : "add");
 			},
-			options: { enabled: canBox, meta: { name: "Select with a box" } },
+			options: { enabled: canBox, meta: { name: "Select with a box", group: KEY_GROUP.selection } },
 		},
 		{
 			hotkey: "N",
 			// Opens the paint bar; its own N closes it (ui/PaintBar).
 			callback: () => useEditor.getState().setPainting(true),
-			options: { enabled: canBox, meta: { name: "Paint objects" } },
+			options: { enabled: canBox, meta: { name: "Paint objects", group: KEY_GROUP.drawing } },
 		},
 		{
 			hotkey: "Shift+B",
@@ -395,17 +407,20 @@ export const useShortcuts = () => {
 				const { boxSelect, setBoxSelect } = useEditor.getState();
 				setBoxSelect(boxSelect === "remove" ? null : "remove");
 			},
-			options: { enabled: canBox, meta: { name: "Deselect with a box" } },
+			options: {
+				enabled: canBox,
+				meta: { name: "Deselect with a box", group: KEY_GROUP.selection },
+			},
 		},
 		{
 			hotkey: "Delete",
 			callback: remove,
-			options: { enabled: canDelete, meta: { name: "Delete" } },
+			options: { enabled: canDelete, meta: { name: "Delete", group: KEY_GROUP.selected } },
 		},
 		{
 			hotkey: "Backspace",
 			callback: remove,
-			options: { enabled: canDelete, meta: { name: "Delete" } },
+			options: { enabled: canDelete, meta: { name: "Delete", group: KEY_GROUP.selected } },
 		},
 		// 1–9 glide to the world's first nine viewpoints, in Edit and View mode.
 		...(["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const).map((digit, index) => ({
@@ -416,17 +431,20 @@ export const useShortcuts = () => {
 					useEditor.getState().goToViewpoint(viewpoint.id);
 				}
 			},
-			options: { enabled: viewpointCount > index, meta: { name: `Viewpoint ${digit}` } },
+			options: {
+				enabled: viewpointCount > index,
+				meta: { name: "Go to a viewpoint", group: KEY_GROUP.view },
+			},
 		})),
 		{
 			hotkey: "I",
 			callback: () => useEditor.getState().lookIsometric(),
-			options: { enabled: !transforming, meta: { name: "Isometric angle" } },
+			options: { enabled: !transforming, meta: { name: "Isometric angle", group: KEY_GROUP.view } },
 		},
 		{
 			hotkey: "Home",
 			callback: () => useEditor.getState().resetView(),
-			options: { meta: { name: "Back to the opening view" } },
+			options: { meta: { name: "Back to the opening view", group: KEY_GROUP.view } },
 		},
 		cameraKey("ArrowLeft", "panLeft", "Pan left", canPanCamera && !steppingViewpoints),
 		cameraKey("ArrowRight", "panRight", "Pan right", canPanCamera && !steppingViewpoints),
@@ -438,12 +456,12 @@ export const useShortcuts = () => {
 		cameraKey("Shift+ArrowDown", "tiltDown", "Look across more", canPanCamera),
 		// As in games: W A S D move, Q and E go down and up. In View mode, which edits nothing,
 		// always; in Edit mode while the right mouse button is held, when the keys that edit stand aside.
-		cameraKey("W", "panForward", "Move forward", flying),
-		cameraKey("S", "panBack", "Move back", flying),
-		cameraKey("A", "panLeft", "Move left", flying),
-		cameraKey("D", "panRight", "Move right", flying),
-		cameraKey("Q", "moveDown", "Move down", flying),
-		cameraKey("E", "moveUp", "Move up", flying),
+		cameraKey("W", "panForward", "Move forward", flying, KEY_GROUP.flying),
+		cameraKey("S", "panBack", "Move back", flying, KEY_GROUP.flying),
+		cameraKey("A", "panLeft", "Move left", flying, KEY_GROUP.flying),
+		cameraKey("D", "panRight", "Move right", flying, KEY_GROUP.flying),
+		cameraKey("Q", "moveDown", "Move down", flying, KEY_GROUP.flying),
+		cameraKey("E", "moveUp", "Move up", flying, KEY_GROUP.flying),
 		cameraKey("=", "zoomIn", "Zoom in", !transforming),
 		cameraKey("+", "zoomIn", "Zoom in", !transforming),
 		cameraKey("Shift+=", "zoomIn", "Zoom in", !transforming),
@@ -451,22 +469,28 @@ export const useShortcuts = () => {
 		{
 			hotkey: "P",
 			callback: () => useEditor.getState().toggleProjection(),
-			options: { meta: { name: "Perspective / isometric diorama" } },
+			options: { meta: { name: "Perspective / isometric diorama", group: KEY_GROUP.view } },
 		},
 		{
 			hotkey: "H",
 			callback: () => useEditor.getState().toggleSelectedHidden(),
-			options: { enabled: canDelete, meta: { name: "Hide or show the selection" } },
+			options: {
+				enabled: canDelete,
+				meta: { name: "Hide or show the selection", group: KEY_GROUP.selection },
+			},
 		},
 		{
 			hotkey: "Alt+H",
 			callback: () => useEditor.getState().revealAll(),
-			options: { enabled: mode === "edit", meta: { name: "Show everything hidden" } },
+			options: {
+				enabled: mode === "edit",
+				meta: { name: "Show everything hidden", group: KEY_GROUP.selection },
+			},
 		},
 		{
 			hotkey: "F",
 			callback: () => useEditor.getState().frameSelection(),
-			options: { enabled: canDelete, meta: { name: "Frame the selection" } },
+			options: { enabled: canDelete, meta: { name: "Frame the selection", group: KEY_GROUP.view } },
 		},
 		{
 			hotkey: "Shift+F",
@@ -477,18 +501,18 @@ export const useShortcuts = () => {
 			},
 			options: {
 				enabled: mode === "edit" && !transforming && !holdingRightButton,
-				meta: { name: "Draw a fence" },
+				meta: { name: "Draw a fence", group: KEY_GROUP.drawing },
 			},
 		},
 		{
 			hotkey: "G",
 			callback: () => start("grab"),
-			options: { enabled: canGrab, meta: { name: "Move (grab)" } },
+			options: { enabled: canGrab, meta: { name: "Move (grab)", group: KEY_GROUP.selected } },
 		},
 		{
 			hotkey: "R",
 			callback: () => start("rotate"),
-			options: { enabled: canNudge, meta: { name: "Turn" } },
+			options: { enabled: canNudge, meta: { name: "Turn", group: KEY_GROUP.selected } },
 		},
 		{
 			hotkey: "S",
@@ -502,54 +526,92 @@ export const useShortcuts = () => {
 				}
 				start("scale");
 			},
-			options: { enabled: canNudge, conflictBehavior: "allow", meta: { name: "Resize" } },
+			options: {
+				enabled: canNudge,
+				conflictBehavior: "allow",
+				meta: { name: "Resize", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Q",
 			callback: () => rotate(15),
-			options: { enabled: canTransform, conflictBehavior: "allow", meta: { name: "Rotate left" } },
+			options: {
+				enabled: canTransform,
+				conflictBehavior: "allow",
+				meta: { name: "Rotate left", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "E",
 			callback: () => rotate(-15),
-			options: { enabled: canTransform, conflictBehavior: "allow", meta: { name: "Rotate right" } },
+			options: {
+				enabled: canTransform,
+				conflictBehavior: "allow",
+				meta: { name: "Rotate right", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Shift+Q",
 			callback: () => rotate(90),
-			options: { enabled: canTransform, meta: { name: "Rotate left 90°" } },
+			options: {
+				enabled: canTransform,
+				meta: { name: "Rotate left 90°", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Shift+E",
 			callback: () => rotate(-90),
-			options: { enabled: canTransform, meta: { name: "Rotate right 90°" } },
+			options: {
+				enabled: canTransform,
+				meta: { name: "Rotate right 90°", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "ArrowLeft",
 			callback: () => nudge(-1, 0),
 			// The arrows are shared with moving the camera (above) and stepping through viewpoints in View
 			// mode (ViewpointBar); never more than one enabled.
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge left" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge left", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "ArrowRight",
 			callback: () => nudge(1, 0),
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge right" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge right", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "ArrowUp",
 			callback: () => nudge(0, -1),
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge back" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge back", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "ArrowDown",
 			callback: () => nudge(0, 1),
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge forward" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge forward", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Shift+ArrowLeft",
 			callback: () => nudge(-5, 0),
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge left ×5" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge left ×5", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Shift+ArrowRight",
@@ -557,13 +619,17 @@ export const useShortcuts = () => {
 			options: {
 				enabled: canNudgeAny,
 				conflictBehavior: "allow",
-				meta: { name: "Nudge right ×5" },
+				meta: { name: "Nudge right ×5", group: KEY_GROUP.selected },
 			},
 		},
 		{
 			hotkey: "Shift+ArrowUp",
 			callback: () => nudge(0, -5),
-			options: { enabled: canNudgeAny, conflictBehavior: "allow", meta: { name: "Nudge back ×5" } },
+			options: {
+				enabled: canNudgeAny,
+				conflictBehavior: "allow",
+				meta: { name: "Nudge back ×5", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Shift+ArrowDown",
@@ -571,28 +637,40 @@ export const useShortcuts = () => {
 			options: {
 				enabled: canNudgeAny,
 				conflictBehavior: "allow",
-				meta: { name: "Nudge forward ×5" },
+				meta: { name: "Nudge forward ×5", group: KEY_GROUP.selected },
 			},
 		},
 		{
 			hotkey: "Alt+ArrowLeft",
 			callback: () => nudge(-1, 0, FINE_NUDGE_STEP),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge left a little" } },
+			options: {
+				enabled: canNudgeAny,
+				meta: { name: "Nudge left a little", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Alt+ArrowRight",
 			callback: () => nudge(1, 0, FINE_NUDGE_STEP),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge right a little" } },
+			options: {
+				enabled: canNudgeAny,
+				meta: { name: "Nudge right a little", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Alt+ArrowUp",
 			callback: () => nudge(0, -1, FINE_NUDGE_STEP),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge back a little" } },
+			options: {
+				enabled: canNudgeAny,
+				meta: { name: "Nudge back a little", group: KEY_GROUP.selected },
+			},
 		},
 		{
 			hotkey: "Alt+ArrowDown",
 			callback: () => nudge(0, 1, FINE_NUDGE_STEP),
-			options: { enabled: canNudgeAny, meta: { name: "Nudge forward a little" } },
+			options: {
+				enabled: canNudgeAny,
+				meta: { name: "Nudge forward a little", group: KEY_GROUP.selected },
+			},
 		},
 	]);
 };

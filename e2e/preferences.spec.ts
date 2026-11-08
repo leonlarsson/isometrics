@@ -219,3 +219,36 @@ test.describe("the theme (ADR-0007)", () => {
 		expect(await read(page, (s) => s.scene.theme)).toBe("system");
 	});
 });
+
+test.describe("Keys and mouse (ADR-0157)", () => {
+	test("? opens Keys and mouse: the editor's keys, and the drags as the preferences set them", async ({
+		page,
+	}) => {
+		const panel = page.getByRole("dialog", { name: "Keys and mouse" });
+		await page.locator("canvas").hover();
+		// ? by the character it types: Shift + / here (US), Shift + + on a Swedish keyboard.
+		await keys(page, "?");
+		await expect(panel).toBeVisible();
+		// Keys from the editor's registrations, by group; the mouse as the preferences say.
+		await expect(panel.getByRole("region", { name: "App" })).toContainText("Undo");
+		await expect(panel.getByRole("region", { name: "With something selected" })).toContainText(
+			"Duplicate",
+		);
+		const moving = panel.getByRole("region", { name: "Moving the view" });
+		await expect(moving).toContainText("Pans the view, from anywhere");
+
+		// Shift set to orbit in Preferences: the panel says so.
+		await panel.getByRole("button", { name: "Open Preferences" }).click();
+		await expect(panel).toBeHidden();
+		await preferences(page).getByRole("button", { name: "Camera", exact: true }).click();
+		await choose(page, "Shift + left-drag", "Orbits the view");
+		await keys(page, "Escape");
+		// The button in the view's corner opens it too.
+		await page.getByRole("button", { name: "Keys and mouse (?)" }).click();
+		await expect(moving).toContainText("Orbits the view, from anywhere");
+
+		// A search narrows it down.
+		await panel.getByRole("searchbox", { name: "Search the keys and mouse" }).fill("redo");
+		await expect(panel.getByRole("region")).toHaveCount(1);
+	});
+});

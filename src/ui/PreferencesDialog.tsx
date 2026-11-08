@@ -18,6 +18,7 @@ import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
 /** The preferences on each page, for resetting a page. */
 const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"cameraControl",
+	"shiftDrag",
 	"orbitSpeed",
 	"zoomSpeed",
 	"invertZoom",
@@ -133,6 +134,27 @@ export const PreferencesDialog = () => {
 										preferences.cameraControl === "simple"
 											? "The camera stays above the world, within the world’s zoom and tilt (Camera tab)."
 											: "Orbit anywhere: under the ground, straight up at the sky, as close or far as you like. The world’s zoom and tilt don’t apply to you."
+									}
+								/>
+							),
+						},
+						{
+							id: "shiftDrag",
+							keywords: "shift drag pan orbit turn mouse keys trackpad",
+							field: (
+								<SelectField<TPreferences["shiftDrag"]>
+									label="Shift + left-drag"
+									value={preferences.shiftDrag}
+									options={[
+										{ value: "pan", label: "Pans the view" },
+										{ value: "orbit", label: "Orbits the view" },
+									]}
+									onChange={(v) => setPreference("shiftDrag", v)}
+									inherit={preferenceDefault(preferences, "shiftDrag", "pans the view")}
+									hint={
+										preferences.shiftDrag === "pan"
+											? "Slides the view from anywhere, even starting on a selected object, without moving it. The right button orbits."
+											: "Turns the view round the spot under the pointer, as the right button does: for a trackpad without one."
 									}
 								/>
 							),

@@ -489,8 +489,8 @@ export const EntityNode = memo(
 				// Only a selected object can be dragged. Pressing anything else leaves the press to the
 				// camera (so panning across the scene never grabs a building); a click selects it.
 				// While drawing a road, presses pass through to the ground too, and with Shift held the
-				// press orbits the camera, as it does anywhere else. Ctrl or Cmd on a selected object
-				// drags a copy (ADR-0067); a Ctrl-click without moving still takes it out (onClick).
+				// press pans the camera, as it does anywhere else (ADR-0156). Ctrl or Cmd on a selected
+				// object drags a copy (ADR-0067); a Ctrl-click without moving still takes it out (onClick).
 				const { button, ctrlKey, metaKey, shiftKey } = e.nativeEvent;
 				if (drawing || !selected || !editable || button !== 0 || shiftKey) {
 					return;
