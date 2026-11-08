@@ -40,14 +40,14 @@ const SIDES: readonly { axis: TAxis; sign: 1 | -1 }[] = [
  * a ball in its axis's colour, like the move arrows, told from the gizmo's cube that resizes the
  * whole object by its shape as well as its colour (ADR-0089).
  */
-const STAND_OFF = 0.3;
+export const STAND_OFF = 0.3;
 /**
  * The bottom's handle stands further off: the transform gizmo stands on the
  * object's base too, its square just in front of it (ADR-0138).
  */
 const STAND_OFF_BELOW = 0.6;
-const BALL_RADIUS = 0.1;
-const HIT = 0.34;
+export const BALL_RADIUS = 0.1;
+export const HIT = 0.34;
 
 interface ISession {
 	token: string;
@@ -63,7 +63,7 @@ interface ISession {
 }
 
 /** How far along a line (from `origin`, unit `direction`) the point nearest the pointer's ray is. */
-const alongLine = (ray: THREE.Ray, origin: THREE.Vector3, direction: THREE.Vector3) => {
+export const alongLine = (ray: THREE.Ray, origin: THREE.Vector3, direction: THREE.Vector3) => {
 	const w0 = origin.clone().sub(ray.origin);
 	const b = direction.dot(ray.direction);
 	const d = direction.dot(w0);

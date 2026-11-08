@@ -86,8 +86,8 @@ export const GroundShapeFields = () => {
 			</ButtonGroup>
 
 			<Hint>
-				Shape the ground puts handles on its corners in the view: drag them, add corners between
-				them, or drag the rectangle's sides to resize it.
+				Shape the ground puts handles on its corners in the view: drag them or add corners between
+				them, and drag the balls on its sides to resize it.
 			</Hint>
 		</>
 	);

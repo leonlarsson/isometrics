@@ -63,23 +63,13 @@ export const Ground = () => {
 	const showsGround = useEditor((s) => workshopOf(s.whatIsOpen)?.showsGround ?? true);
 
 	const slab = useGroundSlab(ground);
-	// The grid on a shaped ground covers only its shape (drei's Grid takes the outline's geometry).
+	// The grid on a shaped ground covers only its shape (drei's Grid takes the outline's geometry);
+	// a new Grid when it turns plain again, so it's the Grid's own plane at the ground's size.
 	const gridShape = useGroundGridGeometry(ground);
 	const grid = useRef<THREE.Mesh>(null);
-	const gridPlane = useRef<THREE.BufferGeometry | null>(null);
 	useLayoutEffect(() => {
-		const mesh = grid.current;
-		if (!mesh) {
-			return;
-		}
-		if (gridShape) {
-			if (mesh.geometry !== gridShape) {
-				gridPlane.current ??= mesh.geometry;
-				mesh.geometry = gridShape;
-			}
-		} else if (gridPlane.current) {
-			mesh.geometry = gridPlane.current;
-			gridPlane.current = null;
+		if (grid.current && gridShape && grid.current.geometry !== gridShape) {
+			grid.current.geometry = gridShape;
 		}
 	});
 	const pointer = {
@@ -141,6 +131,7 @@ export const Ground = () => {
 
 			{showsGrid && (
 				<Grid
+					key={gridShape ? "shape" : "plane"}
 					ref={grid}
 					args={[ground.width, ground.depth]}
 					position={[0, 0.004, 0]}

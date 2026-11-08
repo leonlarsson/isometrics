@@ -1,6 +1,6 @@
-import type { ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
-import type * as THREE from "three";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 
 import {
 	insertGroundCorner,
@@ -14,12 +14,22 @@ import {
 import { drawnModeOf, isToggleClick, SNAP_STEP, useEditor } from "#/editor/store";
 import { usePalette } from "#/editor/useTheme";
 import { snap } from "#/lib/math";
-import { isClick } from "#/lib/pointer";
+import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { groundCornersOf } from "#/scene/groundShape";
-import type { TVec2 } from "#/scene/schema";
+import type { TScene, TVec2 } from "#/scene/schema";
 
+import { pixelsPerUnitAt } from "./cameraMath";
 import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
-import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
+import { alongLine, BALL_RADIUS, HIT, STAND_OFF } from "./SizeHandles";
+import {
+	GizmoMaterial,
+	Handle,
+	HitMaterial,
+	RENDER_ORDER,
+	type TGizmoHandle,
+	TransformGizmo,
+	UNIT_PX,
+} from "./TransformGizmo";
 import { useGroundDrag } from "./useGroundDrag";
 import { useScreenScale } from "./useScreenScale";
 import { setViewCursor } from "./viewCursor";
@@ -172,70 +182,170 @@ const InsertHandle = ({
 	);
 };
 
+const knobAt = new THREE.Vector3();
+
 /**
- * A handle in the middle of a side of the rectangle: drag it out or in to
- * resize the ground along that axis. The ground stays centred, so the side
- * opposite moves as much.
+ * A size handle in the middle of a side of the ground (the rectangle round
+ * it, for a shape), like an object's (ADR-0124): a ball in its axis's colour
+ * standing off the side, dragged along the axis to resize the ground there.
+ * It stays centred, so the opposite side moves as much; a shape stretches.
+ * Snaps to whole units (Alt, or snapping off, sizes freely); right-click or
+ * Esc during the drag puts it back.
  */
-const SideHandle = ({
-	axis,
-	sign,
-	visible,
-}: {
-	axis: "x" | "z";
-	sign: 1 | -1;
-	visible: boolean;
-}) => {
-	const palette = usePalette();
+const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
+	const colors = usePalette().gizmo;
 	const ground = useEditor((s) => s.scene.ground);
-	const [hovered, setHovered] = useState(false);
-	const handle = useScreenScale<THREE.Group>(HANDLE_PX, hovered ? 1.2 : 1);
-	const drag = useGroundDrag({
-		planeY: 0,
-		reachesPastGround: true,
-		onStart: () => true,
-		onMove: (next, token) => {
-			const { width, depth } = useEditor.getState().scene.ground;
-			const options = { coalesce: token, gesture: true };
-			if (axis === "x") {
-				resizeGround(Math.abs(next[0]) * 2, depth, options);
-			} else {
-				resizeGround(width, Math.abs(next[1]) * 2, options);
-			}
-		},
+	const camera = useThree((s) => s.camera);
+	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+	const root = useRef<THREE.Group>(null);
+	const knob = useRef<THREE.Group>(null);
+	const [active, setActive] = useState(false);
+	const session = useRef<{
+		token: string;
+		from: { clientX: number; clientY: number };
+		started: boolean;
+		anchor: number;
+		origin: THREE.Vector3;
+		direction: THREE.Vector3;
+		start: { width: number; depth: number };
+		before: TScene;
+	} | null>(null);
+
+	// The same size on screen at any zoom, standing a little off its side.
+	useFrame(({ size }) => {
+		if (!root.current || !knob.current) {
+			return;
+		}
+		root.current.getWorldPosition(knobAt);
+		const unit = UNIT_PX / pixelsPerUnitAt(camera, knobAt, size.height);
+		knob.current.scale.setScalar(unit);
+		knob.current.position.set(
+			axis === "x" ? sign * STAND_OFF * unit : 0,
+			0,
+			axis === "z" ? sign * STAND_OFF * unit : 0,
+		);
 	});
+
+	const finish = (target: EventTarget | null, pointerId?: number) => {
+		if (!session.current) {
+			return;
+		}
+		session.current = null;
+		setActive(false);
+		if (pointerId !== undefined) {
+			(target as Element | null)?.releasePointerCapture?.(pointerId);
+		}
+		if (controls) {
+			controls.enabled = true;
+		}
+		const store = useEditor.getState();
+		store.setDragging(false);
+		store.setCancelGesture(null);
+	};
+	const cancel = () => {
+		const current = session.current;
+		if (current) {
+			useEditor.getState().revertTo(current.before);
+			finish(null);
+		}
+	};
+	useEffect(() => () => finish(null), []);
+
 	const at: TVec2 = axis === "x" ? [(sign * ground.width) / 2, 0] : [0, (sign * ground.depth) / 2];
 
 	return (
-		<group
-			position={[at[0], HANDLE_Y, at[1]]}
-			// Long along its side, so it reads as the side's own handle.
-			rotation={[0, axis === "x" ? 0 : Math.PI / 2, 0]}
-			ref={handle}
-			visible={visible}
-			{...drag}
-			onClick={(e: ThreeEvent<MouseEvent>) => e.stopPropagation()}
-			onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-				e.stopPropagation();
-				setHovered(true);
-				setViewCursor(axis === "x" ? "ew-resize" : "ns-resize");
-			}}
-			onPointerOut={() => {
-				setHovered(false);
-				setViewCursor("");
-			}}
-		>
-			<mesh renderOrder={HANDLE_ORDER}>
-				<boxGeometry args={[0.36, 0.06, 1.1]} />
+		<group ref={root} position={[at[0], 0, at[1]]}>
+			<Handle
+				color={colors[axis]}
+				hoverColor={colors.hover}
+				active={active}
+				onPointerDown={(e) => {
+					if (e.nativeEvent.button !== 0) {
+						return;
+					}
+					e.stopPropagation();
+					const store = useEditor.getState();
+					session.current = {
+						token: `ground-size:${axis}:${performance.now()}`,
+						from: { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY },
+						started: false,
+						anchor: 0,
+						origin: new THREE.Vector3(at[0], 0, at[1]),
+						direction: new THREE.Vector3(axis === "x" ? sign : 0, 0, axis === "z" ? sign : 0),
+						start: { width: store.scene.ground.width, depth: store.scene.ground.depth },
+						before: store.scene,
+					};
+					setActive(true);
+					(e.target as unknown as Element).setPointerCapture(e.pointerId);
+					if (controls) {
+						controls.enabled = false;
+					}
+					store.setDragging(true);
+					store.setCancelGesture(cancel);
+				}}
+				onPointerMove={(e) => {
+					const current = session.current;
+					if (!current) {
+						return;
+					}
+					e.stopPropagation();
+					const along = alongLine(e.ray, current.origin, current.direction);
+					if (along === null) {
+						return;
+					}
+					if (!current.started) {
+						if (!pastDragThreshold(current.from, e.nativeEvent)) {
+							return;
+						}
+						// Measured from here, so the distance already covered doesn't make the side jump.
+						current.started = true;
+						current.anchor = along;
+						return;
+					}
+					const free = e.nativeEvent.altKey || !useEditor.getState().snapping;
+					// Both sides move, as it stays centred.
+					const grow = (along - current.anchor) * 2;
+					const size = (start: number) => (free ? start + grow : snap(start + grow, 1));
+					const options = { coalesce: current.token, gesture: true };
+					if (axis === "x") {
+						resizeGround(size(current.start.width), current.start.depth, options);
+					} else {
+						resizeGround(current.start.width, size(current.start.depth), options);
+					}
+				}}
+				onPointerUp={(e) => {
+					if (session.current) {
+						e.stopPropagation();
+					}
+					finish(e.target, e.pointerId);
+				}}
+				onLostPointerCapture={(e) => finish(e.target)}
+				onContextMenu={(e) => {
+					if (session.current) {
+						e.stopPropagation();
+						e.nativeEvent.preventDefault();
+						cancel();
+					}
+				}}
+				onClick={(e) => e.stopPropagation()}
+				hitArea={null}
+			>
+				{(color) => (
+					<group ref={knob} name={`ground size handle ${sign > 0 ? "+" : "−"}${axis}`}>
+						<mesh renderOrder={RENDER_ORDER}>
+							<sphereGeometry args={[BALL_RADIUS, 16, 12]} />
 
-				<HandleMaterial color={palette.selection} />
-			</mesh>
+							<GizmoMaterial color={color} />
+						</mesh>
 
-			<mesh position={[0, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
-				<boxGeometry args={[0.18, 0.06, 0.85]} />
+						<mesh>
+							<boxGeometry args={[HIT, HIT, HIT]} />
 
-				<HandleMaterial color={hovered ? palette.selection : "#ffffff"} />
-			</mesh>
+							<HitMaterial />
+						</mesh>
+					</group>
+				)}
+			</Handle>
 		</group>
 	);
 };
@@ -301,29 +411,31 @@ export const GroundHandles = () => {
 
 	return (
 		<group userData={HANDLE_PICK}>
-			{ground.points === null
-				? (
-						[
-							["x", 1],
-							["x", -1],
-							["z", 1],
-							["z", -1],
-						] as const
-					).map(([axis, sign]) => (
-						<SideHandle key={`${axis}${sign}`} axis={axis} sign={sign} visible={!dragging} />
-					))
-				: points.map((point, index) => {
-						const after = points[(index + 1) % points.length];
-						return (
-							<InsertHandle
-								// biome-ignore lint/suspicious/noArrayIndexKey: one per side, by position
-								key={`insert-${index}`}
-								index={index}
-								point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
-								visible={!dragging}
-							/>
-						);
-					})}
+			{/* The size handles on the sides of the rectangle (round a shape, which they stretch). */}
+			{(
+				[
+					["x", 1],
+					["x", -1],
+					["z", 1],
+					["z", -1],
+				] as const
+			).map(([axis, sign]) => (
+				<SideHandle key={`${axis}${sign}`} axis={axis} sign={sign} />
+			))}
+
+			{ground.points !== null &&
+				points.map((point, index) => {
+					const after = points[(index + 1) % points.length];
+					return (
+						<InsertHandle
+							// biome-ignore lint/suspicious/noArrayIndexKey: one per side, by position
+							key={`insert-${index}`}
+							index={index}
+							point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
+							visible={!dragging}
+						/>
+					);
+				})}
 
 			{/* Kept while dragging: the gizmo's own drag sets dragging, and unmounting it ends the drag. */}
 			{chosen.length > 0 && <CornersGizmo points={points} indices={chosen} />}
