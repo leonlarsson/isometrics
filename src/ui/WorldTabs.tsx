@@ -1,3 +1,4 @@
+import { resizeGround } from "#/editor/groundShaping";
 import { useEditor } from "#/editor/store";
 import { useThemePalette } from "#/editor/useTheme";
 import { useWorldData } from "#/editor/worldData";
@@ -24,6 +25,7 @@ import {
 	SwitchField,
 	TextField,
 } from "./fields";
+import { GroundShapeFields } from "./GroundShapeFields";
 import { LegendSection } from "./LegendSection";
 import { ColorSettingFields } from "./PartSettings";
 import { GroundSurfaceFields } from "./SurfaceSettings";
@@ -200,49 +202,59 @@ export const WorldTab = () => {
 				id="world.ground"
 				icon="layers"
 				title="Ground"
-				keywords="size floor base surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
+				keywords="size floor base thickness deep slab hide hidden show shape outline circle round rounded corners island surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
 			>
 				<SliderField
 					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
-						commit((s) => {
-							s.ground.width = WORLD_DEFAULTS.ground.width;
-						}),
+						resizeGround(WORLD_DEFAULTS.ground.width, scene.ground.depth),
 					)}
 					label="Width"
 					value={scene.ground.width}
 					min={8}
 					max={500}
 					step={1}
-					onChange={(v) =>
-						commit(
-							(s) => {
-								s.ground.width = v;
-							},
-							{ coalesce: "ground.width" },
-						)
-					}
+					onChange={(v) => resizeGround(v, scene.ground.depth, { coalesce: "ground.width" })}
 				/>
 
 				<SliderField
 					inherit={resetToDefault(scene.ground.depth, WORLD_DEFAULTS.ground.depth, () =>
-						commit((s) => {
-							s.ground.depth = WORLD_DEFAULTS.ground.depth;
-						}),
+						resizeGround(scene.ground.width, WORLD_DEFAULTS.ground.depth),
 					)}
 					label="Depth"
 					value={scene.ground.depth}
 					min={8}
 					max={500}
 					step={1}
+					onChange={(v) => resizeGround(scene.ground.width, v, { coalesce: "ground.depth" })}
+					hint={
+						scene.ground.points ? "Its shape stretches to fill the width and depth." : undefined
+					}
+				/>
+
+				<SliderField
+					inherit={resetToDefault(scene.ground.thickness, WORLD_DEFAULTS.ground.thickness, () =>
+						commit((s) => {
+							s.ground.thickness = WORLD_DEFAULTS.ground.thickness;
+						}),
+					)}
+					label="Thickness"
+					value={scene.ground.thickness}
+					min={0.2}
+					max={50}
+					sliderMax={20}
+					step={0.1}
 					onChange={(v) =>
 						commit(
 							(s) => {
-								s.ground.depth = v;
+								s.ground.thickness = v;
 							},
-							{ coalesce: "ground.depth" },
+							{ coalesce: "ground.thickness" },
 						)
 					}
+					hint="How deep its slab is under its top: a thin plate, or a deep block."
 				/>
+
+				<GroundShapeFields />
 
 				<ColorSettingFields
 					spec={GROUND.colors[0]}
@@ -260,6 +272,26 @@ export const WorldTab = () => {
 				/>
 
 				<GroundSurfaceFields />
+
+				<SwitchField
+					inherit={resetToDefault(scene.ground.isHidden, false, () =>
+						commit((s) => {
+							s.ground.isHidden = false;
+						}),
+					)}
+					label="Show the ground"
+					checked={!scene.ground.isHidden}
+					onChange={(shown) =>
+						commit((s) => {
+							s.ground.isHidden = !shown;
+						})
+					}
+					hint={
+						scene.ground.isHidden
+							? "Hidden: what stands on it floats, in View mode and pictures (a dashed outline while editing). Things are still kept on its shape."
+							: undefined
+					}
+				/>
 
 				<ButtonGroup>
 					<Button size="sm" icon="focus" onClick={resetView}>

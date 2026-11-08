@@ -12,9 +12,12 @@ import {
 	menuItem,
 	openEditor,
 	openPanel,
+	paletteTile,
 	read,
 	reopened,
 	saved,
+	screenOf,
+	showView,
 	test,
 } from "./editor";
 
@@ -44,6 +47,130 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 		expect(await read(page, (s) => s.scene.onScreen.showsTitle)).toBe(false);
 		await page.getByRole("button", { name: "View", exact: true }).click();
 		await expect(page.getByRole("heading", { name: "Brightwater" })).toBeHidden();
+	});
+});
+
+test.describe("the ground's shape (ADR-0155)", () => {
+	test("a shape in one click, and Shape the ground's handles resize and reshape it", async ({
+		page,
+	}) => {
+		await loadWorld(page, { entities: [{ id: "house", kind: "house_01", position: [0, 0] }] });
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 40;
+				scene.ground.depth = 30;
+			}),
+		);
+		await showView(page, [0, 0], 75);
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Circle", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(32);
+		await page.getByRole("button", { name: "Rectangle", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+
+		// Hidden, nothing stands under what's on it; shown again, as it was.
+		await page.getByRole("switch", { name: "Show the ground", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.isHidden)).toBe(true);
+		await page.getByRole("switch", { name: "Show the ground", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.isHidden)).toBe(false);
+		await page.getByRole("textbox", { name: "Thickness", exact: true }).fill("4");
+		await page.getByRole("textbox", { name: "Thickness", exact: true }).press("Enter");
+		expect(await read(page, (s) => s.scene.ground.thickness)).toBe(4);
+
+		// The rectangle's side handle resizes it, staying centred; the view stays put under the pointer.
+		await page.getByRole("button", { name: "Shape the ground", exact: true }).click();
+		await expect(page.getByText("Shaping the ground")).toBeVisible();
+		const drag = async (from: [number, number], to: [number, number]) => {
+			const start = await screenOf(page, [from[0], 0.12, from[1]]);
+			const end = await screenOf(page, [to[0], 0.12, to[1]]);
+			await page.mouse.move(start.x, start.y);
+			await page.mouse.down();
+			await page.mouse.move(end.x, end.y, { steps: 10 });
+			await page.mouse.up();
+		};
+		// The side's size handle, a ball standing about 19 px off the side's middle, outwards.
+		const sideBall = async (x: number) => {
+			const side = await screenOf(page, [x, 0, 0]);
+			const further = await screenOf(page, [x + 1, 0, 0]);
+			const length = Math.hypot(further.x - side.x, further.y - side.y);
+			const off = 15 / length;
+			return { x: side.x + (further.x - side.x) * off, y: side.y + (further.y - side.y) * off };
+		};
+		const ball = await sideBall(20);
+		const sideTo = await screenOf(page, [26, 0, 0]);
+		await page.mouse.move(ball.x, ball.y);
+		await page.mouse.down();
+		await page.mouse.move(
+			ball.x + (sideTo.x - (await screenOf(page, [20, 0, 0])).x),
+			ball.y + (sideTo.y - (await screenOf(page, [20, 0, 0])).y),
+			{ steps: 10 },
+		);
+		await page.mouse.up();
+		// Measured from where the drag really started (past the drag threshold), as an object's sides.
+		const resized = await read(page, (s) => s.scene.ground);
+		expect(resized.width).toBeGreaterThanOrEqual(48);
+		expect(resized.points).toBeNull();
+		// The rest from a known size, so the corner's place is exact.
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 52;
+			}),
+		);
+
+		// A corner dragged out makes it a shape, its size growing round it.
+		await drag([-26, -15], [-30, -22]);
+		expect(await read(page, (s) => s.scene.ground)).toMatchObject({
+			points: [
+				[-30, -22],
+				[26, -15],
+				[26, 15],
+				[-26, 15],
+			],
+			width: 60,
+			depth: 44,
+		});
+
+		// The dragged corner is selected: Delete takes it out (back to four corners: Ctrl+Z puts it back).
+		await page.keyboard.press("Delete");
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(3);
+		await page.keyboard.press("Control+z");
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(4);
+
+		// Undone like any change; with no corner selected, Esc ends shaping.
+		await page.keyboard.press("Control+z");
+		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+		await page.keyboard.press("Escape");
+		await expect(page.getByText("Shaping the ground")).toBeHidden();
+	});
+});
+
+test.describe("on a shaped ground (ADR-0155)", () => {
+	test("a part dropped past a circle's edge lands on it", async ({ page }) => {
+		await loadWorld(page, { entities: [] });
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 40;
+				scene.ground.depth = 40;
+			}),
+		);
+		await showView(page, [0, 0], 75);
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Circle", exact: true }).click();
+		// Back to Add to scene, and a tree dragged onto the rectangle's empty corner, off the circle.
+		const tree = await paletteTile(page, "Nature", "Round tree");
+		await tree.scrollIntoViewIfNeeded();
+		const box = await tree.boundingBox();
+		const corner = await screenOf(page, [18, 0, 18]);
+		if (!box) {
+			throw new Error("no tile");
+		}
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(corner.x, corner.y, { steps: 12 });
+		await page.mouse.up();
+		const [x, z] = await read(page, (s) => s.scene.entities.at(-1)?.position ?? [0, 0]);
+		expect(Math.hypot(x, z)).toBeLessThanOrEqual(20.01);
+		expect(Math.hypot(x, z)).toBeGreaterThan(18);
 	});
 });
 

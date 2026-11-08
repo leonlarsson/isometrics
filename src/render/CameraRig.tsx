@@ -2,6 +2,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { useGroundShaping } from "#/editor/groundShaping";
 import { useEditor } from "#/editor/store";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -91,6 +92,12 @@ export const CameraRig = () => {
 	useEffect(() => {
 		const request = `${nonce}:${groundWidth}:${groundDepth}`;
 		if (!hasSize || !controls || framed.current === request) {
+			return;
+		}
+		// The ground resized by its own handles (ADR-0155): the view stays put under the pointer.
+		const onlyResized = framed.current?.startsWith(`${nonce}:`) ?? false;
+		if (onlyResized && useGroundShaping.getState().isOn) {
+			framed.current = request;
 			return;
 		}
 		framed.current = request;

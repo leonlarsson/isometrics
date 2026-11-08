@@ -7,7 +7,7 @@ import type { TDrawnGraphics } from "#/editor/graphics";
 import { groupStart, type IGroupStart } from "#/editor/groupTransform";
 import { isToggleClick, SNAP_STEP, type TEditorMode, useEditor } from "#/editor/store";
 import { forgetVehicleNow, setVehicleNow } from "#/editor/vehiclesNow";
-import { clamp, DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
+import { DEG2RAD, normalizeDegrees, round, snap, toRadians } from "#/lib/math";
 import { isClick, pastDragThreshold } from "#/lib/pointer";
 import { resolveColors, resolveLabelColor, resolveTransparencies } from "#/parts/colorModel";
 import { resolveLights } from "#/parts/lightModel";
@@ -30,6 +30,8 @@ import { useInstancedPart } from "./InstancedParts";
 import { markInstancedRoot } from "./instancing";
 // Prefabs' copies draw their pieces with it (ADR-0134).
 import "./PrefabPieces";
+
+import { nearestOnGround } from "#/scene/groundShape";
 
 import { RealLightSource } from "./RealLights";
 import { forgetBounds, raycastWithinBounds } from "./raycastBounds";
@@ -586,8 +588,8 @@ export const EntityNode = memo(
 				}
 				const free = e.nativeEvent.altKey || !useEditor.getState().snapping;
 				const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-				const x = clamp(place(hit.x + state.dx), -ground.width / 2, ground.width / 2);
-				const z = clamp(place(hit.z + state.dz), -ground.depth / 2, ground.depth / 2);
+				// Kept on the ground as it's shaped (ADR-0155).
+				const [x, z] = nearestOnGround(ground, [place(hit.x + state.dx), place(hit.z + state.dz)]);
 				if (x === entity.position[0] && z === entity.position[1]) {
 					return;
 				}

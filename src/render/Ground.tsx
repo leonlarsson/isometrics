@@ -1,6 +1,6 @@
-import { Grid, RoundedBox } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
-import { useState } from "react";
+import { Grid, Line, RoundedBox } from "@react-three/drei";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { overlayShownIn, usePreferences } from "#/editor/preferences";
@@ -12,17 +12,19 @@ import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import { GROUND } from "#/scene/ground";
+import { groundOutlineOf, rectangleCorners } from "#/scene/groundShape";
 import { groundSurfaceOf } from "#/scene/surfaces";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { openGroundMenuOnClick } from "./contextMenu";
+import { useGroundGridGeometry, useGroundSlab } from "./groundGeometry";
 import { PICK_ORDER, pickOrderData } from "./pickOrder";
 import { useSurfaceShading } from "./useSurfaceShading";
 
-/** The grid's cell sizes, finest first; each section line marks 5 cells. */
 /** The ground comes last among the things under the pointer (`pickOrder`). */
 const GROUND_PICK = pickOrderData(PICK_ORDER.ground);
 
+/** The grid's cell sizes, finest first; each section line marks 5 cells. */
 const GRID_CELLS = [1, 5, 25, 125];
 /** Grid lines are never closer than this on screen (px); zoomed further out, the cells get bigger. */
 const MIN_CELL_PIXELS = 6;
@@ -61,53 +63,100 @@ export const Ground = () => {
 	const cell = useGridCell();
 	const showsGround = useEditor((s) => workshopOf(s.whatIsOpen)?.showsGround ?? true);
 
+	const slab = useGroundSlab(ground);
+	// The grid on a shaped ground covers only its shape (drei's Grid takes the outline's geometry);
+	// a new Grid when it turns plain again, so it's the Grid's own plane at the ground's size.
+	const gridShape = useGroundGridGeometry(ground);
+	const grid = useRef<THREE.Mesh>(null);
+	useLayoutEffect(() => {
+		if (grid.current && gridShape && grid.current.geometry !== gridShape) {
+			grid.current.geometry = gridShape;
+		}
+	});
+	const pointer = {
+		// Under everything: what stands on it, hidden areas included, is picked first.
+		userData: GROUND_PICK,
+		onClick: (e: ThreeEvent<MouseEvent>) => {
+			if (!isClick(e)) {
+				return;
+			}
+			e.stopPropagation();
+			// Shift or Ctrl, which add to the selection, leave it as it is.
+			if (!isToggleClick(e.nativeEvent)) {
+				clearSelection();
+			}
+		},
+		onContextMenu: openGroundMenuOnClick,
+	};
+	/*
+		In the Workshop the ground isn't drawn unless asked (ADR-0134): the pieces float in its
+		studio, with only their soft shadow under them. It's still there for the pointer, so a
+		click beside them clears the selection and its menu opens.
+	*/
+	// A hidden ground draws nothing; while editing it's a dashed outline, still there for the pointer.
+	const isHidden = ground.isHidden;
+	const outline = useMemo(() => {
+		const corners = groundOutlineOf(ground) ?? rectangleCorners(ground.width, ground.depth);
+		return [...corners, corners[0]].map(([x, z]) => [x, 0.02, z] as [number, number, number]);
+	}, [ground]);
+	const material = isHidden ? (
+		<meshBasicMaterial visible={false} />
+	) : showsGround ? (
+		// Pushed back in the depth test, so the grid and flat areas lying a hair above it always
+		// win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
+		// Its surface's texture (ADR-0137) comes with it, in the Workshop too once it's shown.
+		<meshStandardMaterial
+			key={surface.key}
+			userData={surface.userData}
+			color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
+			roughness={0.95}
+			polygonOffset
+			polygonOffsetFactor={1}
+			polygonOffsetUnits={600}
+		/>
+	) : (
+		<shadowMaterial transparent opacity={0.16} />
+	);
+
+	if (isHidden && mode !== "edit") {
+		return null;
+	}
+
 	return (
 		<group>
-			<RoundedBox
-				args={[ground.width, 1, ground.depth]}
-				radius={0.45}
-				smoothness={4}
-				position={[0, -0.5, 0]}
-				receiveShadow
-				// Under everything: what stands on it, hidden areas included, is picked first.
-				userData={GROUND_PICK}
-				onClick={(e) => {
-					if (!isClick(e)) {
-						return;
-					}
-					e.stopPropagation();
-					// Shift or Ctrl, which add to the selection, leave it as it is.
-					if (!isToggleClick(e.nativeEvent)) {
-						clearSelection();
-					}
-				}}
-				onContextMenu={openGroundMenuOnClick}
-			>
-				{/*
-					In the Workshop the ground isn't drawn unless asked (ADR-0134): the pieces float in its
-					studio, with only their soft shadow under them. It's still there for the pointer, so a
-					click beside them clears the selection and its menu opens.
-				*/}
-				{showsGround ? (
-					// Pushed back in the depth test, so the grid and flat areas lying a hair above it always
-					// win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
-					// Its surface's texture (ADR-0137) comes with it, in the Workshop too once it's shown.
-					<meshStandardMaterial
-						key={surface.key}
-						userData={surface.userData}
-						color={colorOf(GROUND, ground, "surface", palette, data, palette.ground)}
-						roughness={0.95}
-						polygonOffset
-						polygonOffsetFactor={1}
-						polygonOffsetUnits={600}
-					/>
-				) : (
-					<shadowMaterial transparent opacity={0.16} />
-				)}
-			</RoundedBox>
+			{isHidden && (
+				<Line
+					points={outline}
+					color={palette.selection}
+					lineWidth={2}
+					dashed
+					dashSize={0.5}
+					gapSize={0.35}
+				/>
+			)}
 
-			{showsGrid && (
+			{/* A shaped ground (ADR-0155) is its outline's slab; the plain rectangle, its rounded box as always. */}
+			{slab ? (
+				<mesh geometry={slab} receiveShadow={!isHidden} {...pointer}>
+					{material}
+				</mesh>
+			) : (
+				<RoundedBox
+					args={[ground.width, ground.thickness, ground.depth]}
+					radius={Math.min(0.45, ground.thickness / 2 - 0.01)}
+					smoothness={4}
+					position={[0, -ground.thickness / 2, 0]}
+					receiveShadow={!isHidden}
+					{...pointer}
+				>
+					{material}
+				</RoundedBox>
+			)}
+
+			{showsGrid && !isHidden && (
 				<Grid
+					key={gridShape ? "shape" : "plane"}
+					ref={grid}
 					args={[ground.width, ground.depth]}
 					position={[0, 0.004, 0]}
 					cellSize={cell}

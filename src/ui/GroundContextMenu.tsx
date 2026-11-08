@@ -1,4 +1,5 @@
 import { pasteFromClipboard } from "#/editor/clipboard";
+import { shapeGround } from "#/editor/groundShaping";
 import { rememberUsed } from "#/editor/paletteMemory";
 import { placeFromLibrary, usePrefabLibrary } from "#/editor/prefabLibrary";
 import { spotOnGrid, useEditor } from "#/editor/store";
@@ -62,6 +63,15 @@ export const GroundContextMenu = () => {
 			title="Ground"
 			subtitle={menu ? describePoint(menu.point) : undefined}
 		>
+			<Menu.Item
+				icon="area"
+				label="Shape the ground"
+				description="Handles on its corners and sides, to reshape or resize it"
+				onClick={() => shapeGround(true)}
+			/>
+
+			<Menu.Separator />
+
 			<Menu.Submenu icon="plus" label="Add here">
 				{/* One list with headings, not a submenu per category: a third level would flip over the others near the window's edge. */}
 				{partsByCategory().map(([category, parts]) => (

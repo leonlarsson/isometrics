@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, snap } from "#/lib/math";
 import { pastDragThreshold, setCursorHidden } from "#/lib/pointer";
+import { GROUND_SIZE, nearestOnGround } from "#/scene/groundShape";
 import type { TVec2 } from "#/scene/schema";
 import { areaTopsOf, type ITop } from "#/scene/standing";
 
@@ -22,7 +23,12 @@ export const levelHitOnRay = (ray: THREE.Ray, y: number): THREE.Vector3 | null =
  * Where the ray meets the ground (or a raised plane at `planeY`), snapped to
  * the grid unless snapping is off or `altKey` is held, and kept on the ground.
  */
-export const groundPointOnRay = (ray: THREE.Ray, altKey: boolean, planeY = 0): TVec2 | null => {
+export const groundPointOnRay = (
+	ray: THREE.Ray,
+	altKey: boolean,
+	planeY = 0,
+	reachesPastGround = false,
+): TVec2 | null => {
 	plane.constant = -planeY;
 	if (!ray.intersectPlane(plane, hit)) {
 		return null;
@@ -30,10 +36,12 @@ export const groundPointOnRay = (ray: THREE.Ray, altKey: boolean, planeY = 0): T
 	const { snapping, scene } = useEditor.getState();
 	const free = altKey || !snapping;
 	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-	return [
-		clamp(place(hit.x), -scene.ground.width / 2, scene.ground.width / 2),
-		clamp(place(hit.z), -scene.ground.depth / 2, scene.ground.depth / 2),
-	];
+	// On the ground as it's shaped, or (shaping the ground itself, ADR-0155) within the largest it can be.
+	if (!reachesPastGround) {
+		return nearestOnGround(scene.ground, [place(hit.x), place(hit.z)]);
+	}
+	const half = GROUND_SIZE.most / 2;
+	return [clamp(place(hit.x), -half, half), clamp(place(hit.z), -half, half)];
 };
 
 const end = new THREE.Vector3();
@@ -159,10 +167,8 @@ export const surfacePointOnRay = (
 	}
 	const free = altKey || !snapping;
 	const place = (v: number) => (free ? v : snap(v, SNAP_STEP));
-	return [
-		clamp(place(found.x), -scene.ground.width / 2, scene.ground.width / 2),
-		clamp(place(found.z), -scene.ground.depth / 2, scene.ground.depth / 2),
-	];
+	// On the ground as it's shaped (ADR-0155), not over the empty corners of the rectangle round it.
+	return nearestOnGround(scene.ground, [place(found.x), place(found.z)]);
 };
 
 /**
@@ -197,6 +203,8 @@ interface IGroundDragOptions {
 	onMove: (point: TVec2, token: string, event: ThreeEvent<PointerEvent>) => void;
 	/** Whether the points it reports land on the grid (the default) as the snapping says. */
 	snapsToGrid?: boolean;
+	/** Whether its points may go past the ground's edge (shaping the ground itself, ADR-0155). */
+	reachesPastGround?: boolean;
 }
 
 /**
@@ -210,6 +218,7 @@ export const useGroundDrag = ({
 	onStart,
 	onMove,
 	snapsToGrid = true,
+	reachesPastGround = false,
 }: IGroundDragOptions) => {
 	const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 	const token = useRef<string | null>(null);
@@ -262,9 +271,12 @@ export const useGroundDrag = ({
 				from.current = null;
 				setCursorHidden(true);
 			}
-			const point = snapsToGrid
-				? groundPointFrom(event, planeY)
-				: groundPointOnRay(event.ray, true, planeY);
+			const point = groundPointOnRay(
+				event.ray,
+				!snapsToGrid || event.nativeEvent.altKey,
+				planeY,
+				reachesPastGround,
+			);
 			if (
 				!point ||
 				(last.current && last.current[0] === point[0] && last.current[1] === point[1])

@@ -43,6 +43,11 @@ describe("reading a world saved before the format was tidied (ADR-0104)", () => 
 		expect(scene.ground).toEqual({
 			width: 30,
 			depth: 20,
+			// Saved before the ground had a shape: the rectangle, as it was (ADR-0155).
+			points: null,
+			cornerRadius: 0,
+			thickness: 1,
+			isHidden: false,
 			colors: { surface: { color: "#a0b0c0", transparency: null, data: {} } },
 			surface: { kind: "plain" },
 		});
