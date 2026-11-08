@@ -4,6 +4,7 @@ import {
 	type TAreaInput,
 	type TEntityInput,
 	type TFenceInput,
+	type TJunctionInput,
 	type TRoadInput,
 	type TScene,
 	type TSceneInput,
@@ -26,9 +27,11 @@ import { turned } from "./turned";
  * west, farmland (fields, a barn, greenhouses, an orchard and a tractor).
  *
  *   Areas: river and bay (one water area), beach, raised hill, plazas, park with a pond, stadium pitch, fields
- *   Roads: ring road (loop), bridge over the river, a flyover that climbs onto
- *          the hill, an embankment trail, a road through a tunnel that widens
- *          at the quay, and a hidden ferry route across the sea
+ *   Roads: a ring road round downtown, a bridge over the river, a flyover that
+ *          climbs onto the hill, an embankment trail, a road through a tunnel that
+ *          widens at the quay, and a hidden ferry route across the sea; the ring
+ *          road meets the others at junctions (ADR-0136), so traffic drives on
+ *          from one to another
  *   Fences: a railing along the marina, a chain-link fence round the logistics
  *          yard, a stone wall at the lookout, a hedge by the park and a
  *          paddock's rail fence
@@ -37,7 +40,11 @@ import { turned } from "./turned";
  */
 
 const RING_ID = "ring_road";
+/** The ring road's other two pieces: it's cut where the harbour road, beach road and hill trail meet it. */
+const RING_SOUTH_EAST_ID = "ring_road_south_east";
+const RING_SOUTH_WEST_ID = "ring_road_south_west";
 const BRIDGE_ID = "harbour_road";
+const BEACH_ROAD_ID = "beach_road";
 const HILL_ROAD_ID = "hill_road";
 const FERRY_ID = "ferry_route";
 const HIGH_STREET_ID = "high_street";
@@ -252,16 +259,39 @@ const AREAS: TAreaInput[] = [
 
 const ROADS: TRoadInput[] = [
 	{
+		// Round downtown, in three pieces between its junctions: this one from the hill trail
+		// past the hill to the harbour road.
 		id: RING_ID,
 		name: "Ring road",
 		kind: "road_01",
-		loops: true,
 		cornerRadius: 4,
 		points: [
+			[-22, 2],
 			[-22, -12],
 			[0, -12],
+			[0, -1],
+		],
+	},
+	{
+		id: RING_SOUTH_EAST_ID,
+		name: "Ring road (south-east)",
+		kind: "road_01",
+		cornerRadius: 4,
+		points: [
+			[0, -1],
 			[0, 10],
+			[-4, 10],
+		],
+	},
+	{
+		id: RING_SOUTH_WEST_ID,
+		name: "Ring road (south-west)",
+		kind: "road_01",
+		cornerRadius: 4,
+		points: [
+			[-4, 10],
 			[-22, 10],
+			[-22, 2],
 		],
 	},
 	{
@@ -272,9 +302,9 @@ const ROADS: TRoadInput[] = [
 		kind: "road_01",
 		cornerRadius: 2,
 		points: [
-			[1.2, -1],
-			[5.5, -1, 1.3],
-			[8.6, -1, 1.3],
+			[0, -1],
+			[6.5, -1, 0.8],
+			[8.6, -1, 0.8],
 			[14.5, -1],
 			[26, -1],
 			[26, 3.6, 0, 3.8],
@@ -305,7 +335,7 @@ const ROADS: TRoadInput[] = [
 		heldUpBy: "embankment",
 		showsRailings: false,
 		points: [
-			[-23.2, 2],
+			[-22, 2],
 			[-27.4, 2],
 			[-27.4, -8, 0.8],
 			[-26.4, -13.6, HILL],
@@ -313,13 +343,13 @@ const ROADS: TRoadInput[] = [
 		],
 	},
 	{
-		id: "beach_road",
+		id: BEACH_ROAD_ID,
 		name: "Beach road",
 		kind: "road_01",
 		width: 2,
 		cornerRadius: 3,
 		points: [
-			[-4, 11],
+			[-4, 10],
 			[-4, 14.6],
 			[6, 12.6],
 		],
@@ -356,7 +386,7 @@ const ROADS: TRoadInput[] = [
 		kind: "road_01",
 		cornerRadius: 2.5,
 		points: [
-			[28, -1],
+			[29.5, -1],
 			[36, -1],
 			[36, -22],
 		],
@@ -376,6 +406,43 @@ const ROADS: TRoadInput[] = [
 			[-34, 15.4],
 			[-41.4, 15.4],
 			[-41.4, -11.4],
+		],
+	},
+];
+
+// ---------------------------------------------------------------- junctions
+
+/** One end of a road at a junction; `leadsTo` keeps traffic arriving by it to those ends. */
+const end = (roadId: string, which: "start" | "end", leadsTo?: [string, "start" | "end"][]) => ({
+	roadId,
+	end: which,
+	leadsTo: leadsTo?.map(([id, to]) => ({ roadId: id, end: to })) ?? null,
+});
+
+/**
+ * Where the streets meet (ADR-0136): round the ring road. The high street isn't connected: it's
+ * the tram's, and traffic that came onto it from the network wouldn't see the tram (TODO.md).
+ */
+const JUNCTIONS: TJunctionInput[] = [
+	{
+		id: "ring_harbour",
+		ends: [end(RING_ID, "end"), end(RING_SOUTH_EAST_ID, "start"), end(BRIDGE_ID, "start")],
+	},
+	{
+		id: "ring_beach",
+		ends: [
+			end(RING_SOUTH_EAST_ID, "end"),
+			end(RING_SOUTH_WEST_ID, "start"),
+			end(BEACH_ROAD_ID, "start"),
+		],
+	},
+	{
+		// Traffic on the ring road keeps to it here: the hill trail is a footpath and cycle track.
+		id: "ring_trail",
+		ends: [
+			end(RING_SOUTH_WEST_ID, "end", [[RING_ID, "start"]]),
+			end(RING_ID, "start", [[RING_SOUTH_WEST_ID, "end"]]),
+			end(HILL_TRAIL_ID, "start"),
 		],
 	},
 ];
@@ -733,7 +800,7 @@ const traffic: TEntityInput[] = [
 		kind: "car_01",
 		name: "City car",
 		colors: paint({ body: "#e05a4a" }),
-		follow: { roadId: RING_ID, speed: 3.2, startDistance: 6 },
+		follow: { roadId: RING_ID, speed: 3.2, startDistance: 20 },
 		label: {
 			title: "Ring road",
 			dataKeys: ["ring_speed", "ring_flow"],
@@ -749,26 +816,26 @@ const traffic: TEntityInput[] = [
 		kind: "car_01",
 		name: "Taxi",
 		colors: paint({ body: "#e8b83a" }),
-		follow: { roadId: RING_ID, speed: 3, startDistance: 34 },
+		follow: { roadId: RING_SOUTH_EAST_ID, speed: 3, startDistance: 2 },
 	},
 	{
 		id: "ring_van",
 		kind: "delivery_van_01",
 		name: "Delivery van",
-		follow: { roadId: RING_ID, speed: 2.6, startDistance: 60 },
+		follow: { roadId: RING_SOUTH_WEST_ID, speed: 2.6, startDistance: 12 },
 	},
 	{
 		id: "harbour_truck",
 		kind: "truck_01",
 		name: "Harbour truck",
-		follow: { roadId: BRIDGE_ID, speed: 2.4, startDistance: 13 },
+		follow: { roadId: BRIDGE_ID, speed: 2.4, startDistance: 14.2 },
 	},
 	{
 		id: "harbour_van",
 		kind: "delivery_van_01",
 		name: "Parcel van",
 		colors: paint({ stripe: "#3cbf9a" }),
-		follow: { roadId: BRIDGE_ID, speed: 2.8, startDistance: 23 },
+		follow: { roadId: BRIDGE_ID, speed: 2.8, startDistance: 24.2 },
 	},
 	{
 		id: "hill_car",
@@ -1141,7 +1208,7 @@ const moreTraffic: TEntityInput[] = [
 		id: "ring_bus",
 		kind: "bus_01",
 		name: "Route 4 bus",
-		follow: { roadId: RING_ID, speed: 2.2, startDistance: 20 },
+		follow: { roadId: RING_ID, speed: 2.2, startDistance: 34 },
 	},
 	{
 		id: "old_town_tram",
@@ -1160,7 +1227,8 @@ const moreTraffic: TEntityInput[] = [
 		kind: "bicycle_01",
 		name: "Cyclist",
 		colors: paint({ riderTop: "#e2603b" }),
-		follow: { roadId: HILL_TRAIL_ID, speed: 1, startDistance: 2 },
+		// Up and down the trail, not out among the cars.
+		follow: { roadId: HILL_TRAIL_ID, speed: 1, startDistance: 3.2, drivesThroughJunctions: false },
 	},
 ];
 
@@ -1255,6 +1323,7 @@ export const createBrightwaterScene = (): TScene => {
 		},
 		areas: AREAS,
 		roads: ROADS,
+		junctions: JUNCTIONS,
 		fences: FENCES,
 		entities: [
 			...civic,

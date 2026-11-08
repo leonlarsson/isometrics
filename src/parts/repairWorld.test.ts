@@ -16,13 +16,23 @@ const tidiedTemplates = TEMPLATES.filter((template) =>
 	existsSync(fixtureUrl(`${template.id}-1a50d84`)),
 );
 
+/**
+ * Templates whose world has changed since (not only its format): each is compared with a save of
+ * it made just before it changed, which reads back as the template built it then.
+ */
+const SAVED_BEFORE_IT_CHANGED: Record<string, string> = {
+	// Its roads meet at junctions since (ADR-0136).
+	brightwater: "brightwater-23f0fb2",
+};
+
 describe("reading a world saved before the format was tidied (ADR-0104)", () => {
 	it.each(tidiedTemplates.map((template) => [template.id, template] as const))(
-		"%s, as saved then, reads back exactly as the template builds it now",
+		"%s, as saved then, reads back exactly as the template built it before it last changed",
 		(id, template) => {
 			const { scene, report } = repairWorld(fixture(`${id}-1a50d84`));
 			expect(report).toBeNull();
-			expect(scene).toEqual(template.create());
+			const before = SAVED_BEFORE_IT_CHANGED[id];
+			expect(scene).toEqual(before ? repairWorld(fixture(before)).scene : template.create());
 		},
 	);
 
