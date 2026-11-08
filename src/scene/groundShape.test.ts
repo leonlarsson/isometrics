@@ -4,7 +4,9 @@ import {
 	GROUND_SHAPES,
 	groundCornersOf,
 	groundOutlineOf,
+	isOnGround,
 	isPlainGround,
+	nearestOnGround,
 	resized,
 	sizeAround,
 	withCorners,
@@ -86,5 +88,26 @@ describe("the ground's shape (ADR-0155)", () => {
 				expect(Math.abs(z), shape.id).toBeLessThanOrEqual(15);
 			}
 		}
+	});
+
+	it("says what's on the ground as it's shaped, and brings what isn't onto it", () => {
+		expect(isOnGround(plain, [19, 14])).toBe(true);
+		expect(isOnGround(plain, [19, 14], 2)).toBe(false);
+		expect(nearestOnGround(plain, [30, -40])).toEqual([20, -15]);
+
+		const circle = { ...plain, ...GROUND_SHAPES[2].make(40, 30) };
+		// The rectangle's corner is off a circle.
+		expect(isOnGround(circle, [19, 14])).toBe(false);
+		const brought = nearestOnGround(circle, [19, 14]);
+		expect(isOnGround(circle, brought)).toBe(true);
+		expect(Math.hypot(brought[0] / 20, brought[1] / 15)).toBeCloseTo(1, 1);
+
+		// An L's middle is outside it: a point beside its cut-out comes in across the nearest edge.
+		const lShape = {
+			...plain,
+			...(GROUND_SHAPES.find((shape) => shape.id === "lShape")?.make(40, 30) ?? {}),
+		};
+		expect(isOnGround(lShape, [0, 0])).toBe(false);
+		expect(isOnGround(lShape, nearestOnGround(lShape, [5, -5]))).toBe(true);
 	});
 });

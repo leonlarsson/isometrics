@@ -14,6 +14,7 @@ import { SNAP_STEP, useEditor } from "#/editor/store";
 import { clamp, normalizeDegrees, round, snap, wrapDegrees } from "#/lib/math";
 import { standingAltitudeAt } from "#/parts/standing";
 import { cornerTop } from "#/scene/areas";
+import { nearestOnGround } from "#/scene/groundShape";
 import type { TRoadPoint, TVec2, TVec3 } from "#/scene/schema";
 
 import { roadBaseY } from "./RoadMesh";
@@ -78,13 +79,8 @@ export const turnAbout = ([x, y, z]: TVec3, axis: "x" | "z", degrees: number): T
 const stepper = (drag: IGizmoDrag) => (value: number, size: number) =>
 	drag.free ? value : snap(value, size);
 
-const onGround = ([x, z]: TVec2): TVec2 => {
-	const { ground } = useEditor.getState().scene;
-	return [
-		clamp(x, -ground.width / 2, ground.width / 2),
-		clamp(z, -ground.depth / 2, ground.depth / 2),
-	];
-};
+/** Kept on the ground as it's shaped (ADR-0155). */
+const onGround = (point: TVec2): TVec2 => nearestOnGround(useEditor.getState().scene.ground, point);
 
 /**
  * Apply one step of a gizmo or keyboard transform to an object, measured from

@@ -1,6 +1,7 @@
 import { turnedHalfSize } from "#/lib/math";
 import { getPart, resolveProps } from "#/parts/registry";
 import { groundHeightAt } from "#/scene/areas";
+import { isOnGround } from "#/scene/groundShape";
 import { isHiddenRoute, pointWidth, roadCenterlineOf } from "#/scene/roads";
 import type { TEntity, TEntityInput, TScene, TVec2 } from "#/scene/schema";
 
@@ -187,8 +188,6 @@ export const paintStamp = (
 	).length;
 	const wanted = Math.max(0, Math.round((area * brush.density) / 10) - already);
 	const { boxes, roads } = obstaclesOf(scene);
-	const halfWidth = scene.ground.width / 2;
-	const halfDepth = scene.ground.depth / 2;
 	const placed: { point: TVec2; reach: number }[] = [];
 	const added: Omit<TEntityInput, "id">[] = [];
 
@@ -209,8 +208,8 @@ export const paintStamp = (
 		const candidate = { kind, props: {}, scale };
 		const reach = reachOf(candidate);
 		const free =
-			Math.abs(point[0]) + reach <= halfWidth &&
-			Math.abs(point[1]) + reach <= halfDepth &&
+			// On the ground as it's shaped, wholly (ADR-0155).
+			isOnGround(scene.ground, point, reach) &&
 			boxes.every(
 				(box) =>
 					Math.max(

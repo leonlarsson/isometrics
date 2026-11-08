@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { groundHeightAt } from "#/scene/areas";
+import { GROUND_SHAPES, isOnGround } from "#/scene/groundShape";
 import { SceneSchema, type TScene } from "#/scene/schema";
 
 import { brushKinds, DEFAULT_BRUSH, eraseStamp, paintStamp } from "./paint";
@@ -71,6 +72,16 @@ describe("painting objects (ADR-0091)", () => {
 			// The road is 2 wide along z = 0; the house covers x ±1.35, z 1.3–3.9.
 			expect(Math.abs(z)).toBeGreaterThan(1);
 			expect(Math.abs(x) <= 1.35 && z > 1.3 && z < 3.9).toBe(false);
+		}
+	});
+
+	it("paints only on the ground as it's shaped (ADR-0155)", () => {
+		const circle = world({ ground: { width: 40, depth: 40, ...GROUND_SHAPES[2].make(40, 40) } });
+		// Over the rectangle's empty corner, off the circle: nothing.
+		expect(paintStamp(circle, brush, [18, 18], seeded(3))).toEqual([]);
+		// Across the circle's edge: only what's wholly on it.
+		for (const entity of paintStamp(circle, brush, [14, 0], seeded(4))) {
+			expect(isOnGround(circle.ground, entity.position ?? [0, 0])).toBe(true);
 		}
 	});
 

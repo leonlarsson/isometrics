@@ -96,15 +96,19 @@ export const insertGroundCorner = (index: number, point: TVec2, options?: ICommi
 	useGroundShaping.setState({ selected: [index] });
 };
 
-/** Take a corner out; the ground keeps three. */
-export const removeGroundCorner = (index: number) => {
+/** Take corners out (Delete, or a double-click on one); the ground keeps three. */
+export const removeGroundCorners = (indices: readonly number[]) => {
 	const corners = groundCornersOf(ground());
-	if (corners.length <= 3) {
+	const kept = corners.filter((_, i) => !indices.includes(i));
+	if (kept.length < 3 || kept.length === corners.length) {
 		return;
 	}
-	setGroundCorners(corners.filter((_, i) => i !== index));
+	setGroundCorners(kept);
 	useGroundShaping.setState({ selected: [] });
 };
+
+/** Take one corner out; the ground keeps three. */
+export const removeGroundCorner = (index: number) => removeGroundCorners([index]);
 
 /** Resize the ground: the rectangle's sides, or its shape stretched to fill the new size. */
 export const resizeGround = (width: number, depth: number, options?: ICommitOptions) => {
