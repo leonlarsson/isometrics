@@ -15,6 +15,8 @@ import {
 	read,
 	reopened,
 	saved,
+	screenOf,
+	showView,
 	test,
 } from "./editor";
 
@@ -44,6 +46,61 @@ test.describe("the World tab (ADR-0049, ADR-0063)", () => {
 		expect(await read(page, (s) => s.scene.onScreen.showsTitle)).toBe(false);
 		await page.getByRole("button", { name: "View", exact: true }).click();
 		await expect(page.getByRole("heading", { name: "Brightwater" })).toBeHidden();
+	});
+});
+
+test.describe("the ground's shape (ADR-0155)", () => {
+	test("a shape in one click, and Shape the ground's handles resize and reshape it", async ({
+		page,
+	}) => {
+		await loadWorld(page, { entities: [{ id: "house", kind: "house_01", position: [0, 0] }] });
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 40;
+				scene.ground.depth = 30;
+			}),
+		);
+		await showView(page, [0, 0], 75);
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Circle", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(32);
+		await page.getByRole("button", { name: "Rectangle", exact: true }).click();
+		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+
+		// The rectangle's side handle resizes it, staying centred; the view stays put under the pointer.
+		await page.getByRole("button", { name: "Shape the ground", exact: true }).click();
+		await expect(page.getByText("Shaping the ground")).toBeVisible();
+		const drag = async (from: [number, number], to: [number, number]) => {
+			const start = await screenOf(page, [from[0], 0.12, from[1]]);
+			const end = await screenOf(page, [to[0], 0.12, to[1]]);
+			await page.mouse.move(start.x, start.y);
+			await page.mouse.down();
+			await page.mouse.move(end.x, end.y, { steps: 10 });
+			await page.mouse.up();
+		};
+		await drag([20, 0], [26, 0]);
+		expect(await read(page, (s) => s.scene.ground.width)).toBe(52);
+
+		// A corner dragged out makes it a shape, its size growing round it.
+		await drag([-26, -15], [-30, -22]);
+		expect(await read(page, (s) => s.scene.ground)).toMatchObject({
+			points: [
+				[-30, -22],
+				[26, -15],
+				[26, 15],
+				[-26, 15],
+			],
+			width: 60,
+			depth: 44,
+		});
+
+		// Undone like any change; Esc lets go of the selected corner, then ends shaping.
+		await page.keyboard.press("Control+z");
+		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
+		await page.keyboard.press("Escape");
+		await expect(page.getByText("Shaping the ground")).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(page.getByText("Shaping the ground")).toBeHidden();
 	});
 });
 

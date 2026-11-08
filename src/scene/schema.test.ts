@@ -8,7 +8,15 @@ import { RoadPointSchema, SceneSchema } from "./schema";
 describe("SceneSchema", () => {
 	it("fills defaults for a minimal scene", () => {
 		const scene = SceneSchema.parse({ version: 1 });
-		expect(scene.ground).toEqual({ width: 40, depth: 30, colors: {}, surface: { kind: "plain" } });
+		expect(scene.ground).toEqual({
+			width: 40,
+			depth: 30,
+			// The rectangle, its edge softly rounded, as worlds always were (ADR-0155).
+			points: null,
+			cornerRadius: 0,
+			colors: {},
+			surface: { kind: "plain" },
+		});
 		expect(scene.surface).toEqual({ enabled: false, patternStrength: 0.5, patternScale: 1 });
 		expect(scene.entities).toEqual([]);
 		expect(scene.theme).toBe("system");
@@ -66,7 +74,14 @@ describe("SceneSchema", () => {
 			drivingSide: "left",
 		});
 		expect(scene.meta.title).toBe("Harbour");
-		expect(scene.ground).toEqual({ width: 60, depth: 24, colors: {}, surface: { kind: "plain" } });
+		expect(scene.ground).toEqual({
+			width: 60,
+			depth: 24,
+			points: null,
+			cornerRadius: 0,
+			colors: {},
+			surface: { kind: "plain" },
+		});
 		expect([scene.theme, scene.traffic.drivingSide]).toEqual(["dark", "left"]);
 	});
 });

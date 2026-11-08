@@ -1454,10 +1454,28 @@ export const GroundSchema = z
 	.object({
 		width: z.number().min(4).max(500).default(40).describe("Size along x, in grid units."),
 		depth: z.number().min(4).max(500).default(30).describe("Size along z, in grid units."),
+		points: z
+			.array(Vec2Schema)
+			.min(3)
+			.nullable()
+			.default(null)
+			.describe(
+				"The ground's shape: its corners [x, z] in order round it, like an area's points, inside width × depth (centred on the origin; width and depth are kept as the size round them). null = the rectangle width × depth, as worlds always were. A circle or a coastline is many corners.",
+			),
+		cornerRadius: z
+			.number()
+			.min(0)
+			.max(250)
+			.default(0)
+			.describe(
+				"How round the ground's corners are, in grid units (each corner rounded by this much, less where its sides are short). 0 = as drawn: the rectangle's softly rounded edge, or points' sharp corners.",
+			),
 		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
 		surface: GroundSurfaceSchema.default(() => GroundSurfaceSchema.parse({})),
 	})
-	.describe("The slab everything stands on, centred on the origin.");
+	.describe(
+		"The slab everything stands on, centred on the origin: a rectangle, or any shape (points), its corners rounded or not.",
+	);
 
 /**
  * Textured surfaces, world-wide (ADR-0137): whether the ground and areas are
