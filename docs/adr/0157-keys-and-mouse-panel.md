@@ -25,9 +25,9 @@ What each key and drag does was only found by trying, in menus' shortcut hints a
 
 Chosen option: **1**.
 
-- **Keys and mouse** (`ui/ControlsDialog`), opened with **?** (Shift + /) or the app menu's **Keys and mouse…**, with a search.
+- **Keys and mouse** (`ui/ControlsDialog`), opened with **?** (matched by the character it types, so Shift + / in the US and Shift + + in Sweden both work), the app menu's **Keys and mouse…**, or a keyboard button in the view's corner under the compass (Edit mode only), with a search.
 - **Keys** come from `useHotkeyRegistrations()`: every editor-wide shortcut names its group in `meta.group` (`KEY_GROUP` in `editor/controls.ts`: App, View, Flying, Selection, With something selected, Drawing and painting), and the panel lists them by group, one row per name with every key that does it. A widget's own keys (a list's arrows, a field's Enter) have no group and aren't listed; a test checks every shortcut in `useShortcuts.ts` has one. Keys print as on the keyboard (← , = Esc, Cmd and Option on a Mac); a run of single keys reads first to last (1 to 9).
-- **Mouse and touch** are written in `mouseGroupsOf`, from the preferences: Shift and Alt with a drag say what they do now, and the panel opens Preferences to change them.
+- **Mouse and touch** are written in `mouseGroupsOf`, from the preferences: Shift with a drag says what it does now, and the panel opens Preferences to change them.
 - The keys of drawing, painting and keyboard transforms show in their bars while in use; the panel says so rather than listing keys that do nothing until then.
 - It's mounted only while open: the registrations re-render it on every key press.
 
@@ -39,4 +39,4 @@ Chosen option: **1**.
 
 ## More information
 
-ADR-0016 (keyboard shortcuts through `@tanstack/react-hotkeys`), ADR-0156 (Shift, Ctrl and Alt drags), ADR-0062 (camera preferences).
+ADR-0016 (keyboard shortcuts through `@tanstack/react-hotkeys`), ADR-0156 (Shift and Ctrl drags), ADR-0062 (camera preferences).

@@ -125,11 +125,11 @@ export const modifierNames = (platform: "mac" | "windows" | "linux") =>
 		: { ctrl: "Ctrl", alt: "Alt", shift: "Shift" };
 
 /**
- * The mouse and touch, as the preferences set them (ADR-0156): what Shift and
- * Alt do with a left drag says what this browser does now.
+ * The mouse and touch, as the preferences set them (ADR-0156): what Shift does
+ * with a left drag says what this browser does now.
  */
 export const mouseGroupsOf = (
-	preferences: Pick<TPreferences, "shiftDrag" | "altDrag">,
+	preferences: Pick<TPreferences, "shiftDrag">,
 	platform: "mac" | "windows" | "linux",
 ): IControlGroup[] => {
 	const key = modifierNames(platform);
@@ -144,13 +144,6 @@ export const mouseGroupsOf = (
 						preferences.shiftDrag === "orbit"
 							? "Orbits the view, from anywhere: over what's selected and its handles too"
 							: "Pans the view, from anywhere: over what's selected and its handles too",
-				},
-				{
-					press: [key.alt, "drag"],
-					does:
-						preferences.altDrag === "orbit"
-							? "Orbits the view (on what's selected, moves it off the grid)"
-							: "Pans the view (on what's selected, moves it off the grid)",
 				},
 				{ press: ["Right-drag"], does: "Orbits the view round the spot under the pointer" },
 				{ press: ["Wheel"], does: "Zooms towards the pointer" },

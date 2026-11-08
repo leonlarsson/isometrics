@@ -124,7 +124,7 @@ test.describe("moving the camera (ADR-0028, ADR-0037, ADR-0062)", () => {
 		expect((await cameraPose(page))?.target).not.toEqual(flown?.target);
 	});
 
-	test("Shift-drag pans (or orbits) even from a selected object or its gizmo; Ctrl-drag never moves the camera; Alt-drag orbits", async ({
+	test("Shift-drag pans (or orbits) even from a selected object or its gizmo; Ctrl-drag never moves the camera", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -152,10 +152,6 @@ test.describe("moving the camera (ADR-0028, ADR-0037, ADR-0062)", () => {
 		// From the ground: Ctrl or Cmd is for copying, so the view stays put.
 		await dragWith("Control", await screenOf(page, [-6, 0, 6]));
 		expect(await cameraPose(page)).toEqual(panned);
-
-		// Alt orbits, as in Maya and Unity: the view turns.
-		await dragWith("Alt", await screenOf(page, [-6, 0, 6]));
-		expect((await cameraPose(page))?.azimuth).not.toBeCloseTo(panned?.azimuth ?? 0, 0);
 
 		// With Shift set to orbit (Preferences), Shift on the gizmo turns the view and leaves the house.
 		await page.evaluate(() =>

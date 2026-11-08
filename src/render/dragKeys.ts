@@ -2,18 +2,11 @@ import { readPreferences } from "#/editor/preferences";
 
 /**
  * Whether a left drag with these keys held orbits the view (ADR-0156): with
- * Alt or Shift, as the preferences say (Alt orbits by default, Shift
- * pans); never with Ctrl or Cmd, which copy.
+ * Shift when the preferences say Shift orbits (it pans by default); never with
+ * Ctrl or Cmd, which copy.
  */
-export const leftDragOrbits = (
-	event: Pick<PointerEvent, "altKey" | "shiftKey" | "ctrlKey" | "metaKey">,
-) => {
-	if (event.ctrlKey || event.metaKey) {
-		return false;
-	}
-	const { altDrag, shiftDrag } = readPreferences();
-	return (event.altKey && altDrag === "orbit") || (event.shiftKey && shiftDrag === "orbit");
-};
+export const leftDragOrbits = (event: Pick<PointerEvent, "shiftKey" | "ctrlKey" | "metaKey">) =>
+	event.shiftKey && !event.ctrlKey && !event.metaKey && readPreferences().shiftDrag === "orbit";
 
 /**
  * Whether a left drag with these keys held is the camera's whatever it starts

@@ -61,8 +61,6 @@ export const PreferencesSchema = z.object({
 	 * too, without grabbing it); or orbit it, as it did before.
 	 */
 	shiftDrag: z.enum(["pan", "orbit"]).catch("pan"),
-	/** What Alt + left-drag away from what's selected does (ADR-0156): orbit the view (as in Maya and Unity), or pan it like a plain drag. */
-	altDrag: z.enum(["orbit", "pan"]).catch("orbit"),
 	/** Turning and tilting by dragging, a two-finger twist or Shift+arrows, × the usual speed. */
 	orbitSpeed: z.number().min(0.2).max(3).catch(1),
 	/** Zooming with the wheel, the middle button, a pinch or + and −, × the usual speed. */

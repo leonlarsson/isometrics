@@ -96,7 +96,7 @@ const useGroundPan = () => {
 				return;
 			}
 			// Shift pans, over a selected object too (it doesn't grab it); Ctrl or Cmd is for dragging a
-			// copy and never moves the camera; Alt orbits (ADR-0156). The preferences can say otherwise.
+			// copy and never moves the camera (ADR-0156). Preferences can make Shift orbit instead.
 			const panKeys = !leftDragOrbits(event) && !(event.ctrlKey || event.metaKey);
 			if (event.button !== 0 || !panKeys || !controls.enabled || useEditor.getState().placingKind) {
 				return;
@@ -215,8 +215,8 @@ const useOrbitAroundCursor = () => {
 		};
 
 		const onDown = (event: PointerEvent) => {
-			// The right button orbits, and a left drag with Alt (or Shift, if the preferences say so); a
-			// left drag with Shift otherwise pans, and with Ctrl or Cmd copies (ADR-0156).
+			// The right button orbits, and a left drag with Shift if the preferences say so; otherwise a
+			// left drag with Shift pans, and with Ctrl or Cmd copies (ADR-0156).
 			const wants = event.button === 2 || (event.button === 0 && leftDragOrbits(event));
 			if (!wants || !controls.enabled || useEditor.getState().placingKind) {
 				return;

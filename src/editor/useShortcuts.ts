@@ -278,8 +278,9 @@ export const useShortcuts = () => {
 			options: { meta: { name: "Preferences", group: KEY_GROUP.app } },
 		},
 		{
-			// ? (Shift + / on most layouts): what every key, click and drag does (ADR-0157).
-			hotkey: "Shift+/",
+			// ? by the character it types, so it works on any layout (Shift + / in the US, Shift + + in
+			// Sweden): what every key, click and drag does (ADR-0157).
+			hotkey: "?",
 			callback: () => openControls(!useControlsPanel.getState().isOpen),
 			options: { meta: { name: "Keys and mouse", group: KEY_GROUP.app } },
 		},

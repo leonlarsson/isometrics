@@ -44,16 +44,14 @@ describe("Keys and mouse (ADR-0157)", () => {
 		expect(keyGroupsOf(digits, caps)[0].controls[0].press).toEqual(["1", "to", "5"]);
 	});
 
-	it("says what Shift and Alt do with a drag as the preferences set them, in the platform's names", () => {
-		const shiftRow = (shiftDrag: "pan" | "orbit", altDrag: "pan" | "orbit", platform = "windows") =>
-			mouseGroupsOf({ shiftDrag, altDrag }, platform as "windows")[0].controls;
-		expect(shiftRow("pan", "orbit")[1].does).toMatch(/^Pans/);
-		expect(shiftRow("orbit", "orbit")[1].does).toMatch(/^Orbits/);
-		expect(shiftRow("pan", "orbit")[2].does).toMatch(/^Orbits/);
-		expect(shiftRow("pan", "pan")[2].does).toMatch(/^Pans/);
-		expect(
-			mouseGroupsOf({ shiftDrag: "pan", altDrag: "orbit" }, "mac")[0].controls[2].press,
-		).toEqual(["Option", "drag"]);
+	it("says what Shift does with a drag as the preferences set it, in the platform's names", () => {
+		const shiftRow = (shiftDrag: "pan" | "orbit") =>
+			mouseGroupsOf({ shiftDrag }, "windows")[0].controls[1];
+		expect(shiftRow("pan").does).toMatch(/^Pans/);
+		expect(shiftRow("orbit").does).toMatch(/^Orbits/);
+		const selected = mouseGroupsOf({ shiftDrag: "pan" }, "mac")[2].controls;
+		expect(selected[1].press).toEqual(["Option", "drag it"]);
+		expect(selected[2].press).toEqual(["Cmd", "drag it"]);
 	});
 
 	it("has a group for every editor-wide shortcut, so none is missing from the panel", () => {

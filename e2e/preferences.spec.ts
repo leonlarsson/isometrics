@@ -226,7 +226,8 @@ test.describe("Keys and mouse (ADR-0157)", () => {
 	}) => {
 		const panel = page.getByRole("dialog", { name: "Keys and mouse" });
 		await page.locator("canvas").hover();
-		await keys(page, "Shift+Slash");
+		// ? by the character it types: Shift + / here (US), Shift + + on a Swedish keyboard.
+		await keys(page, "?");
 		await expect(panel).toBeVisible();
 		// Keys from the editor's registrations, by group; the mouse as the preferences say.
 		await expect(panel.getByRole("region", { name: "App" })).toContainText("Undo");
@@ -242,7 +243,8 @@ test.describe("Keys and mouse (ADR-0157)", () => {
 		await preferences(page).getByRole("button", { name: "Camera", exact: true }).click();
 		await choose(page, "Shift + left-drag", "Orbits the view");
 		await keys(page, "Escape");
-		await appMenu(page, /^Keys and mouse/);
+		// The button in the view's corner opens it too.
+		await page.getByRole("button", { name: "Keys and mouse (?)" }).click();
 		await expect(moving).toContainText("Orbits the view, from anywhere");
 
 		// A search narrows it down.

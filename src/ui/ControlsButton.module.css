@@ -1,0 +1,13 @@
+.corner {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	border-radius: var(--radius-sm);
+	background: color-mix(in oklab, var(--surface) 70%, transparent);
+}
+
+/* Under the navigation gizmo (88px high, 12px from the top). */
+.corner[data-under-gizmo] {
+	top: 108px;
+	right: 40px;
+}

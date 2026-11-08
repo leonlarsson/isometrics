@@ -114,9 +114,7 @@ const ControlsDialogOpen = () => {
 
 					<Groups groups={shownMouse} />
 
-					<Hint>
-						What Shift and Alt do with a drag is yours to choose, in Preferences → Camera.
-					</Hint>
+					<Hint>What Shift does with a drag is yours to choose, in Preferences → Camera.</Hint>
 
 					<div>
 						<Button

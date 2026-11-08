@@ -35,6 +35,7 @@ import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
+import { ControlsButton } from "./ControlsButton";
 import { ControlsDialog } from "./ControlsDialog";
 import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
 import { DataWindow } from "./DataWindow";
@@ -411,6 +412,8 @@ export const AppShell = () => {
 									{showsWorld && <ViewLabel />}
 
 									{showsWorld && <NavigationGizmo />}
+
+									{showsWorld && <ControlsButton />}
 
 									{showsWorld && <LabelLayer />}
 
