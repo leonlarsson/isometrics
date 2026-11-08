@@ -193,7 +193,7 @@ interface IGroundDragOptions {
 	planeY?: number;
 	/**
 	 * Called on pointer-down; return false to leave the press alone (no drag; it goes on to the
-	 * camera, e.g. Shift/Ctrl to orbit). Receives the drag's coalesce key and the press.
+	 * camera, e.g. Shift to pan, ADR-0156). Receives the drag's coalesce key and the press.
 	 */
 	onStart?: (token: string, event: ThreeEvent<PointerEvent>) => boolean | undefined;
 	/**

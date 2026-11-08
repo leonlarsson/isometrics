@@ -159,3 +159,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0153](0153-tables-over-time.md) | Tables over time: a dated sheet read as a table with a past, and the past shown on the table's page | proposed |
 | [0154](0154-pick-order.md) | Pick order: what a click under the pointer goes to, handles on top, and Select what's here | proposed |
 | [0155](0155-ground-shapes.md) | The ground's shape: any outline, rounded corners, shapes in one click, handles to drag, its thickness, and hiding it | proposed |
+| [0156](0156-shift-pans-ctrl-copies-alt-orbits.md) | Shift + drag pans, Ctrl + drag copies, Alt + drag orbits, the first and last in Preferences | proposed |

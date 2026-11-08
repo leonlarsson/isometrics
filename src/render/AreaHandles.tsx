@@ -57,7 +57,7 @@ const CornerHandle = ({ areaId, index, point, y, selected, boxed }: ICornerHandl
 	const drag = useGroundDrag({
 		planeY: y,
 		onStart: (_token, event) => {
-			// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the corner, below).
+			// With Shift, Ctrl or Cmd the press isn't the corner's: Shift pans (ADR-0156); a click toggles it, below.
 			if (isToggleClick(event.nativeEvent)) {
 				return false;
 			}

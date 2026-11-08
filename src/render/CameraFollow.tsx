@@ -6,6 +6,7 @@ import { useEditor } from "#/editor/store";
 import { DEG2RAD } from "#/lib/math";
 import { getPart, resolveProps, vehicleLengthOf } from "#/parts/registry";
 
+import { leftDragOrbits } from "./dragKeys";
 import { livePoses } from "./routeDrop";
 import { resetViewShift } from "./viewShift";
 
@@ -50,15 +51,16 @@ export const CameraFollow = () => {
 		}
 	}, [follow?.entityId, follow?.ride]);
 
-	// Taking the camera back: a pan (plain left-drag) stops following; while riding, any press or
-	// scroll does.
+	// Taking the camera back: a pan (a left drag, Shift or not) stops following; while riding, any
+	// press or scroll does.
 	useEffect(() => {
 		if (!follow) {
 			return;
 		}
 		const onDown = (event: PointerEvent) => {
-			const plain = event.button === 0 && !(event.ctrlKey || event.metaKey || event.shiftKey);
-			if (follow.ride || plain) {
+			const pans =
+				event.button === 0 && !(event.ctrlKey || event.metaKey) && !leftDragOrbits(event);
+			if (follow.ride || pans) {
 				useEditor.getState().stopFollowing();
 			}
 		};

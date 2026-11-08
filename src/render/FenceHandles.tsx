@@ -123,7 +123,7 @@ const FencePointHandle = ({ fence, index, point, y, selected, boxed }: IFencePoi
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			onPointerDown={(e: ThreeEvent<PointerEvent>) => {
-				// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the point, below).
+				// With Shift, Ctrl or Cmd the press isn't the point's: Shift pans (ADR-0156); a click toggles it, below.
 				if (e.nativeEvent.button !== 0 || isToggleClick(e.nativeEvent)) {
 					return;
 				}
@@ -334,7 +334,7 @@ const FenceGateHandle = ({ fence, index, at, direction }: IFenceGateHandleProps)
 	const drag = useGroundDrag({
 		planeY: at[1],
 		snapsToGrid: false,
-		// With Shift, Ctrl or Cmd the press is the camera's.
+		// With Shift, Ctrl or Cmd the press isn't the gate's: Shift pans (ADR-0156).
 		onStart: (_, event) => !isToggleClick(event.nativeEvent),
 		onMove: (spot, token, event) => {
 			const store = useEditor.getState();

@@ -9,6 +9,7 @@ import { useEditor } from "#/editor/store";
 import { clamp } from "#/lib/math";
 
 import { orthographicDistance, pixelsPerUnitAt, zoomLimits } from "./cameraMath";
+import { leftDragOrbits } from "./dragKeys";
 import { keepsIsometricAngle, QUARTER_TURN_DRAG, turnIsometricView } from "./isometricLock";
 import { cardEventHandover } from "./labelRegistry";
 import { cameraCommands } from "./liveCamera";
@@ -46,7 +47,8 @@ interface IOrbitControls {
  * Left-drag on empty space grabs the ground and slides it, so the spot under
  * the cursor stays under the cursor (OrbitControls' own pan drifts on a tilted
  * view). Objects and handles claim their presses first by disabling the
- * controls, so this only runs when nothing else took the press.
+ * controls, so this only runs when nothing else took the press; with Shift
+ * nothing does, so Shift-drag pans from anywhere (ADR-0156).
  */
 const useGroundPan = () => {
 	const camera = useThree((s) => s.camera);
@@ -93,8 +95,10 @@ const useGroundPan = () => {
 				panning = null;
 				return;
 			}
-			const plain = !(event.ctrlKey || event.metaKey || event.shiftKey);
-			if (event.button !== 0 || !plain || !controls.enabled || useEditor.getState().placingKind) {
+			// Shift pans, over a selected object too (it doesn't grab it); Ctrl or Cmd is for dragging a
+			// copy and never moves the camera; Alt orbits (ADR-0156). The preferences can say otherwise.
+			const panKeys = !leftDragOrbits(event) && !(event.ctrlKey || event.metaKey);
+			if (event.button !== 0 || !panKeys || !controls.enabled || useEditor.getState().placingKind) {
 				return;
 			}
 			// The ground under the pointer, unless it's beyond the horizon or far off in perspective (near
@@ -148,8 +152,9 @@ const useGroundPan = () => {
 };
 
 /**
- * Right-drag (or Ctrl/Shift + left-drag) orbits around the point under the
- * cursor, like Google Maps: an object if one is there, otherwise the ground.
+ * Right-drag orbits around the point under the cursor, like Google Maps: an
+ * object if one is there, otherwise the ground (ADR-0156: no left-drag with
+ * a key held orbits; Shift pans, Ctrl or Cmd copies).
  * OrbitControls can only orbit around its target, so the camera and target
  * are turned together around that point (render/orbit), then the target
  * slides along the line of sight back over the ground, which doesn't change
@@ -210,8 +215,9 @@ const useOrbitAroundCursor = () => {
 		};
 
 		const onDown = (event: PointerEvent) => {
-			const modified = event.ctrlKey || event.metaKey || event.shiftKey;
-			const wants = event.button === 2 || (event.button === 0 && modified);
+			// The right button orbits, and a left drag with Alt (or Shift, if the preferences say so); a
+			// left drag with Shift otherwise pans, and with Ctrl or Cmd copies (ADR-0156).
+			const wants = event.button === 2 || (event.button === 0 && leftDragOrbits(event));
 			if (!wants || !controls.enabled || useEditor.getState().placingKind) {
 				return;
 			}
@@ -755,9 +761,9 @@ const CameraBehaviours = () => {
 };
 
 /**
- * Map-style camera: left-drag pans (grabbing the ground), right-drag or
- * Ctrl/Shift + left-drag orbits around the point under the cursor, the wheel
- * zooms towards the cursor. On touch, one finger pans and two pinch to zoom
+ * Map-style camera: left-drag pans (grabbing the ground), Shift + left-drag
+ * pans from anywhere, right-drag orbits around the point under the cursor
+ * (ADR-0156), the wheel zooms towards the cursor. On touch, one finger pans and two pinch to zoom
  * and twist to orbit. See docs/adr/0028 and 0037.
  */
 export const CameraControls = () => {

@@ -7,6 +7,7 @@ import {
 	expect,
 	hold,
 	keys,
+	loadWorld,
 	menuItem,
 	openEditor,
 	openPanel,
@@ -14,6 +15,8 @@ import {
 	read,
 	reopened,
 	saved,
+	screenOf,
+	showView,
 	test,
 	viewCentre,
 } from "./editor";
@@ -118,6 +121,40 @@ test.describe("moving the camera (ADR-0028, ADR-0037, ADR-0062)", () => {
 		await overView(page);
 		await hold(page, "d");
 		expect((await cameraPose(page))?.target).not.toEqual(flown?.target);
+	});
+
+	test("Shift-drag pans, even from a selected object; Ctrl-drag never moves the camera; Alt-drag orbits", async ({
+		page,
+	}) => {
+		await loadWorld(page, {
+			entities: [{ id: "house", kind: "house_01", position: [0, 0], scale: 2 }],
+		});
+		await act(page, (s) => s.select("house"));
+		await showView(page, [0, 0], 30);
+		const dragWith = async (key: string, from: { x: number; y: number }) => {
+			await page.keyboard.down(key);
+			await page.mouse.move(from.x, from.y);
+			await page.mouse.down();
+			await page.mouse.move(from.x + 120, from.y + 40, { steps: 10 });
+			await page.mouse.up();
+			await page.keyboard.up(key);
+		};
+		const start = await cameraPose(page);
+
+		// From the selected house (its front wall, clear of the gizmo): the view slides, the house stays.
+		await dragWith("Shift", await screenOf(page, [-1.8, 1.2, 2.25]));
+		const panned = await cameraPose(page);
+		expect(panned?.target).not.toEqual(start?.target);
+		expect(panned?.azimuth).toBeCloseTo(start?.azimuth ?? 0, 3);
+		expect(await read(page, (s) => s.scene.entities[0].position)).toEqual([0, 0]);
+
+		// From the ground: Ctrl or Cmd is for copying, so the view stays put.
+		await dragWith("Control", await screenOf(page, [-6, 0, 6]));
+		expect(await cameraPose(page)).toEqual(panned);
+
+		// Alt orbits, as in Maya and Unity: the view turns.
+		await dragWith("Alt", await screenOf(page, [-6, 0, 6]));
+		expect((await cameraPose(page))?.azimuth).not.toBeCloseTo(panned?.azimuth ?? 0, 0);
 	});
 
 	test("the compass turns the view to look from a side", async ({ page }) => {

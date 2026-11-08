@@ -18,6 +18,8 @@ import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
 /** The preferences on each page, for resetting a page. */
 const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"cameraControl",
+	"shiftDrag",
+	"altDragOrbits",
 	"orbitSpeed",
 	"zoomSpeed",
 	"invertZoom",
@@ -134,6 +136,40 @@ export const PreferencesDialog = () => {
 											? "The camera stays above the world, within the world’s zoom and tilt (Camera tab)."
 											: "Orbit anywhere: under the ground, straight up at the sky, as close or far as you like. The world’s zoom and tilt don’t apply to you."
 									}
+								/>
+							),
+						},
+						{
+							id: "shiftDrag",
+							keywords: "shift drag pan orbit turn mouse keys",
+							field: (
+								<SelectField<TPreferences["shiftDrag"]>
+									label="Shift + left-drag"
+									value={preferences.shiftDrag}
+									options={[
+										{ value: "pan", label: "Pans the view" },
+										{ value: "orbit", label: "Orbits the view" },
+									]}
+									onChange={(v) => setPreference("shiftDrag", v)}
+									inherit={preferenceDefault(preferences, "shiftDrag", "pans the view")}
+									hint={
+										preferences.shiftDrag === "pan"
+											? "Slides the view from anywhere, even starting on a selected object, without moving it. The right button orbits."
+											: "Turns the view round the spot under the pointer, as the right button does."
+									}
+								/>
+							),
+						},
+						{
+							id: "altDragOrbits",
+							keywords: "alt option drag orbit turn rotate maya unity mouse keys trackpad",
+							field: (
+								<SwitchField
+									label="Alt + left-drag orbits"
+									checked={preferences.altDragOrbits}
+									onChange={(v) => setPreference("altDragOrbits", v)}
+									inherit={preferenceDefault(preferences, "altDragOrbits", "on")}
+									hint="Away from what's selected, as in Maya and Unity: for a trackpad without a right button. On a selected object Alt still moves it freely, off the grid. Turn it off if your desktop moves windows with Alt + drag."
 								/>
 							),
 						},

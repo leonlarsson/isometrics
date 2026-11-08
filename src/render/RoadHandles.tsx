@@ -75,8 +75,8 @@ interface IPointDrag {
 /**
  * A control point: click to select, drag to move across the ground (all the
  * selected points when it's one of them), double-click to remove it. Shift- or
- * Ctrl-click adds it to the selected points or takes it out; Shift/Ctrl-drag
- * orbits the camera, as everywhere (ADR-0065). Dragging a road end onto another
+ * Ctrl-click adds it to the selected points or takes it out; Shift-drag pans
+ * the camera, as everywhere (ADR-0065, ADR-0156). Dragging a road end onto another
  * road end snaps to it and offers to join or connect them; onto another road,
  * to connect there (ADR-0136). An end at a junction moves the junction.
  */
@@ -120,7 +120,7 @@ const PointHandle = ({ road, index, point, baseY, selected, boxed }: IPointHandl
 			position={[point[0], baseY + point[2] + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			onPointerDown={(e: ThreeEvent<PointerEvent>) => {
-				// With Shift, Ctrl or Cmd the press is the camera's (a click toggles the point, below).
+				// With Shift, Ctrl or Cmd the press isn't the point's: Shift pans (ADR-0156); a click toggles it, below.
 				if (e.nativeEvent.button !== 0 || isToggleClick(e.nativeEvent)) {
 					return;
 				}

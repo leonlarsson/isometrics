@@ -56,6 +56,13 @@ export const PreferencesSchema = z.object({
 	 * free: orbit anywhere, as in Blender (under the ground, straight up, any zoom).
 	 */
 	cameraControl: z.enum(["simple", "free"]).catch("simple"),
+	/**
+	 * What Shift + left-drag does (ADR-0156): pan the view, from anywhere (over a selected object
+	 * too, without grabbing it); or orbit it, as it did before.
+	 */
+	shiftDrag: z.enum(["pan", "orbit"]).catch("pan"),
+	/** Alt + left-drag away from what's selected orbits the view (as in Maya and Unity, ADR-0156). */
+	altDragOrbits: z.boolean().catch(true),
 	/** Turning and tilting by dragging, a two-finger twist or Shift+arrows, × the usual speed. */
 	orbitSpeed: z.number().min(0.2).max(3).catch(1),
 	/** Zooming with the wheel, the middle button, a pinch or + and −, × the usual speed. */
