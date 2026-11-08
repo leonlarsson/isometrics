@@ -35,6 +35,7 @@ import { BuildWithAiDialog } from "./BuildWithAiDialog";
 import { Button, IconButton } from "./Button";
 import { CameraFollowBar } from "./CameraFollowBar";
 import { CompositionGrid } from "./CompositionGrid";
+import { ControlsDialog } from "./ControlsDialog";
 import { LegendChips, MapDataSwitch, ViewDock, WorldDataView } from "./Dashboard";
 import { DataWindow } from "./DataWindow";
 import { DetailSheet, RoadDetailSheet } from "./DetailSheet";
@@ -578,6 +579,8 @@ export const AppShell = () => {
 
 					{/* App-wide, whatever is open: the home screen uses them too. */}
 					<PreferencesDialog />
+
+					<ControlsDialog />
 
 					<BuildWithAiDialog />
 

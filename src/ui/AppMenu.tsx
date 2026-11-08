@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { openControls } from "#/editor/controls";
 import { exportThisBrowser, resetThisBrowsersSettings } from "#/editor/fileActions";
 import { useEditor } from "#/editor/store";
 import { APP_NAME, SOURCE_URL } from "#/lib/app";
@@ -57,6 +58,14 @@ export const AppMenuItems = () => {
 				description="How the camera moves for you, graphics and overlays, in this browser"
 				shortcut="Ctrl+,"
 				onClick={() => store().setPreferencesOpen(true)}
+			/>
+
+			<Menu.Item
+				icon="keyboard"
+				label="Keys and mouse…"
+				description="What every key, click and drag does"
+				shortcut="?"
+				onClick={() => openControls(true)}
 			/>
 
 			<Menu.Separator />

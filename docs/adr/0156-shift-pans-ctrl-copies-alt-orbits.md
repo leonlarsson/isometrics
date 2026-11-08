@@ -26,11 +26,11 @@ A left drag with Shift or Ctrl orbited the view (ADR-0028, ADR-0037), except tha
 
 Chosen option: **1**.
 
-- **Shift + left-drag pans** (`render/CameraControls`), from anywhere: over a selected object (which isn't grabbed), its gizmo and handles (which let the press through, `shiftDragPans`). Shift- and Ctrl-clicks still add to the selection and take out of it.
+- **Shift + left-drag pans** (`render/CameraControls`), from anywhere: over a selected object (which isn't grabbed), its gizmo and handles (which let any Shift press through to the camera, `shiftDragMovesView`, so it orbits there too when the preferences say Shift orbits). Shift- and Ctrl-clicks still add to the selection and take out of it.
 - **Ctrl/Cmd + left-drag** drags a copy of the selection when it starts on a selected object or its gizmo (ADR-0067); anywhere else it does nothing, never moving the camera.
 - **Alt + left-drag orbits** away from what's selected (`leftDragOrbits`); on a selected object, or its gizmo or a handle, Alt still places freely, off the grid.
 - **The right button orbits**, the wheel and middle button zoom, a plain left drag pans, as before.
-- **Preferences → Camera → Navigation:** **Shift + left-drag** (Pans the view by default, or Orbits the view as before) and **Alt + left-drag orbits** (on by default; off where the desktop moves windows with Alt + drag, as many Linux desktops do).
+- **Preferences → Camera → Navigation:** **Shift + left-drag** (Pans the view by default, or Orbits the view as before) and **Alt + left-drag** (Orbits the view by default, or Pans the view where the desktop moves windows with Alt + drag, as many Linux desktops do); both are selects, so the two read alike.
 - A camera following a vehicle is taken back by a pan, Shift or not.
 
 ### Consequences

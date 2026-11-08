@@ -19,7 +19,7 @@ import { type ISettingsPage, SettingsDialog } from "./SettingsDialog";
 const CAMERA_PAGE: (keyof TPreferences)[] = [
 	"cameraControl",
 	"shiftDrag",
-	"altDragOrbits",
+	"altDrag",
 	"orbitSpeed",
 	"zoomSpeed",
 	"invertZoom",
@@ -161,15 +161,23 @@ export const PreferencesDialog = () => {
 							),
 						},
 						{
-							id: "altDragOrbits",
-							keywords: "alt option drag orbit turn rotate maya unity mouse keys trackpad",
+							id: "altDrag",
+							keywords: "alt option drag pan orbit turn rotate maya unity mouse keys trackpad",
 							field: (
-								<SwitchField
-									label="Alt + left-drag orbits"
-									checked={preferences.altDragOrbits}
-									onChange={(v) => setPreference("altDragOrbits", v)}
-									inherit={preferenceDefault(preferences, "altDragOrbits", "on")}
-									hint="Away from what's selected, as in Maya and Unity: for a trackpad without a right button. On a selected object Alt still moves it freely, off the grid. Turn it off if your desktop moves windows with Alt + drag."
+								<SelectField<TPreferences["altDrag"]>
+									label="Alt + left-drag"
+									value={preferences.altDrag}
+									options={[
+										{ value: "orbit", label: "Orbits the view" },
+										{ value: "pan", label: "Pans the view" },
+									]}
+									onChange={(v) => setPreference("altDrag", v)}
+									inherit={preferenceDefault(preferences, "altDrag", "orbits the view")}
+									hint={
+										preferences.altDrag === "orbit"
+											? "Away from what's selected, as in Maya and Unity, and for a trackpad without a right button. On a selected object Alt moves it off the grid. Choose Pans if your desktop moves windows with Alt + drag."
+											: "Like a plain drag. On a selected object Alt moves it off the grid."
+									}
 								/>
 							),
 						},

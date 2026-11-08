@@ -19,7 +19,7 @@ import { groundCornersOf } from "#/scene/groundShape";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
-import { shiftDragPans } from "./dragKeys";
+import { shiftDragMovesView } from "./dragKeys";
 import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { alongLine, BALL_RADIUS, HIT, STAND_OFF } from "./SizeHandles";
 import {
@@ -261,8 +261,8 @@ const SideHandle = ({ axis, sign }: { axis: "x" | "z"; sign: 1 | -1 }) => {
 				hoverColor={colors.hover}
 				active={active}
 				onPointerDown={(e) => {
-					// With Shift the press pans the view, over the handle too (ADR-0156).
-					if (e.nativeEvent.button !== 0 || shiftDragPans(e.nativeEvent)) {
+					// With Shift the press moves the view (pans or orbits), over the handle too (ADR-0156).
+					if (e.nativeEvent.button !== 0 || shiftDragMovesView(e.nativeEvent)) {
 						return;
 					}
 					e.stopPropagation();

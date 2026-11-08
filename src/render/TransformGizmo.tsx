@@ -10,7 +10,7 @@ import { standingAltitudeAt, topsToStandOn } from "#/parts/standing";
 import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
-import { shiftDragPans } from "./dragKeys";
+import { shiftDragMovesView } from "./dragKeys";
 import { gizmoArea } from "./labelRegistry";
 import { PICK_ORDER, pickOrderData } from "./pickOrder";
 import { levelHitOnRay, surfaceHitOnRay } from "./useGroundDrag";
@@ -343,8 +343,8 @@ export const TransformGizmo = ({
 		surfaceHitOnRay(e.ray, topsToStandOn(useEditor.getState().scene, objectId), current.above);
 
 	const start = (handle: TGizmoHandle) => (e: ThreeEvent<PointerEvent>) => {
-		// With Shift the press pans the view, over the gizmo too (ADR-0156).
-		if (e.nativeEvent.button !== 0 || !root.current || shiftDragPans(e.nativeEvent)) {
+		// With Shift the press moves the view (pans, or orbits as the preferences say), over the gizmo too (ADR-0156).
+		if (e.nativeEvent.button !== 0 || !root.current || shiftDragMovesView(e.nativeEvent)) {
 			return;
 		}
 		e.stopPropagation();

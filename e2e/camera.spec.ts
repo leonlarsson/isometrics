@@ -5,6 +5,7 @@ import {
 	cameraPose,
 	choose,
 	expect,
+	gizmoSpot,
 	hold,
 	keys,
 	loadWorld,
@@ -123,7 +124,7 @@ test.describe("moving the camera (ADR-0028, ADR-0037, ADR-0062)", () => {
 		expect((await cameraPose(page))?.target).not.toEqual(flown?.target);
 	});
 
-	test("Shift-drag pans, even from a selected object; Ctrl-drag never moves the camera; Alt-drag orbits", async ({
+	test("Shift-drag pans (or orbits) even from a selected object or its gizmo; Ctrl-drag never moves the camera; Alt-drag orbits", async ({
 		page,
 	}) => {
 		await loadWorld(page, {
@@ -155,6 +156,21 @@ test.describe("moving the camera (ADR-0028, ADR-0037, ADR-0062)", () => {
 		// Alt orbits, as in Maya and Unity: the view turns.
 		await dragWith("Alt", await screenOf(page, [-6, 0, 6]));
 		expect((await cameraPose(page))?.azimuth).not.toBeCloseTo(panned?.azimuth ?? 0, 0);
+
+		// With Shift set to orbit (Preferences), Shift on the gizmo turns the view and leaves the house.
+		await page.evaluate(() =>
+			localStorage.setItem("isometrics:preferences", JSON.stringify({ shiftDrag: "orbit" })),
+		);
+		await openEditor(page);
+		await loadWorld(page, {
+			entities: [{ id: "house", kind: "house_01", position: [0, 0], scale: 2 }],
+		});
+		await act(page, (s) => s.select("house"));
+		await showView(page, [0, 0], 30);
+		const before = await cameraPose(page);
+		await dragWith("Shift", await gizmoSpot(page, [0, 0, 0], [0.35, 0, 0.35], 30));
+		expect((await cameraPose(page))?.azimuth).not.toBeCloseTo(before?.azimuth ?? 0, 0);
+		expect(await read(page, (s) => s.scene.entities[0].position)).toEqual([0, 0]);
 	});
 
 	test("the compass turns the view to look from a side", async ({ page }) => {
