@@ -274,7 +274,12 @@ export const openWorldId = (): string | null => {
 	return id && getItem(worldKey(id)) !== null ? id : null;
 };
 
+/** Which world is open, stored for the next visit; this tab choosing one saves again (see `stopSaving`). */
 const setOpenWorldId = (id: string | null) => {
+	const resumes = id !== null && stoppedBecause !== null && stoppedBecause !== "wiped";
+	if (resumes) {
+		stoppedBecause = null;
+	}
 	try {
 		if (id) {
 			localStorage.setItem(OPEN_WORLD_ID_KEY, id);
@@ -283,6 +288,9 @@ const setOpenWorldId = (id: string | null) => {
 		}
 	} catch {
 		// Storage unavailable: nothing to remember.
+	}
+	if (resumes) {
+		openedSaved(id);
 	}
 };
 
@@ -393,21 +401,36 @@ export const openStoredWorld = (id: string): TStoredSceneResult => {
 
 /** Said once already; with no storage at all, the app said so as it opened (ADR-0145). */
 let warnedFull = !storageAvailable();
-/** Set by `wipeEverything`: nothing is saved any more, until the page reloads. */
-let wiped = false;
+
+/**
+ * Why this tab doesn't save any more (ADR-0158), or null while it does:
+ * `wiped`: it wiped everything itself, or an import replaced this browser's
+ * storage underneath it (ADR-0045, ADR-0140), until the page reloads;
+ * `wipedElsewhere`: another tab wiped everything; `changedElsewhere`: another
+ * tab changed which world is open (opened or made another, deleted this one,
+ * or replaced this browser's worlds with an import). Either of those two lasts
+ * until the page reloads or this tab opens or makes a world itself.
+ */
+export type TStopReason = "wiped" | "wipedElsewhere" | "changedElsewhere";
+let stoppedBecause: TStopReason | null = null;
 
 /**
  * Whether the open world is saved, for the toolbar's save status (ADR-0057).
  * `new`: nothing to save yet (a first visit's starter world, before any change);
  * `saving`: a change is waiting for the autosave; `saved`: written, `at` when
  * (0 if unknown); `failed`: the browser refused, because its storage for the
- * site is full, it doesn't allow storage at all, or everything was just wiped.
+ * site is full or it doesn't allow storage at all, or this tab stopped saving
+ * (`TStopReason`: everything was wiped, here or in another tab, or another tab
+ * changed which world is open).
  */
 export type TSaveStatus =
 	| { state: "new" }
 	| { state: "saving" }
 	| { state: "saved"; at: number }
-	| { state: "failed"; reason: "full" | "unavailable" | "wiped" };
+	| { state: "failed"; reason: TNotSavedReason };
+
+/** Why the open world isn't saved: storage full or none at all, or why this tab stopped saving. */
+export type TNotSavedReason = "full" | "unavailable" | TStopReason;
 
 // Not saved from the start when the browser blocks storage (ADR-0145): never "Not saved yet".
 let saveStatus: TSaveStatus = storageAvailable()
@@ -415,14 +438,24 @@ let saveStatus: TSaveStatus = storageAvailable()
 	: { state: "failed", reason: "unavailable" };
 const saveStatusListeners = new Set<() => void>();
 
+/** Once saving has stopped, the status says why, whatever else happens. */
 const setSaveStatus = (next: TSaveStatus) => {
-	saveStatus = next;
+	saveStatus = stoppedBecause ? { state: "failed", reason: stoppedBecause } : next;
 	for (const listener of saveStatusListeners) {
 		listener();
 	}
 };
 
 export const readSaveStatus = () => saveStatus;
+
+/** Stop saving, and say why in the save status. */
+const stopSaving = (reason: TStopReason) => {
+	stoppedBecause = reason;
+	setSaveStatus(saveStatus);
+};
+
+/** Whether this tab has stopped saving (ADR-0158): nothing it keeps per world is written either. */
+export const savingHasStopped = () => stoppedBecause !== null;
 
 /** Call `listener` whenever the save status changes. */
 export const subscribeSaveStatus = (listener: () => void) => {
@@ -456,8 +489,8 @@ const failureReason = (error: unknown): "full" | "unavailable" =>
 
 /** Write a world into its slot and the index; says so once if it can't. */
 const writeWorld = (id: string, scene: TScene) => {
-	if (wiped) {
-		setSaveStatus({ state: "failed", reason: "wiped" });
+	if (stoppedBecause) {
+		setSaveStatus(saveStatus);
 		return;
 	}
 	try {
@@ -484,8 +517,8 @@ const writeWorld = (id: string, scene: TScene) => {
 
 /** Save `scene` into the open world (creating one if none is open yet). */
 export const saveScene = (scene: TScene) => {
-	if (wiped) {
-		setSaveStatus({ state: "failed", reason: "wiped" });
+	if (stoppedBecause) {
+		setSaveStatus(saveStatus);
 		return;
 	}
 	let id = storedOpenWorldId();
@@ -563,7 +596,7 @@ export const startFreshAfterCrash = (): boolean => {
  * Returns false if the browser refused.
  */
 export const wipeEverything = (): boolean => {
-	wiped = true;
+	stopSaving("wiped");
 	try {
 		localStorage.clear();
 		sessionStorage.clear();
@@ -579,8 +612,26 @@ export const wipeEverything = (): boolean => {
  * replaced underneath the open world (ADR-0140): a pending autosave mustn't
  * write it into the world that's open now.
  */
-export const stopSavingUntilReload = () => {
-	wiped = true;
+export const stopSavingUntilReload = () => stopSaving("wiped");
+
+/**
+ * Why this tab must stop saving after another tab of the app changed the
+ * storage (a `storage` event only reaches the other tabs), or null if it
+ * needn't: the storage was cleared (Wipe everything), or which world is open
+ * changed (another world opened or made there, this one deleted, or the
+ * browser replaced by an import). Saving on would write this tab's world into
+ * whatever is open now, or bring a wiped one back (ADR-0158).
+ */
+export const stopReasonOf = (
+	event: Pick<StorageEvent, "key" | "oldValue" | "newValue">,
+): TStopReason | null => {
+	if (event.key === null) {
+		return "wipedElsewhere";
+	}
+	if (event.key === OPEN_WORLD_ID_KEY && event.newValue !== event.oldValue) {
+		return "changedElsewhere";
+	}
+	return null;
 };
 
 /** What resetting the browser's settings keeps: the worlds, their backups, which is open. */
@@ -628,7 +679,11 @@ export const resetBrowserSettings = (): boolean => {
 
 /**
  * Save the scene shortly after every change, while the open world is one's
- * own: never a world from a link that isn't kept yet (ADR-0121). Returns an
+ * own: never a world from a link that isn't kept yet (ADR-0121). Stops when
+ * another tab wipes the storage or changes which world is open (ADR-0158),
+ * while this tab has a world of its own open (or the Workshop, which goes back
+ * to one): a tab on the home screen or showing a preview saves nothing over
+ * anything, and opens what's stored when it opens a world. Returns an
  * unsubscribe function.
  */
 export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
@@ -637,13 +692,28 @@ export const startAutosave = (store: typeof useEditor, delayMs = 300) => {
 		if (state.scene === previous.scene || !keepsOpenWorld(state.whatIsOpen)) {
 			return;
 		}
-		setSaveStatus(wiped ? { state: "failed", reason: "wiped" } : { state: "saving" });
+		setSaveStatus({ state: "saving" });
 		clearTimeout(timer);
 		timer = setTimeout(() => saveScene(state.scene), delayMs);
 	});
+	const onStorage = (event: StorageEvent) => {
+		const reason = stopReasonOf(event);
+		const { whatIsOpen } = store.getState();
+		if (reason && !stoppedBecause && whatIsOpen.kind === "world" && !whatIsOpen.preview) {
+			clearTimeout(timer);
+			stopSaving(reason);
+		}
+	};
+	const listens = typeof window !== "undefined";
+	if (listens) {
+		window.addEventListener("storage", onStorage);
+	}
 	return () => {
 		clearTimeout(timer);
 		unsubscribe();
+		if (listens) {
+			window.removeEventListener("storage", onStorage);
+		}
 	};
 };
 

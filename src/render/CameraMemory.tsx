@@ -8,7 +8,7 @@ import {
 	UNSAVED_WORLD,
 	workshopViewKey,
 } from "#/editor/cameraMemory";
-import { openWorldId } from "#/editor/persistence";
+import { openWorldId, savingHasStopped } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { keepsOpenWorld, workshopOf } from "#/editor/whatIsOpen";
 
@@ -23,9 +23,13 @@ interface IChangingControls {
  * Stores where the camera is for the open world in this browser
  * (editor/cameraMemory); a world that isn't saved yet under UNSAVED_WORLD.
  * Not for a world from a link that isn't kept (ADR-0121): it isn't the open
- * world's, whose id is still stored.
+ * world's, whose id is still stored. Nor once this tab has stopped saving
+ * (ADR-0158): the open world's id may be another tab's world by then.
  */
 const saveView = () => {
+	if (savingHasStopped()) {
+		return;
+	}
 	const { whatIsOpen } = useEditor.getState();
 	// The Workshop's camera is kept too, per prefab (ADR-0134), apart from the world's.
 	const workshop = workshopOf(whatIsOpen);

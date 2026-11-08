@@ -62,5 +62,8 @@ export const blockedStorage = () => {
 };
 
 /** What another tab of the app sends when it writes the storage (or wipes it: key null). */
-export const storageEvent = (key: string | null, newValue: string | null) =>
-	Object.assign(new Event("storage"), { key, newValue });
+export const storageEvent = (
+	key: string | null,
+	newValue: string | null,
+	oldValue: string | null = null,
+) => Object.assign(new Event("storage"), { key, newValue, oldValue });
