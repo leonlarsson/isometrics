@@ -12,6 +12,7 @@ import {
 	menuItem,
 	openEditor,
 	openPanel,
+	paletteTile,
 	read,
 	reopened,
 	saved,
@@ -120,13 +121,47 @@ test.describe("the ground's shape (ADR-0155)", () => {
 			depth: 44,
 		});
 
-		// Undone like any change; Esc lets go of the selected corner, then ends shaping.
+		// The dragged corner is selected: Delete takes it out (back to four corners: Ctrl+Z puts it back).
+		await page.keyboard.press("Delete");
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(3);
+		await page.keyboard.press("Control+z");
+		expect(await read(page, (s) => s.scene.ground.points?.length)).toBe(4);
+
+		// Undone like any change; with no corner selected, Esc ends shaping.
 		await page.keyboard.press("Control+z");
 		expect(await read(page, (s) => s.scene.ground.points)).toBeNull();
 		await page.keyboard.press("Escape");
-		await expect(page.getByText("Shaping the ground")).toBeVisible();
-		await page.keyboard.press("Escape");
 		await expect(page.getByText("Shaping the ground")).toBeHidden();
+	});
+});
+
+test.describe("on a shaped ground (ADR-0155)", () => {
+	test("a part dropped past a circle's edge lands on it", async ({ page }) => {
+		await loadWorld(page, { entities: [] });
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 40;
+				scene.ground.depth = 40;
+			}),
+		);
+		await showView(page, [0, 0], 75);
+		await worldTab(page, "World");
+		await page.getByRole("button", { name: "Circle", exact: true }).click();
+		// Back to Add to scene, and a tree dragged onto the rectangle's empty corner, off the circle.
+		const tree = await paletteTile(page, "Nature", "Round tree");
+		await tree.scrollIntoViewIfNeeded();
+		const box = await tree.boundingBox();
+		const corner = await screenOf(page, [18, 0, 18]);
+		if (!box) {
+			throw new Error("no tile");
+		}
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(corner.x, corner.y, { steps: 12 });
+		await page.mouse.up();
+		const [x, z] = await read(page, (s) => s.scene.entities.at(-1)?.position ?? [0, 0]);
+		expect(Math.hypot(x, z)).toBeLessThanOrEqual(20.01);
+		expect(Math.hypot(x, z)).toBeGreaterThan(18);
 	});
 });
 

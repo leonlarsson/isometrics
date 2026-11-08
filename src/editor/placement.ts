@@ -1,6 +1,7 @@
 import { turnedHalfSize } from "#/lib/math";
 import type { TAnyPart } from "#/parts/registry";
 import { getPart, resolveProps } from "#/parts/registry";
+import { isOnGround } from "#/scene/groundShape";
 import type { TEntity, TScene, TVec2 } from "#/scene/schema";
 
 interface IRect {
@@ -32,7 +33,7 @@ const overlaps = (a: IRect, b: IRect) =>
 /**
  * Find a spot near `near` where a new part fits without overlapping existing
  * entities (flat zones are ignored). Searches
- * outward in rings on a 1-unit grid and stays inside the ground.
+ * outward in rings on a 1-unit grid and stays inside the ground, as it's shaped.
  */
 export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]): TVec2 => {
 	const [w, d] = part.footprint(part.schema.parse({}));
@@ -58,11 +59,15 @@ export const findFreeSpot = (scene: TScene, part: TAnyPart, near: TVec2 = [0, 0]
 					minZ: z - d / 2 - 0.25,
 					maxZ: z + d / 2 + 0.25,
 				};
-				const inside =
-					rect.minX >= -halfGroundW &&
-					rect.maxX <= halfGroundW &&
-					rect.minZ >= -halfGroundD &&
-					rect.maxZ <= halfGroundD;
+				// Every corner of it on the ground as it's shaped (ADR-0155).
+				const inside = (
+					[
+						[rect.minX, rect.minZ],
+						[rect.maxX, rect.minZ],
+						[rect.maxX, rect.maxZ],
+						[rect.minX, rect.maxZ],
+					] as const
+				).every((corner) => isOnGround(scene.ground, [corner[0], corner[1]]));
 				if (!inside) {
 					continue;
 				}

@@ -9,7 +9,12 @@ import { clamp } from "#/lib/math";
 import type { TVec2 } from "#/scene/schema";
 
 import { openWorldFile, saveWorldFile } from "./fileActions";
-import { selectGroundCorner, shapeGround, useGroundShaping } from "./groundShaping";
+import {
+	removeGroundCorners,
+	selectGroundCorner,
+	shapeGround,
+	useGroundShaping,
+} from "./groundShaping";
 import { transformSelected, transformSelectedPoints } from "./groupTransform";
 import { startCameraMove, type TCameraMove } from "./keyboardCamera";
 import { toggleSidePanes } from "./sidePanes";
@@ -39,7 +44,7 @@ const isTextEntry = (target: EventTarget | null) =>
  *   Edit mode, with a selection: Q / E rotate 15° (Shift: 90°)
  *   Arrows nudge the selected object, or the selected road or area point (Shift: 5×, Alt: 0.1)
  *   G move · R turn · S resize, then X / Y / Z, a number, Enter or Esc (ui/TransformBar)
- *   Mod+D duplicate · Shift+D duplicate and move (ADR-0067) · Delete/Backspace remove (selected road point, else object or road)
+ *   Mod+D duplicate · Shift+D duplicate and move (ADR-0067) · Delete/Backspace remove (selected road point, else object or road; shaping the ground, its selected corners)
  *   B / Shift+B: the next drag draws a box that adds to the selection, or takes from it (ADR-0064)
  *   Several selected: the keys that edit work on all of them, around their middle
  *   H hide or show the selection · Alt+H show everything hidden · F frame the selection · Shift+F draw a fence
@@ -71,7 +76,10 @@ export const useShortcuts = () => {
 	// Or a whole road or area (ADR-0066).
 	const several = useEditor((s) => s.mode === "edit" && selectMovesAsGroup(s));
 	const viewpointCount = useEditor((s) => s.scene.viewpoints.length);
-	const canDelete = mode === "edit" && (objectSelected || roadOrAreaSelected);
+	// Shaping the ground (ADR-0155): Delete takes out its selected corners.
+	const groundCornerSelected = useGroundShaping((s) => s.isOn && s.selected.length > 0);
+	const canDelete =
+		mode === "edit" && (objectSelected || roadOrAreaSelected || groundCornerSelected);
 	// Holding the right mouse button, W A S D and Q E move the camera instead (see below).
 	const holdingRightButton = useEditor((s) => s.holdingRightButton);
 	const canGroup = several && !holdingRightButton;
@@ -213,6 +221,11 @@ export const useShortcuts = () => {
 
 	/** Delete the selected point or peak if there is one, otherwise the selected object, road or area. */
 	const remove = () => {
+		const shaping = useGroundShaping.getState();
+		if (shaping.isOn && shaping.selected.length > 0) {
+			removeGroundCorners(shaping.selected);
+			return;
+		}
 		const state = useEditor.getState();
 		const point = state.selectedPointIndex;
 		if (state.selectedItems.length > 1) {
