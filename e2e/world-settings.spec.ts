@@ -73,6 +73,9 @@ test.describe("the ground's shape (ADR-0155)", () => {
 		expect(await read(page, (s) => s.scene.ground.isHidden)).toBe(true);
 		await page.getByRole("switch", { name: "Show the ground", exact: true }).click();
 		expect(await read(page, (s) => s.scene.ground.isHidden)).toBe(false);
+		await page.getByRole("textbox", { name: "Thickness", exact: true }).fill("4");
+		await page.getByRole("textbox", { name: "Thickness", exact: true }).press("Enter");
+		expect(await read(page, (s) => s.scene.ground.thickness)).toBe(4);
 
 		// The rectangle's side handle resizes it, staying centred; the view stays put under the pointer.
 		await page.getByRole("button", { name: "Shape the ground", exact: true }).click();

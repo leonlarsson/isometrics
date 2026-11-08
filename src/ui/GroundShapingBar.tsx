@@ -39,7 +39,7 @@ export const GroundShapingBar = () => {
 		>
 			{isShape
 				? "Drag a corner to move it, or a dot between two to add one; double-click a corner (or select it and press Delete) to take it out. Click a corner for the move gizmo; the balls on the sides resize it."
-				: "Drag a ball on a side to resize it, or a corner to reshape it. Shapes and rounded corners are in the World tab's Ground panel."}
+				: "Drag a ball on a side to resize it, a corner to reshape it, or a dot between two corners to add one. Shapes and rounded corners are in the World tab's Ground panel."}
 		</FloatingBar>
 	);
 };

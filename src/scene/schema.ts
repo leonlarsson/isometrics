@@ -1470,6 +1470,14 @@ export const GroundSchema = z
 			.describe(
 				"How round the ground's corners are, in grid units (each corner rounded by this much, less where its sides are short). 0 = as drawn: the rectangle's softly rounded edge, or points' sharp corners.",
 			),
+		thickness: z
+			.number()
+			.min(0.2)
+			.max(50)
+			.default(1)
+			.describe(
+				"How deep the ground's slab is under its top, in grid units: a thin plate, or a deep block (1 = as worlds always were).",
+			),
 		isHidden: z
 			.boolean()
 			.default(false)

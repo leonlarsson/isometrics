@@ -142,10 +142,10 @@ export const Ground = () => {
 				</mesh>
 			) : (
 				<RoundedBox
-					args={[ground.width, 1, ground.depth]}
-					radius={0.45}
+					args={[ground.width, ground.thickness, ground.depth]}
+					radius={Math.min(0.45, ground.thickness / 2 - 0.01)}
 					smoothness={4}
-					position={[0, -0.5, 0]}
+					position={[0, -ground.thickness / 2, 0]}
 					receiveShadow={!isHidden}
 					{...pointer}
 				>

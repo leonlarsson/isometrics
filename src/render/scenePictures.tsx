@@ -246,10 +246,10 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 					</mesh>
 				) : (
 					<RoundedBox
-						args={[scene.ground.width, 1, scene.ground.depth]}
-						radius={0.45}
+						args={[scene.ground.width, scene.ground.thickness, scene.ground.depth]}
+						radius={Math.min(0.45, scene.ground.thickness / 2 - 0.01)}
 						smoothness={4}
-						position={[0, -0.5, 0]}
+						position={[0, -scene.ground.thickness / 2, 0]}
 						receiveShadow
 					>
 						{groundMaterial}

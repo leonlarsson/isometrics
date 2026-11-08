@@ -3,7 +3,7 @@ status: proposed
 date: 2026-11-08
 ---
 
-# 0155. The ground's shape: any outline, rounded corners, shapes in one click, handles to drag, and hiding it
+# 0155. The ground's shape: any outline, rounded corners, shapes in one click, handles to drag, its thickness, and hiding it
 
 ## Context and problem statement
 
@@ -30,6 +30,7 @@ Chosen option: **1**. A click on the ground already means "deselect", so it can'
 - **Shapes in one click** (`GROUND_SHAPES`, the World tab's Ground panel, **Shape**): Rectangle, Rounded, Circle, Half circle, Hexagon, Octagon, L shape, Island, each filling the width × depth; **Corner rounding**; **Its own** shows once it's been reshaped by hand.
 - **Shape the ground** (that panel, and the ground's right-click menu): handles in the view (`render/GroundHandles.tsx`, state in `editor/groundShaping.ts`, never saved): a handle on each corner (drag; click to select, Shift- or Ctrl-click for several; the move gizmo on the selected ones; double-click, or Delete on the selected ones, removes; it keeps three), a dot between corners to add one, and on each side of the rectangle (round a shape) a size handle like an object's (ADR-0124), a ball in its axis's colour standing off the side, that resizes it, staying centred and stretching a shape. A bar says what they do, with **Done**; Esc, leaving Edit mode or selecting something else ends it. The camera doesn't re-frame for a size changed while shaping. Drags while shaping may reach past the ground's edge (up to the largest ground).
 - **Kept on the shape** (`isOnGround`, `nearestOnGround`): a part dragged in from Add to scene, a dragged object (by itself or with the gizmo), road, area and fence points drawn or dragged, and the paint brush land on the ground as it's shaped: a point past its edge comes in to the nearest spot on it, and the brush paints only what's wholly on it; finding a free spot for a new part keeps to it too.
+- **Thickness** (`ground.thickness`, 1 by default, as worlds always were): how deep the slab is under its top, for the rectangle's box and a shape's extrusion alike.
 - **Show the ground** (the World tab's Ground panel, `ground.isHidden`): off, the ground isn't drawn in View mode or pictures, so what stands on it floats; while editing it's a dashed outline, still there for the pointer, and things are still kept on its shape.
 - **For people and AIs:** the guide, the world format's overview and the fields' descriptions.
 

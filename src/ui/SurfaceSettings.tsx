@@ -77,41 +77,46 @@ export const GroundSurfaceFields = () => {
 				hint={off ? "Turn on Textured surfaces to draw it." : SURFACE_KINDS[kind].description}
 			/>
 
-			<SliderField
-				inherit={resetToDefault(
-					surface.patternStrength,
-					DEFAULTS.surface.patternStrength,
-					() => set("patternStrength", DEFAULTS.surface.patternStrength),
-					percent(DEFAULTS.surface.patternStrength),
-				)}
-				label="Pattern strength"
-				value={Math.round(surface.patternStrength * 100)}
-				min={0}
-				max={100}
-				step={5}
-				suffix="%"
-				disabled={off}
-				onChange={(v) => set("patternStrength", v / 100, true)}
-				hint="For the ground and every area that doesn't set its own: 50% is as designed."
-			/>
+			{/* A plain ground has no pattern: its strength and size wait until it has one (areas have their own). */}
+			{kind !== "plain" && (
+				<>
+					<SliderField
+						inherit={resetToDefault(
+							surface.patternStrength,
+							DEFAULTS.surface.patternStrength,
+							() => set("patternStrength", DEFAULTS.surface.patternStrength),
+							percent(DEFAULTS.surface.patternStrength),
+						)}
+						label="Pattern strength"
+						value={Math.round(surface.patternStrength * 100)}
+						min={0}
+						max={100}
+						step={5}
+						suffix="%"
+						disabled={off}
+						onChange={(v) => set("patternStrength", v / 100, true)}
+						hint="For the ground and every area that doesn't set its own: 50% is as designed."
+					/>
 
-			<SliderField
-				inherit={resetToDefault(
-					surface.patternScale,
-					DEFAULTS.surface.patternScale,
-					() => set("patternScale", DEFAULTS.surface.patternScale),
-					times(DEFAULTS.surface.patternScale),
-				)}
-				label="Pattern size"
-				value={surface.patternScale}
-				min={0.25}
-				max={4}
-				step={0.05}
-				suffix="×"
-				disabled={off}
-				onChange={(v) => set("patternScale", v, true)}
-				hint="Bigger stones, slabs and ripples, or smaller."
-			/>
+					<SliderField
+						inherit={resetToDefault(
+							surface.patternScale,
+							DEFAULTS.surface.patternScale,
+							() => set("patternScale", DEFAULTS.surface.patternScale),
+							times(DEFAULTS.surface.patternScale),
+						)}
+						label="Pattern size"
+						value={surface.patternScale}
+						min={0.25}
+						max={4}
+						step={0.05}
+						suffix="×"
+						disabled={off}
+						onChange={(v) => set("patternScale", v, true)}
+						hint="Bigger stones, slabs and ripples, or smaller."
+					/>
+				</>
+			)}
 		</>
 	);
 };

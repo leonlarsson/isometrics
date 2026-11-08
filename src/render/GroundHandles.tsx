@@ -393,8 +393,8 @@ const CornersGizmo = ({ points, indices }: { points: TVec2[]; indices: readonly 
 
 /**
  * The ground's handles while it's being shaped (ADR-0155, Edit mode): a
- * handle on each corner, the move gizmo on the selected ones, and on each
- * side a dot that adds a corner, or on the rectangle a handle that resizes it.
+ * handle on each corner, the move gizmo on the selected ones, a size handle on
+ * each side, and halfway along each side a dot that adds a corner there.
  */
 export const GroundHandles = () => {
 	const isOn = useGroundShaping((s) => s.isOn);
@@ -423,19 +423,19 @@ export const GroundHandles = () => {
 				<SideHandle key={`${axis}${sign}`} axis={axis} sign={sign} />
 			))}
 
-			{ground.points !== null &&
-				points.map((point, index) => {
-					const after = points[(index + 1) % points.length];
-					return (
-						<InsertHandle
-							// biome-ignore lint/suspicious/noArrayIndexKey: one per side, by position
-							key={`insert-${index}`}
-							index={index}
-							point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
-							visible={!dragging}
-						/>
-					);
-				})}
+			{/* A dot halfway along each side adds a corner there, the rectangle's too (it becomes a shape). */}
+			{points.map((point, index) => {
+				const after = points[(index + 1) % points.length];
+				return (
+					<InsertHandle
+						// biome-ignore lint/suspicious/noArrayIndexKey: one per side, by position
+						key={`insert-${index}`}
+						index={index}
+						point={[(point[0] + after[0]) / 2, (point[1] + after[1]) / 2]}
+						visible={!dragging}
+					/>
+				);
+			})}
 
 			{/* Kept while dragging: the gizmo's own drag sets dragging, and unmounting it ends the drag. */}
 			{chosen.length > 0 && <CornersGizmo points={points} indices={chosen} />}
