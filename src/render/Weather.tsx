@@ -17,7 +17,7 @@ import { jitter } from "#/parts/primitives";
 import { EDGE } from "#/scene/weatherMap";
 
 import { pixelsPerUnitAt } from "./cameraMath";
-import { GROUND_MASK_GLSL, groundMaskOf } from "./groundMask";
+import { applyGroundMask, GROUND_MASK_GLSL, groundMaskUniforms } from "./groundMask";
 import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weatherShading";
 
 /**
@@ -206,6 +206,7 @@ const FALL_VERTEX = /* glsl */ `
 	attribute float tip;
 	attribute float rank;
 	${MAP_AMOUNT}
+	${GROUND_MASK_GLSL}
 	uniform float time;
 	uniform vec3 center;
 	uniform vec2 halfSize;
@@ -230,6 +231,9 @@ const FALL_VERTEX = /* glsl */ `
 		// Fading in at the top, so it doesn't appear from nowhere; an area's edge fades it by its amount.
 		fade = smoothstep(0.0, 0.1, y / height);
 		vec2 amounts = amountAt(vec3(xz.x, 0.0, xz.y));
+		// The world's rain and snow fall only over the ground's shape (ADR-0155); an area's own, all over it.
+		float onGround = step(0.5, onGroundAt(xz));
+		amounts = vec2(amounts.x * onGround, amounts.y - amounts.x * (1.0 - onGround));
 		strength = amounts.y;
 		// The world's falls from the top of the field; an area's own from under its clouds.
 		float order = rank * rankScale;
@@ -317,6 +321,7 @@ const fallMaterial = (
 			opacityPerAmount: { value: 0 },
 			weatherCloudMap: weatherShading.uniforms.mapC,
 			mostCloudAltitude: { value: MOST_CLOUD_ALTITUDE },
+			...groundMaskUniforms(),
 			...reading.uniforms,
 		},
 	});
@@ -372,6 +377,8 @@ const Rain = ({ local }: { local: boolean }) => {
 		u.speed.value = 22;
 		u.streak.value = 0.7;
 		u.amount.value = now.world;
+		// Over the ground's shape, drawn or hidden.
+		applyGroundMask(u, useEditor.getState().scene.ground, true);
 		u.opacity.value = 0.25;
 		u.opacityPerAmount.value = 0.3;
 		geometry.setDrawRange(0, Math.ceil(now.mostAnywhere * now.atFull) * 2);
@@ -408,6 +415,8 @@ const Snow = ({ local }: { local: boolean }) => {
 		);
 		u.opacity.value = 0.95;
 		u.amount.value = now.world;
+		// Over the ground's shape, drawn or hidden.
+		applyGroundMask(u, useEditor.getState().scene.ground, true);
 		geometry.setDrawRange(0, Math.ceil(now.mostAnywhere * now.atFull));
 	});
 	return <points geometry={geometry} material={material} frustumCulled={false} />;
@@ -487,9 +496,7 @@ const Splashes = ({ local }: { local: boolean }) => {
 				rankScale: { value: 1 },
 				color: { value: new THREE.Color("#dfe7ef") },
 				opacity: { value: 0.6 },
-				groundMask: { value: null },
-				groundMaskBounds: { value: new THREE.Vector4() },
-				groundMaskMode: { value: 0 },
+				...groundMaskUniforms(),
 				...reading.uniforms,
 			},
 		});
@@ -498,9 +505,6 @@ const Splashes = ({ local }: { local: boolean }) => {
 	useEffect(() => () => material.dispose(), [material]);
 	// Wherever the rain falls: the same field, all of it.
 	const field = useFallField("splashes", SPLASHES_PER_VIEW, MOST_SPLASHES, local);
-	// The ground's shape's mask, let go of when the ground changes shape.
-	const lastMask = useRef<THREE.DataTexture | null>(null);
-	useEffect(() => () => lastMask.current?.dispose(), []);
 	useFrame(({ camera, size }) => {
 		const now = field(camera, size.height);
 		if (!now) {
@@ -513,14 +517,7 @@ const Splashes = ({ local }: { local: boolean }) => {
 		u.halfSize.value.copy(now.halfSize);
 		u.rankScale.value = now.rankScale;
 		u.amount.value = now.world;
-		const mask = groundMaskOf(useEditor.getState().scene.ground);
-		if (u.groundMask.value !== mask.texture) {
-			lastMask.current?.dispose();
-			lastMask.current = mask.texture;
-		}
-		u.groundMask.value = mask.texture;
-		u.groundMaskBounds.value.copy(mask.bounds);
-		u.groundMaskMode.value = mask.mode;
+		applyGroundMask(u, useEditor.getState().scene.ground);
 		geometry.instanceCount = Math.ceil(now.mostAnywhere * now.atFull);
 	});
 	return <mesh geometry={geometry} material={material} frustumCulled={false} />;

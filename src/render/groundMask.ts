@@ -21,10 +21,21 @@ export interface IGroundMask {
 }
 
 const masks = new WeakMap<TGround, IGroundMask>();
+/** The same ground's for what falls over it, hidden or not. */
+const fallMasks = new WeakMap<TGround, IGroundMask>();
+/** The last mask's texture, let go of on the GPU when another replaces it (three uploads it again if it's used again, after an undo). */
+let lastTexture: THREE.DataTexture | null = null;
+let olderTexture: THREE.DataTexture | null = null;
 
-/** The ground's mask, made once per ground as it is (its texture disposed by whoever replaces it). */
-export const groundMaskOf = (ground: TGround): IGroundMask => {
-	let mask = masks.get(ground);
+/**
+ * The ground's mask, made once per ground as it is: for what lands on it
+ * (splashes, none while it's hidden), or with `overIt` for what falls over it
+ * (rain and snow, over its shape whether it's drawn or not: a floating model
+ * still has weather round it).
+ */
+export const groundMaskOf = (ground: TGround, overIt = false): IGroundMask => {
+	const kept = overIt ? fallMasks : masks;
+	let mask = kept.get(ground);
 	if (mask) {
 		return mask;
 	}
@@ -35,7 +46,7 @@ export const groundMaskOf = (ground: TGround): IGroundMask => {
 		1 / ground.depth,
 	);
 	const outline = groundOutlineOf(ground);
-	if (ground.isHidden) {
+	if (ground.isHidden && !overIt) {
 		mask = { mode: 2, texture: null, bounds };
 	} else if (!outline) {
 		mask = { mode: 0, texture: null, bounds };
@@ -50,9 +61,15 @@ export const groundMaskOf = (ground: TGround): IGroundMask => {
 		}
 		const texture = new THREE.DataTexture(data, SIZE, SIZE);
 		texture.needsUpdate = true;
+		// The other kind of mask for the same shape may still use the last one: let go only of older ones.
+		if (lastTexture && lastTexture !== texture) {
+			olderTexture?.dispose();
+			olderTexture = lastTexture;
+		}
+		lastTexture = texture;
 		mask = { mode: 1, texture, bounds };
 	}
-	masks.set(ground, mask);
+	kept.set(ground, mask);
 	return mask;
 };
 
@@ -75,3 +92,22 @@ export const GROUND_MASK_GLSL = /* glsl */ `
 		return texture2D(groundMask, uv).r;
 	}
 `;
+
+/** The uniforms that read a ground mask (`GROUND_MASK_GLSL`). */
+export const groundMaskUniforms = () => ({
+	groundMask: { value: null as THREE.DataTexture | null },
+	groundMaskBounds: { value: new THREE.Vector4() },
+	groundMaskMode: { value: 0 },
+});
+
+/** Point a material's mask uniforms at the ground as it is now. */
+export const applyGroundMask = (
+	uniforms: Record<string, THREE.IUniform>,
+	ground: TGround,
+	overIt = false,
+) => {
+	const mask = groundMaskOf(ground, overIt);
+	uniforms.groundMask.value = mask.texture;
+	(uniforms.groundMaskBounds.value as THREE.Vector4).copy(mask.bounds);
+	uniforms.groundMaskMode.value = mask.mode;
+};
