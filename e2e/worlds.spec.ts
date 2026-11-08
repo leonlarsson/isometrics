@@ -248,6 +248,49 @@ test.describe("files (ADR-0006)", () => {
 	});
 });
 
+test.describe("two tabs of the app (ADR-0158)", () => {
+	test("a tab stops saving when another opens a different world, and Reload opens that one", async ({
+		page,
+	}) => {
+		await openEditor(page);
+		await page.getByLabel("Title").first().fill("First tab");
+		await saved(page);
+
+		// Another tab of this browser makes a world and opens it, as its File → New world does. A
+		// page of the site without the 3D view: two editors drawing at once are too slow here.
+		const other = await page.context().newPage();
+		await other.goto("/guide.md");
+		await other.evaluate(() => {
+			const world = { version: 1, meta: { title: "Made in the other tab" } };
+			localStorage.setItem("isometrics:world:othertab01", JSON.stringify(world));
+			localStorage.setItem("isometrics:open-world-id", "othertab01");
+		});
+		await other.close();
+
+		// This tab says why it stopped, and its edits write over nothing.
+		const bar = page.getByText("This tab stopped saving");
+		await expect(bar).toBeVisible();
+		await expect(page.getByRole("button", { name: /^Not saved: more about saving/ })).toBeVisible();
+		await page.getByLabel("Title").first().fill("Edited after");
+		await page.waitForTimeout(600);
+		const titles = await page.evaluate(() =>
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith("isometrics:world:"))
+				.map((key) => JSON.parse(localStorage.getItem(key) ?? "{}").meta?.title)
+				.sort(),
+		);
+		expect(titles).toEqual(["First tab", "Made in the other tab"]);
+
+		// Reload opens what's open now, and saves again.
+		await page.getByRole("button", { name: "Reload", exact: true }).click();
+		await reopened(page);
+		await expect.poll(() => read(page, (s) => s.scene.meta.title)).toBe("Made in the other tab");
+		await expect(bar).toBeHidden();
+		await page.getByLabel("Title").first().fill("Saved again");
+		await saved(page);
+	});
+});
+
 test.describe("starting over (ADR-0045)", () => {
 	test("Wipe everything asks twice, then starts over with nothing kept", async ({ page }) => {
 		await openEditor(page);

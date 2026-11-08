@@ -161,3 +161,4 @@ Why the code is the way it is. Read this before making structural changes; write
 | [0155](0155-ground-shapes.md) | The ground's shape: any outline, rounded corners, shapes in one click, handles to drag, its thickness, and hiding it | proposed |
 | [0156](0156-shift-pans-ctrl-copies.md) | Shift + drag pans, Ctrl + drag copies; Shift's job in Preferences | proposed |
 | [0157](0157-keys-and-mouse-panel.md) | Keys and mouse: a panel of every key, click and drag, from the hotkey registrations and the preferences | proposed |
+| [0158](0158-other-tabs-stop-saving.md) | A tab stops saving when another tab wipes everything or changes which world is open | proposed |

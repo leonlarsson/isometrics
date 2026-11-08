@@ -1,5 +1,5 @@
 import { saveWorldFile } from "#/editor/fileActions";
-import { type TSaveStatus, useSaveStatus } from "#/editor/persistence";
+import { type TNotSavedReason, type TSaveStatus, useSaveStatus } from "#/editor/persistence";
 import { useEditor } from "#/editor/store";
 import { useSharedLinks } from "#/editor/userWorlds";
 import { keepsOpenWorld } from "#/editor/whatIsOpen";
@@ -11,6 +11,19 @@ import styles from "./SaveStatus.module.css";
 
 const timeOf = (at: number) =>
 	new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+/** Why the world isn't saved, and what to do, for each reason. */
+const FAILED_DETAIL: Record<TNotSavedReason, string> = {
+	full: "This browser’s storage for the site is full. Save your world to a file, or delete worlds you no longer need (File → All worlds).",
+	unavailable:
+		"This browser doesn’t let the site store anything (private browsing or blocked site data). Save your world to a file to keep it.",
+	wiped:
+		"Everything was wiped from this browser, so nothing is saved any more. Reload the page to start again.",
+	wipedElsewhere:
+		"Everything was wiped from this browser in another tab, so this tab stopped saving rather than bring this world back. Save it to a file to keep it, or reload the page to start again.",
+	changedElsewhere:
+		"Another tab opened a different world, deleted this one or replaced this browser’s worlds, so this tab stopped saving rather than write over that. Save to file keeps what changed here; reload the page for what’s open now, or open a world from the File menu here to save again.",
+};
 
 /** What the status says, and the longer explanation in its menu. */
 const describe = (status: TSaveStatus): { label: string; detail: string } => {
@@ -30,12 +43,7 @@ const describe = (status: TSaveStatus): { label: string; detail: string } => {
 		case "failed":
 			return {
 				label: "Not saved",
-				detail:
-					status.reason === "full"
-						? "This browser’s storage for the site is full. Save your world to a file, or delete worlds you no longer need (File → All worlds)."
-						: status.reason === "wiped"
-							? "Everything was wiped from this browser, so nothing is saved any more. Reload the page to start again."
-							: "This browser doesn’t let the site store anything (private browsing or blocked site data). Save your world to a file to keep it.",
+				detail: FAILED_DETAIL[status.reason],
 			};
 	}
 };

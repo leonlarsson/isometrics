@@ -76,6 +76,7 @@ import {
 } from "./ResizeHandle";
 import { ShareDialog } from "./ShareDialog";
 import { StatusBanner } from "./StatusBanner";
+import { StoppedSavingBar } from "./StoppedSavingBar";
 import { Toaster } from "./Toaster";
 import { Tooltip, TooltipProvider } from "./Tooltip";
 import { TransformBar } from "./TransformBar";
@@ -425,6 +426,8 @@ export const AppShell = () => {
 										{showsWorld && <DrawingLostBar />}
 
 										{showsWorld && <NothingSavedBar />}
+
+										{showsWorld && <StoppedSavingBar />}
 
 										{showsWorld && <PreviewBar />}
 
