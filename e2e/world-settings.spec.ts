@@ -78,8 +78,34 @@ test.describe("the ground's shape (ADR-0155)", () => {
 			await page.mouse.move(end.x, end.y, { steps: 10 });
 			await page.mouse.up();
 		};
-		await drag([20, 0], [26, 0]);
-		expect(await read(page, (s) => s.scene.ground.width)).toBe(52);
+		// The side's size handle, a ball standing about 19 px off the side's middle, outwards.
+		const sideBall = async (x: number) => {
+			const side = await screenOf(page, [x, 0, 0]);
+			const further = await screenOf(page, [x + 1, 0, 0]);
+			const length = Math.hypot(further.x - side.x, further.y - side.y);
+			const off = 15 / length;
+			return { x: side.x + (further.x - side.x) * off, y: side.y + (further.y - side.y) * off };
+		};
+		const ball = await sideBall(20);
+		const sideTo = await screenOf(page, [26, 0, 0]);
+		await page.mouse.move(ball.x, ball.y);
+		await page.mouse.down();
+		await page.mouse.move(
+			ball.x + (sideTo.x - (await screenOf(page, [20, 0, 0])).x),
+			ball.y + (sideTo.y - (await screenOf(page, [20, 0, 0])).y),
+			{ steps: 10 },
+		);
+		await page.mouse.up();
+		// Measured from where the drag really started (past the drag threshold), as an object's sides.
+		const resized = await read(page, (s) => s.scene.ground);
+		expect(resized.width).toBeGreaterThanOrEqual(48);
+		expect(resized.points).toBeNull();
+		// The rest from a known size, so the corner's place is exact.
+		await act(page, (s) =>
+			s.commit((scene) => {
+				scene.ground.width = 52;
+			}),
+		);
 
 		// A corner dragged out makes it a shape, its size growing round it.
 		await drag([-26, -15], [-30, -22]);
