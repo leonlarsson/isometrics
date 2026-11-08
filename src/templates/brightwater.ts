@@ -28,10 +28,10 @@ import { turned } from "./turned";
  *
  *   Areas: river and bay (one water area), beach, raised hill, plazas, park with a pond, stadium pitch, fields
  *   Roads: a ring road round downtown, a bridge over the river, a flyover that
- *          climbs onto the hill, an embankment trail, a road through a tunnel to
- *          a turning area on the quay, and a hidden ferry route across the sea;
- *          the streets meet at junctions (ADR-0136), so traffic drives on from
- *          one to another
+ *          climbs onto the hill, an embankment trail, a road through a tunnel that
+ *          widens at the quay, and a hidden ferry route across the sea; the ring
+ *          road meets the others at junctions (ADR-0136), so traffic drives on
+ *          from one to another
  *   Fences: a railing along the marina, a chain-link fence round the logistics
  *          yard, a stone wall at the lookout, a hedge by the park and a
  *          paddock's rail fence
@@ -44,7 +44,6 @@ const RING_ID = "ring_road";
 const RING_SOUTH_EAST_ID = "ring_road_south_east";
 const RING_SOUTH_WEST_ID = "ring_road_south_west";
 const BRIDGE_ID = "harbour_road";
-const QUAY_ID = "harbour_quay";
 const BEACH_ROAD_ID = "beach_road";
 const HILL_ROAD_ID = "hill_road";
 const FERRY_ID = "ferry_route";
@@ -296,8 +295,8 @@ const ROADS: TRoadInput[] = [
 		],
 	},
 	{
-		// Leaves the ring road, crosses the river on a bridge and runs through the
-		// harbour gate (a tunnel) to the quay, where the high street goes on.
+		// Leaves the ring road, crosses the river on a bridge, runs through the
+		// harbour gate (a tunnel) and widens into a turning area on the quay.
 		id: BRIDGE_ID,
 		name: "Harbour road",
 		kind: "road_01",
@@ -307,15 +306,6 @@ const ROADS: TRoadInput[] = [
 			[5.5, -1, 1.3],
 			[8.6, -1, 1.3],
 			[14.5, -1],
-			[26, -1],
-		],
-	},
-	{
-		// Off the harbour road, widening into a turning area on the quay.
-		id: QUAY_ID,
-		name: "Harbour quay",
-		kind: "road_01",
-		points: [
 			[26, -1],
 			[26, 3.6, 0, 3.8],
 		],
@@ -396,7 +386,7 @@ const ROADS: TRoadInput[] = [
 		kind: "road_01",
 		cornerRadius: 2.5,
 		points: [
-			[26, -1],
+			[28, -1],
 			[36, -1],
 			[36, -22],
 		],
@@ -429,7 +419,10 @@ const end = (roadId: string, which: "start" | "end", leadsTo?: [string, "start" 
 	leadsTo: leadsTo?.map(([id, to]) => ({ roadId: id, end: to })) ?? null,
 });
 
-/** Where the streets meet (ADR-0136): round the ring road, and at the quay. */
+/**
+ * Where the streets meet (ADR-0136): round the ring road. The high street isn't connected: it's
+ * the tram's, and traffic that came onto it from the network wouldn't see the tram (TODO.md).
+ */
 const JUNCTIONS: TJunctionInput[] = [
 	{
 		id: "ring_harbour",
@@ -451,10 +444,6 @@ const JUNCTIONS: TJunctionInput[] = [
 			end(RING_ID, "start", [[RING_SOUTH_WEST_ID, "end"]]),
 			end(HILL_TRAIL_ID, "start"),
 		],
-	},
-	{
-		id: "harbour_quay",
-		ends: [end(BRIDGE_ID, "end"), end(QUAY_ID, "start"), end(HIGH_STREET_ID, "start")],
 	},
 ];
 
@@ -1225,8 +1214,7 @@ const moreTraffic: TEntityInput[] = [
 		id: "old_town_tram",
 		kind: "tram_01",
 		name: "Harbour tram",
-		// On its rails: up and down the high street, never onto other roads.
-		follow: { roadId: HIGH_STREET_ID, speed: 1.6, startDistance: 8, drivesThroughJunctions: false },
+		follow: { roadId: HIGH_STREET_ID, speed: 1.6, startDistance: 6 },
 	},
 	{
 		id: "farm_tractor",

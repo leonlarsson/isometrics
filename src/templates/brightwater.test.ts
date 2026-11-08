@@ -48,7 +48,9 @@ describe("the Brightwater template's streets (ADR-0136)", () => {
 		expect(everywhere.size).toBeGreaterThan(4);
 	});
 
-	it("keeps the tram on the high street and the cyclist on the hill trail", () => {
+	it("keeps the tram to its own street, and the cyclist on the hill trail", () => {
+		// Nothing else can drive onto the high street: it isn't connected.
+		expect(network.connects("high_street")).toBe(false);
 		for (const [id, roadId] of [
 			["old_town_tram", "high_street"],
 			["hill_cyclist", "hill_trail"],
