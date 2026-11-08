@@ -17,6 +17,7 @@ import { jitter } from "#/parts/primitives";
 import { EDGE } from "#/scene/weatherMap";
 
 import { pixelsPerUnitAt } from "./cameraMath";
+import { GROUND_MASK_GLSL, groundMaskOf } from "./groundMask";
 import { installWeatherShading, WEATHER_MAP_UV, weatherShading } from "./weatherShading";
 
 /**
@@ -416,6 +417,7 @@ const SPLASH_VERTEX = /* glsl */ `
 	attribute vec3 seed;
 	attribute float rank;
 	${MAP_AMOUNT}
+	${GROUND_MASK_GLSL}
 	uniform float time;
 	uniform vec3 center;
 	uniform vec2 halfSize;
@@ -432,7 +434,10 @@ const SPLASH_VERTEX = /* glsl */ `
 		vec2 at = low + mod(spot * 2.0 * halfSize - low, 2.0 * halfSize);
 		vec3 world = vec3(at.x, 0.03, at.y);
 		vec3 ring = position * (0.08 + 0.32 * life);
-		gl_Position = rank * rankScale < amountAt(world).y
+		// The world's rain splashes only on the ground's shape (ADR-0155); an area's own, all over it.
+		vec2 amounts = amountAt(world);
+		float shown = amounts.y - amounts.x * (1.0 - step(0.5, onGroundAt(at)));
+		gl_Position = rank * rankScale < shown
 			? projectionMatrix * viewMatrix * vec4(world + ring, 1.0)
 			: ${NOWHERE_GLSL};
 	}
@@ -482,6 +487,9 @@ const Splashes = ({ local }: { local: boolean }) => {
 				rankScale: { value: 1 },
 				color: { value: new THREE.Color("#dfe7ef") },
 				opacity: { value: 0.6 },
+				groundMask: { value: null },
+				groundMaskBounds: { value: new THREE.Vector4() },
+				groundMaskMode: { value: 0 },
 				...reading.uniforms,
 			},
 		});
@@ -490,6 +498,9 @@ const Splashes = ({ local }: { local: boolean }) => {
 	useEffect(() => () => material.dispose(), [material]);
 	// Wherever the rain falls: the same field, all of it.
 	const field = useFallField("splashes", SPLASHES_PER_VIEW, MOST_SPLASHES, local);
+	// The ground's shape's mask, let go of when the ground changes shape.
+	const lastMask = useRef<THREE.DataTexture | null>(null);
+	useEffect(() => () => lastMask.current?.dispose(), []);
 	useFrame(({ camera, size }) => {
 		const now = field(camera, size.height);
 		if (!now) {
@@ -502,6 +513,14 @@ const Splashes = ({ local }: { local: boolean }) => {
 		u.halfSize.value.copy(now.halfSize);
 		u.rankScale.value = now.rankScale;
 		u.amount.value = now.world;
+		const mask = groundMaskOf(useEditor.getState().scene.ground);
+		if (u.groundMask.value !== mask.texture) {
+			lastMask.current?.dispose();
+			lastMask.current = mask.texture;
+		}
+		u.groundMask.value = mask.texture;
+		u.groundMaskBounds.value.copy(mask.bounds);
+		u.groundMaskMode.value = mask.mode;
 		geometry.instanceCount = Math.ceil(now.mostAnywhere * now.atFull);
 	});
 	return <mesh geometry={geometry} material={material} frustumCulled={false} />;
