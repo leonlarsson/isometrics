@@ -21,6 +21,7 @@ import { cornerTop, takesCornerHeights, topSurface } from "#/scene/areas";
 import type { TVec2 } from "#/scene/schema";
 
 import { areaBaseY } from "./AreaMesh";
+import { HANDLE_ORDER, HANDLE_PICK, HandleMaterial } from "./handleLook";
 import { type TGizmoHandle, TransformGizmo } from "./TransformGizmo";
 import { applyPeakDrag, applyPointsDrag, type IPeakStart, peakStart } from "./transforms";
 import { useGroundDrag } from "./useGroundDrag";
@@ -121,16 +122,16 @@ const CornerHandle = ({ areaId, index, point, y, selected, boxed }: ICornerHandl
 				setViewCursor("");
 			}}
 		>
-			<mesh>
+			<mesh renderOrder={HANDLE_ORDER}>
 				<cylinderGeometry args={[0.4, 0.4, 0.06, 4]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 
-			<mesh position={[0, 0.02, 0]}>
+			<mesh position={[0, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
 				<cylinderGeometry args={[0.26, 0.26, 0.06, 4]} />
 
-				<meshBasicMaterial color={selected ? palette.selection : "#ffffff"} />
+				<HandleMaterial color={selected ? palette.selection : "#ffffff"} />
 			</mesh>
 		</group>
 	);
@@ -167,6 +168,7 @@ const InsertHandle = ({
 
 	return (
 		<mesh
+			renderOrder={HANDLE_ORDER}
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			visible={visible}
@@ -184,7 +186,7 @@ const InsertHandle = ({
 		>
 			<cylinderGeometry args={[0.2, 0.2, 0.05, 20]} />
 
-			<meshBasicMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
+			<HandleMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
 		</mesh>
 	);
 };
@@ -266,6 +268,7 @@ const FaceHandle = ({
 
 	return (
 		<mesh
+			renderOrder={HANDLE_ORDER}
 			position={[point[0], y + HANDLE_LIFT, point[1]]}
 			ref={handle}
 			visible={visible}
@@ -284,7 +287,7 @@ const FaceHandle = ({
 		>
 			<cylinderGeometry args={[0.24, 0.24, 0.05, 3]} />
 
-			<meshBasicMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
+			<HandleMaterial color={palette.selection} transparent opacity={hovered ? 0.9 : 0.5} />
 		</mesh>
 	);
 };
@@ -341,22 +344,22 @@ const PeakHandle = ({
 				setViewCursor("");
 			}}
 		>
-			<mesh>
+			<mesh renderOrder={HANDLE_ORDER}>
 				<cylinderGeometry args={[0.42, 0.42, 0.06, 20]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 
-			<mesh position={[0, 0.02, 0]}>
+			<mesh position={[0, 0.02, 0]} renderOrder={HANDLE_ORDER + 1}>
 				<cylinderGeometry args={[0.28, 0.28, 0.06, 20]} />
 
-				<meshBasicMaterial color={selected ? palette.selection : "#ffffff"} />
+				<HandleMaterial color={selected ? palette.selection : "#ffffff"} />
 			</mesh>
 
-			<mesh position={[0, 0.2, 0]}>
+			<mesh position={[0, 0.2, 0]} renderOrder={HANDLE_ORDER + 1}>
 				<coneGeometry args={[0.16, 0.3, 12]} />
 
-				<meshBasicMaterial color={palette.selection} />
+				<HandleMaterial color={palette.selection} />
 			</mesh>
 		</group>
 	);
@@ -430,7 +433,7 @@ export const AreaHandles = () => {
 	});
 
 	return (
-		<group>
+		<group userData={HANDLE_PICK}>
 			{area.points.map((point, index) => {
 				const next = (index + 1) % area.points.length;
 				const after = area.points[next];

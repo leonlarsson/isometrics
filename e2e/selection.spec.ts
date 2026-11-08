@@ -6,10 +6,12 @@ import {
 	expect,
 	groundSpot,
 	loadWorld,
+	menuItem,
 	openEditor,
 	outliner,
 	outlinerRow,
 	read,
+	screenOf,
 	selected,
 	showView,
 	test,
@@ -138,6 +140,82 @@ test.describe("selecting (ADR-0028, ADR-0035, ADR-0064)", () => {
 		const inThePool = await groundSpot(page, [1.2, 0.8]);
 		await page.mouse.click(inThePool.x, inThePool.y);
 		expect(await selected(page)).toEqual([]);
+	});
+});
+
+test.describe("what's under the pointer (pick order)", () => {
+	test.beforeEach(async ({ page }) => {
+		await openEditor(page);
+		// A park inside a hidden district drawn after it (so lying over it), a house, and a road with
+		// a point inside the house.
+		await loadWorld(page, {
+			entities: [{ id: "house", kind: "house_01", name: "House", position: [6, 0], scale: 2 }],
+			roads: [
+				{
+					id: "lane",
+					kind: "road_01",
+					name: "Lane",
+					points: [
+						[-6, 8, 0],
+						[6, 0, 0],
+					],
+				},
+			],
+			areas: [
+				{
+					id: "park",
+					kind: "grass_01",
+					name: "Park",
+					points: [
+						[-8, -4],
+						[-2, -4],
+						[-2, 2],
+						[-8, 2],
+					],
+				},
+				{
+					id: "district",
+					kind: "hidden_area_01",
+					name: "District",
+					points: [
+						[-12, -10],
+						[12, -10],
+						[12, 10],
+						[-12, 10],
+					],
+				},
+			],
+		});
+		await showView(page, [0, 0], 30);
+	});
+
+	test("a park under a hidden area is picked, and the right-click menu selects what's under it", async ({
+		page,
+	}) => {
+		const inThePark = await groundSpot(page, [-5, -1]);
+		await page.mouse.click(inThePark.x, inThePark.y);
+		expect(await selected(page)).toEqual(["park"]);
+
+		await page.mouse.click(inThePark.x, inThePark.y, { button: "right" });
+		await menuItem(page, "Select what's here").hover();
+		await expect(menuItem(page, /^Park/)).toBeVisible();
+		await menuItem(page, /^District/).click();
+		expect(await selected(page)).toEqual(["district"]);
+	});
+
+	test("the selected road's point inside a house is grabbed, not the house", async ({ page }) => {
+		await act(page, (s) => s.selectRoad("lane"));
+		const point = await screenOf(page, [6, 0.1, 0]);
+		await page.mouse.move(point.x, point.y);
+		await page.mouse.down();
+		await page.mouse.move(point.x + 40, point.y + 20, { steps: 8 });
+		await page.mouse.up();
+		const moved = await read(
+			page,
+			(s) => s.scene.roads.find((road) => road.id === "lane")?.points[1],
+		);
+		expect(moved?.slice(0, 2)).not.toEqual([6, 0]);
+		expect(await selected(page)).toEqual(["lane"]);
 	});
 });
 

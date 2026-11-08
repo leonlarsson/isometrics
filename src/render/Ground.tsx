@@ -16,9 +16,13 @@ import { groundSurfaceOf } from "#/scene/surfaces";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { openGroundMenuOnClick } from "./contextMenu";
+import { PICK_ORDER, pickOrderData } from "./pickOrder";
 import { useSurfaceShading } from "./useSurfaceShading";
 
 /** The grid's cell sizes, finest first; each section line marks 5 cells. */
+/** The ground comes last among the things under the pointer (`pickOrder`). */
+const GROUND_PICK = pickOrderData(PICK_ORDER.ground);
+
 const GRID_CELLS = [1, 5, 25, 125];
 /** Grid lines are never closer than this on screen (px); zoomed further out, the cells get bigger. */
 const MIN_CELL_PIXELS = 6;
@@ -65,6 +69,8 @@ export const Ground = () => {
 				smoothness={4}
 				position={[0, -0.5, 0]}
 				receiveShadow
+				// Under everything: what stands on it, hidden areas included, is picked first.
+				userData={GROUND_PICK}
 				onClick={(e) => {
 					if (!isClick(e)) {
 						return;

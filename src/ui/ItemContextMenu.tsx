@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import {
 	copySettings,
@@ -297,9 +298,11 @@ interface IItemMenuProps {
 	item: ISceneItem;
 	kindActions: ReactNode;
 	onRename: () => void;
+	/** What was under the pointer, from the view (its Select what's here list). */
+	under?: readonly ISceneItem[];
 }
 
-const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
+const ItemMenu = ({ item, kindActions, onRename, under }: IItemMenuProps) => {
 	const info = useItem(item);
 	const store = () => useEditor.getState();
 	if (!info) {
@@ -320,6 +323,8 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 
 	return (
 		<>
+			<SelectWhatsHere under={under} />
+
 			{kindActions}
 
 			<Menu.Item icon="copy" label="Copy" shortcut="Ctrl+C" onClick={copySelection} />
@@ -365,6 +370,61 @@ const ItemMenu = ({ item, kindActions, onRename }: IItemMenuProps) => {
 	);
 };
 
+/** Each kind of item's icon in the Select what's here list. */
+const KIND_ICONS = { entity: "cube", road: "road", fence: "fence", area: "area" } as const;
+
+/**
+ * What was under the pointer when the menu opened from the view, nearest first, to select any of
+ * them: a park under a hidden district, an area under a building, a road under a bridge. Only when
+ * there was more than one thing there.
+ */
+const SelectWhatsHere = ({ under }: { under: readonly ISceneItem[] | undefined }) => {
+	// Each one's name and what it is, two strings apiece (so the list compares shallowly); "" if gone.
+	const names = useEditor(
+		useShallow((s) =>
+			(under ?? []).flatMap((item) => {
+				const thing = listOf(s.scene, item.kind).find((candidate) => candidate.id === item.id);
+				return thing ? [thing.name, itemKindName(item, thing)] : ["", ""];
+			}),
+		),
+	);
+	const selected = useEditor(
+		useShallow((s) =>
+			(under ?? []).map((item) =>
+				s.selectedItems.some((known) => known.kind === item.kind && known.id === item.id),
+			),
+		),
+	);
+	if (!under || under.length < 2) {
+		return null;
+	}
+
+	return (
+		<>
+			<Menu.Submenu icon="layers" label="Select what's here">
+				{under.map((item, index) => {
+					const [name, kind] = [names[index * 2], names[index * 2 + 1]];
+					if (!kind) {
+						return null;
+					}
+					const notes = [name ? kind : null, selected[index] ? "Selected" : null].filter(Boolean);
+					return (
+						<Menu.Item
+							key={`${item.kind}:${item.id}`}
+							icon={KIND_ICONS[item.kind]}
+							label={name || kind}
+							description={notes.length > 0 ? notes.join(", ") : undefined}
+							onClick={() => useEditor.getState().selectItems([item])}
+						/>
+					);
+				})}
+			</Menu.Submenu>
+
+			<Menu.Separator />
+		</>
+	);
+};
+
 /** What a selection of several things is called: "3 objects", "2 objects and a road"… */
 export const describeItems = (items: readonly ISceneItem[]) => {
 	const count = (kind: ISceneItem["kind"]) => items.filter((item) => item.kind === kind).length;
@@ -385,7 +445,7 @@ export const describeItems = (items: readonly ISceneItem[]) => {
 };
 
 /** The menu for several selected things (ADR-0064): what acts on all of them. */
-const GroupMenu = () => {
+const GroupMenu = ({ under }: { under?: readonly ISceneItem[] }) => {
 	const store = () => useEditor.getState();
 	const flags = useEditor((s) => {
 		const things = s.selectedItems.flatMap(
@@ -397,6 +457,8 @@ const GroupMenu = () => {
 
 	return (
 		<>
+			<SelectWhatsHere under={under} />
+
 			<Menu.Item
 				icon="focus"
 				label="Zoom to them"
@@ -511,11 +573,12 @@ export const ItemContextMenu = () => {
 				}
 				subtitle={!showGroup && item && thing?.name ? itemKindName(item, thing) : undefined}
 			>
-				{showGroup && <GroupMenu />}
+				{showGroup && <GroupMenu under={menu?.under} />}
 
 				{!showGroup && item && (
 					<ItemMenu
 						item={item}
+						under={menu?.under}
 						onRename={() => menu && setRenaming(menu)}
 						kindActions={
 							item.kind === "entity" ? (

@@ -11,6 +11,7 @@ import type { TScene, TVec2 } from "#/scene/schema";
 
 import { pixelsPerUnitAt } from "./cameraMath";
 import { gizmoArea } from "./labelRegistry";
+import { PICK_ORDER, pickOrderData } from "./pickOrder";
 import { levelHitOnRay, surfaceHitOnRay } from "./useGroundDrag";
 import { setViewCursor } from "./viewCursor";
 
@@ -96,35 +97,8 @@ const up = new THREE.Vector3();
 /** Handles that move the target: the cursor hides while they're dragged, so it doesn't cover the spot. */
 const MOVE_HANDLES = new Set<TGizmoHandle>(["x", "z", "xz", "y"]);
 
-/** Mark the gizmo's meshes so the scene's event filter puts them first (see GizmoFirst). */
-const GIZMO_USER_DATA = { gizmo: true };
-
-const isGizmoObject = (object: THREE.Object3D | null): boolean => {
-	for (let current = object; current; current = current.parent) {
-		if (current.userData.gizmo) {
-			return true;
-		}
-	}
-	return false;
-};
-
-/**
- * Gizmo handles are drawn on top of everything, but pointer events go to the
- * nearest surface: an arrow inside a building would lose to the building.
- * This puts gizmo hits ahead of everything else. Mount once inside the Canvas.
- */
-export const GizmoFirst = () => {
-	const setEvents = useThree((s) => s.setEvents);
-	useEffect(() => {
-		setEvents({
-			filter: (items) => [
-				...items.filter((item) => isGizmoObject(item.object)),
-				...items.filter((item) => !isGizmoObject(item.object)),
-			],
-		});
-	}, [setEvents]);
-	return null;
-};
+/** The gizmo's meshes come first among the things under the pointer (`pickOrder`): it's drawn on top. */
+const GIZMO_USER_DATA = pickOrderData(PICK_ORDER.gizmo);
 
 /** Keys held when a gizmo drag was pressed. */
 export interface IGizmoStartKeys {

@@ -51,6 +51,7 @@ import { MotionClockStep } from "./motionClock";
 import { PaintTool } from "./PaintTool";
 import { PlacementPreview } from "./PlacementPreview";
 import { PointerSpot } from "./PointerSpot";
+import { PickOrder } from "./pickOrder";
 import { RealLights } from "./RealLights";
 import { RoadDrawTool } from "./RoadDrawTool";
 import { RoadHandles } from "./RoadHandles";
@@ -60,7 +61,6 @@ import { SceneLights } from "./SceneLights";
 import { SkyDome } from "./SkyDome";
 import { StillRender } from "./StillRender";
 import { useTiltShiftShown } from "./TiltShift";
-import { GizmoFirst } from "./TransformGizmo";
 import { Turntable } from "./Turntable";
 import { TrafficStep } from "./traffic";
 import { ViewpointMarkers } from "./ViewpointMarkers";
@@ -548,7 +548,7 @@ export const Viewport = () => {
 
 			<CameraControls />
 
-			<GizmoFirst />
+			<PickOrder />
 
 			<KeyboardTransform />
 
