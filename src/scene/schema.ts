@@ -1470,6 +1470,12 @@ export const GroundSchema = z
 			.describe(
 				"How round the ground's corners are, in grid units (each corner rounded by this much, less where its sides are short). 0 = as drawn: the rectangle's softly rounded edge, or points' sharp corners.",
 			),
+		isHidden: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Whether the ground isn't drawn: what stands on it floats (a world of floating things, a model on its own). Things are still kept on its shape, and it's still the world's size.",
+			),
 		colors: colorSettings('{ "surface": { "color": "#cfd8c4" } }; its colour is surface'),
 		surface: GroundSurfaceSchema.default(() => GroundSurfaceSchema.parse({})),
 	})

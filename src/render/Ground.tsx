@@ -1,6 +1,6 @@
-import { Grid, RoundedBox } from "@react-three/drei";
+import { Grid, Line, RoundedBox } from "@react-three/drei";
 import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { overlayShownIn, usePreferences } from "#/editor/preferences";
@@ -12,6 +12,7 @@ import { tintColor } from "#/lib/color";
 import { isClick } from "#/lib/pointer";
 import { colorOf } from "#/parts/colorModel";
 import { GROUND } from "#/scene/ground";
+import { groundOutlineOf, rectangleCorners } from "#/scene/groundShape";
 import { groundSurfaceOf } from "#/scene/surfaces";
 
 import { pixelsPerUnitAt } from "./cameraMath";
@@ -92,7 +93,15 @@ export const Ground = () => {
 		studio, with only their soft shadow under them. It's still there for the pointer, so a
 		click beside them clears the selection and its menu opens.
 	*/
-	const material = showsGround ? (
+	// A hidden ground draws nothing; while editing it's a dashed outline, still there for the pointer.
+	const isHidden = ground.isHidden;
+	const outline = useMemo(() => {
+		const corners = groundOutlineOf(ground) ?? rectangleCorners(ground.width, ground.depth);
+		return [...corners, corners[0]].map(([x, z]) => [x, 0.02, z] as [number, number, number]);
+	}, [ground]);
+	const material = isHidden ? (
+		<meshBasicMaterial visible={false} />
+	) : showsGround ? (
 		// Pushed back in the depth test, so the grid and flat areas lying a hair above it always
 		// win: over a big ground, depth rounding exceeds that gap and they'd vanish in patches.
 		// Its surface's texture (ADR-0137) comes with it, in the Workshop too once it's shown.
@@ -109,11 +118,26 @@ export const Ground = () => {
 		<shadowMaterial transparent opacity={0.16} />
 	);
 
+	if (isHidden && mode !== "edit") {
+		return null;
+	}
+
 	return (
 		<group>
+			{isHidden && (
+				<Line
+					points={outline}
+					color={palette.selection}
+					lineWidth={2}
+					dashed
+					dashSize={0.5}
+					gapSize={0.35}
+				/>
+			)}
+
 			{/* A shaped ground (ADR-0155) is its outline's slab; the plain rectangle, its rounded box as always. */}
 			{slab ? (
-				<mesh geometry={slab} receiveShadow {...pointer}>
+				<mesh geometry={slab} receiveShadow={!isHidden} {...pointer}>
 					{material}
 				</mesh>
 			) : (
@@ -122,14 +146,14 @@ export const Ground = () => {
 					radius={0.45}
 					smoothness={4}
 					position={[0, -0.5, 0]}
-					receiveShadow
+					receiveShadow={!isHidden}
 					{...pointer}
 				>
 					{material}
 				</RoundedBox>
 			)}
 
-			{showsGrid && (
+			{showsGrid && !isHidden && (
 				<Grid
 					key={gridShape ? "shape" : "plane"}
 					ref={grid}

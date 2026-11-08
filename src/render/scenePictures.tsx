@@ -239,7 +239,8 @@ const Picture = ({ scene, palette, format, onShot }: IPictureProps) => {
 			<SceneLights ground={scene.ground} palette={palette} lighting={scene.lighting} />
 
 			<group ref={group}>
-				{slab ? (
+				{/* A hidden ground isn't in the picture: what stands on it floats. */}
+				{scene.ground.isHidden ? null : slab ? (
 					<mesh geometry={slab} receiveShadow>
 						{groundMaterial}
 					</mesh>

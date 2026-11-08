@@ -14,6 +14,7 @@ describe("SceneSchema", () => {
 			// The rectangle, its edge softly rounded, as worlds always were (ADR-0155).
 			points: null,
 			cornerRadius: 0,
+			isHidden: false,
 			colors: {},
 			surface: { kind: "plain" },
 		});
@@ -79,6 +80,7 @@ describe("SceneSchema", () => {
 			depth: 24,
 			points: null,
 			cornerRadius: 0,
+			isHidden: false,
 			colors: {},
 			surface: { kind: "plain" },
 		});

@@ -202,7 +202,7 @@ export const WorldTab = () => {
 				id="world.ground"
 				icon="layers"
 				title="Ground"
-				keywords="size floor base shape outline circle round rounded corners island surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
+				keywords="size floor base hide hidden show shape outline circle round rounded corners island surface texture textured pattern grass sand gravel paving concrete cobbles dirt snow"
 			>
 				<SliderField
 					inherit={resetToDefault(scene.ground.width, WORLD_DEFAULTS.ground.width, () =>
@@ -249,6 +249,26 @@ export const WorldTab = () => {
 				/>
 
 				<GroundSurfaceFields />
+
+				<SwitchField
+					inherit={resetToDefault(scene.ground.isHidden, false, () =>
+						commit((s) => {
+							s.ground.isHidden = false;
+						}),
+					)}
+					label="Show the ground"
+					checked={!scene.ground.isHidden}
+					onChange={(shown) =>
+						commit((s) => {
+							s.ground.isHidden = !shown;
+						})
+					}
+					hint={
+						scene.ground.isHidden
+							? "Hidden: what stands on it floats, in View mode and pictures (a dashed outline while editing). Things are still kept on its shape."
+							: undefined
+					}
+				/>
 
 				<ButtonGroup>
 					<Button size="sm" icon="focus" onClick={resetView}>
