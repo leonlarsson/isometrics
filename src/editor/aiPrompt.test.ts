@@ -60,6 +60,24 @@ describe("the prompt for your own AI", () => {
 		expect(changing).toContain('"title":"Mine"');
 	});
 
+	it("names what's selected when changing a world, so “this” can be found", () => {
+		const world = SceneSchema.parse(createEmptyScene());
+		const selected = [{ list: "entities" as const, id: "crate_1", name: "Box", kind: "box_01" }];
+		const prompt = aiPrompt({
+			description: "Remove this",
+			data: "",
+			world,
+			origin: ORIGIN,
+			selected,
+		});
+		expect(prompt).toContain("They have these selected in the editor");
+		expect(prompt).toContain("- `crate_1` in `entities`: Box (`box_01`)");
+		// A new world has nothing to point at.
+		expect(
+			aiPrompt({ description: "A town", data: "", world: null, origin: ORIGIN, selected }),
+		).not.toContain("crate_1");
+	});
+
 	it("cuts data too long for a chat, saying so", () => {
 		const prompt = aiPrompt({
 			description: "",

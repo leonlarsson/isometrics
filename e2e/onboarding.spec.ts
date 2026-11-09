@@ -152,6 +152,28 @@ test.describe("Build with AI (ADR-0116)", () => {
 		await expect(dialog.getByRole("textbox", { name: "What your AI wrote" })).toBeVisible();
 	});
 
+	test("Change this world takes what's selected along, so “this” can be found", async ({
+		page,
+		context,
+		baseURL,
+	}) => {
+		await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+			origin: new URL(baseURL ?? "http://localhost:3000").origin,
+		});
+		await openEditor(page);
+		const id = await read(page, (s) => s.scene.entities[0].id);
+		await act(page, (s, picked) => s.select(picked), id);
+		await buildWithAiMenu(page, /Change this world/);
+		const dialog = page.getByRole("dialog", { name: "Build with AI" });
+		await expect(dialog).toContainText("What you have selected goes with it (1 thing)");
+		await dialog.getByRole("textbox", { name: "What should it change?" }).fill("Remove this");
+		await dialog.getByRole("button", { name: "Copy the prompt" }).click();
+		await expect(dialog).toContainText("Copied. Paste it into your AI chat");
+		const prompt = await page.evaluate(() => navigator.clipboard.readText());
+		expect(prompt).toContain("They have these selected in the editor");
+		expect(prompt).toContain(`- \`${id}\` in \`entities\``);
+	});
+
 	test("New world offers Build with AI as one way to start", async ({ page }) => {
 		await openEditor(page);
 		await fileMenu(page, /New world/);

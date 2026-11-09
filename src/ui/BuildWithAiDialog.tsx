@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { aiPrompt, worldFromAnswer } from "#/editor/aiPrompt";
+import { aiPrompt, type IAiSelected, worldFromAnswer } from "#/editor/aiPrompt";
 import { pickFile, startNewWorld } from "#/editor/fileActions";
+import type { ISceneItem } from "#/editor/framing";
 import { useEditor } from "#/editor/store";
 import { notify } from "#/editor/toasts";
 import {
@@ -12,6 +13,7 @@ import {
 	shareWorld,
 } from "#/editor/userWorlds";
 import { whyNoWorldAction } from "#/editor/whatIsOpen";
+import { partNameOf } from "#/parts/registry";
 import { repairWorld } from "#/parts/repairWorld";
 import {
 	type IWorldValidation,
@@ -21,6 +23,7 @@ import {
 } from "#/parts/validateWorld";
 import { plural } from "#/scene/format";
 import { describeRepairs } from "#/scene/repair";
+import type { TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges, isWorldPatch } from "#/scene/worldPatch";
 
 import { Button } from "./Button";
@@ -49,6 +52,26 @@ const summaryOf = (check: IWorldValidation) => {
 		: `${what} ${wrong.join(" and ")}: it ${check.changes ? "still applies" : "still opens, repaired"}, or ask your AI to fix them.`;
 };
 
+/** The world's list each kind of selected thing is in. */
+const LIST_OF: Record<ISceneItem["kind"], IAiSelected["list"]> = {
+	entity: "entities",
+	road: "roads",
+	area: "areas",
+	fence: "fences",
+};
+
+/** What's selected, as the prompt names it: changing a world, "this" means them. */
+const selectedForPrompt = (scene: TScene, items: readonly ISceneItem[]): IAiSelected[] =>
+	items.flatMap((item) => {
+		const thing = scene[LIST_OF[item.kind]].find((each) => each.id === item.id);
+		if (!thing) {
+			return [];
+		}
+		const kind = thing.kind;
+		const name = thing.name || (item.kind === "entity" ? (partNameOf(kind) ?? kind) : kind);
+		return [{ list: LIST_OF[item.kind], id: item.id, name, kind }];
+	});
+
 /** How many of a pasted world's problems and warnings the dialog lists. */
 const ISSUES_SHOWN = 6;
 
@@ -70,6 +93,7 @@ export const BuildWithAiDialog = () => {
 	const asked = useEditor((s) => s.buildWithAi);
 	const open = asked !== null;
 	const title = useEditor((s) => s.scene.meta.title);
+	const selectedCount = useEditor((s) => s.selectedItems.length);
 	// Changing a world needs one open (not on the home screen, nor while a link opens).
 	// Only a world of its own can be changed: none on the home screen, nor the Workshop's (ADR-0134).
 	const hasWorld = useEditor((s) => whyNoWorldAction(s.whatIsOpen) === null);
@@ -147,6 +171,7 @@ export const BuildWithAiDialog = () => {
 			world,
 			origin: window.location.origin,
 			worldUrl,
+			selected: world ? selectedForPrompt(world, useEditor.getState().selectedItems) : [],
 		});
 		setLastPrompt(prompt);
 		await copy(prompt);
@@ -361,6 +386,13 @@ export const BuildWithAiDialog = () => {
 							multiline
 							rows={5}
 							hasNoDefault
+							hint={
+								builds !== "change"
+									? undefined
+									: selectedCount > 0
+										? `What you have selected goes with it (${plural(selectedCount, "thing")}), so you can say “this” or “these”.`
+										: "Select things in the world first to say “this” or “these”: what you have selected goes with it."
+							}
 						/>
 
 						{showsData ? (

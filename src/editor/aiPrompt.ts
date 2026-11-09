@@ -35,7 +35,39 @@ export interface IAiPromptInput {
 	 * hour, instead of the world in the prompt.
 	 */
 	worldUrl?: string | null;
+	/**
+	 * Changing a world: what they have selected in the editor, so "this" or "the box by the
+	 * church" in their words can be found (the AI only reads the world, it can't see it).
+	 */
+	selected?: readonly IAiSelected[];
 }
+
+/** A thing selected in the editor, as the prompt names it. */
+export interface IAiSelected {
+	/** The world's list it's in. */
+	list: "entities" | "roads" | "areas" | "fences";
+	id: string;
+	/** Its name, or its kind's name when it has none. */
+	name: string;
+	/** Its part's, road's, area's or fence's kind. */
+	kind: string;
+}
+
+/** More selected things than this are summed up in the prompt, not listed. */
+const MOST_SELECTED_LISTED = 30;
+
+/** What they have selected, as lines for the prompt. */
+const selectionForPrompt = (selected: readonly IAiSelected[]) => {
+	const lines = selected
+		.slice(0, MOST_SELECTED_LISTED)
+		.map((thing) => `- \`${thing.id}\` in \`${thing.list}\`: ${thing.name} (\`${thing.kind}\`)`);
+	const more = selected.length - MOST_SELECTED_LISTED;
+	return [
+		"They have these selected in the editor, so “this”, “these” or a thing they describe by where it is most likely means them:",
+		...lines,
+		...(more > 0 ? [`- and ${more} more`] : []),
+	].join("\n");
+};
 
 /** A small world that shows the moves: a row-following cluster, a value on a card, a flow road. */
 export const EXAMPLE_WORLD = {
@@ -62,7 +94,7 @@ export const EXAMPLE_WORLD = {
 				source: { sourceId: "sheet" },
 				columns: [
 					{ key: "shop", name: "Shop" },
-					{ key: "sales", name: "Sales this month" },
+					{ key: "sales", name: "Sales this month", unit: "€" },
 				],
 				rows: [
 					{ shop: "North", sales: 12000 },
@@ -77,7 +109,7 @@ export const EXAMPLE_WORLD = {
 					{ key: "route", name: "Route" },
 					{ key: "from", name: "From" },
 					{ key: "to", name: "To" },
-					{ key: "count", name: "Deliveries" },
+					{ key: "count", name: "Deliveries", unit: " vans" },
 				],
 				rows: [{ route: "North → South", from: "North", to: "South", count: 40 }],
 			},
@@ -185,7 +217,8 @@ const WORLD_ANSWER = [
 	"Give it a `meta.title`, a ground big enough for what's on it, an opening viewpoint that shows it all, and a legend for anything that shows a number.",
 	"Leave out every field that stays at its default, as the example does: it keeps the world short.",
 	"**If you can make files** (a downloadable file, an artifact, a code tool's output), write the world to a file named `world.json` and give that, not the JSON in the chat: it's long, and a file is easy to open in the app.",
-	"Otherwise, answer with the world alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back.",
+	"Otherwise, answer with the world alone, in one ```json code block, with no explanation before it, so it can be pasted straight back.",
+	"If something they asked for has no part (people, a train, a ski lift), build it from the nearest parts and shapes (a tram on a hidden route can be a train). After the code block, say in a line or two what they should know: what you made such things from, anything you couldn't do as asked, numbers you assumed.",
 ].join("\n\n");
 
 /** A patch that shows every move, for the prompt (ADR-0118). */
@@ -208,7 +241,8 @@ const PATCH_ANSWER = [
 	"- A list of things (`entities`, `roads`, `areas`, `fences`, `viewpoints`, `moods`; `data.values` and `data.tables` by `key`, `data.sources` by `id`): `remove` (their ids), `change` (each with the id of what it changes, and only the fields that change, merged the same way) and `add` (whole new things, with ids no other thing has). Never send a whole list.",
 	"- Use the ids in the world above. Leave out every field that stays as it is.",
 	"If what they ask replaces most of the world (start over, a different place), answer with a whole new world instead, without `isPatch`, written as the example world is.",
-	"Answer with the patch alone, in one ```json code block, with no explanation before or after, so it can be pasted straight back (or as a file, `patch.json`, if it's long and you can make files).",
+	"Answer with the patch in one ```json code block, with no explanation before it, so it can be pasted straight back (or as a file, `patch.json`, if it's long and you can make files).",
+	"After the code block, say in a line or two what they should know: anything you couldn't do as asked and what you did instead, numbers you assumed, a thing you weren't sure they meant.",
 ].join("\n\n");
 
 /**
@@ -233,7 +267,14 @@ const RULES_AND_FORMAT = GUIDE.filter(
 );
 
 /** The prompt to copy into an AI chat. */
-export const aiPrompt = ({ description, data, world, origin, worldUrl = null }: IAiPromptInput) => {
+export const aiPrompt = ({
+	description,
+	data,
+	world,
+	origin,
+	worldUrl = null,
+	selected = [],
+}: IAiPromptInput) => {
 	const wanted = description.trim();
 	const given = dataForPrompt(data);
 	return [
@@ -247,9 +288,10 @@ export const aiPrompt = ({ description, data, world, origin, worldUrl = null }: 
 					.map((line) => `> ${line}`)
 					.join("\n")
 			: "> (Nothing described: make a calm, pleasant small town.)",
+		...(world && selected.length > 0 ? [selectionForPrompt(selected)] : []),
 		"## Their data",
 		given
-			? `Show this data in the world: put it in \`data\` (tables and values, as in the example), and make things follow it (rows become things, amounts sizes, from → to → amount roads). Use the numbers as they are; don't invent more. ${ADDRESSES_AS_SOURCES}\n\n\`\`\`\n${given}\n\`\`\``
+			? `Show this data in the world: put it in \`data\` (tables and values, as in the example), and make things follow it (rows become things, amounts sizes, from → to → amount roads). Use the numbers as they are; don't invent more (totals and averages of them are fine, as values). Keep data pasted here as a source of \`kind: "file"\` named for what it is, as the example's \`sales.csv\`. ${ADDRESSES_AS_SOURCES}\n\n\`\`\`\n${given}\n\`\`\``
 			: world
 				? `No new data in this prompt: keep the world's own, and add any they give you in this chat (a file, rows pasted after this prompt, or an address) the same way, with the numbers as they are. ${ADDRESSES_AS_SOURCES}`
 				: `None in this prompt. They may give you data in this chat instead (a file, rows pasted after this prompt, or an address): if they do, put it in \`data\` (tables and values, as in the example) and make things follow it, with the numbers as they are. ${ADDRESSES_AS_SOURCES} With no data at all: if what they want shows no numbers, set \`"data": { "enabled": false }\` for a plain world to build; if it does, use example numbers, and say so in each source's and column's \`about\` ("Example numbers").`,
