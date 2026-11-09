@@ -299,13 +299,46 @@ export const applyWorldPatch = (
 	return { world: result, issues, changes };
 };
 
+/** More different names than these in one part of a patch's sentence are summed up. */
+const MOST_NAMES_SAID = 6;
+
+/**
+ * Names as a short list: the same name once with how many ("Ski ×8"), and past the first few,
+ * how many more ("and 12 more"), so a patch that adds dozens still reads at a glance.
+ */
+const namesInShort = (names: readonly string[]) => {
+	const counts = new Map<string, number>();
+	for (const name of names) {
+		counts.set(name, (counts.get(name) ?? 0) + 1);
+	}
+	const said = [...counts].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name));
+	if (said.length <= MOST_NAMES_SAID) {
+		return said.join(", ");
+	}
+	const more = [...counts.values()].slice(MOST_NAMES_SAID).reduce((sum, count) => sum + count, 0);
+	return `${said.slice(0, MOST_NAMES_SAID).join(", ")} and ${more} more`;
+};
+
+/** The things changed, by the fields they change, in the order they come. */
+const namesByFields = (changed: IPatchChanges["lists"][number]["changed"]) => {
+	const groups = new Map<string, string[]>();
+	for (const { name, fields } of changed) {
+		const key = fields.join(", ");
+		groups.set(key, [...(groups.get(key) ?? []), name]);
+	}
+	return groups;
+};
+
 /** What a patch changes, in a sentence: "Changes Lighthouse (scale); adds Boat 2; removes Old shed; changes lighting (time)." */
 export const describePatchChanges = ({ lists, settings }: IPatchChanges) => {
 	const parts = [
 		...lists.flatMap(({ added, changed, removed }) => [
-			...changed.map(({ name, fields }) => `changes ${name} (${fields.join(", ")})`),
-			...(added.length > 0 ? [`adds ${added.join(", ")}`] : []),
-			...(removed.length > 0 ? [`removes ${removed.join(", ")}`] : []),
+			// Things changed in the same fields are said together ("changes North, South (flow)").
+			...[...namesByFields(changed)].map(
+				([fields, names]) => `changes ${namesInShort(names)} (${fields})`,
+			),
+			...(added.length > 0 ? [`adds ${namesInShort(added)}`] : []),
+			...(removed.length > 0 ? [`removes ${namesInShort(removed)}`] : []),
 		]),
 		...settings.map(({ group, fields }) => `changes ${group} (${fields.join(", ")})`),
 	];

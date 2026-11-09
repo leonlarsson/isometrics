@@ -53,6 +53,28 @@ describe("world patches", () => {
 		);
 	});
 
+	it("say what they change in short, however many things they touch", () => {
+		const vans = Array.from({ length: 6 }, () => "Van");
+		const sentence = describePatchChanges({
+			lists: [
+				{
+					list: "entities",
+					added: [...vans, "Pine", "Pine", "Ski", "Hut", "Shed", "Barn", "Mill", "Inn"],
+					changed: [
+						{ name: "North road", fields: ["flow", "data"] },
+						{ name: "South road", fields: ["flow", "data"] },
+						{ name: "Warehouse", fields: ["colors"] },
+					],
+					removed: [],
+				},
+			],
+			settings: [],
+		});
+		expect(sentence).toBe(
+			"Changes North road, South road (flow, data); changes Warehouse (colors); adds Van ×6, Pine ×2, Ski, Hut, Shed, Barn and 2 more.",
+		);
+	});
+
 	it("say what's wrong, by place in the patch, and apply the rest", () => {
 		const { world: patched, issues } = applyWorldPatch(world, {
 			isPatch: true,
