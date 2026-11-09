@@ -1,0 +1,280 @@
+<title>Build with AI Loop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a test report. Summary and an overview table first; then each world as numbered steps with the same labelled parts; then the fixes and open questions. */
+:root {
+	--paper: #f3f5f2;
+	--sheet: #ffffff;
+	--ink: #1d2422;
+	--ink-soft: #55615d;
+	--rule: #d6ddd8;
+	--turf: #2f7a4f;
+	--turf-wash: #e2efe6;
+	--sky: #335f8a;
+	--sky-wash: #e3ebf4;
+	--good: #2f7a4f;
+	--warn: #9a6200;
+	--bad: #b03a2e;
+	--code-bg: #eaeeea;
+	--display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+	--body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+	--mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--paper: #131816; --sheet: #1b211f; --ink: #e6ebe8; --ink-soft: #a3aea9; --rule: #2e3733;
+		--turf: #6fc191; --turf-wash: #1e3328; --sky: #8fb5dc; --sky-wash: #1c2a38;
+		--good: #6fc191; --warn: #e3ad4f; --bad: #ef8a7c; --code-bg: #232b28;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--paper: #131816; --sheet: #1b211f; --ink: #e6ebe8; --ink-soft: #a3aea9; --rule: #2e3733;
+	--turf: #6fc191; --turf-wash: #1e3328; --sky: #8fb5dc; --sky-wash: #1c2a38;
+	--good: #6fc191; --warn: #e3ad4f; --bad: #ef8a7c; --code-bg: #232b28;
+	color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap {
+	max-width: 1120px; margin: 0 auto;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	padding-block: 48px 80px;
+	display: grid; gap: 56px;
+}
+h1, h2, h3, h4 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; font-weight: 700; }
+h4 { font-size: 1.08rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--sky); }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 0.08em 0.32em; border-radius: 4px; overflow-wrap: anywhere; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.eyebrow { font: 600 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--turf); }
+.lead { max-width: 70ch; font-size: 1.08rem; }
+.small { font-size: 0.86rem; color: var(--ink-soft); }
+header.top, section { display: grid; gap: 20px; min-width: 0; }
+.section-head { display: grid; gap: 8px; }
+
+.terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.term { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.term b { font-family: var(--display); }
+.term span { font-size: 0.92rem; color: var(--ink-soft); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table.overview { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 0.93rem; }
+.overview th, .overview td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.overview tbody tr:last-child > * { border-bottom: 0; }
+.overview thead th { font: 600 0.78rem/1.3 var(--mono); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.overview tbody th a { font-family: var(--display); font-weight: 700; color: var(--ink); text-decoration: none; }
+.overview td a { text-decoration: none; }
+.overview td.none { color: var(--ink-soft); font-style: italic; }
+
+.status { display: inline-flex; align-items: center; gap: 8px; font: 600 0.82rem/1.2 var(--body); padding: 5px 10px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.status .mark { width: 10px; height: 10px; flex: none; background: currentColor; }
+.status-good { color: var(--good); }
+.status-good .mark { border-radius: 50%; }
+.status-warn { color: var(--warn); }
+.status-warn .mark { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.status-bad { color: var(--bad); }
+.status-bad .mark { border-radius: 1px; }
+
+.world { display: grid; gap: 20px; padding-top: 10px; border-top: 2px solid var(--ink); scroll-margin-top: 16px; }
+.world-head { display: grid; gap: 6px; }
+.world-head p { color: var(--ink-soft); }
+.steps { display: grid; gap: 24px; }
+.step { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 20px; display: grid; gap: 18px; min-width: 0; scroll-margin-top: 16px; }
+.step-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.step-no { font: 600 0.8rem/1 var(--mono); color: var(--ink-soft); }
+.kind { font: 600 0.76rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; padding: 5px 8px; border-radius: 6px; }
+.kind-new { background: var(--turf-wash); color: var(--turf); }
+.kind-change { background: var(--sky-wash); color: var(--sky); }
+.step-head .status { margin-left: auto; }
+.step-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+.field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.field.wide, .field:first-child { grid-column: 1 / -1; }
+.label { font: 600 0.74rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+blockquote { margin: 0; padding: 14px 18px; border-left: 3px solid var(--turf); background: var(--turf-wash); border-radius: 0 8px 8px 0; font-size: 1.05rem; max-width: 80ch; }
+.step:has(.kind-change) blockquote { border-left-color: var(--sky); background: var(--sky-wash); }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+figure { margin: 0; display: grid; gap: 6px; }
+figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--rule); display: block; background: var(--code-bg); }
+figcaption { font-size: 0.85rem; color: var(--ink-soft); }
+.zoom { all: unset; display: block; cursor: zoom-in; border-radius: 8px; }
+.zoom:focus-visible { outline: 2px solid var(--turf); outline-offset: 3px; }
+.zoom:hover img { border-color: var(--ink-soft); }
+.fix-ref { font: 600 0.82rem/1 var(--mono); padding: 3px 7px; border: 1px solid var(--rule); border-radius: 6px; text-decoration: none; white-space: nowrap; }
+.extras { display: grid; gap: 8px; }
+details { border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); min-width: 0; }
+details > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 0.92rem; }
+details > summary:focus-visible { outline: 2px solid var(--turf); outline-offset: 2px; border-radius: 8px; }
+details .size { display: block; font: 400 0.78rem/1.4 var(--mono); color: var(--ink-soft); }
+details pre { margin: 0; padding: 14px; max-height: 480px; overflow: auto; font: 0.78rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid var(--rule); }
+details.data { margin-top: 4px; }
+.note-body { padding: 4px 14px 14px; display: grid; gap: 8px; font-size: 0.93rem; max-width: 84ch; }
+
+.fixes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.fix { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; scroll-margin-top: 16px; }
+.fix:target { outline: 2px solid var(--turf); }
+.fix-no { font: 600 0.78rem/1 var(--mono); color: var(--turf); }
+.fix p { font-size: 0.93rem; }
+.fix .where { font: 400 0.76rem/1.4 var(--mono); color: var(--ink-soft); overflow-wrap: anywhere; }
+.open { list-style: none; padding: 0; display: grid; gap: 10px; }
+.open li { background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--warn); border-radius: 0 10px 10px 0; padding: 14px 18px; display: grid; gap: 4px; }
+.open li strong { font-family: var(--display); }
+.open li span { color: var(--ink-soft); font-size: 0.93rem; }
+
+dialog.lightbox { border: 0; padding: 0; margin: auto; max-width: 100vw; max-height: 100vh; width: 100vw; height: 100vh; background: transparent; color: #fff; }
+dialog.lightbox::backdrop { background: rgb(8 10 9 / 0.92); }
+.lightbox-inner { width: 100%; height: 100%; display: grid; grid-template-rows: 1fr auto; gap: 10px; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.lightbox-inner img { width: 100%; height: 100%; object-fit: contain; min-height: 0; cursor: zoom-out; }
+.lightbox-bar { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.lightbox-bar p { text-align: center; color: #e6ebe8; }
+.lightbox-bar button { font: 600 0.9rem/1 var(--body); color: #fff; background: rgb(255 255 255 / 0.12); border: 1px solid rgb(255 255 255 / 0.35); border-radius: 999px; padding: 9px 14px; cursor: pointer; }
+.lightbox-bar button:hover { background: rgb(255 255 255 / 0.22); }
+.lightbox-bar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.lightbox-count { font: 400 0.8rem/1 var(--mono); color: #a3aea9; }
+@media (max-width: 640px) {
+	.step-grid { grid-template-columns: 1fr; }
+	.step-head .status { margin-left: 0; }
+	.step { padding: 16px; }
+}
+</style>
+
+<div class="wrap">
+	<header class="top">
+		<p class="eyebrow">Isometrics · Build with AI · 9 November 2026</p>
+		<h1>Build with AI Loop</h1>
+		<p class="lead">I tested Build with AI the way a person uses it. I typed a request into the dialog, copied the prompt it makes, gave that to a separate AI, pasted its answer back and looked at the world. After each round I fixed what went wrong and ran the same request again. Then I tested asking for changes to a world the same way.</p>
+		<div class="terms">
+			<div class="term"><b>Request</b><span>What the person types into “What should your AI build?” or “What should it change?”. Written by an agent that knew only what the home page says. Shown in blue for changes.</span></div>
+			<div class="term"><b>Prompt</b><span>What the app copies when they click Copy the prompt: their request plus the guide, every part, an example world, and for a change the world itself. 30 to 50 KB.</span></div>
+			<div class="term"><b>AI</b><span>A fresh agent that saw only the prompt. Either a plain chat AI with no tools, or one that could also read the format online and check its answer with validate.</span></div>
+			<div class="term"><b>Result</b><span>The answer pasted back into the dialog and opened, with pictures in View mode and what validate says about it today.</span></div>
+		</div>
+	</header>
+
+	<section>
+		<div class="section-head">
+			<p class="eyebrow">Overview</p>
+			<h2>Every step at a glance</h2>
+			<p class="small">Click a result to jump to that step. Round 1's worlds had 41 issues that validate didn't report then. With the fixes, round 2's worlds have none.</p>
+		</div>
+		{{OVERVIEW}}
+	</section>
+
+	<section class="world" id="alpine">
+		<div class="world-head">
+			<p class="eyebrow">World 1 · a place, no data</p>
+			<h2>Alpine village at dusk</h2>
+		</div>
+		<div class="steps">{{ALPINE}}</div>
+	</section>
+
+	<section class="world" id="food">
+		<div class="world-head">
+			<p class="eyebrow">World 2 · data: deliveries from a spreadsheet</p>
+			<h2>Food bank deliveries</h2>
+		</div>
+		<div class="steps">{{FOOD}}</div>
+	</section>
+
+	<section class="world" id="campus">
+		<div class="world-head">
+			<p class="eyebrow">World 3 · data per building, with traffic</p>
+			<h2>Campus energy</h2>
+			<p>No follow-up change was run on this world.</p>
+		</div>
+		<div class="steps">{{CAMPUS}}</div>
+	</section>
+
+	<section id="fixes">
+		<div class="section-head">
+			<p class="eyebrow">In the working tree, not committed</p>
+			<h2>The fixes</h2>
+		</div>
+		<div class="fixes">
+			<div class="fix" id="fix-1"><span class="fix-no">Fix 1</span><h4>Validate names fields that don't exist</h4><p>A made-up field like <code>lighting.timeOfDay</code> was dropped silently, and the dialog still said “Ready to open”. Now it's a warning that lists the fields that place does have.</p><p class="where">src/parts/validateWorld.ts</p></div>
+			<div class="fix" id="fix-2"><span class="fix-no">Fix 2</span><h4>Validate says when a size is out of range</h4><p>“0.04 isn't a width box_01 takes (at least 0.05): it's drawn with 1”, where it used to say nothing.</p><p class="where">src/parts/validateWorld.ts</p></div>
+			<div class="fix" id="fix-3"><span class="fix-no">Fix 3</span><h4>Validate finds things buried in a hill</h4><p>It gives the altitude to use instead. A little way into a slope, as Stockholm's buildings stand, isn't warned about.</p><p class="where">src/parts/validateWorld.ts</p></div>
+			<div class="fix" id="fix-4"><span class="fix-no">Fix 4</span><h4>Validate checks colour names on the ground, roads and areas</h4><p><code>ground.colors.ground</code> did nothing; the warning now says the ground's colour is called <code>surface</code>.</p><p class="where">src/parts/validateWorld.ts</p></div>
+			<div class="fix" id="fix-5"><span class="fix-no">Fix 5</span><h4>Units with a space: “103.4K kWh”</h4><p>The format's description told AIs to write units like <code>"km/h"</code>, but the app shows a unit exactly as typed. The description now says to put a space before a word, and validate warns when one is missing.</p><p class="where">src/scene/schema.ts · validateWorld.ts</p></div>
+			<div class="fix" id="fix-6"><span class="fix-no">Fix 6</span><h4>The “stands inside” warning gives heights</h4><p>It now ends with how high each object reaches (“the warehouse reaches up to 3.4”), so an AI can stand panels on a roof without dozens of guesses.</p><p class="where">src/parts/validateWorld.ts</p></div>
+			<div class="fix" id="fix-7"><span class="fix-no">Fix 7</span><h4>The guide teaches the basics an AI was guessing</h4><p>Where things are (<code>[x, z]</code>; a point's height is its third number), which way turning goes, time of day and weather with the hours of dusk, what a running clock does, colour names, hills with peaks and standing things on them, size limits, and showing many cards as small chips.</p><p class="where">src/guide/guide.ts (in every prompt, and /guide.md)</p></div>
+			<div class="fix" id="fix-8"><span class="fix-no">Fix 8</span><h4>The AI may add a note after its answer</h4><p>For a new world and for a change: what it built from shapes, what it couldn't do, numbers it assumed. The dialog still reads only the JSON.</p><p class="where">src/editor/aiPrompt.ts</p></div>
+			<div class="fix" id="fix-9"><span class="fix-no">Fix 9</span><h4>A change takes what's selected along</h4><p>The prompt lists the selected things by id and name. The dialog's hint says so: “Select things in the world first to say ‘this’ or ‘these’”.</p><p class="where">src/ui/BuildWithAiDialog.tsx · aiPrompt.ts · guide.ts · e2e test</p></div>
+			<div class="fix" id="fix-10"><span class="fix-no">Fix 10</span><h4>A change's summary reads at a glance</h4><p>“adds Ski, Ski, Skier, Skier's head, Ski…” became “adds Ski ×8, Skier ×4, … and 11 more”.</p><p class="where">src/scene/worldPatch.ts</p></div>
+		</div>
+		<p class="small">Checked with <code>pnpm check</code>, <code>pnpm typecheck</code>, all 2,161 unit tests, and the Build with AI and sharing end-to-end tests plus a new one for the selection. Every starter world still validates with no warnings.</p>
+	</section>
+
+	<section id="open">
+		<div class="section-head">
+			<p class="eyebrow">Not done</p>
+			<h2>Questions for you</h2>
+		</div>
+		<ul class="open">
+			<li><strong>Vans on a data road can't be recoloured</strong><span>Food bank step 3: to make the vans green, the AI gave up the vans that follow the data. Give a road's flow its own colours?</span></li>
+			<li><strong>Standing things on a slope</strong><span>Alpine steps 3 and 4: the AI has to work out a hill's height at each spot by hand, and got it wrong once and right once. An altitude that means “on whatever is under it” (a format change, so an ADR), or a “Stand them on the land” button beside the warning?</span></li>
+			<li><strong>Snow settles on moving vehicles</strong><span>Alpine step 3: the red train looked white because snow lay on its roof.</span></li>
+			<li><strong>Roof heights</strong><span>Campus: a building counts as tall as its tallest point, so the city hall's tower makes its whole roof “too high” to stand panels on.</span></li>
+			<li><strong>Parts people asked for that don't exist</strong><span>People and skaters, a train with track, a chairlift, a stadium, a mosque, a library, ice. Every AI built these from shapes.</span></li>
+			<li><strong>A looping road can't join a junction</strong><span>Campus: the car park road couldn't connect to the ring road.</span></li>
+			<li><strong>Cards still overlap</strong><span>Campus step 2: a chip sits over another card's number.</span></li>
+			<li><strong>Commit the fixes?</strong><span>Nothing is committed yet. The temporary test harness (<code>e2e/debug-ai-loop.spec.ts</code>) gets deleted first.</span></li>
+		</ul>
+	</section>
+</div>
+
+<dialog class="lightbox" id="lightbox" aria-label="Picture at full size">
+	<div class="lightbox-inner">
+		<img id="lightbox-img" alt="">
+		<div class="lightbox-bar">
+			<button type="button" id="lightbox-prev" aria-label="Previous picture">← Previous</button>
+			<p><span id="lightbox-caption"></span> <span class="lightbox-count" id="lightbox-count"></span></p>
+			<button type="button" id="lightbox-next" aria-label="Next picture">Next →</button>
+			<button type="button" id="lightbox-close">Close (Esc)</button>
+		</div>
+	</div>
+</dialog>
+
+<script>
+(() => {
+	const box = document.getElementById("lightbox");
+	const img = document.getElementById("lightbox-img");
+	const caption = document.getElementById("lightbox-caption");
+	const count = document.getElementById("lightbox-count");
+	const zooms = [...document.querySelectorAll(".zoom")];
+	let at = 0;
+	const show = (index) => {
+		at = (index + zooms.length) % zooms.length;
+		const small = zooms[at].querySelector("img");
+		img.src = zooms[at].dataset.full;
+		img.alt = small.alt;
+		caption.textContent = small.alt;
+		count.textContent = `${at + 1} / ${zooms.length}`;
+	};
+	zooms.forEach((button, index) => {
+		button.addEventListener("click", () => {
+			show(index);
+			box.showModal();
+		});
+	});
+	document.getElementById("lightbox-prev").addEventListener("click", () => show(at - 1));
+	document.getElementById("lightbox-next").addEventListener("click", () => show(at + 1));
+	document.getElementById("lightbox-close").addEventListener("click", () => box.close());
+	img.addEventListener("click", () => box.close());
+	box.addEventListener("click", (event) => {
+		if (event.target === box) box.close();
+	});
+	box.addEventListener("keydown", (event) => {
+		if (event.key === "ArrowLeft") show(at - 1);
+		if (event.key === "ArrowRight") show(at + 1);
+	});
+	box.addEventListener("close", () => zooms[at]?.focus());
+})();
+</script>

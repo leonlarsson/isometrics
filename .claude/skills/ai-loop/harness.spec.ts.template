@@ -1,0 +1,137 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import type { Page } from "@playwright/test";
+
+import { act, buildWithAiMenu, expect, openEditor, read, test } from "./editor";
+
+/**
+ * The AI loop's harness (the ai-loop skill): drives Build with AI as a person would.
+ * Copied to e2e/ai-loop.spec.ts for a run and deleted afterwards; never committed.
+ * AI_JOB names a JSON job file:
+ *   { kind: "new-prompt", description, data?, out }           copy a new world's prompt to `out`
+ *   { kind: "open", answer, outDir }                          paste an answer (or world.json) as a new world, pictures
+ *   { kind: "change-prompt", world, description, select?, out } open `world`, select an id, copy a change prompt
+ *   { kind: "change-open", world, patch, outDir }             open `world`, paste the patch, apply, pictures
+ * Writes into outDir: dialog-check.txt (the dialog's check), toasts.txt, opened-world.json,
+ * view-opening.png, view-<n>-<viewpoint>.png (up to five) and edit.png.
+ */
+const job = process.env.AI_JOB ? JSON.parse(readFileSync(process.env.AI_JOB, "utf8")) : null;
+
+test.use({ viewport: { width: 1600, height: 1000 } });
+test.setTimeout(240_000);
+
+const dialogOf = (page: Page) => page.getByRole("dialog", { name: "Build with AI" });
+
+/** Paste an answer at the answer step, record the dialog's check, and put it in place. */
+const pasteAndPutInPlace = async (page: Page, answer: string, outDir: string, isChange: boolean) => {
+	const dialog = dialogOf(page);
+	await dialog.getByRole("textbox", { name: "What your AI wrote" }).fill(answer);
+	await page.waitForTimeout(1500);
+	writeFileSync(join(outDir, "dialog-check.txt"), await dialog.innerText());
+	const confirm = dialog.getByRole("button", {
+		name: isChange ? "Apply the changes" : "Open it",
+		exact: true,
+	});
+	if (await confirm.isDisabled()) {
+		writeFileSync(join(outDir, "failed.txt"), "The dialog wouldn't open it.");
+		return false;
+	}
+	await confirm.click();
+	await expect(dialog).toBeHidden();
+	await page.waitForTimeout(800);
+	const toasts = await page
+		.locator("[data-sonner-toast], [role='status'], [class*='toast']")
+		.allInnerTexts();
+	writeFileSync(join(outDir, "toasts.txt"), toasts.join("\n---\n"));
+	return true;
+};
+
+/** Pictures in View mode: the opening view, then each viewpoint (up to five), then Edit mode. */
+const pictures = async (page: Page, outDir: string) => {
+	const scene = await read(page, (s) => s.scene);
+	writeFileSync(join(outDir, "opened-world.json"), JSON.stringify(scene, null, 1));
+	await act(page, (s) => s.setMode("view"));
+	await page.waitForTimeout(4000);
+	await page.screenshot({ path: join(outDir, "view-opening.png") });
+	for (const [index, viewpoint] of scene.viewpoints.slice(0, 5).entries()) {
+		await act(page, (s, id) => s.goToViewpoint(id, { instant: true }), viewpoint.id);
+		await page.waitForTimeout(2500);
+		await page.screenshot({ path: join(outDir, `view-${index + 1}-${viewpoint.id}.png`) });
+	}
+	await act(page, (s) => s.setMode("edit"));
+	await page.waitForTimeout(1500);
+	await page.screenshot({ path: join(outDir, "edit.png") });
+};
+
+const copyPrompt = async (page: Page, description: string, data: string | undefined) => {
+	const dialog = dialogOf(page);
+	await dialog
+		.getByRole("textbox", { name: /What should (your AI build|it change)\?/ })
+		.fill(description);
+	if (data) {
+		await dialog.getByRole("button", { name: "Add your data" }).click();
+		await dialog.getByRole("textbox", { name: "Your data" }).fill(data);
+	}
+	await dialog.getByRole("button", { name: "Copy the prompt" }).click();
+	await expect(dialog).toContainText("Copied. Paste it into your AI chat");
+	return page.evaluate(() => navigator.clipboard.readText());
+};
+
+/** Open a world as a person who built it would have it: pasted back as a new world. */
+const openWorld = async (page: Page, worldText: string) => {
+	await buildWithAiMenu(page, /^Paste what your AI wrote/);
+	await dialogOf(page).getByText("A new world", { exact: true }).click();
+	await dialogOf(page).getByRole("textbox", { name: "What your AI wrote" }).fill(worldText);
+	await dialogOf(page).getByRole("button", { name: "Open it", exact: true }).click();
+	await expect(dialogOf(page)).toBeHidden();
+	await page.waitForTimeout(1500);
+};
+
+test("AI loop job", async ({ page, context, baseURL }) => {
+	test.skip(!job, "no AI_JOB");
+	await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+		origin: new URL(baseURL ?? "http://localhost:3000").origin,
+	});
+	await openEditor(page);
+	const outDir: string | null = job.outDir ?? null;
+	if (outDir) {
+		mkdirSync(outDir, { recursive: true });
+	}
+
+	if (job.kind === "new-prompt") {
+		await buildWithAiMenu(page, /A new world/);
+		writeFileSync(job.out, await copyPrompt(page, job.description, job.data));
+		return;
+	}
+
+	if (job.kind === "open" && outDir) {
+		// With a world open, Paste what your AI wrote starts on Change: pick A new world.
+		await buildWithAiMenu(page, /^Paste what your AI wrote/);
+		await dialogOf(page).getByText("A new world", { exact: true }).click();
+		if (await pasteAndPutInPlace(page, readFileSync(job.answer, "utf8"), outDir, false)) {
+			await pictures(page, outDir);
+		}
+		return;
+	}
+
+	await openWorld(page, readFileSync(job.world, "utf8"));
+	if (job.kind === "change-prompt") {
+		if (job.select) {
+			await act(page, (s, id) => s.select(id), job.select);
+		}
+		await buildWithAiMenu(page, /Change this world/);
+		// What the dialog says before copying (the selection hint), next to the prompt.
+		writeFileSync(`${job.out}.dialog.txt`, await dialogOf(page).innerText());
+		writeFileSync(job.out, await copyPrompt(page, job.description, undefined));
+		return;
+	}
+
+	if (job.kind === "change-open" && outDir) {
+		await buildWithAiMenu(page, /^Paste what your AI wrote/);
+		await dialogOf(page).getByText(/^Change “/).click();
+		if (await pasteAndPutInPlace(page, readFileSync(job.patch, "utf8"), outDir, true)) {
+			await pictures(page, outDir);
+		}
+	}
+});
