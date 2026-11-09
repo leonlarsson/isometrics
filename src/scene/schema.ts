@@ -539,7 +539,12 @@ export const DataValueSchema = z
 		value: DataCellSchema.describe(
 			"The value: a number or a short text. Read from its source, it's the last value read.",
 		),
-		unit: z.string().default("").describe('Shown after the value, e.g. "%" or "km/h".'),
+		unit: z
+			.string()
+			.default("")
+			.describe(
+				'Shown right after the value, as typed: "%" or "€" as they are, a word with a space before it (" km/h", " kWh"), or it reads "12kWh".',
+			),
 		source: DataSourceRefSchema.nullable()
 			.default(null)
 			.describe("Where it's read from; null = typed by hand."),
@@ -574,7 +579,12 @@ export const DataColumnSchema = z
 	.object({
 		key: DataKeySchema.describe("The column's name in the rows and in settings that follow it."),
 		name: z.string().default("").describe("Human-readable name; empty = its key."),
-		unit: z.string().default("").describe('Shown after its values, e.g. "%".'),
+		unit: z
+			.string()
+			.default("")
+			.describe(
+				'Shown right after its values, as typed: "%" or "€" as they are, a word with a space before it (" km/h", " kWh").',
+			),
 		field: z
 			.string()
 			.default("")

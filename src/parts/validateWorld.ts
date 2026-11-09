@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { isRecord, type TRecord } from "#/lib/record";
+import { AREA_KINDS, groundHeightAt } from "#/scene/areas";
 import {
 	FLOW_EASE_LENGTH,
 	flowDrivesOn,
@@ -11,7 +12,13 @@ import { plural } from "#/scene/format";
 import { ALTITUDE_GAP, roadNetworkOf } from "#/scene/junctions";
 import { networkEntries, waysOut } from "#/scene/network";
 import { describeRepairs } from "#/scene/repair";
-import { isHiddenRoute, polylineLength, roadCenterlineOf, steepestGrade } from "#/scene/roads";
+import {
+	isHiddenRoute,
+	polylineLength,
+	ROAD_KINDS,
+	roadCenterlineOf,
+	steepestGrade,
+} from "#/scene/roads";
 import { cellOf, columnOfKey } from "#/scene/rowData";
 import { SceneSchema, type TDataBinding, type TEntity, type TScene } from "#/scene/schema";
 import { applyWorldPatch, describePatchChanges } from "#/scene/worldPatch";
@@ -63,6 +70,9 @@ const STEEPEST_RAMP = 0.12;
 
 /** A road's settings in `road.data` that set how many vehicles its flow has (ADR-0112). */
 const FLOW_DATA_SETTINGS = ["vehicleDensity", "vehicleCountAlong", "vehicleCountAgainst"];
+
+/** An object deeper than this below the raised land it stands on is said to be buried in it. */
+const BURIED_BY = 0.75;
 
 /** More issues than this of one sort are summed up, not listed. */
 const MOST_ISSUES = 40;
@@ -127,6 +137,76 @@ const propsOf = (part: TAnyPart) => {
 	return props;
 };
 
+/**
+ * Why a part won't take a prop's value (out of its range, the wrong type), and what it's drawn
+ * with instead, or null when it takes it. Drawing keeps the valid props and defaults the rest
+ * (`resolveProps`), so this is a warning: it opens, just not as meant.
+ */
+const refusedProp = (part: TAnyPart, prop: string, value: unknown) => {
+	const defaults = part.schema.parse({}) as TRecord;
+	const result = part.schema.safeParse({ ...defaults, [prop]: value });
+	if (result.success) {
+		return null;
+	}
+	const issue = result.error.issues.find((each) => each.path[0] === prop) ?? result.error.issues[0];
+	return `${JSON.stringify(value)} isn't a ${prop} ${part.kind} takes (${issue?.message ?? "invalid"}): it's drawn with ${JSON.stringify(defaults[prop])}`;
+};
+
+/** The id or key a list entry is known by, if it has one. */
+const idOf = (entry: unknown) => {
+	if (!isRecord(entry)) {
+		return undefined;
+	}
+	const id = entry.id ?? entry.key;
+	return typeof id === "string" || typeof id === "number" ? id : undefined;
+};
+
+/**
+ * Fields written that opening leaves out: names the world's format doesn't have (a guessed
+ * `lighting.timeOfDay`, an object's `colour`), found by walking what was written alongside what
+ * opened. Each is said with the fields its place does have, so a guess can be put right. A
+ * part's `props` are checked against the part instead (they're kept).
+ */
+const fieldsLeftOut = (written: unknown, opened: unknown): IWorldIssue[] => {
+	const found: IWorldIssue[] = [];
+	const walk = (input: unknown, output: unknown, where: string, parentKey: string) => {
+		if (Array.isArray(input) && Array.isArray(output)) {
+			const byId = new Map(output.map((entry) => [idOf(entry), entry]));
+			input.forEach((entry, index) => {
+				const id = idOf(entry);
+				// Entries are matched by id where they have one (opening may leave some out), else by place.
+				const match =
+					id !== undefined
+						? byId.get(id)
+						: input.length === output.length
+							? output[index]
+							: undefined;
+				if (match !== undefined) {
+					walk(entry, match, `${where}[${index}]${typeof id === "string" ? ` "${id}"` : ""}`, "");
+				}
+			});
+			return;
+		}
+		if (!isRecord(input) || !isRecord(output) || parentKey === "props") {
+			return;
+		}
+		for (const key of Object.keys(input)) {
+			const at = where ? `${where}.${key}` : key;
+			if (Object.hasOwn(output, key)) {
+				walk(input[key], output[key], at, key);
+				continue;
+			}
+			const fields = Object.keys(output);
+			found.push({
+				where: at,
+				what: `isn't a field ${where ? `of ${where.replace(/\[\d+\]/g, "[]").replace(/ "[^"]*"/g, "")}` : "of a world"}: it's left out when the world opens${fields.length > 0 && fields.length <= 40 ? `. Its fields are ${fields.join(", ")}` : ""}`,
+			});
+		}
+	};
+	walk(written, opened, "", "");
+	return found;
+};
+
 /** A date as data keeps it: a year, a month or a day, maybe with a time (2026, 2026-09, 2026-09-30T12:00Z). */
 const ISO_DATE_LIKE =
 	/^\d{4}(-\d{2}(-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
@@ -176,17 +256,33 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 			return;
 		}
 		const known = propsOf(part);
-		for (const prop of Object.keys(entity.props)) {
+		for (const [prop, value] of Object.entries(entity.props)) {
 			if (!known.has(prop)) {
 				warn(
 					`${where}.props.${prop}`,
 					`${part.kind} has no prop "${prop}": it's kept but does nothing`,
 				);
+				continue;
+			}
+			const refused = refusedProp(part, prop, value);
+			if (refused) {
+				warn(`${where}.props.${prop}`, refused);
 			}
 		}
 		for (const id of Object.keys(entity.colors)) {
 			if (!part.colors.some((color) => color.id === id)) {
 				warn(`${where}.colors.${id}`, `${part.kind} has no colour "${id}"`);
+			}
+		}
+		// Standing inside raised land (ADR-0096): objects stand where their altitude says, not on the
+		// land. A little into a slope is how a building stands on one; buried deep is a forgotten altitude.
+		if (!entity.follow && !part.flat) {
+			const top = groundHeightAt(scene.areas, entity.position);
+			if (top > entity.altitude + BURIED_BY) {
+				warn(
+					`${where}.altitude`,
+					`is ${roughly(entity.altitude)}, but the raised land it stands on has its top at ${roughly(top)} there, so it's buried in it. Set its \`altitude\` to ${roughly(top)} to stand it on the land`,
+				);
 			}
 		}
 		rowRead(where, entity.dataRow);
@@ -238,10 +334,16 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 	const entityAt = (entity: TEntity) => `entities[${indexOf.get(entity)}] "${entity.id}"`;
 	// Asked for one more than are listed, so a world of thousands in one place isn't millions of pairs.
 	const inEachOther = objectsInEachOther(scene.entities, partOf, MOST_OF_A_SORT + 1);
+	// How high an object reaches (its part's height, times its scale, above its altitude): the
+	// altitude to stand something on it, which an AI can't work out from a part's props.
+	const topOf = (entity: TEntity) => {
+		const part = partOf(entity.kind);
+		return part ? Math.max(...bodiesOf(entity, part).map((body) => body.top)) : entity.altitude;
+	};
 	for (const { a, b, overlap } of inEachOther.slice(0, MOST_OF_A_SORT)) {
 		warn(
 			`${entityAt(a)}.position`,
-			`stands inside "${b.id}": they overlap by ${roughly(overlap)} where their heights meet, so one shows through the other. Move them apart (an object takes up its part's footprint, times its scale, round its position), or stand one on the other with its \`altitude\` at the other's top`,
+			`stands inside "${b.id}": they overlap by ${roughly(overlap)} where their heights meet, so one shows through the other. Move them apart (an object takes up its part's footprint, times its scale, round its position), or stand one on the other with its \`altitude\` at the other's top ("${a.id}" reaches up to ${roughly(topOf(a))}, "${b.id}" to ${roughly(topOf(b))})`,
 		);
 	}
 	if (inEachOther.length > MOST_OF_A_SORT) {
@@ -333,9 +435,33 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		bindingsRead(where, road.data, readableKeys(scene, road.dataRow).keys);
 	});
 
+	// Colour ids the ground, roads and areas don't have do nothing (ADR-0060).
+	const colorsRead = (
+		where: string,
+		colors: Readonly<Record<string, unknown>>,
+		ids: readonly string[],
+		what: string,
+	) => {
+		for (const id of Object.keys(colors)) {
+			if (!ids.includes(id)) {
+				warn(
+					`${where}.colors.${id}`,
+					`${what} has no colour "${id}": its colours are ${ids.map((each) => `"${each}"`).join(" and ")}`,
+				);
+			}
+		}
+	};
+	colorsRead("ground", scene.ground.colors, ["surface"], "the ground");
+	scene.roads.forEach((road, index) => {
+		const ids = ROAD_KINDS[road.kind].colors.map((color) => color.id);
+		colorsRead(`roads[${index}] "${road.id}"`, road.colors, ids, `a ${road.kind} road`);
+	});
+
 	// Areas: the row they follow, and what their weather follows (ADR-0151, ADR-0152).
 	scene.areas.forEach((area, index) => {
 		const where = `areas[${index}] "${area.id}"`;
+		const ids = AREA_KINDS[area.kind].colors.map((color) => color.id);
+		colorsRead(where, area.colors, ids, `a ${area.kind} area`);
 		rowRead(where, area.dataRow);
 		if (area.weather) {
 			bindingsRead(`${where}.weather`, area.weather.data, readableKeys(scene, area.dataRow).keys);
@@ -482,6 +608,27 @@ const worldWarnings = (scene: TScene): IWorldIssue[] => {
 		});
 	});
 
+	// Units are shown right after the number, as typed (the Unit field's hint): a word needs its space.
+	const unitRead = (where: string, unit: string) => {
+		if (/^[\p{L}\d]/u.test(unit)) {
+			warn(
+				`${where}.unit`,
+				`"${unit}" is shown right after the number, so it reads "12${unit}" (or "1.2K${unit}"): start it with a space, " ${unit}"`,
+			);
+		}
+	};
+	scene.data.values.forEach((value, index) => {
+		unitRead(`data.values[${index}] "${value.key}"`, value.unit);
+	});
+	scene.data.tables.forEach((table, index) => {
+		table.columns.forEach((column, columnIndex) => {
+			unitRead(
+				`data.tables[${index}] "${table.key}".columns[${columnIndex}] "${column.key}"`,
+				column.unit,
+			);
+		});
+	});
+
 	scene.data.tables.forEach((table, index) => {
 		if (!table.columns.some((column) => column.key === table.keyColumn)) {
 			warn(
@@ -598,7 +745,7 @@ export const validateWorld = (input: unknown): IWorldValidation => {
 		isValid: report === null && problems.length === 0,
 		isUnreadable: false,
 		problems: capped(problems),
-		warnings: capped(worldWarnings(scene)),
+		warnings: capped([...fieldsLeftOut(upgraded, scene), ...worldWarnings(scene)]),
 		repairs: report ? describeRepairs(report) : null,
 		contents: [
 			plural(scene.entities.length, "object"),

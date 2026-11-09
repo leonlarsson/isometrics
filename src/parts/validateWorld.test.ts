@@ -228,6 +228,90 @@ describe("checking a world", () => {
 	});
 });
 
+describe("warning of what an AI guessed wrong", () => {
+	it("names fields the format doesn't have, with the fields that place does", () => {
+		const said = warningsOf({
+			lighting: { timeOfDay: 18 },
+			entities: [{ id: "a", kind: "house_01", position: [0, 0], colour: "#ff0000" }],
+		});
+		expect(said).toContain(
+			"lighting.timeOfDay: isn't a field of lighting: it's left out when the world opens. Its fields are time,",
+		);
+		expect(said).toContain('entities[0] "a".colour: isn\'t a field of entities');
+		// A part's props are its own: checked against the part, not reported twice.
+		expect(warningsOf({ entities: [{ id: "a", kind: "house_01", props: { width: 3 } }] })).toBe("");
+	});
+
+	it("says a prop out of its range is drawn with its default", () => {
+		const said = warningsOf({
+			entities: [{ id: "cable", kind: "box_01", position: [0, 0], props: { width: 0.02 } }],
+		});
+		expect(said).toContain('entities[0] "cable".props.width: 0.02 isn\'t a width box_01 takes');
+		expect(said).toContain("it's drawn with 1");
+	});
+
+	it("warns of an object buried in raised land, not of one a little into a slope", () => {
+		const hill = {
+			id: "hill",
+			kind: "raised_land_01",
+			height: 3,
+			points: [
+				[-5, -5],
+				[5, -5],
+				[5, 5],
+				[-5, 5],
+			],
+		};
+		expect(
+			warningsOf({ areas: [hill], entities: [{ id: "hut", kind: "house_01", position: [0, 0] }] }),
+		).toContain("Set its `altitude` to 3 to stand it on the land");
+		expect(
+			warningsOf({
+				areas: [hill],
+				entities: [{ id: "hut", kind: "house_01", position: [0, 0], altitude: 2.6 }],
+			}),
+		).toBe("");
+	});
+
+	it("names colour ids the ground, roads and areas don't have", () => {
+		const said = warningsOf({
+			ground: { width: 20, depth: 20, colors: { ground: { color: "#ffffff" } } },
+			areas: [
+				{
+					id: "pond",
+					kind: "water_01",
+					points: [
+						[0, 0],
+						[4, 0],
+						[4, 4],
+					],
+					colors: { water: { color: "#88aacc" } },
+				},
+			],
+		});
+		expect(said).toContain(
+			'ground.colors.ground: the ground has no colour "ground": its colours are "surface"',
+		);
+		expect(said).toContain('areas[0] "pond".colors.water: a water_01 area has no colour "water"');
+	});
+
+	it("warns of a word unit without its space, which reads as one with the number", () => {
+		const said = warningsOf({
+			data: {
+				enabled: true,
+				values: [
+					{ key: "energy", value: 680100, unit: "kWh" },
+					{ key: "share", value: 12, unit: "%" },
+					{ key: "speed", value: 30, unit: " km/h" },
+				],
+			},
+		});
+		expect(said).toContain('data.values[0] "energy".unit: "kWh" is shown right after the number');
+		expect(said).not.toContain('"share"');
+		expect(said).not.toContain('"speed"');
+	});
+});
+
 describe("warning of objects inside each other", () => {
 	it("names each pair once, with how much they overlap", () => {
 		const said = warningsOf({
